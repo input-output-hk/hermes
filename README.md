@@ -4,15 +4,15 @@
 
 Welcome to the Hermes mono repo, where we manage and maintain the interconnected projects.
 
-* [Hermes](#hermes)
-  * [Overview](#overview)
-  * [Getting Started](#getting-started)
-  * [Projects](#projects)
-    * [Hermes](#hermes-1)
-    * [Dashboard](#dashboard)
-  * [Development](#development)
-  * [Contributing](#contributing)
-  * [License](#license)
+- [Hermes](#hermes)
+  - [Overview](#overview)
+  - [Getting Started](#getting-started)
+  - [Projects](#projects)
+    - [Hermes](#hermes-1)
+    - [Dashboard](#dashboard)
+  - [Development](#development)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Overview
 
@@ -50,7 +50,7 @@ High-Availability Blockchain Voting Database.
 
 Hermes Admin Dashboard.
 
-* **Directory**: [dashboard](https://github.com/input-outpu../catalyst-voices/.vscodet-hk/hermes/tree/main/dashboard)
+* **Directory**: [dashboard](https://github.com/input-output-hk/hermes/tree/main/dashboard)
 * **Setup**: Navigate to ./dashboard and run TODO.
 * **Documentation**: [Link to detailed documentation or Wiki]
 
