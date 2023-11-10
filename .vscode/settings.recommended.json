@@ -35,11 +35,15 @@
   "window.title": "${dirty}${activeEditorShort}",
   "conventionalCommits.scopes": [
     "vscode",
-    "athena",
-    "frontend",
-    "frontend-pkg",
-    "backend",
-    "backend-lib"
+    "hermes",
+    "dashboard",
+    "hermes-lib",
+    "mdlint",
+    "languages",
+    "spelling",
+    "issues",
+    "gateway",
+    "docs"
   ],
   "conventionalCommits.gitmoji": false,
   "markdown.extension.toc.unorderedList.marker": "*",
