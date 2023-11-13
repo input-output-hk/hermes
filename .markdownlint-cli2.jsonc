@@ -8,7 +8,8 @@
     "**/*.md"
   ],
   "ignores": [
-    ".config/dictionaries/**"
+    ".config/dictionaries/**",
+    "hermes/target/**"
   ],
   // Set standard config options in `/.markdownlint.jsonc`
   "config": {
