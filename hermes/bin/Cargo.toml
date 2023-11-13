@@ -1,13 +1,13 @@
 [package]
 name = "hermes"
 description = "The Hermes Node"
-license = "Apache-2.0"
-repository = "https://github.com/input-output-hk/hermes"
 keywords = ["cardano", "catalyst", "hermes"]
 categories = ["command-line-utilities"]
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "hermes"
