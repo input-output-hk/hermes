@@ -1,0 +1,30 @@
+INHERIT: std-theme.yml
+
+# cspell: words cips
+
+# Project Information
+site_name: Project Catalyst - Hermes
+site_url: https://input-output-hk.github.io/hermes
+
+# Repository
+repo_name: input-output-hk/hermes
+repo_url: https://github.com/input-output-hk/ermes
+
+# Page tree
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Getting Started: getting-started/index.md
+      - Quick Start: getting-started/quick-start.md
+      - Advanced: getting-started/advanced.md
+      - Development: getting-started/development.md
+  - Architecture:
+      - Architecture: architecture/index.md
+  - Appendix:
+      - Appendix: appendix/index.md
+      - Important Information:
+          - Important Information: appendix/important/index.md
+          - Contributing: appendix/important/contributing.md
+          - Code of Conduct: appendix/important/coc.md
+          - Security: appendix/important/security.md
+          - License: appendix/important/license.md
