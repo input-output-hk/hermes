@@ -1,5 +1,7 @@
 name: 🧪 Flutter iOS and Android Integration Tests
 
+# cspell: words gcloud, subosito bluefireteam
+
 permissions:
   contents: read
   id-token: write

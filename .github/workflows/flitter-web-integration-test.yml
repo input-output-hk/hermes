@@ -1,5 +1,7 @@
 name: 🧪 Flutter Web Integration Tests
 
+# cspell: words subosito bluefireteam
+
 permissions:
   contents: read
   id-token: write

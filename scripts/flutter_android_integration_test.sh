@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# cspell: words gradlew ptarget gcloud appspot
+
 pushd dashboard
 flutter build apk integration_test/main.dart --profile --flavor development
 

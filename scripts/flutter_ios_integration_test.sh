@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# cspell: words integ xcodebuild xcworkspace scconfig iphoneos xctestrun gcloud appspot xcconfig
+
 output="../build/ios_integ"
 product="build/ios_integ/Build/Products"
 
