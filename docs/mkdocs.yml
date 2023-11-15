@@ -8,23 +8,40 @@ site_url: https://input-output-hk.github.io/hermes
 
 # Repository
 repo_name: input-output-hk/hermes
-repo_url: https://github.com/input-output-hk/ermes
+repo_url: https://github.com/input-output-hk/hermes
 
-# Page tree
-nav:
-  - Home: index.md
-  - Getting Started:
-      - Getting Started: getting-started/index.md
-      - Quick Start: getting-started/quick-start.md
-      - Advanced: getting-started/advanced.md
-      - Development: getting-started/development.md
-  - Architecture:
-      - Architecture: architecture/index.md
-  - Appendix:
-      - Appendix: appendix/index.md
-      - Important Information:
-          - Important Information: appendix/important/index.md
-          - Contributing: appendix/important/contributing.md
-          - Code of Conduct: appendix/important/coc.md
-          - Security: appendix/important/security.md
-          - License: appendix/important/license.md
+# Page tree - is created automatically.
+# See: https://henrywhitaker3.github.io/mkdocs-material-dark-theme/plugins/awesome-pages/
+
+# Tags used in these docs
+extra:
+  tags:
+    HTML5: html
+    JavaScript: js
+    CSS: css
+    Rust: rust
+    Flutter: flutter
+    Dart: dart
+    Python: python
+    Earthly: earthly
+    Github: github
+    Docker: docker
+    arc42: arc42
+    ADR: adr
+
+# Icons associated with the tags
+theme:
+  icon:
+    tag:
+      html: fontawesome/brands/html5
+      js: fontawesome/brands/js
+      css: fontawesome/brands/css3
+      rust: simple/rust
+      flutter: simple/flutter
+      dart: simple/dart
+      python: simple/python
+      earthly: material/earth-plus
+      github: simple/github
+      docker: simple/docker
+      arc42: material/pencil-ruler
+      adr: material/arrow-decision-auto
