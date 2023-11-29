@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "bin",
-    # "crates/<a crate>",
+    "crates/cardano-chain-follower",
 ]
 
 [workspace.package]
