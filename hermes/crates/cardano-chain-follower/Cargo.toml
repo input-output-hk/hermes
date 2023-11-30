@@ -1,0 +1,11 @@
+[package]
+name = "cardano-chain-follower"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
