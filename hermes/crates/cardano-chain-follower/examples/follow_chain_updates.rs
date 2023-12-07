@@ -3,13 +3,12 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, Client, Follower, Network};
+use cardano_chain_follower::{ChainUpdate, Follower, Network};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let client =
-        Client::connect_n2n("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
-    let mut follower = Follower::new(client);
+    let mut follower =
+        Follower::connect_n2n("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
 
     loop {
         let chain_update = follower.next().await?;
