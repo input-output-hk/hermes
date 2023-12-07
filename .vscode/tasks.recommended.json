@@ -4,7 +4,7 @@
 		{
 			"label": "CI - Recursive Markdown Lint - Check",
 			"type": "shell",
-			"command": "earthly -P +markdown-check",
+			"command": "earthly -P +check-markdoqn",
 			"problemMatcher": {
 				"owner": "markdown-check",
 				"pattern": {
@@ -24,7 +24,7 @@
 			"type": "shell",
 			"command": "earthly -P +markdown-check-fix",
 			"problemMatcher": {
-				"owner": "markdown-check",
+				"owner": "markdown-check-fix",
 				"pattern": {
 					"regexp": "(\\S+):(\\d+):(\\d+)\\s(.+)",
 					"file": 1,
