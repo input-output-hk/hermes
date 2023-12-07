@@ -17,11 +17,18 @@ markdown-check-fix:
 
     DO github.com/input-output-hk/catalyst-ci/earthly/mdlint:v1.3.0+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
 
+# spell-check Check spelling in this repo locally.
 spell-check:
-    # Check spelling in this repo.
     LOCALLY
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v1.3.0+CSPELL_LOCALLY --src=$(echo ${PWD})
+    DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v2.0.10+CSPELL_LOCALLY --src=$(echo ${PWD})
+
+# check-spelling Check spelling in this repo inside a container.
+check-spelling:
+    DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v2.0.10+CHECK
+
+check:
+    BUILD +check-spelling
  
 repo-docs:
     # Create artifacts of extra files we embed inside the documentation when its built.
