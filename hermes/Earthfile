@@ -27,7 +27,7 @@ build-hosted:
     # Build the service
     FROM +builder
  
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.11+BUILD --bins="hermes/hermes"
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.11+BUILD --libs="cardano-chain-follower" --bins="hermes/hermes"
 
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.11+SMOKE_TEST --bin=hermes
 

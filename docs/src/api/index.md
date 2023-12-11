@@ -37,10 +37,22 @@ icon: material/api
     {{ include_file('src/api/rust-docs/hermes.hermes.bin.modules.tree') }}
 ```
 
+### cardano-chain-follower crate
+
+```rust
+    {{ include_file('src/api/rust-docs/cardano-chain-follower.lib.modules.tree') }}
+```
+
 ## Module graphs
 
 ### hermes crate
 
 ```kroki-graphviz
 @from_file:./api/rust-docs/hermes.hermes.bin.modules.dot
+```
+
+### cardano-chain-follower crate
+
+```kroki-graphviz
+@from_file:./api/rust-docs/cardano-chain-follower.lib.modules.dot
 ```
