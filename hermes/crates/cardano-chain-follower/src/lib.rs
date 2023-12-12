@@ -146,12 +146,7 @@ pub struct Config {
 }
 
 /// Cardano chain follower.
-pub struct Follower {
-    /// Client used to get chain data using node-to-node protocol.
-    n2n_client: PeerClient,
-    /// Follower configuration.
-    config: Config,
-}
+pub struct Follower {}
 
 impl Follower {
     /// Connects the follower to a producer using the node-to-node protocol.
@@ -160,14 +155,14 @@ impl Follower {
     ///
     /// * `address`: Address of the node to connect to.
     /// * `network`: The [Network] the client is assuming it's connecting to.
+    /// * `config`: Follower's configuration (see [ConfigBuilder]).
     ///
     /// # Errors
     ///
     /// Returns Err if the connection could not be estabilished.
-    pub async fn connect(address: &str, network: Network, config: Config) -> Result<Self> {
-        let n2n_client = PeerClient::connect(address, network.into())
-            .await
-            .map_err(Box::new)?;
+    pub async fn connect(_address: &str, _network: Network, _config: Config) -> Result<Self> {
+        todo!()
+    }
 
         Ok(Self { n2n_client, config })
     }
