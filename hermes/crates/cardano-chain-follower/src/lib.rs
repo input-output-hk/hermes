@@ -10,10 +10,7 @@
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
     ledger::traverse::MultiEraBlock,
-    network::{
-        facades::PeerClient,
-        miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
-    },
+    network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
 };
 
 const DEFAULT_BLOCK_BUFFER_SIZE: usize = 32;
@@ -164,7 +161,33 @@ impl Follower {
         todo!()
     }
 
-        Ok(Self { n2n_client, config })
+    /// Fetches a single block from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `at`: The point at which to fetch the block.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the block was not found or if some communication error ocurred.
+    pub async fn fetch_block(&mut self, _at: Point) -> Result<MultiEraBlockData> {
+        todo!()
+    }
+
+    /// Fetches a range of blocks from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `from`: The point at which to start fetching block from.
+    /// * `to`: The point up to which the blocks will be fetched.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the block range was not found or if some communication error ocurred.
+    pub async fn fetch_block_range(
+        &mut self, _from: Point, _to: Point,
+    ) -> Result<Vec<MultiEraBlockData>> {
+        todo!()
     }
 
     /// Set the follower's chain read-pointer. Returns None if the point was
