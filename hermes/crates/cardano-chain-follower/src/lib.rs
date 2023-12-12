@@ -1,23 +1,4 @@
 //! Cardano chain follower.
-//!
-//! # Example
-//!
-//! Following chain updates from the tip of the chain can be done like:
-//!
-//! ```rust,no_run
-//! use cardano_chain_follower::{Follower, Network, PointOrTip};
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     let mut follower = Follower::connect_n2n("node.address", Network::Preprod)
-//!         .await
-//!         .unwrap();
-//!
-//!     follower.set_read_pointer(PointOrTip::Tip).await.unwrap();
-//!
-//!     let _update = follower.next().await.unwrap();
-//! }
-//! ```
 
 // TODO: remove this once we implement the API.
 #![allow(dead_code, clippy::unused_async)]
