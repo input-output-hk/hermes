@@ -30,7 +30,7 @@ pub use pallas::network::miniprotocols::Point;
 use pallas::{
     ledger::traverse::MultiEraBlock,
     network::{
-        facades::{NodeClient, PeerClient},
+        facades::PeerClient,
         miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
     },
 };
@@ -109,26 +109,18 @@ impl From<Network> for u64 {
     }
 }
 
-/// Enum of possible types of clients used by the follower.
-enum Client {
-    /// Pallas node-to-node client.
-    N2n(PeerClient),
-    /// Pallas node-to-client client.
-    N2c(NodeClient),
-}
-
 /// Enum of chain updates received by the follower.
 pub enum ChainUpdate {
     /// New block inserted on chain.
     Block(MultiEraBlockData),
-    /// Chain rollback to the given point.
-    Rollback(Point),
+    /// Chain rollback to the given block.
+    Rollback(MultiEraBlockData),
 }
 
 /// Cardano chain follower.
 pub struct Follower {
-    /// Client used to get chain data.
-    client: Client,
+    /// Client used to get chain data using node-to-node protocol.
+    n2n_client: PeerClient,
 }
 
 impl Follower {
@@ -142,38 +134,12 @@ impl Follower {
     /// # Errors
     ///
     /// Returns Err if the connection could not be estabilished.
-    pub async fn connect_n2n(address: &str, network: Network) -> Result<Self> {
-        let client = Client::N2n(
-            PeerClient::connect(address, network.into())
-                .await
-                .map_err(Box::new)?,
-        );
+    pub async fn connect(address: &str, network: Network) -> Result<Self> {
+        let n2n_client = PeerClient::connect(address, network.into())
+            .await
+            .map_err(Box::new)?;
 
-        Ok(Self { client })
-    }
-
-    /// Connects the follower to a producer using the node-to-client protocol.
-    ///
-    /// # Arguments
-    ///
-    /// * `path`: Path to the UDS to use for node communication.
-    /// * `network`: The [Network] the client is assuming it's connecting to.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if the connection could not be estabilished.
-    #[cfg(unix)]
-    pub async fn connect_n2c<P>(path: P, network: Network) -> Result<Self>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        let client = Client::N2c(
-            NodeClient::connect(path, network.into())
-                .await
-                .map_err(Box::new)?,
-        );
-
-        Ok(Follower { client })
+        Ok(Self { n2n_client })
     }
 
     /// Set the follower's chain read-pointer. Returns None if the point was

@@ -8,7 +8,7 @@ use cardano_chain_follower::{ChainUpdate, Follower, Network};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut follower =
-        Follower::connect_n2n("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
+        Follower::connect("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
 
     loop {
         let chain_update = follower.next().await?;
@@ -24,11 +24,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     hex::encode(block.hash()),
                 );
             },
-            ChainUpdate::Rollback(point) => {
-                println!("Rollback");
+            ChainUpdate::Rollback(data) => {
+                let block = data.decode()?;
 
-                // Set the read-pointer to the rollback point.
-                follower.set_read_pointer(point).await?;
+                println!(
+                    "Rollback block NUMBER={} SLOT={} HASH={}",
+                    block.number(),
+                    block.slot(),
+                    hex::encode(block.hash()),
+                );
             },
         }
     }
