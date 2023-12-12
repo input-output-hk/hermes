@@ -35,6 +35,9 @@ use pallas::{
     },
 };
 
+const DEFAULT_BLOCK_BUFFER_SIZE: usize = 32;
+const DEFAULT_MAX_AWAIT_RETRIES: u32 = 3;
+
 /// Crate error type.
 ///
 /// We are using a boxed error here until we have some implementation of the
@@ -117,10 +120,56 @@ pub enum ChainUpdate {
     Rollback(MultiEraBlockData),
 }
 
+/// Builder used to create [Config]s.
+#[derive(Default)]
+pub struct ConfigBuilder {
+    block_buffer_size: Option<usize>,
+    max_await_retries: Option<u32>,
+}
+
+impl ConfigBuilder {
+    /// Sets the size of the block buffer used by the [Follower].
+    ///
+    /// # Arguments
+    ///
+    /// * `block_buffer_size`: Size of the block buffer.
+    pub fn with_block_buffer_size(mut self, block_buffer_size: usize) -> Self {
+        self.block_buffer_size = Some(block_buffer_size);
+        self
+    }
+
+    /// Sets the maximum number of retries the [Follower] will execute when remote node sends
+    /// an AWAIT message when the [Follower] is already in the MUST_REPLY state.
+    ///
+    /// # Argument
+    ///
+    /// * `max_await_retries`: Maxium number of retries.
+    pub fn with_max_await_retries(mut self, max_await_retries: u32) -> Self {
+        self.max_await_retries = Some(max_await_retries);
+        self
+    }
+
+    /// Builds a [Config].
+    pub fn build(self) -> Config {
+        Config {
+            block_buffer_size: self.block_buffer_size.unwrap_or(DEFAULT_BLOCK_BUFFER_SIZE),
+            max_await_retries: self.max_await_retries.unwrap_or(DEFAULT_MAX_AWAIT_RETRIES),
+        }
+    }
+}
+
+/// Configuration for the Cardano chain follower.
+pub struct Config {
+    block_buffer_size: usize,
+    max_await_retries: u32,
+}
+
 /// Cardano chain follower.
 pub struct Follower {
     /// Client used to get chain data using node-to-node protocol.
     n2n_client: PeerClient,
+    /// Follower configuration.
+    config: Config,
 }
 
 impl Follower {
@@ -134,12 +183,12 @@ impl Follower {
     /// # Errors
     ///
     /// Returns Err if the connection could not be estabilished.
-    pub async fn connect(address: &str, network: Network) -> Result<Self> {
+    pub async fn connect(address: &str, network: Network, config: Config) -> Result<Self> {
         let n2n_client = PeerClient::connect(address, network.into())
             .await
             .map_err(Box::new)?;
 
-        Ok(Self { n2n_client })
+        Ok(Self { n2n_client, config })
     }
 
     /// Set the follower's chain read-pointer. Returns None if the point was
