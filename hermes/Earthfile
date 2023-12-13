@@ -6,10 +6,12 @@ VERSION 0.7
 fork-wasi-component-adapter:
     LOCALLY
 
-    RUN rm -rf crates/wasi-component-adapter/ || true && \
+    RUN if [ -e crates/wasi-component-adapter/Earthfile ]; then mv crates/wasi-component-adapter/Earthfile crates/Earthfile-tmp; fi && \
+        rm -rf crates/wasi-component-adapter/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
         mv wasmtime/crates/wasi-preview1-component-adapter crates/wasi-component-adapter && \
-        rm -rf wasmtime/
+        rm -rf wasmtime/ && \
+        if [ -e crates/Earthfile-tmp ]; then mv crates/Earthfile-tmp crates/wasi-component-adapter/Earthfile; fi
 
 # Set up our target toolchains, and copy our files.
 builder:
