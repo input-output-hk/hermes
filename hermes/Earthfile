@@ -2,12 +2,13 @@ VERSION 0.7
 
 #cspell: words rustup readelf nextest testci testdocs rustfmt toolsets USERARCH
 
+# Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
 fork-wasi-component-adapter:
     LOCALLY
 
-    RUN rm -rf crates/wasi-preview1-component-adapter || true && \
+    RUN rm -rf crates/wasi-component-adapter/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
-        mv wasmtime/crates/wasi-preview1-component-adapter crates/wasi-preview1-component-adapter && \
+        mv wasmtime/crates/wasi-preview1-component-adapter crates/wasi-component-adapter && \
         rm -rf wasmtime/
 
 # Set up our target toolchains, and copy our files.
