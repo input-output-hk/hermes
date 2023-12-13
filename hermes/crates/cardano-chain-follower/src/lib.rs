@@ -13,7 +13,9 @@ use pallas::{
     network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
 };
 
+/// Default [`Follower`] block buffer size.
 const DEFAULT_BLOCK_BUFFER_SIZE: usize = 32;
+/// Default [`Follower`] max await retries.
 const DEFAULT_MAX_AWAIT_RETRIES: u32 = 3;
 
 /// Crate error type.
@@ -98,36 +100,42 @@ pub enum ChainUpdate {
     Rollback(MultiEraBlockData),
 }
 
-/// Builder used to create [Config]s.
+/// Builder used to create [`Config`]s.
 #[derive(Default)]
 pub struct ConfigBuilder {
+    /// Block buffer size option.
     block_buffer_size: Option<usize>,
+    /// Maximum await retries option.
     max_await_retries: Option<u32>,
 }
 
 impl ConfigBuilder {
-    /// Sets the size of the block buffer used by the [Follower].
+    /// Sets the size of the block buffer used by the [`Follower`].
     ///
     /// # Arguments
     ///
     /// * `block_buffer_size`: Size of the block buffer.
+    #[must_use]
     pub fn with_block_buffer_size(mut self, block_buffer_size: usize) -> Self {
         self.block_buffer_size = Some(block_buffer_size);
         self
     }
 
-    /// Sets the maximum number of retries the [Follower] will execute when remote node sends
-    /// an AWAIT message when the [Follower] is already in the MUST_REPLY state.
+    /// Sets the maximum number of retries the [`Follower`] will execute when remote node
+    /// sends an AWAIT message when the [`Follower`] is already in the "must reply"
+    /// state.
     ///
     /// # Argument
     ///
     /// * `max_await_retries`: Maxium number of retries.
+    #[must_use]
     pub fn with_max_await_retries(mut self, max_await_retries: u32) -> Self {
         self.max_await_retries = Some(max_await_retries);
         self
     }
 
-    /// Builds a [Config].
+    /// Builds a [`Config`].
+    #[must_use]
     pub fn build(self) -> Config {
         Config {
             block_buffer_size: self.block_buffer_size.unwrap_or(DEFAULT_BLOCK_BUFFER_SIZE),
@@ -138,7 +146,9 @@ impl ConfigBuilder {
 
 /// Configuration for the Cardano chain follower.
 pub struct Config {
+    /// Configured block buffer size.
     block_buffer_size: usize,
+    /// Configured maximum await retry count.
     max_await_retries: u32,
 }
 
@@ -152,7 +162,7 @@ impl Follower {
     ///
     /// * `address`: Address of the node to connect to.
     /// * `network`: The [Network] the client is assuming it's connecting to.
-    /// * `config`: Follower's configuration (see [ConfigBuilder]).
+    /// * `config`: Follower's configuration (see [`ConfigBuilder`]).
     ///
     /// # Errors
     ///
@@ -183,7 +193,8 @@ impl Follower {
     ///
     /// # Errors
     ///
-    /// Returns Err if the block range was not found or if some communication error ocurred.
+    /// Returns Err if the block range was not found or if some communication error
+    /// ocurred.
     pub async fn fetch_block_range(
         &mut self, _from: Point, _to: Point,
     ) -> Result<Vec<MultiEraBlockData>> {
@@ -201,9 +212,7 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&mut self, _at: P) -> Result<Option<Point>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         todo!()
     }
 
