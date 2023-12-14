@@ -1,23 +1,17 @@
-//! This example shows how to use the chain follower to download arbitrary blocks
+//! This example shows how to use the chain reader to download arbitrary blocks
 //! from the chain.
 
 use std::error::Error;
 
-use cardano_chain_follower::{ConfigBuilder, Follower, Network, Point};
+use cardano_chain_follower::{Network, Point, Reader};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config = ConfigBuilder::default().build();
+    let mut reader =
+        Reader::connect("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
 
-    let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        config,
-    )
-    .await?;
-
-    let data = follower
-        .fetch_block(Point::Specific(
+    let data = reader
+        .read_block(Point::Specific(
             110908236,
             hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
         ))

@@ -14,7 +14,7 @@ use pallas::{
 };
 
 /// Default [`Follower`] block buffer size.
-const DEFAULT_BLOCK_BUFFER_SIZE: usize = 32;
+const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
 /// Default [`Follower`] max await retries.
 const DEFAULT_MAX_AWAIT_RETRIES: u32 = 3;
 
@@ -92,6 +92,58 @@ impl From<Network> for u64 {
     }
 }
 
+/// Cardano chain Reader.
+pub struct Reader {}
+
+impl Reader {
+    /// Connects the Reader to a producer using the node-to-node protocol.
+    ///
+    /// # Arguments
+    ///
+    /// * `address`: Address of the node to connect to.
+    /// * `network`: The [Network] the client is assuming it's connecting to.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the connection could not be established.
+    pub async fn connect(_address: &str, _network: Network) -> Result<Self> {
+        todo!()
+    }
+
+    /// Reads a single block from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `at`: The point at which to read the block.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the block was not found or if some communication error ocurred.
+    pub async fn read_block(&mut self, _at: Point) -> Result<MultiEraBlockData> {
+        todo!()
+    }
+
+    /// Reads a range of blocks from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `from`: The point at which to start reading block from.
+    /// * `to`: The point up to which the blocks will be read.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the block range was not found or if some communication error
+    /// ocurred.
+    pub async fn read_block_range<P>(
+        &mut self, _from: Point, _to: P,
+    ) -> Result<Vec<MultiEraBlockData>>
+    where
+        P: Into<PointOrTip>,
+    {
+        todo!()
+    }
+}
+
 /// Enum of chain updates received by the follower.
 pub enum ChainUpdate {
     /// New block inserted on chain.
@@ -100,24 +152,35 @@ pub enum ChainUpdate {
     Rollback(MultiEraBlockData),
 }
 
-/// Builder used to create [`Config`]s.
-#[derive(Default)]
-pub struct ConfigBuilder {
+/// Builder used to create [`FollowerConfig`]s.
+pub struct FollowerConfigBuilder {
     /// Block buffer size option.
-    block_buffer_size: Option<usize>,
+    chain_update_buffer_size: usize,
     /// Maximum await retries option.
-    max_await_retries: Option<u32>,
+    max_await_retries: u32,
+    /// Where to start following from.
+    follow_from: PointOrTip,
 }
 
-impl ConfigBuilder {
-    /// Sets the size of the block buffer used by the [`Follower`].
+impl Default for FollowerConfigBuilder {
+    fn default() -> Self {
+        Self {
+            chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+            max_await_retries: DEFAULT_MAX_AWAIT_RETRIES,
+            follow_from: PointOrTip::Tip,
+        }
+    }
+}
+
+impl FollowerConfigBuilder {
+    /// Sets the size of the chain updates buffer used by the [`Follower`].
     ///
     /// # Arguments
     ///
-    /// * `block_buffer_size`: Size of the block buffer.
+    /// * `chain_update_buffer_size`: Size of the chain updates buffer.
     #[must_use]
-    pub fn with_block_buffer_size(mut self, block_buffer_size: usize) -> Self {
-        self.block_buffer_size = Some(block_buffer_size);
+    pub fn chain_update_buffer_size(mut self, block_buffer_size: usize) -> Self {
+        self.chain_update_buffer_size = block_buffer_size;
         self
     }
 
@@ -125,31 +188,48 @@ impl ConfigBuilder {
     /// sends an AWAIT message when the [`Follower`] is already in the "must reply"
     /// state.
     ///
-    /// # Argument
+    /// # Arguments
     ///
-    /// * `max_await_retries`: Maxium number of retries.
+    /// * `max_await_retries`: Maximum number of retries.
     #[must_use]
-    pub fn with_max_await_retries(mut self, max_await_retries: u32) -> Self {
-        self.max_await_retries = Some(max_await_retries);
+    pub fn max_await_retries(mut self, max_await_retries: u32) -> Self {
+        self.max_await_retries = max_await_retries;
         self
     }
 
-    /// Builds a [`Config`].
+    /// Sets the point at which the follower will start following from.
+    ///
+    /// # Arguments
+    ///
+    /// * `from`: Sync starting point.
     #[must_use]
-    pub fn build(self) -> Config {
-        Config {
-            block_buffer_size: self.block_buffer_size.unwrap_or(DEFAULT_BLOCK_BUFFER_SIZE),
-            max_await_retries: self.max_await_retries.unwrap_or(DEFAULT_MAX_AWAIT_RETRIES),
+    pub fn follow_from<P>(mut self, from: P) -> Self
+    where
+        P: Into<PointOrTip>,
+    {
+        self.follow_from = from.into();
+        self
+    }
+
+    /// Builds a [`FollowerConfig`].
+    #[must_use]
+    pub fn build(self) -> FollowerConfig {
+        FollowerConfig {
+            chain_update_buffer_size: self.chain_update_buffer_size,
+            max_await_retries: self.max_await_retries,
+            follow_from: self.follow_from,
         }
     }
 }
 
 /// Configuration for the Cardano chain follower.
-pub struct Config {
-    /// Configured block buffer size.
-    block_buffer_size: usize,
+pub struct FollowerConfig {
+    /// Configured chain update buffer size.
+    pub chain_update_buffer_size: usize,
     /// Configured maximum await retry count.
-    max_await_retries: u32,
+    pub max_await_retries: u32,
+    /// Where to start following from.
+    pub follow_from: PointOrTip,
 }
 
 /// Cardano chain follower.
@@ -162,42 +242,14 @@ impl Follower {
     ///
     /// * `address`: Address of the node to connect to.
     /// * `network`: The [Network] the client is assuming it's connecting to.
-    /// * `config`: Follower's configuration (see [`ConfigBuilder`]).
+    /// * `config`: Follower's configuration (see [`FollowerConfigBuilder`]).
     ///
     /// # Errors
     ///
-    /// Returns Err if the connection could not be estabilished.
-    pub async fn connect(_address: &str, _network: Network, _config: Config) -> Result<Self> {
-        todo!()
-    }
-
-    /// Fetches a single block from the chain.
-    ///
-    /// # Arguments
-    ///
-    /// * `at`: The point at which to fetch the block.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if the block was not found or if some communication error ocurred.
-    pub async fn fetch_block(&mut self, _at: Point) -> Result<MultiEraBlockData> {
-        todo!()
-    }
-
-    /// Fetches a range of blocks from the chain.
-    ///
-    /// # Arguments
-    ///
-    /// * `from`: The point at which to start fetching block from.
-    /// * `to`: The point up to which the blocks will be fetched.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if the block range was not found or if some communication error
-    /// ocurred.
-    pub async fn fetch_block_range(
-        &mut self, _from: Point, _to: Point,
-    ) -> Result<Vec<MultiEraBlockData>> {
+    /// Returns Err if the connection could not be established.
+    pub async fn connect(
+        _address: &str, _network: Network, _config: FollowerConfig,
+    ) -> Result<Self> {
         todo!()
     }
 
@@ -212,7 +264,9 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&mut self, _at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         todo!()
     }
 
@@ -226,7 +280,7 @@ impl Follower {
     }
 }
 
-/// Validate a multiera block.
+/// Validate a multi-era block.
 ///
 /// This does not execute Plutus scripts nor validates ledger state.
 /// It only checks that the block is correctly formatted for its era.

@@ -3,11 +3,12 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, ConfigBuilder, Follower, Network, PointOrTip};
+use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config = ConfigBuilder::default().build();
+    // Defaults to start following from the tip.
+    let config = FollowerConfigBuilder::default().build();
 
     let mut follower = Follower::connect(
         "relays-new.cardano-mainnet.iohk.io:3001",
@@ -15,8 +16,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         config,
     )
     .await?;
-
-    follower.set_read_pointer(PointOrTip::Tip).await?;
 
     loop {
         let chain_update = follower.next().await?;
