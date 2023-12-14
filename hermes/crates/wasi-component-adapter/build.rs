@@ -1,3 +1,4 @@
+//! This module bridges the `wasi_snapshot_preview1` ABI to the preview2 ABI of the component model.
 use std::env;
 use std::path::PathBuf;
 
