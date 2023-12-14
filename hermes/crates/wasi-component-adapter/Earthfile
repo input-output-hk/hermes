@@ -1,0 +1,3 @@
+# Set up our target toolchains, and copy our files.
+builder:
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base
