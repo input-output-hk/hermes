@@ -1,4 +1,5 @@
-//! This crate exists to solve a very peculiar problem for the `wasi-preview1-component-adapter`.
+#![allow(missing_docs)]
+
 extern crate proc_macro;
 
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};

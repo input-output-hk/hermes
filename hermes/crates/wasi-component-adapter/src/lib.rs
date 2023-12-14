@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 // The proxy world has no filesystem which most of this file is concerned with,
 // so disable many warnings to avoid having to contort code too much for the
 // proxy world.

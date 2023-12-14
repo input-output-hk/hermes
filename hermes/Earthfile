@@ -10,6 +10,7 @@ fork-wasi-component-adapter:
     ARG wasi_earthfile=crates/wasi-component-adapter/Earthfile
     # The location to store the Earthfile during running the script.
     ARG wasi_tmp_earthfile=crates/Earthfile-tmp
+    ARG wit_local_dir=crates/wasi/wit
     # The local directory to place the extracted `wasi` crate.
     ARG wasi_local_dir=crates/wasi-component-adapter
     # The location after the `wasmtime` repo was cloned.
@@ -20,8 +21,11 @@ fork-wasi-component-adapter:
     # And finally move the Earthfile back.
     RUN if [ -e $wasi_earthfile ]; then mv $wasi_earthfile $wasi_tmp_earthfile; fi && \
         rm -rf $wasi_local_dir/ || true && \
+        rm -rf $wit_local_dir/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
         mv $wasi_git_dir $wasi_local_dir && \
+        mkdir crates/wasi && \
+        mv wasmtime/crates/wasi/wit crates/wasi/wit && \
         rm -rf wasmtime/ && \
         if [ -e $wasi_tmp_earthfile ]; then mv $wasi_tmp_earthfile $wasi_earthfile; fi
 
