@@ -1,3 +1,5 @@
+#![allow(let_underscore_drop)]
+
 //! Minimal versions of standard-library panicking and printing macros.
 //!
 //! We're avoiding static initializers, so we can't have things like string
