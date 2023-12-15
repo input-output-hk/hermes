@@ -10,8 +10,12 @@
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
     ledger::traverse::MultiEraBlock,
-    network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
+    network::{
+        facades::PeerClient,
+        miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC},
+    },
 };
+use thiserror::Error;
 
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
@@ -19,21 +23,21 @@ const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
 const DEFAULT_MAX_AWAIT_RETRIES: u32 = 3;
 
 /// Crate error type.
-///
-/// We are using a boxed error here until we have some implementation of the
-/// the crate's API.
-///
-/// In the future this will probably be something as:
-///
-/// ```ignore
-/// use thiserror::Error;
-///
-/// #[derive(Debug, Error)]
-/// pub enum Error {
-/// ...
-/// }
-/// ```
-pub type Error = Box<dyn std::error::Error>;
+#[derive(Debug, Error)]
+pub enum Error {
+    /// Data encoding/decoding error.
+    #[error("Codec error: {0:?}")]
+    Codec(pallas::ledger::traverse::Error),
+    /// Client connection error.
+    #[error("Client error: {0:?}")]
+    Client(pallas::network::facades::Error),
+    /// Blockfetch protocol error.
+    #[error("Blockfetch error: {0:?}")]
+    Blockfetch(pallas::network::miniprotocols::blockfetch::ClientError),
+    /// Chainsync protocol error.
+    #[error("Chainsync error: {0:?}")]
+    Chainsync(pallas::network::miniprotocols::chainsync::ClientError),
+}
 
 /// Crate result type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -63,7 +67,7 @@ impl MultiEraBlockData {
     /// Returns Err if the block's era couldn't be decided or if the encoded data is
     /// invalid.
     pub fn decode(&self) -> Result<MultiEraBlock> {
-        let block = MultiEraBlock::decode(&self.0).map_err(Box::new)?;
+        let block = MultiEraBlock::decode(&self.0).map_err(Error::Codec)?;
 
         Ok(block)
     }
@@ -93,7 +97,10 @@ impl From<Network> for u64 {
 }
 
 /// Cardano chain Reader.
-pub struct Reader {}
+pub struct Reader {
+    /// Connection used by the reader to read blocks.
+    client: PeerClient,
+}
 
 impl Reader {
     /// Connects the Reader to a producer using the node-to-node protocol.
@@ -106,8 +113,12 @@ impl Reader {
     /// # Errors
     ///
     /// Returns Err if the connection could not be established.
-    pub async fn connect(_address: &str, _network: Network) -> Result<Self> {
-        todo!()
+    pub async fn connect(address: &str, network: Network) -> Result<Self> {
+        let client = PeerClient::connect(address, network.into())
+            .await
+            .map_err(Error::Client)?;
+
+        Ok(Self { client })
     }
 
     /// Reads a single block from the chain.
@@ -119,9 +130,20 @@ impl Reader {
     /// # Errors
     ///
     /// Returns Err if the block was not found or if some communication error ocurred.
-    pub async fn read_block<P>(&mut self, _at: P) -> Result<MultiEraBlockData>
-    where P: Into<PointOrTip> {
-        todo!()
+    pub async fn read_block<P>(&mut self, at: P) -> Result<MultiEraBlockData>
+    where
+        P: Into<PointOrTip>,
+    {
+        let point = self.resolve_point_or_tip(at.into()).await?;
+
+        let block_data = self
+            .client
+            .blockfetch()
+            .fetch_single(point)
+            .await
+            .map_err(Error::Blockfetch)?;
+
+        Ok(MultiEraBlockData(block_data))
     }
 
     /// Reads a range of blocks from the chain.
@@ -136,10 +158,39 @@ impl Reader {
     /// Returns Err if the block range was not found or if some communication error
     /// ocurred.
     pub async fn read_block_range<P>(
-        &mut self, _from: Point, _to: P,
+        &mut self, from: Point, to: P,
     ) -> Result<Vec<MultiEraBlockData>>
-    where P: Into<PointOrTip> {
-        todo!()
+    where
+        P: Into<PointOrTip>,
+    {
+        let to_point = self.resolve_point_or_tip(to.into()).await?;
+
+        let data_vec = self
+            .client
+            .blockfetch()
+            .fetch_range((from, to_point))
+            .await
+            .map_err(Error::Blockfetch)?
+            .into_iter()
+            .map(MultiEraBlockData)
+            .collect();
+
+        Ok(data_vec)
+    }
+
+    #[inline]
+    async fn resolve_point_or_tip(&mut self, point_or_tip: PointOrTip) -> Result<Point> {
+        match point_or_tip {
+            PointOrTip::Point(point) => Ok(point),
+            PointOrTip::Tip => {
+                // Find the chain tip's point
+                self.client
+                    .chainsync()
+                    .intersect_tip()
+                    .await
+                    .map_err(Error::Chainsync)
+            },
+        }
     }
 }
 
@@ -203,7 +254,9 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         self.follow_from = from.into();
         self
     }
@@ -261,7 +314,9 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&mut self, _at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         todo!()
     }
 
