@@ -3,10 +3,13 @@ addrr
 adminer
 asyncio
 auditability
+backpressure
+blockfetch
 BROTLI
 cardano
 cbor
 CEST
+chainsync
 chrono
 ciphertext
 codepoints

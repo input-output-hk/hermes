@@ -4,9 +4,19 @@
 use std::error::Error;
 
 use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .init();
+
     // Defaults to start following from the tip.
     let config = FollowerConfigBuilder::default().build();
 
@@ -17,7 +27,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
-    loop {
+    // Wait for 3 chain updates and shutdown.
+    for _ in 0..3 {
         let chain_update = follower.next().await?;
 
         match chain_update {
@@ -43,4 +54,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
         }
     }
+
+    // Waits for the follower background task to exit.
+    follower.close().await?;
+
+    Ok(())
 }
