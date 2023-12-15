@@ -119,7 +119,8 @@ impl Reader {
     /// # Errors
     ///
     /// Returns Err if the block was not found or if some communication error ocurred.
-    pub async fn read_block(&mut self, _at: Point) -> Result<MultiEraBlockData> {
+    pub async fn read_block<P>(&mut self, _at: P) -> Result<MultiEraBlockData>
+    where P: Into<PointOrTip> {
         todo!()
     }
 

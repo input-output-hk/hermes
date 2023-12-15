@@ -34,8 +34,8 @@ rustflags = [
 rustflags = [
     "-D",
     "warnings",
-    # "-D",
-    # "missing_docs",
+    "-D",
+    "missing_docs",
     "-D",
     "let_underscore_drop",
     "-D",
