@@ -1,6 +1,6 @@
 VERSION 0.7
 
-#cspell: words rustfmt toolsets wasi wastime Earthfile
+#cspell: words rustfmt toolsets wasi wasmtime Earthfile
 
 # Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
 fork-wasi-component-adapter:
