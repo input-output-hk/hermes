@@ -11,7 +11,7 @@ fork-wasi-component-adapter:
     # The location to store the Earthfile during running the script.
     ARG wasi_tmp_cargo=crates/Cargo-tmp.toml
     # The local directory to store `wasi/wit`. This needs to include along with `wasi-preview1-component-adapter`.
-    ARG wit_local_dir=crates/wasi/wit
+    ARG wit_local_dir=crates/wasi
     # The local directory to place the extracted `wasi` crate.
     ARG wasi_local_dir=crates/wasi-component-adapter
     # The location after the `wasmtime` repo was cloned.
@@ -25,10 +25,10 @@ fork-wasi-component-adapter:
         rm -rf $wit_local_dir/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
         mv $wasi_git_dir $wasi_local_dir && \
-        mkdir crates/wasi && \
-        mv wasmtime/crates/wasi/wit crates/wasi/wit && \
+        mkdir $wit_local_dir && \
+        mv wasmtime/crates/wasi/wit $wit_local_dir/wit && \
         rm -rf wasmtime/ && \
-        if [ -e $wasi_tmp_cargo ]; then mv $wasi_tmp_cargo $wasi_cargo; fi
+        if [ -e $wasi_tmp_cargo ]; then mv -f $wasi_tmp_cargo $wasi_cargo; fi
 
 # Set up our target toolchains, and copy our files.
 builder:
