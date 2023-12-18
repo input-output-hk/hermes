@@ -7,9 +7,10 @@ fork-wasi-component-adapter:
     LOCALLY
 
     # The location the Earthfile for the local `wasi` crate.
-    ARG wasi_earthfile=crates/wasi-component-adapter/Earthfile
+    ARG wasi_cargo=crates/wasi-component-adapter/Cargo.toml
     # The location to store the Earthfile during running the script.
-    ARG wasi_tmp_earthfile=crates/Earthfile-tmp
+    ARG wasi_tmp_cargo=crates/Cargo-tmp.toml
+    # The local directory to store `wasi/wit`. This needs to include along with `wasi-preview1-component-adapter`.
     ARG wit_local_dir=crates/wasi/wit
     # The local directory to place the extracted `wasi` crate.
     ARG wasi_local_dir=crates/wasi-component-adapter
@@ -19,7 +20,7 @@ fork-wasi-component-adapter:
     # First, it needs to move the existing Earthfile to the temporary location.
     # Then remove the existing local one. Clone and extract it from the repo.
     # And finally move the Earthfile back.
-    RUN if [ -e $wasi_earthfile ]; then mv $wasi_earthfile $wasi_tmp_earthfile; fi && \
+    RUN if [ -e $wasi_cargo ]; then mv $wasi_cargo $wasi_tmp_cargo; fi && \
         rm -rf $wasi_local_dir/ || true && \
         rm -rf $wit_local_dir/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
@@ -27,7 +28,7 @@ fork-wasi-component-adapter:
         mkdir crates/wasi && \
         mv wasmtime/crates/wasi/wit crates/wasi/wit && \
         rm -rf wasmtime/ && \
-        if [ -e $wasi_tmp_earthfile ]; then mv $wasi_tmp_earthfile $wasi_earthfile; fi
+        if [ -e $wasi_tmp_cargo ]; then mv $wasi_tmp_cargo $wasi_cargo; fi
 
 # Set up our target toolchains, and copy our files.
 builder:
@@ -45,7 +46,7 @@ check-hosted:
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
-check-all-hosts:    
+check-all-hosts:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check-hosted
 
 build-wasi-component-adapter:
