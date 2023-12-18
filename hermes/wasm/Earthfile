@@ -33,7 +33,7 @@ builder:
     COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml wasi wasi-component-adapter .
 
 # Test rust build container - Use best architecture host tools.
-check-hosted:
+check:
     FROM +builder
 
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
