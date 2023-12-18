@@ -10,7 +10,8 @@ fork-wasi-component-adapter:
     ARG wasi_cargo=crates/wasi-component-adapter/Cargo.toml
     # The location to store the Earthfile during running the script.
     ARG wasi_tmp_cargo=crates/Cargo-tmp.toml
-    # The local directory to store `wasi/wit`. This needs to include along with `wasi-preview1-component-adapter`.
+    # The local directory to store `wasi/wit`.
+    # This needs to include along with `wasi-preview1-component-adapter`.
     ARG wit_local_dir=crates/wasi
     # The local directory to place the extracted `wasi` crate.
     ARG wasi_local_dir=crates/wasi-component-adapter
