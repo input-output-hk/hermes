@@ -10,7 +10,7 @@
   "ignores": [
     ".config/dictionaries/**",
     "hermes/target/**",
-    "hermes/wasm/**/"
+    "hermes/wasm/*/**/**"
   ],
   // Set standard config options in `/.markdownlint.jsonc`
   "config": {
