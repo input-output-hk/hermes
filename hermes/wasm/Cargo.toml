@@ -1,8 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "bin",
-    "crates/cardano-chain-follower",
+    "wasi-component-adapter",
 ]
 
 [workspace.package]
@@ -17,3 +16,10 @@ repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+wasi = "0.11.0"
+wit-bindgen = "0.16.0"
+byte-array-literals = { path = "./wasi-component-adapter/byte-array-literals" }
+
+[workspace.build-dependencies]
+wasm-encoder = "0.38.1"
+object = "0.32.1"

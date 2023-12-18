@@ -2,35 +2,6 @@ VERSION 0.7
 
 #cspell: words rustup readelf nextest testci testdocs rustfmt toolsets USERARCH
 
-# Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
-fork-wasi-component-adapter:
-    LOCALLY
-
-    # The location the Earthfile for the local `wasi` crate.
-    ARG wasi_cargo=crates/wasi-component-adapter/Cargo.toml
-    # The location to store the Earthfile during running the script.
-    ARG wasi_tmp_cargo=crates/Cargo-tmp.toml
-    # The local directory to store `wasi/wit`.
-    # This needs to include along with `wasi-preview1-component-adapter`.
-    ARG wit_local_dir=crates/wasi
-    # The local directory to place the extracted `wasi` crate.
-    ARG wasi_local_dir=crates/wasi-component-adapter
-    # The location after the `wasmtime` repo was cloned.
-    ARG wasi_git_dir=wasmtime/crates/wasi-preview1-component-adapter
-
-    # First, it needs to move the existing Earthfile to the temporary location.
-    # Then remove the existing local one. Clone and extract it from the repo.
-    # And finally move the Earthfile back.
-    RUN if [ -e $wasi_cargo ]; then mv $wasi_cargo $wasi_tmp_cargo; fi && \
-        rm -rf $wasi_local_dir/ || true && \
-        rm -rf $wit_local_dir/ || true && \
-        git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
-        mv $wasi_git_dir $wasi_local_dir && \
-        mkdir $wit_local_dir && \
-        mv wasmtime/crates/wasi/wit $wit_local_dir/wit && \
-        rm -rf wasmtime/ && \
-        if [ -e $wasi_tmp_cargo ]; then mv -f $wasi_tmp_cargo $wasi_cargo; fi
-
 # Set up our target toolchains, and copy our files.
 builder:
     FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base

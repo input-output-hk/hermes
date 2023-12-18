@@ -1,8 +1,5 @@
-cargo-features = ["per-package-target"]
-
 [package]
 name = "wasi-component-adapter"
-forced-target = "wasm32-unknown-unknown"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

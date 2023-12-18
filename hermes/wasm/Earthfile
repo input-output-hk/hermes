@@ -1,0 +1,54 @@
+#cspell: words rustup readelf nextest testci testdocs rustfmt toolsets USERARCH
+
+# Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
+fork-wasi-component-adapter:
+    LOCALLY
+
+    # The location the Earthfile for the local `wasi` crate.
+    ARG wasi_cargo=wasi-component-adapter/Cargo.toml
+    # The location to store the Earthfile during running the script.
+    ARG wasi_tmp_cargo=Cargo-tmp.toml
+    # The local directory to store `wasi/wit`.
+    # This needs to include along with `wasi-preview1-component-adapter`.
+    ARG wit_local_dir=wasi
+    # The local directory to place the extracted `wasi` crate.
+    ARG wasi_local_dir=wasi-component-adapter
+    # The location after the `wasmtime` repo was cloned.
+    ARG wasi_git_dir=wasmtime/wasi-preview1-component-adapter
+
+    # First, it needs to move the existing Earthfile to the temporary location.
+    # Then remove the existing local one. Clone and extract it from the repo.
+    # And finally move the Earthfile back.
+    RUN if [ -e $wasi_cargo ]; then mv $wasi_cargo $wasi_tmp_cargo; fi && \
+        rm -rf $wasi_local_dir/ || true && \
+        rm -rf $wit_local_dir/ || true && \
+        git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
+        mv $wasi_git_dir $wasi_local_dir && \
+        mkdir $wit_local_dir && \
+        mv wasmtime/crates/wasi/wit $wit_local_dir/wit && \
+        rm -rf wasmtime/ && \
+        if [ -e $wasi_tmp_cargo ]; then mv -f $wasi_tmp_cargo $wasi_cargo; fi
+
+# Set up our target toolchains, and copy our files.
+builder:
+    # All packages need to be built into wasm.
+    ARG packages=wasi wasi-component-adapter
+
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base
+
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+SETUP --toolchain=rust-toolchain.toml
+
+    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml $packages .
+
+# Test rust build container - Use best architecture host tools.
+check-hosted:
+    FROM +builder
+
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
+
+build:
+    FROM +builder
+
+    RUN cargo build --release
+
+    SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
