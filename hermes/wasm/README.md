@@ -11,7 +11,7 @@ It already specified the build target to `wasm32-unknown-unknown`.
 To compile all the packages, simply run the command:
 
 ```bash
-cargo build
+cargo build --release
 ```
 
 To build the WebAssembly binary output `.wasm`.
