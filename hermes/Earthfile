@@ -33,7 +33,6 @@ build-hosted:
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-    SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
