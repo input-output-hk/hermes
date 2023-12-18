@@ -26,14 +26,11 @@ fork-wasi-component-adapter:
 
 # Set up our target toolchains, and copy our files.
 builder:
-    # All packages need to be built into wasm.
-    ARG packages=wasi wasi-component-adapter
-
     FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base
 
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+SETUP --toolchain=rust-toolchain.toml
 
-    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml $packages .
+    COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml wasi wasi-component-adapter .
 
 # Test rust build container - Use best architecture host tools.
 check-hosted:
