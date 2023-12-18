@@ -1,6 +1,3 @@
-#![allow(let_underscore_drop)]
-#![allow(trivial_casts)]
-
 use crate::bindings::wasi::cli::{stderr, stdin, stdout};
 use crate::bindings::wasi::io::streams::{InputStream, OutputStream};
 use crate::{BlockingMode, BumpArena, ImportAlloc, TrappingUnwrap, WasmStr};

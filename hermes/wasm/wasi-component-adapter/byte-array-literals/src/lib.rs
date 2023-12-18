@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 extern crate proc_macro;
 
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
