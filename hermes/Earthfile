@@ -52,7 +52,7 @@ check-all-hosts:
 build-wasi-component-adapter:
     FROM +builder
 
-    RUN cargo +nightly build -p wasi-component-adapter --target wasm32-unknown-unknown --release
+    RUN cargo build -p wasi-component-adapter --target wasm32-unknown-unknown --release
 
     SAVE ARTIFACT hermes/target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
 
