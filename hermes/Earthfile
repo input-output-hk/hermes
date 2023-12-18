@@ -2,60 +2,6 @@ VERSION 0.7
 
 #cspell: words rustup readelf nextest testci testdocs rustfmt toolsets USERARCH
 
-rust-base-tmp:
-    ARG TARGETPLATFORM
-    ARG TARGETOS
-    ARG TARGETARCH
-    ARG TARGETVARIANT
-    ARG USERPLATFORM
-    ARG USEROS
-    ARG USERARCH
-    ARG USERVARIANT
-
-    # This is our base Host toolset, and rustup.
-    # The ACTUAL version of rust that will be used, and available targets
-    # is controlled by a `rust-toolchain.toml` file when the `SETUP` UDC is run.
-    # HOWEVER, It is enforced that the rust version in `rust-toolchain.toml` MUST match this version.
-    FROM rust:1.73-alpine3.18
-
-    RUN echo "TARGETPLATFORM = $TARGETPLATFORM"; \
-        echo "TARGETOS       = $TARGETOS"; \
-        echo "TARGETARCH     = $TARGETARCH"; \
-        echo "TARGETVARIANT  = $TARGETVARIANT"; \
-        echo "USERPLATFORM   = $USERPLATFORM"; \
-        echo "USEROS         = $USEROS"; \
-        echo "USERARCH       = $USERARCH"; \
-        echo "USERVARIANT    = $USERVARIANT"; 
-
-    WORKDIR /root
-
-    # Install necessary packages 
-    # Expand this list as needed, rather than adding more tools in later containers.
-     RUN apk add --no-cache \
-            musl-dev \
-            mold \
-            clang \
-            ripgrep \
-            bash \
-            colordiff \
-            graphviz
-
-    # Make sure we have the clippy linter.
-    RUN rustup component add clippy
-
-    # Install a nightly toolchain which matches.
-    RUN rustup toolchain install nightly --component miri --component rust-src --component rustfmt --component clippy
-
-    # Add a target for wasm.
-    RUN rustup target add wasm32-unknown-unknown --toolchain nightly
-
-    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml bin crates .
-
-    RUN cargo build -p wasi-component-adapter --target wasm32-unknown-unknown --release
-
-builder-tmp:
-    BUILD +rust-base-tmp
-
 # Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
 fork-wasi-component-adapter:
     LOCALLY
@@ -101,6 +47,13 @@ check-hosted:
 # Only used to validate tooling is working across host toolsets.
 check-all-hosts:    
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check-hosted
+
+build-wasi-component-adapter:
+    FROM +builder
+
+    RUN cargo +nightly build -p wasi-component-adapter --target wasm32-unknown-unknown --release
+
+    SAVE ARTIFACT hermes/target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
 
 build-hosted:
     ARG TARGETPLATFORM
