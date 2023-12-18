@@ -1,3 +1,5 @@
+#cspell: words wasi bindgen
+
 [workspace]
 resolver = "2"
 members = [
