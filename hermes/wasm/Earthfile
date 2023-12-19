@@ -32,11 +32,15 @@ builder:
 
     COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml wasi wasi-component-adapter .
 
-# Test rust build container - Use best architecture host tools.
+# Run quality checks
 check:
     FROM +builder
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
+    RUN cargo +nightly fmtchk && \
+        cargo machete && \
+        cargo deny check
+
+    # DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
 
 build:
     FROM +builder
