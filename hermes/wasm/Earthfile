@@ -1,6 +1,6 @@
 VERSION 0.7
 
-#cspell: words rustfmt toolsets wasi wasmtime Earthfile
+#cspell: words fmtchk rustfmt toolsets wasi wasmtime Earthfile
 
 # Fork the repo `wasmtime` and extract only the `wasi-preview1-component-adapter` crate from it.
 fork-wasi-component-adapter:
@@ -32,7 +32,7 @@ builder:
 
     COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml wasi wasi-component-adapter .
 
-# Run quality checks
+# Run quality checks.
 check:
     FROM +builder
 
