@@ -8,9 +8,9 @@ fork-wasi-component-adapter:
 
     # The local directory to store `wasi/wit`.
     # This needs to include along with `wasi-preview1-component-adapter`.
-    ARG wit_local_dir=wasi
+    ARG wit_local_dir=crates/wasi
     # The local directory to place the extracted `wasi` crate.
-    ARG wasi_local_dir=wasi-component-adapter
+    ARG wasi_local_dir=crates/wasi-component-adapter
     # The location after the `wasmtime` repo was cloned.
     ARG wasi_git_dir=wasmtime/crates/wasi-preview1-component-adapter
 
@@ -30,7 +30,7 @@ builder:
 
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+SETUP --toolchain=rust-toolchain.toml
 
-    COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml wasi wasi-component-adapter .
+    COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml crates .
 
 # Run quality checks.
 check:
