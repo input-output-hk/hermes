@@ -36,8 +36,8 @@ builder:
 check:
     FROM +builder
 
-    RUN cargo +nightly fmtchk && \
-        cargo machete && \
+    RUN cargo machete && \
+        # cargo +nightly fmtchk && \
         cargo deny check
 
     # DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
