@@ -21,7 +21,7 @@ license = "MIT OR Apache-2.0"
 
 # for `wasi-preview1-component-adapter`
 wit-bindgen = "0.16.0"
-byte-array-literals = { path = "./wasi-component-adapter/byte-array-literals" }
+byte-array-literals = { path = "./wasi-component-adapter/byte-array-literals", version = "0.0.1" }
 wasm-encoder = "0.38.1"
 object = "0.32.1"
 
