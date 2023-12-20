@@ -1,12 +1,5 @@
 //! Cardano chain follower.
 
-// TODO: remove this once we implement the API.
-#![allow(dead_code, clippy::unused_async, clippy::no_effect_underscore_binding)]
-// (fsgr): This should be removed. I only added it because, for some reason,
-//         the tower crate is failing to compile in my machine (didn't test anywhere else)
-//         if it's compiled with this flag.
-#![deny(missing_docs)]
-
 use std::sync::Arc;
 
 pub use pallas::network::miniprotocols::Point;
@@ -550,6 +543,7 @@ mod follow_task {
 ///
 /// This does not execute Plutus scripts nor validates ledger state.
 /// It only checks that the block is correctly formatted for its era.
+#[allow(dead_code)]
 fn validate_multiera_block(_block: &MultiEraBlock) {
     // (fsgr): Not sure about hwo the validation will be done in here yet.
     todo!()
