@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let data = reader
         .read_block(Point::Specific(
-            110908236,
+            110_908_236,
             hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
         ))
         .await?;

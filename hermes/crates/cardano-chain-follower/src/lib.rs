@@ -1,7 +1,7 @@
 //! Cardano chain follower.
 
 // TODO: remove this once we implement the API.
-#![allow(dead_code, clippy::unused_async)]
+#![allow(dead_code, clippy::unused_async, clippy::no_effect_underscore_binding)]
 // (fsgr): This should be removed. I only added it because, for some reason,
 //         the tower crate is failing to compile in my machine (didn't test anywhere else)
 //         if it's compiled with this flag.
