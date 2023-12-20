@@ -4,9 +4,9 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+rust-base
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.13+rust-base
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SETUP --toolchain=rust-toolchain.toml
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.13+SETUP --toolchain=rust-toolchain.toml
 
     COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml bin crates .
 
@@ -14,11 +14,11 @@ builder:
 check-hosted:
     FROM +builder
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+CHECK
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.13+CHECK
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
-check-all-hosts:    
+check-all-hosts:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check-hosted
 
 build-hosted:
@@ -26,17 +26,17 @@ build-hosted:
 
     # Build the service
     FROM +builder
- 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+BUILD --libs="cardano-chain-follower" --bins="hermes/hermes"
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SMOKE_TEST --bin=hermes
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.13+BUILD --libs="cardano-chain-follower" --bins="hermes/hermes"
+
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.13+SMOKE_TEST --bin=hermes
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
-build-all-hosts:    
+build-all-hosts:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +build-hosted
 
 ## -----------------------------------------------------------------------------
