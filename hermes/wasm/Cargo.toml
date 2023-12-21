@@ -10,6 +10,7 @@ members = [
 edition = "2021"
 version = "0.0.1"
 authors = [
+    "Apisit Ritreungroj <apisit.ritreungroj@iohk.io>",
     "Steven Johnson <steven.johnson@iohk.io>"
 ]
 rust-version = "1.73"

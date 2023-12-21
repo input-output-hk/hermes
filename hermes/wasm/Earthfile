@@ -15,7 +15,6 @@ fork-wasi-component-adapter:
     ARG wasi_git_dir=wasmtime/crates/wasi-preview1-component-adapter
 
     # Remove the existing local one. Clone and extract it from the repo.
-    # And finally move the Earthfile back.
     RUN rm -rf $wasi_local_dir/ || true && \
         rm -rf $wit_local_dir/ || true && \
         git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git && \
