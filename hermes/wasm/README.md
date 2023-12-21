@@ -1,5 +1,7 @@
 # Hermes - WASM
 
+<!-- cspell: words wasmtime wasi -->
+
 This directory contains standalone Rust code that is not used as a project dependency.
 The primary purpose of these Rust files and packages is to compile into WebAssembly (Wasm).
 This code contains the forked code from
