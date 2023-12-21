@@ -1,4 +1,4 @@
-#cspell: words wasi bindgen
+#cspell: words Apisit Ritreungroj wasi bindgen
 
 [workspace]
 resolver = "2"
