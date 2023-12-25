@@ -224,6 +224,7 @@
         ".git/**",
         "**/.gitignore",
         ".vscode/**",
-        "**/.idea/**"
+        "**/.idea/**",
+        "hermes/wasm/*/**"
     ]
 }
