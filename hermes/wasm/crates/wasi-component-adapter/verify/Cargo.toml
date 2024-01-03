@@ -1,5 +1,6 @@
 [package]
 name = "verify-component-adapter"
+license = "Apache-2.0 WITH LLVM-exception"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

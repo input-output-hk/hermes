@@ -1,5 +1,6 @@
 [package]
 name = "byte-array-literals"
+license = "Apache-2.0 WITH LLVM-exception"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
 use std::env;
+
+use anyhow::{bail, Result};
 use wasmparser::*;
 
 fn main() -> Result<()> {
@@ -17,9 +18,9 @@ fn main() -> Result<()> {
                 if encoding != Encoding::Module {
                     bail!("adapter must be a core wasm module, not a component");
                 }
-            }
-            Payload::End(_) => {}
-            Payload::TypeSection(_) => {}
+            },
+            Payload::End(_) => {},
+            Payload::TypeSection(_) => {},
             Payload::ImportSection(s) => {
                 for i in s {
                     let i = i?;
@@ -32,27 +33,27 @@ fn main() -> Result<()> {
                                 continue;
                             }
                             bail!("import from unknown module `{}`", i.module);
-                        }
+                        },
                         TypeRef::Table(_) => bail!("should not import table"),
                         TypeRef::Global(_) => bail!("should not import globals"),
-                        TypeRef::Memory(_) => {}
+                        TypeRef::Memory(_) => {},
                         TypeRef::Tag(_) => bail!("unsupported `tag` type"),
                     }
                 }
-            }
-            Payload::TableSection(_) => {}
+            },
+            Payload::TableSection(_) => {},
             Payload::MemorySection(_) => {
                 bail!("preview1.wasm should import memory");
-            }
-            Payload::GlobalSection(_) => {}
+            },
+            Payload::GlobalSection(_) => {},
 
-            Payload::ExportSection(_) => {}
+            Payload::ExportSection(_) => {},
 
-            Payload::FunctionSection(_) => {}
+            Payload::FunctionSection(_) => {},
 
-            Payload::CodeSectionStart { .. } => {}
-            Payload::CodeSectionEntry(_) => {}
-            Payload::CustomSection(_) => {}
+            Payload::CodeSectionStart { .. } => {},
+            Payload::CodeSectionEntry(_) => {},
+            Payload::CustomSection(_) => {},
 
             // sections that shouldn't appear in the specially-crafted core wasm
             // adapter self we're processing
@@ -63,7 +64,7 @@ fn main() -> Result<()> {
             | Payload::TagSection(_)
             | Payload::UnknownSection { .. } => {
                 bail!("unsupported section {payload:?} found in preview1.wasm")
-            }
+            },
 
             // component-model related things that shouldn't show up
             Payload::ModuleSection { .. }
@@ -78,7 +79,7 @@ fn main() -> Result<()> {
             | Payload::ComponentExportSection(_)
             | Payload::ComponentTypeSection(_) => {
                 bail!("component section found in preview1.wasm")
-            }
+            },
         }
     }
 

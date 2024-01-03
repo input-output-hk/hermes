@@ -1,5 +1,4 @@
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -68,8 +67,7 @@ fn main() {
 /// The main trickiness here is getting the `reloc.CODE` and `linking` sections
 /// right.
 fn build_raw_intrinsics() -> Vec<u8> {
-    use wasm_encoder::Instruction::*;
-    use wasm_encoder::*;
+    use wasm_encoder::{Instruction::*, *};
 
     let mut module = Module::new();
 
@@ -148,8 +146,8 @@ fn build_raw_intrinsics() -> Vec<u8> {
         data: &code,
     });
 
-    // Here the linking section is constructed. There is one symbol for each function and global. The injected
-    // globals here are referenced in the relocations below.
+    // Here the linking section is constructed. There is one symbol for each function and
+    // global. The injected globals here are referenced in the relocations below.
     //
     // More information about this format is at
     // https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
@@ -246,8 +244,8 @@ fn build_archive(wasm: &[u8]) -> Vec<u8> {
     // that looks like:
     //
     // * a big-endian 32-bit integer for the number of symbols
-    // * N big-endian 32-bit integers for the offset to the object file, within
-    //   the entire archive, for which object has the symbol
+    // * N big-endian 32-bit integers for the offset to the object file, within the entire
+    //   archive, for which object has the symbol
     // * N nul-delimited strings for each symbol
     //
     // Here we're building an archive with just a few symbols so it's a bit

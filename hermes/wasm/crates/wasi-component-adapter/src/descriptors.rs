@@ -1,14 +1,21 @@
-use crate::bindings::wasi::cli::{stderr, stdin, stdout};
-use crate::bindings::wasi::io::streams::{InputStream, OutputStream};
-use crate::{BlockingMode, BumpArena, ImportAlloc, TrappingUnwrap, WasmStr};
-use core::cell::{Cell, OnceCell, UnsafeCell};
-use core::mem::MaybeUninit;
+use core::{
+    cell::{Cell, OnceCell, UnsafeCell},
+    mem::MaybeUninit,
+};
+
 use wasi::{Errno, Fd};
 
 #[cfg(not(feature = "proxy"))]
 use crate::bindings::wasi::filesystem::types as filesystem;
 #[cfg(not(feature = "proxy"))]
 use crate::File;
+use crate::{
+    bindings::wasi::{
+        cli::{stderr, stdin, stdout},
+        io::streams::{InputStream, OutputStream},
+    },
+    BlockingMode, BumpArena, ImportAlloc, TrappingUnwrap, WasmStr,
+};
 
 pub const MAX_DESCRIPTORS: usize = 128;
 
@@ -45,8 +52,8 @@ impl Streams {
             Some(wasi_stream) => Ok(wasi_stream),
             None => {
                 let input = match &self.type_ {
-                    // For directories, preview 1 behavior was to return ERRNO_BADF on attempts to read
-                    // or write.
+                    // For directories, preview 1 behavior was to return ERRNO_BADF on attempts to
+                    // read or write.
                     #[cfg(not(feature = "proxy"))]
                     StreamType::File(File {
                         descriptor_type: filesystem::DescriptorType::Directory,
@@ -58,12 +65,12 @@ impl Streams {
                     StreamType::File(file) => {
                         let input = file.fd.read_via_stream(file.position.get())?;
                         input
-                    }
+                    },
                     _ => return Err(wasi::ERRNO_BADF),
                 };
                 self.input.set(input).trapping_unwrap();
                 Ok(self.input.get().trapping_unwrap())
-            }
+            },
         }
     }
 
@@ -73,8 +80,8 @@ impl Streams {
             Some(wasi_stream) => Ok(wasi_stream),
             None => {
                 let output = match &self.type_ {
-                    // For directories, preview 1 behavior was to return ERRNO_BADF on attempts to read
-                    // or write.
+                    // For directories, preview 1 behavior was to return ERRNO_BADF on attempts to
+                    // read or write.
                     #[cfg(not(feature = "proxy"))]
                     StreamType::File(File {
                         descriptor_type: filesystem::DescriptorType::Directory,
@@ -90,12 +97,12 @@ impl Streams {
                             file.fd.write_via_stream(file.position.get())?
                         };
                         output
-                    }
+                    },
                     _ => return Err(wasi::ERRNO_BADF),
                 };
                 self.output.set(output).trapping_unwrap();
                 Ok(self.output.get().trapping_unwrap())
-            }
+            },
         }
     }
 }
@@ -283,7 +290,7 @@ impl Descriptors {
                 // Point closed to the following item
                 self.closed = next_closed;
                 Ok(freelist_head)
-            }
+            },
         }
     }
 
@@ -312,9 +319,10 @@ impl Descriptors {
         // Throw an error if closing an fd which is already closed
         match self.get(fd)? {
             Descriptor::Closed(_) => Err(wasi::ERRNO_BADF)?,
-            _ => {}
+            _ => {},
         }
-        // Mutate the descriptor to be closed, and push the closed fd onto the head of the linked list:
+        // Mutate the descriptor to be closed, and push the closed fd onto the head of the linked
+        // list:
         let last_closed = self.closed;
         let prev = std::mem::replace(self.get_mut(fd)?, Descriptor::Closed(last_closed));
         self.closed = Some(fd);
@@ -354,9 +362,7 @@ impl Descriptors {
     // A bunch of helper functions implemented in terms of the above pub functions:
 
     pub fn get_stream_with_error_mut(
-        &mut self,
-        fd: Fd,
-        error: Errno,
+        &mut self, fd: Fd, error: Errno,
     ) -> Result<&mut Streams, Errno> {
         match self.get_mut(fd)? {
             Descriptor::Streams(streams) => Ok(streams),

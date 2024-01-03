@@ -25,21 +25,21 @@ fork-wasi-component-adapter:
 
 # Set up our target toolchains, and copy our files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+rust-base
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+SETUP --toolchain=rust-toolchain.toml
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+SETUP --toolchain=rust-toolchain.toml
 
-    COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml crates .
+    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml crates .
 
 # Run quality checks.
 check:
     FROM +builder
 
-    RUN cargo machete && \
+    #RUN cargo machete && \
         # cargo +nightly fmtchk && \
-        cargo deny check
+    #    cargo deny check
 
-    # DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+CHECK
 
 build:
     FROM +builder
