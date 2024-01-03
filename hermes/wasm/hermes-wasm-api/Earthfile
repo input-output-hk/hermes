@@ -1,0 +1,139 @@
+VERSION 0.7
+FROM debian:stable-slim
+WORKDIR /work
+
+# Install all extra packegs on top of our base package here
+extra-packages:
+    RUN apt-get update && apt-get install -y --no-install-recommends \
+        coreutils \
+        ca-certificates \
+        curl \
+        sudo \
+        gcc \
+        gcc-multilib \
+        wget
+
+    SAVE IMAGE --cache-hint
+
+# Setup a non root user
+user-setup:
+    FROM +extra-packages
+    ARG user=user
+    ARG uid=1000
+    ARG gid=$uid
+
+    # Create the non root user
+    RUN groupadd -g $gid $user && \
+        useradd -u $uid -g $gid -G sudo -m $user -s /bin/bash
+
+    # Setup sudo for the non root user
+    RUN sed -i 's/%sudo.*ALL/%sudo   ALL=(ALL:ALL) NOPASSWD:ALL/' /etc/sudoers
+
+    SAVE IMAGE --cache-hint
+
+# Install extra tools not installed by the OS package manager
+# Wasm tools needed for C/C++ or C based WASM builds.
+wasi-sdk:
+    FROM +user-setup
+
+    WORKDIR /
+
+    ENV WASI_VERSION=20
+    ENV WASI_VERSION_FULL=${WASI_VERSION}.0
+    ENV WASI_SDK_PATH=/wasi-sdk-${WASI_VERSION_FULL}
+    ENV WASI_CC="${WASI_SDK_PATH}/bin/clang --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot"
+
+    # Download and extract the SDK
+    RUN wget -q -O- https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz | tar -xzv
+    # Remove the version from its instal directory, so its easier to refer to later.
+    #RUN mv wasi-sdk-${WASI_VERSION_FULL} wasi-sdk
+
+    # Get the necessary module to convert from OLD WASI to the WASM Component Model Interface
+    RUN wget -q https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_snapshot_preview1.reactor.wasm -O "${WASI+SDK+PATH}/wasi_snapshot_preview1.wasm"
+
+    SAVE IMAGE --cache-hint
+
+# The rust toolchain itself
+rust:
+    FROM +wasi-sdk
+
+    COPY rust-toolchain .
+
+    # Note, this is largely copied from https://github.com/rust-lang/docker-rust/blob/35579d26bda862c00d127d63cee4ab9cd5d114c2/1.69.0/buster/Dockerfile
+    ENV RUST_VERSION=$(grep channel rust-toolchain | cut -d\\\" -f 2)
+    ENV RUSTUP_HOME=/usr/local/rustup
+    ENV CARGO_HOME=/usr/local/cargo
+    ENV CARGO_BUILD_TARGET_DIR=/tmp/cargo-build
+
+    ENV PATH=/usr/local/cargo/bin:$PATH
+
+    RUN set -eux; \
+        dpkgArch="$(dpkg --print-architecture)"; \
+        case "${dpkgArch##*-}" in \
+            amd64) rustArch='x86_64-unknown-linux-gnu'; rustupSha256='bb31eaf643926b2ee9f4d8d6fc0e2835e03c0a60f34d324048aa194f0b29a71c' ;; \
+            armhf) rustArch='armv7-unknown-linux-gnueabihf'; rustupSha256='6626b90205d7fe7058754c8e993b7efd91dedc6833a11a225b296b7c2941194f' ;; \
+            arm64) rustArch='aarch64-unknown-linux-gnu'; rustupSha256='4ccaa7de6b8be1569f6b764acc28e84f5eca342f5162cd5c810891bff7ed7f74' ;; \
+            i386) rustArch='i686-unknown-linux-gnu'; rustupSha256='34392b53a25c56435b411d3e575b63aab962034dd1409ba405e708610c829607' ;; \
+            *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
+        esac; \
+        url="https://static.rust-lang.org/rustup/archive/1.25.2/${rustArch}/rustup-init"; \
+        wget "$url"; \
+        echo "${rustupSha256} *rustup-init" | sha256sum -c -; \
+        chmod +x rustup-init; \
+        ./rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --default-host ${rustArch}; \
+        rm rustup-init; \
+        chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
+        rustup --version; \
+        cargo --version; \
+        rustc --version;
+
+    SAVE IMAGE --cache-hint
+
+# Rust tools we use.
+rust-tools:
+    FROM +rust
+
+    RUN cargo install --version 0.4.0 wit-bindgen-cli
+    #RUN cargo install --debug cargo-chef #--version 0.1.59
+
+    SAVE IMAGE --cache-hint
+
+
+# The name of our pre-cached build tools container.
+tools:
+    FROM +rust-tools
+
+    SAVE IMAGE --cache-hint
+
+
+# This is an image of our WASM Interface Dependencies.
+# Its used by all targets, that simply provide a hermes.wit to select
+# the interface a particular module will use.
+wit-deps:
+    FROM scratch
+
+    COPY --dir wit/deps ./
+    SAVE ARTIFACT deps wit/deps
+
+wit-docs:
+    FROM +tools
+
+    COPY --dir +wit-deps/wit/deps ./wit/deps
+    COPY wit/hermes.wit ./wit/
+
+    # Generate markdown docs for our .wit defined API here.
+    RUN wit-bindgen markdown wit
+    RUN wit-bindgen markdown wit -w hermes.init
+    RUN wit-bindgen markdown wit -w hermes.logging
+    RUN wit-bindgen markdown wit -w hermes.cron
+    RUN wit-bindgen markdown wit -w hermes.wasi-clock
+
+    SAVE ARTIFACT *.md
+    SAVE ARTIFACT *.html
+
+    SAVE ARTIFACT *.md AS LOCAL docs/
+    SAVE ARTIFACT *.html AS LOCAL docs/
+
+all:
+    BUILD +wit-docs
+    BUILD ./examples+all

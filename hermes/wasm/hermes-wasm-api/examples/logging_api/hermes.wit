@@ -1,0 +1,14 @@
+/// This only imports the Logging API, and the init API.
+/// Init is used as the test entrypoint for the API binding.
+
+/// This is an example of how a module selects which API's it will use and
+/// which entrypoints it will implement.
+
+default world hermes {
+  /// Only the Imports we use
+  import logging: hermes-api.logging
+
+  /// Only the exports we expose
+  export init: hermes-event.init
+}
+
