@@ -44,6 +44,14 @@ check:
 build:
     FROM +builder
 
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+BUILD 
+
+    # DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+SMOKE_TEST --bin=hermes
+
+    #SAVE ARTIFACT target/$TARGETARCH/doc doc
+    #SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
+
+
     RUN cargo build --release
 
     SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
