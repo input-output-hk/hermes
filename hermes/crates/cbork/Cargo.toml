@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "cddl-parser",
+]
+
+[workspace.dependencies]
+derive_more = "0.99.17"
