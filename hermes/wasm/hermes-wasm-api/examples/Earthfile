@@ -1,0 +1,6 @@
+VERSION 0.7
+FROM rust:1.69-alpine
+WORKDIR /work
+
+all:
+    BUILD ./logging_api+all

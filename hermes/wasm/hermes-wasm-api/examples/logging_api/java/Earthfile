@@ -1,0 +1,16 @@
+VERSION 0.7
+FROM rust:1.69-alpine
+WORKDIR /work
+
+build:
+    FROM ../../..+tools
+
+    # Get the current modules world definition and WASM interface dependencies.
+    COPY --dir ../+wit/wit ./
+
+    # Generate java binding for it.
+    RUN wit-bindgen teavm-java wit
+
+    # TODO - Build a java example
+
+    RUN --no-cache ls -al

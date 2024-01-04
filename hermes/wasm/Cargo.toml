@@ -3,8 +3,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/wasi-component-adapter",
-    "crates/wasi-component-adapter/verify",
+    "crates/wasi-component-adapter"
 ]
 
 [workspace.package]
@@ -17,7 +16,7 @@ authors = [
 rust-version = "1.73"
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
-license = "MIT OR Apache-2.0"
+license = "Apache-2.0 WITH LLVM-exception"
 
 [workspace.dependencies]
 

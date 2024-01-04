@@ -1,0 +1,23 @@
+VERSION 0.7
+FROM rust:1.69-alpine
+WORKDIR /work
+
+# Adds our World files to the defined wit dependencies.
+# The world file defines which dependencies this module needs.
+wit:
+    FROM scratch
+
+    COPY --dir ../../+wit-deps/wit/deps ./wit/deps
+
+    COPY hermes.wit ./wit/
+
+    SAVE ARTIFACT wit
+
+all:
+    BUILD +wit
+    BUILD ./c+build
+    BUILD ./go+build
+    BUILD ./java+build
+    #BUILD ./rust+build
+    BUILD ./zig+build
+
