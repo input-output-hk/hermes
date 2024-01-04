@@ -17,3 +17,4 @@ repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+pallas = "0.20.0"
