@@ -135,7 +135,9 @@ impl Reader {
     ///
     /// Returns Err if the block was not found or if some communication error ocurred.
     pub async fn read_block<P>(&mut self, at: P) -> Result<MultiEraBlockData>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let point = self.resolve_point_or_tip(at.into()).await?;
 
         let block_data = self
@@ -162,7 +164,9 @@ impl Reader {
     pub async fn read_block_range<P>(
         &mut self, from: Point, to: P,
     ) -> Result<Vec<MultiEraBlockData>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let to_point = self.resolve_point_or_tip(to.into()).await?;
 
         let data_vec = self
@@ -255,7 +259,9 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         self.follow_from = from.into();
         self
     }
@@ -337,9 +343,8 @@ impl Follower {
         Ok(this)
     }
 
-    /// Set the follower's chain read-pointer.
-    ///
-    /// Returns None if the point was not found on the chain.
+    /// Set the follower's chain read-pointer. Returns None if the point was
+    /// not found on the chain.
     ///
     /// # Arguments
     ///
@@ -349,7 +354,9 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&mut self, at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let mut client = self.client.lock().await;
 
         match Into::<PointOrTip>::into(at) {
@@ -362,14 +369,12 @@ impl Follower {
 
                 Ok(Some(point))
             },
-            PointOrTip::Point(p @ Point::Specific(..)) => {
-                client
-                    .chainsync()
-                    .find_intersect(vec![p])
-                    .await
-                    .map(|(point, _)| point)
-                    .map_err(Error::Chainsync)
-            },
+            PointOrTip::Point(p @ Point::Specific(..)) => client
+                .chainsync()
+                .find_intersect(vec![p])
+                .await
+                .map(|(point, _)| point)
+                .map_err(Error::Chainsync),
             PointOrTip::Tip => {
                 let point = client
                     .chainsync()
