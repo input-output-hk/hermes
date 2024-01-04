@@ -4,9 +4,19 @@
 use std::error::Error;
 
 use cardano_chain_follower::{Network, Point, Reader};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .init();
+
     let mut reader =
         Reader::connect("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
 
