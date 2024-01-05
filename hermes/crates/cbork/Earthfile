@@ -8,7 +8,9 @@ builder:
 
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SETUP --toolchain=rust-toolchain.toml
 
-    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml cddl-* .
+    COPY --dir .cargo .config Cargo.toml clippy.toml deny.toml rustfmt.toml cddl-* .
+
+    RUN cargo generate-lockfile
 
 # Test rust build container - Use best architecture host tools.
 check-hosted:
