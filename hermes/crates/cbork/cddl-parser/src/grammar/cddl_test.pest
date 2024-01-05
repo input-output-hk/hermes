@@ -3,6 +3,8 @@
 // Test Expressions ONLY TO Be USED by Unit Tests.
 // Extends `cddl.pest` with rules needed to properly check sub-rules.
 
+// cspell: words intfloat hexfloat
+
 /// Test Expression for the S Rule.
 S_TEST = ${ SOI ~ S ~ EOI }
 

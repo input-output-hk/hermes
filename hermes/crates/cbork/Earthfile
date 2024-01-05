@@ -1,0 +1,72 @@
+VERSION 0.7
+
+#cspell: words rustfmt toolsets USERARCH
+
+# Set up our target toolchains, and copy our files.
+builder:
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+rust-base
+
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SETUP --toolchain=rust-toolchain.toml
+
+    COPY --dir .cargo .config Cargo.toml clippy.toml deny.toml rustfmt.toml cddl-* .
+
+    RUN cargo generate-lockfile
+
+# Test rust build container - Use best architecture host tools.
+check-hosted:
+    FROM +builder
+
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+CHECK
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+check-all-hosts:    
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +check-hosted
+
+build-hosted:
+    ARG TARGETPLATFORM
+
+    # Build the service
+    FROM +builder
+ 
+    # we don't have bin target right now
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+BUILD --libs="cddl-parser" # --bins="hermes/hermes"
+
+    # DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SMOKE_TEST --bin=hermes
+
+    SAVE ARTIFACT target/$TARGETARCH/doc doc
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+build-all-hosts:    
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build-hosted
+
+# Run check using the most efficient host tooling
+# CI Automated Entry point.
+check:
+    FROM busybox
+    # This is necessary to pick the correct architecture build to suit the native machine.
+    # It primarily ensures that Darwin/Arm builds work as expected without needing x86 emulation.
+    # All target implementation of this should follow this pattern.
+    ARG USERARCH
+
+    IF [ "$USERARCH" == "arm64" ]
+        BUILD --platform=linux/arm64 +check-hosted
+    ELSE
+        BUILD --platform=linux/amd64 +check-hosted
+    END
+
+# Run build using the most efficient host tooling
+# CI Automated Entry point.
+build:
+    FROM busybox
+    # This is necessary to pick the correct architecture build to suit the native machine.
+    # It primarily ensures that Darwin/Arm builds work as expected without needing x86 emulation.
+    # All target implementation of this should follow this pattern.
+    ARG USERARCH
+
+    IF [ "$USERARCH" == "arm64" ]
+        BUILD --platform=linux/arm64 +build-hosted
+    ELSE
+        BUILD --platform=linux/amd64 +build-hosted
+    END

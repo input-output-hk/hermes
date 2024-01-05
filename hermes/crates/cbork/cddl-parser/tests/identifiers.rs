@@ -1,3 +1,5 @@
+// cspell: words aname groupsocket typesocket groupsocket
+
 use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 #[test]
@@ -58,21 +60,16 @@ fn check_id() {
     ];
 
     let fail = vec![
-        "aname.",
-        "aname-",
-        "aname%",
-        "a%name4",
-        "a^name5",
-        "a name",
-        ""];
+        "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
+    ];
 
     for test in test {
-        let parse = CDDLParser::parse(Rule::id_TEST, &test);
+        let parse = CDDLParser::parse(Rule::id_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fail {
-        let parse = CDDLParser::parse(Rule::id_TEST, &test);
+        let parse = CDDLParser::parse(Rule::id_TEST, test);
         assert!(parse.is_err());
     }
 }

@@ -1,3 +1,5 @@
+// cspell: words xdog intfloat hexfloat xabcp defp rstuvw
+
 use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 /// Note, the `text`, `bytes` and `id` tests are elsewhere.
@@ -19,12 +21,12 @@ fn check_uint() {
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::uint_TEST, &test);
+        let parse = CDDLParser::parse(Rule::uint_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::uint_TEST, &test);
+        let parse = CDDLParser::parse(Rule::uint_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -54,12 +56,12 @@ fn check_int() {
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::int_TEST, &test);
+        let parse = CDDLParser::parse(Rule::int_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::int_TEST, &test);
+        let parse = CDDLParser::parse(Rule::int_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -90,12 +92,12 @@ fn check_intfloat() {
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::intfloat_TEST, &test);
+        let parse = CDDLParser::parse(Rule::intfloat_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::intfloat_TEST, &test);
+        let parse = CDDLParser::parse(Rule::intfloat_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -117,12 +119,12 @@ fn check_hexfloat() {
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::hexfloat_TEST, &test);
+        let parse = CDDLParser::parse(Rule::hexfloat_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::hexfloat_TEST, &test);
+        let parse = CDDLParser::parse(Rule::hexfloat_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -156,18 +158,17 @@ fn check_number() {
         "123e-789",
         "123.456e+789",
         "123.456e-789",
-
     ];
 
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::number_TEST, &test);
+        let parse = CDDLParser::parse(Rule::number_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::number_TEST, &test);
+        let parse = CDDLParser::parse(Rule::number_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -201,7 +202,6 @@ fn check_value() {
         "123e-789",
         "123.456e+789",
         "123.456e-789",
-
         // Ideally we would define these somewhere central and just use them where needed.
         "h''",
         "b64''",
@@ -214,7 +214,6 @@ fn check_value() {
         "b64'abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ'",
         "''",
         "'text\n that gets converted \\\' into a byte string...'",
-
         // Ideally we would define these somewhere central and just use them where needed.
         r#""""#,
         r#""abc""#,
@@ -224,12 +223,12 @@ fn check_value() {
     let fails = vec![" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::value_TEST, &test);
+        let parse = CDDLParser::parse(Rule::value_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::value_TEST, &test);
+        let parse = CDDLParser::parse(Rule::value_TEST, test);
         assert!(parse.is_err());
     }
 }
