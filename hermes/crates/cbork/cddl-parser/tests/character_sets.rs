@@ -1,6 +1,4 @@
-use cddl_parser::{self, Rule, CDDLParser, Parser};
-
-
+use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 #[test]
 /// Test if the `WHITESPACE` rule passes properly.
@@ -10,11 +8,11 @@ fn check_whitespace() {
     let not_whitespace = "not";
 
     for ws in whitespace {
-        let parse = CDDLParser::parse(Rule::WHITESPACE, &ws);
+        let parse = CDDLParser::parse(Rule::WHITESPACE, ws);
         assert!(parse.is_ok());
     }
 
-    let parse = CDDLParser::parse(Rule::WHITESPACE, &not_whitespace);
+    let parse = CDDLParser::parse(Rule::WHITESPACE, not_whitespace);
     assert!(parse.is_err());
 }
 
@@ -41,8 +39,7 @@ fn check_bchar() {
     for x in ('\u{0}'..='\u{ff}').map(char::from) {
         let test = format!("{x}");
         let parse = CDDLParser::parse(Rule::BCHAR, &test);
-        if x != '\n' && x != '\r' && x < ' ' || x == '\u{27}' || x == '\u{5c}' || x == '\u{7f}'
-        {
+        if x != '\n' && x != '\r' && x < ' ' || x == '\u{27}' || x == '\u{5c}' || x == '\u{7f}' {
             assert!(parse.is_err());
         } else {
             assert!(parse.is_ok());

@@ -1,4 +1,4 @@
-use cddl_parser::{self, Rule, CDDLParser, Parser};
+use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.
@@ -8,16 +8,15 @@ fn check_hexpair() {
     let not_hex_pairs = vec!["0", " 0", "0 ", "az", "0p"];
 
     for hp in hex_pairs {
-        let parse = CDDLParser::parse(Rule::HEX_PAIR, &hp);
+        let parse = CDDLParser::parse(Rule::HEX_PAIR, hp);
         assert!(parse.is_ok());
     }
 
     for hp in not_hex_pairs {
-        let parse = CDDLParser::parse(Rule::HEX_PAIR, &hp);
+        let parse = CDDLParser::parse(Rule::HEX_PAIR, hp);
         assert!(parse.is_err());
     }
 }
-
 
 #[test]
 /// Test if the `URL_BASE64` rule passes properly.
@@ -36,22 +35,20 @@ fn check_url_base64() {
     ];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, &test);
+        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, &test);
+        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, test);
         assert!(parse.is_err());
     }
-
 }
-
 
 #[test]
 /// Test if the `bytes` rule passes properly.
 fn check_bytes() {
-    let test =     vec![
+    let test = vec![
         "h''",
         "b64''",
         "''",
@@ -65,7 +62,6 @@ fn check_bytes() {
         "'text\n that gets converted \\\' into a byte string...'",
     ];
 
-
     let fail = vec![
         "h64",
         "b64",
@@ -75,15 +71,16 @@ fn check_bytes() {
         "h'001'",
         "b64'abcdefghijklmnopq #  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~'",
         "b64'abcdefghijklmnopq   & rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ'",
-        "'\u{7}'"];
+        "'\u{7}'",
+    ];
 
     for test in test {
-        let parse = CDDLParser::parse(Rule::bytes_TEST, &test);
+        let parse = CDDLParser::parse(Rule::bytes_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fail {
-        let parse = CDDLParser::parse(Rule::bytes_TEST, &test);
+        let parse = CDDLParser::parse(Rule::bytes_TEST, test);
         assert!(parse.is_err());
     }
 }
