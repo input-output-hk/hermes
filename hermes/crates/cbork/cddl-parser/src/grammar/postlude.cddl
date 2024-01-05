@@ -1,6 +1,8 @@
 ; CDDL Standard Postlude as defined by Appendix D of RFC8610
 ; https://www.rfc-editor.org/rfc/rfc8610#appendix-D
 
+; cspell: words nint tstr tdate biguint decfrac bigfloat cbor bignint
+
 any = #
 
 uint = #0

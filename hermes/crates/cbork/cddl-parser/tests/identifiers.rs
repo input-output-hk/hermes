@@ -1,3 +1,5 @@
+// cspell: words aname groupsocket typesocket groupsocket
+
 use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 #[test]

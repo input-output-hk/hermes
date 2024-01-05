@@ -1,6 +1,9 @@
 //! CDDL Grammar adapted from RFC8610 Appendix B
 //! https://www.rfc-editor.org/rfc/rfc8610#appendix-B
 
+// cspell: words assignt groupname grpent genericparm assigng
+// cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
+// cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
 cddl = {
     SOI

@@ -1,3 +1,5 @@
+// cspell: words PCHAR pchar BCHAR bchar SESC sesc SCHAR schar fffd fffe
+
 use cddl_parser::{self, CDDLParser, Parser, Rule};
 
 #[test]

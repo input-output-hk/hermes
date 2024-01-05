@@ -225,9 +225,6 @@
         "**/.gitignore",
         ".vscode/**",
         "**/.idea/**",
-        "hermes/wasm/*/**",
-        "**/*.pest",
-        "**/*.cddl",
-        "**/tests/**",
+        "hermes/wasm/*/**"
     ]
 }
