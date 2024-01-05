@@ -1,6 +1,6 @@
 // cspell: words apskhem
 
-![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
+#![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
 
 //! A parser for CDDL, utilized for parsing in accordance with RFC 8610.
 
