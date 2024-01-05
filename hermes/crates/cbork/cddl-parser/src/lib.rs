@@ -33,7 +33,7 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 ///
 /// Returns `Ok(())` if parsing is successful, otherwise returns an `Err` containing
 /// a boxed `CDDLError` indicating the parsing error.
-/// 
+///
 /// # Errors
 ///
 /// This function may return an error in the following cases:
