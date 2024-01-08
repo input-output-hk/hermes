@@ -1,10 +1,10 @@
-#cspell: words Apisit Ritreungroj wasmparser wasi bindgen
+#cspell: words Apisit Ritreungroj wasi bindgen
 
 [workspace]
 resolver = "2"
 members = [
     "crates/wasi-component-adapter",
-    "crates/wasi-component-adapter/verify",
+    "crates/wasi-component-adapter/byte-array-literals"
 ]
 
 [workspace.package]
@@ -22,14 +22,10 @@ license = "MIT OR Apache-2.0"
 [workspace.dependencies]
 
 # for `wasi-preview1-component-adapter`
-wit-bindgen = "0.16.0"
-byte-array-literals = { path = "./crates/wasi-component-adapter/byte-array-literals", version = "0.0.1" }
+wit-bindgen = { version = "0.16.0", default-features = false }
+wasi = { version = "0.11.0", default-features = false }
+byte-array-literals = { path = "./crates/wasi-component-adapter/byte-array-literals" }
 wasm-encoder = "0.38.1"
-object = "0.32.1"
-
-# for `wasi-preview1-component-adapter/verify`
-wasmparser = "0.118.1"
-wat = "1.0.82"
-anyhow = "1.0.76"
+object = { version = "0.32.1", default-features = false }
 
 [workspace.lints]

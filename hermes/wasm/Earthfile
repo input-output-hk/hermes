@@ -23,27 +23,24 @@ fork-wasi-component-adapter:
         mv wasmtime/crates/wasi/wit $wit_local_dir/wit && \
         rm -rf wasmtime/
 
-# Set up our target toolchains, and copy our files.
+# Set up our target toolchains, and copy source files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+rust-base
+    FROM ./../../../catalyst-ci/earthly/rust+rust-base
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+SETUP --toolchain=rust-toolchain.toml
-
-    COPY --dir .cargo Cargo.* clippy.toml deny.toml rustfmt.toml crates .
+    COPY --dir .cargo crates .
+    COPY Cargo.toml Cargo.lock .
+    COPY clippy.toml deny.toml rustfmt.toml rust-toolchain.toml .
 
 # Run quality checks.
 check:
     FROM +builder
 
-    RUN cargo machete && \
-        # cargo +nightly fmtchk && \
-        cargo deny check
+    DO ./../../../catalyst-ci/earthly/rust+CHECK
 
-    # DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.3+CHECK
-
+# Build the service.
 build:
     FROM +builder
 
-    RUN cargo build --release
+    DO ./../../../catalyst-ci/earthly/rust+BUILD --target="wasm32-unknown-unknown"
 
     SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
