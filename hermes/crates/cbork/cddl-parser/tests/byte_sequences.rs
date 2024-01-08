@@ -1,6 +1,6 @@
 // cspell: words hexpair rstuvw abcdefghijklmnopqrstuvwyz rstuvw
 
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, parser::CDDLParser, Parser, parser::Rule};
 
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.

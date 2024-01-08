@@ -4,26 +4,14 @@
 
 //! A parser for CDDL, utilized for parsing in accordance with RFC 8610.
 
-use std::fmt::Debug;
+pub mod error;
+pub mod parser;
 
 pub use pest::Parser;
-use pest_derive::Parser;
 
 extern crate derive_more;
-use derive_more::{Display, From};
 
-// Parser with DEBUG rules.  These rules are only used in tests.
-#[derive(Parser)]
-#[grammar = "grammar/cddl.pest"]
-#[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
-pub struct CDDLParser;
-
-/// Represents an error that may occur during CDDL parsing.
-#[derive(Display, Debug, From)]
-pub struct CDDLError(pest::error::Error<Rule>);
-
-// CDDL Standard Postlude - read from an external file
-pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
+pub type Result = std::result::Result<(), Box<error::CDDLError>>;
 
 /// Parses and checks semantically a CDDL input string.
 ///
@@ -52,35 +40,19 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 /// let result = parse_cddl(&input);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl(input: &str) -> Result<(), Box<CDDLError>> {
-    let result = CDDLParser::parse(Rule::cddl, input);
+pub fn parse_cddl(input: &str, extension: parser::Extension) -> Result {
+    let result = match extension {
+        parser::Extension::RFC8610Parser => parser::rfc_8610::parse(input),
+        parser::Extension::RFC9615Parser => unimplemented!(),
+        parser::Extension::CDDLParser => unimplemented!(),
+        parser::Extension::CDDLTestParser => unimplemented!(),
+    };
 
-    match result {
-        Ok(c) => println!("{c:?}"),
-        Err(e) => {
-            println!("{e:?}");
-            println!("{e}");
-            return Err(Box::new(CDDLError::from(e)));
-        },
+    if let Err(err) = result {
+        println!("{err:?}");
+        println!("{err}");
+        return Err(err);
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{parse_cddl, POSTLUDE};
-
-    #[test]
-    fn it_works() {
-        let result = parse_cddl(POSTLUDE);
-
-        match result {
-            Ok(c) => println!("{c:?}"),
-            Err(e) => {
-                println!("{e:?}");
-                println!("{e}");
-            },
-        }
-    }
 }
