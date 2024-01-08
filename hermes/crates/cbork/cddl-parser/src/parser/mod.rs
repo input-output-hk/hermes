@@ -26,21 +26,3 @@ pub enum Extension {
 }
 
 pub const POSTLUDE: &str = include_str!("../grammar/postlude.cddl");
-
-#[cfg(test)]
-mod tests {
-    use crate::*;
-
-    #[test]
-    fn it_works() {
-        let result = parse_cddl(parser::POSTLUDE, parser::Extension::CDDLTestParser);
-
-        match result {
-            Ok(c) => println!("{c:?}"),
-            Err(e) => {
-                println!("{e:?}");
-                println!("{e}");
-            },
-        }
-    }
-}

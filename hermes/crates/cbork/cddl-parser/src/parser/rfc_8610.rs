@@ -32,3 +32,21 @@ pub fn parse(input: &str) -> Result {
 
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn it_works() {
+        let result = parse_cddl(crate::parser::POSTLUDE, parser::Extension::RFC8610Parser);
+
+        match result {
+            Ok(c) => println!("{c:?}"),
+            Err(e) => {
+                println!("{e:?}");
+                println!("{e}");
+            },
+        }
+    }
+}
