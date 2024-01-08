@@ -1,4 +1,4 @@
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, cddl_test::{CDDLTestParser, Parser, Rule}};
 
 #[test]
 /// Test if the `COMMENT` rule passes properly.
@@ -8,16 +8,16 @@ fn check_comment() {
     let comment3 = ";more\r\n";
     let not_comment = "not a comment\n";
 
-    let parse = CDDLParser::parse(Rule::COMMENT, comment1);
+    let parse = CDDLTestParser::parse(Rule::COMMENT, comment1);
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::COMMENT, comment2);
+    let parse = CDDLTestParser::parse(Rule::COMMENT, comment2);
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::COMMENT, comment3);
+    let parse = CDDLTestParser::parse(Rule::COMMENT, comment3);
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::COMMENT, not_comment);
+    let parse = CDDLTestParser::parse(Rule::COMMENT, not_comment);
     assert!(parse.is_err());
 }
 
@@ -41,12 +41,12 @@ fn check_whitespace_comments() {
     let fails = vec!["not a comment"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::COMMENT_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::COMMENT_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::COMMENT_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::COMMENT_TEST, test);
         assert!(parse.is_err());
     }
 }

@@ -7,20 +7,52 @@
 use std::fmt::Debug;
 
 pub use pest::Parser;
-use pest_derive::Parser;
 
 extern crate derive_more;
 use derive_more::{Display, From};
+use pest::error::Error;
 
-// Parser with DEBUG rules.  These rules are only used in tests.
-#[derive(Parser)]
-#[grammar = "grammar/cddl.pest"]
-#[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
-pub struct CDDLParser;
+pub mod rfc_8610 {
+    pub use pest::Parser;
+
+    #[derive(pest_derive::Parser)]
+    #[grammar = "grammar/cddl.pest"]
+    pub struct RFC8610Parser;
+}
+
+pub mod cddl_test {
+    pub use pest::Parser;
+
+    // Parser with DEBUG rules. These rules are only used in tests.
+    #[derive(pest_derive::Parser)]
+    #[grammar = "grammar/cddl.pest"]
+    #[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
+    pub struct CDDLTestParser;
+}
+
+/// Represents different parser extensions for handling CDDL specifications.
+pub enum Extension {
+    /// RFC8610 ONLY limited parser.
+    RFC8610Parser,
+    /// RFC8610 and RFC9615 limited parser.
+    RFC9615Parser,
+    /// RFC8610, RFC9615, and CDDL modules.
+    CDDLParser,
+    /// Same as CDDLParser but includes the `cddl_test.pest` file for integration test usage, mainly for development testing.
+    CDDLTestParser
+}
+
+#[derive(Display, Debug)]
+pub enum CDDLErrorType {
+    RFC8610(Error<rfc_8610::Rule>),
+    RFC9615,
+    CDDL,
+    CDDLTest(Error<cddl_test::Rule>),
+}
 
 /// Represents an error that may occur during CDDL parsing.
 #[derive(Display, Debug, From)]
-pub struct CDDLError(pest::error::Error<Rule>);
+pub struct CDDLError(CDDLErrorType);
 
 // CDDL Standard Postlude - read from an external file
 pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
@@ -52,34 +84,56 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 /// let result = parse_cddl(&input);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl(input: &str) -> Result<(), Box<CDDLError>> {
-    let result = CDDLParser::parse(Rule::cddl, input);
+pub fn parse_cddl(input: &str, extension: Extension) -> Result<(), Box<CDDLError>> {
+    let result = match extension {
+        Extension::RFC8610Parser => {
+            let result = rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input);
 
-    match result {
-        Ok(c) => println!("{c:?}"),
-        Err(e) => {
-            println!("{e:?}");
-            println!("{e}");
-            return Err(Box::new(CDDLError::from(e)));
+            match result {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{e:?}");
+                    println!("{e}");
+                    return Err(Box::new(CDDLError::from(CDDLErrorType::RFC8610(e))));
+                }
+            }
         },
-    }
+        Extension::RFC9615Parser => {
+            unimplemented!()
+        },
+        Extension::CDDLParser => {
+            unimplemented!()
+        },
+        Extension::CDDLTestParser => {
+            let result = cddl_test::CDDLTestParser::parse(cddl_test::Rule::cddl, input);
 
-    Ok(())
+            match result {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{e:?}");
+                    println!("{e}");
+                    return Err(Box::new(CDDLError::from(CDDLErrorType::CDDLTest(e))));
+                }
+            }
+        },
+    };
+
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_cddl, POSTLUDE};
+    use crate::*;
 
     #[test]
     fn it_works() {
-        let result = parse_cddl(POSTLUDE);
+        let result = parse_cddl(POSTLUDE, Extension::CDDLTestParser);
 
         match result {
             Ok(c) => println!("{c:?}"),
             Err(e) => {
                 println!("{e:?}");
-                println!("{e}");
+                println!("{e:?}");
             },
         }
     }

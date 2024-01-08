@@ -1,14 +1,14 @@
 // cspell: words aname groupsocket typesocket groupsocket
 
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, cddl_test::{CDDLTestParser, Parser, Rule}};
 
 #[test]
 /// Check if the name components pass properly.
 fn check_name_characters() {
     for x in ('\u{0}'..='\u{ff}').map(char::from) {
         let test = format!("{x}");
-        let parse_start = CDDLParser::parse(Rule::NAME_START, &test);
-        let parse_end = CDDLParser::parse(Rule::NAME_END, &test);
+        let parse_start = CDDLTestParser::parse(Rule::NAME_START, &test);
+        let parse_end = CDDLTestParser::parse(Rule::NAME_END, &test);
 
         if x.is_ascii_alphabetic() || x == '@' || x == '_' || x == '$' {
             assert!(parse_start.is_ok());
@@ -64,12 +64,12 @@ fn check_id() {
     ];
 
     for test in test {
-        let parse = CDDLParser::parse(Rule::id_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::id_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fail {
-        let parse = CDDLParser::parse(Rule::id_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::id_TEST, test);
         assert!(parse.is_err());
     }
 }

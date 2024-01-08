@@ -1,6 +1,6 @@
 // cspell: words hexpair rstuvw abcdefghijklmnopqrstuvwyz rstuvw
 
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, cddl_test::{CDDLTestParser, Parser, Rule}};
 
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.
@@ -10,12 +10,12 @@ fn check_hexpair() {
     let not_hex_pairs = vec!["0", " 0", "0 ", "az", "0p"];
 
     for hp in hex_pairs {
-        let parse = CDDLParser::parse(Rule::HEX_PAIR, hp);
+        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
         assert!(parse.is_ok());
     }
 
     for hp in not_hex_pairs {
-        let parse = CDDLParser::parse(Rule::HEX_PAIR, hp);
+        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
         assert!(parse.is_err());
     }
 }
@@ -37,12 +37,12 @@ fn check_url_base64() {
     ];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::URL_BASE64_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -77,12 +77,12 @@ fn check_bytes() {
     ];
 
     for test in test {
-        let parse = CDDLParser::parse(Rule::bytes_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::bytes_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fail {
-        let parse = CDDLParser::parse(Rule::bytes_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::bytes_TEST, test);
         assert!(parse.is_err());
     }
 }
