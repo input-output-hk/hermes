@@ -1,6 +1,6 @@
 // cspell: words xdog intfloat hexfloat xabcp defp rstuvw
 
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, parser::CDDLParser, Parser, parser::Rule};
 
 /// Note, the `text`, `bytes` and `id` tests are elsewhere.
 

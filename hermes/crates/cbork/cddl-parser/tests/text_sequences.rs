@@ -1,4 +1,4 @@
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{self, parser::CDDLParser, Parser, parser::Rule};
 
 #[test]
 /// Test if the `S` rule passes properly.
