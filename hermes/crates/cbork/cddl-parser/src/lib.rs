@@ -48,11 +48,10 @@ pub fn parse_cddl(input: &str, extension: parser::Extension) -> Result {
         parser::Extension::CDDLTestParser => unimplemented!(),
     };
 
-    if let Err(err) = result {
+    if let Err(err) = &result {
         println!("{err:?}");
         println!("{err}");
-        return Err(err);
     }
 
-    Ok(())
+    result
 }
