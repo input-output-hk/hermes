@@ -10,15 +10,13 @@ pub use pest::Parser;
 
 extern crate derive_more;
 use derive_more::{Display, From};
-use pest::error::Error;
+use pest::{error::Error, iterators::Pairs};
 
 pub mod rfc_8610 {
     pub use pest::Parser;
 
     #[derive(pest_derive::Parser)]
-    // #[grammar = "grammar/rfc_8610.pest"]
-    // TODO: we will implement to support those specifications later
-    #[grammar = "grammar/cddl.pest"]
+    #[grammar = "grammar/rfc_8610.pest"]
     pub struct RFC8610Parser;
 }
 
@@ -26,10 +24,8 @@ pub mod rfc_9615 {
     pub use pest::Parser;
 
     #[derive(pest_derive::Parser)]
-    // #[grammar = "grammar/rfc_8610.pest"]
-    // #[grammar = "grammar/rfc_9615.pest"]
-    // TODO: we will implement to support those specifications later
-    #[grammar = "grammar/cddl.pest"]
+    #[grammar = "grammar/rfc_8610.pest"]
+    #[grammar = "grammar/rfc_9615.pest"]
     pub struct RFC8610Parser;
 }
 
@@ -37,10 +33,9 @@ pub mod cddl {
     pub use pest::Parser;
 
     #[derive(pest_derive::Parser)]
-    // #[grammar = "grammar/rfc_8610.pest"]
-    // #[grammar = "grammar/rfc_9615.pest"]
-    // TODO: we will implement to support those specifications later
-    #[grammar = "grammar/cddl.pest"]
+    #[grammar = "grammar/rfc_8610.pest"]
+    #[grammar = "grammar/rfc_9615.pest"]
+    #[grammar = "grammar/cddl_modules.pest"]
     pub struct RFC8610Parser;
 }
 
@@ -49,10 +44,9 @@ pub mod cddl_test {
 
     // Parser with DEBUG rules. These rules are only used in tests.
     #[derive(pest_derive::Parser)]
-    // #[grammar = "grammar/rfc_8610.pest"]
-    // #[grammar = "grammar/rfc_9615.pest"]
-    // TODO: we will implement to support those specifications later
-    #[grammar = "grammar/cddl.pest"]
+    #[grammar = "grammar/rfc_8610.pest"]
+    #[grammar = "grammar/rfc_9615.pest"]
+    #[grammar = "grammar/cddl_modules.pest"]
     #[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
     pub struct CDDLTestParser;
 }
@@ -65,6 +59,17 @@ pub enum Extension {
     RFC9615Parser,
     /// RFC8610, RFC9615, and CDDL modules.
     CDDLParser,
+}
+
+// CDDL Standard Postlude - read from an external file
+pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
+
+// TODO: this is temporary. need to add more pragmatic nodes
+#[derive(Debug)]
+pub enum AST<'a> {
+    RFC8610(Pairs<'a, rfc_8610::Rule>),
+    RFC9615(Pairs<'a, rfc_9615::Rule>),
+    CDDL(Pairs<'a, cddl::Rule>),
 }
 
 /// Represents different types of errors related to different types of extension.
@@ -109,26 +114,28 @@ pub struct CDDLError(CDDLErrorType);
 /// let result = parse_cddl(&input, &Extension::CDDLParser);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLError>> {
-    let result = match extension {
+pub fn parse_cddl<'a>(
+    input: &'a str, extension: &Extension,
+) -> Result<Box<AST<'a>>, Box<CDDLError>> {
+    let result: Result<AST<'a>, CDDLErrorType> = match extension {
         Extension::RFC8610Parser => {
-            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input)
-                .map(|_| ())
+            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, &input)
+                .map(AST::RFC8610)
                 .map_err(CDDLErrorType::RFC8610)
         },
         Extension::RFC9615Parser => {
-            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
-                .map(|_| ())
+            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, &input)
+                .map(AST::RFC9615)
                 .map_err(CDDLErrorType::RFC9615)
         },
         Extension::CDDLParser => {
-            cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
-                .map(|_| ())
+            cddl::RFC8610Parser::parse(cddl::Rule::cddl, &input)
+                .map(AST::CDDL)
                 .map_err(CDDLErrorType::CDDL)
         },
     };
 
-    result.map_err(|e| {
+    result.map(|ast| Box::new(ast)).map_err(|e| {
         println!("{e:?}");
         println!("{e}");
 
@@ -139,9 +146,6 @@ pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLErro
 #[cfg(test)]
 mod tests {
     use crate::*;
-
-    // CDDL Standard Postlude - read from an external file
-    const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 
     #[test]
     fn it_works() {
