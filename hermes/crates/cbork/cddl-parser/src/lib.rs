@@ -117,7 +117,7 @@ pub struct CDDLError(CDDLErrorType);
 pub fn parse_cddl<'a>(
     input: &'a str, extension: &Extension,
 ) -> Result<Box<AST<'a>>, Box<CDDLError>> {
-    let result: Result<AST<'a>, CDDLErrorType> = match extension {
+    let result = match extension {
         Extension::RFC8610Parser => {
             rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, &input)
                 .map(AST::RFC8610)
@@ -134,6 +134,9 @@ pub fn parse_cddl<'a>(
                 .map_err(CDDLErrorType::CDDL)
         },
     };
+
+    // TODO: parse POSTLUDE and then append into the parsed structure,
+    // as trying to concat the input with `POSTLUDE` first causing a lifetime problem.
 
     result.map(|ast| Box::new(ast)).map_err(|e| {
         println!("{e:?}");
