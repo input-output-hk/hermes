@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let result = cddl_test::CDDLTestParser::parse(cddl_test::Rule::cddl, POSTLUDE);
+        let result = parse_cddl(POSTLUDE, &Extension::CDDLParser);
 
         match result {
             Ok(c) => println!("{c:?}"),
