@@ -119,17 +119,17 @@ pub fn parse_cddl<'a>(
 ) -> Result<Box<AST<'a>>, Box<CDDLError>> {
     let result = match extension {
         Extension::RFC8610Parser => {
-            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, &input)
+            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input)
                 .map(AST::RFC8610)
                 .map_err(CDDLErrorType::RFC8610)
         },
         Extension::RFC9615Parser => {
-            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, &input)
+            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
                 .map(AST::RFC9615)
                 .map_err(CDDLErrorType::RFC9615)
         },
         Extension::CDDLParser => {
-            cddl::RFC8610Parser::parse(cddl::Rule::cddl, &input)
+            cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
                 .map(AST::CDDL)
                 .map_err(CDDLErrorType::CDDL)
         },
@@ -138,7 +138,7 @@ pub fn parse_cddl<'a>(
     // TODO: parse POSTLUDE and then append into the parsed structure,
     // as trying to concat the input with `POSTLUDE` first causing a lifetime problem.
 
-    result.map(|ast| Box::new(ast)).map_err(|e| {
+    result.map(Box::new).map_err(|e| {
         println!("{e:?}");
         println!("{e}");
 
