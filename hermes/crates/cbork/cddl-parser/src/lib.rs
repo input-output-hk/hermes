@@ -78,11 +78,11 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 /// # Examples
 ///
 /// ```rs
-/// use cddl_parser::parse_cddl;
+/// use cddl_parser::{parse_cddl, Extension};
 /// use std:fs;
 ///
 /// let input = fs::read_to_string("path/to/your/file.cddl").unwrap();
-/// let result = parse_cddl(&input);
+/// let result = parse_cddl(&input, &Extension::CDDLParser);
 /// assert!(result.is_ok());
 /// ```
 pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLError>> {
