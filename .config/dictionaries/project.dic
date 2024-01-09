@@ -5,6 +5,7 @@ asyncio
 auditability
 BROTLI
 cardano
+cbor
 CEST
 chrono
 ciphertext
@@ -21,10 +22,12 @@ drep
 dreps
 encryptor
 fontawesome
+fsgr
 genhtml
 gmtime
 ideascale
 Intellij
+iohk
 jetbrains
 jorm
 jormungandr
@@ -34,8 +37,10 @@ lcov
 Leshiy
 localizable
 mdlint
+miniprotocols
 mitigations
 moderations
+multiera
 nanos
 netkey
 oneshot
