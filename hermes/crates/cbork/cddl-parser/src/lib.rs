@@ -67,10 +67,14 @@ pub enum Extension {
     CDDLParser,
 }
 
+/// Represents different types of errors related to differenct types of extension.
 #[derive(Display, Debug)]
 pub enum CDDLErrorType {
+    /// An error related to RFC 8610 extension.
     RFC8610(Error<rfc_8610::Rule>),
+    /// An error related to RFC 9615 extension.
     RFC9615(Error<rfc_9615::Rule>),
+    /// An error related to CDDL modules extension.
     CDDL(Error<cddl::Rule>),
 }
 
