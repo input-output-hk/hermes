@@ -78,9 +78,6 @@ pub enum CDDLErrorType {
 #[derive(Display, Debug, From)]
 pub struct CDDLError(CDDLErrorType);
 
-// CDDL Standard Postlude - read from an external file
-pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
-
 /// Parses and checks semantically a CDDL input string.
 ///
 /// # Arguments
@@ -138,6 +135,9 @@ pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLErro
 #[cfg(test)]
 mod tests {
     use crate::*;
+
+    // CDDL Standard Postlude - read from an external file
+    const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 
     #[test]
     fn it_works() {
