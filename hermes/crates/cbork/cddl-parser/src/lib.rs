@@ -85,7 +85,7 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 /// let result = parse_cddl(&input);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl(input: &str, extension: Extension) -> Result<(), Box<CDDLError>> {
+pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLError>> {
     match extension {
         Extension::RFC8610Parser => {
             let result = rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input);
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let result = parse_cddl(POSTLUDE, Extension::CDDLTestParser);
+        let result = parse_cddl(POSTLUDE, &Extension::CDDLTestParser);
 
         match result {
             Ok(c) => println!("{c:?}"),
