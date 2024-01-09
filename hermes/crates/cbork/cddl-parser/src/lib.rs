@@ -114,24 +114,25 @@ pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLErro
         Extension::RFC8610Parser => {
             rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input)
                 .map(|_| ())
-                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::RFC8610(e))))
+                .map_err(CDDLErrorType::RFC8610)
         },
         Extension::RFC9615Parser => {
             rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
                 .map(|_| ())
-                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::RFC9615(e))))
+                .map_err(CDDLErrorType::RFC9615)
         },
         Extension::CDDLParser => {
             cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
                 .map(|_| ())
-                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::CDDL(e))))
+                .map_err(CDDLErrorType::CDDL)
         },
     };
 
     result.map_err(|e| {
         println!("{e:?}");
         println!("{e}");
-        e
+
+        Box::new(CDDLError::from(e))
     })
 }
 
