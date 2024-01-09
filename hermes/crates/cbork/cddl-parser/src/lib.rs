@@ -72,7 +72,6 @@ pub enum CDDLErrorType {
     RFC8610(Error<rfc_8610::Rule>),
     RFC9615(Error<rfc_9615::Rule>),
     CDDL(Error<cddl::Rule>),
-    CDDLTest(Error<cddl_test::Rule>),
 }
 
 /// Represents an error that may occur during CDDL parsing.
