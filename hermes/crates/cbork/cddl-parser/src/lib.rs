@@ -151,7 +151,7 @@ mod tests {
             Ok(c) => println!("{c:?}"),
             Err(e) => {
                 println!("{e:?}");
-                println!("{e:?}");
+                println!("{e}");
             },
         }
     }
