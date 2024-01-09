@@ -67,7 +67,7 @@ pub enum Extension {
     CDDLParser,
 }
 
-/// Represents different types of errors related to differenct types of extension.
+/// Represents different types of errors related to different types of extension.
 #[derive(Display, Debug)]
 pub enum CDDLErrorType {
     /// An error related to RFC 8610 extension.
