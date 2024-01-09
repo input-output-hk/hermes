@@ -1,4 +1,7 @@
-use cddl_parser::{self, cddl_test::{CDDLTestParser, Parser, Rule}};
+use cddl_parser::{
+    self,
+    cddl_test::{CDDLTestParser, Parser, Rule},
+};
 
 #[test]
 /// Test if the `COMMENT` rule passes properly.

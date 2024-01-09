@@ -1,6 +1,9 @@
 // cspell: words PCHAR pchar BCHAR bchar SESC sesc SCHAR schar fffd fffe
 
-use cddl_parser::{self, cddl_test::{CDDLTestParser, Parser, Rule}};
+use cddl_parser::{
+    self,
+    cddl_test::{CDDLTestParser, Parser, Rule},
+};
 
 #[test]
 /// Test if the `WHITESPACE` rule passes properly.

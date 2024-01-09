@@ -38,8 +38,9 @@ pub enum Extension {
     RFC9615Parser,
     /// RFC8610, RFC9615, and CDDL modules.
     CDDLParser,
-    /// Same as CDDLParser but includes the `cddl_test.pest` file for integration test usage, mainly for development testing.
-    CDDLTestParser
+    /// Same as CDDLParser but includes the `cddl_test.pest` file for integration test
+    /// usage, mainly for development testing.
+    CDDLTestParser,
 }
 
 #[derive(Display, Debug)]
@@ -95,7 +96,7 @@ pub fn parse_cddl(input: &str, extension: Extension) -> Result<(), Box<CDDLError
                     println!("{e:?}");
                     println!("{e}");
                     Err(Box::new(CDDLError::from(CDDLErrorType::RFC8610(e))))
-                }
+                },
             }
         },
         Extension::RFC9615Parser => {
@@ -113,7 +114,7 @@ pub fn parse_cddl(input: &str, extension: Extension) -> Result<(), Box<CDDLError
                     println!("{e:?}");
                     println!("{e}");
                     Err(Box::new(CDDLError::from(CDDLErrorType::CDDLTest(e))))
-                }
+                },
             }
         },
     }
