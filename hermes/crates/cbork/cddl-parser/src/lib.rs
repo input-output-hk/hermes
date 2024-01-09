@@ -16,6 +16,30 @@ pub mod rfc_8610 {
     pub use pest::Parser;
 
     #[derive(pest_derive::Parser)]
+    // #[grammar = "grammar/rfc_8610.pest"]
+    // TODO: we will implement to support those specifications later
+    #[grammar = "grammar/cddl.pest"]
+    pub struct RFC8610Parser;
+}
+
+pub mod rfc_9615 {
+    pub use pest::Parser;
+
+    #[derive(pest_derive::Parser)]
+    // #[grammar = "grammar/rfc_8610.pest"]
+    // #[grammar = "grammar/rfc_9615.pest"]
+    // TODO: we will implement to support those specifications later
+    #[grammar = "grammar/cddl.pest"]
+    pub struct RFC8610Parser;
+}
+
+pub mod cddl {
+    pub use pest::Parser;
+
+    #[derive(pest_derive::Parser)]
+    // #[grammar = "grammar/rfc_8610.pest"]
+    // #[grammar = "grammar/rfc_9615.pest"]
+    // TODO: we will implement to support those specifications later
     #[grammar = "grammar/cddl.pest"]
     pub struct RFC8610Parser;
 }
@@ -25,6 +49,9 @@ pub mod cddl_test {
 
     // Parser with DEBUG rules. These rules are only used in tests.
     #[derive(pest_derive::Parser)]
+    // #[grammar = "grammar/rfc_8610.pest"]
+    // #[grammar = "grammar/rfc_9615.pest"]
+    // TODO: we will implement to support those specifications later
     #[grammar = "grammar/cddl.pest"]
     #[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
     pub struct CDDLTestParser;
@@ -38,16 +65,13 @@ pub enum Extension {
     RFC9615Parser,
     /// RFC8610, RFC9615, and CDDL modules.
     CDDLParser,
-    /// Same as CDDLParser but includes the `cddl_test.pest` file for integration test
-    /// usage, mainly for development testing.
-    CDDLTestParser,
 }
 
 #[derive(Display, Debug)]
 pub enum CDDLErrorType {
     RFC8610(Error<rfc_8610::Rule>),
-    RFC9615,
-    CDDL,
+    RFC9615(Error<rfc_9615::Rule>),
+    CDDL(Error<cddl::Rule>),
     CDDLTest(Error<cddl_test::Rule>),
 }
 
@@ -86,38 +110,29 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 /// assert!(result.is_ok());
 /// ```
 pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLError>> {
-    match extension {
+    let result = match extension {
         Extension::RFC8610Parser => {
-            let result = rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input);
-
-            match result {
-                Ok(_) => Ok(()),
-                Err(e) => {
-                    println!("{e:?}");
-                    println!("{e}");
-                    Err(Box::new(CDDLError::from(CDDLErrorType::RFC8610(e))))
-                },
-            }
+            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input)
+                .map(|_| ())
+                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::RFC8610(e))))
         },
         Extension::RFC9615Parser => {
-            unimplemented!()
+            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
+                .map(|_| ())
+                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::RFC9615(e))))
         },
         Extension::CDDLParser => {
-            unimplemented!()
+            cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
+                .map(|_| ())
+                .map_err(|e| Box::new(CDDLError::from(CDDLErrorType::CDDL(e))))
         },
-        Extension::CDDLTestParser => {
-            let result = cddl_test::CDDLTestParser::parse(cddl_test::Rule::cddl, input);
+    };
 
-            match result {
-                Ok(_) => Ok(()),
-                Err(e) => {
-                    println!("{e:?}");
-                    println!("{e}");
-                    Err(Box::new(CDDLError::from(CDDLErrorType::CDDLTest(e))))
-                },
-            }
-        },
-    }
+    result.map_err(|e| {
+        println!("{e:?}");
+        println!("{e}");
+        e
+    })
 }
 
 #[cfg(test)]
@@ -126,7 +141,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let result = parse_cddl(POSTLUDE, &Extension::CDDLTestParser);
+        let result = cddl_test::CDDLTestParser::parse(cddl_test::Rule::cddl, POSTLUDE);
 
         match result {
             Ok(c) => println!("{c:?}"),
