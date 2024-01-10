@@ -71,7 +71,10 @@ fn main() {
 /// right.
 #[allow(clippy::too_many_lines)]
 fn build_raw_intrinsics() -> Vec<u8> {
-    use wasm_encoder::{ConstExpr, CustomSection, Encode, FunctionSection, GlobalSection, GlobalType, Instruction, Module, RawSection, SectionId, TypeSection, ValType};
+    use wasm_encoder::{
+        ConstExpr, CustomSection, Encode, FunctionSection, GlobalSection, GlobalType, Instruction,
+        Module, RawSection, SectionId, TypeSection, ValType,
+    };
 
     let mut module = Module::new();
 

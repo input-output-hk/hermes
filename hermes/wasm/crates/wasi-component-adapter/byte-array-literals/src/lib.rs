@@ -50,7 +50,6 @@ fn convert_str(input: TokenStream) -> Vec<TokenTree> {
     tokens
 }
 
-
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::panic)]
