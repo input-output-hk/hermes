@@ -2,13 +2,14 @@
 
 use std::{env, path::PathBuf};
 
+#[allow(clippy::unwrap_used)]
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let wasm = build_raw_intrinsics();
     let archive = build_archive(&wasm);
 
-    std::fs::write(out_dir.join("libwasm-raw-intrinsics.a"), &archive).unwrap();
+    std::fs::write(out_dir.join("libwasm-raw-intrinsics.a"), archive).unwrap();
     println!("cargo:rustc-link-lib=static=wasm-raw-intrinsics");
     println!(
         "cargo:rustc-link-search=native={}",
@@ -68,8 +69,9 @@ fn main() {
 ///
 /// The main trickiness here is getting the `reloc.CODE` and `linking` sections
 /// right.
+#[allow(clippy::too_many_lines)]
 fn build_raw_intrinsics() -> Vec<u8> {
-    use wasm_encoder::{Instruction::*, *};
+    use wasm_encoder::{ConstExpr, CustomSection, Encode, FunctionSection, GlobalSection, GlobalType, Instruction, Module, RawSection, SectionId, TypeSection, ValType};
 
     let mut module = Module::new();
 
@@ -126,12 +128,12 @@ fn build_raw_intrinsics() -> Vec<u8> {
         let mut body = Vec::new();
         0u32.encode(&mut body); // no locals
         if instruction == global_set {
-            LocalGet(0).encode(&mut body);
+            Instruction::LocalGet(0).encode(&mut body);
         }
         let global_offset = body.len() + 1;
         // global.get $global ;; but with maximal encoding of $global
         body.extend_from_slice(&[instruction, 0x80u8 + global, 0x80, 0x80, 0x80, 0x00]);
-        End.encode(&mut body);
+        Instruction::End.encode(&mut body);
         body.len().encode(code); // length of the function
         let offset = code.len() + global_offset;
         code.extend_from_slice(&body); // the function itself
@@ -236,6 +238,9 @@ fn build_raw_intrinsics() -> Vec<u8> {
 ///
 /// Like above this is still tricky, mainly around the production of the symbol
 /// table.
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::indexing_slicing)]
+#[allow(clippy::cast_possible_truncation)]
 fn build_archive(wasm: &[u8]) -> Vec<u8> {
     use object::{bytes_of, endian::BigEndian, U32Bytes};
 
@@ -264,10 +269,10 @@ fn build_archive(wasm: &[u8]) -> Vec<u8> {
 
     let mut symbol_table = Vec::new();
     symbol_table.extend_from_slice(bytes_of(&U32Bytes::new(BigEndian, syms.len() as u32)));
-    for _ in syms.iter() {
+    for _ in &syms {
         symbol_table.extend_from_slice(bytes_of(&U32Bytes::new(BigEndian, 0)));
     }
-    for s in syms.iter() {
+    for s in &syms {
         symbol_table.extend_from_slice(&std::ffi::CString::new(*s).unwrap().into_bytes_with_nul());
     }
 
@@ -311,6 +316,6 @@ fn build_archive(wasm: &[u8]) -> Vec<u8> {
         size: format!("{:<10}", wasm.len()).as_bytes().try_into().unwrap(),
         terminator: object::archive::TERMINATOR,
     }));
-    archive.extend_from_slice(&wasm);
+    archive.extend_from_slice(wasm);
     archive
 }
