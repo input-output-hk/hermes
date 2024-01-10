@@ -1,4 +1,4 @@
-extern crate proc_macro;
+//! Converts `str` literals into byte arrays.
 
 use proc_macro::{Delimiter, Group, Literal, Punct, Spacing, TokenStream, TokenTree};
 
@@ -30,13 +30,15 @@ pub fn str_nl(input: TokenStream) -> TokenStream {
     .collect()
 }
 
+#[allow(clippy::panic)]
+#[allow(clippy::missing_docs_in_private_items)]
 fn convert_str(input: TokenStream) -> Vec<TokenTree> {
     let mut it = input.into_iter();
 
     let mut tokens = Vec::new();
     match it.next() {
         Some(TokenTree::Literal(l)) => {
-            for b in to_string(l).into_bytes() {
+            for b in to_string(&l).into_bytes() {
                 tokens.push(TokenTree::Literal(Literal::u8_suffixed(b)));
                 tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
             }
@@ -48,7 +50,12 @@ fn convert_str(input: TokenStream) -> Vec<TokenTree> {
     tokens
 }
 
-fn to_string(lit: Literal) -> String {
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::panic)]
+#[allow(clippy::missing_docs_in_private_items)]
+fn to_string(lit: &Literal) -> String {
     let formatted = lit.to_string();
 
     let mut it = formatted.chars();
@@ -89,8 +96,7 @@ fn to_string(lit: Literal) -> String {
                     Some('r') => rv.push('\r'),
                     Some('n') => rv.push('\n'),
                     Some('t') => rv.push('\t'),
-                    Some(_) => panic!(),
-                    None => panic!(),
+                    Some(_) | None => panic!(),
                 }
             },
             Some(c) => rv.push(c),
