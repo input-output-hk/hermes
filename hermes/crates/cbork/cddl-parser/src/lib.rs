@@ -110,32 +110,33 @@ pub struct CDDLError(CDDLErrorType);
 /// use cddl_parser::{parse_cddl, Extension};
 /// use std:fs;
 ///
-/// let input = fs::read_to_string("path/to/your/file.cddl").unwrap();
-/// let result = parse_cddl(&input, &Extension::CDDLParser);
+/// let mut input = fs::read_to_string("path/to/your/file.cddl").unwrap();
+/// let result = parse_cddl(&mut input, &Extension::CDDLParser);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl(input: &str, extension: &Extension) -> Result<(), Box<CDDLError>> {
-    let input = [input, POSTLUDE].join("\n\n");
+pub fn parse_cddl<'a>(input: &'a mut String, extension: &Extension) -> Result<Box<AST<'a>>, Box<CDDLError>> {
+    input.push_str("\n\n");
+    input.push_str(POSTLUDE);
 
     let result = match extension {
         Extension::RFC8610Parser => {
-            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, &input)
+            rfc_8610::RFC8610Parser::parse(rfc_8610::Rule::cddl, input)
                 .map(AST::RFC8610)
                 .map_err(CDDLErrorType::RFC8610)
         },
         Extension::RFC9615Parser => {
-            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, &input)
+            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
                 .map(AST::RFC9615)
                 .map_err(CDDLErrorType::RFC9615)
         },
         Extension::CDDLParser => {
-            cddl::RFC8610Parser::parse(cddl::Rule::cddl, &input)
+            cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
                 .map(AST::CDDL)
                 .map_err(CDDLErrorType::CDDL)
         },
     };
 
-    result.map(|_| ()).map_err(|e| {
+    result.map(Box::new).map_err(|e| {
         println!("{e:?}");
         println!("{e}");
 
@@ -149,7 +150,8 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let result = parse_cddl("", &Extension::CDDLParser);
+        let mut input = String::new();
+        let result = parse_cddl(&mut input, &Extension::CDDLParser);
 
         match result {
             Ok(c) => println!("{c:?}"),
