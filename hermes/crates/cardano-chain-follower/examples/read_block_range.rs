@@ -17,8 +17,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    let mut reader =
-        Reader::connect("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
+    let mut reader = Reader::connect(
+        "relays-new.cardano-mainnet.iohk.io:3001",
+        Network::Mainnet,
+        None,
+    )
+    .await?;
 
     let data_vec = reader
         .read_block_range(

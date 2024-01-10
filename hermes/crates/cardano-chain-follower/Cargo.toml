@@ -9,7 +9,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-pallas.workspace = true
+pallas = { workspace = true, features = ["unstable"] }
 thiserror = "1.0.50"
 tokio = { version = "1.34.0", default-features = false, features = ["macros", "rt", "net", "rt-multi-thread"] }
 tracing = "0.1.40"
