@@ -1,6 +1,9 @@
 // cspell: words PCHAR pchar BCHAR bchar SESC sesc SCHAR schar fffd fffe
 
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{
+    self,
+    cddl_test::{CDDLTestParser, Parser, Rule},
+};
 
 #[test]
 /// Test if the `WHITESPACE` rule passes properly.
@@ -10,11 +13,11 @@ fn check_whitespace() {
     let not_whitespace = "not";
 
     for ws in whitespace {
-        let parse = CDDLParser::parse(Rule::WHITESPACE, ws);
+        let parse = CDDLTestParser::parse(Rule::WHITESPACE, ws);
         assert!(parse.is_ok());
     }
 
-    let parse = CDDLParser::parse(Rule::WHITESPACE, not_whitespace);
+    let parse = CDDLTestParser::parse(Rule::WHITESPACE, not_whitespace);
     assert!(parse.is_err());
 }
 
@@ -23,7 +26,7 @@ fn check_whitespace() {
 fn check_pchar() {
     for x in ('\u{0}'..='\u{ff}').map(char::from) {
         let test = format!("{x}");
-        let parse = CDDLParser::parse(Rule::PCHAR, &test);
+        let parse = CDDLTestParser::parse(Rule::PCHAR, &test);
         if x < ' ' || x == '\u{7f}' {
             assert!(parse.is_err());
         } else {
@@ -31,7 +34,7 @@ fn check_pchar() {
         }
     }
 
-    let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 }
 
@@ -40,7 +43,7 @@ fn check_pchar() {
 fn check_bchar() {
     for x in ('\u{0}'..='\u{ff}').map(char::from) {
         let test = format!("{x}");
-        let parse = CDDLParser::parse(Rule::BCHAR, &test);
+        let parse = CDDLTestParser::parse(Rule::BCHAR, &test);
         if x != '\n' && x != '\r' && x < ' ' || x == '\u{27}' || x == '\u{5c}' || x == '\u{7f}' {
             assert!(parse.is_err());
         } else {
@@ -48,7 +51,7 @@ fn check_bchar() {
         }
     }
 
-    let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 }
 
@@ -57,7 +60,7 @@ fn check_bchar() {
 fn check_sesc() {
     for x in (' '..='\u{ff}').map(char::from) {
         let test = format!("\\{x}");
-        let parse = CDDLParser::parse(Rule::SESC, &test);
+        let parse = CDDLTestParser::parse(Rule::SESC, &test);
         if x == '\u{7f}' {
             assert!(parse.is_err());
         } else {
@@ -65,7 +68,7 @@ fn check_sesc() {
         }
     }
 
-    let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 }
 
@@ -74,14 +77,14 @@ fn check_sesc() {
 fn check_ascii_visible() {
     for x in (b' '..=b'~').map(char::from) {
         let test = x.to_string();
-        let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, &test);
+        let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, &test);
         assert!(parse.is_ok());
     }
 
-    let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 
-    let parse = CDDLParser::parse(Rule::ASCII_VISIBLE, "\u{80}");
+    let parse = CDDLTestParser::parse(Rule::ASCII_VISIBLE, "\u{80}");
     assert!(parse.is_err());
 }
 
@@ -91,7 +94,7 @@ fn check_schar_ascii_visible() {
     let invalids = "\"\\";
     for x in (b' '..=b'~').map(char::from) {
         let test = x.to_string();
-        let parse = CDDLParser::parse(Rule::SCHAR_ASCII_VISIBLE, &test);
+        let parse = CDDLTestParser::parse(Rule::SCHAR_ASCII_VISIBLE, &test);
         if invalids.contains(x) {
             assert!(parse.is_err());
         } else {
@@ -99,10 +102,10 @@ fn check_schar_ascii_visible() {
         }
     }
 
-    let parse = CDDLParser::parse(Rule::SCHAR_ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::SCHAR_ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 
-    let parse = CDDLParser::parse(Rule::SCHAR_ASCII_VISIBLE, "\u{80}");
+    let parse = CDDLTestParser::parse(Rule::SCHAR_ASCII_VISIBLE, "\u{80}");
     assert!(parse.is_err());
 }
 
@@ -112,7 +115,7 @@ fn check_bchar_ascii_visible() {
     let invalids = "'\\";
     for x in (b' '..=b'~').map(char::from) {
         let test = x.to_string();
-        let parse = CDDLParser::parse(Rule::BCHAR_ASCII_VISIBLE, &test);
+        let parse = CDDLTestParser::parse(Rule::BCHAR_ASCII_VISIBLE, &test);
         if invalids.contains(x) {
             assert!(parse.is_err());
         } else {
@@ -120,28 +123,28 @@ fn check_bchar_ascii_visible() {
         }
     }
 
-    let parse = CDDLParser::parse(Rule::BCHAR_ASCII_VISIBLE, "\r");
+    let parse = CDDLTestParser::parse(Rule::BCHAR_ASCII_VISIBLE, "\r");
     assert!(parse.is_err());
 
-    let parse = CDDLParser::parse(Rule::BCHAR_ASCII_VISIBLE, "\u{80}");
+    let parse = CDDLTestParser::parse(Rule::BCHAR_ASCII_VISIBLE, "\u{80}");
     assert!(parse.is_err());
 }
 
 #[test]
 /// Test if the `UNICODE_CHAR` rule passes properly.
 fn check_unicode() {
-    let parse = CDDLParser::parse(Rule::UNICODE_CHAR, "\r");
+    let parse = CDDLTestParser::parse(Rule::UNICODE_CHAR, "\r");
     assert!(parse.is_err());
 
-    let parse = CDDLParser::parse(Rule::UNICODE_CHAR, "\u{80}");
+    let parse = CDDLTestParser::parse(Rule::UNICODE_CHAR, "\u{80}");
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::UNICODE_CHAR, "\u{10fffd}");
+    let parse = CDDLTestParser::parse(Rule::UNICODE_CHAR, "\u{10fffd}");
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::UNICODE_CHAR, "\u{7ffff}");
+    let parse = CDDLTestParser::parse(Rule::UNICODE_CHAR, "\u{7ffff}");
     assert!(parse.is_ok());
 
-    let parse = CDDLParser::parse(Rule::UNICODE_CHAR, "\u{10fffe}");
+    let parse = CDDLTestParser::parse(Rule::UNICODE_CHAR, "\u{10fffe}");
     assert!(parse.is_err());
 }

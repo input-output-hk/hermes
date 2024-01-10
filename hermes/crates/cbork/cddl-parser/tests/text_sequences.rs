@@ -1,4 +1,7 @@
-use cddl_parser::{self, CDDLParser, Parser, Rule};
+use cddl_parser::{
+    self,
+    cddl_test::{CDDLTestParser, Parser, Rule},
+};
 
 #[test]
 /// Test if the `S` rule passes properly.
@@ -9,12 +12,12 @@ fn check_s() {
     let fails = vec![" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"];
 
     for test in tests {
-        let parse = CDDLParser::parse(Rule::S_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fails {
-        let parse = CDDLParser::parse(Rule::S_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
         assert!(parse.is_err());
     }
 }
@@ -27,12 +30,12 @@ fn check_text() {
     let fail = vec!["", "''", "\"abc\n\""];
 
     for test in test {
-        let parse = CDDLParser::parse(Rule::text_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
         assert!(parse.is_ok());
     }
 
     for test in fail {
-        let parse = CDDLParser::parse(Rule::text_TEST, test);
+        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
         assert!(parse.is_err());
     }
 }
