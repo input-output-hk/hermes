@@ -114,7 +114,9 @@ pub struct CDDLError(CDDLErrorType);
 /// let result = parse_cddl(&mut input, &Extension::CDDLParser);
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_cddl<'a>(input: &'a mut String, extension: &Extension) -> Result<Box<AST<'a>>, Box<CDDLError>> {
+pub fn parse_cddl<'a>(
+    input: &'a mut String, extension: &Extension,
+) -> Result<Box<AST<'a>>, Box<CDDLError>> {
     input.push_str("\n\n");
     input.push_str(POSTLUDE);
 
