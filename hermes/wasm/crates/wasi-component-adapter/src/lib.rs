@@ -1,3 +1,5 @@
+//! WASI component adapter crate.
+
 // The proxy world has no filesystem which most of this file is concerned with,
 // so disable many warnings to avoid having to contort code too much for the
 // proxy world.
@@ -24,7 +26,25 @@ use core::{
 };
 
 use poll::Pollable;
-use wasi::*;
+use wasi::{
+    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, Event, EventFdReadwrite, Exitcode, Fd,
+    Fdflags, Fdstat, Filedelta, Filesize, Filestat, Fstflags, Iovec, Lookupflags, Oflags, Prestat,
+    PrestatDir, PrestatU, Riflags, Rights, Roflags, Sdflags, Siflags, Signal, Size, Subscription,
+    Timestamp, Whence, ADVICE_DONTNEED, ADVICE_NOREUSE, ADVICE_NORMAL, ADVICE_RANDOM,
+    ADVICE_SEQUENTIAL, ADVICE_WILLNEED, CLOCKID_MONOTONIC, CLOCKID_REALTIME, ERRNO_ACCES,
+    ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF, ERRNO_BUSY, ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST,
+    ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS, ERRNO_INTR, ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR,
+    ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE, ERRNO_NAMETOOLONG, ERRNO_NODEV, ERRNO_NOENT,
+    ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC, ERRNO_NOTDIR, ERRNO_NOTEMPTY, ERRNO_NOTRECOVERABLE,
+    ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO, ERRNO_OVERFLOW, ERRNO_PERM, ERRNO_PIPE, ERRNO_ROFS,
+    ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY, ERRNO_XDEV, EVENTRWFLAGS_FD_READWRITE_HANGUP,
+    FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK, FDFLAGS_RSYNC, FDFLAGS_SYNC,
+    FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE, FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE,
+    FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN, FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM,
+    FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW, OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL,
+    OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE, SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,
+    WHENCE_CUR, WHENCE_END, WHENCE_SET,
+};
 
 #[cfg(not(feature = "proxy"))]
 use crate::bindings::wasi::filesystem::types as filesystem;
@@ -46,9 +66,13 @@ compile_error!(
 #[macro_use]
 mod macros;
 
+#[allow(clippy::missing_docs_in_private_items)]
 mod descriptors;
 use crate::descriptors::{Descriptor, Descriptors, StreamType, Streams};
 
+#[allow(missing_docs)]
+#[allow(clippy::doc_markdown)]
+#[allow(clippy::ignored_unit_patterns)]
 pub mod bindings {
     #[cfg(feature = "command")]
     wit_bindgen::generate!({
@@ -119,6 +143,7 @@ macro_rules! cfg_filesystem_available {
     };
 }
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 macro_rules! cfg_filesystem_available {
     ($($t:tt)*) => ($($t)*);
 }
@@ -126,11 +151,14 @@ macro_rules! cfg_filesystem_available {
 // The unwrap/expect methods in std pull panic when they fail, which pulls
 // in unwinding machinery that we can't use in the adapter. Instead, use this
 // extension trait to get postfixed upwrap on Option and Result.
+#[allow(clippy::missing_docs_in_private_items)]
 trait TrappingUnwrap<T> {
     fn trapping_unwrap(self) -> T;
 }
 
 impl<T> TrappingUnwrap<T> for Option<T> {
+    #[allow(clippy::unreachable)]
+    #[allow(clippy::single_match_else)]
     fn trapping_unwrap(self) -> T {
         match self {
             Some(t) => t,
@@ -140,6 +168,8 @@ impl<T> TrappingUnwrap<T> for Option<T> {
 }
 
 impl<T, E> TrappingUnwrap<T> for Result<T, E> {
+    #[allow(clippy::unreachable)]
+    #[allow(clippy::single_match_else)]
     fn trapping_unwrap(self) -> T {
         match self {
             Ok(t) => t,
@@ -155,6 +185,7 @@ impl<T, E> TrappingUnwrap<T> for Result<T, E> {
 /// from WASI Preview 1 to Preview 2.  It will use this function to reserve
 /// descriptors for its own use, valid only for use with libc functions.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn adapter_open_badfd(fd: *mut u32) -> Errno {
     State::with(|state| {
         *fd = state.descriptors_mut().open(Descriptor::Bad)?;
@@ -164,19 +195,25 @@ pub unsafe extern "C" fn adapter_open_badfd(fd: *mut u32) -> Errno {
 
 /// Close a descriptor previously opened using `adapter_open_badfd`.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn adapter_close_badfd(fd: u32) -> Errno {
     State::with(|state| state.descriptors_mut().close(fd))
 }
 
 #[no_mangle]
+#[allow(missing_docs)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn reset_adapter_state() {
     let state = get_state_ptr();
     if !state.is_null() {
-        State::init(state)
+        State::init(state);
     }
 }
 
 #[no_mangle]
+#[allow(missing_docs)]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn cabi_import_realloc(
     old_ptr: *mut u8, old_size: usize, align: usize, new_size: usize,
 ) -> *mut u8 {
@@ -193,12 +230,14 @@ pub unsafe extern "C" fn cabi_import_realloc(
 
 /// Bump-allocated memory arena. This is a singleton - the
 /// memory will be sized according to `bump_arena_size()`.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct BumpArena {
     data: MaybeUninit<[u8; bump_arena_size()]>,
     position: Cell<usize>,
 }
 
 impl BumpArena {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn new() -> Self {
         BumpArena {
             data: MaybeUninit::uninit(),
@@ -206,6 +245,8 @@ impl BumpArena {
         }
     }
 
+    #[allow(clippy::unreachable)]
+    #[allow(clippy::missing_docs_in_private_items)]
     fn alloc(&self, align: usize, size: usize) -> *mut u8 {
         let start = self.data.as_ptr() as usize;
         let next = start + self.position.get();
@@ -218,6 +259,7 @@ impl BumpArena {
         alloc as *mut u8
     }
 }
+#[allow(clippy::missing_docs_in_private_items)]
 fn align_to(ptr: usize, align: usize) -> usize {
     (ptr + (align - 1)) & !(align - 1)
 }
@@ -227,6 +269,8 @@ fn align_to(ptr: usize, align: usize) -> usize {
 // because we can't use RefCell to borrow() the variants of the enum - only
 // Cell provides mutability without pulling in panic machinery - so it would
 // make the accessors a lot more awkward to write.
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct ImportAlloc {
     // When not-null, allocator should use this buffer/len pair at most once
     // to satisfy allocations.
@@ -237,6 +281,7 @@ pub struct ImportAlloc {
 }
 
 impl ImportAlloc {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn new() -> Self {
         ImportAlloc {
             buffer: Cell::new(std::ptr::null_mut()),
@@ -248,6 +293,7 @@ impl ImportAlloc {
     /// Expect at most one import allocation during execution of the provided closure.
     /// Use the provided buffer to satisfy that import allocation. The user is responsible
     /// for making sure allocated imports are not used beyond the lifetime of the buffer.
+    #[allow(clippy::unreachable)]
     fn with_buffer<T>(&self, buffer: *mut u8, len: usize, f: impl FnOnce() -> T) -> T {
         if self.arena.get().is_some() {
             unreachable!("arena mode")
@@ -263,8 +309,10 @@ impl ImportAlloc {
     }
 
     /// Permit many import allocations during execution of the provided closure.
-    /// Use the provided BumpArena to satisfry those allocations. The user is responsible
-    /// for making sure allocated imports are not used beyond the lifetime of the arena.
+    /// Use the provided `BumpArena` to satisfry those allocations. The user is
+    /// responsible for making sure allocated imports are not used beyond the lifetime
+    /// of the arena.
+    #[allow(clippy::unreachable)]
     fn with_arena<T>(&self, arena: &BumpArena, f: impl FnOnce() -> T) -> T {
         if !self.buffer.get().is_null() {
             unreachable!("buffer mode")
@@ -281,7 +329,8 @@ impl ImportAlloc {
         r
     }
 
-    /// To be used by cabi_import_realloc only!
+    /// To be used by `cabi_import_realloc` only!
+    #[allow(clippy::unreachable)]
     fn alloc(&self, align: usize, size: usize) -> *mut u8 {
         if let Some(arena) = self.arena.get() {
             arena.alloc(align, size)
@@ -311,6 +360,8 @@ impl ImportAlloc {
 /// (ish) limit. That's just an implementation limit though which can be lifted
 /// by dynamically calling the main module's allocator as necessary for more data.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::unreachable)]
 pub unsafe extern "C" fn cabi_export_realloc(
     old_ptr: *mut u8, old_size: usize, align: usize, new_size: usize,
 ) -> *mut u8 {
@@ -328,6 +379,7 @@ pub unsafe extern "C" fn cabi_export_realloc(
 /// Read command-line argument data.
 /// The size of the array should match that returned by `args_sizes_get`
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn args_get(mut argv: *mut *mut u8, mut argv_buf: *mut u8) -> Errno {
     State::with(|state| {
         #[cfg(not(feature = "proxy"))]
@@ -353,6 +405,8 @@ pub unsafe extern "C" fn args_get(mut argv: *mut *mut u8, mut argv_buf: *mut u8)
 
 /// Return command-line argument data sizes.
 #[no_mangle]
+#[allow(clippy::similar_names)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn args_sizes_get(argc: *mut Size, argv_buf_size: *mut Size) -> Errno {
     State::with(|state| {
         #[cfg(feature = "proxy")]
@@ -375,6 +429,7 @@ pub unsafe extern "C" fn args_sizes_get(argc: *mut Size, argv_buf_size: *mut Siz
 /// Read environment variable data.
 /// The sizes of the buffers should match that returned by `environ_sizes_get`.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn environ_get(environ: *mut *mut u8, environ_buf: *mut u8) -> Errno {
     State::with(|state| {
         #[cfg(not(feature = "proxy"))]
@@ -405,6 +460,7 @@ pub unsafe extern "C" fn environ_get(environ: *mut *mut u8, environ_buf: *mut u8
 
 /// Return environment variable data sizes.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn environ_sizes_get(
     environc: *mut Size, environ_buf_size: *mut Size,
 ) -> Errno {
@@ -469,6 +525,7 @@ pub extern "C" fn clock_res_get(id: Clockid, resolution: &mut Timestamp) -> Errn
 /// Return the time value of a clock.
 /// Note: This is similar to `clock_gettime` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn clock_time_get(
     id: Clockid, _precision: Timestamp, time: &mut Timestamp,
 ) -> Errno {
@@ -495,6 +552,7 @@ pub unsafe extern "C" fn clock_time_get(
 /// Provide file advisory information on a file descriptor.
 /// Note: This is similar to `posix_fadvise` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_advise(
     fd: Fd, offset: Filesize, len: Filesize, advice: Advice,
 ) -> Errno {
@@ -520,6 +578,7 @@ pub unsafe extern "C" fn fd_advise(
 /// Force the allocation of space in a file.
 /// Note: This is similar to `posix_fallocate` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_allocate(fd: Fd, _offset: Filesize, _len: Filesize) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -535,6 +594,7 @@ pub unsafe extern "C" fn fd_allocate(fd: Fd, _offset: Filesize, _len: Filesize) 
 /// Close a file descriptor.
 /// Note: This is similar to `close` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_close(fd: Fd) -> Errno {
     State::with(|state| {
         if let Descriptor::Bad = state.descriptors().get(fd)? {
@@ -557,6 +617,7 @@ pub unsafe extern "C" fn fd_close(fd: Fd) -> Errno {
 /// Synchronize the data of a file to disk.
 /// Note: This is similar to `fdatasync` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_datasync(fd: Fd) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -572,6 +633,9 @@ pub unsafe extern "C" fn fd_datasync(fd: Fd) -> Errno {
 /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well as
 /// additional fields.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::single_match_else)]
+#[allow(clippy::too_many_lines)]
 pub unsafe extern "C" fn fd_fdstat_get(fd: Fd, stat: *mut Fdstat) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -695,6 +759,7 @@ pub unsafe extern "C" fn fd_fdstat_get(fd: Fd, stat: *mut Fdstat) -> Errno {
 /// Adjust the flags associated with a file descriptor.
 /// Note: This is similar to `fcntl(fd, F_SETFL, flags)` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_fdstat_set_flags(fd: Fd, flags: Fdflags) -> Errno {
     // Only support changing the NONBLOCK or APPEND flags.
     if flags & !(FDFLAGS_NONBLOCK | FDFLAGS_APPEND) != 0 {
@@ -725,6 +790,7 @@ pub unsafe extern "C" fn fd_fdstat_set_flags(fd: Fd, flags: Fdflags) -> Errno {
 /// Does not do anything if `fd` corresponds to a valid descriptor and returns
 /// [`wasi::ERRNO_BADF`] otherwise.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_fdstat_set_rights(
     fd: Fd, _fs_rights_base: Rights, _fs_rights_inheriting: Rights,
 ) -> Errno {
@@ -739,6 +805,7 @@ pub unsafe extern "C" fn fd_fdstat_set_rights(
 
 /// Return the attributes of an open file.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_filestat_get(fd: Fd, buf: *mut Filestat) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -789,6 +856,7 @@ pub unsafe extern "C" fn fd_filestat_get(fd: Fd, buf: *mut Filestat) -> Errno {
 /// Adjust the size of an open file. If this increases the file's size, the extra bytes
 /// are filled with zeros. Note: This is similar to `ftruncate` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_filestat_set_size(fd: Fd, size: Filesize) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -801,6 +869,7 @@ pub unsafe extern "C" fn fd_filestat_set_size(fd: Fd, size: Filesize) -> Errno {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 fn systimespec(set: bool, ts: Timestamp, now: bool) -> Result<filesystem::NewTimestamp, Errno> {
     if set && now {
         Err(wasi::ERRNO_INVAL)
@@ -819,6 +888,8 @@ fn systimespec(set: bool, ts: Timestamp, now: bool) -> Result<filesystem::NewTim
 /// Adjust the timestamps of an open file or directory.
 /// Note: This is similar to `futimens` in POSIX.
 #[no_mangle]
+#[allow(clippy::similar_names)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_filestat_set_times(
     fd: Fd, atim: Timestamp, mtim: Timestamp, fst_flags: Fstflags,
 ) -> Errno {
@@ -845,6 +916,8 @@ pub unsafe extern "C" fn fd_filestat_set_times(
 /// Read from a file descriptor, without using and updating the file descriptor's offset.
 /// Note: This is similar to `preadv` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_pread(
     fd: Fd, mut iovs_ptr: *const Iovec, mut iovs_len: usize, offset: Filesize, nread: *mut Size,
 ) -> Errno {
@@ -885,6 +958,7 @@ pub unsafe extern "C" fn fd_pread(
 
 /// Return a description of the given preopened file descriptor.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_prestat_get(fd: Fd, buf: *mut Prestat) -> Errno {
     if !matches!(
         get_allocation_state(),
@@ -916,6 +990,7 @@ pub unsafe extern "C" fn fd_prestat_get(fd: Fd, buf: *mut Prestat) -> Errno {
 
 /// Return a description of the given preopened file descriptor.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_prestat_dir_name(fd: Fd, path: *mut u8, path_max_len: Size) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -937,6 +1012,8 @@ pub unsafe extern "C" fn fd_prestat_dir_name(fd: Fd, path: *mut u8, path_max_len
 /// Write to a file descriptor, without using and updating the file descriptor's offset.
 /// Note: This is similar to `pwritev` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::cast_possible_truncation)]
 pub unsafe extern "C" fn fd_pwrite(
     fd: Fd, mut iovs_ptr: *const Ciovec, mut iovs_len: usize, offset: Filesize, nwritten: *mut Size,
 ) -> Errno {
@@ -967,6 +1044,8 @@ pub unsafe extern "C" fn fd_pwrite(
 /// Read from a file descriptor.
 /// Note: This is similar to `readv` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_read(
     fd: Fd, mut iovs_ptr: *const Iovec, mut iovs_len: usize, nread: *mut Size,
 ) -> Errno {
@@ -1035,6 +1114,8 @@ pub unsafe extern "C" fn fd_read(
     })
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
+#[allow(clippy::needless_pass_by_value)]
 fn stream_error_to_errno(err: streams::Error) -> Errno {
     #[cfg(feature = "proxy")]
     return ERRNO_IO;
@@ -1064,6 +1145,16 @@ pub unsafe extern "C" fn fd_readdir(
 
 #[no_mangle]
 #[cfg(not(feature = "proxy"))]
+#[allow(missing_docs)]
+#[allow(clippy::ptr_as_ptr)]
+#[allow(clippy::len_zero)]
+#[allow(clippy::indexing_slicing)]
+#[allow(clippy::borrow_as_ptr)]
+#[allow(clippy::single_match_else)]
+#[allow(clippy::items_after_statements)]
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::missing_safety_doc)]
+#[allow(trivial_casts)]
 pub unsafe extern "C" fn fd_readdir(
     fd: Fd, buf: *mut u8, buf_len: Size, cookie: Dircookie, bufused: *mut Size,
 ) -> Errno {
@@ -1194,6 +1285,7 @@ pub unsafe extern "C" fn fd_readdir(
         Ok(())
     });
 
+    #[allow(clippy::missing_docs_in_private_items)]
     struct DirectoryEntryIterator<'a> {
         state: &'a State,
         use_cache: bool,
@@ -1295,6 +1387,7 @@ pub unsafe extern "C" fn fd_readdir(
 /// This function provides a way to atomically renumber file descriptors, which
 /// would disappear if `dup2()` were to be removed entirely.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_renumber(fd: Fd, to: Fd) -> Errno {
     State::with(|state| state.descriptors_mut().renumber(fd, to))
 }
@@ -1302,6 +1395,9 @@ pub unsafe extern "C" fn fd_renumber(fd: Fd, to: Fd) -> Errno {
 /// Move the offset of a file descriptor.
 /// Note: This is similar to `lseek` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub unsafe extern "C" fn fd_seek(
     fd: Fd, offset: Filedelta, whence: Whence, newoffset: *mut Filesize,
 ) -> Errno {
@@ -1344,6 +1440,7 @@ pub unsafe extern "C" fn fd_seek(
 /// Synchronize the data and metadata of a file to disk.
 /// Note: This is similar to `fsync` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_sync(fd: Fd) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -1358,6 +1455,7 @@ pub unsafe extern "C" fn fd_sync(fd: Fd) -> Errno {
 /// Return the current offset of a file descriptor.
 /// Note: This is similar to `lseek(fd, 0, SEEK_CUR)` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn fd_tell(fd: Fd, offset: *mut Filesize) -> Errno {
     cfg_filesystem_available! {
         State::with(|state| {
@@ -1372,6 +1470,8 @@ pub unsafe extern "C" fn fd_tell(fd: Fd, offset: *mut Filesize) -> Errno {
 /// Write to a file descriptor.
 /// Note: This is similar to `writev` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::similar_names)]
 pub unsafe extern "C" fn fd_write(
     fd: Fd, mut iovs_ptr: *const Ciovec, mut iovs_len: usize, nwritten: *mut Size,
 ) -> Errno {
@@ -1442,6 +1542,7 @@ pub unsafe extern "C" fn fd_write(
 /// Create a directory.
 /// Note: This is similar to `mkdirat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_create_directory(
     fd: Fd, path_ptr: *const u8, path_len: usize,
 ) -> Errno {
@@ -1460,6 +1561,7 @@ pub unsafe extern "C" fn path_create_directory(
 /// Return the attributes of a file or directory.
 /// Note: This is similar to `stat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_filestat_get(
     fd: Fd, flags: Lookupflags, path_ptr: *const u8, path_len: usize, buf: *mut Filestat,
 ) -> Errno {
@@ -1491,6 +1593,8 @@ pub unsafe extern "C" fn path_filestat_get(
 /// Adjust the timestamps of a file or directory.
 /// Note: This is similar to `utimensat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::similar_names)]
 pub unsafe extern "C" fn path_filestat_set_times(
     fd: Fd, flags: Lookupflags, path_ptr: *const u8, path_len: usize, atim: Timestamp,
     mtim: Timestamp, fst_flags: Fstflags,
@@ -1522,6 +1626,7 @@ pub unsafe extern "C" fn path_filestat_set_times(
 /// Create a hard link.
 /// Note: This is similar to `linkat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_link(
     old_fd: Fd, old_flags: Lookupflags, old_path_ptr: *const u8, old_path_len: usize, new_fd: Fd,
     new_path_ptr: *const u8, new_path_len: usize,
@@ -1549,6 +1654,8 @@ pub unsafe extern "C" fn path_link(
 /// guaranteed to be less than 2**31.
 /// Note: This is similar to `openat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::similar_names)]
 pub unsafe extern "C" fn path_open(
     fd: Fd, dirflags: Lookupflags, path_ptr: *const u8, path_len: usize, oflags: Oflags,
     fs_rights_base: Rights, fs_rights_inheriting: Rights, fdflags: Fdflags, opened_fd: *mut Fd,
@@ -1599,6 +1706,7 @@ pub unsafe extern "C" fn path_open(
 /// Read the contents of a symbolic link.
 /// Note: This is similar to `readlinkat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_readlink(
     fd: Fd, path_ptr: *const u8, path_len: usize, buf: *mut u8, buf_len: Size, bufused: *mut Size,
 ) -> Errno {
@@ -1648,6 +1756,7 @@ pub unsafe extern "C" fn path_readlink(
 /// Return `errno::notempty` if the directory is not empty.
 /// Note: This is similar to `unlinkat(fd, path, AT_REMOVEDIR)` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_remove_directory(
     fd: Fd, path_ptr: *const u8, path_len: usize,
 ) -> Errno {
@@ -1666,6 +1775,7 @@ pub unsafe extern "C" fn path_remove_directory(
 /// Rename a file or directory.
 /// Note: This is similar to `renameat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_rename(
     old_fd: Fd, old_path_ptr: *const u8, old_path_len: usize, new_fd: Fd, new_path_ptr: *const u8,
     new_path_len: usize,
@@ -1687,6 +1797,7 @@ pub unsafe extern "C" fn path_rename(
 /// Create a symbolic link.
 /// Note: This is similar to `symlinkat` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_symlink(
     old_path_ptr: *const u8, old_path_len: usize, fd: Fd, new_path_ptr: *const u8,
     new_path_len: usize,
@@ -1708,6 +1819,7 @@ pub unsafe extern "C" fn path_symlink(
 /// Return `errno::isdir` if the path refers to a directory.
 /// Note: This is similar to `unlinkat(fd, path, 0)` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn path_unlink_file(fd: Fd, path_ptr: *const u8, path_len: usize) -> Errno {
     cfg_filesystem_available! {
         let path = slice::from_raw_parts(path_ptr, path_len);
@@ -1721,6 +1833,7 @@ pub unsafe extern "C" fn path_unlink_file(fd: Fd, path_ptr: *const u8, path_len:
     }
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 struct Pollables {
     pointer: *mut Pollable,
     index: usize,
@@ -1728,6 +1841,7 @@ struct Pollables {
 }
 
 impl Pollables {
+    #[allow(clippy::missing_docs_in_private_items)]
     unsafe fn push(&mut self, pollable: Pollable) {
         assert!(self.index < self.length);
         // Use `ptr::write` instead of `*... = pollable` because `ptr::write`
@@ -1752,6 +1866,19 @@ impl Drop for Pollables {
 
 /// Concurrently poll for the occurrence of a set of events.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::single_match_else)]
+#[allow(clippy::ptr_cast_constness)]
+#[allow(clippy::borrow_as_ptr)]
+#[allow(clippy::redundant_closure_for_method_calls)]
+#[allow(clippy::missing_docs_in_private_items)]
+#[allow(clippy::ptr_as_ptr)]
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::items_after_statements)]
+#[allow(trivial_casts)]
+#[allow(clippy::similar_names)]
 pub unsafe extern "C" fn poll_oneoff(
     r#in: *const Subscription, out: *mut Event, nsubscriptions: Size, nevents: *mut Size,
 ) -> Errno {
@@ -1990,6 +2117,8 @@ pub unsafe extern "C" fn poll_oneoff(
 /// termination of the program. The meanings of other values is dependent on
 /// the environment.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
     #[cfg(feature = "proxy")]
     {
@@ -2006,6 +2135,8 @@ pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
 /// Send a signal to the process of the calling thread.
 /// Note: This is similar to `raise` in POSIX.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn proc_raise(_sig: Signal) -> Errno {
     unreachable!()
 }
@@ -2013,6 +2144,7 @@ pub unsafe extern "C" fn proc_raise(_sig: Signal) -> Errno {
 /// Temporarily yield execution of the calling thread.
 /// Note: This is similar to `sched_yield` in POSIX.
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn sched_yield() -> Errno {
     // TODO: This is not yet covered in Preview2.
 
@@ -2026,6 +2158,9 @@ pub unsafe extern "C" fn sched_yield() -> Errno {
 /// required, it's advisable to use this function to seed a pseudo-random
 /// number generator, rather than to provide the random data directly.
 #[no_mangle]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn random_get(buf: *mut u8, buf_len: Size) -> Errno {
     if matches!(
         get_allocation_state(),
@@ -2052,6 +2187,8 @@ pub unsafe extern "C" fn random_get(buf: *mut u8, buf_len: Size) -> Errno {
 /// Accept a new incoming connection.
 /// Note: This is similar to `accept` in POSIX.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn sock_accept(_fd: Fd, _flags: Fdflags, _connection: *mut Fd) -> Errno {
     unreachable!()
 }
@@ -2060,6 +2197,8 @@ pub unsafe extern "C" fn sock_accept(_fd: Fd, _flags: Fdflags, _connection: *mut
 /// Note: This is similar to `recv` in POSIX, though it also supports reading
 /// the data into multiple buffers in the manner of `readv`.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn sock_recv(
     _fd: Fd, _ri_data_ptr: *const Iovec, _ri_data_len: usize, _ri_flags: Riflags,
     _ro_datalen: *mut Size, _ro_flags: *mut Roflags,
@@ -2071,6 +2210,8 @@ pub unsafe extern "C" fn sock_recv(
 /// Note: This is similar to `send` in POSIX, though it also supports writing
 /// the data from multiple buffers in the manner of `writev`.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn sock_send(
     _fd: Fd, _si_data_ptr: *const Ciovec, _si_data_len: usize, _si_flags: Siflags,
     _so_datalen: *mut Size,
@@ -2081,11 +2222,14 @@ pub unsafe extern "C" fn sock_send(
 /// Shut down socket send and receive channels.
 /// Note: This is similar to `shutdown` in POSIX.
 #[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn sock_shutdown(_fd: Fd, _how: Sdflags) -> Errno {
     unreachable!()
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
     match datetime {
         Some(datetime) => {
@@ -2097,6 +2241,7 @@ fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 fn at_flags_from_lookupflags(flags: Lookupflags) -> filesystem::PathFlags {
     if flags & LOOKUPFLAGS_SYMLINK_FOLLOW == LOOKUPFLAGS_SYMLINK_FOLLOW {
         filesystem::PathFlags::SYMLINK_FOLLOW
@@ -2106,6 +2251,7 @@ fn at_flags_from_lookupflags(flags: Lookupflags) -> filesystem::PathFlags {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 fn o_flags_from_oflags(flags: Oflags) -> filesystem::OpenFlags {
     let mut o_flags = filesystem::OpenFlags::empty();
     if flags & OFLAGS_CREAT == OFLAGS_CREAT {
@@ -2124,6 +2270,7 @@ fn o_flags_from_oflags(flags: Oflags) -> filesystem::OpenFlags {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 fn descriptor_flags_from_flags(rights: Rights, fdflags: Fdflags) -> filesystem::DescriptorFlags {
     let mut flags = filesystem::DescriptorFlags::empty();
     if rights & wasi::RIGHTS_FD_READ == wasi::RIGHTS_FD_READ {
@@ -2193,6 +2340,7 @@ impl From<filesystem::ErrorCode> for Errno {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::unreachable)]
 impl From<filesystem::DescriptorType> for wasi::Filetype {
     fn from(ty: filesystem::DescriptorType) -> wasi::Filetype {
         match ty {
@@ -2201,17 +2349,19 @@ impl From<filesystem::DescriptorType> for wasi::Filetype {
             filesystem::DescriptorType::BlockDevice => FILETYPE_BLOCK_DEVICE,
             filesystem::DescriptorType::CharacterDevice => FILETYPE_CHARACTER_DEVICE,
             // preview1 never had a FIFO code.
-            filesystem::DescriptorType::Fifo => FILETYPE_UNKNOWN,
+            filesystem::DescriptorType::Fifo | filesystem::DescriptorType::Unknown => {
+                FILETYPE_UNKNOWN
+            },
             // TODO: Add a way to disginguish between FILETYPE_SOCKET_STREAM and
             // FILETYPE_SOCKET_DGRAM.
             filesystem::DescriptorType::Socket => unreachable!(),
             filesystem::DescriptorType::SymbolicLink => FILETYPE_SYMBOLIC_LINK,
-            filesystem::DescriptorType::Unknown => FILETYPE_UNKNOWN,
         }
     }
 }
 
 #[derive(Clone, Copy)]
+#[allow(missing_docs)]
 pub enum BlockingMode {
     NonBlocking,
     Blocking,
@@ -2221,6 +2371,7 @@ impl BlockingMode {
     // note: these methods must take self, not &self, to avoid rustc creating a constant
     // out of a BlockingMode literal that it places in .romem, creating a data section and
     // breaking our fragile linking scheme
+    #[allow(clippy::missing_docs_in_private_items)]
     fn read(
         self, input_stream: &streams::InputStream, read_len: u64,
     ) -> Result<Vec<u8>, streams::StreamError> {
@@ -2230,6 +2381,9 @@ impl BlockingMode {
         }
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
+    #[allow(clippy::indexing_slicing)]
+    #[allow(clippy::cast_possible_truncation)]
     fn write(
         self, output_stream: &streams::OutputStream, mut bytes: &[u8],
     ) -> Result<usize, Errno> {
@@ -2266,7 +2420,7 @@ impl BlockingMode {
                 }
 
                 match output_stream.write(&bytes[..len]) {
-                    Ok(_) => {},
+                    Ok(()) => {},
                     Err(streams::StreamError::Closed) => return Ok(0),
                     Err(streams::StreamError::LastOperationFailed(e)) => {
                         return Err(stream_error_to_errno(e))
@@ -2274,7 +2428,7 @@ impl BlockingMode {
                 }
 
                 match output_stream.blocking_flush() {
-                    Ok(_) => {},
+                    Ok(()) => {},
                     Err(streams::StreamError::Closed) => return Ok(0),
                     Err(streams::StreamError::LastOperationFailed(e)) => {
                         return Err(stream_error_to_errno(e))
@@ -2289,6 +2443,7 @@ impl BlockingMode {
 
 #[repr(C)]
 #[cfg(not(feature = "proxy"))]
+#[allow(missing_docs)]
 pub struct File {
     /// The handle to the preview2 descriptor that this file is referencing.
     fd: filesystem::Descriptor,
@@ -2310,14 +2465,13 @@ pub struct File {
 
 #[cfg(not(feature = "proxy"))]
 impl File {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn is_dir(&self) -> bool {
-        match self.descriptor_type {
-            filesystem::DescriptorType::Directory => true,
-            _ => false,
-        }
+        matches!(self.descriptor_type, filesystem::DescriptorType::Directory)
     }
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 const PAGE_SIZE: usize = 65536;
 
 /// The maximum path length. WASI doesn't explicitly guarantee this, but all
@@ -2332,6 +2486,7 @@ const DIRENT_CACHE: usize = 256;
 const MAGIC: u32 = u32::from_le_bytes(*b"ugh!");
 
 #[repr(C)] // used for now to keep magic1 and magic2 at the start and end
+#[allow(clippy::missing_docs_in_private_items)]
 struct State {
     /// A canary constant value located at the beginning of this structure to
     /// try to catch memory corruption coming from the bottom.
@@ -2384,6 +2539,7 @@ struct State {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 struct DirentCache {
     stream: Cell<Option<DirectoryEntryStream>>,
     for_fd: Cell<wasi::Fd>,
@@ -2393,21 +2549,28 @@ struct DirentCache {
 }
 
 #[cfg(not(feature = "proxy"))]
+#[allow(clippy::missing_docs_in_private_items)]
 struct DirectoryEntryStream(filesystem::DirectoryEntryStream);
 
 #[repr(C)]
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct WasmStr {
     ptr: *const u8,
     len: usize,
 }
 
 #[repr(C)]
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct WasmStrList {
     base: *const WasmStr,
     len: usize,
 }
 
 #[repr(C)]
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct StrTuple {
     key: WasmStr,
     value: WasmStr,
@@ -2415,6 +2578,8 @@ pub struct StrTuple {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct StrTupleList {
     base: *const StrTuple,
     len: usize,
@@ -2422,11 +2587,14 @@ pub struct StrTupleList {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
+#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct ReadyList {
     base: *const u32,
     len: usize,
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 const fn bump_arena_size() -> usize {
     // The total size of the struct should be a page, so start there
     let mut start = PAGE_SIZE;
@@ -2457,6 +2625,7 @@ const _: () = {
 
 #[allow(unused)]
 #[repr(i32)]
+#[allow(clippy::missing_docs_in_private_items)]
 enum AllocationState {
     StackUnallocated,
     StackAllocating,
@@ -2474,6 +2643,7 @@ extern "C" {
 }
 
 impl State {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn with(f: impl FnOnce(&State) -> Result<(), Errno>) -> Errno {
         let state_ref = State::ptr();
         assert_eq!(state_ref.magic1, MAGIC);
@@ -2485,6 +2655,7 @@ impl State {
         }
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn ptr() -> &'static State {
         unsafe {
             let mut ptr = get_state_ptr();
@@ -2497,6 +2668,9 @@ impl State {
     }
 
     #[cold]
+    #[allow(clippy::cast_ptr_alignment)]
+    #[allow(clippy::ptr_as_ptr)]
+    #[allow(clippy::missing_docs_in_private_items)]
     fn new() -> *mut State {
         #[link(wasm_import_module = "__main_module__")]
         extern "C" {
@@ -2531,6 +2705,7 @@ impl State {
     }
 
     #[cold]
+    #[allow(clippy::missing_docs_in_private_items)]
     unsafe fn init(state: *mut State) {
         state.write(State {
             magic1: MAGIC,
@@ -2563,7 +2738,8 @@ impl State {
     }
 
     /// Accessor for the descriptors member that ensures it is properly initialized
-    fn descriptors<'a>(&'a self) -> impl Deref<Target = Descriptors> + 'a {
+    #[allow(clippy::unreachable)]
+    fn descriptors(&self) -> impl Deref<Target = Descriptors> + '_ {
         let mut d = self
             .descriptors
             .try_borrow_mut()
@@ -2575,7 +2751,8 @@ impl State {
     }
 
     /// Mut accessor for the descriptors member that ensures it is properly initialized
-    fn descriptors_mut<'a>(&'a self) -> impl DerefMut + Deref<Target = Descriptors> + 'a {
+    #[allow(clippy::unreachable)]
+    fn descriptors_mut(&self) -> impl DerefMut + Deref<Target = Descriptors> + '_ {
         let mut d = self
             .descriptors
             .try_borrow_mut()
@@ -2587,6 +2764,9 @@ impl State {
     }
 
     #[cfg(not(feature = "proxy"))]
+    #[allow(clippy::missing_docs_in_private_items)]
+    #[allow(clippy::borrow_as_ptr)]
+    #[allow(trivial_casts)]
     fn get_environment(&self) -> &[StrTuple] {
         if self.env_vars.get().is_none() {
             #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
@@ -2600,7 +2780,7 @@ impl State {
             };
             self.import_alloc
                 .with_arena(&self.long_lived_arena, || unsafe {
-                    get_environment_import(&mut list as *mut _)
+                    get_environment_import(&mut list as *mut _);
                 });
             self.env_vars.set(Some(unsafe {
                 // allocation comes from long lived arena, so it is safe to
@@ -2612,6 +2792,9 @@ impl State {
     }
 
     #[cfg(not(feature = "proxy"))]
+    #[allow(clippy::missing_docs_in_private_items)]
+    #[allow(clippy::borrow_as_ptr)]
+    #[allow(trivial_casts)]
     fn get_args(&self) -> &[WasmStr] {
         if self.args.get().is_none() {
             #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
@@ -2625,7 +2808,7 @@ impl State {
             };
             self.import_alloc
                 .with_arena(&self.long_lived_arena, || unsafe {
-                    get_args_import(&mut list as *mut _)
+                    get_args_import(&mut list as *mut _);
                 });
             self.args.set(Some(unsafe {
                 // allocation comes from long lived arena, so it is safe to

@@ -8,7 +8,7 @@ use crate::bindings::wasi::cli::stderr::get_stderr;
 #[allow(dead_code)]
 #[doc(hidden)]
 pub fn print(message: &[u8]) {
-    let _ = get_stderr().blocking_write_and_flush(message);
+    let _unused = get_stderr().blocking_write_and_flush(message);
 }
 
 /// A minimal `eprint` for debugging.
@@ -33,11 +33,13 @@ macro_rules! eprintln {
     }};
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
+#[allow(clippy::items_after_statements)]
 pub(crate) fn eprint_u32(x: u32) {
     if x == 0 {
         eprint!("0");
     } else {
-        eprint_u32_impl(x)
+        eprint_u32_impl(x);
     }
 
     fn eprint_u32_impl(x: u32) {

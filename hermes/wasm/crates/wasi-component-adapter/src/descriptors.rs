@@ -17,9 +17,11 @@ use crate::{
     BlockingMode, BumpArena, ImportAlloc, TrappingUnwrap, WasmStr,
 };
 
+#[allow(clippy::missing_docs_in_private_items)]
 pub const MAX_DESCRIPTORS: usize = 128;
 
 #[repr(C)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Descriptor {
     /// A closed descriptor, holding a reference to the previous closed
     /// descriptor to support reusing them.
@@ -47,6 +49,7 @@ pub struct Streams {
 
 impl Streams {
     /// Return the input stream, initializing it on the fly if needed.
+    #[allow(clippy::single_match_else)]
     pub fn get_read_stream(&self) -> Result<&InputStream, Errno> {
         match self.input.get() {
             Some(wasi_stream) => Ok(wasi_stream),
@@ -62,10 +65,7 @@ impl Streams {
                     // For files, we may have adjusted the position for seeking, so
                     // create a new stream.
                     #[cfg(not(feature = "proxy"))]
-                    StreamType::File(file) => {
-                        let input = file.fd.read_via_stream(file.position.get())?;
-                        input
-                    },
+                    StreamType::File(file) => file.fd.read_via_stream(file.position.get())?,
                     _ => return Err(wasi::ERRNO_BADF),
                 };
                 self.input.set(input).trapping_unwrap();
@@ -75,6 +75,7 @@ impl Streams {
     }
 
     /// Return the output stream, initializing it on the fly if needed.
+    #[allow(clippy::single_match_else)]
     pub fn get_write_stream(&self) -> Result<&OutputStream, Errno> {
         match self.output.get() {
             Some(wasi_stream) => Ok(wasi_stream),
@@ -91,12 +92,11 @@ impl Streams {
                     // create a new stream.
                     #[cfg(not(feature = "proxy"))]
                     StreamType::File(file) => {
-                        let output = if file.append {
+                        if file.append {
                             file.fd.append_via_stream()?
                         } else {
                             file.fd.write_via_stream(file.position.get())?
-                        };
-                        output
+                        }
                     },
                     _ => return Err(wasi::ERRNO_BADF),
                 };
@@ -107,6 +107,7 @@ impl Streams {
     }
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum StreamType {
     /// Streams for implementing stdio.
     Stdio(Stdio),
@@ -116,6 +117,7 @@ pub enum StreamType {
     File(File),
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum Stdio {
     Stdin,
     Stdout,
@@ -123,6 +125,7 @@ pub enum Stdio {
 }
 
 impl Stdio {
+    #[allow(clippy::missing_docs_in_private_items)]
     pub fn filetype(&self) -> wasi::Filetype {
         #[cfg(not(feature = "proxy"))]
         let is_terminal = {
@@ -144,6 +147,7 @@ impl Stdio {
 }
 
 #[repr(C)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Descriptors {
     /// Storage of mapping from preview1 file descriptors to preview2 file
     /// descriptors.
@@ -159,7 +163,9 @@ pub struct Descriptors {
     preopens: Cell<Option<&'static [Preopen]>>,
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 impl Descriptors {
+    #[allow(clippy::items_after_statements)]
     pub fn new(import_alloc: &ImportAlloc, arena: &BumpArena) -> Self {
         let d = Descriptors {
             table: UnsafeCell::new(MaybeUninit::uninit()),
@@ -171,7 +177,7 @@ impl Descriptors {
 
         fn new_once<T>(val: T) -> OnceCell<T> {
             let cell = OnceCell::new();
-            let _ = cell.set(val);
+            let _unused = cell.set(val);
             cell
         }
 
@@ -200,6 +206,9 @@ impl Descriptors {
     }
 
     #[cfg(not(feature = "proxy"))]
+    #[allow(trivial_casts)]
+    #[allow(clippy::borrow_as_ptr)]
+    #[allow(clippy::semicolon_if_nothing_returned)]
     fn open_preopens(&self, import_alloc: &ImportAlloc, arena: &BumpArena) {
         #[link(wasm_import_module = "wasi:filesystem/preopens@0.2.0-rc-2023-11-10")]
         #[allow(improper_ctypes)] // FIXME(bytecodealliance/wit-bindgen#684)
@@ -243,6 +252,7 @@ impl Descriptors {
         self.preopens.set(Some(preopens));
     }
 
+    #[allow(clippy::indexing_slicing)]
     fn push(&self, desc: Descriptor) -> Result<Fd, Errno> {
         unsafe {
             let table = (*self.table.get()).as_mut_ptr();
@@ -274,6 +284,8 @@ impl Descriptors {
         }
     }
 
+    #[allow(clippy::unreachable)]
+    #[allow(clippy::single_match_else)]
     pub fn open(&mut self, d: Descriptor) -> Result<Fd, Errno> {
         match self.closed {
             // No closed descriptors: expand table
@@ -315,6 +327,7 @@ impl Descriptors {
     }
 
     // Internal: close a fd, returning the descriptor.
+    #[allow(clippy::single_match)]
     fn close_(&mut self, fd: Fd) -> Result<Descriptor, Errno> {
         // Throw an error if closing an fd which is already closed
         match self.get(fd)? {
@@ -344,6 +357,7 @@ impl Descriptors {
     }
 
     // Implementation of fd_renumber
+    #[allow(clippy::cast_lossless)]
     pub fn renumber(&mut self, from_fd: Fd, to_fd: Fd) -> Result<(), Errno> {
         // First, ensure from_fd is in bounds:
         let _ = self.get(from_fd)?;
@@ -371,6 +385,7 @@ impl Descriptors {
     }
 
     #[cfg(not(feature = "proxy"))]
+    #[allow(clippy::match_same_arms)]
     pub fn get_file_with_error(&self, fd: Fd, error: Errno) -> Result<&File, Errno> {
         match self.get(fd)? {
             Descriptor::Streams(Streams {
@@ -442,6 +457,7 @@ impl Descriptors {
 
 #[cfg(not(feature = "proxy"))]
 #[repr(C)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Preopen {
     /// This is `MaybeUninit` because we take ownership of the `Descriptor` to
     /// put it in our own table.
@@ -451,6 +467,7 @@ pub struct Preopen {
 
 #[cfg(not(feature = "proxy"))]
 #[repr(C)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct PreopenList {
     pub base: *const Preopen,
     pub len: usize,
