@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::{mpsc, oneshot},
     task::JoinHandle,
 };
 
@@ -10,8 +8,6 @@ use crate::{Error, MultiEraBlockData, Network, PointOrTip, Result};
 
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
-/// Default [`Follower`] max await retries.
-const DEFAULT_MAX_AWAIT_RETRIES: u32 = 3;
 
 /// Enum of chain updates received by the follower.
 pub enum ChainUpdate {
@@ -25,8 +21,6 @@ pub enum ChainUpdate {
 pub struct FollowerConfigBuilder {
     /// Block buffer size option.
     chain_update_buffer_size: usize,
-    /// Maximum await retries option.
-    max_await_retries: u32,
     /// Where to start following from.
     follow_from: PointOrTip,
 }
@@ -35,7 +29,6 @@ impl Default for FollowerConfigBuilder {
     fn default() -> Self {
         Self {
             chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-            max_await_retries: DEFAULT_MAX_AWAIT_RETRIES,
             follow_from: PointOrTip::Tip,
         }
     }
@@ -50,19 +43,6 @@ impl FollowerConfigBuilder {
     #[must_use]
     pub fn chain_update_buffer_size(mut self, block_buffer_size: usize) -> Self {
         self.chain_update_buffer_size = block_buffer_size;
-        self
-    }
-
-    /// Sets the maximum number of retries the [`Follower`] will execute when remote node
-    /// sends an AWAIT message when the [`Follower`] is already in the "must reply"
-    /// state.
-    ///
-    /// # Arguments
-    ///
-    /// * `max_await_retries`: Maximum number of retries.
-    #[must_use]
-    pub fn max_await_retries(mut self, max_await_retries: u32) -> Self {
-        self.max_await_retries = max_await_retries;
         self
     }
 
@@ -85,7 +65,6 @@ impl FollowerConfigBuilder {
     pub fn build(self) -> FollowerConfig {
         FollowerConfig {
             chain_update_buffer_size: self.chain_update_buffer_size,
-            max_await_retries: self.max_await_retries,
             follow_from: self.follow_from,
         }
     }
@@ -95,16 +74,14 @@ impl FollowerConfigBuilder {
 pub struct FollowerConfig {
     /// Configured chain update buffer size.
     pub chain_update_buffer_size: usize,
-    /// Configured maximum await retry count.
-    pub max_await_retries: u32,
     /// Where to start following from.
     pub follow_from: PointOrTip,
 }
 
 /// Cardano chain follower.
 pub struct Follower {
-    /// Client shared by the follower and its task.
-    client: Arc<Mutex<PeerClient>>,
+    /// Task request sender.
+    task_request_tx: mpsc::Sender<(follow_task::Request, oneshot::Sender<follow_task::Response>)>,
     /// Chain update receiver.
     chain_update_rx: mpsc::Receiver<Result<ChainUpdate>>,
     /// Task thread join handle.
@@ -124,35 +101,25 @@ impl Follower {
     ///
     /// Returns Err if the connection could not be established.
     pub async fn connect(address: &str, network: Network, config: FollowerConfig) -> Result<Self> {
-        let client = Arc::new(Mutex::new(
-            PeerClient::connect(address, network.into())
-                .await
-                .map_err(Error::Client)?,
-        ));
+        let client = PeerClient::connect(address, network.into())
+            .await
+            .map_err(Error::Client)?;
 
+        let (task_request_tx, task_request_rx) = mpsc::channel(16);
         let (chain_update_tx, chain_update_rx) = mpsc::channel(config.chain_update_buffer_size);
 
-        let mut this = Self {
-            client: client.clone(),
+        let task_join_handle =
+            tokio::spawn(follow_task::run(client, task_request_rx, chain_update_tx));
+
+        let this = Self {
+            task_request_tx,
             chain_update_rx,
-            task_join_handle: None,
+            task_join_handle: Some(task_join_handle),
         };
 
-        let start_point = this
-            .set_read_pointer(config.follow_from)
+        this.set_read_pointer(config.follow_from)
             .await?
             .ok_or(Error::FollowerStartPointNotFound)?;
-        tracing::debug!(
-            slot = start_point.slot_or_default(),
-            "Follower read pointer set to starting point"
-        );
-
-        let task_join_handle = tokio::spawn(follow_task::run(
-            client,
-            chain_update_tx,
-            config.max_await_retries,
-        ));
-        this.task_join_handle = Some(task_join_handle);
 
         Ok(this)
     }
@@ -167,38 +134,14 @@ impl Follower {
     /// # Errors
     ///
     /// Returns Err if something went wrong while communicating with the producer.
-    pub async fn set_read_pointer<P>(&mut self, at: P) -> Result<Option<Point>>
+    pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
     where
         P: Into<PointOrTip>,
     {
-        let mut client = self.client.lock().await;
+        let res = self.send_request_and_wait(follow_task::Request::SetReadPointer(at.into()));
 
-        match Into::<PointOrTip>::into(at) {
-            PointOrTip::Point(Point::Origin) => {
-                let point = client
-                    .chainsync()
-                    .intersect_origin()
-                    .await
-                    .map_err(Error::Chainsync)?;
-
-                Ok(Some(point))
-            },
-            PointOrTip::Point(p @ Point::Specific(..)) => client
-                .chainsync()
-                .find_intersect(vec![p])
-                .await
-                .map(|(point, _)| point)
-                .map_err(Error::Chainsync),
-            PointOrTip::Tip => {
-                let point = client
-                    .chainsync()
-                    .intersect_tip()
-                    .await
-                    .map_err(Error::Chainsync)?;
-
-                Ok(Some(point))
-            },
-        }
+        let follow_task::Response::SetReadPointer(res) = res.await;
+        res
     }
 
     /// Receive the next chain update from the producer.
@@ -230,6 +173,14 @@ impl Follower {
             Ok(())
         }
     }
+
+    async fn send_request_and_wait(&self, req: follow_task::Request) -> follow_task::Response {
+        let (response_tx, response_rx) = oneshot::channel();
+
+        self.task_request_tx.send((req, response_tx)).await.unwrap();
+
+        response_rx.await.unwrap()
+    }
 }
 
 /// Contains functions related to the Follower's background task.
@@ -243,11 +194,27 @@ mod follow_task {
             miniprotocols::{chainsync, Point},
         },
     };
-    use tokio::sync::{mpsc, oneshot, Mutex};
+    use tokio::sync::{mpsc, oneshot, Mutex, Notify, RwLock};
 
-    use crate::{Error, MultiEraBlockData};
+    use crate::{Error, MultiEraBlockData, PointOrTip, Result};
 
     use super::ChainUpdate;
+
+    pub enum Request {
+        SetReadPointer(PointOrTip),
+    }
+
+    pub enum Response {
+        SetReadPointer(Result<Option<Point>>),
+    }
+
+    #[derive(Clone)]
+    pub(crate) struct TaskState {
+        client: Arc<Mutex<PeerClient>>,
+        chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
+        current_read_pointer: Arc<RwLock<Option<Point>>>,
+        current_read_pointer_notify: Arc<Notify>,
+    }
 
     /// Runs a [`Follower`](super::Follower) background task.
     ///
@@ -259,61 +226,128 @@ mod follow_task {
     ///
     /// Backpressure is achieved with the channel's limited size.
     pub async fn run(
-        client: Arc<Mutex<PeerClient>>, chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
-        max_retries_count: u32,
+        client: PeerClient, mut request_rx: mpsc::Receiver<(Request, oneshot::Sender<Response>)>,
+        chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
     ) {
+        let task_state = TaskState {
+            client: Arc::new(Mutex::new(client)),
+            chain_update_tx,
+            current_read_pointer: Arc::new(RwLock::new(None)),
+            current_read_pointer_notify: Arc::new(Notify::new()),
+        };
+
         'main: loop {
-            let try_count = 0;
+            tokio::select! {
+                () = task_state.chain_update_tx.closed() => break 'main,
 
-            'tries: loop {
-                assert!(try_count <= max_retries_count, "Node misbehavior");
+                Some((req, res_channel)) = request_rx.recv() => {
+                    handle_request(task_state.clone(), req, res_channel).await;
+                }
 
-                let (cancel_tx, _cancel_rx) = oneshot::channel::<()>();
-
-                tokio::select! {
-                    () = chain_update_tx.closed() => {
+                res = send_next(task_state.clone()) => {
+                    if res.is_err() {
                         break 'main;
                     }
-
-                    res = get_next_response(client.clone(), cancel_tx) => match res {
-                        Err(err) => {
-                            if chain_update_tx.send(Err(err)).await.is_err() {
-                                break 'main;
-                            }
-                        },
-                        Ok(next_response) => {
-                            if let Some(chain_update) = next_response {
-                                if chain_update_tx.send(Ok(chain_update)).await.is_err() {
-                                    break 'tries;
-                                }
-                            }
-                        }
-                    }
-                };
+                }
             }
         }
 
-        tracing::debug!("Follower background task shutdown");
+        tracing::trace!("Follower background task shutdown");
+    }
+
+    async fn handle_request(
+        state: TaskState, request: Request, response_channel: oneshot::Sender<Response>,
+    ) {
+        match request {
+            Request::SetReadPointer(at) => {
+                let mut current_read_pointer_lock = state.current_read_pointer.write().await;
+                let mut client = state.client.lock().await;
+
+                let result = match Into::<PointOrTip>::into(at) {
+                    PointOrTip::Point(Point::Origin) => client
+                        .chainsync()
+                        .intersect_origin()
+                        .await
+                        .map(Some)
+                        .map_err(Error::Chainsync),
+                    PointOrTip::Point(p @ Point::Specific(..)) => client
+                        .chainsync()
+                        .find_intersect(vec![p])
+                        .await
+                        .map(|(point, _)| point)
+                        .map_err(Error::Chainsync),
+                    PointOrTip::Tip => client
+                        .chainsync()
+                        .intersect_tip()
+                        .await
+                        .map(Some)
+                        .map_err(Error::Chainsync),
+                };
+
+                match result.as_ref() {
+                    Ok(Some(point)) => {
+                        tracing::trace!(slot = point.slot_or_default(), "Read pointer set");
+                        *current_read_pointer_lock = Some(point.clone());
+                    },
+                    _ => *current_read_pointer_lock = None,
+                }
+
+                drop(response_channel.send(Response::SetReadPointer(result)));
+            },
+        }
+    }
+
+    async fn send_next(
+        state: TaskState,
+    ) -> std::result::Result<(), mpsc::error::SendError<Result<ChainUpdate>>> {
+        // Get the value of the current read pointer
+        let mut current_read_pointer_lock = state.current_read_pointer.read().await;
+
+        // If we have no valid read pointer:
+        // 1. drop the lock
+        // 2. wait for a notification indicating it has been set
+        // 3. check the lock again.
+        while current_read_pointer_lock.is_none() {
+            drop(current_read_pointer_lock);
+
+            tracing::trace!("Waiting for a valid read pointer to be set");
+            state.current_read_pointer_notify.notified().await;
+
+            current_read_pointer_lock = state.current_read_pointer.read().await;
+        }
+
+        let next = get_next_response(state.clone()).await;
+
+        match next {
+            Err(err) => {
+                return state.chain_update_tx.send(Err(err)).await;
+            },
+            Ok(next_response) => {
+                if let Some(chain_update) = next_response {
+                    return state.chain_update_tx.send(Ok(chain_update)).await;
+                }
+            },
+        }
+
+        Ok(())
     }
 
     /// Waits for the next update from the node the client is connected to.
     ///
-    /// Can be cancelled by closing the `cancel_tx` receiver end (explicitly or by
+    /// Is cancelled by closing the `chain_update_tx` receiver end (explicitly or by
     /// dropping it).
-    async fn get_next_response(
-        client: Arc<Mutex<PeerClient>>, mut cancel_tx: oneshot::Sender<()>,
-    ) -> crate::Result<Option<ChainUpdate>> {
+    async fn get_next_response(state: TaskState) -> crate::Result<Option<ChainUpdate>> {
         let res = {
-            let mut client_lock = client.lock().await;
+            let mut client_lock = state.client.lock().await;
 
             if client_lock.chainsync().has_agency() {
                 tokio::select! {
-                    () = cancel_tx.closed() => { return Ok(None); }
+                    () = state.chain_update_tx.closed() => { return Ok(None); }
                     res = client_lock.chainsync().request_next() => { res }
                 }
             } else {
                 tokio::select! {
-                    () = cancel_tx.closed() => { return Ok(None); }
+                    () = state.chain_update_tx.closed() => { return Ok(None); }
                     res = client_lock.chainsync().recv_while_must_reply() => { res }
                 }
             }
@@ -329,7 +363,7 @@ mod follow_task {
                 )
                 .map_err(Error::Codec)?;
 
-                let mut client_lock = client.lock().await;
+                let mut client_lock = state.client.lock().await;
 
                 let req_fut = client_lock.blockfetch().fetch_single(Point::Specific(
                     decoded_header.slot(),
@@ -337,19 +371,19 @@ mod follow_task {
                 ));
 
                 let block_data = tokio::select! {
-                    () = cancel_tx.closed() => { return Ok(None); }
+                    () = state.chain_update_tx.closed() => { return Ok(None); }
                     res = req_fut => { res.map_err(Error::Blockfetch)? }
                 };
 
                 Ok(Some(ChainUpdate::Block(MultiEraBlockData(block_data))))
             },
             chainsync::NextResponse::RollBackward(point, _tip) => {
-                let mut client_lock = client.lock().await;
+                let mut client_lock = state.client.lock().await;
 
                 let req_fut = client_lock.blockfetch().fetch_single(point);
 
                 let block_data = tokio::select! {
-                    () = cancel_tx.closed() => { return Ok(None); }
+                    () = state.chain_update_tx.closed() => { return Ok(None); }
                     res = req_fut => { res.map_err(Error::Blockfetch)? }
                 };
 
