@@ -1,10 +1,14 @@
+use std::path::PathBuf;
+
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
 };
 
-use crate::{Error, MultiEraBlockData, Network, PointOrTip, Result};
+use crate::{
+    mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, Network, PointOrTip, Result,
+};
 
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
@@ -17,12 +21,24 @@ pub enum ChainUpdate {
     Rollback(MultiEraBlockData),
 }
 
+impl ChainUpdate {
+    /// ...
+    pub fn block_data(&self) -> &MultiEraBlockData {
+        match self {
+            ChainUpdate::Block(block_data) => block_data,
+            ChainUpdate::Rollback(block_data) => block_data,
+        }
+    }
+}
+
 /// Builder used to create [`FollowerConfig`]s.
 pub struct FollowerConfigBuilder {
     /// Block buffer size option.
     chain_update_buffer_size: usize,
     /// Where to start following from.
     follow_from: PointOrTip,
+    /// ...
+    mithril_snapshot_path: Option<PathBuf>,
 }
 
 impl Default for FollowerConfigBuilder {
@@ -30,6 +46,7 @@ impl Default for FollowerConfigBuilder {
         Self {
             chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
             follow_from: PointOrTip::Tip,
+            mithril_snapshot_path: None,
         }
     }
 }
@@ -60,12 +77,24 @@ impl FollowerConfigBuilder {
         self
     }
 
+    /// Sets the path of the Mithril snapshot the [`Follower`] will use.
+    ///
+    /// # Arguments
+    ///
+    /// * `path`: Mithril snapshot path.
+    #[must_use]
+    pub fn mithril_snapshot_path(mut self, path: PathBuf) -> Self {
+        self.mithril_snapshot_path = Some(path);
+        self
+    }
+
     /// Builds a [`FollowerConfig`].
     #[must_use]
     pub fn build(self) -> FollowerConfig {
         FollowerConfig {
             chain_update_buffer_size: self.chain_update_buffer_size,
             follow_from: self.follow_from,
+            mithril_snapshot_path: self.mithril_snapshot_path,
         }
     }
 }
@@ -76,6 +105,8 @@ pub struct FollowerConfig {
     pub chain_update_buffer_size: usize,
     /// Where to start following from.
     pub follow_from: PointOrTip,
+    /// ...
+    pub mithril_snapshot_path: Option<PathBuf>,
 }
 
 /// Cardano chain follower.
@@ -108,8 +139,16 @@ impl Follower {
         let (task_request_tx, task_request_rx) = mpsc::channel(16);
         let (chain_update_tx, chain_update_rx) = mpsc::channel(config.chain_update_buffer_size);
 
-        let task_join_handle =
-            tokio::spawn(follow_task::run(client, task_request_rx, chain_update_tx));
+        let mithril_snapshot = config
+            .mithril_snapshot_path
+            .and_then(MithrilSnapshot::from_path);
+
+        let task_join_handle = tokio::spawn(follow_task::run(
+            client,
+            mithril_snapshot,
+            task_request_rx,
+            chain_update_tx,
+        ));
 
         let this = Self {
             task_request_tx,
@@ -140,7 +179,7 @@ impl Follower {
     {
         let res = self.send_request_and_wait(follow_task::Request::SetReadPointer(at.into()));
 
-        let follow_task::Response::SetReadPointer(res) = res.await;
+        let follow_task::Response::SetReadPointer(res) = res.await?;
         res
     }
 
@@ -151,12 +190,10 @@ impl Follower {
     /// Returns Err if any producer communication errors occurred.
     #[allow(clippy::missing_panics_doc)]
     pub async fn next(&mut self) -> Result<ChainUpdate> {
-        // This will not panic
-        #[allow(clippy::expect_used)]
         self.chain_update_rx
             .recv()
             .await
-            .expect("Follow task should be running")
+            .ok_or(Error::FollowerBackgroundTaskNotRunning)?
     }
 
     /// Closes the follower connection and stops its background task.
@@ -174,12 +211,19 @@ impl Follower {
         }
     }
 
-    async fn send_request_and_wait(&self, req: follow_task::Request) -> follow_task::Response {
+    async fn send_request_and_wait(
+        &self, req: follow_task::Request,
+    ) -> Result<follow_task::Response> {
         let (response_tx, response_rx) = oneshot::channel();
 
-        self.task_request_tx.send((req, response_tx)).await.unwrap();
+        self.task_request_tx
+            .send((req, response_tx))
+            .await
+            .map_err(|_| Error::FollowerBackgroundTaskNotRunning)?;
 
-        response_rx.await.unwrap()
+        response_rx
+            .await
+            .map_err(|_| Error::FollowerBackgroundTaskNotRunning)
     }
 }
 
@@ -196,7 +240,10 @@ mod follow_task {
     };
     use tokio::sync::{mpsc, oneshot, Mutex, Notify, RwLock};
 
-    use crate::{Error, MultiEraBlockData, PointOrTip, Result};
+    use crate::{
+        mithril_snapshot::{MithrilSnapshot, MithrilSnapshotIterator},
+        Error, MultiEraBlockData, PointOrTip, Result,
+    };
 
     use super::ChainUpdate;
 
@@ -208,12 +255,18 @@ mod follow_task {
         SetReadPointer(Result<Option<Point>>),
     }
 
+    struct MithrilSnapshotState {
+        snapshot: MithrilSnapshot,
+        iter: Option<MithrilSnapshotIterator>,
+    }
+
     #[derive(Clone)]
     pub(crate) struct TaskState {
         client: Arc<Mutex<PeerClient>>,
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
         current_read_pointer: Arc<RwLock<Option<Point>>>,
         current_read_pointer_notify: Arc<Notify>,
+        mithril_snapshot_state: Arc<RwLock<Option<MithrilSnapshotState>>>,
     }
 
     /// Runs a [`Follower`](super::Follower) background task.
@@ -225,15 +278,22 @@ mod follow_task {
     /// communication errors are sent through the channel to the follower.
     ///
     /// Backpressure is achieved with the channel's limited size.
-    pub async fn run(
-        client: PeerClient, mut request_rx: mpsc::Receiver<(Request, oneshot::Sender<Response>)>,
+    pub(crate) async fn run(
+        client: PeerClient, mithril_snapshot: Option<MithrilSnapshot>,
+        mut request_rx: mpsc::Receiver<(Request, oneshot::Sender<Response>)>,
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
     ) {
+        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| MithrilSnapshotState {
+            snapshot,
+            iter: None,
+        });
+
         let task_state = TaskState {
             client: Arc::new(Mutex::new(client)),
             chain_update_tx,
             current_read_pointer: Arc::new(RwLock::new(None)),
             current_read_pointer_notify: Arc::new(Notify::new()),
+            mithril_snapshot_state: Arc::new(RwLock::new(mithril_snapshot_state)),
         };
 
         'main: loop {
@@ -260,28 +320,33 @@ mod follow_task {
     ) {
         match request {
             Request::SetReadPointer(at) => {
+                tracing::trace!("Setting follower's read point");
+
                 let mut current_read_pointer_lock = state.current_read_pointer.write().await;
                 let mut client = state.client.lock().await;
+                let mut mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
 
-                let result = match Into::<PointOrTip>::into(at) {
-                    PointOrTip::Point(Point::Origin) => client
-                        .chainsync()
-                        .intersect_origin()
-                        .await
-                        .map(Some)
-                        .map_err(Error::Chainsync),
-                    PointOrTip::Point(p @ Point::Specific(..)) => client
-                        .chainsync()
-                        .find_intersect(vec![p])
-                        .await
-                        .map(|(point, _)| point)
-                        .map_err(Error::Chainsync),
-                    PointOrTip::Tip => client
-                        .chainsync()
-                        .intersect_tip()
-                        .await
-                        .map(Some)
-                        .map_err(Error::Chainsync),
+                let set_to_snapshot = if let Some(s) = mithril_snapshot_lock.as_mut() {
+                    if let PointOrTip::Point(p) = &at {
+                        s.iter = s.snapshot.try_read_blocks_from_point(p.clone());
+                        s.iter.as_ref().map(|_| p.clone())
+                    } else {
+                        s.iter = None;
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let result = if set_to_snapshot.is_some() {
+                    tracing::trace!("Found point in Mithril snapshot");
+                    Ok(set_to_snapshot)
+                } else {
+                    if mithril_snapshot_lock.is_some() {
+                        tracing::trace!("Point not found in Mithril snapshot. Asking remote node.");
+                    }
+
+                    set_client_read_pointer(&mut client, at).await
                 };
 
                 match result.as_ref() {
@@ -301,22 +366,70 @@ mod follow_task {
         state: TaskState,
     ) -> std::result::Result<(), mpsc::error::SendError<Result<ChainUpdate>>> {
         // Get the value of the current read pointer
-        let mut current_read_pointer_lock = state.current_read_pointer.read().await;
+        let mut current_read_pointer_lock = state.current_read_pointer.write().await;
 
-        // If we have no valid read pointer:
-        // 1. drop the lock
-        // 2. wait for a notification indicating it has been set
-        // 3. check the lock again.
-        while current_read_pointer_lock.is_none() {
-            drop(current_read_pointer_lock);
+        let mut next = Ok(None);
 
-            tracing::trace!("Waiting for a valid read pointer to be set");
-            state.current_read_pointer_notify.notified().await;
+        {
+            // If we have no valid read pointer:
+            // 1. drop the lock
+            // 2. wait for a notification indicating it has been set
+            // 3. check the lock again.
+            let current_point = loop {
+                if let Some(current_point) = current_read_pointer_lock.as_ref() {
+                    break current_point;
+                }
 
-            current_read_pointer_lock = state.current_read_pointer.read().await;
-        }
+                drop(current_read_pointer_lock);
 
-        let next = get_next_response(state.clone()).await;
+                tracing::trace!("Waiting for a valid read pointer to be set");
+                state.current_read_pointer_notify.notified().await;
+
+                current_read_pointer_lock = state.current_read_pointer.write().await;
+            };
+
+            let mut mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
+
+            if let Some(s) = mithril_snapshot_lock.as_mut() {
+                if let Some(iter) = s.iter.as_mut() {
+                    if let Some(b) = iter.next() {
+                        tracing::trace!("Read block data from Mithril snapshot");
+
+                        next = b
+                            .map(|b| Some(ChainUpdate::Block(MultiEraBlockData(b))))
+                            .map_err(|_| Error::MithrilSnapshot);
+                    }
+                }
+            }
+
+            if let Ok(None) = next {
+                if let Some(s) = mithril_snapshot_lock.as_mut() {
+                    if s.iter.is_some() {
+                        s.iter = None;
+
+                        {
+                            let mut client = state.client.lock().await;
+                            let res = set_client_read_pointer(
+                                &mut client,
+                                PointOrTip::Point(current_point.clone()),
+                            )
+                            .await;
+
+                            if let Err(e) = res {
+                                *current_read_pointer_lock = None;
+                                return state.chain_update_tx.send(Err(e)).await;
+                            }
+                        }
+
+                        // Skip the next update from the client since we've already
+                        // read it the Mithril snapshot.
+                        drop(next_from_client(state.clone()).await);
+                    }
+                }
+
+                next = next_from_client(state.clone()).await;
+            }
+        };
 
         match next {
             Err(err) => {
@@ -324,6 +437,17 @@ mod follow_task {
             },
             Ok(next_response) => {
                 if let Some(chain_update) = next_response {
+                    let block_data = chain_update.block_data();
+
+                    let block = match block_data.decode() {
+                        Ok(decoded_block) => decoded_block,
+                        Err(e) => return state.chain_update_tx.send(Err(e)).await,
+                    };
+
+                    tracing::trace!(slot = block.slot(), "Read pointer updated");
+                    *current_read_pointer_lock =
+                        Some(Point::Specific(block.slot(), block.hash().to_vec()));
+
                     return state.chain_update_tx.send(Ok(chain_update)).await;
                 }
             },
@@ -336,7 +460,7 @@ mod follow_task {
     ///
     /// Is cancelled by closing the `chain_update_tx` receiver end (explicitly or by
     /// dropping it).
-    async fn get_next_response(state: TaskState) -> crate::Result<Option<ChainUpdate>> {
+    async fn next_from_client(state: TaskState) -> crate::Result<Option<ChainUpdate>> {
         let res = {
             let mut client_lock = state.client.lock().await;
 
@@ -353,6 +477,8 @@ mod follow_task {
             }
             .map_err(Error::Chainsync)?
         };
+
+        tracing::trace!("Received block data from client");
 
         match res {
             chainsync::NextResponse::RollForward(header, _tip) => {
@@ -390,6 +516,31 @@ mod follow_task {
                 Ok(Some(ChainUpdate::Rollback(MultiEraBlockData(block_data))))
             },
             chainsync::NextResponse::Await => Ok(None),
+        }
+    }
+
+    async fn set_client_read_pointer(
+        client: &mut PeerClient, at: PointOrTip,
+    ) -> Result<Option<Point>> {
+        match at {
+            PointOrTip::Point(Point::Origin) => client
+                .chainsync()
+                .intersect_origin()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync),
+            PointOrTip::Point(p @ Point::Specific(..)) => client
+                .chainsync()
+                .find_intersect(vec![p])
+                .await
+                .map(|(point, _)| point)
+                .map_err(Error::Chainsync),
+            PointOrTip::Tip => client
+                .chainsync()
+                .intersect_tip()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync),
         }
     }
 }

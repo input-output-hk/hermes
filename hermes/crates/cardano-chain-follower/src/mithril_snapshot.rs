@@ -1,8 +1,20 @@
 use std::path::PathBuf;
 
-use pallas::network::miniprotocols::Point;
+use pallas::{network::miniprotocols::Point, storage::hardano::immutable::FallibleBlock};
 
 use crate::{Error, MultiEraBlockData, Result};
+
+pub(crate) struct MithrilSnapshotIterator {
+    inner: Box<dyn Iterator<Item = FallibleBlock> + Send + Sync>,
+}
+
+impl Iterator for MithrilSnapshotIterator {
+    type Item = FallibleBlock;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
 
 pub(crate) struct MithrilSnapshot {
     pub path: PathBuf,
@@ -102,6 +114,18 @@ impl MithrilSnapshot {
             },
             None => Ok(None),
         }
+    }
+
+    pub fn try_read_blocks_from_point(&self, point: Point) -> Option<MithrilSnapshotIterator> {
+        if !self.contains_point(&point) {
+            return None;
+        }
+
+        let iter = pallas::storage::hardano::immutable::read_blocks_from_point(&self.path, point)
+            .map_err(|_| Error::MithrilSnapshot)
+            .ok()?;
+
+        Some(MithrilSnapshotIterator { inner: iter })
     }
 
     pub fn contains_point(&self, point: &Point) -> bool {

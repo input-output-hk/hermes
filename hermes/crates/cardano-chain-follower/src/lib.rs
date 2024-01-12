@@ -36,6 +36,9 @@ pub enum Error {
     /// Follower start point was not found.
     #[error("Follower start point was not found")]
     FollowerStartPointNotFound,
+    /// Follower background task has stopped.
+    #[error("Follower background task is not running")]
+    FollowerBackgroundTaskNotRunning,
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshot,
