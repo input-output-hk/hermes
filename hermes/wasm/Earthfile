@@ -4,19 +4,19 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy source files.
 builder:
-    FROM ./../../../catalyst-ci/earthly/rust+rust-base
+    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+rust-base
 
     COPY --dir .cargo .config crates .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 
-    DO ./../../../catalyst-ci/earthly/rust+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-wasm+SETUP
 
 # Run quality checks.
 check:
     FROM +builder
 
-    DO ./../../../catalyst-ci/earthly/rust+CHECK
+    RUN /scripts/std_checks.py
 
 # Build the service.
 build:
