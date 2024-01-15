@@ -1,0 +1,7 @@
+; Figure 2: A Basic Group
+
+pii = (
+  age: int,
+  name: tstr,
+  employer: tstr,
+)

@@ -1,0 +1,7 @@
+; Figure 1: Using a Group Directly in a Map
+
+person = {
+  age: int,
+  name: tstr,
+  employer: tstr,
+}

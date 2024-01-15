@@ -1,0 +1,7 @@
+; Figure 4: Using a Parenthesized Group in a Map
+
+person = {(
+  age: int,
+  name: tstr,
+  employer: tstr,
+)}

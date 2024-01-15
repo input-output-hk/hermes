@@ -1,0 +1,11 @@
+; Figure 3: Using a Group by Name
+
+person = {
+  pii
+}
+
+pii = (
+  age: int,
+  name: tstr,
+  employer: tstr,
+)
