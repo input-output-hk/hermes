@@ -4,7 +4,7 @@ use cddl_parser::{parse_cddl, Extension};
 
 #[test]
 fn parse_cddl_files() -> Result<()> {
-  let entries = fs::read_dir("tests/correct_cddl")?;
+  let entries = fs::read_dir("tests/cddl")?;
 
   for entry in entries {
     let file_path = entry?.path();
