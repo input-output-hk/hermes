@@ -6,23 +6,23 @@ use cddl_parser::{parse_cddl, Extension};
 fn parse_cddl_files() -> Result<()> {
   let entries = fs::read_dir("tests/cddl")?;
 
-  let mut error_results = vec![];
+  let mut file_paths: Vec<_> = entries
+    .filter_map(Result::ok)
+    .filter_map(|x| x.path().is_file().then_some(x.path()))
+    .collect();
 
-  for entry in entries {
-    let file_path = entry?.path();
+  file_paths.sort();
 
-    if !file_path.is_file() {
-      continue;
-    }
-
+  let mut err_messages = vec![];
+  for file_path in file_paths {
     let mut content = fs::read_to_string(&file_path)?;
 
     if let Err(e) = parse_cddl(&mut content, &Extension::RFC8610Parser) {
-      error_results.push(format!("{}) {file_path:?} {e}", error_results.len() + 1));
+      err_messages.push(format!("{}) {file_path:?} {e}", err_messages.len() + 1));
     }
   }
 
-  let err_msg = error_results.join("\n\n");
+  let err_msg = err_messages.join("\n\n");
   if !err_msg.is_empty() {
     panic!("{err_msg}")
   }
