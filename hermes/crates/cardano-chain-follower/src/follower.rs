@@ -22,7 +22,7 @@ pub enum ChainUpdate {
 }
 
 impl ChainUpdate {
-    /// ...
+    /// Gets the chain update's block data.
     pub fn block_data(&self) -> &MultiEraBlockData {
         match self {
             ChainUpdate::Block(block_data) => block_data,
@@ -37,7 +37,7 @@ pub struct FollowerConfigBuilder {
     chain_update_buffer_size: usize,
     /// Where to start following from.
     follow_from: PointOrTip,
-    /// ...
+    /// Path to the Mithril snapshot the follower should use.
     mithril_snapshot_path: Option<PathBuf>,
 }
 
@@ -105,7 +105,7 @@ pub struct FollowerConfig {
     pub chain_update_buffer_size: usize,
     /// Where to start following from.
     pub follow_from: PointOrTip,
-    /// ...
+    /// Path to the Mithril snapshot the follower should use.
     pub mithril_snapshot_path: Option<PathBuf>,
 }
 
@@ -139,9 +139,11 @@ impl Follower {
         let (task_request_tx, task_request_rx) = mpsc::channel(16);
         let (chain_update_tx, chain_update_rx) = mpsc::channel(config.chain_update_buffer_size);
 
-        let mithril_snapshot = config
-            .mithril_snapshot_path
-            .and_then(MithrilSnapshot::from_path);
+        let mithril_snapshot = if let Some(path) = config.mithril_snapshot_path {
+            Some(MithrilSnapshot::from_path(path)?)
+        } else {
+            None
+        };
 
         let task_join_handle = tokio::spawn(follow_task::run(
             client,
@@ -211,6 +213,7 @@ impl Follower {
         }
     }
 
+    /// Sends a request to the background task and waits for its response.
     async fn send_request_and_wait(
         &self, req: follow_task::Request,
     ) -> Result<follow_task::Response> {
@@ -247,19 +250,26 @@ mod follow_task {
 
     use super::ChainUpdate;
 
+    /// Follow task's requests.
     pub enum Request {
+        /// Request the follow task to set the read pointer to the given point or to the tip.
         SetReadPointer(PointOrTip),
     }
 
+    /// Folow task's responses.
     pub enum Response {
+        /// Whether the read pointer was set correctly.
         SetReadPointer(Result<Option<Point>>),
     }
 
+    /// Holds the state of Mithril snapshot functions in the follow task.
     struct MithrilSnapshotState {
         snapshot: MithrilSnapshot,
         iter: Option<MithrilSnapshotIterator>,
     }
 
+    // TODO(fsgr): Surely could improve this design?
+    /// Holds the locks and channels used by the follow task.
     #[derive(Clone)]
     pub(crate) struct TaskState {
         client: Arc<Mutex<PeerClient>>,
@@ -304,7 +314,7 @@ mod follow_task {
                     handle_request(task_state.clone(), req, res_channel).await;
                 }
 
-                res = send_next(task_state.clone()) => {
+                res = send_next_chain_update(task_state.clone()) => {
                     if res.is_err() {
                         break 'main;
                     }
@@ -315,6 +325,7 @@ mod follow_task {
         tracing::trace!("Follower background task shutdown");
     }
 
+    /// Handles a request.
     async fn handle_request(
         state: TaskState, request: Request, response_channel: oneshot::Sender<Response>,
     ) {
@@ -362,7 +373,10 @@ mod follow_task {
         }
     }
 
-    async fn send_next(
+    /// Sends the next chain update to the follower.
+    /// This can be either read from the Mithril snapshot (if configured) or
+    /// from the N2N remote client.
+    async fn send_next_chain_update(
         state: TaskState,
     ) -> std::result::Result<(), mpsc::error::SendError<Result<ChainUpdate>>> {
         // Get the value of the current read pointer
@@ -519,6 +533,7 @@ mod follow_task {
         }
     }
 
+    /// Sets the N2N remote client's read pointer.
     async fn set_client_read_pointer(
         client: &mut PeerClient, at: PointOrTip,
     ) -> Result<Option<Point>> {

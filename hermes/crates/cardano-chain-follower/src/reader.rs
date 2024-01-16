@@ -35,7 +35,7 @@ impl Reader {
             .map_err(Error::Client)?;
 
         let mithril_snapshot_read_state = if let Some(path) = mithril_snapshot_path {
-            MithrilSnapshot::from_path(path)
+            Some(MithrilSnapshot::from_path(path)?)
         } else {
             None
         };
@@ -115,10 +115,6 @@ impl Reader {
                     Some((last_point_read, mut block_data_vec)) => {
                         // If we couldn't get all the blocks from the snapshot,
                         // try fetching the remaining ones from the network.
-                        tracing::debug!(
-                            slot = last_point_read.slot_or_default(),
-                            "Last point read"
-                        );
                         if last_point_read.slot_or_default() < to.slot_or_default() {
                             let network_blocks = self
                                 .read_block_range_from_network(last_point_read, to)
@@ -162,7 +158,7 @@ impl Reader {
             .await
             .map_err(Error::Blockfetch)?;
 
-        tracing::debug!(slot, "Block read from n2n");
+        tracing::trace!(slot, "Block read from n2n");
         Ok(MultiEraBlockData(block_data))
     }
 
@@ -184,7 +180,7 @@ impl Reader {
             .map(MultiEraBlockData)
             .collect();
 
-        tracing::debug!(from_slot, to_slot, "Block range read from n2n");
+        tracing::trace!(from_slot, to_slot, "Block range read from n2n");
 
         Ok(data_vec)
     }

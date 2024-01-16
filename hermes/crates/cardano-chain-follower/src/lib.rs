@@ -1,7 +1,5 @@
 //! Cardano chain follower.
 
-#![allow(dead_code)]
-
 mod follower;
 mod mithril_snapshot;
 mod reader;
