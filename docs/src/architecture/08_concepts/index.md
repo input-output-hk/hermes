@@ -6,7 +6,7 @@ icon: material/thought-bubble
 
 <!-- See: https://docs.arc42.org/section-8/ -->
 
-## *~Concept 1~*
+## Hermes runtime extension (HRE)
 
 ... *~explanation~*
 
