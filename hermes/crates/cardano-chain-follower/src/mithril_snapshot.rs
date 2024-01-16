@@ -2,7 +2,8 @@
 
 use std::path::PathBuf;
 
-use pallas::{network::miniprotocols::Point, storage::hardano::immutable::FallibleBlock};
+use pallas::network::miniprotocols::Point;
+use pallas_hardano::storage::immutable::FallibleBlock;
 
 use crate::{Error, MultiEraBlockData, Result};
 
@@ -40,7 +41,7 @@ impl MithrilSnapshot {
     /// Returns Err if it can't read where the tip is at in the snapshot or
     /// if reading the snapshot files fails.
     pub fn from_path(path: PathBuf) -> Result<Self> {
-        let tip = pallas::storage::hardano::immutable::get_tip(&path)
+        let tip = pallas_hardano::storage::immutable::get_tip(&path)
             .map_err(|_| Error::MithrilSnapshot)?
             .ok_or(Error::MithrilSnapshot)?;
 
@@ -63,7 +64,7 @@ impl MithrilSnapshot {
         }
 
         let mut block_data_iter =
-            pallas::storage::hardano::immutable::read_blocks_from_point(&self.path, point)
+            pallas_hardano::storage::immutable::read_blocks_from_point(&self.path, point)
                 .map_err(|_| Error::MithrilSnapshot)?;
 
         match block_data_iter.next() {
@@ -99,7 +100,7 @@ impl MithrilSnapshot {
         }
 
         let blocks_iter =
-            pallas::storage::hardano::immutable::read_blocks_from_point(&self.path, from)
+            pallas_hardano::storage::immutable::read_blocks_from_point(&self.path, from)
                 .map_err(|_| Error::MithrilSnapshot)?;
 
         let mut block_data_vec = Vec::new();
@@ -148,7 +149,7 @@ impl MithrilSnapshot {
             return None;
         }
 
-        let iter = pallas::storage::hardano::immutable::read_blocks_from_point(&self.path, point)
+        let iter = pallas_hardano::storage::immutable::read_blocks_from_point(&self.path, point)
             .map_err(|_| Error::MithrilSnapshot)
             .ok()?;
 

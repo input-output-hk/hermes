@@ -18,3 +18,4 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 pallas = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
+pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }

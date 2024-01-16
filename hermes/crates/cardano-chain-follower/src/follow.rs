@@ -72,9 +72,7 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         self.follow_from = from.into();
         self
     }
@@ -178,9 +176,7 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let res = self.send_request_and_wait(follow_task::Request::SetReadPointer(at.into()));
 
         let follow_task::Response::SetReadPointer(res) = res.await?;
@@ -305,9 +301,11 @@ mod follow_task {
         mut request_rx: mpsc::Receiver<(Request, oneshot::Sender<Response>)>,
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
     ) {
-        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| MithrilSnapshotState {
-            snapshot,
-            iter: None,
+        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| {
+            MithrilSnapshotState {
+                snapshot,
+                iter: None,
+            }
         });
 
         let task_state = TaskState {
@@ -550,24 +548,30 @@ mod follow_task {
         client: &mut PeerClient, at: PointOrTip,
     ) -> Result<Option<Point>> {
         match at {
-            PointOrTip::Point(Point::Origin) => client
-                .chainsync()
-                .intersect_origin()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync),
-            PointOrTip::Point(p @ Point::Specific(..)) => client
-                .chainsync()
-                .find_intersect(vec![p])
-                .await
-                .map(|(point, _)| point)
-                .map_err(Error::Chainsync),
-            PointOrTip::Tip => client
-                .chainsync()
-                .intersect_tip()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync),
+            PointOrTip::Point(Point::Origin) => {
+                client
+                    .chainsync()
+                    .intersect_origin()
+                    .await
+                    .map(Some)
+                    .map_err(Error::Chainsync)
+            },
+            PointOrTip::Point(p @ Point::Specific(..)) => {
+                client
+                    .chainsync()
+                    .find_intersect(vec![p])
+                    .await
+                    .map(|(point, _)| point)
+                    .map_err(Error::Chainsync)
+            },
+            PointOrTip::Tip => {
+                client
+                    .chainsync()
+                    .intersect_tip()
+                    .await
+                    .map(Some)
+                    .map_err(Error::Chainsync)
+            },
         }
     }
 }
