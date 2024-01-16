@@ -3,7 +3,6 @@ use std::{fs, io::Result};
 use cddl_parser::{parse_cddl, Extension};
 
 #[test]
-#[ignore]
 fn parse_cddl_files() -> Result<()> {
   let entries = fs::read_dir("tests/cddl")?;
 

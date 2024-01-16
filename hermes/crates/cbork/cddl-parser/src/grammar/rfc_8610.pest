@@ -64,7 +64,7 @@ ctlop = ${ "." ~ id }
 group = { grpchoice ~ S ~ ( "//" ~ S ~ grpchoice ~ S )* }
 
 /// Group choice - a collection of group entries in various forms
-grpchoice = { ( grpent ~ ","? ~ S )* }
+grpchoice = { ( grpent ~ (S ~ ",")? ~ S )* }
 
 /// Group entry - a single element in a group
 grpent = ${
@@ -75,8 +75,8 @@ grpent = ${
 
 /// Member key in a struct or an array
 memberkey = {
-    ( type1 ~ "^"? ~ "=>" )
-    | ( (bareword | value) ~ ":" )
+    ( type1 ~ S ~ ("^" ~ S)? ~ "=>" )
+    | ( (bareword | value) ~ S ~ ":" )
 }
 
 /// Bareword - a member key that is not used as a value like "foo", 1, etc.
@@ -160,7 +160,7 @@ URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 
 S = _{ WHITESPACE* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
+COMMENT = _{ ";" ~ (!NEWLINE ~ (" " | "\t")* ~ PCHAR)* }
 
 // URL Base64 Characterset.
 URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT | "-" | "_" }

@@ -46,7 +46,9 @@ pub const OCCUR_FAILS: &[&str] = &[
 ];
 
 pub const MEMBERKEY_PASSES: &[&str] = &[
-
+  "foo:",
+  "foo :",
+  "\"foo\":",
 ];
 
 pub const MEMBERKEY_FAILS: &[&str] = &[
