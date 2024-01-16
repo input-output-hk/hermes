@@ -1,6 +1,9 @@
 //! This example shows how to use the chain reader to read arbitrary blocks
 //! from Mithril snapshot files.
 
+// Allowing since this is example code.
+#![allow(clippy::unwrap_used)]
+
 use std::{error::Error, path::PathBuf};
 
 use cardano_chain_follower::{Network, Point, Reader};

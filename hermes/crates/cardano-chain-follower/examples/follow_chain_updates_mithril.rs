@@ -1,6 +1,9 @@
 //! This example shows how to use the chain follower to follow chain updates on
 //! a Cardano network chain.
 
+// Allowing since this is example code.
+#![allow(clippy::unwrap_used)]
+
 use std::{error::Error, path::PathBuf};
 
 use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network, Point};
@@ -21,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // to follow from block 1794552 (preprod).
     let config = FollowerConfigBuilder::default()
         .follow_from(Point::Specific(
-            49075262,
+            49_075_262,
             hex::decode("e929cd1bf8ec78844ec9ea450111aaf55fbf17540db4b633f27d4503eebf2218")?,
         ))
         .mithril_snapshot_path(

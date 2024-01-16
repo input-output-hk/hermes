@@ -1,11 +1,11 @@
 //! Cardano chain follower.
 
-mod follower;
+mod follow;
 mod mithril_snapshot;
-mod reader;
+mod read;
 
-pub use follower::*;
-pub use reader::*;
+pub use follow::*;
+pub use read::*;
 
 pub use pallas::network::miniprotocols::Point;
 use pallas::{

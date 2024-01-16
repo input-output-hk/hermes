@@ -1,3 +1,5 @@
+//! Internal Mithril snapshot functions.
+
 use std::path::PathBuf;
 
 use pallas::{network::miniprotocols::Point, storage::hardano::immutable::FallibleBlock};
@@ -6,6 +8,7 @@ use crate::{Error, MultiEraBlockData, Result};
 
 /// Wraps the iterator type returned by Pallas.
 pub(crate) struct MithrilSnapshotIterator {
+    /// Inner iterator.
     inner: Box<dyn Iterator<Item = FallibleBlock> + Send + Sync>,
 }
 
@@ -19,7 +22,9 @@ impl Iterator for MithrilSnapshotIterator {
 
 /// Holds information about a Mithril snapshot.
 pub(crate) struct MithrilSnapshot {
+    /// Path to the Mithril snapshot.
     pub path: PathBuf,
+    /// Snapshot's tip.
     pub tip: Point,
 }
 
@@ -85,6 +90,7 @@ impl MithrilSnapshot {
     /// # Errors
     ///
     /// Returns Err if anything fails while reading any block's data.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn try_read_block_range(
         &self, from: Point, to: Point,
     ) -> Result<Option<(Point, Vec<MultiEraBlockData>)>> {

@@ -1,4 +1,4 @@
-//! Cardano chain reader module.
+//! Cardano chain read module.
 
 use std::path::PathBuf;
 

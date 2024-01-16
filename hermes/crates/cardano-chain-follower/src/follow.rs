@@ -1,3 +1,5 @@
+//! Cardano chain follow module.
+
 use std::path::PathBuf;
 
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
@@ -23,10 +25,10 @@ pub enum ChainUpdate {
 
 impl ChainUpdate {
     /// Gets the chain update's block data.
+    #[must_use]
     pub fn block_data(&self) -> &MultiEraBlockData {
         match self {
-            ChainUpdate::Block(block_data) => block_data,
-            ChainUpdate::Rollback(block_data) => block_data,
+            ChainUpdate::Block(block_data) | ChainUpdate::Rollback(block_data) => block_data,
         }
     }
 }
@@ -264,7 +266,9 @@ mod follow_task {
 
     /// Holds the state of Mithril snapshot functions in the follow task.
     struct MithrilSnapshotState {
+        /// Mithril snapshot handle.
         snapshot: MithrilSnapshot,
+        /// Active snapshot iterator. None means we are not iterating from the snapshot.
         iter: Option<MithrilSnapshotIterator>,
     }
 
@@ -272,10 +276,18 @@ mod follow_task {
     /// Holds the locks and channels used by the follow task.
     #[derive(Clone)]
     pub(crate) struct TaskState {
+        /// Shared client.
         client: Arc<Mutex<PeerClient>>,
+        /// Shared chain update channel.
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
+        /// Shared current read pointer.
         current_read_pointer: Arc<RwLock<Option<Point>>>,
+        /// Shared current read point notifier.
+        ///
+        /// This is used to notify when we get a valid read pointer so the
+        /// task can continue.
         current_read_pointer_notify: Arc<Notify>,
+        /// Shared Mithril snapshot reading state.
         mithril_snapshot_state: Arc<RwLock<Option<MithrilSnapshotState>>>,
     }
 
