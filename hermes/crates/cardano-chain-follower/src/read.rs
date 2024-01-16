@@ -56,9 +56,7 @@ impl Reader {
     ///
     /// Returns Err if the block was not found or if some communication error ocurred.
     pub async fn read_block<P>(&mut self, at: P) -> Result<MultiEraBlockData>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         match at.into() {
             PointOrTip::Tip => {
                 let point = self.resolve_tip().await?;
@@ -94,9 +92,7 @@ impl Reader {
     pub async fn read_block_range<P>(
         &mut self, from: Point, to: P,
     ) -> Result<Vec<MultiEraBlockData>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         match to.into() {
             PointOrTip::Tip => {
                 let to_point = self.resolve_tip().await?;

@@ -132,8 +132,8 @@ impl MithrilSnapshot {
         }
     }
 
-    /// Tries get an iterator that reads blocks from the Mithril snapshot from a given point.
-    /// Returns None if the point is not contained in the snapshot.
+    /// Tries get an iterator that reads blocks from the Mithril snapshot from a given
+    /// point. Returns None if the point is not contained in the snapshot.
     ///
     /// # Arguments
     ///
@@ -141,7 +141,8 @@ impl MithrilSnapshot {
     ///
     /// # Errors
     ///
-    /// Returns Err if anything fails while trying to find the starting point in the snapshot.
+    /// Returns Err if anything fails while trying to find the starting point in the
+    /// snapshot.
     pub fn try_read_blocks_from_point(&self, point: Point) -> Option<MithrilSnapshotIterator> {
         if !self.contains_point(&point) {
             return None;

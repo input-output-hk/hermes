@@ -5,8 +5,6 @@ mod mithril_snapshot;
 mod read;
 
 pub use follow::*;
-pub use read::*;
-
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
     ledger::traverse::MultiEraBlock,
@@ -14,6 +12,7 @@ use pallas::{
         chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC,
     },
 };
+pub use read::*;
 use thiserror::Error;
 
 /// Crate error type.
