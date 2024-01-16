@@ -1,0 +1,7 @@
+; 2.2.2.1.  Ranges
+
+device-address = byte
+max-byte = 255
+byte = 0..max-byte ; inclusive range
+first-non-byte = 256
+byte1 = 0...first-non-byte ; byte1 is equivalent to byte

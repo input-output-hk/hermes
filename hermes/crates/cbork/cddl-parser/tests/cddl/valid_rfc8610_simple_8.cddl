@@ -1,0 +1,7 @@
+; 2.2.2.  Choices
+
+attire /= "swimwear"
+
+delivery //= (
+lat: float, long: float, drone-type: tstr
+)

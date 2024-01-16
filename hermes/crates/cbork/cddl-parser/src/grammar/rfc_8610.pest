@@ -38,9 +38,9 @@ tag_generic = ${ "#" ~ ASCII_DIGIT ~ ("." ~ uint)? }
 type2 = {
     value
     | typename_arg
-    | ( "(" ~ type ~ ")" )
-    | ( "{" ~ group ~ "}" )
-    | ( "[" ~ group ~ "]" )
+    | ( "(" ~ S ~ type ~ ")" )
+    | ( "{" ~ S ~ group ~ "}" )
+    | ( "[" ~ S ~ group ~ "]" )
     | ( "~" ~ typename_arg )
     | ( "&" ~ "(" ~ group ~ ")" )
     | ( "&" ~ groupname_arg )
@@ -52,9 +52,9 @@ type2 = {
 rangeop = { "..." | ".." }
 ctlop = ${ "." ~ id }
 
-group = { grpchoice ~ ( S ~ "//" ~ grpchoice)* }
+group = { grpchoice ~ ( S ~ "//" ~ S ~ grpchoice)* }
 
-grpchoice = { ( grpent ~ ","? )* }
+grpchoice = { ( grpent ~ ","? ~ S )* }
 
 grpent = ${
     ( (occur ~ S)? ~ (memberkey ~ S)? ~ type )
