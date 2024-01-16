@@ -1,0 +1,6 @@
+; 3.5.4.  Cuts in Maps
+
+extensible-map-example = {
+  ? "optional-key": int,
+  * tstr => any
+}

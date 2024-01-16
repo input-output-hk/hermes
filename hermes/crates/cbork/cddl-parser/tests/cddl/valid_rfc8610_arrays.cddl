@@ -1,0 +1,9 @@
+; 3.4.  Arrays
+
+unlimited-people = [* person]
+one-or-two-people = [1*2 person]
+at-least-two-people = [2* person]
+person = (
+    name: tstr,
+    age: uint,
+)

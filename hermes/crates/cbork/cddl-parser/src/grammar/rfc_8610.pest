@@ -11,9 +11,12 @@ cddl = {
     ~ EOI
 }
 
+
+// -----------------------------------------------------------------------------
+// Rules
 rule = {
-    ( typename ~ assignt ~ type)
-    | ( groupname ~ assigng ~ grpent)
+    ( typename ~ assignt ~ type )
+    | ( groupname ~ assigng ~ grpent )
 }
 
 typename = ${ id ~ genericparm? }
@@ -23,11 +26,14 @@ assignt = { "=" | "/=" }
 assigng = { "=" | "//=" }
 
 genericparm = { "<" ~ id ~ ( "," ~ id )* ~ ">" }
-genericarg = { "<" ~ type1 ~ ( "," ~ type1)* ~ ">" }
+genericarg = { "<" ~ type1 ~ ( "," ~ type1 )* ~ ">" }
 
-type = { type1 ~ ( S ~ "/" ~ type1)* }
 
-type1 = { type2 ~ ( S ~ ( rangeop | ctlop ) ~ type2)? }
+// -----------------------------------------------------------------------------
+// Type Declaration
+type = { type1 ~ ( S ~ "/" ~ type1 )* }
+
+type1 = { type2 ~ ( S ~ ( rangeop | ctlop ) ~ type2 )? }
 
 typename_arg = ${ typename ~ genericarg? }
 groupname_arg = ${ groupname ~ genericarg? }
@@ -41,9 +47,9 @@ type2 = {
     | ( "(" ~ S ~ type ~ ")" )
     | ( "{" ~ S ~ group ~ "}" )
     | ( "[" ~ S ~ group ~ "]" )
-    | ( "~" ~ typename_arg )
-    | ( "&" ~ "(" ~ group ~ ")" )
-    | ( "&" ~ groupname_arg )
+    | ( "~" ~ S ~ typename_arg )
+    | ( "&" ~ S ~ "(" ~ S ~ group ~ ")" )
+    | ( "&" ~ S ~ groupname_arg )
     | tag6
     | tag_generic
     | "#"
@@ -52,24 +58,31 @@ type2 = {
 rangeop = { "..." | ".." }
 ctlop = ${ "." ~ id }
 
-group = { grpchoice ~ ( S ~ "//" ~ S ~ grpchoice)* }
 
+// -----------------------------------------------------------------------------
+// Group Elements
+group = { grpchoice ~ S ~ ( "//" ~ S ~ grpchoice ~ S )* }
+
+/// Group choice - a collection of group entries in various forms
 grpchoice = { ( grpent ~ ","? ~ S )* }
 
+/// Group entry - a single element in a group
 grpent = ${
     ( (occur ~ S)? ~ (memberkey ~ S)? ~ type )
     | ( (occur ~ S)? ~ groupname ~ genericarg? )
     | ( (occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")" )
 }
 
+/// Member key in a struct or an array
 memberkey = {
     ( type1 ~ "^"? ~ "=>" )
-    | ( bareword ~ ":" )
-    | ( value ~ ":" )
+    | ( (bareword | value) ~ ":" )
 }
 
+/// Bareword - a member key that is not used as a value like "foo", 1, etc.
 bareword = { id }
 
+/// Occurence indicator
 occur = {
     ( uint? ~ "*" ~ uint? )
     | "+"
@@ -82,7 +95,7 @@ occur = {
 /// All Literal Values
 value = { number | text | bytes }
 
-/// Literal Numbers  - A float if it has fraction or exponent; int otherwise
+/// Literal Numbers - A float if it has fraction or exponent; int otherwise
 number = { hexfloat | intfloat }
 
 /// Hex floats of the form -0x123.abc0p+12
@@ -99,7 +112,6 @@ exponent = ${ ("+" | "-") ~ ASCII_DIGIT+ }
 
 /// All integers, singed and unsigned
 int = ${ "-"? ~ uint }
-
 
 /// Unsigned Integers
 uint = ${
@@ -121,7 +133,7 @@ bytes_text = ${ "'" ~ BCHAR* ~ "'" }
 // -----------------------------------------------------------------------------
 // Simple multiple character sequences
 
-/// identifier,  called the `name` in the CDDL spec.
+/// identifier, called the `name` in the CDDL spec.
 id = ${
     group_socket |
     type_socket |
@@ -151,7 +163,7 @@ WHITESPACE = _{ " " | "\t" | NEWLINE }
 COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
 
 // URL Base64 Characterset.
-URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
+URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT | "-" | "_" }
 // Optional Padding that goes at the end of Base64.
 URL_BASE64_PAD = _{ "~" }
 
@@ -159,8 +171,8 @@ URL_BASE64_PAD = _{ "~" }
 
 /// A name can start with an alphabetic character (including "@", "_", "$")
 /// The body of the name can consist of any of the characters from the set
-///   {"A" to "Z", "a" to "z", "0" to "9", "_", "-", "@", ".", "$"}
-// NAME_BODY = _{ NAME_END | "-" | "." }  -- Unused Rule
+/// {"A" to "Z", "a" to "z", "0" to "9", "_", "-", "@", ".", "$"}
+// NAME_BODY = _{ NAME_END | "-" | "." } -- Unused Rule
 NAME_START = _{ ASCII_ALPHA | "@" | "_" | "$" }
 /// A name can end with an alphabetic character (including "@", "_", "$") or a digit.
 NAME_END = _{ NAME_START | ASCII_DIGIT }

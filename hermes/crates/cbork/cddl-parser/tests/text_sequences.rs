@@ -3,13 +3,17 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+pub const S_PASSES: &[&str] = &[" ", "  ", " \t \t", " \t  \r \n \r\n   "];
+pub const S_FAILS: &[&str] = &[" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"];
+pub const TEXT_PASSES: &[&str] = &[r#""""#, r#""abc""#, "\"abc\\n\""];
+pub const TEXT_FAILS: &[&str] = &["", "''", "\"abc\n\""];
+
 #[test]
 /// Test if the `S` rule passes properly.
-///   This uses a special rule in the Grammar to test whitespace exhaustively.
+/// This uses a special rule in the Grammar to test whitespace exhaustively.
 fn check_s() {
-    let tests = vec![" ", "  ", " \t \t", " \t  \r \n \r\n   "];
-
-    let fails = vec![" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"];
+    let tests = S_PASSES;
+    let fails = S_FAILS;
 
     for test in tests {
         let parse = CDDLTestParser::parse(Rule::S_TEST, test);
@@ -25,9 +29,8 @@ fn check_s() {
 #[test]
 /// Test if the `text` rule passes properly.
 fn check_text() {
-    let test = vec![r#""""#, r#""abc""#, "\"abc\\n\""];
-
-    let fail = vec!["", "''", "\"abc\n\""];
+    let test = TEXT_PASSES;
+    let fail = TEXT_FAILS;
 
     for test in test {
         let parse = CDDLTestParser::parse(Rule::text_TEST, test);

@@ -5,6 +5,43 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+pub const ID_PASSES: &[&str] = &[
+    "$",
+    "@",
+    "_",
+    "a",
+    "z",
+    "A",
+    "Z",
+    "$$",
+    "@@",
+    "__",
+    "a$",
+    "a@",
+    "a_",
+    "$0",
+    "@9",
+    "_a",
+    "abc",
+    "aname",
+    "@aname",
+    "_aname",
+    "$aname",
+    "a$name",
+    "a.name",
+    "@a.name",
+    "$a.name",
+    "_a.name",
+    "$$",
+    "$$groupsocket",
+    "$",
+    "$typesocket",
+];
+
+pub const ID_FAILS: &[&str] = &[
+    "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
+];
+
 #[test]
 /// Check if the name components pass properly.
 fn check_name_characters() {
@@ -29,42 +66,8 @@ fn check_name_characters() {
 #[test]
 /// Test if the `id` rule passes properly.
 fn check_id() {
-    let test = vec![
-        "$",
-        "@",
-        "_",
-        "a",
-        "z",
-        "A",
-        "Z",
-        "$$",
-        "@@",
-        "__",
-        "a$",
-        "a@",
-        "a_",
-        "$0",
-        "@9",
-        "_a",
-        "abc",
-        "aname",
-        "@aname",
-        "_aname",
-        "$aname",
-        "a$name",
-        "a.name",
-        "@a.name",
-        "$a.name",
-        "_a.name",
-        "$$",
-        "$$groupsocket",
-        "$",
-        "$typesocket",
-    ];
-
-    let fail = vec![
-        "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
-    ];
+    let test = ID_PASSES;
+    let fail = ID_FAILS;
 
     for test in test {
         let parse = CDDLTestParser::parse(Rule::id_TEST, test);

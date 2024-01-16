@@ -1,0 +1,8 @@
+; 3.5.2.  Tables
+
+square-roots = {* x => y}
+x = int
+y = float
+
+tostring = {* mynumber => tstr}
+mynumber = int / float

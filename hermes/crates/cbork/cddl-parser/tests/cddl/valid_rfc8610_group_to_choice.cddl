@@ -1,0 +1,11 @@
+; 2.2.2.2.  Turning a Group into a Choice
+
+terminal-color = &basecolors
+basecolors = (
+  black: 0,  red: 1,  green: 2,  yellow: 3,
+  blue: 4,  magenta: 5,  cyan: 6,  white: 7,
+)
+extended-color = &(
+  basecolors,
+  orange: 8,  pink: 9,  purple: 10,  brown: 11,
+)

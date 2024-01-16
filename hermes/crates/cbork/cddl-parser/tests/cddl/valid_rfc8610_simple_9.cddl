@@ -1,7 +1,7 @@
-; 2.2.2.1.  Ranges
+; This is a comment
+person = { g }
 
-device-address = byte
-max-byte = 255
-byte = 0..max-byte ; inclusive range
-first-non-byte = 256
-byte1 = 0...first-non-byte ; byte1 is equivalent to byte
+g = (
+  "name": tstr,
+  age: int,  ; "age" is a bareword
+)
