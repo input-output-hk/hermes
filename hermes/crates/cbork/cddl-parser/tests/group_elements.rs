@@ -17,6 +17,7 @@ pub const OCCUR_PASSES: &[&str] = &[
   "*5",
   "0b110*",
   "0x1*",
+  "5 * 10",
 
   // Pass cases for "+"
   "+",
@@ -27,7 +28,6 @@ pub const OCCUR_PASSES: &[&str] = &[
 
 pub const OCCUR_FAILS: &[&str] = &[
   "5**10",
-  "5 * 10",
 
   // Fail cases for "+"
   "++",
@@ -46,9 +46,21 @@ pub const OCCUR_FAILS: &[&str] = &[
 ];
 
 pub const MEMBERKEY_PASSES: &[&str] = &[
+  // bareword
   "foo:",
+  "foo-bar:",
+  "foo_bar:",
   "foo :",
+
+  // values
   "\"foo\":",
+  "1:",
+  "0x123:",
+  "1.1:",
+  "-1:",
+  // "b64'123':",
+
+  // type1
 ];
 
 pub const MEMBERKEY_FAILS: &[&str] = &[

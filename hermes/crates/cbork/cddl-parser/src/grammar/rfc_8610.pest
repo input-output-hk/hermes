@@ -5,18 +5,14 @@
 // cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
 // cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
-cddl = {
-    SOI
-    ~ S ~ rule+
-    ~ EOI
-}
+cddl = { SOI ~ rule+ ~ EOI }
 
 
 // -----------------------------------------------------------------------------
 // Rules
 rule = {
-    ( typename ~ assignt ~ type )
-    | ( groupname ~ assigng ~ grpent )
+    (typename ~ assignt ~ type)
+    | (groupname ~ assigng ~ grpent)
 }
 
 typename = ${ id ~ genericparm? }
@@ -25,31 +21,31 @@ groupname = ${ id ~ genericparm? }
 assignt = { "=" | "/=" }
 assigng = { "=" | "//=" }
 
-genericparm = { "<" ~ id ~ ( "," ~ id )* ~ ">" }
-genericarg = { "<" ~ type1 ~ ( "," ~ type1 )* ~ ">" }
+genericparm = { "<" ~ id ~ ("," ~ id)* ~ ">" }
+genericarg = { "<" ~ type1 ~ ("," ~ type1)* ~ ">" }
 
 
 // -----------------------------------------------------------------------------
 // Type Declaration
-type = { type1 ~ ( S ~ "/" ~ type1 )* }
+type = { type1 ~ ("/" ~ type1)* }
 
-type1 = { type2 ~ ( S ~ ( rangeop | ctlop ) ~ type2 )? }
+type1 = { type2 ~ ((rangeop | ctlop) ~ type2)? }
 
 typename_arg = ${ typename ~ genericarg? }
 groupname_arg = ${ groupname ~ genericarg? }
 
-tag6 = ${ "#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ S ~ type ~ S ~ ")" }
+tag6 = ${ "#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ type ~ ")" }
 tag_generic = ${ "#" ~ ASCII_DIGIT ~ ("." ~ uint)? }
 
 type2 = {
     value
     | typename_arg
-    | ( "(" ~ S ~ type ~ ")" )
-    | ( "{" ~ S ~ group ~ "}" )
-    | ( "[" ~ S ~ group ~ "]" )
-    | ( "~" ~ S ~ typename_arg )
-    | ( "&" ~ S ~ "(" ~ S ~ group ~ ")" )
-    | ( "&" ~ S ~ groupname_arg )
+    | ("(" ~ type ~ ")")
+    | ("{" ~ group ~ "}")
+    | ("[" ~ group ~ "]")
+    | ("~" ~ typename_arg)
+    | ("&" ~ "(" ~ group ~ ")")
+    | ("&" ~ groupname_arg)
     | tag6
     | tag_generic
     | "#"
@@ -61,22 +57,22 @@ ctlop = ${ "." ~ id }
 
 // -----------------------------------------------------------------------------
 // Group Elements
-group = { grpchoice ~ S ~ ( "//" ~ S ~ grpchoice ~ S )* }
+group = { grpchoice ~ ("//" ~ grpchoice)* }
 
 /// Group choice - a collection of group entries in various forms
-grpchoice = { ( grpent ~ (S ~ ",")? ~ S )* }
+grpchoice = { (grpent ~ ","?)* }
 
 /// Group entry - a single element in a group
-grpent = ${
-    ( (occur ~ S)? ~ (memberkey ~ S)? ~ type )
-    | ( (occur ~ S)? ~ groupname ~ genericarg? )
-    | ( (occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")" )
+grpent = {
+    (occur? ~ S ~ memberkey? ~ S ~ type)
+    | (occur? ~ S ~ groupname ~ S ~ genericarg?)
+    | (occur? ~ S ~ "(" ~ S ~ group ~ S ~ ")")
 }
 
 /// Member key in a struct or an array
 memberkey = {
-    ( type1 ~ S ~ ("^" ~ S)? ~ "=>" )
-    | ( (bareword | value) ~ S ~ ":" )
+    (type1 ~ "^"? ~ "=>")
+    | ((bareword | value) ~ ":")
 }
 
 /// Bareword - a member key that is not used as a value like "foo", 1, etc.
@@ -84,7 +80,7 @@ bareword = { id }
 
 /// Occurence indicator
 occur = {
-    ( uint? ~ "*" ~ uint? )
+    (uint? ~ "*" ~ uint?)
     | "+"
     | "?"
 }
@@ -115,9 +111,9 @@ int = ${ "-"? ~ uint }
 
 /// Unsigned Integers
 uint = ${
-    ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* )
-    | ( "0x" ~ ASCII_HEX_DIGIT+ )
-    | ( "0b" ~ ASCII_BIN_DIGIT+ )
+    (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+    | ("0x" ~ ASCII_HEX_DIGIT+)
+    | ("0b" ~ ASCII_BIN_DIGIT+)
     | "0"
 }
 
@@ -126,9 +122,9 @@ text = ${ "\"" ~ SCHAR* ~ "\"" }
 
 /// Literal Bytes - Note CDDL Spec incorrectly defines b64''.
 bytes = ${ bytes_hex | bytes_b64 | bytes_text }
-bytes_hex = ${ "h" ~ "'" ~ HEX_PAIR* ~ "'" }
-bytes_b64 = ${ "b64" ~ "'" ~ URL_BASE64 ~ "'" }
-bytes_text = ${ "'" ~ BCHAR* ~ "'" }
+bytes_hex = ${ "h'" ~ (S ~ HEX_PAIR)* ~ S ~ "'" }
+bytes_b64 = ${ "b64'" ~ (S ~ URL_BASE64) ~ S ~ "'" }
+bytes_text = ${ "'" ~ (S ~ BCHAR)* ~ S ~ "'" }
 
 // -----------------------------------------------------------------------------
 // Simple multiple character sequences
@@ -141,18 +137,18 @@ id = ${
 }
 
 /// Special form of a name that represents a Group Socket.
-group_socket = ${ "$$" ~ ( ( "-" | "." )* ~ NAME_END )* }
+group_socket = ${ "$$" ~ (("-" | ".")* ~ NAME_END)* }
 /// Special form of a name that represents a Type Socket.
-type_socket = ${ "$" ~ ( ( "-" | "." )* ~ NAME_END )* }
+type_socket = ${ "$" ~ (("-" | ".")* ~ NAME_END)* }
 /// General form of a name.
-name = ${ NAME_START ~ ( ( "-" | "." )* ~ NAME_END )* }
+name = ${ NAME_START ~ (("-" | ".")* ~ NAME_END)* }
 
 /// A pair of hex digits. (Must always have even numbers of hex digits.)
-HEX_PAIR = _{ S ~ ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT ~ S }
+HEX_PAIR = _{  ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT }
 
 /// Whitespace is allowed and is ignored.
 /// This token will keep the whitespace, so it will need to handled when converted to binary.
-URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
+URL_BASE64 = _{ S ~ (URL_BASE64_ALPHA ~ S)* ~ S ~ URL_BASE64_PAD? }
 
 
 // -----------------------------------------------------------------------------
@@ -160,7 +156,7 @@ URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 
 S = _{ WHITESPACE* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = _{ ";" ~ (!NEWLINE ~ (" " | "\t")* ~ PCHAR)* }
+COMMENT = _{ ";" ~ (!NEWLINE ~ PCHAR)* }
 
 // URL Base64 Characterset.
 URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT | "-" | "_" }
