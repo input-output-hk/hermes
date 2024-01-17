@@ -7,7 +7,12 @@ mod identifiers;
 use identifiers::{ID_PASSES, ID_FAILS};
 
 pub const OCCUR_PASSES: &[&str] = &[
+  "*",
+  "+",
+  "?",
   "5*10",
+  "5 * 10",
+  "5\t\n*\n10",
   "0x1*0b110",
   "*20",
   "5*10",
@@ -17,13 +22,6 @@ pub const OCCUR_PASSES: &[&str] = &[
   "*5",
   "0b110*",
   "0x1*",
-  "5 * 10",
-
-  // Pass cases for "+"
-  "+",
-
-  // Pass cases for "?"
-  "?",
 ];
 
 pub const OCCUR_FAILS: &[&str] = &[
@@ -61,6 +59,7 @@ pub const MEMBERKEY_PASSES: &[&str] = &[
   // "b64'123':",
 
   // type1
+  "tstr =>",
 ];
 
 pub const MEMBERKEY_FAILS: &[&str] = &[

@@ -5,14 +5,17 @@
 // cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
 // cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
-cddl = { SOI ~ rule+ ~ EOI }
-
+cddl = ${
+    SOI
+    ~ S ~ (rule ~ S)+
+    ~ EOI
+}
 
 // -----------------------------------------------------------------------------
 // Rules
-rule = {
-    (typename ~ assignt ~ type)
-    | (groupname ~ assigng ~ grpent)
+rule = ${
+    (typename ~ S ~ assignt ~ S ~ type)
+    | (groupname ~ S ~ assigng ~ S ~ grpent)
 }
 
 typename = ${ id ~ genericparm? }
@@ -21,64 +24,53 @@ groupname = ${ id ~ genericparm? }
 assignt = { "=" | "/=" }
 assigng = { "=" | "//=" }
 
-genericparm = { "<" ~ id ~ ("," ~ id)* ~ ">" }
-genericarg = { "<" ~ type1 ~ ("," ~ type1)* ~ ">" }
-
+genericparm = ${ "<" ~ S ~ id ~ S ~ ("," ~ S ~ id ~ S)* ~ ">" }
+genericarg = ${ "<" ~ S ~ type1 ~ S ~ ("," ~ S ~ type1 ~ S)* ~ ">" }
 
 // -----------------------------------------------------------------------------
 // Type Declaration
-type = { type1 ~ ("/" ~ type1)* }
+type = ${ type1 ~ (S ~ "/" ~ S ~ type1)* }
 
-type1 = { type2 ~ ((rangeop | ctlop) ~ type2)? }
+type1 = ${ type2 ~ (S ~ (rangeop | ctlop) ~ S ~ type2)? }
 
-typename_arg = ${ typename ~ genericarg? }
-groupname_arg = ${ groupname ~ genericarg? }
-
-tag6 = ${ "#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ type ~ ")" }
-tag_generic = ${ "#" ~ ASCII_DIGIT ~ ("." ~ uint)? }
-
-type2 = {
+type2 = ${
     value
-    | typename_arg
-    | ("(" ~ type ~ ")")
-    | ("{" ~ group ~ "}")
-    | ("[" ~ group ~ "]")
-    | ("~" ~ typename_arg)
-    | ("&" ~ "(" ~ group ~ ")")
-    | ("&" ~ groupname_arg)
-    | tag6
-    | tag_generic
+    | typename ~ genericarg?
+    | ("(" ~ S ~ type ~ S ~ ")")
+    | ("{" ~ S ~ group ~ S ~ "}")
+    | ("[" ~ S ~ group ~ S ~ "]")
+    | ("~" ~ S ~ typename ~ genericarg?)
+    | ("&" ~ S ~ "(" ~ S ~ group ~ S ~ ")")
+    | ("&" ~ S ~ groupname ~ genericarg?)
+    | ("#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ S ~ type ~ S ~ ")")
+    | ("#" ~ ASCII_DIGIT ~ ("." ~ uint)?)
     | "#"
 }
 
 rangeop = { "..." | ".." }
 ctlop = ${ "." ~ id }
 
-
 // -----------------------------------------------------------------------------
 // Group Elements
-group = { grpchoice ~ ("//" ~ grpchoice)* }
+group = ${ grpchoice ~ (S ~ "//" ~ S ~ grpchoice)* }
 
-/// Group choice - a collection of group entries in various forms
-grpchoice = { (grpent ~ ","?)* }
+grpchoice = ${ (grpent ~ optcom)* }
 
-/// Group entry - a single element in a group
-grpent = {
-    (occur? ~ S ~ memberkey? ~ S ~ type)
-    | (occur? ~ S ~ groupname ~ S ~ genericarg?)
-    | (occur? ~ S ~ "(" ~ S ~ group ~ S ~ ")")
+grpent = ${
+    ((occur ~ S)? ~ (memberkey ~ S)? ~ type)
+    | ((occur ~ S)? ~ groupname ~ genericarg?)
+    | ((occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")")
 }
 
-/// Member key in a struct or an array
-memberkey = {
-    (type1 ~ "^"? ~ "=>")
-    | ((bareword | value) ~ ":")
+memberkey = ${
+    (type1 ~ S ~ ("^" ~ S)? ~ "=>")
+    | ((value | bareword) ~ S ~ ":")
 }
 
-/// Bareword - a member key that is not used as a value like "foo", 1, etc.
 bareword = { id }
 
-/// Occurence indicator
+optcom = { S ~ ("," ~ S)? }
+
 occur = {
     (uint? ~ "*" ~ uint?)
     | "+"
@@ -91,7 +83,7 @@ occur = {
 /// All Literal Values
 value = { number | text | bytes }
 
-/// Literal Numbers - A float if it has fraction or exponent; int otherwise
+/// Literal Numbers  - A float if it has fraction or exponent; int otherwise
 number = { hexfloat | intfloat }
 
 /// Hex floats of the form -0x123.abc0p+12
@@ -109,6 +101,7 @@ exponent = ${ ("+" | "-") ~ ASCII_DIGIT+ }
 /// All integers, singed and unsigned
 int = ${ "-"? ~ uint }
 
+
 /// Unsigned Integers
 uint = ${
     (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
@@ -122,14 +115,14 @@ text = ${ "\"" ~ SCHAR* ~ "\"" }
 
 /// Literal Bytes - Note CDDL Spec incorrectly defines b64''.
 bytes = ${ bytes_hex | bytes_b64 | bytes_text }
-bytes_hex = ${ "h'" ~ (S ~ HEX_PAIR)* ~ S ~ "'" }
-bytes_b64 = ${ "b64'" ~ (S ~ URL_BASE64) ~ S ~ "'" }
-bytes_text = ${ "'" ~ (S ~ BCHAR)* ~ S ~ "'" }
+bytes_hex = ${ "h" ~ "'" ~ HEX_PAIR* ~ "'" }
+bytes_b64 = ${ "b64" ~ "'" ~ URL_BASE64 ~ "'" }
+bytes_text = ${ "'" ~ BCHAR* ~ "'" }
 
 // -----------------------------------------------------------------------------
 // Simple multiple character sequences
 
-/// identifier, called the `name` in the CDDL spec.
+/// identifier,  called the `name` in the CDDL spec.
 id = ${
     group_socket |
     type_socket |
@@ -144,22 +137,22 @@ type_socket = ${ "$" ~ (("-" | ".")* ~ NAME_END)* }
 name = ${ NAME_START ~ (("-" | ".")* ~ NAME_END)* }
 
 /// A pair of hex digits. (Must always have even numbers of hex digits.)
-HEX_PAIR = _{  ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT }
+HEX_PAIR = _{ S ~ ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT ~ S }
 
 /// Whitespace is allowed and is ignored.
 /// This token will keep the whitespace, so it will need to handled when converted to binary.
-URL_BASE64 = _{ S ~ (URL_BASE64_ALPHA ~ S)* ~ S ~ URL_BASE64_PAD? }
+URL_BASE64 = _{ S ~ (URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 
 
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
 
 S = _{ WHITESPACE* }
-WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = _{ ";" ~ (!NEWLINE ~ PCHAR)* }
+WHITESPACE = _{ " " | "\t" | COMMENT | NEWLINE }
+COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
 
 // URL Base64 Characterset.
-URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT | "-" | "_" }
+URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
 // Optional Padding that goes at the end of Base64.
 URL_BASE64_PAD = _{ "~" }
 
@@ -167,8 +160,8 @@ URL_BASE64_PAD = _{ "~" }
 
 /// A name can start with an alphabetic character (including "@", "_", "$")
 /// The body of the name can consist of any of the characters from the set
-/// {"A" to "Z", "a" to "z", "0" to "9", "_", "-", "@", ".", "$"}
-// NAME_BODY = _{ NAME_END | "-" | "." } -- Unused Rule
+///   {"A" to "Z", "a" to "z", "0" to "9", "_", "-", "@", ".", "$"}
+// NAME_BODY = _{ NAME_END | "-" | "." }  -- Unused Rule
 NAME_START = _{ ASCII_ALPHA | "@" | "_" | "$" }
 /// A name can end with an alphabetic character (including "@", "_", "$") or a digit.
 NAME_END = _{ NAME_START | ASCII_DIGIT }
