@@ -6,55 +6,55 @@
 // cspell: words intfloat hexfloat
 
 /// Test Expression for the `group` Rule.
-group_TEST  = { SOI ~ group ~ EOI }
+group_TEST  = ${ SOI ~ group ~ EOI }
 
 /// Test Expression for the `grpchoice` Rule.
-grpchoice_TEST  = { SOI ~ grpchoice ~ EOI }
+grpchoice_TEST  = ${ SOI ~ grpchoice ~ EOI }
 
 /// Test Expression for the `grpent` Rule.
-grpent_TEST  = { SOI ~ grpent ~ EOI }
+grpent_TEST  = ${ SOI ~ grpent ~ EOI }
 
 /// Test Expression for the `memberkey` Rule.
-memberkey_TEST  = { SOI ~ memberkey ~ EOI }
+memberkey_TEST  = ${ SOI ~ memberkey ~ EOI }
 
 /// Test Expression for the `bareword` Rule.
-bareword_TEST  = { SOI ~ bareword ~ EOI }
+bareword_TEST  = ${ SOI ~ bareword ~ EOI }
 
 /// Test Expression for the `optcom` Rule.
-optcom_TEST  = { SOI ~ optcom ~ EOI }
+optcom_TEST  = ${ SOI ~ optcom ~ EOI }
 
 /// Test Expression for the `occur` Rule.
-occur_TEST  = { SOI ~ occur ~ EOI }
+occur_TEST  = ${ SOI ~ occur ~ EOI }
 
 /// Test Expression for the `S` Rule.
-S_TEST = { SOI ~ S ~ EOI }
+S_TEST = ${ SOI ~ S ~ EOI }
 
 /// Test Expression for the `COMMENT` Rule.
 COMMENT_TEST = { SOI ~ COMMENT* ~ EOI }
 
 /// Test expression to the `id` Rule.
-id_TEST = { SOI ~ id ~ EOI}
+id_TEST = ${ SOI ~ id ~ EOI}
 
 /// Test expression to the `bytes` Rule.
-bytes_TEST = { SOI ~ bytes ~ EOI}
+bytes_TEST = ${ SOI ~ bytes ~ EOI}
 
 /// Test expression to the `text` Rule.
-text_TEST = { SOI ~ text ~ EOI}
+text_TEST = ${ SOI ~ text ~ EOI}
 
 /// Test expression to the `uint` Rule.
-uint_TEST = { SOI ~ uint ~ EOI}
+uint_TEST = ${ SOI ~ uint ~ EOI}
 
 /// Test expression to the `int` Rule.
-int_TEST = { SOI ~ int ~ EOI}
+int_TEST = ${ SOI ~ int ~ EOI}
 
 /// Test expression to the `intfloat` Rule.
-intfloat_TEST = { SOI ~ intfloat ~ EOI}
+intfloat_TEST = ${ SOI ~ intfloat ~ EOI}
 
 /// Test expression to the `hexfloat` Rule.
-hexfloat_TEST = { SOI ~ hexfloat ~ EOI}
+hexfloat_TEST = ${ SOI ~ hexfloat ~ EOI}
 
 /// Test expression to the `number` Rule.
-number_TEST = { SOI ~ number ~ EOI}
+number_TEST = ${ SOI ~ number ~ EOI}
 
 /// Test expression to the `value` Rule.
-value_TEST = { SOI ~ value ~ EOI}
+value_TEST = ${ SOI ~ value ~ EOI}

@@ -11,8 +11,6 @@ pub const OCCUR_PASSES: &[&str] = &[
   "+",
   "?",
   "5*10",
-  "5 * 10",
-  "5\t\n*\n10",
   "0x1*0b110",
   "*20",
   "5*10",
@@ -26,11 +24,9 @@ pub const OCCUR_PASSES: &[&str] = &[
 
 pub const OCCUR_FAILS: &[&str] = &[
   "5**10",
-
-  // Fail cases for "+"
+  "5 * 10",
+  "5\t\n*\n10",
   "++",
-
-  // Fail cases for "?"
   "??",
 
   // Fail cases for uint
