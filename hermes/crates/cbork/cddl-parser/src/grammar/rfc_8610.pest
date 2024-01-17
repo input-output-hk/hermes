@@ -69,6 +69,7 @@ memberkey = ${
 
 bareword = { id }
 
+/// Optional Comma - Note eligible for producing pairs as this might be useful for linting
 optcom = { S ~ ("," ~ S)? }
 
 occur = {
@@ -83,7 +84,7 @@ occur = {
 /// All Literal Values
 value = { number | text | bytes }
 
-/// Literal Numbers  - A float if it has fraction or exponent; int otherwise
+/// Literal Numbers - A float if it has fraction or exponent; int otherwise
 number = { hexfloat | intfloat }
 
 /// Hex floats of the form -0x123.abc0p+12
@@ -113,35 +114,15 @@ uint = ${
 /// Literal Text
 text = ${ "\"" ~ SCHAR* ~ "\"" }
 
-/// Literal Bytes - Note CDDL Spec incorrectly defines b64''.
-bytes = ${ bytes_hex | bytes_b64 | bytes_text }
-bytes_hex = ${ "h" ~ "'" ~ HEX_PAIR* ~ "'" }
-bytes_b64 = ${ "b64" ~ "'" ~ URL_BASE64 ~ "'" }
-bytes_text = ${ "'" ~ BCHAR* ~ "'" }
+/// Literal Bytes.
+bytes = ${ bsqual? ~ "'" ~ BCHAR* ~ "'" }
+bsqual = { "h" | "b64" }
 
 // -----------------------------------------------------------------------------
 // Simple multiple character sequences
 
-/// identifier,  called the `name` in the CDDL spec.
-id = ${
-    group_socket |
-    type_socket |
-    name
-}
-
-/// Special form of a name that represents a Group Socket.
-group_socket = ${ "$$" ~ (("-" | ".")* ~ NAME_END)* }
-/// Special form of a name that represents a Type Socket.
-type_socket = ${ "$" ~ (("-" | ".")* ~ NAME_END)* }
-/// General form of a name.
-name = ${ NAME_START ~ (("-" | ".")* ~ NAME_END)* }
-
-/// A pair of hex digits. (Must always have even numbers of hex digits.)
-HEX_PAIR = _{ S ~ ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT ~ S }
-
-/// Whitespace is allowed and is ignored.
-/// This token will keep the whitespace, so it will need to handled when converted to binary.
-URL_BASE64 = _{ S ~ (URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
+/// identifier, called the `name` in the CDDL spec.
+id = ${ NAME_START ~ (("-" | ".")* ~ NAME_END)* }
 
 
 // -----------------------------------------------------------------------------
@@ -150,11 +131,6 @@ URL_BASE64 = _{ S ~ (URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 S = _{ WHITESPACE* }
 WHITESPACE = _{ " " | "\t" | COMMENT | NEWLINE }
 COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
-
-// URL Base64 Characterset.
-URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
-// Optional Padding that goes at the end of Base64.
-URL_BASE64_PAD = _{ "~" }
 
 // Identifier Name Character sets.
 
@@ -173,12 +149,12 @@ PCHAR = _{ ASCII_VISIBLE | UNICODE_CHAR }
 SCHAR = _{ SCHAR_ASCII_VISIBLE | UNICODE_CHAR | SESC }
 
 /// The set of characters valid for a byte string.
-BCHAR = _{ BCHAR_ASCII_VISIBLE | UNICODE_CHAR | SESC | NEWLINE }
+BCHAR = _{ '\u{20}'..'\u{26}' | '\u{28}'..'\u{5B}' | '\u{5D}'..'\u{10FFFD}' | SESC | NEWLINE }
 
 /// Escaping code to allow invalid characters to be used in text or byte strings.
 SESC = ${ "\\" ~ (ASCII_VISIBLE | UNICODE_CHAR) }
 
-/// All Visiable Ascii characters.
+/// All Visible Ascii characters.
 ASCII_VISIBLE = _{ ' '..'~' }
 
 /// Ascii subset valid for text strings.

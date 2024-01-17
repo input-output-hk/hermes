@@ -44,7 +44,7 @@ fn check_bchar() {
     for x in ('\u{0}'..='\u{ff}').map(char::from) {
         let test = format!("{x}");
         let parse = CDDLTestParser::parse(Rule::BCHAR, &test);
-        if x != '\n' && x != '\r' && x < ' ' || x == '\u{27}' || x == '\u{5c}' || x == '\u{7f}' {
+        if !matches!(x, '\n' | '\r') && x < ' ' || matches!(x, '\t' | '\'' | '\\') {
             assert!(parse.is_err());
         } else {
             assert!(parse.is_ok());

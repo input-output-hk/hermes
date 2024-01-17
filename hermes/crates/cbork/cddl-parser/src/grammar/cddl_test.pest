@@ -29,9 +29,6 @@ S_TEST = { SOI ~ S ~ EOI }
 /// Test Expression for the `COMMENT` Rule.
 COMMENT_TEST = { SOI ~ COMMENT* ~ EOI }
 
-/// Test expression for the `URL_BASE64` Rule.
-URL_BASE64_TEST = { SOI ~ URL_BASE64 ~ EOI }
-
 /// Test expression to the `id` Rule.
 id_TEST = { SOI ~ id ~ EOI}
 
