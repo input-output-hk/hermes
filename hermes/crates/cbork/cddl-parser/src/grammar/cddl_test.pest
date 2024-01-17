@@ -20,6 +20,9 @@ memberkey_TEST  = { SOI ~ memberkey ~ EOI }
 /// Test Expression for the `bareword` Rule.
 bareword_TEST  = { SOI ~ bareword ~ EOI }
 
+/// Test Expression for the `optcom` Rule.
+optcom_TEST  = { SOI ~ optcom ~ EOI }
+
 /// Test Expression for the `occur` Rule.
 occur_TEST  = { SOI ~ occur ~ EOI }
 

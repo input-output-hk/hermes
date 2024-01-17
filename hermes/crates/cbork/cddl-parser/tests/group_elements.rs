@@ -43,6 +43,19 @@ pub const OCCUR_FAILS: &[&str] = &[
   "0b",
 ];
 
+pub const OPTCOM_PASSES: &[&str] = &[
+  "",
+  ",",
+  " ,",
+  " , ",
+  "\n,\n",
+  "\n",
+];
+
+pub const OPTCOM_FAILS: &[&str] = &[
+  ",,",
+];
+
 pub const MEMBERKEY_PASSES: &[&str] = &[
   // bareword
   "foo:",
@@ -62,34 +75,74 @@ pub const MEMBERKEY_PASSES: &[&str] = &[
 
   // type1
   "tstr =>",
+  "id =>",
+  "# =>",
+  "1..2 =>",
+  "1...2 =>",
+  "\"foo\" =>",
+  "\"foo\" ^=>",
+  "\"foo\"^ =>",
+  "\"foo\" ^ =>",
+  "1 =>",
+  "0x123 =>",
+  "1.1 =>",
+  "-1 =>",
+  "b64'1234' =>",
+  "h'1234' =>",
+  "h'12 34\n' =>",
 ];
 
 pub const MEMBERKEY_FAILS: &[&str] = &[
-
+  "#:",
+  "foo::",
 ];
 
 pub const GRPENT_PASSES: &[&str] = &[
-
+  "foo: 1",
+  "foo: 1",
+  "foo-bar:\t\n1",
+  "foo :\n1",
+  "foo: #",
+  "tstr => any",
+  "tstr => { foo: bar }",
+  "tstr => { foo: bar, baz }",
+  "tstr => [foo: bar, baz]",
 ];
 
 pub const GRPENT_FAILS: &[&str] = &[
-
+  "tstr => (foo: bar)",
 ];
 
 pub const GRPCHOICE_PASSES: &[&str] = &[
-
+  "foo: 1",
+  "foo: 1, bar: 2",
+  "foo: 1, bar: 2,",
+  "foo: 1\nbar: 2",
+  "foo: 1 bar: 2",
+  "foo => 1 bar: 2",
+  "foo => 1, bar => 2",
+  "foo => 1, bar: 2",
+  "foo => 1bar: 2",
 ];
 
 pub const GRPCHOICE_FAILS: &[&str] = &[
-
+  "foo: ,",
+  "foo:",
+  "foo: bar: 2",
+  "foo => bar: 2",
 ];
 
 pub const GROUP_PASSES: &[&str] = &[
-
+  "(foo: 1)",
+  "(foo: 1) // (bar: 2)",
+  "(foo: 1) // (bar: 2)",
+  "(street: tstr, ? number: uint, city // po-box: uint, city // per-pickup: true)",
+  "(+ a // b / c)",
+  "((+ a) // (b / c))",
 ];
 
 pub const GROUP_FAILS: &[&str] = &[
-
+  "(foo: 1) / (bar: 2)",
 ];
 
 #[test]
@@ -114,7 +167,7 @@ fn check_occur() {
 /// Test if the `bareword` rule passes properly.
 /// This uses a special rule in the Grammar to test `bareword` exhaustively.
 fn check_bareword() {
-  let tests = ID_PASSES;
+  let tests: &[&str] = ID_PASSES;
   let fails = ID_FAILS;
 
   for test in tests {
@@ -124,6 +177,24 @@ fn check_bareword() {
 
   for test in fails {
       let parse = CDDLTestParser::parse(Rule::bareword_TEST, test);
+      assert!(parse.is_err());
+  }
+}
+
+#[test]
+/// Test if the `optcom` rule passes properly.
+/// This uses a special rule in the Grammar to test `optcom` exhaustively.
+fn check_optcom() {
+  let tests = OPTCOM_PASSES;
+  let fails = OPTCOM_FAILS;
+
+  for test in tests {
+      let parse = CDDLTestParser::parse(Rule::optcom_TEST, test);
+      assert!(parse.is_ok());
+  }
+
+  for test in fails {
+      let parse = CDDLTestParser::parse(Rule::optcom_TEST, test);
       assert!(parse.is_err());
   }
 }
