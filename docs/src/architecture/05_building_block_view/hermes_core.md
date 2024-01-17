@@ -29,7 +29,6 @@ The queue preserves the order of event execution based on how they were added in
 
 ## Hermes application
 
-*Hermes application* - a WASM component
-that executes a specific business logic and serves as an event handler for the of the *Hermes Events*.
-During initialization, it defines a list of events to subscribe to.
-Each *Hermes application* can interact with the *HRE* through *HRE calls* based on corresponding [WIT](https://component-model.bytecodealliance.org/design/wit.html) defintions.
+*Hermes application* - a collection of WASM components, which are packed together and
+executes a specific business logic. It mainly serves as an event handler for the of the *Hermes Events*.
+Each *Hermes application* can interact with the *HRE* through *HRE calls* based on corresponding [WIT](https://component-model.bytecodealliance.org/design/wit.html) definitions.
