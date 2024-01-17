@@ -18,8 +18,8 @@ rule = ${
     | (groupname ~ S ~ assigng ~ S ~ grpent)
 }
 
-typename = ${ id ~ genericparm? }
-groupname = ${ id ~ genericparm? }
+typename = { id }
+groupname = { id }
 
 assignt = { "=" | "/=" }
 assigng = { "=" | "//=" }
