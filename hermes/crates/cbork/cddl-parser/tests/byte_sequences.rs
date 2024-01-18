@@ -5,6 +5,27 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+pub const HEXPAIR_PASSES: &[&str] = &[
+    "00", "ab", "de", "0f", "f0"
+];
+
+pub const HEXPAIR_FAILS: &[&str] = &[
+    "0", " 0", "0 ", "az", "0p"
+];
+
+pub const URL_BASE64_PASSES: &[&str] = &[
+    "abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~",
+    "abcdefghijklmnopqrstuvwyz0123456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+];
+
+pub const URL_BASE64_FAILS: &[&str] = &[
+    "abcdefghijklmnopq #  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~ ",
+    "abcdefghijklmnopq $  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\t",
+    "abcdefghijklmnopq %  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\n",
+    "abcdefghijklmnopq ^  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\r",
+    "abcdefghijklmnopq &  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\r\n",
+];
+
 pub const BYTES_PASSES: &[&str] = &[
     "h''",
     "b64''",
@@ -29,6 +50,40 @@ pub const BYTES_FAILS: &[&str] = &[
     "b64'abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ'",
     "'\u{7}'",
 ];
+
+#[test]
+/// Test if the `HEX_PAIR` rule passes properly.
+fn check_hexpair() {
+    let hex_pairs = HEXPAIR_PASSES;
+    let not_hex_pairs = HEXPAIR_FAILS;
+
+    for hp in hex_pairs {
+        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
+        assert!(parse.is_ok());
+    }
+
+    for hp in not_hex_pairs {
+        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
+        assert!(parse.is_err());
+    }
+}
+
+#[test]
+/// Test if the `URL_BASE64` rule passes properly.
+fn check_url_base64() {
+    let tests = URL_BASE64_PASSES;
+    let fails = URL_BASE64_FAILS;
+
+    for test in tests {
+        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
+        assert!(parse.is_ok());
+    }
+
+    for test in fails {
+        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
+        assert!(parse.is_err());
+    }
+}
 
 #[test]
 /// Test if the `bytes` rule passes properly.
