@@ -10,11 +10,6 @@ builder:
 
     COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml bin crates .
 
-# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
-# Only used to validate tooling is working across host toolsets.
-all-hosts-build:    
-    BUILD --platform=linux/amd64 --platform=linux/arm64 +hosted-build
-
 ## -----------------------------------------------------------------------------
 ##
 ## Standard CI targets.
