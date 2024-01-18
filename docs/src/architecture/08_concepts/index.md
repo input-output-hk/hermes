@@ -12,7 +12,7 @@ icon: material/thought-bubble
 
 As it was told before each [*HRE*](../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre) defines a
 [WIT](https://component-model.bytecodealliance.org/design/wit.html) file.
-It is a 1 on 1 match, so every *HRE* have to have a corresponding WIT file.
+It is a 1 on 1 match, so every *HRE* has to have a corresponding WIT file.
 It specifies the following important parts:
 
 * *Hermes events* signature, which produced by the corresponding *HRE*.
