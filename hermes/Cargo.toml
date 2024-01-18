@@ -17,5 +17,7 @@ repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+# Stop using catalyst-pallas once pallas changes are merged.
+# issue: https://github.com/input-output-hk/hermes/issues/63
 pallas = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
 pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
