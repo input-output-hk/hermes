@@ -6,7 +6,7 @@ icon: material/engine
 
 *Hermes core* represents an event-driven system running on top of the WASM runtime utilizing
 [WASM component model](https://component-model.bytecodealliance.org/design/why-component-model.html) approach.
-Every user's application is expected to be written as an implementation of an events handler and bundled into a WASM module,
+Every user's application is expected to be compiled as a WASM module,
 which means that it could be developed on any language with the WASM support e.g. Java, C, Rust, Go etc.
 
 ![Hermes_core](./../images/hermes_core.svg)
@@ -14,11 +14,11 @@ which means that it could be developed on any language with the WASM support e.g
 ## Hermes runtime extension (HRE)
 
 *Hermes runtime extension (HRE)* - a Hermes module
-which will provides an additional functionality to the *Hermes applications*and stands as a library.
+which will provides an additional functionality to the *Hermes application* and stands as a library.
 It could produce a *Hermes events*,
-which can then be placed into the *Hermes events queue* for further processing by the applications.
+which can then be placed into the *Hermes events queue* for further processing by the *Hermes application*.
 Each *HRE* defines a specific [WIT](https://component-model.bytecodealliance.org/design/wit.html) file,
-with the described interface of *HRE calls* (directly by the *Hermes applications*) and specification of produced events.
+with the described interface of *HRE calls* (directly by the *Hermes application*) and specification of produced events.
 
 ## Hermes event
 
@@ -30,7 +30,7 @@ depending on whether that specific *Hermes application* has subscribed to such e
 
 *Hermes events queue* - a queue-like data structure.
 Events are added to one end, one by one, by the *HRE*.
-The *Hermes applications* then executes/consumes these events from the other end of the queue.
+The *Hermes application* then executes/consumes these events from the other end of the queue.
 The queue preserves the order of event execution based on how they were added in it.
 
 ## Hermes application
