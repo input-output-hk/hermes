@@ -143,9 +143,9 @@ URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
 
-S = _{ WHITESPACE* }
-WHITESPACE = _{ " " | "\t" | COMMENT | NEWLINE }
-COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
+S = _{ (COMMENT | WHITESPACE)* }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT = { ";" ~ (PCHAR | "\t")* ~ NEWLINE }
 
 URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
 // Optional Padding that goes at the end of Base64.

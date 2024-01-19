@@ -31,11 +31,15 @@ pub const BYTES_PASSES: &[&str] = &[
     "b64''",
     "''",
     "h'00'",
+    "h'63666F6FF6'",
+    "h'68656c6c6f20776f726c64'",
+    "h'4 86 56c 6c6f'",
+    "h' 20776 f726c64'",
     "h'00112233445566778899aabbccddeeff0123456789abcdef'",
-    "h'001'",
     "h'0 1 2 3 4 5 6 7 8 9 a b c d e f'",
+    "h' 0 1 2 3 4 5\r 6 7 \n 8 9 a\r\n\t b c d e f'",
     "h'0 \n\n\r f'",
-    "''",
+    "b64'aHR0cHM6Ly93d3cuZXhhbXBsZS5jb20vcGFnZT9wYXJhbTE9dmFsdWUxJnBhcmFtMj12YWx1ZTI~'",
     "'text\n that gets converted \\\' into a byte string...'",
 ];
 
@@ -44,10 +48,10 @@ pub const BYTES_FAILS: &[&str] = &[
     "b64",
     "\"\"",
     "h ''",
-    "h '0 \t f'",
-    "h' 0 1 2 3 4 5\r 6 7 \n 8 9 a\r\n\t b c d e f'",
-    "b64'abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~'",
-    "b64'abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ'",
+    "b64 ''",
+    "h'001'",
+    "b64'abcdefghijklmnopq #  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~'",
+    "b64'abcdefghijklmnopq   & rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ'",
     "'\u{7}'",
 ];
 
