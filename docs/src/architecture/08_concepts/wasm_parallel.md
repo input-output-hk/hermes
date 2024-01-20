@@ -14,7 +14,7 @@ Desired properties:
 * A general solution that can be used by any event source.
 * Event sources do not need dependencies where their events do not require earlier complete execution.
 
-### Generalized Dependency Tracking
+## Generalized Dependency Tracking
 
 One of the potential solution
 
