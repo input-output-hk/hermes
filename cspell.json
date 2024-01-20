@@ -223,7 +223,8 @@
         "tmp/**",
         "cspell.json",
         ".git/**",
-        "**/.gitignore",
+        ".gitignore",
+        "*.excalidraw",
         ".vscode/**",
         "**/.idea/**",
         "hermes/wasm/*/**"
