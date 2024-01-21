@@ -4,13 +4,11 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy source files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.3.1+rust-base
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:refact/python_scripts+SETUP
 
     COPY --dir .cargo .config crates .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
-
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.3.1+SETUP
 
 # Run quality checks.
 check:

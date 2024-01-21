@@ -4,11 +4,11 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.3.1+rust-base
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:refact/python_scripts+SETUP
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.3.1+SETUP
-
-    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml bin crates .
+    COPY --dir .cargo .config crates bin .
+    COPY Cargo.toml Cargo.lock .
+    COPY clippy.toml deny.toml rustfmt.toml .
 
 ## -----------------------------------------------------------------------------
 ##
@@ -33,9 +33,7 @@ all-hosts-check:
 build:
     FROM +builder
 
-    RUN /scripts/std_build.py   --with_test \
-                                --with_bench \
-                                --libs="cardano-chain-follower" \
+    RUN /scripts/std_build.py   --libs="cardano-chain-follower" \
                                 --bins="hermes/hermes"
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
