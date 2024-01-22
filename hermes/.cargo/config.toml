@@ -1,7 +1,7 @@
 # Use MOLD linker where possible, but ONLY in CI applicable targets.
 # cspell: words rustflags armv gnueabihf msvc nextest idents rustdocflags
 # cspell: words rustdoc lintfix lintrestrict testfast testdocs codegen testci testunit
-# cspell: words fmtchk fmtfix
+# cspell: words fmtchk fmtfix testcov
 
 # Configure how Docker container targets build.
 
@@ -28,6 +28,8 @@ rustflags = [
     "-C", "target-feature=-crt-static"
 ]
 
+[target.wasm32-unknown-unknown]
+rustflags = ["--cap-lints", "warn"]
 
 [build]
 
@@ -110,23 +112,21 @@ codegen-units = 16
 [alias]
 lint = "clippy --all-targets -- -D warnings -D clippy::pedantic -D clippy::unwrap_used -D clippy::expect_used -D clippy::exit -D clippy::get_unwrap -D clippy::index_refutable_slice -D clippy::indexing_slicing -D clippy::match_on_vec_items -D clippy::match_wild_err_arm -D clippy::missing_panics_doc -D clippy::panic -D clippy::string_slice -D clippy::unchecked_duration_subtraction -D clippy::unreachable -D clippy::missing_docs_in_private_items"
 lintfix = "clippy --all-targets --fix --allow-dirty -- -D warnings -D clippy::pedantic -D clippy::unwrap_used -D clippy::expect_used -D clippy::exit -D clippy::get_unwrap -D clippy::index_refutable_slice -D clippy::indexing_slicing -D clippy::match_on_vec_items -D clippy::match_wild_err_arm -D clippy::missing_panics_doc -D clippy::panic -D clippy::string_slice -D clippy::unchecked_duration_subtraction -D clippy::unreachable -D clippy::missing_docs_in_private_items"
-lintrestrict = "clippy -- -D warnings -D clippy::pedantic -D clippy::restriction -D clippy::missing_docs_in_private_items"
-lint-vscode = "clippy --workspace --message-format=json-diagnostic-rendered-ansi --all-targets -- -D warnings -D clippy::pedantic -D clippy::unwrap_used -D clippy::expect_used -D clippy::exit -D clippy::get_unwrap -D clippy::index_refutable_slice -D clippy::indexing_slicing -D clippy::match_on_vec_items -D clippy::match_wild_err_arm -D clippy::missing_panics_doc -D clippy::panic -D clippy::string_slice -D clippy::unchecked_duration_subtraction -D clippy::unreachable -D clippy::missing_docs_in_private_items"
+lint-vscode = "clippy --message-format=json-diagnostic-rendered-ansi --all-targets -- -D warnings -D clippy::pedantic -D clippy::unwrap_used -D clippy::expect_used -D clippy::exit -D clippy::get_unwrap -D clippy::index_refutable_slice -D clippy::indexing_slicing -D clippy::match_on_vec_items -D clippy::match_wild_err_arm -D clippy::missing_panics_doc -D clippy::panic -D clippy::string_slice -D clippy::unchecked_duration_subtraction -D clippy::unreachable -D clippy::missing_docs_in_private_items"
 
-docs = "doc --workspace -r --all-features --no-deps --bins --document-private-items --examples --locked"
+docs = "doc --release --no-deps --document-private-items --bins --lib --examples"
 # nightly docs build broken... when they are'nt we can enable these docs... --unit-graph --timings=html,json -Z unstable-options"
-testfast = "nextest run --release --workspace --locked"
-testunit = "nextest run --release --bins --lib --workspace --locked -P ci"
-testci = "nextest run --release --workspace --locked -P ci"
-testdocs = "test --doc --release --workspace --locked"
+testunit = "nextest run --release --bins --lib -P ci"
+testcov = "llvm-cov nextest --release --bins --lib -P ci"
+testdocs = "test --doc --release"
 
 # Rust formatting, MUST be run with +nightly
 fmtchk = "fmt -- --check -v --color=always"
 fmtfix = "fmt -- -v"
 
 [term]
-quiet = false          # whether cargo output is quiet
-verbose = true         # whether cargo provides verbose output
-color = 'always'       # whether cargo colorizes output use `CARGO_TERM_COLOR="off"` to disable.
-progress.when = 'auto' # whether cargo shows progress bar
-progress.width = 80    # width of progress bar
+quiet = false           # whether cargo output is quiet
+verbose = false         # whether cargo provides verbose output
+color = 'auto'          # whether cargo colorizes output use `CARGO_TERM_COLOR="off"` to disable.
+progress.when = 'never' # whether cargo shows progress bar
+progress.width = 80     # width of progress bar

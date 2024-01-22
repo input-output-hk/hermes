@@ -1,7 +1,10 @@
-//! This example shows how to use the chain reader to download arbitrary blocks
-//! from the chain.
+//! This example shows how to use the chain reader to read arbitrary blocks
+//! from Mithril snapshot files.
 
-use std::error::Error;
+// Allowing since this is example code.
+#![allow(clippy::unwrap_used)]
+
+use std::{error::Error, path::PathBuf};
 
 use cardano_chain_follower::{Network, Point, Reader};
 use tracing::level_filters::LevelFilter;
@@ -18,16 +21,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let mut reader = Reader::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        None,
+        "preprod-node.play.dev.cardano.org:3001",
+        Network::Preprod,
+        Some(
+            PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("examples/snapshot_data"),
+        ),
     )
     .await?;
 
     let data = reader
         .read_block(Point::Specific(
-            110_908_236,
-            hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
+            49_075_418,
+            hex::decode("bdb5ce7788850c30342794f252b1d955086862e8f7cb90a32a8f560b693ca78a")?,
         ))
         .await?;
 
@@ -39,6 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|tx| tx.fee().unwrap_or_default())
         .sum::<u64>();
 
+    println!("Block number: {}", block.number());
     println!("Total fee: {total_fee}");
 
     Ok(())
