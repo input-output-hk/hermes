@@ -5,6 +5,9 @@
 
 // cspell: words intfloat hexfloat
 
+/// Test Expression for the `ctlop` Rule.
+ctlop_TEST  = ${ SOI ~ ctlop ~ EOI }
+
 /// Test Expression for the `group` Rule.
 group_TEST  = ${ SOI ~ group ~ EOI }
 
