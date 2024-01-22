@@ -14,8 +14,8 @@ cddl = ${
 // -----------------------------------------------------------------------------
 // Rules
 rule = ${
-    (typename ~ S ~ assignt ~ S ~ type)
-    | (groupname ~ S ~ assigng ~ S ~ grpent)
+    (typename ~ genericparm? ~ S ~ assignt ~ S ~ type)
+    | (groupname ~ genericparm? ~ S ~ assigng ~ S ~ grpent)
 }
 
 typename = { id }

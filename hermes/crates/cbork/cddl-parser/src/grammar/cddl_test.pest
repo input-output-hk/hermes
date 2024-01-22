@@ -5,6 +5,27 @@
 
 // cspell: words intfloat hexfloat
 
+/// Test Expression for the `rule` Rule.
+rule_TEST  = ${ SOI ~ rule ~ EOI }
+
+/// Test Expression for the `typename` Rule.
+typename_TEST  = ${ SOI ~ typename ~ EOI }
+
+/// Test Expression for the `groupname` Rule.
+groupname_TEST  = ${ SOI ~ groupname ~ EOI }
+
+/// Test Expression for the `assignt` Rule.
+assignt_TEST  = ${ SOI ~ assignt ~ EOI }
+
+/// Test Expression for the `assigng` Rule.
+assigng_TEST  = ${ SOI ~ assigng ~ EOI }
+
+/// Test Expression for the `genericparm` Rule.
+genericparm_TEST  = ${ SOI ~ genericparm ~ EOI }
+
+/// Test Expression for the `genericarg` Rule.
+genericarg_TEST  = ${ SOI ~ genericarg ~ EOI }
+
 /// Test Expression for the `type` Rule.
 type_TEST  = ${ SOI ~ type ~ EOI }
 
