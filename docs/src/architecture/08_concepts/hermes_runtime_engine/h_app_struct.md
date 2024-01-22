@@ -1,6 +1,6 @@
 # Hermes application structure
 
-[*Hermes application*](./../05_building_block_view//hermes_core.md#hermes-application)
+[*Hermes application*](./../../05_building_block_view//hermes_core.md#hermes-application)
 as it was told before it is a collection of compiled
 [WASM components](https://component-model.bytecodealliance.org/introduction.html),
 [*HRE* config files](./hre_init_setup.md)

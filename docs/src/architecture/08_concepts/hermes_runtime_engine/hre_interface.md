@@ -1,14 +1,14 @@
 # HRE interface
 
-As it was told before each [*HRE*](../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre) defines a
+As it was told before each [Hermes Runtime Extension (*HRE*)][*HRE*] defines a
 [WIT](https://component-model.bytecodealliance.org/design/wit.html) file.
-It is a 1 on 1 match, so every *HRE* has to have a corresponding WIT file.
+It is a 1 on 1 match, so every [*HRE*] has to have a corresponding WIT file.
 It specifies the following important parts:
 
-* *Hermes events* signature, which produced by the corresponding *HRE*.
+* *Hermes events* signature, which produced by the corresponding [*HRE*].
 * *HRE calls* which could invoked by the *Hermes application*.
 
-Example of the WIT file for the [cron](https://en.wikipedia.org/wiki/Cron) *HRE*:
+Example of the WIT file for the [cron](https://en.wikipedia.org/wiki/Cron) [*HRE*]:
 
 ```wit
 package hermes:cron;
@@ -63,3 +63,5 @@ world cron {
 
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool`
 * `rm: func(entry: cron-tagged) -> bool`
+
+[*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
