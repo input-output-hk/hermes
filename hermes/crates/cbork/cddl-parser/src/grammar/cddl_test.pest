@@ -5,6 +5,18 @@
 
 // cspell: words intfloat hexfloat
 
+/// Test Expression for the `type` Rule.
+type_TEST  = ${ SOI ~ type ~ EOI }
+
+/// Test Expression for the `type1` Rule.
+type1_TEST  = ${ SOI ~ type1 ~ EOI }
+
+/// Test Expression for the `type2` Rule.
+type2_TEST  = ${ SOI ~ type2 ~ EOI }
+
+/// Test Expression for the `rangeop` Rule.
+rangeop_TEST  = ${ SOI ~ rangeop ~ EOI }
+
 /// Test Expression for the `ctlop` Rule.
 ctlop_TEST  = ${ SOI ~ ctlop ~ EOI }
 
