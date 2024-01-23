@@ -32,6 +32,7 @@ pub fn str_nl(input: TokenStream) -> TokenStream {
 
 #[allow(clippy::panic)]
 #[allow(clippy::missing_docs_in_private_items)]
+#[allow(clippy::single_match_else)]
 fn convert_str(input: TokenStream) -> Vec<TokenTree> {
     let mut it = input.into_iter();
 

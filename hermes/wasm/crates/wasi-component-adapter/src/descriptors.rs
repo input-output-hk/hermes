@@ -253,6 +253,7 @@ impl Descriptors {
     }
 
     #[allow(clippy::indexing_slicing)]
+    #[allow(clippy::unnecessary_fallible_conversions)]
     fn push(&self, desc: Descriptor) -> Result<Fd, Errno> {
         unsafe {
             let table = (*self.table.get()).as_mut_ptr();
@@ -266,6 +267,7 @@ impl Descriptors {
         }
     }
 
+    #[allow(clippy::unnecessary_fallible_conversions)]
     fn table(&self) -> &[Descriptor] {
         unsafe {
             std::slice::from_raw_parts(
@@ -275,6 +277,7 @@ impl Descriptors {
         }
     }
 
+    #[allow(clippy::unnecessary_fallible_conversions)]
     fn table_mut(&mut self) -> &mut [Descriptor] {
         unsafe {
             std::slice::from_raw_parts_mut(
