@@ -92,17 +92,20 @@ pub const TYPE2_FAILS: &[&str] = &[
 
 pub const TYPE1_PASSES: &[&str] = &[
     "1..2",
+    "1 .. 2",
+    "1\t..\n2",
     "1...2",
     "0..10.0", // BAD range 1
     "0.0..10", // BAD range 2
     "0..max-byte",
+    "min-type..max-byte",
     "1.0..2.0",
     "1.0...2.0",
     "foo.bar",
 ];
 
 pub const TYPE1_FAILS: &[&str] = &[
-    ""
+    "",
 ];
 
 pub const TYPE_PASSES: &[&str] = &[

@@ -3,53 +3,71 @@ use cddl_parser::{
   cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const GENERICARG_PASSES: &[&str] = &[
+mod identifiers;
+use identifiers::{ID_PASSES, ID_FAILS};
 
+pub const GENERICARG_PASSES: &[&str] = &[
+  "<uint>",
+  "<{ foo: bar }>",
+  "<{ h'1234': uint }>",
+  "<1...10>",
+  "<\n1...10\t>",
+  "<{ foo: bar }, { foo: baz }>",
+  "<{ foo: bar }, 1..10>",
 ];
 
 pub const GENERICARG_FAILS: &[&str] = &[
-
+  "",
+  "<>",
+  "<uint,>",
+  "<( foo: bar )>",
+  "<bigint / bigfloat>",
 ];
 
 pub const GENERICPARM_PASSES: &[&str] = &[
-
+  "<foo>",
+  "<foo,bar>",
+  "<foo, bar>",
+  "<foo, bar, baz>",
 ];
 
 pub const GENERICPARM_FAILS: &[&str] = &[
-
+  "",
+  "<>",
+  "<foo,>",
+  "<{ foo: bar }>",
+  "<{ h'1234': uint }>",
+  "<1...10>",
+  "<\n1...10\t>",
 ];
 
 pub const ASSIGNG_PASSES: &[&str] = &[
-
+  "=",
+  "//="
 ];
 
 pub const ASSIGNG_FAILS: &[&str] = &[
-
+  "==",
+  "/=",
 ];
 
 pub const ASSIGNT_PASSES: &[&str] = &[
-
+  "=",
+  "/="
 ];
 
 pub const ASSIGNT_FAILS: &[&str] = &[
-
+  "==",
+  "//="
 ];
 
-pub const TYPENAME_PASSES: &[&str] = &[
+pub const TYPENAME_PASSES: &[&str] = &ID_PASSES;
 
-];
+pub const TYPENAME_FAILS: &[&str] = &ID_FAILS;
 
-pub const TYPENAME_FAILS: &[&str] = &[
+pub const GROUPNAME_PASSES: &[&str] = &ID_PASSES;
 
-];
-
-pub const GROUPNAME_PASSES: &[&str] = &[
-
-];
-
-pub const GROUPNAME_FAILS: &[&str] = &[
-
-];
+pub const GROUPNAME_FAILS: &[&str] = &ID_FAILS;
 
 pub const RULE_PASSES: &[&str] = &[
 
