@@ -1,7 +1,6 @@
 # Hermes application structure
 
-[*Hermes application*]
-as it was told before it is a collection of compiled
+[*Hermes application*] it is a collection of compiled
 [WASM components](https://component-model.bytecodealliance.org/introduction.html),
 [*HRE* config files](./hre_init_setup.md)
 and some metadata
