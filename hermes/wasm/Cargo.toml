@@ -17,7 +17,8 @@ authors = [
 rust-version = "1.73"
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
-license = "MIT OR Apache-2.0"
+# inherited license from https://github.com/bytecodealliance/wasmtime
+license = "Apache-2.0 WITH LLVM-exception"
 
 [workspace.lints.rust]
 warnings = "deny"
@@ -54,11 +55,8 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-# for `wasi-preview1-component-adapter`
 wit-bindgen = { version = "0.16.0", default-features = false }
 wasi = { version = "0.11.0", default-features = false }
 byte-array-literals = { path = "./crates/byte-array-literals", version = "0.0.1" }
 wasm-encoder = "0.38.1"
 object = { version = "0.32.1", default-features = false }
-
-[workspace.lints]
