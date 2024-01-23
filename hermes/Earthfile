@@ -7,7 +7,7 @@ builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:refact/python_scripts+SETUP
 
     COPY --dir .cargo .config crates bin .
-    COPY Cargo.toml Cargo.lock .
+    COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 
 ## -----------------------------------------------------------------------------
