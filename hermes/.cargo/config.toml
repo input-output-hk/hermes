@@ -39,7 +39,7 @@ debug = true
 debug-assertions = true
 overflow-checks = true
 lto = false
-panic = 'unwind'
+panic = "unwind"
 incremental = true
 codegen-units = 256
 
@@ -49,7 +49,7 @@ debug = false
 debug-assertions = false
 overflow-checks = false
 lto = "thin"
-panic = 'unwind'
+panic = "unwind"
 incremental = false
 codegen-units = 16
 
@@ -88,6 +88,6 @@ fmtfix = "fmt -- -v"
 [term]
 quiet = false           # whether cargo output is quiet
 verbose = false         # whether cargo provides verbose output
-color = 'auto'          # whether cargo colorizes output use `CARGO_TERM_COLOR="off"` to disable.
-progress.when = 'never' # whether cargo shows progress bar
+color = "auto"          # whether cargo colorizes output use `CARGO_TERM_COLOR="off"` to disable.
+progress.when = "never" # whether cargo shows progress bar
 progress.width = 80     # width of progress bar
