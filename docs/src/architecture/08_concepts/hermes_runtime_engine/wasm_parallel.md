@@ -18,4 +18,4 @@ Desired properties:
 
 One of the potential solution
 
-![generalized_dependency_tracking](./../images/generalized_dependency_tracking.svg)
+![generalized_dependency_tracking](./images/generalized_dependency_tracking.svg)
