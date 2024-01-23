@@ -1,0 +1,8 @@
+; 3.8.1.  Control Operator .size
+
+full-address = [[+ label], ip4, ip6]
+ip4 = bstr .size 4
+ip6 = bstr .size 16
+label = bstr .size (1..63)
+
+audio_sample = uint .size 3 ; 24-bit, equivalent to 0...16777216

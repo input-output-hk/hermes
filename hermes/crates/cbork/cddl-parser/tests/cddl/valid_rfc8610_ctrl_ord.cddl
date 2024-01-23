@@ -1,0 +1,8 @@
+; 3.8.6.  Control Operators .lt, .le, .gt, .ge, .eq, .ne, and .default
+
+speed = number .ge 0  ; unit: m/s
+
+timer = {
+  time: uint,
+  ? displayed-step: (number .gt 0) .default 1
+}
