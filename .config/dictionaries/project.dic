@@ -75,3 +75,14 @@ voteplans
 yoroi
 idents
 rustdoc
+codegen
+rustflags
+rustdocflags
+lintfix
+testdocs
+testunit
+nextest
+testcov
+fmtchk
+fmtfix
+

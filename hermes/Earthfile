@@ -1,6 +1,6 @@
 VERSION 0.7
 
-#cspell: words rustfmt toolsets USERARCH
+#cspell: words rustfmt toolsets refact
 
 # Set up our target toolchains, and copy our files.
 builder:

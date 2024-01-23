@@ -1,6 +1,6 @@
 VERSION 0.7
 
-#cspell: words fmtchk rustfmt toolsets wasi wasmtime Earthfile
+#cspell: words rustfmt wasi refact
 
 # Set up our target toolchains, and copy source files.
 builder:
