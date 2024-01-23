@@ -215,7 +215,7 @@
         //.config/dictionaries/cspell/sv/cspell-ext.json
         //.config/dictionaries/cspell/tr_TR/cspell-ext.json
         //.config/dictionaries/cspell/uk_UA/cspell-ext.json
-        //.config/dictionaries/cspell/vi_VN/cspell-ext.json        
+        //.config/dictionaries/cspell/vi_VN/cspell-ext.json
     ],
     "ignorePaths": [
         ".config/dictionaries/**",
@@ -225,6 +225,7 @@
         "**/.gitignore",
         ".vscode/**",
         "**/.idea/**",
-        "hermes/wasm/*/**"
+        "hermes/wasm/*/**",
+        "hermes/crates/cardano-chain-follower/examples/snapshot_data"
     ]
 }
