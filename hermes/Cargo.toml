@@ -51,4 +51,7 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-pallas = "0.20.0"
+# Stop using catalyst-pallas once pallas changes are merged.
+# issue: https://github.com/input-output-hk/hermes/issues/63
+pallas = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
+pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
