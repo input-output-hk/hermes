@@ -8,8 +8,6 @@ license = "Apache-2.0 WITH LLVM-exception"
 publish = false
 
 [lib]
-test = false
-bench = false
 crate-type = ["cdylib"]
 name = "wasi_snapshot_preview1"
 

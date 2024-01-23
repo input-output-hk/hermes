@@ -20,6 +20,8 @@ check:
 build:
     FROM +builder
 
-    RUN /scripts/std_build.py   --build_flags="--target=wasm32-unknown-unknown"
+    RUN /scripts/std_build.py   --disable_tests \
+                                --disable_benches \
+                                --build_flags="--target=wasm32-unknown-unknown"
 
     SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
