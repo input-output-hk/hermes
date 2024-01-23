@@ -1,7 +1,7 @@
 # WASM execution parallelization
 
 Looking for potential optimization,
-an obvious solution to parallelize *Hermes event's* processing.
+an obvious solution to parallelize [*Hermes event's*] processing.
 One problem with this approach is the possibility of the queue order being disrupted.
 
 Desired properties:
@@ -19,3 +19,5 @@ Desired properties:
 One of the potential solution
 
 ![generalized_dependency_tracking](./images/generalized_dependency_tracking.svg)
+
+[*Hermes event's*]: ./../../05_building_block_view/hermes_core.md#hermes-event

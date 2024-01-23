@@ -8,7 +8,7 @@ It specifies the following important parts:
 * *Hermes events* signature, which produced by the corresponding [*HRE*].
 * *HRE calls* which could invoked by the *Hermes application*.
 
-Example of the WIT file for the [cron](https://en.wikipedia.org/wiki/Cron) [*HRE*]:
+Example of the [WIT] file for the [cron](https://en.wikipedia.org/wiki/Cron) [*HRE*]:
 
 ```wit
 package hermes:cron;
@@ -64,4 +64,5 @@ world cron {
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool`
 * `rm: func(entry: cron-tagged) -> bool`
 
+[WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
