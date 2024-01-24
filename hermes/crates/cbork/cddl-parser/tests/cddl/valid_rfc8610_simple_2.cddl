@@ -1,5 +1,7 @@
 ; Figure 2: A Basic Group
 
+; cspell: words tstr
+
 pii = (
   age: int,
   name: tstr,

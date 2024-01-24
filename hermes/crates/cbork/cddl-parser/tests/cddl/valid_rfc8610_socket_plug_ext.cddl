@@ -1,5 +1,7 @@
 ; 3.9.  Socket/Plug
 
+; cspell: words tstr personaldata shoesize
+
 PersonalData = {
   ? displayName: tstr,
   NameComponents,

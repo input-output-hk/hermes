@@ -1,5 +1,7 @@
 ; 2.2.3.  Representation Types
 
+; cspell: words cbor tstr
+
 my_breakfast = #6.55799(breakfast)   ; cbor-any is too general!
 breakfast = cereal / porridge
 cereal = #6.998(tstr)

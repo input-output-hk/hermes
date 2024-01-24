@@ -1,5 +1,7 @@
 ; 2.2.2.  Choices
 
+; cspell: words tstr
+
 attire = "bow tie" / "necktie" / "Internet attire"
 protocol = 6 / 17
 

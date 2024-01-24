@@ -1,3 +1,5 @@
+; cspell: words reputons reputon
+
 reputation-object = {
   application: text
   reputons: [* reputon]

@@ -1,5 +1,7 @@
 ; Figure 5: Maps with Copy/Paste
 
+; cspell: words tstr
+
 person = {
   age: int,
   name: tstr,

@@ -3,7 +3,9 @@
 // Test Expressions ONLY TO Be USED by Unit Tests.
 // Extends `cddl.pest` with rules needed to properly check sub-rules.
 
-// cspell: words intfloat hexfloat
+// cspell: words intfloat hexfloat groupname assignt
+// cspell: words assigng genericparm genericarg rangeop ctlop
+// cspell: words grpchoice grpent memberkey bareword optcom
 
 /// Test Expression for the `rule` Rule.
 rule_TEST  = ${ SOI ~ rule ~ EOI }

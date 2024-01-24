@@ -1,3 +1,6 @@
+// cspell: words CTLOP aname groupsocket typesocket RANGEOP tstr ctlop
+// cspell: words rangeop RANGEOP
+
 use cddl_parser::{
     self,
     cddl_test::{CDDLTestParser, Parser, Rule},

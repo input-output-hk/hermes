@@ -1,5 +1,7 @@
 ; 2.2.2.2.  Turning a Group into a Choice
 
+; cspell: words basecolors
+
 terminal-color = &basecolors
 basecolors = (
   black: 0,  red: 1,  green: 2,  yellow: 3,

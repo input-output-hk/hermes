@@ -13,17 +13,28 @@ fn parse_cddl_files() {
 
     file_paths.sort();
 
-    let valid_file_paths = file_paths
-        .iter()
-        .filter(|p| matches!(p.file_name().and_then(OsStr::to_str).map(|p| p.starts_with("valid")), Some(true)));
-    let invalid_file_paths = file_paths
-        .iter()
-        .filter(|p| matches!(p.file_name().and_then(OsStr::to_str).map(|p| p.starts_with("invalid")), Some(true)));
+    let valid_file_paths = file_paths.iter().filter(|p| {
+        matches!(
+            p.file_name()
+                .and_then(OsStr::to_str)
+                .map(|p| p.starts_with("valid")),
+            Some(true)
+        )
+    });
+    let invalid_file_paths = file_paths.iter().filter(|p| {
+        matches!(
+            p.file_name()
+                .and_then(OsStr::to_str)
+                .map(|p| p.starts_with("invalid")),
+            Some(true)
+        )
+    });
 
     // test for valid files
     let mut err_messages = vec![];
     for file_path in valid_file_paths {
-        let mut content = fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
+        let mut content =
+            fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
 
         if let Err(e) = parse_cddl(&mut content, &Extension::RFC8610Parser) {
             err_messages.push(format!("{}) {file_path:?} {e}", err_messages.len() + 1));
@@ -32,7 +43,8 @@ fn parse_cddl_files() {
 
     // test for invalid files
     for file_path in invalid_file_paths {
-        let mut content = fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
+        let mut content =
+            fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
 
         let result = parse_cddl(&mut content, &Extension::RFC8610Parser);
 

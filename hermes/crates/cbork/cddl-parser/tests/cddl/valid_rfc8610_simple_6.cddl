@@ -1,5 +1,7 @@
 ; Figure 6: Using a Group for Factorization
 
+; cspell: words tstr
+
 person = {
   identity,
   employer: tstr,

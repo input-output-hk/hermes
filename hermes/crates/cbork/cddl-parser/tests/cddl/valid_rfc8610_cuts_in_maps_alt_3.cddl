@@ -1,5 +1,7 @@
 ; 3.5.4.  Cuts in Maps
 
+; cspell: words tstr
+
 extensible-map-example = {
   ? optional-key: int,
   * tstr => any

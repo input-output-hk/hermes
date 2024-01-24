@@ -1,3 +1,6 @@
+// cspell: words OPTCOM MEMBERKEY bareword tstr GRPENT GRPCHOICE
+// cspell: words optcom memberkey grpent grpchoice
+
 use cddl_parser::{
     self,
     cddl_test::{CDDLTestParser, Parser, Rule},

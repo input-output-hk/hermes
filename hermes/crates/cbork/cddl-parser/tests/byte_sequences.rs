@@ -1,4 +1,4 @@
-// cspell: words hexpair rstuvw abcdefghijklmnopqrstuvwyz rstuvw
+// cspell: words hexpair rstuvw abcdefghijklmnopqrstuvwyz rstuvw Xhhb Bhcm
 
 use cddl_parser::{
     self,

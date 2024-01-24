@@ -1,5 +1,7 @@
 ; 3.8.2.  Control Operator .bits
 
+; cspell: words tcpflagbytes rwxbits
+
 tcpflagbytes = bstr .bits flags
 flags = &(
   fin: 8,

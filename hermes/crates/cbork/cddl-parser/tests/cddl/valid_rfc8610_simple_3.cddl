@@ -1,5 +1,7 @@
 ; Figure 3: Using a Group by Name
 
+; cspell: words tstr
+
 person = {
   pii
 }

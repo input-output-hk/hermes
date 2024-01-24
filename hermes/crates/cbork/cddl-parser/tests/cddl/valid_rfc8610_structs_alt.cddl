@@ -1,5 +1,7 @@
 ; 3.5.1.  Structs
 
+; cspell: words tstr
+
 Geography = [
     city           : tstr,
     gpsCoordinates : GpsCoordinates,
