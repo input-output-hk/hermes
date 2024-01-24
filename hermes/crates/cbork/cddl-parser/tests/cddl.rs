@@ -3,8 +3,8 @@ use std::{fs, io::Result};
 use cddl_parser::{parse_cddl, Extension};
 
 #[test]
-fn parse_cddl_files() -> Result<()> {
-    let entries = fs::read_dir("tests/cddl")?;
+fn parse_cddl_files() {
+    let entries = fs::read_dir("tests/cddl").expect("`tests/cddl` directory must exist");
 
     let mut file_paths: Vec<_> = entries
         .filter_map(Result::ok)
@@ -23,7 +23,7 @@ fn parse_cddl_files() -> Result<()> {
     // test for valid files
     let mut err_messages = vec![];
     for file_path in valid_file_paths {
-        let mut content = fs::read_to_string(&file_path)?;
+        let mut content = fs::read_to_string(&file_path).expect("failed to read a file");
 
         if let Err(e) = parse_cddl(&mut content, &Extension::RFC8610Parser) {
             err_messages.push(format!("{}) {file_path:?} {e}", err_messages.len() + 1));
@@ -32,7 +32,7 @@ fn parse_cddl_files() -> Result<()> {
 
     // test for invalid files
     for file_path in invalid_file_paths {
-        let mut content = fs::read_to_string(&file_path)?;
+        let mut content = fs::read_to_string(&file_path).expect("failed to read a file");
 
         let result = parse_cddl(&mut content, &Extension::RFC8610Parser);
 
@@ -44,6 +44,4 @@ fn parse_cddl_files() -> Result<()> {
     if !err_msg.is_empty() {
         panic!("{err_msg}")
     }
-
-    Ok(())
 }

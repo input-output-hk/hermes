@@ -1,5 +1,7 @@
 // cspell: words xdog intfloat hexfloat xabcp defp rstuvw
 
+use std::ops::Deref;
+
 use cddl_parser::{
     self,
     cddl_test::{CDDLTestParser, Parser, Rule},
@@ -7,8 +9,8 @@ use cddl_parser::{
 
 mod byte_sequences;
 use byte_sequences::BYTES_PASSES;
-
-/// Note, the `text`, `bytes` and `id` tests are elsewhere.
+mod text_sequences;
+use text_sequences::TEXT_PASSES;
 
 pub const UINT_PASSES: &[&str] = &[
     "10",
@@ -109,120 +111,90 @@ pub const NUMBER_PASSES: &[&str] = &[
 
 pub const NUMBER_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const VALUE_PASSES: &[&str] = &[
-    // Ideally we would define these somewhere central and just use them where needed.
-    // r#""""#,
-    // r#""abc""#,
-    // "\"abc\\n\"",
-];
+pub const VALUE_PASSES: &[&str] = &[];
 
 pub const VALUE_FAILS: &[&str] = &[];
+
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_ok());
+    }
+}
+
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_err());
+    }
+}
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_uint() {
-    let tests = UINT_PASSES;
+    let passes = UINT_PASSES;
     let fails = UINT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::uint_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::uint_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::uint_TEST, passes);
+    fails_tests_rule(Rule::uint_TEST, fails);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_int() {
-    let tests = INT_PASSES;
+    let passes = INT_PASSES;
     let fails = INT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::int_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::int_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::int_TEST, passes);
+    fails_tests_rule(Rule::int_TEST, fails);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_intfloat() {
-    let tests = INTFLOAT_PASSES;
+    let passes = INTFLOAT_PASSES;
     let fails = INTFLOAT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::intfloat_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::intfloat_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::intfloat_TEST, passes);
+    fails_tests_rule(Rule::intfloat_TEST, fails);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_hexfloat() {
-    let tests = HEXFLOAT_PASSES;
+    let passes = HEXFLOAT_PASSES;
     let fails = HEXFLOAT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::hexfloat_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::hexfloat_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::hexfloat_TEST, passes);
+    fails_tests_rule(Rule::hexfloat_TEST, fails);
 }
 
 #[test]
 /// Test if the `number` rule passes properly.
 fn check_number() {
-    let tests = NUMBER_PASSES;
+    let passes = NUMBER_PASSES;
     let fails = NUMBER_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::number_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::number_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::number_TEST, passes);
+    fails_tests_rule(Rule::number_TEST, fails);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_value() {
-    let tests: Vec<_> = VALUE_PASSES
+    let passes: Vec<_> = VALUE_PASSES
         .into_iter()
         .chain(NUMBER_PASSES.into_iter())
         .chain(BYTES_PASSES.into_iter())
+        .chain(TEXT_PASSES.into_iter())
+        .map(Deref::deref)
         .collect();
     let fails: Vec<_> = VALUE_FAILS
         .into_iter()
         .chain(NUMBER_FAILS.into_iter())
+        .map(Deref::deref)
         .collect();
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::value_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::value_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::value_TEST, &passes);
+    fails_tests_rule(Rule::value_TEST, &fails);
 }

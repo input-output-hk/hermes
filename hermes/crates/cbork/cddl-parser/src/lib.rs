@@ -116,7 +116,7 @@ pub struct CDDLError(CDDLErrorType);
 /// ```
 pub fn parse_cddl<'a>(
     input: &'a mut String, extension: &Extension,
-) -> Result<Box<AST<'a>>, Box<CDDLError>> {
+) -> Result<AST<'a>, CDDLError> {
     input.push_str("\n\n");
     input.push_str(POSTLUDE);
 
@@ -138,9 +138,7 @@ pub fn parse_cddl<'a>(
         },
     };
 
-    result
-        .map(Box::new)
-        .map_err(|e| Box::new(CDDLError::from(e)))
+    result.map_err( CDDLError::from)
 }
 
 #[cfg(test)]

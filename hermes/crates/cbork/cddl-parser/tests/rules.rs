@@ -56,120 +56,89 @@ pub const RULE_GROUP_PASSES: &[&str] = &[
     "t //= foo<bar>",
     "t //= foo: bar",
     "t //= 2*2 foo: bar",
-    "delivery //= ( lat: float, long: float, drone-type: tstr )"
+    "delivery //= ( lat: float, long: float, drone-type: tstr )",
 ];
 
-pub const RULE_GROUP_FAILS: &[&str] = &[
-  "foo = bar: baz",
-  "t /= (foo: bar)"
-];
+pub const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar)"];
+
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_ok());
+    }
+}
+
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_err());
+    }
+}
 
 #[test]
 /// Test if the `genericarg` rule passes properly.
 /// This uses a special rule in the Grammar to test `genericarg` exhaustively.
 fn check_genericarg() {
-    let tests = GENERICARG_PASSES;
+    let passes = GENERICARG_PASSES;
     let fails = GENERICARG_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::genericarg_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::genericarg_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::genericarg_TEST, passes);
+    fails_tests_rule(Rule::genericarg_TEST, fails);
 }
 
 #[test]
 /// Test if the `genericparm` rule passes properly.
 /// This uses a special rule in the Grammar to test `genericparm` exhaustively.
 fn check_genericparm() {
-    let tests = GENERICPARM_PASSES;
+    let passes = GENERICPARM_PASSES;
     let fails = GENERICPARM_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::genericparm_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::occur_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::genericparm_TEST, passes);
+    fails_tests_rule(Rule::genericparm_TEST, fails);
 }
 
 #[test]
 /// Test if the `assigng` rule passes properly.
 /// This uses a special rule in the Grammar to test `assigng` exhaustively.
 fn check_assigng() {
-    let tests = ASSIGNG_PASSES;
+    let passes = ASSIGNG_PASSES;
     let fails = ASSIGNG_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::assigng_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::assigng_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::assigng_TEST, passes);
+    fails_tests_rule(Rule::assigng_TEST, fails);
 }
 
 #[test]
 /// Test if the `assignt` rule passes properly.
 /// This uses a special rule in the Grammar to test `assignt` exhaustively.
 fn check_assignt() {
-    let tests = ASSIGNT_PASSES;
+    let passes = ASSIGNT_PASSES;
     let fails = ASSIGNT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::assignt_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::assignt_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::assignt_TEST, passes);
+    fails_tests_rule(Rule::assignt_TEST, fails);
 }
 
 #[test]
 /// Test if the `typename` rule passes properly.
 /// This uses a special rule in the Grammar to test `typename` exhaustively.
 fn check_typename() {
-    let tests = TYPENAME_PASSES;
+    let passes = TYPENAME_PASSES;
     let fails = TYPENAME_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::typename_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::typename_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::typename_TEST, passes);
+    fails_tests_rule(Rule::typename_TEST, fails);
 }
 
 #[test]
 /// Test if the `groupname` rule passes properly.
 /// This uses a special rule in the Grammar to test `groupname` exhaustively.
 fn check_groupname() {
-    let tests = GROUPNAME_PASSES;
+    let passes = GROUPNAME_PASSES;
     let fails = GROUPNAME_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::groupname_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::groupname_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::groupname_TEST, passes);
+    fails_tests_rule(Rule::groupname_TEST, fails);
 }
 
 #[test]
@@ -200,17 +169,9 @@ fn check_rule_type_composition() {
 #[test]
 /// Test if the `rule` rule passes properly for group variant.
 fn check_rule_group() {
-  let tests = RULE_GROUP_PASSES;
-  let fails = RULE_GROUP_FAILS;
+    let passes = RULE_GROUP_PASSES;
+    let fails = RULE_GROUP_FAILS;
 
-  for test in tests {
-      let parse = CDDLTestParser::parse(Rule::rule_TEST, test);
-
-      assert!(parse.is_ok());
-  }
-
-  for test in fails {
-      let parse = CDDLTestParser::parse(Rule::rule_TEST, test);
-      assert!(parse.is_err());
-  }
+    passes_tests_rule(Rule::rule_TEST, passes);
+    fails_tests_rule(Rule::rule_TEST, fails);
 }

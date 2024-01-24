@@ -8,37 +8,37 @@ pub const S_FAILS: &[&str] = &[" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"]
 pub const TEXT_PASSES: &[&str] = &[r#""""#, r#""abc""#, "\"abc\\n\""];
 pub const TEXT_FAILS: &[&str] = &["", "''", "\"abc\n\""];
 
-#[test]
-/// Test if the `S` rule passes properly.
-/// This uses a special rule in the Grammar to test whitespace exhaustively.
-fn check_s() {
-    let tests = S_PASSES;
-    let fails = S_FAILS;
-
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
     }
+}
 
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());
     }
 }
 
 #[test]
+/// Test if the `S` rule passes properly.
+/// This uses a special rule in the Grammar to test whitespace exhaustively.
+fn check_s() {
+    let passes = S_PASSES;
+    let fails = S_FAILS;
+
+    passes_tests_rule(Rule::S_TEST, passes);
+    fails_tests_rule(Rule::S_TEST, fails);
+}
+
+#[test]
 /// Test if the `text` rule passes properly.
 fn check_text() {
-    let test = TEXT_PASSES;
-    let fail = TEXT_FAILS;
+    let passes = TEXT_PASSES;
+    let fails = TEXT_FAILS;
 
-    for test in test {
-        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fail {
-        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::text_TEST, passes);
+    fails_tests_rule(Rule::text_TEST, fails);
 }

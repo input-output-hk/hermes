@@ -117,128 +117,93 @@ pub const GROUP_PASSES: &[&str] = &[
 
 pub const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
 
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_ok());
+    }
+}
+
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_err());
+    }
+}
+
 #[test]
 /// Test if the `occur` rule passes properly.
 /// This uses a special rule in the Grammar to test `occur` exhaustively.
 fn check_occur() {
-    let tests = OCCUR_PASSES;
+    let passes = OCCUR_PASSES;
     let fails = OCCUR_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::occur_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::occur_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::occur_TEST, passes);
+    fails_tests_rule(Rule::occur_TEST, fails);
 }
 
 #[test]
 /// Test if the `bareword` rule passes properly.
 /// This uses a special rule in the Grammar to test `bareword` exhaustively.
 fn check_bareword() {
-    let tests: &[&str] = ID_PASSES;
+    let passes = ID_PASSES;
     let fails = ID_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::bareword_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::bareword_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::bareword_TEST, passes);
+    fails_tests_rule(Rule::bareword_TEST, fails);
 }
 
 #[test]
 /// Test if the `optcom` rule passes properly.
 /// This uses a special rule in the Grammar to test `optcom` exhaustively.
 fn check_optcom() {
-    let tests = OPTCOM_PASSES;
+    let passes = OPTCOM_PASSES;
     let fails = OPTCOM_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::optcom_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::optcom_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::optcom_TEST, passes);
+    fails_tests_rule(Rule::optcom_TEST, fails);
 }
 
 #[test]
 /// Test if the `memberkey` rule passes properly.
 /// This uses a special rule in the Grammar to test `memberkey` exhaustively.
 fn check_memberkey() {
-    let tests = MEMBERKEY_PASSES;
+    let passes = MEMBERKEY_PASSES;
     let fails = MEMBERKEY_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::memberkey_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::memberkey_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::memberkey_TEST, passes);
+    fails_tests_rule(Rule::memberkey_TEST, fails);
 }
 
 #[test]
 /// Test if the `grpent` rule passes properly.
 /// This uses a special rule in the Grammar to test `grpent` exhaustively.
 fn check_grpent() {
-    let tests = GRPENT_PASSES;
+    let passes = GRPENT_PASSES;
     let fails = GRPENT_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::grpent_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::grpent_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::grpent_TEST, passes);
+    fails_tests_rule(Rule::grpent_TEST, fails);
 }
 
 #[test]
 /// Test if the `grpchoice` rule passes properly.
 /// This uses a special rule in the Grammar to test `grpchoice` exhaustively.
 fn check_grpchoice() {
-    let tests = GRPCHOICE_PASSES;
+    let passes = GRPCHOICE_PASSES;
     let fails = GRPCHOICE_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::grpchoice_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::grpchoice_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::grpchoice_TEST, passes);
+    fails_tests_rule(Rule::grpchoice_TEST, fails);
 }
 
 #[test]
 /// Test if the `group` rule passes properly.
 /// This uses a special rule in the Grammar to test `group` exhaustively.
 fn check_group() {
-    let tests = GROUP_PASSES;
+    let passes = GROUP_PASSES;
     let fails = GROUP_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::group_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::group_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::group_TEST, passes);
+    fails_tests_rule(Rule::group_TEST, fails);
 }

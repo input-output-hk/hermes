@@ -112,6 +112,20 @@ pub const TYPE_PASSES: &[&str] = &[
 
 pub const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
 
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_ok());
+    }
+}
+
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_err());
+    }
+}
+
 #[test]
 /// Test if the `ctlop` rule passes properly.
 /// This uses a special rule in the Grammar to test `ctlop` exhaustively.
@@ -119,15 +133,8 @@ fn check_ctlop() {
     let passes = CTLOP_PASSES;
     let fails = CTLOP_FAILS;
 
-    for test in passes {
-        let parse = CDDLTestParser::parse(Rule::ctlop_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::ctlop_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::ctlop_TEST, passes);
+    fails_tests_rule(Rule::ctlop_TEST, fails);
 }
 
 #[test]
@@ -137,15 +144,8 @@ fn check_rangeop() {
     let passes = RANGEOP_PASSES;
     let fails = RANGEOP_FAILS;
 
-    for test in passes {
-        let parse = CDDLTestParser::parse(Rule::rangeop_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::rangeop_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::rangeop_TEST, passes);
+    fails_tests_rule(Rule::rangeop_TEST, fails);
 }
 
 #[test]
@@ -155,15 +155,8 @@ fn check_type2() {
     let passes = TYPE2_PASSES;
     let fails = TYPE2_FAILS;
 
-    for test in passes {
-        let parse = CDDLTestParser::parse(Rule::type2_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::type2_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::type2_TEST, passes);
+    fails_tests_rule(Rule::type2_TEST, fails);
 }
 
 #[test]
@@ -173,15 +166,8 @@ fn check_type1() {
     let passes = TYPE1_PASSES;
     let fails = TYPE1_FAILS;
 
-    for test in passes {
-        let parse = CDDLTestParser::parse(Rule::type1_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::type1_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::type1_TEST, passes);
+    fails_tests_rule(Rule::type1_TEST, fails);
 }
 
 #[test]
@@ -213,15 +199,8 @@ fn check_type() {
     let passes = TYPE_PASSES;
     let fails = TYPE_FAILS;
 
-    for test in passes {
-        let parse = CDDLTestParser::parse(Rule::type_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::type_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::type_TEST, passes);
+    fails_tests_rule(Rule::type_TEST, fails);
 }
 
 #[test]

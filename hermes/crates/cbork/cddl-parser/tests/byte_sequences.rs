@@ -51,53 +51,46 @@ pub const BYTES_FAILS: &[&str] = &[
     "'\u{7}'",
 ];
 
+pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_ok());
+    }
+}
+
+pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+    for test in test_data {
+        let parse = CDDLTestParser::parse(rule_type, test);
+        assert!(parse.is_err());
+    }
+}
+
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.
 fn check_hexpair() {
-    let hex_pairs = HEXPAIR_PASSES;
-    let not_hex_pairs = HEXPAIR_FAILS;
+    let passes = HEXPAIR_PASSES;
+    let fails = HEXPAIR_FAILS;
 
-    for hp in hex_pairs {
-        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
-        assert!(parse.is_ok());
-    }
-
-    for hp in not_hex_pairs {
-        let parse = CDDLTestParser::parse(Rule::HEX_PAIR, hp);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::HEX_PAIR, passes);
+    fails_tests_rule(Rule::HEX_PAIR, fails);
 }
 
 #[test]
 /// Test if the `URL_BASE64` rule passes properly.
 fn check_url_base64() {
-    let tests = URL_BASE64_PASSES;
+    let passes = URL_BASE64_PASSES;
     let fails = URL_BASE64_FAILS;
 
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::URL_BASE64_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::URL_BASE64_TEST, passes);
+    fails_tests_rule(Rule::URL_BASE64_TEST, fails);
 }
 
 #[test]
 /// Test if the `bytes` rule passes properly.
 fn check_bytes() {
-    let test = BYTES_PASSES;
-    let fail = BYTES_FAILS;
+    let passes = BYTES_PASSES;
+    let fails = BYTES_FAILS;
 
-    for test in test {
-        let parse = CDDLTestParser::parse(Rule::bytes_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fail {
-        let parse = CDDLTestParser::parse(Rule::bytes_TEST, test);
-        assert!(parse.is_err());
-    }
+    passes_tests_rule(Rule::bytes_TEST, passes);
+    fails_tests_rule(Rule::bytes_TEST, fails);
 }

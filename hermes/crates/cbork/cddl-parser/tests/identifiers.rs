@@ -50,7 +50,7 @@ fn check_name_characters() {
         let parse_start = CDDLTestParser::parse(Rule::NAME_START, &test);
         let parse_end = CDDLTestParser::parse(Rule::NAME_END, &test);
 
-        if x.is_ascii_alphabetic() || x == '@' || x == '_' || x == '$' {
+        if x.is_ascii_alphabetic() || matches!(x, '@' | '_' | '$') {
             assert!(parse_start.is_ok());
             assert!(parse_end.is_ok());
         } else if x.is_ascii_digit() {
