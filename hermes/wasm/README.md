@@ -10,13 +10,10 @@ located in `crates/wasi-component-adapter` and `crates/wasi`.
 
 ## Configuration
 
-The Rust configuration file locates in `.cargo/config.toml`.
-It already specified the build target to `wasm32-unknown-unknown`.
-
-To compile all the packages, simply run the command:
+To compile, simply run the command:
 
 ```bash
-cargo build --release
+cargo build --target=wasm32-unknown-unknown --release
 ```
 
 To build the WebAssembly binary output `.wasm`.
