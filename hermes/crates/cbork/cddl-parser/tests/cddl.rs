@@ -1,4 +1,4 @@
-use std::{fs, io::Result};
+use std::{ffi::OsStr, fs, io::Result};
 
 use cddl_parser::{parse_cddl, Extension};
 
@@ -15,10 +15,10 @@ fn parse_cddl_files() {
 
     let valid_file_paths = file_paths
         .iter()
-        .filter(|p| matches!(p.to_str().map(|p| p.starts_with("valid")), Some(true)));
+        .filter(|p| matches!(p.file_name().and_then(OsStr::to_str).map(|p| p.starts_with("valid")), Some(true)));
     let invalid_file_paths = file_paths
         .iter()
-        .filter(|p| matches!(p.to_str().map(|p| p.starts_with("invalid")), Some(true)));
+        .filter(|p| matches!(p.file_name().and_then(OsStr::to_str).map(|p| p.starts_with("invalid")), Some(true)));
 
     // test for valid files
     let mut err_messages = vec![];
@@ -36,12 +36,14 @@ fn parse_cddl_files() {
 
         let result = parse_cddl(&mut content, &Extension::RFC8610Parser);
 
-        assert!(result.is_err());
+        if result.is_ok() {
+            panic!("{:?} is expected to fail", &file_path);
+        }
     }
 
     // summary
     let err_msg = err_messages.join("\n\n");
     if !err_msg.is_empty() {
-        panic!("{err_msg}")
+        panic!("{err_msg}");
     }
 }
