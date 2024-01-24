@@ -14,14 +14,22 @@ fn parse_cddl_files() {
 
     file_paths.sort();
 
-    let valid_file_paths = file_paths
-        .iter()
-        .filter_map(|p| p.file_name().and_then(OsStr::to_str))
-        .filter(|p| p.starts_with("valid"));
-    let invalid_file_paths = file_paths
-        .iter()
-        .filter_map(|p| p.file_name().and_then(OsStr::to_str))
-        .filter(|p| p.starts_with("invalid"));
+    let valid_file_paths = file_paths.iter().filter(|p| {
+        matches!(
+            p.file_name()
+                .and_then(OsStr::to_str)
+                .map(|p| p.starts_with("valid")),
+            Some(true)
+        )
+    });
+    let invalid_file_paths = file_paths.iter().filter(|p| {
+        matches!(
+            p.file_name()
+                .and_then(OsStr::to_str)
+                .map(|p| p.starts_with("invalid")),
+            Some(true)
+        )
+    });
 
     // test for valid files
     let mut err_messages = vec![];
