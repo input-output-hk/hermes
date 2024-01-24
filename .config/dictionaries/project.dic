@@ -3,10 +3,13 @@ addrr
 adminer
 asyncio
 auditability
+backpressure
+blockfetch
 BROTLI
 cardano
 cbor
 CEST
+chainsync
 chrono
 ciphertext
 codepoints
@@ -26,6 +29,7 @@ fontawesome
 fsgr
 genhtml
 gmtime
+hardano
 ideascale
 Intellij
 iohk
@@ -39,6 +43,7 @@ Leshiy
 localizable
 mdlint
 miniprotocols
+mithril
 mitigations
 moderations
 multiera

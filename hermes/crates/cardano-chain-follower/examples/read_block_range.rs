@@ -4,11 +4,25 @@
 use std::error::Error;
 
 use cardano_chain_follower::{Network, Point, Reader};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let mut reader =
-        Reader::connect("relays-new.cardano-mainnet.iohk.io:3001", Network::Mainnet).await?;
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .init();
+
+    let mut reader = Reader::connect(
+        "relays-new.cardano-mainnet.iohk.io:3001",
+        Network::Mainnet,
+        None,
+    )
+    .await?;
 
     let data_vec = reader
         .read_block_range(
@@ -26,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut total_txs = 0;
     for data in data_vec {
         let block = data.decode()?;
-        total_txs = block.tx_count();
+        total_txs += block.tx_count();
     }
 
     println!("Total transactions: {total_txs}");

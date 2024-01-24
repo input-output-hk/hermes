@@ -1,9 +1,12 @@
 //! This example shows how to use the chain follower to follow chain updates on
 //! a Cardano network chain.
 
-use std::error::Error;
+// Allowing since this is example code.
+#![allow(clippy::unwrap_used)]
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network};
+use std::{error::Error, path::PathBuf};
+
+use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network, Point};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -17,18 +20,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default().build();
+    // Create a follower config specifying the Mithril snapshot path and
+    // to follow from block 1794552 (preprod).
+    let config = FollowerConfigBuilder::default()
+        .follow_from(Point::Specific(
+            49_075_262,
+            hex::decode("e929cd1bf8ec78844ec9ea450111aaf55fbf17540db4b633f27d4503eebf2218")?,
+        ))
+        .mithril_snapshot_path(
+            PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join("examples/snapshot_data"),
+        )
+        .build();
 
     let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
+        "preprod-node.play.dev.cardano.org:3001",
+        Network::Preprod,
         config,
     )
     .await?;
 
-    // Wait for 3 chain updates and shutdown.
-    for _ in 0..3 {
+    // Wait for some chain updates and shutdown.
+    for _ in 0..10 {
         let chain_update = follower.next().await?;
 
         match chain_update {
