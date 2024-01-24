@@ -138,9 +138,9 @@ pub fn parse_cddl<'a>(
         },
     };
 
-    result.map(Box::new).map_err(|e| {
-        Box::new(CDDLError::from(e))
-    })
+    result
+        .map(Box::new)
+        .map_err(|e| Box::new(CDDLError::from(e)))
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use cddl_parser::{
     self,
     cddl_test::{CDDLTestParser, Parser, Rule},
-};  
+};
 
 pub const CTLOP_PASSES: &[&str] = &[
     ".$",
@@ -40,13 +40,9 @@ pub const CTLOP_FAILS: &[&str] = &[
     "aname.", ".", "..", "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
 ];
 
-pub const RANGEOP_PASSES: &[&str] = &[
-    "..", "..."
-];
+pub const RANGEOP_PASSES: &[&str] = &["..", "..."];
 
-pub const RANGEOP_FAILS: &[&str] = &[
-    ".", "", "....", ".. .", ". .."
-];
+pub const RANGEOP_FAILS: &[&str] = &[".", "", "....", ".. .", ". .."];
 
 pub const TYPE2_PASSES: &[&str] = &[
     "#",
@@ -104,9 +100,7 @@ pub const TYPE1_PASSES: &[&str] = &[
     "foo.bar",
 ];
 
-pub const TYPE1_FAILS: &[&str] = &[
-    "",
-];
+pub const TYPE1_FAILS: &[&str] = &[""];
 
 pub const TYPE_PASSES: &[&str] = &[
     "1 / 2",
@@ -116,13 +110,7 @@ pub const TYPE_PASSES: &[&str] = &[
     "# / #",
 ];
 
-pub const TYPE_FAILS: &[&str] = &[
-    "",
-    "1 \\ 2",
-    "1 // 2",
-    "1 2",
-    "1 / 2 3",
-];
+pub const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
 
 #[test]
 /// Test if the `ctlop` rule passes properly.
@@ -135,7 +123,7 @@ fn check_ctlop() {
         let parse = CDDLTestParser::parse(Rule::ctlop_TEST, test);
         assert!(parse.is_ok());
     }
-  
+
     for test in fails {
         let parse = CDDLTestParser::parse(Rule::ctlop_TEST, test);
         assert!(parse.is_err());
@@ -153,7 +141,7 @@ fn check_rangeop() {
         let parse = CDDLTestParser::parse(Rule::rangeop_TEST, test);
         assert!(parse.is_ok());
     }
-  
+
     for test in fails {
         let parse = CDDLTestParser::parse(Rule::rangeop_TEST, test);
         assert!(parse.is_err());
@@ -171,7 +159,7 @@ fn check_type2() {
         let parse = CDDLTestParser::parse(Rule::type2_TEST, test);
         assert!(parse.is_ok());
     }
-  
+
     for test in fails {
         let parse = CDDLTestParser::parse(Rule::type2_TEST, test);
         assert!(parse.is_err());
@@ -189,7 +177,7 @@ fn check_type1() {
         let parse = CDDLTestParser::parse(Rule::type1_TEST, test);
         assert!(parse.is_ok());
     }
-  
+
     for test in fails {
         let parse = CDDLTestParser::parse(Rule::type1_TEST, test);
         assert!(parse.is_err());
@@ -199,14 +187,16 @@ fn check_type1() {
 #[test]
 /// Test if the `type1` rule passes properly based on composition of type2 test cases.
 fn check_type1_composition() {
-    // type2 composition testing
     for (i, test_i) in [TYPE2_PASSES, TYPE_FAILS].into_iter().flatten().enumerate() {
-        for (_, test_j) in [CTLOP_PASSES, RANGEOP_PASSES].into_iter().flatten().enumerate() {
+        for (_, test_j) in [CTLOP_PASSES, RANGEOP_PASSES]
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
             for (k, test_k) in [TYPE2_PASSES, TYPE_FAILS].into_iter().flatten().enumerate() {
                 let input = [test_i.to_owned(), test_j.to_owned(), test_k.to_owned()].join(" ");
                 let parse = CDDLTestParser::parse(Rule::type1_TEST, &input);
-                if (0..TYPE2_PASSES.len()).contains(&i)
-                && (0..TYPE2_PASSES.len()).contains(&k) {
+                if (0..TYPE2_PASSES.len()).contains(&i) && (0..TYPE2_PASSES.len()).contains(&k) {
                     assert!(parse.is_ok());
                 } else {
                     assert!(parse.is_err());
@@ -227,7 +217,7 @@ fn check_type() {
         let parse = CDDLTestParser::parse(Rule::type_TEST, test);
         assert!(parse.is_ok());
     }
-  
+
     for test in fails {
         let parse = CDDLTestParser::parse(Rule::type_TEST, test);
         assert!(parse.is_err());

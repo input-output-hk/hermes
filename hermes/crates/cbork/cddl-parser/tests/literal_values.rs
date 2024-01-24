@@ -21,9 +21,7 @@ pub const UINT_PASSES: &[&str] = &[
     "0",
 ];
 
-pub const UINT_FAILS: &[&str] = &[
-    " a ", "zz", "0123zzz", "0xdog", "0b777"
-];
+pub const UINT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
 pub const INT_PASSES: &[&str] = &[
     "10",
@@ -44,10 +42,7 @@ pub const INT_PASSES: &[&str] = &[
     "-0",
 ];
 
-pub const INT_FAILS: &[&str] = &[
-    " a ", "zz", "0123zzz", "0xdog", "0b777"
-];
-
+pub const INT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
 pub const INTFLOAT_PASSES: &[&str] = &[
     "10",
@@ -69,10 +64,7 @@ pub const INTFLOAT_PASSES: &[&str] = &[
     "123.456e-789",
 ];
 
-pub const INTFLOAT_FAILS: &[&str] = &[
-    " a ", "zz", "0123zzz", "0xdog", "0b777"
-];
-
+pub const INTFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
 pub const HEXFLOAT_PASSES: &[&str] = &[
     "0xabcp+123",
@@ -85,10 +77,7 @@ pub const HEXFLOAT_PASSES: &[&str] = &[
     "-0xabc.defp-123",
 ];
 
-pub const HEXFLOAT_FAILS: &[&str] = &[
-    " a ", "zz", "0123zzz", "0xdog", "0b777"
-];
-
+pub const HEXFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
 pub const NUMBER_PASSES: &[&str] = &[
     "0xabcp+123",
@@ -118,9 +107,7 @@ pub const NUMBER_PASSES: &[&str] = &[
     "123.456e-789",
 ];
 
-pub const NUMBER_FAILS: &[&str] = &[
-    " a ", "zz", "0123zzz", "0xdog", "0b777"
-];
+pub const NUMBER_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
 pub const VALUE_PASSES: &[&str] = &[
     // Ideally we would define these somewhere central and just use them where needed.
@@ -219,11 +206,13 @@ fn check_number() {
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_value() {
-    let tests: Vec<_> = VALUE_PASSES.into_iter()
+    let tests: Vec<_> = VALUE_PASSES
+        .into_iter()
         .chain(NUMBER_PASSES.into_iter())
         .chain(BYTES_PASSES.into_iter())
         .collect();
-    let fails: Vec<_> = VALUE_FAILS.into_iter()
+    let fails: Vec<_> = VALUE_FAILS
+        .into_iter()
         .chain(NUMBER_FAILS.into_iter())
         .collect();
 

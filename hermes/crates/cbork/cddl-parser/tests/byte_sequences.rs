@@ -5,13 +5,9 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const HEXPAIR_PASSES: &[&str] = &[
-    "00", "ab", "de", "0f", "f0"
-];
+pub const HEXPAIR_PASSES: &[&str] = &["00", "ab", "de", "0f", "f0"];
 
-pub const HEXPAIR_FAILS: &[&str] = &[
-    "0", " 0", "0 ", "az", "0p"
-];
+pub const HEXPAIR_FAILS: &[&str] = &["0", " 0", "0 ", "az", "0p"];
 
 pub const URL_BASE64_PASSES: &[&str] = &[
     "abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~",
