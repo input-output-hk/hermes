@@ -6,8 +6,8 @@ VERSION 0.7
 builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:refact/python_scripts+SETUP
 
-    COPY --dir .cargo .config crates .
-    COPY Cargo.toml .
+    COPY --dir .cargo .config src wasi byte-array-literals .
+    COPY Cargo.toml build.rs .
     COPY clippy.toml deny.toml rustfmt.toml .
 
 # Run quality checks.

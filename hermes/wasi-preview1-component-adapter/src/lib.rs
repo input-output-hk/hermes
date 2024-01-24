@@ -106,7 +106,7 @@ pub mod bindings {
 
     #[cfg(feature = "proxy")]
     wit_bindgen::generate!({
-        path: "./crates/wasi-component-adapter/wasi/wit",
+        path: "./wasi/wit",
         inline: r#"
             package wasmtime:adapter;
 

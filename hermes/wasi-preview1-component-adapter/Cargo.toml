@@ -3,8 +3,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/wasi-component-adapter",
-    "crates/byte-array-literals"
+    "./byte-array-literals"
 ]
 
 [workspace.package]
@@ -14,7 +13,6 @@ authors = [
     "Apisit Ritreungroj <apisit.ritreungroj@iohk.io>",
     "Steven Johnson <steven.johnson@iohk.io>"
 ]
-rust-version = "1.73"
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
 # inherited license from https://github.com/bytecodealliance/wasmtime
@@ -57,6 +55,37 @@ missing_docs_in_private_items = "deny"
 [workspace.dependencies]
 wit-bindgen = { version = "0.16.0", default-features = false }
 wasi = { version = "0.11.0", default-features = false }
-byte-array-literals = { path = "./crates/byte-array-literals", version = "0.0.1" }
+byte-array-literals = { path = "./byte-array-literals", version = "0.0.1" }
 wasm-encoder = "0.38.1"
 object = { version = "0.32.1", default-features = false }
+
+[package]
+name = "wasi-preview1-component-adapter"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+name = "wasi_snapshot_preview1"
+
+[lints]
+workspace = true
+
+[dependencies]
+wasi = { workspace = true }
+wit-bindgen = { workspace = true, features = ["macros"] }
+byte-array-literals = { workspace = true }
+
+[build-dependencies]
+wasm-encoder = { workspace = true }
+object = { workspace = true, features = ["archive"] }
+
+[features]
+default = ["reactor"]
+reactor = []
+command = []
+proxy = []
+
