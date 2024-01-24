@@ -23,7 +23,7 @@ fn parse_cddl_files() {
     // test for valid files
     let mut err_messages = vec![];
     for file_path in valid_file_paths {
-        let mut content = fs::read_to_string(&file_path).expect("failed to read a file");
+        let mut content = fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
 
         if let Err(e) = parse_cddl(&mut content, &Extension::RFC8610Parser) {
             err_messages.push(format!("{}) {file_path:?} {e}", err_messages.len() + 1));
@@ -32,7 +32,7 @@ fn parse_cddl_files() {
 
     // test for invalid files
     for file_path in invalid_file_paths {
-        let mut content = fs::read_to_string(&file_path).expect("failed to read a file");
+        let mut content = fs::read_to_string(&file_path).expect(&format!("failed to read `{:?}`", &file_path));
 
         let result = parse_cddl(&mut content, &Extension::RFC8610Parser);
 
