@@ -8,7 +8,8 @@ wasm32-unknown-unknown) cannot contain any data sections.
 The answer that @sunfishcode discovered is that these string literals, if
 represented as an array of u8 literals, these will somehow not end up in the
 data section, at least when compiled with opt-level='s' on today's rustc
-(1.69.0). So, this crate exists to transform these literals using a proc
+(1.69.0).
+So, this crate exists to transform these literals using a proc
 macro.
 
 It is very possible this cheat code will abruptly stop working in some future
