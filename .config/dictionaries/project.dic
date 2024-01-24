@@ -74,6 +74,7 @@ voteplan
 voteplans
 yoroi
 idents
+toolsets
 rustdoc
 codegen
 rustflags

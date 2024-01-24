@@ -1,10 +1,10 @@
 VERSION 0.7
 
-#cspell: words rustfmt wasi refact
+#cspell: words rustfmt wasi
 
 # Set up our target toolchains, and copy source files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:refact/python_scripts+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.6.0+SETUP
 
     COPY --dir .cargo .config src wasi byte-array-literals .
     COPY Cargo.toml build.rs .
@@ -16,6 +16,11 @@ check:
 
     RUN /scripts/std_checks.py
 
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-check:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +check
+
 # Build the service.
 build:
     FROM +builder
@@ -25,3 +30,8 @@ build:
                                 --build_flags="--target=wasm32-unknown-unknown"
 
     SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-build:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build
