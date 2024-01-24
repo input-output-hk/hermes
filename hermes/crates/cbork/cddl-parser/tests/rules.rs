@@ -44,13 +44,13 @@ pub const ASSIGNT_PASSES: &[&str] = &["=", "/="];
 
 pub const ASSIGNT_FAILS: &[&str] = &["==", "//="];
 
-pub const TYPENAME_PASSES: &[&str] = &ID_PASSES;
+pub const TYPENAME_PASSES: &[&str] = ID_PASSES;
 
-pub const TYPENAME_FAILS: &[&str] = &ID_FAILS;
+pub const TYPENAME_FAILS: &[&str] = ID_FAILS;
 
-pub const GROUPNAME_PASSES: &[&str] = &ID_PASSES;
+pub const GROUPNAME_PASSES: &[&str] = ID_PASSES;
 
-pub const GROUPNAME_FAILS: &[&str] = &ID_FAILS;
+pub const GROUPNAME_FAILS: &[&str] = ID_FAILS;
 
 pub const RULE_GROUP_PASSES: &[&str] = &[
     "foo = (bar: baz)",
@@ -64,6 +64,7 @@ pub const RULE_GROUP_PASSES: &[&str] = &[
 
 pub const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar)"];
 
+/// # Panics
 pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -71,6 +72,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     }
 }
 
+/// # Panics
 pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);

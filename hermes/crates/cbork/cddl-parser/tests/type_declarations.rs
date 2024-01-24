@@ -115,6 +115,7 @@ pub const TYPE_PASSES: &[&str] = &[
 
 pub const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
 
+/// # Panics
 pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -122,6 +123,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     }
 }
 
+/// # Panics
 pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -176,8 +178,9 @@ fn check_type1() {
 #[test]
 /// Test if the `type1` rule passes properly based on composition of type2 test cases.
 fn check_type1_composition() {
+    let j_len = CTLOP_PASSES.len() + RANGEOP_PASSES.len();
     for (i, test_i) in [TYPE2_PASSES, TYPE_FAILS].into_iter().flatten().enumerate() {
-        for (_, test_j) in [CTLOP_PASSES, RANGEOP_PASSES]
+        for (j, test_j) in [CTLOP_PASSES, RANGEOP_PASSES]
             .into_iter()
             .flatten()
             .enumerate()
@@ -185,7 +188,10 @@ fn check_type1_composition() {
             for (k, test_k) in [TYPE2_PASSES, TYPE_FAILS].into_iter().flatten().enumerate() {
                 let input = [test_i.to_owned(), test_j.to_owned(), test_k.to_owned()].join(" ");
                 let parse = CDDLTestParser::parse(Rule::type1_TEST, &input);
-                if (0..TYPE2_PASSES.len()).contains(&i) && (0..TYPE2_PASSES.len()).contains(&k) {
+                if (0..TYPE2_PASSES.len()).contains(&i)
+                    && (0..j_len).contains(&j)
+                    && (0..TYPE2_PASSES.len()).contains(&k)
+                {
                     assert!(parse.is_ok());
                 } else {
                     assert!(parse.is_err());

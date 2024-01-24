@@ -120,6 +120,7 @@ pub const GROUP_PASSES: &[&str] = &[
 
 pub const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
 
+/// # Panics
 pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -127,6 +128,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     }
 }
 
+/// # Panics
 pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);

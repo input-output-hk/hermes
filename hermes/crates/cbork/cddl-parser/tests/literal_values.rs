@@ -115,6 +115,7 @@ pub const VALUE_PASSES: &[&str] = &[];
 
 pub const VALUE_FAILS: &[&str] = &[];
 
+/// # Panics
 pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -122,6 +123,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     }
 }
 
+/// # Panics
 pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -183,15 +185,15 @@ fn check_number() {
 /// Test if the `uint` rule passes properly.
 fn check_value() {
     let passes: Vec<_> = VALUE_PASSES
-        .into_iter()
-        .chain(NUMBER_PASSES.into_iter())
-        .chain(BYTES_PASSES.into_iter())
-        .chain(TEXT_PASSES.into_iter())
+        .iter()
+        .chain(NUMBER_PASSES)
+        .chain(BYTES_PASSES)
+        .chain(TEXT_PASSES)
         .map(Deref::deref)
         .collect();
     let fails: Vec<_> = VALUE_FAILS
-        .into_iter()
-        .chain(NUMBER_FAILS.into_iter())
+        .iter()
+        .chain(NUMBER_FAILS)
         .map(Deref::deref)
         .collect();
 

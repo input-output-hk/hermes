@@ -8,6 +8,7 @@ pub const S_FAILS: &[&str] = &[" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"]
 pub const TEXT_PASSES: &[&str] = &[r#""""#, r#""abc""#, "\"abc\\n\""];
 pub const TEXT_FAILS: &[&str] = &["", "''", "\"abc\n\""];
 
+/// # Panics
 pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
@@ -15,6 +16,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     }
 }
 
+/// # Panics
 pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
