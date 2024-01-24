@@ -4,10 +4,10 @@ arrange:
   - 02_architecture_constraints.md
   - 03_system_scope_and_context.md
   - 04_solution_strategy.md
-  - 05_building_block_view.md
+  - 05_building_block_view
   - 06_runtime_view.md
   - 07_deployment_view.md
-  - 08_concepts.md
+  - 08_concepts
   - 09_architecture_decisions
   - 10_quality_requirements.md
   - 11_technical_risks.md

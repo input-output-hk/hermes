@@ -219,10 +219,12 @@
     ],
     "ignorePaths": [
         ".config/dictionaries/**",
+        "*.svg",
         "tmp/**",
         "cspell.json",
         ".git/**",
-        "**/.gitignore",
+        ".gitignore",
+        "*.excalidraw",
         ".vscode/**",
         "**/.idea/**",
         "hermes/wasm/*/**",

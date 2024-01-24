@@ -2,7 +2,7 @@
 icon: material/toy-brick-search
 ---
 
-# Building Block View
+# Building Blocks View
 
 <!-- See: https://docs.arc42.org/section-5/ -->
 
