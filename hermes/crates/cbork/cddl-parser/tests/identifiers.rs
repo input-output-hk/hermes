@@ -5,7 +5,7 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-#[path = "./common/mod.rs"]
+#[path = "common/mod.rs"]
 #[allow(clippy::duplicate_mod)]
 mod common;
 
