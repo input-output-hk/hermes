@@ -3,7 +3,7 @@
 
 // cspell: words assignt groupname grpent genericparm assigng optcom
 // cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
-// cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable 
+// cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
 cddl = ${
     SOI
