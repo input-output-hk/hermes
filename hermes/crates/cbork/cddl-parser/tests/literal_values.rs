@@ -12,7 +12,7 @@ use byte_sequences::BYTES_PASSES;
 mod text_sequences;
 use text_sequences::TEXT_PASSES;
 
-pub const UINT_PASSES: &[&str] = &[
+pub(crate) const UINT_PASSES: &[&str] = &[
     "10",
     "101",
     "2034",
@@ -23,9 +23,9 @@ pub const UINT_PASSES: &[&str] = &[
     "0",
 ];
 
-pub const UINT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
+pub(crate) const UINT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const INT_PASSES: &[&str] = &[
+pub(crate) const INT_PASSES: &[&str] = &[
     "10",
     "101",
     "2034",
@@ -44,9 +44,9 @@ pub const INT_PASSES: &[&str] = &[
     "-0",
 ];
 
-pub const INT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
+pub(crate) const INT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const INTFLOAT_PASSES: &[&str] = &[
+pub(crate) const INTFLOAT_PASSES: &[&str] = &[
     "10",
     "101",
     "2034",
@@ -66,9 +66,9 @@ pub const INTFLOAT_PASSES: &[&str] = &[
     "123.456e-789",
 ];
 
-pub const INTFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
+pub(crate) const INTFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const HEXFLOAT_PASSES: &[&str] = &[
+pub(crate) const HEXFLOAT_PASSES: &[&str] = &[
     "0xabcp+123",
     "-0xabcp+123",
     "0xabcp-123",
@@ -79,9 +79,9 @@ pub const HEXFLOAT_PASSES: &[&str] = &[
     "-0xabc.defp-123",
 ];
 
-pub const HEXFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
+pub(crate) const HEXFLOAT_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const NUMBER_PASSES: &[&str] = &[
+pub(crate) const NUMBER_PASSES: &[&str] = &[
     "0xabcp+123",
     "-0xabcp+123",
     "0xabcp-123",
@@ -109,14 +109,14 @@ pub const NUMBER_PASSES: &[&str] = &[
     "123.456e-789",
 ];
 
-pub const NUMBER_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
+pub(crate) const NUMBER_FAILS: &[&str] = &[" a ", "zz", "0123zzz", "0xdog", "0b777"];
 
-pub const VALUE_PASSES: &[&str] = &[];
+pub(crate) const VALUE_PASSES: &[&str] = &[];
 
-pub const VALUE_FAILS: &[&str] = &[];
+pub(crate) const VALUE_FAILS: &[&str] = &[];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -124,7 +124,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());

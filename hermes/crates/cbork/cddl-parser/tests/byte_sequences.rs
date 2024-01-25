@@ -5,16 +5,16 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const HEXPAIR_PASSES: &[&str] = &["00", "ab", "de", "0f", "f0"];
+pub(crate) const HEXPAIR_PASSES: &[&str] = &["00", "ab", "de", "0f", "f0"];
 
-pub const HEXPAIR_FAILS: &[&str] = &["0", " 0", "0 ", "az", "0p"];
+pub(crate) const HEXPAIR_FAILS: &[&str] = &["0", " 0", "0 ", "az", "0p"];
 
-pub const URL_BASE64_PASSES: &[&str] = &[
+pub(crate) const URL_BASE64_PASSES: &[&str] = &[
     "abcdefghijklmnopq   rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~",
     "abcdefghijklmnopqrstuvwyz0123456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 ];
 
-pub const URL_BASE64_FAILS: &[&str] = &[
+pub(crate) const URL_BASE64_FAILS: &[&str] = &[
     "abcdefghijklmnopq #  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~ ",
     "abcdefghijklmnopq $  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\t",
     "abcdefghijklmnopq %  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\n",
@@ -22,7 +22,7 @@ pub const URL_BASE64_FAILS: &[&str] = &[
     "abcdefghijklmnopq &  rstuvw   yz01\t23456789-_ABCDEFGHIJKLMNOPQRSTUVWXYZ~\r\n",
 ];
 
-pub const BYTES_PASSES: &[&str] = &[
+pub(crate) const BYTES_PASSES: &[&str] = &[
     "h''",
     "b64''",
     "''",
@@ -39,7 +39,7 @@ pub const BYTES_PASSES: &[&str] = &[
     "'text\n that gets converted \\\' into a byte string...'",
 ];
 
-pub const BYTES_FAILS: &[&str] = &[
+pub(crate) const BYTES_FAILS: &[&str] = &[
     "h64",
     "b64",
     "\"\"",
@@ -52,7 +52,7 @@ pub const BYTES_FAILS: &[&str] = &[
 ];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -60,7 +60,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());

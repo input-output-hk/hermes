@@ -6,7 +6,7 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const CTLOP_PASSES: &[&str] = &[
+pub(crate) const CTLOP_PASSES: &[&str] = &[
     ".$",
     ".@",
     "._",
@@ -39,15 +39,15 @@ pub const CTLOP_PASSES: &[&str] = &[
     ".$typesocket",
 ];
 
-pub const CTLOP_FAILS: &[&str] = &[
+pub(crate) const CTLOP_FAILS: &[&str] = &[
     "aname.", ".", "..", "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
 ];
 
-pub const RANGEOP_PASSES: &[&str] = &["..", "..."];
+pub(crate) const RANGEOP_PASSES: &[&str] = &["..", "..."];
 
-pub const RANGEOP_FAILS: &[&str] = &[".", "", "....", ".. .", ". .."];
+pub(crate) const RANGEOP_FAILS: &[&str] = &[".", "", "....", ".. .", ". .."];
 
-pub const TYPE2_PASSES: &[&str] = &[
+pub(crate) const TYPE2_PASSES: &[&str] = &[
     "#",
     "#1",
     "#1.1",
@@ -78,7 +78,7 @@ pub const TYPE2_PASSES: &[&str] = &[
     "foo",
 ];
 
-pub const TYPE2_FAILS: &[&str] = &[
+pub(crate) const TYPE2_FAILS: &[&str] = &[
     "",
     "##",
     "#1.",
@@ -89,7 +89,7 @@ pub const TYPE2_FAILS: &[&str] = &[
     "(foo bar)",
 ];
 
-pub const TYPE1_PASSES: &[&str] = &[
+pub(crate) const TYPE1_PASSES: &[&str] = &[
     "1..2",
     "1 .. 2",
     "1\t..\n2",
@@ -103,9 +103,9 @@ pub const TYPE1_PASSES: &[&str] = &[
     "foo.bar",
 ];
 
-pub const TYPE1_FAILS: &[&str] = &[""];
+pub(crate) const TYPE1_FAILS: &[&str] = &[""];
 
-pub const TYPE_PASSES: &[&str] = &[
+pub(crate) const TYPE_PASSES: &[&str] = &[
     "1 / 2",
     "1\n/\t2",
     "1 / 2 / 3 / 4",
@@ -113,10 +113,10 @@ pub const TYPE_PASSES: &[&str] = &[
     "# / #",
 ];
 
-pub const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
+pub(crate) const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -124,7 +124,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());

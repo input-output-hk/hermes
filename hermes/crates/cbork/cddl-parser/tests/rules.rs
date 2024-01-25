@@ -11,7 +11,7 @@ use identifiers::{ID_FAILS, ID_PASSES};
 mod type_declarations;
 use type_declarations::{TYPE_FAILS, TYPE_PASSES};
 
-pub const GENERICARG_PASSES: &[&str] = &[
+pub(crate) const GENERICARG_PASSES: &[&str] = &[
     "<uint>",
     "<{ foo: bar }>",
     "<{ h'1234': uint }>",
@@ -21,12 +21,12 @@ pub const GENERICARG_PASSES: &[&str] = &[
     "<{ foo: bar }, 1..10>",
 ];
 
-pub const GENERICARG_FAILS: &[&str] =
+pub(crate) const GENERICARG_FAILS: &[&str] =
     &["", "<>", "<uint,>", "<( foo: bar )>", "<bigint / bigfloat>"];
 
-pub const GENERICPARM_PASSES: &[&str] = &["<foo>", "<foo,bar>", "<foo, bar>", "<foo, bar, baz>"];
+pub(crate) const GENERICPARM_PASSES: &[&str] = &["<foo>", "<foo,bar>", "<foo, bar>", "<foo, bar, baz>"];
 
-pub const GENERICPARM_FAILS: &[&str] = &[
+pub(crate) const GENERICPARM_FAILS: &[&str] = &[
     "",
     "<>",
     "<foo,>",
@@ -36,23 +36,23 @@ pub const GENERICPARM_FAILS: &[&str] = &[
     "<\n1...10\t>",
 ];
 
-pub const ASSIGNG_PASSES: &[&str] = &["=", "//="];
+pub(crate) const ASSIGNG_PASSES: &[&str] = &["=", "//="];
 
-pub const ASSIGNG_FAILS: &[&str] = &["==", "/="];
+pub(crate) const ASSIGNG_FAILS: &[&str] = &["==", "/="];
 
-pub const ASSIGNT_PASSES: &[&str] = &["=", "/="];
+pub(crate) const ASSIGNT_PASSES: &[&str] = &["=", "/="];
 
-pub const ASSIGNT_FAILS: &[&str] = &["==", "//="];
+pub(crate) const ASSIGNT_FAILS: &[&str] = &["==", "//="];
 
-pub const TYPENAME_PASSES: &[&str] = ID_PASSES;
+pub(crate) const TYPENAME_PASSES: &[&str] = ID_PASSES;
 
-pub const TYPENAME_FAILS: &[&str] = ID_FAILS;
+pub(crate) const TYPENAME_FAILS: &[&str] = ID_FAILS;
 
-pub const GROUPNAME_PASSES: &[&str] = ID_PASSES;
+pub(crate) const GROUPNAME_PASSES: &[&str] = ID_PASSES;
 
-pub const GROUPNAME_FAILS: &[&str] = ID_FAILS;
+pub(crate) const GROUPNAME_FAILS: &[&str] = ID_FAILS;
 
-pub const RULE_GROUP_PASSES: &[&str] = &[
+pub(crate) const RULE_GROUP_PASSES: &[&str] = &[
     "foo = (bar: baz)",
     "t //= (foo: bar)",
     "t //= foo",
@@ -62,10 +62,10 @@ pub const RULE_GROUP_PASSES: &[&str] = &[
     "delivery //= ( lat: float, long: float, drone-type: tstr )",
 ];
 
-pub const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar)"];
+pub(crate) const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar)"];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -73,7 +73,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());

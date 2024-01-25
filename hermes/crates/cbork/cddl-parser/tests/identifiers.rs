@@ -5,7 +5,7 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const ID_PASSES: &[&str] = &[
+pub(crate) const ID_PASSES: &[&str] = &[
     "$",
     "@",
     "_",
@@ -38,7 +38,7 @@ pub const ID_PASSES: &[&str] = &[
     "$typesocket",
 ];
 
-pub const ID_FAILS: &[&str] = &[
+pub(crate) const ID_FAILS: &[&str] = &[
     "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
 ];
 

@@ -3,11 +3,11 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-pub const COMMENT_PASSES: &[&str] = &["; A Comment \n", "; And another\r", ";more\r\n"];
+pub(crate) const COMMENT_PASSES: &[&str] = &["; A Comment \n", "; And another\r", ";more\r\n"];
 
-pub const COMMENT_FAILS: &[&str] = &["not a comment\n"];
+pub(crate) const COMMENT_FAILS: &[&str] = &["not a comment\n"];
 
-pub const WHITESPACE_COMMENT_PASSES: &[&str] = &[
+pub(crate) const WHITESPACE_COMMENT_PASSES: &[&str] = &[
     " ",
     "  ",
     " \t \t",
@@ -20,10 +20,10 @@ pub const WHITESPACE_COMMENT_PASSES: &[&str] = &[
     "\t; A Comment \n    ; Another Comment \t \r\n    \t  ; A Final Comment   \r\n",
 ];
 
-pub const WHITESPACE_COMMENT_FAILS: &[&str] = &["not a comment"];
+pub(crate) const WHITESPACE_COMMENT_FAILS: &[&str] = &["not a comment"];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -31,7 +31,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());

@@ -9,7 +9,7 @@ use cddl_parser::{
 mod identifiers;
 use identifiers::{ID_FAILS, ID_PASSES};
 
-pub const OCCUR_PASSES: &[&str] = &[
+pub(crate) const OCCUR_PASSES: &[&str] = &[
     "*",
     "+",
     "?",
@@ -25,7 +25,7 @@ pub const OCCUR_PASSES: &[&str] = &[
     "0x1*",
 ];
 
-pub const OCCUR_FAILS: &[&str] = &[
+pub(crate) const OCCUR_FAILS: &[&str] = &[
     "5**10",
     "5 * 10",
     "5\t\n*\n10",
@@ -41,11 +41,11 @@ pub const OCCUR_FAILS: &[&str] = &[
     "0b",
 ];
 
-pub const OPTCOM_PASSES: &[&str] = &["", ",", " ,", " , ", "\n,\n", "\n"];
+pub(crate) const OPTCOM_PASSES: &[&str] = &["", ",", " ,", " , ", "\n,\n", "\n"];
 
-pub const OPTCOM_FAILS: &[&str] = &[",,"];
+pub(crate) const OPTCOM_FAILS: &[&str] = &[",,"];
 
-pub const MEMBERKEY_PASSES: &[&str] = &[
+pub(crate) const MEMBERKEY_PASSES: &[&str] = &[
     // bareword
     "foo:",
     "foo-bar:",
@@ -79,9 +79,9 @@ pub const MEMBERKEY_PASSES: &[&str] = &[
     "h'12 34\n' =>",
 ];
 
-pub const MEMBERKEY_FAILS: &[&str] = &["#:", "foo::"];
+pub(crate) const MEMBERKEY_FAILS: &[&str] = &["#:", "foo::"];
 
-pub const GRPENT_PASSES: &[&str] = &[
+pub(crate) const GRPENT_PASSES: &[&str] = &[
     "foo: 1",
     "foo: 1",
     "foo-bar:\t\n1",
@@ -93,9 +93,9 @@ pub const GRPENT_PASSES: &[&str] = &[
     "tstr => [foo: bar, baz]",
 ];
 
-pub const GRPENT_FAILS: &[&str] = &["tstr => (foo: bar)"];
+pub(crate) const GRPENT_FAILS: &[&str] = &["tstr => (foo: bar)"];
 
-pub const GRPCHOICE_PASSES: &[&str] = &[
+pub(crate) const GRPCHOICE_PASSES: &[&str] = &[
     "foo: 1",
     "foo: 1, bar: 2",
     "foo: 1, bar: 2,",
@@ -107,9 +107,9 @@ pub const GRPCHOICE_PASSES: &[&str] = &[
     "foo => 1bar: 2",
 ];
 
-pub const GRPCHOICE_FAILS: &[&str] = &["foo: ,", "foo:", "foo: bar: 2", "foo => bar: 2"];
+pub(crate) const GRPCHOICE_FAILS: &[&str] = &["foo: ,", "foo:", "foo: bar: 2", "foo => bar: 2"];
 
-pub const GROUP_PASSES: &[&str] = &[
+pub(crate) const GROUP_PASSES: &[&str] = &[
     "(foo: 1)",
     "(foo: 1) // (bar: 2)",
     "(foo: 1) // (bar: 2)",
@@ -118,10 +118,10 @@ pub const GROUP_PASSES: &[&str] = &[
     "((+ a) // (b / c))",
 ];
 
-pub const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
+pub(crate) const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
 
 /// # Panics
-pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_ok());
@@ -129,7 +129,7 @@ pub fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
 }
 
 /// # Panics
-pub fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
+pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
     for test in test_data {
         let parse = CDDLTestParser::parse(rule_type, test);
         assert!(parse.is_err());
