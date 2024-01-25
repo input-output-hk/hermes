@@ -7,6 +7,7 @@ use cddl_parser::{
 };
 
 #[path = "./common/mod.rs"]
+#[allow(clippy::duplicate_mod)]
 mod common;
 
 pub(crate) const CTLOP_PASSES: &[&str] = &[
