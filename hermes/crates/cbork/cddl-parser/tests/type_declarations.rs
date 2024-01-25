@@ -123,40 +123,28 @@ pub(crate) const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3
 /// Test if the `ctlop` rule passes properly.
 /// This uses a special rule in the Grammar to test `ctlop` exhaustively.
 fn check_ctlop() {
-    let passes = CTLOP_PASSES;
-    let fails = CTLOP_FAILS;
-
-    common::check_tests_rule(Rule::ctlop_TEST, passes, fails);
+    common::check_tests_rule(Rule::ctlop_TEST, CTLOP_PASSES, CTLOP_FAILS);
 }
 
 #[test]
 /// Test if the `rangeop` rule passes properly.
 /// This uses a special rule in the Grammar to test `rangeop` exhaustively.
 fn check_rangeop() {
-    let passes = RANGEOP_PASSES;
-    let fails = RANGEOP_FAILS;
-
-    common::check_tests_rule(Rule::rangeop_TEST, passes, fails);
+    common::check_tests_rule(Rule::rangeop_TEST, RANGEOP_PASSES, RANGEOP_FAILS);
 }
 
 #[test]
 /// Test if the `type2` rule passes properly.
 /// This uses a special rule in the Grammar to test `type2` exhaustively.
 fn check_type2() {
-    let passes = TYPE2_PASSES;
-    let fails = TYPE2_FAILS;
-
-    common::check_tests_rule(Rule::type2_TEST, passes, fails);
+    common::check_tests_rule(Rule::type2_TEST, TYPE2_PASSES, TYPE2_FAILS);
 }
 
 #[test]
 /// Test if the `type1` rule passes properly.
 /// This uses a special rule in the Grammar to test `type1` exhaustively.
 fn check_type1() {
-    let passes = TYPE1_PASSES;
-    let fails = TYPE1_FAILS;
-
-    common::check_tests_rule(Rule::type1_TEST, passes, fails);
+    common::check_tests_rule(Rule::type1_TEST, TYPE1_PASSES, TYPE1_FAILS);
 }
 
 #[test]
@@ -189,10 +177,7 @@ fn check_type1_composition() {
 /// Test if the `type` rule passes properly.
 /// This uses a special rule in the Grammar to test `type` exhaustively.
 fn check_type() {
-    let passes = TYPE_PASSES;
-    let fails = TYPE_FAILS;
-
-    common::check_tests_rule(Rule::type_TEST, passes, fails);
+    common::check_tests_rule(Rule::type_TEST, TYPE_PASSES, TYPE_FAILS);
 }
 
 #[test]

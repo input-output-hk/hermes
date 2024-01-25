@@ -125,68 +125,47 @@ pub(crate) const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
 /// Test if the `occur` rule passes properly.
 /// This uses a special rule in the Grammar to test `occur` exhaustively.
 fn check_occur() {
-    let passes = OCCUR_PASSES;
-    let fails = OCCUR_FAILS;
-
-    common::check_tests_rule(Rule::occur_TEST, passes, fails);
+    common::check_tests_rule(Rule::occur_TEST, OCCUR_PASSES, OCCUR_FAILS);
 }
 
 #[test]
 /// Test if the `bareword` rule passes properly.
 /// This uses a special rule in the Grammar to test `bareword` exhaustively.
 fn check_bareword() {
-    let passes = ID_PASSES;
-    let fails = ID_FAILS;
-
-    common::check_tests_rule(Rule::bareword_TEST, passes, fails);
+    common::check_tests_rule(Rule::bareword_TEST, ID_PASSES, ID_FAILS);
 }
 
 #[test]
 /// Test if the `optcom` rule passes properly.
 /// This uses a special rule in the Grammar to test `optcom` exhaustively.
 fn check_optcom() {
-    let passes = OPTCOM_PASSES;
-    let fails = OPTCOM_FAILS;
-
-    common::check_tests_rule(Rule::optcom_TEST, passes, fails);
+    common::check_tests_rule(Rule::optcom_TEST, OPTCOM_PASSES, OPTCOM_FAILS);
 }
 
 #[test]
 /// Test if the `memberkey` rule passes properly.
 /// This uses a special rule in the Grammar to test `memberkey` exhaustively.
 fn check_memberkey() {
-    let passes = MEMBERKEY_PASSES;
-    let fails = MEMBERKEY_FAILS;
-
-    common::check_tests_rule(Rule::memberkey_TEST, passes, fails);
+    common::check_tests_rule(Rule::memberkey_TEST, MEMBERKEY_PASSES, MEMBERKEY_FAILS);
 }
 
 #[test]
 /// Test if the `grpent` rule passes properly.
 /// This uses a special rule in the Grammar to test `grpent` exhaustively.
 fn check_grpent() {
-    let passes = GRPENT_PASSES;
-    let fails = GRPENT_FAILS;
-
-    common::check_tests_rule(Rule::grpent_TEST, passes, fails);
+    common::check_tests_rule(Rule::grpent_TEST, GRPENT_PASSES, GRPENT_FAILS);
 }
 
 #[test]
 /// Test if the `grpchoice` rule passes properly.
 /// This uses a special rule in the Grammar to test `grpchoice` exhaustively.
 fn check_grpchoice() {
-    let passes = GRPCHOICE_PASSES;
-    let fails = GRPCHOICE_FAILS;
-
-    common::check_tests_rule(Rule::grpchoice_TEST, passes, fails);
+    common::check_tests_rule(Rule::grpchoice_TEST, GRPCHOICE_PASSES, GRPCHOICE_FAILS);
 }
 
 #[test]
 /// Test if the `group` rule passes properly.
 /// This uses a special rule in the Grammar to test `group` exhaustively.
 fn check_group() {
-    let passes = GROUP_PASSES;
-    let fails = GROUP_FAILS;
-
-    common::check_tests_rule(Rule::group_TEST, passes, fails);
+    common::check_tests_rule(Rule::group_TEST, GROUP_PASSES, GROUP_FAILS);
 }

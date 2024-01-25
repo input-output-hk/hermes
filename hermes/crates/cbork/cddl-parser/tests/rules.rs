@@ -73,60 +73,46 @@ pub(crate) const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar
 /// Test if the `genericarg` rule passes properly.
 /// This uses a special rule in the Grammar to test `genericarg` exhaustively.
 fn check_genericarg() {
-    let passes = GENERICARG_PASSES;
-    let fails = GENERICARG_FAILS;
-
-    common::check_tests_rule(Rule::genericarg_TEST, passes, fails);
+    common::check_tests_rule(Rule::genericarg_TEST, GENERICARG_PASSES, GENERICARG_FAILS);
 }
 
 #[test]
 /// Test if the `genericparm` rule passes properly.
 /// This uses a special rule in the Grammar to test `genericparm` exhaustively.
 fn check_genericparm() {
-    let passes = GENERICPARM_PASSES;
-    let fails = GENERICPARM_FAILS;
-
-    common::check_tests_rule(Rule::genericparm_TEST, passes, fails);
+    common::check_tests_rule(
+        Rule::genericparm_TEST,
+        GENERICPARM_PASSES,
+        GENERICPARM_FAILS,
+    );
 }
 
 #[test]
 /// Test if the `assigng` rule passes properly.
 /// This uses a special rule in the Grammar to test `assigng` exhaustively.
 fn check_assigng() {
-    let passes = ASSIGNG_PASSES;
-    let fails = ASSIGNG_FAILS;
-
-    common::check_tests_rule(Rule::assigng_TEST, passes, fails);
+    common::check_tests_rule(Rule::assigng_TEST, ASSIGNG_PASSES, ASSIGNG_FAILS);
 }
 
 #[test]
 /// Test if the `assignt` rule passes properly.
 /// This uses a special rule in the Grammar to test `assignt` exhaustively.
 fn check_assignt() {
-    let passes = ASSIGNT_PASSES;
-    let fails = ASSIGNT_FAILS;
-
-    common::check_tests_rule(Rule::assignt_TEST, passes, fails);
+    common::check_tests_rule(Rule::assignt_TEST, ASSIGNT_PASSES, ASSIGNT_FAILS);
 }
 
 #[test]
 /// Test if the `typename` rule passes properly.
 /// This uses a special rule in the Grammar to test `typename` exhaustively.
 fn check_typename() {
-    let passes = TYPENAME_PASSES;
-    let fails = TYPENAME_FAILS;
-
-    common::check_tests_rule(Rule::typename_TEST, passes, fails);
+    common::check_tests_rule(Rule::typename_TEST, TYPENAME_PASSES, TYPENAME_FAILS);
 }
 
 #[test]
 /// Test if the `groupname` rule passes properly.
 /// This uses a special rule in the Grammar to test `groupname` exhaustively.
 fn check_groupname() {
-    let passes = GROUPNAME_PASSES;
-    let fails = GROUPNAME_FAILS;
-
-    common::check_tests_rule(Rule::groupname_TEST, passes, fails);
+    common::check_tests_rule(Rule::groupname_TEST, GROUPNAME_PASSES, GROUPNAME_FAILS);
 }
 
 #[test]
@@ -157,8 +143,5 @@ fn check_rule_type_composition() {
 #[test]
 /// Test if the `rule` rule passes properly for group variant.
 fn check_rule_group() {
-    let passes = RULE_GROUP_PASSES;
-    let fails = RULE_GROUP_FAILS;
-
-    common::check_tests_rule(Rule::rule_TEST, passes, fails);
+    common::check_tests_rule(Rule::rule_TEST, RULE_GROUP_PASSES, RULE_GROUP_FAILS);
 }

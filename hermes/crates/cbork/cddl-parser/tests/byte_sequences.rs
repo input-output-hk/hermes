@@ -55,26 +55,17 @@ pub(crate) const BYTES_FAILS: &[&str] = &[
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.
 fn check_hexpair() {
-    let passes = HEXPAIR_PASSES;
-    let fails = HEXPAIR_FAILS;
-
-    common::check_tests_rule(Rule::HEX_PAIR, passes, fails);
+    common::check_tests_rule(Rule::HEX_PAIR, HEXPAIR_PASSES, HEXPAIR_FAILS);
 }
 
 #[test]
 /// Test if the `URL_BASE64` rule passes properly.
 fn check_url_base64() {
-    let passes = URL_BASE64_PASSES;
-    let fails = URL_BASE64_FAILS;
-
-    common::check_tests_rule(Rule::URL_BASE64_TEST, passes, fails);
+    common::check_tests_rule(Rule::URL_BASE64_TEST, URL_BASE64_PASSES, URL_BASE64_FAILS);
 }
 
 #[test]
 /// Test if the `bytes` rule passes properly.
 fn check_bytes() {
-    let passes = BYTES_PASSES;
-    let fails = BYTES_FAILS;
-
-    common::check_tests_rule(Rule::bytes_TEST, passes, fails);
+    common::check_tests_rule(Rule::bytes_TEST, BYTES_PASSES, BYTES_FAILS);
 }

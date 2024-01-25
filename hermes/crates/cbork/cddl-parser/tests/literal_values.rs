@@ -119,46 +119,31 @@ pub(crate) const VALUE_FAILS: &[&str] = &[];
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_uint() {
-    let passes = UINT_PASSES;
-    let fails = UINT_FAILS;
-
-    common::check_tests_rule(Rule::uint_TEST, passes, fails);
+    common::check_tests_rule(Rule::uint_TEST, UINT_PASSES, UINT_FAILS);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_int() {
-    let passes = INT_PASSES;
-    let fails = INT_FAILS;
-
-    common::check_tests_rule(Rule::int_TEST, passes, fails);
+    common::check_tests_rule(Rule::int_TEST, INT_PASSES, INT_FAILS);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_intfloat() {
-    let passes = INTFLOAT_PASSES;
-    let fails = INTFLOAT_FAILS;
-
-    common::check_tests_rule(Rule::intfloat_TEST, passes, fails);
+    common::check_tests_rule(Rule::intfloat_TEST, INTFLOAT_PASSES, INTFLOAT_FAILS);
 }
 
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_hexfloat() {
-    let passes = HEXFLOAT_PASSES;
-    let fails = HEXFLOAT_FAILS;
-
-    common::check_tests_rule(Rule::hexfloat_TEST, passes, fails);
+    common::check_tests_rule(Rule::hexfloat_TEST, HEXFLOAT_PASSES, HEXFLOAT_FAILS);
 }
 
 #[test]
 /// Test if the `number` rule passes properly.
 fn check_number() {
-    let passes = NUMBER_PASSES;
-    let fails = NUMBER_FAILS;
-
-    common::check_tests_rule(Rule::number_TEST, passes, fails);
+    common::check_tests_rule(Rule::number_TEST, NUMBER_PASSES, NUMBER_FAILS);
 }
 
 #[test]

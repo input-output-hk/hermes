@@ -70,8 +70,5 @@ fn check_name_characters() {
 #[test]
 /// Test if the `id` rule passes properly.
 fn check_id() {
-    let passes = ID_PASSES;
-    let fails = ID_FAILS;
-
-    common::check_tests_rule(Rule::id_TEST, passes, fails);
+    common::check_tests_rule(Rule::id_TEST, ID_PASSES, ID_FAILS);
 }

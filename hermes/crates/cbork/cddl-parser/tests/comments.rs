@@ -26,18 +26,16 @@ pub(crate) const WHITESPACE_COMMENT_FAILS: &[&str] = &["not a comment"];
 #[test]
 /// Test if the `COMMENT` rule passes properly.
 fn check_comment() {
-    let passes = COMMENT_PASSES;
-    let fails = COMMENT_FAILS;
-
-    common::check_tests_rule(Rule::COMMENT_TEST, passes, fails);
+    common::check_tests_rule(Rule::COMMENT_TEST, COMMENT_PASSES, COMMENT_FAILS);
 }
 
 #[test]
 /// Test if the `COMMENT` rule passes properly with whitespace.
 /// This uses a special rule in the Grammar to test whitespace exhaustively.
 fn check_whitespace_comments() {
-    let passes = WHITESPACE_COMMENT_PASSES;
-    let fails = WHITESPACE_COMMENT_FAILS;
-
-    common::check_tests_rule(Rule::COMMENT_TEST, passes, fails);
+    common::check_tests_rule(
+        Rule::COMMENT_TEST,
+        WHITESPACE_COMMENT_PASSES,
+        WHITESPACE_COMMENT_FAILS,
+    );
 }

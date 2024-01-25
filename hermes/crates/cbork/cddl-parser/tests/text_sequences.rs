@@ -13,17 +13,11 @@ pub(crate) const TEXT_FAILS: &[&str] = &["", "''", "\"abc\n\""];
 /// Test if the `S` rule passes properly.
 /// This uses a special rule in the Grammar to test whitespace exhaustively.
 fn check_s() {
-    let passes = S_PASSES;
-    let fails = S_FAILS;
-
-    common::check_tests_rule(Rule::S_TEST, passes, fails);
+    common::check_tests_rule(Rule::S_TEST, S_PASSES, S_FAILS);
 }
 
 #[test]
 /// Test if the `text` rule passes properly.
 fn check_text() {
-    let passes = TEXT_PASSES;
-    let fails = TEXT_FAILS;
-
-    common::check_tests_rule(Rule::text_TEST, passes, fails);
+    common::check_tests_rule(Rule::text_TEST, TEXT_PASSES, TEXT_FAILS);
 }
