@@ -5,6 +5,9 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+#[path = "./common/mod.rs"]
+mod common;
+
 pub(crate) const ID_PASSES: &[&str] = &[
     "$",
     "@",
@@ -66,16 +69,8 @@ fn check_name_characters() {
 #[test]
 /// Test if the `id` rule passes properly.
 fn check_id() {
-    let test = ID_PASSES;
-    let fail = ID_FAILS;
+    let passes = ID_PASSES;
+    let fails = ID_FAILS;
 
-    for test in test {
-        let parse = CDDLTestParser::parse(Rule::id_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fail {
-        let parse = CDDLTestParser::parse(Rule::id_TEST, test);
-        assert!(parse.is_err());
-    }
+    common::check_tests_rule(Rule::id_TEST, passes, fails);
 }

@@ -1,10 +1,10 @@
 // cspell: words OPTCOM MEMBERKEY bareword tstr GRPENT GRPCHOICE
 // cspell: words optcom memberkey grpent grpchoice
 
-use cddl_parser::{
-    self,
-    cddl_test::{CDDLTestParser, Parser, Rule},
-};
+use cddl_parser::{self, cddl_test::Rule};
+
+#[path = "./common/mod.rs"]
+mod common;
 
 mod identifiers;
 use identifiers::{ID_FAILS, ID_PASSES};
@@ -120,22 +120,6 @@ pub(crate) const GROUP_PASSES: &[&str] = &[
 
 pub(crate) const GROUP_FAILS: &[&str] = &["(foo: 1) / (bar: 2)"];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `occur` rule passes properly.
 /// This uses a special rule in the Grammar to test `occur` exhaustively.
@@ -143,8 +127,7 @@ fn check_occur() {
     let passes = OCCUR_PASSES;
     let fails = OCCUR_FAILS;
 
-    passes_tests_rule(Rule::occur_TEST, passes);
-    fails_tests_rule(Rule::occur_TEST, fails);
+    common::check_tests_rule(Rule::occur_TEST, passes, fails);
 }
 
 #[test]
@@ -154,8 +137,7 @@ fn check_bareword() {
     let passes = ID_PASSES;
     let fails = ID_FAILS;
 
-    passes_tests_rule(Rule::bareword_TEST, passes);
-    fails_tests_rule(Rule::bareword_TEST, fails);
+    common::check_tests_rule(Rule::bareword_TEST, passes, fails);
 }
 
 #[test]
@@ -165,8 +147,7 @@ fn check_optcom() {
     let passes = OPTCOM_PASSES;
     let fails = OPTCOM_FAILS;
 
-    passes_tests_rule(Rule::optcom_TEST, passes);
-    fails_tests_rule(Rule::optcom_TEST, fails);
+    common::check_tests_rule(Rule::optcom_TEST, passes, fails);
 }
 
 #[test]
@@ -176,8 +157,7 @@ fn check_memberkey() {
     let passes = MEMBERKEY_PASSES;
     let fails = MEMBERKEY_FAILS;
 
-    passes_tests_rule(Rule::memberkey_TEST, passes);
-    fails_tests_rule(Rule::memberkey_TEST, fails);
+    common::check_tests_rule(Rule::memberkey_TEST, passes, fails);
 }
 
 #[test]
@@ -187,8 +167,7 @@ fn check_grpent() {
     let passes = GRPENT_PASSES;
     let fails = GRPENT_FAILS;
 
-    passes_tests_rule(Rule::grpent_TEST, passes);
-    fails_tests_rule(Rule::grpent_TEST, fails);
+    common::check_tests_rule(Rule::grpent_TEST, passes, fails);
 }
 
 #[test]
@@ -198,8 +177,7 @@ fn check_grpchoice() {
     let passes = GRPCHOICE_PASSES;
     let fails = GRPCHOICE_FAILS;
 
-    passes_tests_rule(Rule::grpchoice_TEST, passes);
-    fails_tests_rule(Rule::grpchoice_TEST, fails);
+    common::check_tests_rule(Rule::grpchoice_TEST, passes, fails);
 }
 
 #[test]
@@ -209,6 +187,5 @@ fn check_group() {
     let passes = GROUP_PASSES;
     let fails = GROUP_FAILS;
 
-    passes_tests_rule(Rule::group_TEST, passes);
-    fails_tests_rule(Rule::group_TEST, fails);
+    common::check_tests_rule(Rule::group_TEST, passes, fails);
 }

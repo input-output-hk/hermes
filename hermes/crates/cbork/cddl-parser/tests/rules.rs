@@ -6,6 +6,9 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+#[path = "./common/mod.rs"]
+mod common;
+
 mod identifiers;
 use identifiers::{ID_FAILS, ID_PASSES};
 mod type_declarations;
@@ -65,22 +68,6 @@ pub(crate) const RULE_GROUP_PASSES: &[&str] = &[
 
 pub(crate) const RULE_GROUP_FAILS: &[&str] = &["foo = bar: baz", "t /= (foo: bar)"];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `genericarg` rule passes properly.
 /// This uses a special rule in the Grammar to test `genericarg` exhaustively.
@@ -88,8 +75,7 @@ fn check_genericarg() {
     let passes = GENERICARG_PASSES;
     let fails = GENERICARG_FAILS;
 
-    passes_tests_rule(Rule::genericarg_TEST, passes);
-    fails_tests_rule(Rule::genericarg_TEST, fails);
+    common::check_tests_rule(Rule::genericarg_TEST, passes, fails);
 }
 
 #[test]
@@ -99,8 +85,7 @@ fn check_genericparm() {
     let passes = GENERICPARM_PASSES;
     let fails = GENERICPARM_FAILS;
 
-    passes_tests_rule(Rule::genericparm_TEST, passes);
-    fails_tests_rule(Rule::genericparm_TEST, fails);
+    common::check_tests_rule(Rule::genericparm_TEST, passes, fails);
 }
 
 #[test]
@@ -110,8 +95,7 @@ fn check_assigng() {
     let passes = ASSIGNG_PASSES;
     let fails = ASSIGNG_FAILS;
 
-    passes_tests_rule(Rule::assigng_TEST, passes);
-    fails_tests_rule(Rule::assigng_TEST, fails);
+    common::check_tests_rule(Rule::assigng_TEST, passes, fails);
 }
 
 #[test]
@@ -121,8 +105,7 @@ fn check_assignt() {
     let passes = ASSIGNT_PASSES;
     let fails = ASSIGNT_FAILS;
 
-    passes_tests_rule(Rule::assignt_TEST, passes);
-    fails_tests_rule(Rule::assignt_TEST, fails);
+    common::check_tests_rule(Rule::assignt_TEST, passes, fails);
 }
 
 #[test]
@@ -132,8 +115,7 @@ fn check_typename() {
     let passes = TYPENAME_PASSES;
     let fails = TYPENAME_FAILS;
 
-    passes_tests_rule(Rule::typename_TEST, passes);
-    fails_tests_rule(Rule::typename_TEST, fails);
+    common::check_tests_rule(Rule::typename_TEST, passes, fails);
 }
 
 #[test]
@@ -143,8 +125,7 @@ fn check_groupname() {
     let passes = GROUPNAME_PASSES;
     let fails = GROUPNAME_FAILS;
 
-    passes_tests_rule(Rule::groupname_TEST, passes);
-    fails_tests_rule(Rule::groupname_TEST, fails);
+    common::check_tests_rule(Rule::groupname_TEST, passes, fails);
 }
 
 #[test]
@@ -178,6 +159,5 @@ fn check_rule_group() {
     let passes = RULE_GROUP_PASSES;
     let fails = RULE_GROUP_FAILS;
 
-    passes_tests_rule(Rule::rule_TEST, passes);
-    fails_tests_rule(Rule::rule_TEST, fails);
+    common::check_tests_rule(Rule::rule_TEST, passes, fails);
 }

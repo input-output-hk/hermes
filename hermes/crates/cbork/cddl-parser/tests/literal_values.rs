@@ -2,10 +2,10 @@
 
 use std::ops::Deref;
 
-use cddl_parser::{
-    self,
-    cddl_test::{CDDLTestParser, Parser, Rule},
-};
+use cddl_parser::{self, cddl_test::Rule};
+
+#[path = "./common/mod.rs"]
+mod common;
 
 mod byte_sequences;
 use byte_sequences::BYTES_PASSES;
@@ -115,30 +115,13 @@ pub(crate) const VALUE_PASSES: &[&str] = &[];
 
 pub(crate) const VALUE_FAILS: &[&str] = &[];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `uint` rule passes properly.
 fn check_uint() {
     let passes = UINT_PASSES;
     let fails = UINT_FAILS;
 
-    passes_tests_rule(Rule::uint_TEST, passes);
-    fails_tests_rule(Rule::uint_TEST, fails);
+    common::check_tests_rule(Rule::uint_TEST, passes, fails);
 }
 
 #[test]
@@ -147,8 +130,7 @@ fn check_int() {
     let passes = INT_PASSES;
     let fails = INT_FAILS;
 
-    passes_tests_rule(Rule::int_TEST, passes);
-    fails_tests_rule(Rule::int_TEST, fails);
+    common::check_tests_rule(Rule::int_TEST, passes, fails);
 }
 
 #[test]
@@ -157,8 +139,7 @@ fn check_intfloat() {
     let passes = INTFLOAT_PASSES;
     let fails = INTFLOAT_FAILS;
 
-    passes_tests_rule(Rule::intfloat_TEST, passes);
-    fails_tests_rule(Rule::intfloat_TEST, fails);
+    common::check_tests_rule(Rule::intfloat_TEST, passes, fails);
 }
 
 #[test]
@@ -167,8 +148,7 @@ fn check_hexfloat() {
     let passes = HEXFLOAT_PASSES;
     let fails = HEXFLOAT_FAILS;
 
-    passes_tests_rule(Rule::hexfloat_TEST, passes);
-    fails_tests_rule(Rule::hexfloat_TEST, fails);
+    common::check_tests_rule(Rule::hexfloat_TEST, passes, fails);
 }
 
 #[test]
@@ -177,8 +157,7 @@ fn check_number() {
     let passes = NUMBER_PASSES;
     let fails = NUMBER_FAILS;
 
-    passes_tests_rule(Rule::number_TEST, passes);
-    fails_tests_rule(Rule::number_TEST, fails);
+    common::check_tests_rule(Rule::number_TEST, passes, fails);
 }
 
 #[test]
@@ -197,6 +176,5 @@ fn check_value() {
         .map(Deref::deref)
         .collect();
 
-    passes_tests_rule(Rule::value_TEST, &passes);
-    fails_tests_rule(Rule::value_TEST, &fails);
+    common::check_tests_rule(Rule::value_TEST, &passes, &fails);
 }

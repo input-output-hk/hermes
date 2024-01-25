@@ -6,6 +6,9 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
+#[path = "./common/mod.rs"]
+mod common;
+
 pub(crate) const CTLOP_PASSES: &[&str] = &[
     ".$",
     ".@",
@@ -115,22 +118,6 @@ pub(crate) const TYPE_PASSES: &[&str] = &[
 
 pub(crate) const TYPE_FAILS: &[&str] = &["", "1 \\ 2", "1 // 2", "1 2", "1 / 2 3"];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `ctlop` rule passes properly.
 /// This uses a special rule in the Grammar to test `ctlop` exhaustively.
@@ -138,8 +125,7 @@ fn check_ctlop() {
     let passes = CTLOP_PASSES;
     let fails = CTLOP_FAILS;
 
-    passes_tests_rule(Rule::ctlop_TEST, passes);
-    fails_tests_rule(Rule::ctlop_TEST, fails);
+    common::check_tests_rule(Rule::ctlop_TEST, passes, fails);
 }
 
 #[test]
@@ -149,8 +135,7 @@ fn check_rangeop() {
     let passes = RANGEOP_PASSES;
     let fails = RANGEOP_FAILS;
 
-    passes_tests_rule(Rule::rangeop_TEST, passes);
-    fails_tests_rule(Rule::rangeop_TEST, fails);
+    common::check_tests_rule(Rule::rangeop_TEST, passes, fails);
 }
 
 #[test]
@@ -160,8 +145,7 @@ fn check_type2() {
     let passes = TYPE2_PASSES;
     let fails = TYPE2_FAILS;
 
-    passes_tests_rule(Rule::type2_TEST, passes);
-    fails_tests_rule(Rule::type2_TEST, fails);
+    common::check_tests_rule(Rule::type2_TEST, passes, fails);
 }
 
 #[test]
@@ -171,8 +155,7 @@ fn check_type1() {
     let passes = TYPE1_PASSES;
     let fails = TYPE1_FAILS;
 
-    passes_tests_rule(Rule::type1_TEST, passes);
-    fails_tests_rule(Rule::type1_TEST, fails);
+    common::check_tests_rule(Rule::type1_TEST, passes, fails);
 }
 
 #[test]
@@ -208,8 +191,7 @@ fn check_type() {
     let passes = TYPE_PASSES;
     let fails = TYPE_FAILS;
 
-    passes_tests_rule(Rule::type_TEST, passes);
-    fails_tests_rule(Rule::type_TEST, fails);
+    common::check_tests_rule(Rule::type_TEST, passes, fails);
 }
 
 #[test]

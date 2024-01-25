@@ -1,7 +1,7 @@
-use cddl_parser::{
-    self,
-    cddl_test::{CDDLTestParser, Parser, Rule},
-};
+use cddl_parser::{self, cddl_test::Rule};
+
+#[path = "./common/mod.rs"]
+mod common;
 
 pub(crate) const COMMENT_PASSES: &[&str] = &["; A Comment \n", "; And another\r", ";more\r\n"];
 
@@ -22,30 +22,13 @@ pub(crate) const WHITESPACE_COMMENT_PASSES: &[&str] = &[
 
 pub(crate) const WHITESPACE_COMMENT_FAILS: &[&str] = &["not a comment"];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `COMMENT` rule passes properly.
 fn check_comment() {
     let passes = COMMENT_PASSES;
     let fails = COMMENT_FAILS;
 
-    passes_tests_rule(Rule::COMMENT_TEST, passes);
-    fails_tests_rule(Rule::COMMENT_TEST, fails);
+    common::check_tests_rule(Rule::COMMENT_TEST, passes, fails);
 }
 
 #[test]
@@ -55,6 +38,5 @@ fn check_whitespace_comments() {
     let passes = WHITESPACE_COMMENT_PASSES;
     let fails = WHITESPACE_COMMENT_FAILS;
 
-    passes_tests_rule(Rule::COMMENT_TEST, passes);
-    fails_tests_rule(Rule::COMMENT_TEST, fails);
+    common::check_tests_rule(Rule::COMMENT_TEST, passes, fails);
 }

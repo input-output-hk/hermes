@@ -1,9 +1,9 @@
 // cspell: words hexpair rstuvw abcdefghijklmnopqrstuvwyz rstuvw Xhhb Bhcm
 
-use cddl_parser::{
-    self,
-    cddl_test::{CDDLTestParser, Parser, Rule},
-};
+use cddl_parser::cddl_test::Rule;
+
+#[path = "./common/mod.rs"]
+mod common;
 
 pub(crate) const HEXPAIR_PASSES: &[&str] = &["00", "ab", "de", "0f", "f0"];
 
@@ -51,30 +51,13 @@ pub(crate) const BYTES_FAILS: &[&str] = &[
     "'\u{7}'",
 ];
 
-/// # Panics
-pub(crate) fn passes_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_ok());
-    }
-}
-
-/// # Panics
-pub(crate) fn fails_tests_rule(rule_type: Rule, test_data: &[&str]) {
-    for test in test_data {
-        let parse = CDDLTestParser::parse(rule_type, test);
-        assert!(parse.is_err());
-    }
-}
-
 #[test]
 /// Test if the `HEX_PAIR` rule passes properly.
 fn check_hexpair() {
     let passes = HEXPAIR_PASSES;
     let fails = HEXPAIR_FAILS;
 
-    passes_tests_rule(Rule::HEX_PAIR, passes);
-    fails_tests_rule(Rule::HEX_PAIR, fails);
+    common::check_tests_rule(Rule::HEX_PAIR, passes, fails);
 }
 
 #[test]
@@ -83,8 +66,7 @@ fn check_url_base64() {
     let passes = URL_BASE64_PASSES;
     let fails = URL_BASE64_FAILS;
 
-    passes_tests_rule(Rule::URL_BASE64_TEST, passes);
-    fails_tests_rule(Rule::URL_BASE64_TEST, fails);
+    common::check_tests_rule(Rule::URL_BASE64_TEST, passes, fails);
 }
 
 #[test]
@@ -93,6 +75,5 @@ fn check_bytes() {
     let passes = BYTES_PASSES;
     let fails = BYTES_FAILS;
 
-    passes_tests_rule(Rule::bytes_TEST, passes);
-    fails_tests_rule(Rule::bytes_TEST, fails);
+    common::check_tests_rule(Rule::bytes_TEST, passes, fails);
 }
