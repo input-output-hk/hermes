@@ -227,10 +227,10 @@
         "*.excalidraw",
         ".vscode/**",
         "**/.idea/**",
-        "hermes/wasi-preview1-component-adapter/byte-array-literals",
-        "hermes/wasi-preview1-component-adapter/wasi",
-        "hermes/wasi-preview1-component-adapter/src",
-        "hermes/wasi-preview1-component-adapter/build.rs",
+        "wasi-preview1-component-adapter/byte-array-literals",
+        "wasi-preview1-component-adapter/wasi",
+        "wasi-preview1-component-adapter/src",
+        "wasi-preview1-component-adapter/build.rs",
         "hermes/crates/cardano-chain-follower/examples/snapshot_data"
     ]
 }
