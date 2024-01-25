@@ -24,7 +24,8 @@ pub(crate) const GENERICARG_PASSES: &[&str] = &[
 pub(crate) const GENERICARG_FAILS: &[&str] =
     &["", "<>", "<uint,>", "<( foo: bar )>", "<bigint / bigfloat>"];
 
-pub(crate) const GENERICPARM_PASSES: &[&str] = &["<foo>", "<foo,bar>", "<foo, bar>", "<foo, bar, baz>"];
+pub(crate) const GENERICPARM_PASSES: &[&str] =
+    &["<foo>", "<foo,bar>", "<foo, bar>", "<foo, bar, baz>"];
 
 pub(crate) const GENERICPARM_FAILS: &[&str] = &[
     "",
