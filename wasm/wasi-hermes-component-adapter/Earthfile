@@ -6,7 +6,8 @@ VERSION 0.7
 builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.6.0+SETUP
 
-    COPY --dir .cargo .config src wasi byte-array-literals .
+    COPY --dir .cargo .config src byte-array-literals .
+    COPY ..+wasi-src/wasi wasi
     COPY Cargo.toml build.rs .
     COPY clippy.toml deny.toml rustfmt.toml .
 
@@ -29,7 +30,7 @@ build:
                                 --disable_benches \
                                 --build_flags="--target=wasm32-unknown-unknown"
 
-    SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_preview1.wasm wasi-component-adapter.wasm
+    SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_hermes.wasm wasi-hermes-component-adapter.wasm
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.

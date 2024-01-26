@@ -60,7 +60,7 @@ wasm-encoder = "0.38.1"
 object = { version = "0.32.1", default-features = false }
 
 [package]
-name = "wasi-preview1-component-adapter"
+name = "wasi-hermes-component-adapter"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -69,7 +69,7 @@ publish = false
 
 [lib]
 crate-type = ["cdylib"]
-name = "wasi_snapshot_preview1"
+name = "wasi_snapshot_hermes"
 
 [lints]
 workspace = true
@@ -86,6 +86,5 @@ object = { workspace = true, features = ["archive"] }
 [features]
 default = ["reactor"]
 reactor = []
-command = []
 proxy = []
 

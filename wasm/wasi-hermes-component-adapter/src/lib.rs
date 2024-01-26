@@ -54,14 +54,8 @@ use crate::bindings::wasi::{
     random::random,
 };
 
-#[cfg(any(
-    all(feature = "command", feature = "reactor"),
-    all(feature = "reactor", feature = "proxy"),
-    all(feature = "command", feature = "proxy"),
-))]
-compile_error!(
-    "only one of the `command`, `reactor` or `proxy` features may be selected at a time"
-);
+#[cfg(all(feature = "reactor", feature = "proxy"))]
+compile_error!("only one of the `reactor` or `proxy` features may be selected at a time");
 
 #[macro_use]
 mod macros;
@@ -74,21 +68,6 @@ use crate::descriptors::{Descriptor, Descriptors, StreamType, Streams};
 #[allow(clippy::doc_markdown)]
 #[allow(clippy::ignored_unit_patterns)]
 pub mod bindings {
-    #[cfg(feature = "command")]
-    wit_bindgen::generate!({
-        path: "./wasi/wit",
-        world: "wasi:cli/command",
-        std_feature,
-        raw_strings,
-        // Automatically generated bindings for these functions will allocate
-        // Vecs, which in turn pulls in the panic machinery from std, which
-        // creates vtables that end up in the wasm elem section, which we
-        // can't support in these special core-wasm adapters.
-        // Instead, we manually define the bindings for these functions in
-        // terms of raw pointers.
-        skip: ["run", "get-environment", "poll"],
-    });
-
     #[cfg(feature = "reactor")]
     wit_bindgen::generate!({
         path: "./wasi/wit",
@@ -123,17 +102,6 @@ pub mod bindings {
         raw_strings,
         skip: ["poll"],
     });
-}
-
-#[export_name = "wasi:cli/run@0.2.0-rc-2023-12-05#run"]
-#[cfg(feature = "command")]
-pub unsafe extern "C" fn run() -> u32 {
-    #[link(wasm_import_module = "__main_module__")]
-    extern "C" {
-        fn _start();
-    }
-    _start();
-    0
 }
 
 #[cfg(feature = "proxy")]
@@ -1979,19 +1947,15 @@ pub unsafe extern "C" fn poll_oneoff(
                     }
                 },
 
-                EVENTTYPE_FD_READ => {
-                    state
-                        .descriptors()
-                        .get_read_stream(subscription.u.u.fd_read.file_descriptor)
-                        .map(|stream| stream.subscribe())?
-                },
+                EVENTTYPE_FD_READ => state
+                    .descriptors()
+                    .get_read_stream(subscription.u.u.fd_read.file_descriptor)
+                    .map(|stream| stream.subscribe())?,
 
-                EVENTTYPE_FD_WRITE => {
-                    state
-                        .descriptors()
-                        .get_write_stream(subscription.u.u.fd_write.file_descriptor)
-                        .map(|stream| stream.subscribe())?
-                },
+                EVENTTYPE_FD_WRITE => state
+                    .descriptors()
+                    .get_write_stream(subscription.u.u.fd_write.file_descriptor)
+                    .map(|stream| stream.subscribe())?,
 
                 _ => return Err(ERRNO_INVAL),
             });
@@ -2049,29 +2013,24 @@ pub unsafe extern "C" fn poll_oneoff(
                         .get(subscription.u.u.fd_read.file_descriptor)
                         .trapping_unwrap();
                     match desc {
-                        Descriptor::Streams(streams) => {
-                            match &streams.type_ {
-                                #[cfg(not(feature = "proxy"))]
-                                StreamType::File(file) => {
-                                    match file.fd.stat() {
-                                        Ok(stat) => {
-                                            let nbytes =
-                                                stat.size.saturating_sub(file.position.get());
-                                            (
-                                                ERRNO_SUCCESS,
-                                                nbytes,
-                                                if nbytes == 0 {
-                                                    EVENTRWFLAGS_FD_READWRITE_HANGUP
-                                                } else {
-                                                    0
-                                                },
-                                            )
+                        Descriptor::Streams(streams) => match &streams.type_ {
+                            #[cfg(not(feature = "proxy"))]
+                            StreamType::File(file) => match file.fd.stat() {
+                                Ok(stat) => {
+                                    let nbytes = stat.size.saturating_sub(file.position.get());
+                                    (
+                                        ERRNO_SUCCESS,
+                                        nbytes,
+                                        if nbytes == 0 {
+                                            EVENTRWFLAGS_FD_READWRITE_HANGUP
+                                        } else {
+                                            0
                                         },
-                                        Err(e) => (e.into(), 1, 0),
-                                    }
+                                    )
                                 },
-                                StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                            }
+                                Err(e) => (e.into(), 1, 0),
+                            },
+                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
                         },
                         _ => unreachable!(),
                     }
@@ -2083,12 +2042,10 @@ pub unsafe extern "C" fn poll_oneoff(
                         .get(subscription.u.u.fd_write.file_descriptor)
                         .trapping_unwrap();
                     match desc {
-                        Descriptor::Streams(streams) => {
-                            match &streams.type_ {
-                                #[cfg(not(feature = "proxy"))]
-                                StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
-                                StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                            }
+                        Descriptor::Streams(streams) => match &streams.type_ {
+                            #[cfg(not(feature = "proxy"))]
+                            StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
+                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
                         },
                         _ => unreachable!(),
                     }
@@ -2232,10 +2189,8 @@ pub unsafe extern "C" fn sock_shutdown(_fd: Fd, _how: Sdflags) -> Errno {
 #[allow(clippy::missing_docs_in_private_items)]
 fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
     match datetime {
-        Some(datetime) => {
-            u64::from(datetime.nanoseconds)
-                .saturating_add(datetime.seconds.saturating_mul(1_000_000_000))
-        },
+        Some(datetime) => u64::from(datetime.nanoseconds)
+            .saturating_add(datetime.seconds.saturating_mul(1_000_000_000)),
         None => 0,
     }
 }
