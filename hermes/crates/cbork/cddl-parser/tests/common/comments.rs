@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TODO: find a way to remove this.
+
 pub(crate) const COMMENT_PASSES: &[&str] = &["; A Comment \n", "; And another\r", ";more\r\n"];
 
 pub(crate) const COMMENT_FAILS: &[&str] = &["not a comment\n"];

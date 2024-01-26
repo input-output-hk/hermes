@@ -1,3 +1,7 @@
+// cspell: words xdog INTFLOAT HEXFLOAT xabcp defp
+
+#![allow(dead_code)] // TODO: find a way to remove this.
+
 pub(crate) const UINT_PASSES: &[&str] = &[
     "10",
     "101",

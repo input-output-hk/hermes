@@ -1,3 +1,7 @@
+// cspell: words OPTCOM MEMBERKEY bareword tstr GRPENT GRPCHOICE
+
+#![allow(dead_code)] // TODO: find a way to remove this.
+
 pub(crate) const OCCUR_PASSES: &[&str] = &[
     "*",
     "+",

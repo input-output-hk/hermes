@@ -1,3 +1,7 @@
+// cspell: words CTLOP aname groupsocket typesocket RANGEOP tstr
+
+#![allow(dead_code)] // TODO: find a way to remove this.
+
 pub(crate) const CTLOP_PASSES: &[&str] = &[
     ".$",
     ".@",

@@ -1,3 +1,7 @@
+// cspell: words aname groupsocket typesocket
+
+#![allow(dead_code)] // TODO: find a way to remove this.
+
 pub(crate) const ID_PASSES: &[&str] = &[
     "$",
     "@",

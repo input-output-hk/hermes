@@ -1,4 +1,8 @@
-use super::identifiers::{ID_PASSES, ID_FAILS};
+// cspell: words GENERICARG bigfloat GENERICPARM ASSIGNG ASSIGNT GROUPNAME tstr
+
+#![allow(dead_code)] // TODO: find a way to remove this.
+
+use super::identifiers::{ID_FAILS, ID_PASSES};
 
 pub(crate) const GENERICARG_PASSES: &[&str] = &[
     "<uint>",
