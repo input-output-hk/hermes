@@ -5,46 +5,8 @@ use cddl_parser::{
     cddl_test::{CDDLTestParser, Parser, Rule},
 };
 
-#[path = "common/mod.rs"]
-#[allow(clippy::duplicate_mod)]
 mod common;
-
-pub(crate) const ID_PASSES: &[&str] = &[
-    "$",
-    "@",
-    "_",
-    "a",
-    "z",
-    "A",
-    "Z",
-    "$$",
-    "@@",
-    "__",
-    "a$",
-    "a@",
-    "a_",
-    "$0",
-    "@9",
-    "_a",
-    "abc",
-    "aname",
-    "@aname",
-    "_aname",
-    "$aname",
-    "a$name",
-    "a.name",
-    "@a.name",
-    "$a.name",
-    "_a.name",
-    "$$",
-    "$$groupsocket",
-    "$",
-    "$typesocket",
-];
-
-pub(crate) const ID_FAILS: &[&str] = &[
-    "aname.", "aname-", "aname%", "a%name4", "a^name5", "a name", "",
-];
+use common::identifiers::*;
 
 #[test]
 /// Check if the name components pass properly.
