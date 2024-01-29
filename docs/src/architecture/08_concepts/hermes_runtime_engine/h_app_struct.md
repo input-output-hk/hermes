@@ -8,14 +8,32 @@ bundled in [hdf5](https://www.hdfgroup.org/solutions/hdf5/) package.
 Each WASM component it is the event handlers implementation of `export` functions from the [WIT] file,
 specified by the [*Hermes runtime extension*].
 
-Package structure
+## Package structure
 
 ```bash
-├── module1.wasm
-├── module2.wasm
-├── config.json
-└── METADATA
+/ root
+├── static
+│   ├── data
+│   │   └── default
+│   │       ├── config.json
+│   │       └── ...
+│   └── www
+│       ├── site1
+│       │  ├── html
+│       │  └── ...
+│       └── site2
+│          ├── html
+│          └── ...
+├── data
+│   ├── module1_dataset
+│   ├── module2_dataset
+│   └── ...
+└── module
+    ├── module1.wasm
+    ├── module2.wasm
+    └── ...
 ```
+
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [*Hermes runtime extension*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
