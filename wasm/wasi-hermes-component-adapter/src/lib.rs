@@ -17,9 +17,9 @@
 use core::{
     cell::{Cell, OnceCell, RefCell, RefMut, UnsafeCell},
     cmp::min,
-    /*ffi::c_void,*/
+    // ffi::c_void,
     hint::black_box,
-    mem::{self, /*align_of,*/ forget, size_of, ManuallyDrop, MaybeUninit},
+    mem::{self, /* align_of, */ forget, size_of, ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::{self, null_mut},
     slice,
@@ -27,23 +27,27 @@ use core::{
 
 // use poll::Pollable; // Hermes does not support `poll`
 use wasi::{
-    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, /* Event, EventFdReadwrite,*/
-    /*Exitcode,*/ Fd, Fdflags, Fdstat, Filedelta, Filesize, Filestat, Fstflags, Iovec,
-    Lookupflags, Oflags, Prestat, PrestatDir, PrestatU, Riflags, Rights, Roflags, Sdflags, Siflags,
-    Signal, Size, /*Subscription,*/ Timestamp, Whence, ADVICE_DONTNEED, ADVICE_NOREUSE,
-    ADVICE_NORMAL, ADVICE_RANDOM, ADVICE_SEQUENTIAL, ADVICE_WILLNEED, CLOCKID_MONOTONIC,
-    CLOCKID_REALTIME, ERRNO_ACCES, ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF, ERRNO_BUSY,
-    ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST, ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS, ERRNO_INTR,
-    ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR, ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE, ERRNO_NAMETOOLONG,
-    ERRNO_NODEV, ERRNO_NOENT, ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC, ERRNO_NOTDIR, ERRNO_NOTEMPTY,
-    ERRNO_NOTRECOVERABLE, ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO, ERRNO_OVERFLOW, ERRNO_PERM,
-    ERRNO_PIPE, ERRNO_ROFS, ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY, ERRNO_XDEV,
-    /*EVENTRWFLAGS_FD_READWRITE_HANGUP,*/ FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK,
-    FDFLAGS_RSYNC, FDFLAGS_SYNC, FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE,
-    FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE, FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN,
-    FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM, FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW,
-    OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL, OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE,
-    /*SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,*/ WHENCE_CUR, WHENCE_END, WHENCE_SET,
+    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, // Event, EventFdReadwrite,
+    // Exitcode,
+    Fd, Fdflags, Fdstat, Filedelta, Filesize, Filestat, Fstflags, Iovec, Lookupflags, Oflags,
+    Prestat, PrestatDir, PrestatU, Riflags, Rights, Roflags, Sdflags, Siflags, Signal, Size,
+    // Subscription,
+    Timestamp, Whence, ADVICE_DONTNEED, ADVICE_NOREUSE, ADVICE_NORMAL, ADVICE_RANDOM,
+    ADVICE_SEQUENTIAL, ADVICE_WILLNEED, CLOCKID_MONOTONIC, CLOCKID_REALTIME, ERRNO_ACCES,
+    ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF, ERRNO_BUSY, ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST,
+    ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS, ERRNO_INTR, ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR,
+    ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE, ERRNO_NAMETOOLONG, ERRNO_NODEV, ERRNO_NOENT,
+    ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC, ERRNO_NOTDIR, ERRNO_NOTEMPTY, ERRNO_NOTRECOVERABLE,
+    ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO, ERRNO_OVERFLOW, ERRNO_PERM, ERRNO_PIPE, ERRNO_ROFS,
+    ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY, ERRNO_XDEV,
+    // EVENTRWFLAGS_FD_READWRITE_HANGUP,
+    FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK, FDFLAGS_RSYNC, FDFLAGS_SYNC,
+    FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE, FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE,
+    FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN, FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM,
+    FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW, OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL,
+    OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE,
+    // SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,
+    WHENCE_CUR, WHENCE_END, WHENCE_SET,
 };
 
 #[cfg(not(feature = "proxy"))]
@@ -1801,298 +1805,295 @@ pub unsafe extern "C" fn path_unlink_file(fd: Fd, path_ptr: *const u8, path_len:
     }
 }
 
-/* Hermes DOES NOT support `poll`
-#[allow(clippy::missing_docs_in_private_items)]
-struct Pollables {
-    pointer: *mut Pollable,
-    index: usize,
-    length: usize,
-}
-
-impl Pollables {
-    #[allow(clippy::missing_docs_in_private_items)]
-    unsafe fn push(&mut self, pollable: Pollable) {
-        assert!(self.index < self.length);
-        // Use `ptr::write` instead of `*... = pollable` because `ptr::write`
-        // doesn't call drop on the old memory.
-        self.pointer.add(self.index).write(pollable);
-        self.index += 1;
-    }
-}
-
+// Hermes DOES NOT support `poll`
+// #[allow(clippy::missing_docs_in_private_items)]
+// struct Pollables {
+// pointer: *mut Pollable,
+// index: usize,
+// length: usize,
+// }
+//
+// impl Pollables {
+// #[allow(clippy::missing_docs_in_private_items)]
+// unsafe fn push(&mut self, pollable: Pollable) {
+// assert!(self.index < self.length);
+// Use `ptr::write` instead of `*... = pollable` because `ptr::write`
+// doesn't call drop on the old memory.
+// self.pointer.add(self.index).write(pollable);
+// self.index += 1;
+// }
+// }
+//
 // We create new pollable handles for each `poll_oneoff` call, so drop them all
 // after the call.
-impl Drop for Pollables {
-    fn drop(&mut self) {
-        while self.index != 0 {
-            self.index -= 1;
-            unsafe {
-                core::ptr::drop_in_place(self.pointer.add(self.index));
-            }
-        }
-    }
-}
-
-/// Concurrently poll for the occurrence of a set of events.
-#[no_mangle]
-#[allow(clippy::unreachable)]
-#[allow(clippy::single_match_else)]
-#[allow(clippy::ptr_cast_constness)]
-#[allow(clippy::borrow_as_ptr)]
-#[allow(clippy::redundant_closure_for_method_calls)]
-#[allow(clippy::missing_docs_in_private_items)]
-#[allow(clippy::ptr_as_ptr)]
-#[allow(clippy::too_many_lines)]
-#[allow(clippy::missing_panics_doc)]
-#[allow(clippy::missing_safety_doc)]
-#[allow(clippy::items_after_statements)]
-#[allow(trivial_casts)]
-#[allow(clippy::similar_names)]
-pub unsafe extern "C" fn poll_oneoff(
-    r#in: *const Subscription, out: *mut Event, nsubscriptions: Size, nevents: *mut Size,
-) -> Errno {
-    *nevents = 0;
-
-    let subscriptions = slice::from_raw_parts(r#in, nsubscriptions);
-
-    // We're going to split the `nevents` buffer into two non-overlapping
-    // buffers: one to store the pollable handles, and the other to store
-    // the bool results.
-    //
-    // First, we assert that this is possible:
-    assert!(align_of::<Event>() >= align_of::<Pollable>());
-    assert!(align_of::<Pollable>() >= align_of::<u32>());
-    assert!(
-        nsubscriptions
-            .checked_mul(size_of::<Event>())
-            .trapping_unwrap()
-            >= nsubscriptions
-                .checked_mul(size_of::<Pollable>())
-                .trapping_unwrap()
-                .checked_add(
-                    nsubscriptions
-                        .checked_mul(size_of::<u32>())
-                        .trapping_unwrap()
-                )
-                .trapping_unwrap()
-    );
-    // Store the pollable handles at the beginning, and the bool results at the
-    // end, so that we don't clobber the bool results when writting the events.
-    let pollables = out as *mut c_void as *mut Pollable;
-    let results = out.add(nsubscriptions).cast::<u32>().sub(nsubscriptions);
-
-    // Indefinite sleeping is not supported in preview1.
-    if nsubscriptions == 0 {
-        return ERRNO_INVAL;
-    }
-
-    State::with(|state| {
-        const EVENTTYPE_CLOCK: u8 = wasi::EVENTTYPE_CLOCK.raw();
-        const EVENTTYPE_FD_READ: u8 = wasi::EVENTTYPE_FD_READ.raw();
-        const EVENTTYPE_FD_WRITE: u8 = wasi::EVENTTYPE_FD_WRITE.raw();
-
-        let mut pollables = Pollables {
-            pointer: pollables,
-            index: 0,
-            length: nsubscriptions,
-        };
-
-        for subscription in subscriptions {
-            pollables.push(match subscription.u.tag {
-                EVENTTYPE_CLOCK => {
-                    let clock = &subscription.u.u.clock;
-                    let absolute = (clock.flags & SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME)
-                        == SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME;
-                    match clock.id {
-                        CLOCKID_REALTIME => {
-                            let timeout = if absolute {
-                                // Convert `clock.timeout` to `Datetime`.
-                                let mut datetime = wall_clock::Datetime {
-                                    seconds: clock.timeout / 1_000_000_000,
-                                    nanoseconds: (clock.timeout % 1_000_000_000) as _,
-                                };
-
-                                // Subtract `now`.
-                                let now = wall_clock::now();
-                                datetime.seconds -= now.seconds;
-                                if datetime.nanoseconds < now.nanoseconds {
-                                    datetime.seconds -= 1;
-                                    datetime.nanoseconds += 1_000_000_000;
-                                }
-                                datetime.nanoseconds -= now.nanoseconds;
-
-                                // Convert to nanoseconds.
-                                let nanos = datetime
-                                    .seconds
-                                    .checked_mul(1_000_000_000)
-                                    .ok_or(ERRNO_OVERFLOW)?;
-                                nanos
-                                    .checked_add(datetime.nanoseconds.into())
-                                    .ok_or(ERRNO_OVERFLOW)?
-                            } else {
-                                clock.timeout
-                            };
-
-                            monotonic_clock::subscribe_duration(timeout)
-                        },
-
-                        CLOCKID_MONOTONIC => {
-                            if absolute {
-                                monotonic_clock::subscribe_instant(clock.timeout)
-                            } else {
-                                monotonic_clock::subscribe_duration(clock.timeout)
-                            }
-                        },
-
-                        _ => return Err(ERRNO_INVAL),
-                    }
-                },
-
-                EVENTTYPE_FD_READ => state
-                    .descriptors()
-                    .get_read_stream(subscription.u.u.fd_read.file_descriptor)
-                    .map(|stream| stream.subscribe())?,
-
-                EVENTTYPE_FD_WRITE => state
-                    .descriptors()
-                    .get_write_stream(subscription.u.u.fd_write.file_descriptor)
-                    .map(|stream| stream.subscribe())?,
-
-                _ => return Err(ERRNO_INVAL),
-            });
-        }
-
-        #[link(wasm_import_module = "wasi:io/poll@0.2.0-rc-2023-11-10")]
-        #[allow(improper_ctypes)] // FIXME(bytecodealliance/wit-bindgen#684)
-        extern "C" {
-            #[link_name = "poll"]
-            fn poll_import(pollables: *const Pollable, len: usize, rval: *mut ReadyList);
-        }
-        let mut ready_list = ReadyList {
-            base: std::ptr::null(),
-            len: 0,
-        };
-
-        state.import_alloc.with_buffer(
-            results.cast(),
-            nsubscriptions
-                .checked_mul(size_of::<u32>())
-                .trapping_unwrap(),
-            || {
-                poll_import(
-                    pollables.pointer,
-                    pollables.length,
-                    &mut ready_list as *mut _,
-                );
-            },
-        );
-
-        assert!(ready_list.len <= nsubscriptions);
-        assert_eq!(ready_list.base, results as *const u32);
-
-        drop(pollables);
-
-        let ready = std::slice::from_raw_parts(ready_list.base, ready_list.len);
-
-        let mut count = 0;
-
-        for subscription in ready {
-            let subscription = *subscriptions.as_ptr().add(*subscription as usize);
-
-            let type_;
-
-            let (error, nbytes, flags) = match subscription.u.tag {
-                EVENTTYPE_CLOCK => {
-                    type_ = wasi::EVENTTYPE_CLOCK;
-                    (ERRNO_SUCCESS, 0, 0)
-                },
-
-                EVENTTYPE_FD_READ => {
-                    type_ = wasi::EVENTTYPE_FD_READ;
-                    let ds = state.descriptors();
-                    let desc = ds
-                        .get(subscription.u.u.fd_read.file_descriptor)
-                        .trapping_unwrap();
-                    match desc {
-                        Descriptor::Streams(streams) => match &streams.type_ {
-                            #[cfg(not(feature = "proxy"))]
-                            StreamType::File(file) => match file.fd.stat() {
-                                Ok(stat) => {
-                                    let nbytes = stat.size.saturating_sub(file.position.get());
-                                    (
-                                        ERRNO_SUCCESS,
-                                        nbytes,
-                                        if nbytes == 0 {
-                                            EVENTRWFLAGS_FD_READWRITE_HANGUP
-                                        } else {
-                                            0
-                                        },
-                                    )
-                                },
-                                Err(e) => (e.into(), 1, 0),
-                            },
-                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                        },
-                        _ => unreachable!(),
-                    }
-                },
-                EVENTTYPE_FD_WRITE => {
-                    type_ = wasi::EVENTTYPE_FD_WRITE;
-                    let ds = state.descriptors();
-                    let desc = ds
-                        .get(subscription.u.u.fd_write.file_descriptor)
-                        .trapping_unwrap();
-                    match desc {
-                        Descriptor::Streams(streams) => match &streams.type_ {
-                            #[cfg(not(feature = "proxy"))]
-                            StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
-                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                        },
-                        _ => unreachable!(),
-                    }
-                },
-
-                _ => unreachable!(),
-            };
-
-            *out.add(count) = Event {
-                userdata: subscription.userdata,
-                error,
-                type_,
-                fd_readwrite: EventFdReadwrite { nbytes, flags },
-            };
-
-            count += 1;
-        }
-
-        *nevents = count;
-
-        Ok(())
-    })
-}
-*/
+// impl Drop for Pollables {
+// fn drop(&mut self) {
+// while self.index != 0 {
+// self.index -= 1;
+// unsafe {
+// core::ptr::drop_in_place(self.pointer.add(self.index));
+// }
+// }
+// }
+// }
+//
+// Concurrently poll for the occurrence of a set of events.
+// #[no_mangle]
+// #[allow(clippy::unreachable)]
+// #[allow(clippy::single_match_else)]
+// #[allow(clippy::ptr_cast_constness)]
+// #[allow(clippy::borrow_as_ptr)]
+// #[allow(clippy::redundant_closure_for_method_calls)]
+// #[allow(clippy::missing_docs_in_private_items)]
+// #[allow(clippy::ptr_as_ptr)]
+// #[allow(clippy::too_many_lines)]
+// #[allow(clippy::missing_panics_doc)]
+// #[allow(clippy::missing_safety_doc)]
+// #[allow(clippy::items_after_statements)]
+// #[allow(trivial_casts)]
+// #[allow(clippy::similar_names)]
+// pub unsafe extern "C" fn poll_oneoff(
+// r#in: *const Subscription, out: *mut Event, nsubscriptions: Size, nevents: *mut Size,
+// ) -> Errno {
+// nevents = 0;
+//
+// let subscriptions = slice::from_raw_parts(r#in, nsubscriptions);
+//
+// We're going to split the `nevents` buffer into two non-overlapping
+// buffers: one to store the pollable handles, and the other to store
+// the bool results.
+//
+// First, we assert that this is possible:
+// assert!(align_of::<Event>() >= align_of::<Pollable>());
+// assert!(align_of::<Pollable>() >= align_of::<u32>());
+// assert!(
+// nsubscriptions
+// .checked_mul(size_of::<Event>())
+// .trapping_unwrap()
+// >= nsubscriptions
+// .checked_mul(size_of::<Pollable>())
+// .trapping_unwrap()
+// .checked_add(
+// nsubscriptions
+// .checked_mul(size_of::<u32>())
+// .trapping_unwrap()
+// )
+// .trapping_unwrap()
+// );
+// Store the pollable handles at the beginning, and the bool results at the
+// end, so that we don't clobber the bool results when writting the events.
+// let pollables = out as *mut c_void as *mut Pollable;
+// let results = out.add(nsubscriptions).cast::<u32>().sub(nsubscriptions);
+//
+// Indefinite sleeping is not supported in preview1.
+// if nsubscriptions == 0 {
+// return ERRNO_INVAL;
+// }
+//
+// State::with(|state| {
+// const EVENTTYPE_CLOCK: u8 = wasi::EVENTTYPE_CLOCK.raw();
+// const EVENTTYPE_FD_READ: u8 = wasi::EVENTTYPE_FD_READ.raw();
+// const EVENTTYPE_FD_WRITE: u8 = wasi::EVENTTYPE_FD_WRITE.raw();
+//
+// let mut pollables = Pollables {
+// pointer: pollables,
+// index: 0,
+// length: nsubscriptions,
+// };
+//
+// for subscription in subscriptions {
+// pollables.push(match subscription.u.tag {
+// EVENTTYPE_CLOCK => {
+// let clock = &subscription.u.u.clock;
+// let absolute = (clock.flags & SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME)
+// == SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME;
+// match clock.id {
+// CLOCKID_REALTIME => {
+// let timeout = if absolute {
+// Convert `clock.timeout` to `Datetime`.
+// let mut datetime = wall_clock::Datetime {
+// seconds: clock.timeout / 1_000_000_000,
+// nanoseconds: (clock.timeout % 1_000_000_000) as _,
+// };
+//
+// Subtract `now`.
+// let now = wall_clock::now();
+// datetime.seconds -= now.seconds;
+// if datetime.nanoseconds < now.nanoseconds {
+// datetime.seconds -= 1;
+// datetime.nanoseconds += 1_000_000_000;
+// }
+// datetime.nanoseconds -= now.nanoseconds;
+//
+// Convert to nanoseconds.
+// let nanos = datetime
+// .seconds
+// .checked_mul(1_000_000_000)
+// .ok_or(ERRNO_OVERFLOW)?;
+// nanos
+// .checked_add(datetime.nanoseconds.into())
+// .ok_or(ERRNO_OVERFLOW)?
+// } else {
+// clock.timeout
+// };
+//
+// monotonic_clock::subscribe_duration(timeout)
+// },
+//
+// CLOCKID_MONOTONIC => {
+// if absolute {
+// monotonic_clock::subscribe_instant(clock.timeout)
+// } else {
+// monotonic_clock::subscribe_duration(clock.timeout)
+// }
+// },
+//
+// _ => return Err(ERRNO_INVAL),
+// }
+// },
+//
+// EVENTTYPE_FD_READ => state
+// .descriptors()
+// .get_read_stream(subscription.u.u.fd_read.file_descriptor)
+// .map(|stream| stream.subscribe())?,
+//
+// EVENTTYPE_FD_WRITE => state
+// .descriptors()
+// .get_write_stream(subscription.u.u.fd_write.file_descriptor)
+// .map(|stream| stream.subscribe())?,
+//
+// _ => return Err(ERRNO_INVAL),
+// });
+// }
+//
+// #[link(wasm_import_module = "wasi:io/poll@0.2.0-rc-2023-11-10")]
+// #[allow(improper_ctypes)] // FIXME(bytecodealliance/wit-bindgen#684)
+// extern "C" {
+// #[link_name = "poll"]
+// fn poll_import(pollables: *const Pollable, len: usize, rval: *mut ReadyList);
+// }
+// let mut ready_list = ReadyList {
+// base: std::ptr::null(),
+// len: 0,
+// };
+//
+// state.import_alloc.with_buffer(
+// results.cast(),
+// nsubscriptions
+// .checked_mul(size_of::<u32>())
+// .trapping_unwrap(),
+// || {
+// poll_import(
+// pollables.pointer,
+// pollables.length,
+// &mut ready_list as *mut _,
+// );
+// },
+// );
+//
+// assert!(ready_list.len <= nsubscriptions);
+// assert_eq!(ready_list.base, results as *const u32);
+//
+// drop(pollables);
+//
+// let ready = std::slice::from_raw_parts(ready_list.base, ready_list.len);
+//
+// let mut count = 0;
+//
+// for subscription in ready {
+// let subscription = *subscriptions.as_ptr().add(*subscription as usize);
+//
+// let type_;
+//
+// let (error, nbytes, flags) = match subscription.u.tag {
+// EVENTTYPE_CLOCK => {
+// type_ = wasi::EVENTTYPE_CLOCK;
+// (ERRNO_SUCCESS, 0, 0)
+// },
+//
+// EVENTTYPE_FD_READ => {
+// type_ = wasi::EVENTTYPE_FD_READ;
+// let ds = state.descriptors();
+// let desc = ds
+// .get(subscription.u.u.fd_read.file_descriptor)
+// .trapping_unwrap();
+// match desc {
+// Descriptor::Streams(streams) => match &streams.type_ {
+// #[cfg(not(feature = "proxy"))]
+// StreamType::File(file) => match file.fd.stat() {
+// Ok(stat) => {
+// let nbytes = stat.size.saturating_sub(file.position.get());
+// (
+// ERRNO_SUCCESS,
+// nbytes,
+// if nbytes == 0 {
+// EVENTRWFLAGS_FD_READWRITE_HANGUP
+// } else {
+// 0
+// },
+// )
+// },
+// Err(e) => (e.into(), 1, 0),
+// },
+// StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
+// },
+// _ => unreachable!(),
+// }
+// },
+// EVENTTYPE_FD_WRITE => {
+// type_ = wasi::EVENTTYPE_FD_WRITE;
+// let ds = state.descriptors();
+// let desc = ds
+// .get(subscription.u.u.fd_write.file_descriptor)
+// .trapping_unwrap();
+// match desc {
+// Descriptor::Streams(streams) => match &streams.type_ {
+// #[cfg(not(feature = "proxy"))]
+// StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
+// StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
+// },
+// _ => unreachable!(),
+// }
+// },
+//
+// _ => unreachable!(),
+// };
+//
+// out.add(count) = Event {
+// userdata: subscription.userdata,
+// error,
+// type_,
+// fd_readwrite: EventFdReadwrite { nbytes, flags },
+// };
+//
+// count += 1;
+// }
+//
+// nevents = count;
+//
+// Ok(())
+// })
+// }
 
 /// Terminate the process normally. An exit code of 0 indicates successful
 /// termination of the program. The meanings of other values is dependent on
 /// the environment.
 /// It is not valid to `exit` from a Hermes module.
-/*
-#[no_mangle]
-#[allow(clippy::unreachable)]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
-    #[cfg(feature = "proxy")]
-    {
-        unreachable!("no other implementation available in proxy world");
-    }
-    #[cfg(not(feature = "proxy"))]
-    {
-        let status = if rval == 0 { Ok(()) } else { Err(()) };
-        crate::bindings::wasi::cli::exit::exit(status); // does not return
-        unreachable!("host exit implementation didn't exit!") // actually unreachable
-    }
-}
-*/
+// #[no_mangle]
+// #[allow(clippy::unreachable)]
+// #[allow(clippy::missing_safety_doc)]
+// pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
+// #[cfg(feature = "proxy")]
+// {
+// unreachable!("no other implementation available in proxy world");
+// }
+// #[cfg(not(feature = "proxy"))]
+// {
+// let status = if rval == 0 { Ok(()) } else { Err(()) };
+// crate::bindings::wasi::cli::exit::exit(status); // does not return
+// unreachable!("host exit implementation didn't exit!") // actually unreachable
+// }
+// }
 
 /// Send a signal to the process of the calling thread.
 /// Note: This is similar to `raise` in POSIX.
@@ -2194,8 +2195,10 @@ pub unsafe extern "C" fn sock_shutdown(_fd: Fd, _how: Sdflags) -> Errno {
 #[allow(clippy::missing_docs_in_private_items)]
 fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
     match datetime {
-        Some(datetime) => u64::from(datetime.nanoseconds)
-            .saturating_add(datetime.seconds.saturating_mul(1_000_000_000)),
+        Some(datetime) => {
+            u64::from(datetime.nanoseconds)
+                .saturating_add(datetime.seconds.saturating_mul(1_000_000_000))
+        },
         None => 0,
     }
 }

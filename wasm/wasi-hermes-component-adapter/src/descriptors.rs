@@ -431,21 +431,19 @@ impl Descriptors {
         self.get_stream_with_error_mut(fd, wasi::ERRNO_SPIPE)
     }
 
-    /*
-    pub fn get_read_stream(&self, fd: Fd) -> Result<&InputStream, Errno> {
-        match self.get(fd)? {
-            Descriptor::Streams(streams) => streams.get_read_stream(),
-            Descriptor::Closed(_) | Descriptor::Bad => Err(wasi::ERRNO_BADF),
-        }
-    }
-
-    pub fn get_write_stream(&self, fd: Fd) -> Result<&OutputStream, Errno> {
-        match self.get(fd)? {
-            Descriptor::Streams(streams) => streams.get_write_stream(),
-            Descriptor::Closed(_) | Descriptor::Bad => Err(wasi::ERRNO_BADF),
-        }
-    }
-    */
+    // pub fn get_read_stream(&self, fd: Fd) -> Result<&InputStream, Errno> {
+    // match self.get(fd)? {
+    // Descriptor::Streams(streams) => streams.get_read_stream(),
+    // Descriptor::Closed(_) | Descriptor::Bad => Err(wasi::ERRNO_BADF),
+    // }
+    // }
+    //
+    // pub fn get_write_stream(&self, fd: Fd) -> Result<&OutputStream, Errno> {
+    // match self.get(fd)? {
+    // Descriptor::Streams(streams) => streams.get_write_stream(),
+    // Descriptor::Closed(_) | Descriptor::Bad => Err(wasi::ERRNO_BADF),
+    // }
+    // }
 }
 
 #[cfg(not(feature = "proxy"))]
