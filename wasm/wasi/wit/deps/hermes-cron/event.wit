@@ -1,0 +1,40 @@
+/// # Cron API
+///
+/// Event triggered on CRON schedule.
+///
+/// ## Event Scheduling
+///
+/// **Guarantee**: Cron events with the same tag will be delivered and executed in the order
+/// they occur.
+///
+/// **Guarantee**: Later cron events with the same tag will not begin processing until the
+/// previous cron event with that tag has been fully processed by all processors of the event.
+///
+/// **Warning**: Events with different tags can arrive out of sequence with respect to each other.
+/// Sequence is only guaranteed by the tag.
+
+/// CRON API Interface - Export ONLY
+interface event {
+    use api.{cron-event-tag, cron-tagged};
+
+    /// Triggered when a cron event fires.
+    ///
+    /// This event is only ever generated for the application that added
+    /// the cron job.
+    ///
+    /// The module must export this interface to use it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `event` : The tagged cron event that was triggered.
+    /// - `last` : This cron event will not retrigger.
+    ///
+    /// Returns:
+    /// - `true`  - retrigger. (Ignored if the cron event is `final`).
+    /// - `false` - stop the cron.
+    on-cron: func(event: cron-tagged, last: bool) -> bool;
+}
+
+world cron-event {
+    export event;
+}
