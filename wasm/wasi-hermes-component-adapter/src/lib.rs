@@ -17,40 +17,40 @@
 use core::{
     cell::{Cell, OnceCell, RefCell, RefMut, UnsafeCell},
     cmp::min,
-    ffi::c_void,
+    /*ffi::c_void,*/
     hint::black_box,
-    mem::{self, align_of, forget, size_of, ManuallyDrop, MaybeUninit},
+    mem::{self, /*align_of,*/ forget, size_of, ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::{self, null_mut},
     slice,
 };
 
-use poll::Pollable;
+// use poll::Pollable; // Hermes does not support `poll`
 use wasi::{
-    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, Event, EventFdReadwrite, Exitcode, Fd,
-    Fdflags, Fdstat, Filedelta, Filesize, Filestat, Fstflags, Iovec, Lookupflags, Oflags, Prestat,
-    PrestatDir, PrestatU, Riflags, Rights, Roflags, Sdflags, Siflags, Signal, Size, Subscription,
-    Timestamp, Whence, ADVICE_DONTNEED, ADVICE_NOREUSE, ADVICE_NORMAL, ADVICE_RANDOM,
-    ADVICE_SEQUENTIAL, ADVICE_WILLNEED, CLOCKID_MONOTONIC, CLOCKID_REALTIME, ERRNO_ACCES,
-    ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF, ERRNO_BUSY, ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST,
-    ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS, ERRNO_INTR, ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR,
-    ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE, ERRNO_NAMETOOLONG, ERRNO_NODEV, ERRNO_NOENT,
-    ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC, ERRNO_NOTDIR, ERRNO_NOTEMPTY, ERRNO_NOTRECOVERABLE,
-    ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO, ERRNO_OVERFLOW, ERRNO_PERM, ERRNO_PIPE, ERRNO_ROFS,
-    ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY, ERRNO_XDEV, EVENTRWFLAGS_FD_READWRITE_HANGUP,
-    FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK, FDFLAGS_RSYNC, FDFLAGS_SYNC,
-    FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE, FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE,
-    FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN, FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM,
-    FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW, OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL,
-    OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE, SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,
-    WHENCE_CUR, WHENCE_END, WHENCE_SET,
+    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, /* Event, EventFdReadwrite,*/
+    /*Exitcode,*/ Fd, Fdflags, Fdstat, Filedelta, Filesize, Filestat, Fstflags, Iovec,
+    Lookupflags, Oflags, Prestat, PrestatDir, PrestatU, Riflags, Rights, Roflags, Sdflags, Siflags,
+    Signal, Size, /*Subscription,*/ Timestamp, Whence, ADVICE_DONTNEED, ADVICE_NOREUSE,
+    ADVICE_NORMAL, ADVICE_RANDOM, ADVICE_SEQUENTIAL, ADVICE_WILLNEED, CLOCKID_MONOTONIC,
+    CLOCKID_REALTIME, ERRNO_ACCES, ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF, ERRNO_BUSY,
+    ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST, ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS, ERRNO_INTR,
+    ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR, ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE, ERRNO_NAMETOOLONG,
+    ERRNO_NODEV, ERRNO_NOENT, ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC, ERRNO_NOTDIR, ERRNO_NOTEMPTY,
+    ERRNO_NOTRECOVERABLE, ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO, ERRNO_OVERFLOW, ERRNO_PERM,
+    ERRNO_PIPE, ERRNO_ROFS, ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY, ERRNO_XDEV,
+    /*EVENTRWFLAGS_FD_READWRITE_HANGUP,*/ FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK,
+    FDFLAGS_RSYNC, FDFLAGS_SYNC, FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE,
+    FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE, FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN,
+    FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM, FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW,
+    OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL, OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE,
+    /*SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,*/ WHENCE_CUR, WHENCE_END, WHENCE_SET,
 };
 
 #[cfg(not(feature = "proxy"))]
 use crate::bindings::wasi::filesystem::types as filesystem;
 use crate::bindings::wasi::{
     clocks::{monotonic_clock, wall_clock},
-    io::{poll, streams},
+    io::streams,
     random::random,
 };
 
@@ -1801,6 +1801,7 @@ pub unsafe extern "C" fn path_unlink_file(fd: Fd, path_ptr: *const u8, path_len:
     }
 }
 
+/* Hermes DOES NOT support `poll`
 #[allow(clippy::missing_docs_in_private_items)]
 struct Pollables {
     pointer: *mut Pollable,
@@ -1947,19 +1948,15 @@ pub unsafe extern "C" fn poll_oneoff(
                     }
                 },
 
-                EVENTTYPE_FD_READ => {
-                    state
-                        .descriptors()
-                        .get_read_stream(subscription.u.u.fd_read.file_descriptor)
-                        .map(|stream| stream.subscribe())?
-                },
+                EVENTTYPE_FD_READ => state
+                    .descriptors()
+                    .get_read_stream(subscription.u.u.fd_read.file_descriptor)
+                    .map(|stream| stream.subscribe())?,
 
-                EVENTTYPE_FD_WRITE => {
-                    state
-                        .descriptors()
-                        .get_write_stream(subscription.u.u.fd_write.file_descriptor)
-                        .map(|stream| stream.subscribe())?
-                },
+                EVENTTYPE_FD_WRITE => state
+                    .descriptors()
+                    .get_write_stream(subscription.u.u.fd_write.file_descriptor)
+                    .map(|stream| stream.subscribe())?,
 
                 _ => return Err(ERRNO_INVAL),
             });
@@ -2017,29 +2014,24 @@ pub unsafe extern "C" fn poll_oneoff(
                         .get(subscription.u.u.fd_read.file_descriptor)
                         .trapping_unwrap();
                     match desc {
-                        Descriptor::Streams(streams) => {
-                            match &streams.type_ {
-                                #[cfg(not(feature = "proxy"))]
-                                StreamType::File(file) => {
-                                    match file.fd.stat() {
-                                        Ok(stat) => {
-                                            let nbytes =
-                                                stat.size.saturating_sub(file.position.get());
-                                            (
-                                                ERRNO_SUCCESS,
-                                                nbytes,
-                                                if nbytes == 0 {
-                                                    EVENTRWFLAGS_FD_READWRITE_HANGUP
-                                                } else {
-                                                    0
-                                                },
-                                            )
+                        Descriptor::Streams(streams) => match &streams.type_ {
+                            #[cfg(not(feature = "proxy"))]
+                            StreamType::File(file) => match file.fd.stat() {
+                                Ok(stat) => {
+                                    let nbytes = stat.size.saturating_sub(file.position.get());
+                                    (
+                                        ERRNO_SUCCESS,
+                                        nbytes,
+                                        if nbytes == 0 {
+                                            EVENTRWFLAGS_FD_READWRITE_HANGUP
+                                        } else {
+                                            0
                                         },
-                                        Err(e) => (e.into(), 1, 0),
-                                    }
+                                    )
                                 },
-                                StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                            }
+                                Err(e) => (e.into(), 1, 0),
+                            },
+                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
                         },
                         _ => unreachable!(),
                     }
@@ -2051,12 +2043,10 @@ pub unsafe extern "C" fn poll_oneoff(
                         .get(subscription.u.u.fd_write.file_descriptor)
                         .trapping_unwrap();
                     match desc {
-                        Descriptor::Streams(streams) => {
-                            match &streams.type_ {
-                                #[cfg(not(feature = "proxy"))]
-                                StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
-                                StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
-                            }
+                        Descriptor::Streams(streams) => match &streams.type_ {
+                            #[cfg(not(feature = "proxy"))]
+                            StreamType::File(_) => (ERRNO_SUCCESS, 1, 0),
+                            StreamType::Stdio(_) => (ERRNO_SUCCESS, 1, 0),
                         },
                         _ => unreachable!(),
                     }
@@ -2080,10 +2070,13 @@ pub unsafe extern "C" fn poll_oneoff(
         Ok(())
     })
 }
+*/
 
 /// Terminate the process normally. An exit code of 0 indicates successful
 /// termination of the program. The meanings of other values is dependent on
 /// the environment.
+/// It is not valid to `exit` from a Hermes module.
+/*
 #[no_mangle]
 #[allow(clippy::unreachable)]
 #[allow(clippy::missing_safety_doc)]
@@ -2099,6 +2092,7 @@ pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
         unreachable!("host exit implementation didn't exit!") // actually unreachable
     }
 }
+*/
 
 /// Send a signal to the process of the calling thread.
 /// Note: This is similar to `raise` in POSIX.
@@ -2200,10 +2194,8 @@ pub unsafe extern "C" fn sock_shutdown(_fd: Fd, _how: Sdflags) -> Errno {
 #[allow(clippy::missing_docs_in_private_items)]
 fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
     match datetime {
-        Some(datetime) => {
-            u64::from(datetime.nanoseconds)
-                .saturating_add(datetime.seconds.saturating_mul(1_000_000_000))
-        },
+        Some(datetime) => u64::from(datetime.nanoseconds)
+            .saturating_add(datetime.seconds.saturating_mul(1_000_000_000)),
         None => 0,
     }
 }

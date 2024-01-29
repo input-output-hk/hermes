@@ -5,7 +5,9 @@ interface types {
   use wasi:clocks/monotonic-clock@0.2.0.{duration};
   use wasi:io/streams@0.2.0.{input-stream, output-stream};
   use wasi:io/error@0.2.0.{error as io-error};
-  use wasi:io/poll@0.2.0.{pollable};
+  
+  // Hermes doews not support `poll`
+  //use wasi:io/poll@0.2.0.{pollable};
 
   /// This type corresponds to HTTP standard Methods.
   variant method {
@@ -436,7 +438,7 @@ interface types {
     /// Returns a pollable which becomes ready when either the trailers have
     /// been received, or an error has occured. When this pollable is ready,
     /// the `get` method will return `some`.
-    subscribe: func() -> pollable;
+    //subscribe: func() -> pollable; // Hermes does NOT support `poll`
 
     /// Returns the contents of the trailers, or an error which occured,
     /// once the future is ready.
@@ -545,11 +547,13 @@ interface types {
   /// This resource is returned by the `wasi:http/outgoing-handler` interface to
   /// provide the HTTP Response corresponding to the sent Request.
   resource future-incoming-response {
+    /*
     /// Returns a pollable which becomes ready when either the Response has
     /// been received, or an error has occured. When this pollable is ready,
     /// the `get` method will return `some`.
     subscribe: func() -> pollable;
-
+    */ 
+    
     /// Returns the incoming HTTP Response, or an error, once one is ready.
     ///
     /// The outer `option` represents future readiness. Users can wait on this

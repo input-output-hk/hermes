@@ -1,7 +1,7 @@
 package wasmtime:wasi;
 
 // only used as part of `test-programs`
-world test-reactor {
+world test-hermes-reactor {
   include wasi:cli/imports@0.2.0;
 
   export add-strings: func(s: list<string>) -> u32;
@@ -13,10 +13,4 @@ world test-reactor {
 
   use wasi:filesystem/types@0.2.0.{descriptor-stat};
   export pass-an-imported-record: func(d: descriptor-stat) -> string;
-}
-
-world test-command {
-  include wasi:cli/imports@0.2.0;
-  import wasi:http/types@0.2.0;
-  import wasi:http/outgoing-handler@0.2.0;
 }

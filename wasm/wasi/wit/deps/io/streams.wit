@@ -7,7 +7,9 @@ package wasi:io@0.2.0;
 /// when it does, they are expected to subsume this API.
 interface streams {
     use error.{error};
-    use poll.{pollable};
+
+    // Hermes does not support `poll`
+    //use poll.{pollable};
 
     /// An error for input-stream and output-stream operations.
     variant stream-error {
@@ -79,6 +81,7 @@ interface streams {
             len: u64,
         ) -> result<u64, stream-error>;
 
+        /*
         /// Create a `pollable` which will resolve once either the specified stream
         /// has bytes available to read or the other end of the stream has been
         /// closed.
@@ -86,6 +89,7 @@ interface streams {
         /// Implementations may trap if the `input-stream` is dropped before
         /// all derived `pollable`s created with this function are dropped.
         subscribe: func() -> pollable;
+        */
     }
 
 
@@ -164,6 +168,7 @@ interface streams {
         /// and stream is ready for writing again.
         blocking-flush: func() -> result<_, stream-error>;
 
+        /*
         /// Create a `pollable` which will resolve once the output-stream
         /// is ready for more writing, or an error has occured. When this
         /// pollable is ready, `check-write` will return `ok(n)` with n>0, or an
@@ -175,6 +180,7 @@ interface streams {
         /// Implementations may trap if the `output-stream` is dropped before
         /// all derived `pollable`s created with this function are dropped.
         subscribe: func() -> pollable;
+        */
 
         /// Write zeroes to a stream.
         ///

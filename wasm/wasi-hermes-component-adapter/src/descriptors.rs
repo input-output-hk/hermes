@@ -125,24 +125,12 @@ pub enum Stdio {
 }
 
 impl Stdio {
-    #[allow(clippy::missing_docs_in_private_items)]
+    #[allow(clippy::missing_docs_in_private_items, clippy::unused_self)]
     pub fn filetype(&self) -> wasi::Filetype {
-        #[cfg(not(feature = "proxy"))]
-        let is_terminal = {
-            use crate::bindings::wasi::cli;
-            match self {
-                Stdio::Stdin => cli::terminal_stdin::get_terminal_stdin().is_some(),
-                Stdio::Stdout => cli::terminal_stdout::get_terminal_stdout().is_some(),
-                Stdio::Stderr => cli::terminal_stderr::get_terminal_stderr().is_some(),
-            }
-        };
-        #[cfg(feature = "proxy")]
-        let is_terminal = false;
-        if is_terminal {
-            wasi::FILETYPE_CHARACTER_DEVICE
-        } else {
-            wasi::FILETYPE_UNKNOWN
-        }
+        // `self` is unused in this simplified version of the function.
+        // We retain it for internal API compatibility.
+        // wasi::FILETYPE_CHARACTER_DEVICE
+        wasi::FILETYPE_UNKNOWN
     }
 }
 
@@ -443,6 +431,7 @@ impl Descriptors {
         self.get_stream_with_error_mut(fd, wasi::ERRNO_SPIPE)
     }
 
+    /*
     pub fn get_read_stream(&self, fd: Fd) -> Result<&InputStream, Errno> {
         match self.get(fd)? {
             Descriptor::Streams(streams) => streams.get_read_stream(),
@@ -456,6 +445,7 @@ impl Descriptors {
             Descriptor::Closed(_) | Descriptor::Bad => Err(wasi::ERRNO_BADF),
         }
     }
+    */
 }
 
 #[cfg(not(feature = "proxy"))]
