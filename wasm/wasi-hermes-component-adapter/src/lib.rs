@@ -156,7 +156,7 @@ use crate::descriptors::{Descriptor, Descriptors, StreamType, Streams};
 pub mod bindings {
     #[cfg(feature = "reactor")]
     wit_bindgen::generate!({
-        path: "./wasi/wit",
+        path: "../wasi/wit",
         world: "wasi:cli/imports",
         std_feature,
         raw_strings,

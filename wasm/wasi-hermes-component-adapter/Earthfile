@@ -7,7 +7,7 @@ builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.6.0+SETUP
 
     COPY --dir .cargo .config src byte-array-literals .
-    COPY ..+wasi-src/wasi wasi
+    COPY ..+wasi-src/wasi ../wasi
     COPY Cargo.toml build.rs .
     COPY clippy.toml deny.toml rustfmt.toml .
 
