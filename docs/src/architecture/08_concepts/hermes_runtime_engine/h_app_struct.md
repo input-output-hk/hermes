@@ -34,7 +34,6 @@ specified by the [*Hermes runtime extension*].
     └── ...
 ```
 
-
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [*Hermes runtime extension*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
 [*Hermes application*]: ./../../05_building_block_view//hermes_core.md#hermes-application
