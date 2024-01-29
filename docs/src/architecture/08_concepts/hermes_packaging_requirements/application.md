@@ -2,4 +2,6 @@
 
 ## HDF5 file structure
 
-TODO
+```kroki-d2
+@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_metadata.dot
+```
