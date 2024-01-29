@@ -1,0 +1,69 @@
+Application: {
+  label: root
+  shape: circle
+}
+static: {
+  label: static_assets
+  shape: circle
+}
+data: {
+  label: static_data
+  shape: circle
+}
+wasm: {
+  label: wasm_modules
+  shape: circle
+}
+
+Application -> static: Group
+Application -> data: Group
+Application -> wasm: Group
+
+website_1: {
+  shape: circle
+}
+extra: {
+  shape: circle
+}
+
+static -> website_1: Group
+static -> extra: Group
+
+user_registration: {
+  shape: circle
+}
+historical_set: {
+  shape: circle
+}
+
+data -> user_registration: Group
+data -> historical_set: Group
+
+module_a: {
+  shape: circle
+}
+module_b: {
+  shape: circle
+}
+module_N: {
+  shape: circle
+}
+
+wasm -> module_a: Group
+wasm -> module_b: Group
+wasm -> module_N: Group
+
+a_wat: {
+  label: wasm_module_a.wat
+}
+
+b_wat: {
+  label: wasm_module_b.wat
+}
+c_wat: {
+  label: wasm_module_N.wat
+}
+
+module_a -> a_wat: File
+module_b -> b_wat: File
+module_N -> c_wat: File
