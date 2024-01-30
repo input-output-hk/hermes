@@ -18,7 +18,18 @@ markdown-check-fix:
 # check-spelling Check spelling in this repo inside a container.
 check-spelling:
     DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v2.0.10+CHECK
- 
+
+# check-spelling Check spelling in this repo inside a container.
+spell-list-words:
+    FROM ghcr.io/streetsidesoftware/cspell:8.0.0
+    WORKDIR /work
+
+    COPY . .
+
+    RUN cspell-cli --words-only --unique "wasm/**" | sort -f
+
+
+
 repo-docs:
     # Create artifacts of extra files we embed inside the documentation when its built.
     FROM scratch
