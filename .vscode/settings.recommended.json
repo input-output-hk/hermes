@@ -54,7 +54,7 @@
   },
   "rust-analyzer.linkedProjects": [
     "./hermes/Cargo.toml",
-    "./hermes/wasi-preview1-component-adapter/Cargo.toml"
+    "./wasm/wasi-hermes-component-adapter/Cargo.toml"
   ],
   "rust-analyzer.check.overrideCommand": [
     "bash",
