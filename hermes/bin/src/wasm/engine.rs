@@ -5,7 +5,7 @@ use std::{
 
 use wasmtime::{Config as WasmConfig, Engine as WasmEngine};
 
-pub struct Engine(WasmEngine);
+pub(crate) struct Engine(WasmEngine);
 
 impl Deref for Engine {
     type Target = WasmEngine;
@@ -22,7 +22,7 @@ impl DerefMut for Engine {
 }
 
 impl Engine {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);
         config.consume_fuel(false);

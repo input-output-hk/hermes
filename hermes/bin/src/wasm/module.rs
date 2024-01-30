@@ -7,18 +7,18 @@ use wasmtime::{
 
 use super::engine::Engine;
 
-pub struct ImportFunc {
+pub(crate) struct ImportFunc {
     module: String,
     name: String,
     func: WasmFunc,
 }
 
-pub struct ExportFunc {
+pub(crate) struct ExportFunc {
     name: String,
     func: FuncType,
 }
 
-pub struct Module<ContextType> {
+pub(crate) struct Module<ContextType> {
     instance: WasmModuleInstance,
     _ctx_type: PhantomData<ContextType>,
 }
@@ -113,7 +113,7 @@ impl<ContextType> Module<ContextType> {
         Ok(())
     }
 
-    pub fn new(
+    pub(crate) fn new(
         engine: &Engine, store: &mut WasmStore<ContextType>, module_bytes: &[u8],
         imports: &[ImportFunc], exports: &[ExportFunc],
     ) -> Result<Self, Box<dyn Error>> {
@@ -143,7 +143,7 @@ impl<ContextType> Module<ContextType> {
         })
     }
 
-    pub fn call_func<Args, Ret>(
+    pub(crate) fn call_func<Args, Ret>(
         &mut self, store: &mut WasmStore<ContextType>, name: &str, args: Args,
     ) -> Result<Ret, Box<dyn Error>>
     where
@@ -166,7 +166,7 @@ mod tests {
         let engine = Engine::new().expect("");
         let mut store = WasmStore::new(&engine, 0);
 
-        let wat = r#"(module)"#;
+        let wat = "(module)";
         let imports = [];
         let exports = [];
 
