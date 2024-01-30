@@ -1,3 +1,7 @@
+//! WASM module implementation.
+//! Wrapper over the `wasmtime::Module` struct with some specific validation and
+//! configuration setup.
+
 use std::{collections::HashSet, marker::PhantomData};
 
 use wasmtime::{
@@ -7,26 +11,42 @@ use wasmtime::{
 
 use super::{engine::Engine, Error};
 
+/// WASM [import](https://openhome.cc/eGossip/WebAssembly/ImportExport.html) function entity struct
 #[derive(Debug, Clone)]
 pub(crate) struct ImportFunc {
+    /// Module name
     module: String,
+    /// Function name
     name: String,
+    /// Function signature definition
     func: WasmFunc,
 }
 
+/// WASM [export](https://openhome.cc/eGossip/WebAssembly/ImportExport.html) function entity struct
 #[derive(Debug, Clone)]
 pub(crate) struct ExportFunc {
+    /// Function name
     name: String,
+    /// Function signature definition
     func: WasmFuncType,
 }
 
+/// WASM module struct
 #[derive(Clone)]
 pub(crate) struct Module<ContextType> {
+    /// `wasmtime::Instance` module instance
     instance: WasmModuleInstance,
+    /// `wasmtime::Store` context type
     _ctx_type: PhantomData<ContextType>,
 }
 
 impl<ContextType> Module<ContextType> {
+    /// Check module exports with the given list
+    /// It is a 1 on 1 check, so every module export must be in the list and wise versa.
+    ///
+    /// # Errors
+    /// - `Error::ExportsMismatch`. Exports mistmatch
+    /// - `Error::ExportNotAFunc`. Export module entity is not a function
     fn check_exports(module: &WasmModule, exports: &[ExportFunc]) -> Result<(), Error> {
         let mut module_exports = HashSet::new();
         for module_export in module.exports() {
@@ -50,6 +70,12 @@ impl<ContextType> Module<ContextType> {
         }
     }
 
+    /// Check module exports with the given list
+    /// It is a 1 on 1 check, so every module export must be in the list and wise versa.
+    ///
+    /// # Errors
+    /// - `Error::ImportsMismatch`. Imports mistmatch
+    /// - `Error::ImportNotAFunc`. Import module entity is not a function
     fn check_imports(
         store: &mut WasmStore<ContextType>, module: &WasmModule, imports: &[ImportFunc],
     ) -> Result<(), Error> {
@@ -87,6 +113,14 @@ impl<ContextType> Module<ContextType> {
         }
     }
 
+    /// Instantiate WASM module
+    ///
+    /// # Errors
+    /// - `Error::ExportsMismatch`. Exports mistmatch
+    /// - `Error::ImportsMismatch`. Imports mistmatch
+    /// - `Error::ExportNotAFunc`. Export module entity is not a function
+    /// - `Error::ImportNotAFunc`. Import module entity is not a function
+    /// - `Error::Wasm`: WASM instantiation error
     #[allow(dead_code)]
     pub(crate) fn new(
         engine: &Engine, store: &mut WasmStore<ContextType>, module_bytes: &[u8],
@@ -109,6 +143,10 @@ impl<ContextType> Module<ContextType> {
         })
     }
 
+    /// Call WASM module's function
+    ///
+    /// # Errors
+    /// - `Error::Wasm`: WASM call error
     #[allow(dead_code)]
     pub(crate) fn call_func<Args, Ret>(
         &mut self, store: &mut WasmStore<ContextType>, name: &str, args: Args,

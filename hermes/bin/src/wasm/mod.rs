@@ -15,12 +15,12 @@ enum Error {
     #[error("Imports mistmatch")]
     ImportsMismatch,
 
-    /// Export entity is not a function
-    #[error("Export entity is not a function, name: {0}")]
+    /// Export module entity is not a function
+    #[error("Export module entity is not a function, name: {0}")]
     ExportNotAFunc(String),
 
-    /// Import entity is not a function
-    #[error("Import entity is not a function, module: {0}, name: {1}")]
+    /// Import module entity is not a function
+    #[error("Import module entity is not a function, module: {0}, name: {1}")]
     ImportNotAFunc(String, String),
 
     /// Internal wasmtime errors
