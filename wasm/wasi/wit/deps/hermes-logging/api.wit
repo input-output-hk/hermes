@@ -4,11 +4,11 @@
 ///
 /// ## Permissions
 ///
-/// This API is ALWAYS available, and not permissioned.
+/// This API is ALWAYS available, and not permissionless.
 
 /// Logging API Interface
-default interface logging {
-    use pkg.types.{json}
+interface api {
+    use hermes:json/api.{json};
 
     /// The supported logging levels
     enum level {
@@ -54,5 +54,10 @@ default interface logging {
     /// multiline.
     /// This is to keep the broadest flexibility for multiple languages capabilities.
     /// The backtrace must be sorted with most recent lines of the backtrace occurring first in the array.
-    log: func(level: level, file: string, fn: string, line: u32, col:u32, msg: string, data: option<json>) -> ()
+    log: func(level: level, file: string, fn: string, line: u32, col:u32, msg: string, data: option<json>) -> ();
+}
+
+/// World just for the Hermes 'json' API.
+world logging-api {
+    import api;
 }

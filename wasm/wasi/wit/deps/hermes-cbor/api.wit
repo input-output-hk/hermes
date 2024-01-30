@@ -1,0 +1,23 @@
+/// # CBOR API
+///
+/// CBOR Data types and functions.
+///
+/// ## Permissions
+///
+/// This API is permissionless.
+
+// cspell: words
+
+/// CBOR API Interface - Imports ONLY
+interface api {
+    /// CBOR is a binary cbor data type.
+    ///    This type is used to indicate the binary array MUST be CBOR data.
+    type cbor = list<u8>;
+}
+
+
+/// World just for the Hermes 'cron' API and Event.
+world cbor-api {
+    import api;
+}
+  
