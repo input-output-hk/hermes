@@ -21,6 +21,7 @@ impl DerefMut for Engine {
 }
 
 impl Engine {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Result<Self, Error> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);

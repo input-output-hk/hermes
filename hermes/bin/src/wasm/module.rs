@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-};
+use std::{collections::HashSet, marker::PhantomData};
 
 use wasmtime::{
     Func as WasmFunc, FuncType, Instance as WasmModuleInstance, Linker as WasmLinker,
@@ -90,6 +87,7 @@ impl<ContextType> Module<ContextType> {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn new(
         engine: &Engine, store: &mut WasmStore<ContextType>, module_bytes: &[u8],
         imports: &[ImportFunc], exports: &[ExportFunc],
@@ -107,10 +105,11 @@ impl<ContextType> Module<ContextType> {
 
         Ok(Self {
             instance,
-            _ctx_type: PhantomData::default(),
+            _ctx_type: PhantomData,
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn call_func<Args, Ret>(
         &mut self, store: &mut WasmStore<ContextType>, name: &str, args: Args,
     ) -> Result<Ret, Error>
@@ -140,7 +139,7 @@ mod tests {
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -157,7 +156,7 @@ mod tests {
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -183,14 +182,14 @@ mod tests {
 
         let imports = [
             ImportFunc {
-                module: "".to_string(),
+                module: String::new(),
                 name: "hello".to_string(),
                 func: WasmFunc::wrap(&mut store, || {
                     println!("Hello!");
                 }),
             },
             ImportFunc {
-                module: "".to_string(),
+                module: String::new(),
                 name: "hello_1".to_string(),
                 func: WasmFunc::wrap(&mut store, || {
                     println!("Hello_1!");
@@ -202,14 +201,14 @@ mod tests {
 
         let imports = [
             ImportFunc {
-                module: "".to_string(),
+                module: String::new(),
                 name: "hello".to_string(),
                 func: WasmFunc::wrap(&mut store, || {
                     println!("Hello!");
                 }),
             },
             ImportFunc {
-                module: "".to_string(),
+                module: String::new(),
                 name: "hello_1".to_string(),
                 func: WasmFunc::wrap(&mut store, || {
                     println!("Hello_1!");
@@ -251,7 +250,7 @@ mod tests {
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -264,7 +263,7 @@ mod tests {
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -290,7 +289,7 @@ mod tests {
                     )"#;
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -303,7 +302,7 @@ mod tests {
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, || {
                 println!("Hello!");
@@ -339,7 +338,7 @@ mod tests {
                     )"#;
 
         let imports = [ImportFunc {
-            module: "".to_string(),
+            module: String::new(),
             name: "hello".to_string(),
             func: WasmFunc::wrap(&mut store, |mut ctx: Caller<'_, i32>| {
                 *ctx.data_mut() += 1;
