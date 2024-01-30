@@ -47,7 +47,7 @@ For its configuration, so a user can configure it.
 Each package needs metadata which can be associated with it.
 So we may want to define that in its own file.
 
-Example metadata are similar to a webasm module.
+Example metadata are similar to a wasm module.
 
 We also need to sign the package, and it needs to be able to support multisig, so it can be signed by the Author and then
 countersigned by a publisher.

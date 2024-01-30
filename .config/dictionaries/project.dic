@@ -59,6 +59,7 @@ oneshot
 openapi
 opentelemetry
 permissioned
+parameterises
 permissionless
 pg_isready
 plpgsql
