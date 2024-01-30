@@ -1,18 +1,23 @@
-use std::{collections::HashMap, error::Error, marker::PhantomData};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
 
 use wasmtime::{
     Func as WasmFunc, FuncType, Instance as WasmModuleInstance, Linker as WasmLinker,
     Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
 };
 
-use super::engine::Engine;
+use super::{engine::Engine, Error};
 
+#[derive(Debug, Clone)]
 pub(crate) struct ImportFunc {
     module: String,
     name: String,
     func: WasmFunc,
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct ExportFunc {
     name: String,
     func: FuncType,
@@ -24,112 +29,74 @@ pub(crate) struct Module<ContextType> {
 }
 
 impl<ContextType> Module<ContextType> {
-    fn check_exports(module: &WasmModule, exports: &[ExportFunc]) -> Result<(), Box<dyn Error>> {
-        let mut indexed_exports = HashMap::new();
-        for export in exports {
-            if indexed_exports
-                .insert(export.name.clone(), export.func.clone())
-                .is_some()
-            {
-                return Err(format!("Duplicate export: {}", export.name).into());
-            }
-        }
-
+    fn check_exports(module: &WasmModule, exports: &[ExportFunc]) -> Result<(), Error> {
+        let mut module_exports = HashSet::new();
         for module_export in module.exports() {
-            if let Some(func) = indexed_exports.get(module_export.name()) {
-                if let Some(ty) = module_export.ty().func() {
-                    if func != ty {
-                        return Err(format!(
-                            "Export func signature mismatch, current: {ty:?}, provided: {func:?}",
-                        )
-                        .into());
-                    }
-                } else {
-                    return Err(format!("Export not a function: {module_export:?}").into());
-                }
+            if let Some(module_export_func) = module_export.ty().func() {
+                module_exports
+                    .insert((module_export.name().to_string(), module_export_func.clone()));
             } else {
-                return Err(format!("Export not found: {}", module_export.name()).into());
+                return Err(Error::ExportNotAFunc(module_export.name().to_string()));
             }
         }
 
-        Ok(())
+        let expected_exports: HashSet<_> = exports
+            .iter()
+            .map(|export| (export.name.clone(), export.func.clone()))
+            .collect();
+
+        if expected_exports == module_exports {
+            Ok(())
+        } else {
+            Err(Error::ExportsMismatch)
+        }
     }
 
     fn check_imports(
         store: &mut WasmStore<ContextType>, module: &WasmModule, imports: &[ImportFunc],
-    ) -> Result<(), Box<dyn Error>> {
-        let mut indexed_imports = HashMap::new();
-        for import in imports {
-            let import_module: &mut HashMap<_, _> =
-                indexed_imports.entry(import.module.clone()).or_default();
-            if import_module
-                .insert(import.name.clone(), import.func)
-                .is_some()
-            {
-                return Err(format!(
-                    "Duplicate import, module: {}, name: {}",
-                    import.module, import.name,
-                )
-                .into());
-            }
-        }
-
+    ) -> Result<(), Error> {
+        let mut module_imports = HashSet::new();
         for module_import in module.imports() {
-            if let Some(import_module) = indexed_imports.get(module_import.module()) {
-                if let Some(func) = import_module.get(module_import.name()) {
-                    if let Some(ty) = module_import.ty().func() {
-                        if &func.ty(&mut *store) != ty {
-                            return Err(format!(
-                                "Export func signature mismatch, current: {ty:?}, provided: {func:?}",
-                            )
-                            .into());
-                        }
-                    } else {
-                        return Err(format!(
-                            "Import not a function, module: {}, name: {}",
-                            module_import.module(),
-                            module_import.name()
-                        )
-                        .into());
-                    }
-                } else {
-                    return Err(format!(
-                        "Import not found, module: {}, name: {}",
-                        module_import.module(),
-                        module_import.name()
-                    )
-                    .into());
-                }
+            if let Some(module_import_func) = module_import.ty().func() {
+                module_imports.insert((
+                    module_import.module().to_string(),
+                    module_import.name().to_string(),
+                    module_import_func.clone(),
+                ));
             } else {
-                return Err(format!(
-                    "Import not found, module: {}, name: {}",
-                    module_import.module(),
-                    module_import.name()
-                )
-                .into());
+                return Err(Error::ImportNotAFunc(
+                    module_import.name().to_string(),
+                    module_import.module().to_string(),
+                ));
             }
         }
 
-        Ok(())
+        let expected_imports: HashSet<_> = imports
+            .iter()
+            .map(|import| {
+                (
+                    import.module.clone(),
+                    import.name.clone(),
+                    import.func.ty(&mut *store),
+                )
+            })
+            .collect();
+
+        if expected_imports == module_imports {
+            Ok(())
+        } else {
+            Err(Error::ImportsMismatch)
+        }
     }
 
     pub(crate) fn new(
         engine: &Engine, store: &mut WasmStore<ContextType>, module_bytes: &[u8],
         imports: &[ImportFunc], exports: &[ExportFunc],
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, Error> {
         let module = WasmModule::new(engine, module_bytes)?;
 
         Self::check_exports(&module, exports)?;
         Self::check_imports(store, &module, imports)?;
-
-        // let instance = WasmModuleInstance::new(
-        //     &mut (*store),
-        //     &module,
-        //     &imports
-        //         .iter()
-        //         .map(|val| val.func.into())
-        //         .collect::<Vec<_>>(),
-        // )?;
 
         let mut linker = WasmLinker::new(engine);
         for import in imports {
@@ -145,7 +112,7 @@ impl<ContextType> Module<ContextType> {
 
     pub(crate) fn call_func<Args, Ret>(
         &mut self, store: &mut WasmStore<ContextType>, name: &str, args: Args,
-    ) -> Result<Ret, Box<dyn Error>>
+    ) -> Result<Ret, Error>
     where
         Args: WasmParams,
         Ret: WasmResults,
@@ -165,12 +132,195 @@ mod tests {
     fn module_test_1() {
         let engine = Engine::new().expect("");
         let mut store = WasmStore::new(&engine, 0);
-
         let wat = "(module)";
+
         let imports = [];
         let exports = [];
-
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+    }
+
+    #[test]
+    fn module_test_2() {
+        let engine = Engine::new().expect("");
+        let mut store = WasmStore::new(&engine, 0);
+        let wat = r#"
+                    (module
+                        (func $hello_1 (import "" "hello"))
+                        (func $hello_2 (import "" "hello"))
+                        (func $hello_3 (import "" "hello_1"))
+                    )"#;
+
+        let imports = [
+            ImportFunc {
+                module: "".to_string(),
+                name: "hello".to_string(),
+                func: WasmFunc::wrap(&mut store, || {
+                    println!("Hello!");
+                }),
+            },
+            ImportFunc {
+                module: "".to_string(),
+                name: "hello_1".to_string(),
+                func: WasmFunc::wrap(&mut store, || {
+                    println!("Hello_1!");
+                }),
+            },
+        ];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
+
+        let imports = [
+            ImportFunc {
+                module: "".to_string(),
+                name: "hello".to_string(),
+                func: WasmFunc::wrap(&mut store, || {
+                    println!("Hello!");
+                }),
+            },
+            ImportFunc {
+                module: "".to_string(),
+                name: "hello_1".to_string(),
+                func: WasmFunc::wrap(&mut store, || {
+                    println!("Hello_1!");
+                }),
+            },
+        ];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+    }
+
+    #[test]
+    fn module_test_3() {
+        let engine = Engine::new().expect("");
+        let mut store = WasmStore::new(&engine, 0);
+        let wat = r#"
+                    (module
+                        (func (export "call_hello"))
+                    )"#;
+
+        let imports = [];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+    }
+
+    #[test]
+    fn module_test_4() {
+        let engine = Engine::new().expect("");
+        let mut store = WasmStore::new(&engine, 0);
+        let wat = r#"
+                    (module
+                        (func $hello_2 (import "" "hello"))
+                        (func $hello_1 (import "" "hello"))
+                        (func (export "call_hello"))
+                    )"#;
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
+
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, || {
+                println!("Hello!");
+            }),
+        }];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [ExportFunc {
+            name: "call_hello".to_string(),
+            func: FuncType::new([], []),
+        }];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
+
+        let imports = [];
+        let exports = [];
+        assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
     }
 
     #[test]
@@ -187,24 +337,14 @@ mod tests {
                         )
                     )"#;
 
-        let imports = [
-            ImportFunc {
-                module: "".to_string(),
-                name: "hello".to_string(),
-                func: WasmFunc::wrap(&mut store, |mut ctx: Caller<'_, i32>| {
-                    *ctx.data_mut() += 1;
-                    println!("Hello_0!");
-                }),
-            },
-            ImportFunc {
-                module: "".to_string(),
-                name: "hello1".to_string(),
-                func: WasmFunc::wrap(&mut store, |mut ctx: Caller<'_, i32>| {
-                    *ctx.data_mut() += 2;
-                    println!("Hello_1!");
-                }),
-            },
-        ];
+        let imports = [ImportFunc {
+            module: "".to_string(),
+            name: "hello".to_string(),
+            func: WasmFunc::wrap(&mut store, |mut ctx: Caller<'_, i32>| {
+                *ctx.data_mut() += 1;
+                println!("Hello_0!");
+            }),
+        }];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
             func: FuncType::new([], []),

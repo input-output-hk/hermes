@@ -1,9 +1,8 @@
-use std::{
-    error::Error,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use wasmtime::{Config as WasmConfig, Engine as WasmEngine};
+
+use super::Error;
 
 pub(crate) struct Engine(WasmEngine);
 
@@ -22,7 +21,7 @@ impl DerefMut for Engine {
 }
 
 impl Engine {
-    pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new() -> Result<Self, Error> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);
         config.consume_fuel(false);

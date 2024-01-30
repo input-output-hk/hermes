@@ -56,3 +56,4 @@ pallas = { version = "0.21.0", git = "https://github.com/input-output-hk/catalys
 pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
 
 wasmtime = "16.0.0"
+thiserror = "1.0"
