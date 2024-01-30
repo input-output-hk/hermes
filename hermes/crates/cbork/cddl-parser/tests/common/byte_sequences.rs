@@ -1,3 +1,5 @@
+// cspell: words HEXPAIR rstuvw abcdefghijklmnopqrstuvwyz Xhhb Bhcm
+
 #![allow(dead_code)] // TODO: find a way to remove this.
 
 pub(crate) const HEXPAIR_PASSES: &[&str] = &["00", "ab", "de", "0f", "f0"];
@@ -33,8 +35,6 @@ pub(crate) const BYTES_PASSES: &[&str] = &[
     "b64'aHR0cHM6Ly93d3cuZXhhbXBsZS5jb20vcGFnZT9wYXJhbTE9dmFsdWUxJnBhcmFtMj12YWx1ZTI~'",
     "'text\n that gets converted \\\' into a byte string...'",
 ];
-
-// cspell: words HEXPAIR rstuvw abcdefghijklmnopqrstuvwyz Xhhb Bhcm
 
 pub(crate) const BYTES_FAILS: &[&str] = &[
     "h64",
