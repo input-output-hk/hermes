@@ -45,7 +45,7 @@ impl<ContextType> Module<ContextType> {
     /// It is a 1 on 1 check, so every module export must be in the list and wise versa.
     ///
     /// # Errors
-    /// - `Error::ExportsMismatch`. Exports mistmatch
+    /// - `Error::ExportsMismatch`. Exports mismatch
     /// - `Error::ExportNotAFunc`. Export module entity is not a function
     fn check_exports(module: &WasmModule, exports: &[ExportFunc]) -> Result<(), Error> {
         let mut module_exports = HashSet::new();
@@ -74,7 +74,7 @@ impl<ContextType> Module<ContextType> {
     /// It is a 1 on 1 check, so every module export must be in the list and wise versa.
     ///
     /// # Errors
-    /// - `Error::ImportsMismatch`. Imports mistmatch
+    /// - `Error::ImportsMismatch`. Imports mismatch
     /// - `Error::ImportNotAFunc`. Import module entity is not a function
     fn check_imports(
         store: &mut WasmStore<ContextType>, module: &WasmModule, imports: &[ImportFunc],
@@ -116,8 +116,8 @@ impl<ContextType> Module<ContextType> {
     /// Instantiate WASM module
     ///
     /// # Errors
-    /// - `Error::ExportsMismatch`. Exports mistmatch
-    /// - `Error::ImportsMismatch`. Imports mistmatch
+    /// - `Error::ExportsMismatch`. Exports mismatch
+    /// - `Error::ImportsMismatch`. Imports mismatch
     /// - `Error::ExportNotAFunc`. Export module entity is not a function
     /// - `Error::ImportNotAFunc`. Import module entity is not a function
     /// - `Error::Wasm`: WASM instantiation error

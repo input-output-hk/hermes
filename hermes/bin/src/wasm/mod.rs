@@ -1,5 +1,5 @@
 //! WASM related structures and functions.
-//! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependecy.
+//! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
 mod engine;
 mod module;
@@ -7,12 +7,12 @@ mod module;
 /// WASM module errors.
 #[derive(thiserror::Error, Debug)]
 enum Error {
-    /// Exports mistmatch
-    #[error("Exports mistmatch")]
+    /// Exports mismatch
+    #[error("Exports mismatch")]
     ExportsMismatch,
 
-    /// Imports mistmatch
-    #[error("Imports mistmatch")]
+    /// Imports mismatch
+    #[error("Imports mismatch")]
     ImportsMismatch,
 
     /// Export module entity is not a function
