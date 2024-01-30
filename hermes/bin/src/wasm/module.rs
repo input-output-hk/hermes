@@ -1,8 +1,8 @@
 use std::{collections::HashSet, marker::PhantomData};
 
 use wasmtime::{
-    Func as WasmFunc, FuncType, Instance as WasmModuleInstance, Linker as WasmLinker,
-    Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
+    Func as WasmFunc, FuncType as WasmFuncType, Instance as WasmModuleInstance,
+    Linker as WasmLinker, Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
 };
 
 use super::{engine::Engine, Error};
@@ -17,7 +17,7 @@ pub(crate) struct ImportFunc {
 #[derive(Debug, Clone)]
 pub(crate) struct ExportFunc {
     name: String,
-    func: FuncType,
+    func: WasmFuncType,
 }
 
 #[derive(Clone)]
@@ -117,8 +117,8 @@ impl<ContextType> Module<ContextType> {
         Args: WasmParams,
         Ret: WasmResults,
     {
-        let func = self.instance.get_typed_func(&mut (*store), name)?;
-        Ok(func.call(&mut *store, args)?)
+        let func = self.instance.get_typed_func(&mut *store, name)?;
+        Ok(func.call(store, args)?)
     }
 }
 
@@ -151,7 +151,7 @@ mod tests {
         let imports = [];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
@@ -164,7 +164,7 @@ mod tests {
         }];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
     }
@@ -217,14 +217,14 @@ mod tests {
         ];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
         let imports = [];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
@@ -245,7 +245,7 @@ mod tests {
         let imports = [];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
 
@@ -258,7 +258,7 @@ mod tests {
         }];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
@@ -297,7 +297,7 @@ mod tests {
         }];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_ok());
 
@@ -314,7 +314,7 @@ mod tests {
         let imports = [];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
         assert!(Module::new(&engine, &mut store, wat.as_bytes(), &imports, &exports).is_err());
 
@@ -347,7 +347,7 @@ mod tests {
         }];
         let exports = [ExportFunc {
             name: "call_hello".to_string(),
-            func: FuncType::new([], []),
+            func: WasmFuncType::new([], []),
         }];
 
         let mut module =
