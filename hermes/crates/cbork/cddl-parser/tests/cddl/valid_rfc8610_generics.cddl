@@ -1,0 +1,4 @@
+; 3.10.  Generics
+
+messages = message<"reboot", "now"> / message<"sleep", 1..100>
+message<t, v> = {type: t, value: v}

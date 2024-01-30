@@ -20,12 +20,12 @@ pub mod rfc_8610 {
     pub struct RFC8610Parser;
 }
 
-pub mod rfc_9615 {
+pub mod rfc_9165 {
     pub use pest::Parser;
 
     #[derive(pest_derive::Parser)]
     #[grammar = "grammar/rfc_8610.pest"]
-    #[grammar = "grammar/rfc_9615.pest"]
+    #[grammar = "grammar/rfc_9165.pest"]
     pub struct RFC8610Parser;
 }
 
@@ -34,7 +34,7 @@ pub mod cddl {
 
     #[derive(pest_derive::Parser)]
     #[grammar = "grammar/rfc_8610.pest"]
-    #[grammar = "grammar/rfc_9615.pest"]
+    #[grammar = "grammar/rfc_9165.pest"]
     #[grammar = "grammar/cddl_modules.pest"]
     pub struct RFC8610Parser;
 }
@@ -45,7 +45,7 @@ pub mod cddl_test {
     // Parser with DEBUG rules. These rules are only used in tests.
     #[derive(pest_derive::Parser)]
     #[grammar = "grammar/rfc_8610.pest"]
-    #[grammar = "grammar/rfc_9615.pest"]
+    #[grammar = "grammar/rfc_9165.pest"]
     #[grammar = "grammar/cddl_modules.pest"]
     #[grammar = "grammar/cddl_test.pest"] // Ideally this would only be used in tests.
     pub struct CDDLTestParser;
@@ -55,9 +55,9 @@ pub mod cddl_test {
 pub enum Extension {
     /// RFC8610 ONLY limited parser.
     RFC8610Parser,
-    /// RFC8610 and RFC9615 limited parser.
-    RFC9615Parser,
-    /// RFC8610, RFC9615, and CDDL modules.
+    /// RFC8610 and RFC9165 limited parser.
+    RFC9165Parser,
+    /// RFC8610, RFC9165, and CDDL modules.
     CDDLParser,
 }
 
@@ -68,7 +68,7 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 #[derive(Debug)]
 pub enum AST<'a> {
     RFC8610(Pairs<'a, rfc_8610::Rule>),
-    RFC9615(Pairs<'a, rfc_9615::Rule>),
+    RFC9165(Pairs<'a, rfc_9165::Rule>),
     CDDL(Pairs<'a, cddl::Rule>),
 }
 
@@ -77,8 +77,8 @@ pub enum AST<'a> {
 pub enum CDDLErrorType {
     /// An error related to RFC 8610 extension.
     RFC8610(Error<rfc_8610::Rule>),
-    /// An error related to RFC 9615 extension.
-    RFC9615(Error<rfc_9615::Rule>),
+    /// An error related to RFC 9165 extension.
+    RFC9165(Error<rfc_9165::Rule>),
     /// An error related to CDDL modules extension.
     CDDL(Error<cddl::Rule>),
 }
@@ -116,7 +116,7 @@ pub struct CDDLError(CDDLErrorType);
 /// ```
 pub fn parse_cddl<'a>(
     input: &'a mut String, extension: &Extension,
-) -> Result<Box<AST<'a>>, Box<CDDLError>> {
+) -> Result<AST<'a>, Box<CDDLError>> {
     input.push_str("\n\n");
     input.push_str(POSTLUDE);
 
@@ -126,10 +126,10 @@ pub fn parse_cddl<'a>(
                 .map(AST::RFC8610)
                 .map_err(CDDLErrorType::RFC8610)
         },
-        Extension::RFC9615Parser => {
-            rfc_9615::RFC8610Parser::parse(rfc_9615::Rule::cddl, input)
-                .map(AST::RFC9615)
-                .map_err(CDDLErrorType::RFC9615)
+        Extension::RFC9165Parser => {
+            rfc_9165::RFC8610Parser::parse(rfc_9165::Rule::cddl, input)
+                .map(AST::RFC9165)
+                .map_err(CDDLErrorType::RFC9165)
         },
         Extension::CDDLParser => {
             cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
@@ -138,12 +138,7 @@ pub fn parse_cddl<'a>(
         },
     };
 
-    result.map(Box::new).map_err(|e| {
-        println!("{e:?}");
-        println!("{e}");
-
-        Box::new(CDDLError::from(e))
-    })
+    result.map_err(|e| Box::new(CDDLError::from(e)))
 }
 
 #[cfg(test)]

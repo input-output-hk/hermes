@@ -1,41 +1,17 @@
-use cddl_parser::{
-    self,
-    cddl_test::{CDDLTestParser, Parser, Rule},
-};
+use cddl_parser::{self, cddl_test::Rule};
+
+mod common;
+use common::text_sequences::*;
 
 #[test]
 /// Test if the `S` rule passes properly.
-///   This uses a special rule in the Grammar to test whitespace exhaustively.
+/// This uses a special rule in the Grammar to test whitespace exhaustively.
 fn check_s() {
-    let tests = vec![" ", "  ", " \t \t", " \t  \r \n \r\n   "];
-
-    let fails = vec![" a ", "zz", " \t d \t", " \t  \r \n \t \r\n  x"];
-
-    for test in tests {
-        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fails {
-        let parse = CDDLTestParser::parse(Rule::S_TEST, test);
-        assert!(parse.is_err());
-    }
+    common::check_tests_rule(Rule::S_TEST, S_PASSES, S_FAILS);
 }
 
 #[test]
 /// Test if the `text` rule passes properly.
 fn check_text() {
-    let test = vec![r#""""#, r#""abc""#, "\"abc\\n\""];
-
-    let fail = vec!["", "''", "\"abc\n\""];
-
-    for test in test {
-        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
-        assert!(parse.is_ok());
-    }
-
-    for test in fail {
-        let parse = CDDLTestParser::parse(Rule::text_TEST, test);
-        assert!(parse.is_err());
-    }
+    common::check_tests_rule(Rule::text_TEST, TEXT_PASSES, TEXT_FAILS);
 }

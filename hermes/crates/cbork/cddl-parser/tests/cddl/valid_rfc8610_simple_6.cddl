@@ -1,0 +1,18 @@
+; Figure 6: Using a Group for Factorization
+
+; cspell: words tstr
+
+person = {
+  identity,
+  employer: tstr,
+}
+
+dog = {
+  identity,
+  leash-length: float,
+}
+
+identity = (
+  age: int,
+  name: tstr,
+)

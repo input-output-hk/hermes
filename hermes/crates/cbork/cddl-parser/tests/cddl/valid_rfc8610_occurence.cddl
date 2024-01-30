@@ -1,0 +1,7 @@
+; 3.2.  Occurrence
+
+apartment = {
+  kitchen: size,
+  * bedroom: size,
+}
+size = float ; in m2

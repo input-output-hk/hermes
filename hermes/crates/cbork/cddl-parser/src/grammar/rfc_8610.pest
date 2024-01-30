@@ -1,77 +1,79 @@
 //! CDDL Grammar adapted from RFC8610 Appendix B
 //! https://www.rfc-editor.org/rfc/rfc8610#appendix-B
 
-// cspell: words assignt groupname grpent genericparm assigng
+// cspell: words assignt groupname grpent genericparm assigng optcom
 // cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
 // cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
-cddl = {
+cddl = ${
     SOI
-    ~ S ~ rule+
+    ~ S ~ (rule ~ S)+
     ~ EOI
 }
 
-rule = {
-    ( typename ~ assignt ~ type)
-    | ( groupname ~ assigng ~ grpent)
+// -----------------------------------------------------------------------------
+// Rules
+rule = ${
+    (typename ~ genericparm? ~ S ~ assignt ~ S ~ type)
+    | (groupname ~ genericparm? ~ S ~ assigng ~ S ~ grpent)
 }
 
-typename = ${ id ~ genericparm? }
-groupname = ${ id ~ genericparm? }
+typename = { id }
+groupname = { id }
 
 assignt = { "=" | "/=" }
 assigng = { "=" | "//=" }
 
-genericparm = { "<" ~ id ~ ( "," ~ id )* ~ ">" }
-genericarg = { "<" ~ type1 ~ ( "," ~ type1)* ~ ">" }
+genericparm = ${ "<" ~ S ~ id ~ S ~ ("," ~ S ~ id ~ S)* ~ ">" }
+genericarg = ${ "<" ~ S ~ type1 ~ S ~ ("," ~ S ~ type1 ~ S)* ~ ">" }
 
-type = { type1 ~ ( S ~ "/" ~ type1)* }
+// -----------------------------------------------------------------------------
+// Type Declaration
+type = ${ type1 ~ (S ~ "/" ~ S ~ type1)* }
 
-type1 = { type2 ~ ( S ~ ( rangeop | ctlop ) ~ type2)? }
+type1 = ${ type2 ~ (S ~ (rangeop | ctlop) ~ S ~ type2)? }
 
-typename_arg = ${ typename ~ genericarg? }
-groupname_arg = ${ groupname ~ genericarg? }
-
-tag6 = ${ "#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ S ~ type ~ S ~ ")" }
-tag_generic = ${ "#" ~ ASCII_DIGIT ~ ("." ~ uint)? }
-
-type2 = {
+type2 = ${
     value
-    | typename_arg
-    | ( "(" ~ type ~ ")" )
-    | ( "{" ~ group ~ "}" )
-    | ( "[" ~ group ~ "]" )
-    | ( "~" ~ typename_arg )
-    | ( "&" ~ "(" ~ group ~ ")" )
-    | ( "&" ~ groupname_arg )
-    | tag6
-    | tag_generic
+    | typename ~ genericarg?
+    | ("(" ~ S ~ type ~ S ~ ")")
+    | ("{" ~ S ~ group ~ S ~ "}")
+    | ("[" ~ S ~ group ~ S ~ "]")
+    | ("~" ~ S ~ typename ~ genericarg?)
+    | ("&" ~ S ~ "(" ~ S ~ group ~ S ~ ")")
+    | ("&" ~ S ~ groupname ~ genericarg?)
+    | ("#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ S ~ type ~ S ~ ")")
+    | ("#" ~ ASCII_DIGIT ~ ("." ~ uint)?)
     | "#"
 }
 
 rangeop = { "..." | ".." }
 ctlop = ${ "." ~ id }
 
-group = { grpchoice ~ ( S ~ "//" ~ grpchoice)* }
+// -----------------------------------------------------------------------------
+// Group Elements
+group = ${ grpchoice ~ (S ~ "//" ~ S ~ grpchoice)* }
 
-grpchoice = { ( grpent ~ ","? )* }
+grpchoice = ${ (grpent ~ optcom)* }
 
 grpent = ${
-    ( (occur ~ S)? ~ (memberkey ~ S)? ~ type )
-    | ( (occur ~ S)? ~ groupname ~ genericarg? )
-    | ( (occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")" )
+    ((occur ~ S)? ~ (memberkey ~ S)? ~ type)
+    | ((occur ~ S)? ~ groupname ~ genericarg?)
+    | ((occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")")
 }
 
-memberkey = {
-    ( type1 ~ "^"? ~ "=>" )
-    | ( bareword ~ ":" )
-    | ( value ~ ":" )
+memberkey = ${
+    (type1 ~ S ~ ("^" ~ S)? ~ "=>")
+    | ((value | bareword) ~ S ~ ":")
 }
 
 bareword = { id }
 
+/// Optional Comma - Note eligible for producing pairs as this might be useful for linting
+optcom = { S ~ ("," ~ S)? }
+
 occur = {
-    ( uint? ~ "*" ~ uint? )
+    (uint? ~ "*" ~ uint?)
     | "+"
     | "?"
 }
@@ -82,7 +84,7 @@ occur = {
 /// All Literal Values
 value = { number | text | bytes }
 
-/// Literal Numbers  - A float if it has fraction or exponent; int otherwise
+/// Literal Numbers - A float if it has fraction or exponent; int otherwise
 number = { hexfloat | intfloat }
 
 /// Hex floats of the form -0x123.abc0p+12
@@ -103,16 +105,16 @@ int = ${ "-"? ~ uint }
 
 /// Unsigned Integers
 uint = ${
-    ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* )
-    | ( "0x" ~ ASCII_HEX_DIGIT+ )
-    | ( "0b" ~ ASCII_BIN_DIGIT+ )
+    (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+    | ("0x" ~ ASCII_HEX_DIGIT+)
+    | ("0b" ~ ASCII_BIN_DIGIT+)
     | "0"
 }
 
 /// Literal Text
 text = ${ "\"" ~ SCHAR* ~ "\"" }
 
-/// Literal Bytes - Note CDDL Spec incorrectly defines b64''.
+/// Literal Bytes.
 bytes = ${ bytes_hex | bytes_b64 | bytes_text }
 bytes_hex = ${ "h" ~ "'" ~ HEX_PAIR* ~ "'" }
 bytes_b64 = ${ "b64" ~ "'" ~ URL_BASE64 ~ "'" }
@@ -121,13 +123,8 @@ bytes_text = ${ "'" ~ BCHAR* ~ "'" }
 // -----------------------------------------------------------------------------
 // Simple multiple character sequences
 
-/// identifier,  called the `name` in the CDDL spec.
-id = ${
-    group_socket |
-    type_socket |
-    name
-}
-
+/// identifier, called the `name` in the CDDL spec.
+id = ${ group_socket | type_socket | name }
 /// Special form of a name that represents a Group Socket.
 group_socket = ${ "$$" ~ ( ( "-" | "." )* ~ NAME_END )* }
 /// Special form of a name that represents a Type Socket.
@@ -146,11 +143,10 @@ URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
 
-S = _{ WHITESPACE* }
+S = _{ (COMMENT | WHITESPACE)* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = _{ ";" ~ (PCHAR | "\t")* ~ NEWLINE }
+COMMENT = { ";" ~ (PCHAR | "\t")* ~ NEWLINE }
 
-// URL Base64 Characterset.
 URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
 // Optional Padding that goes at the end of Base64.
 URL_BASE64_PAD = _{ "~" }
@@ -177,7 +173,7 @@ BCHAR = _{ BCHAR_ASCII_VISIBLE | UNICODE_CHAR | SESC | NEWLINE }
 /// Escaping code to allow invalid characters to be used in text or byte strings.
 SESC = ${ "\\" ~ (ASCII_VISIBLE | UNICODE_CHAR) }
 
-/// All Visiable Ascii characters.
+/// All Visible Ascii characters.
 ASCII_VISIBLE = _{ ' '..'~' }
 
 /// Ascii subset valid for text strings.
