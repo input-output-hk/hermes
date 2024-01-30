@@ -23,6 +23,7 @@ pub(crate) struct ExportFunc {
     func: FuncType,
 }
 
+#[derive(Clone)]
 pub(crate) struct Module<ContextType> {
     instance: WasmModuleInstance,
     _ctx_type: PhantomData<ContextType>,
