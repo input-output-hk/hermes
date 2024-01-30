@@ -4,7 +4,8 @@
 @from_file:architecture/08_concepts/hermes_packaging_requirements/images/wasm_module_metadata.dot
 ```
 
-**SJ Notes**
+## **SJ Notes**
+
 Wasm modules need the following data:
 
 1. The compiled WASM code

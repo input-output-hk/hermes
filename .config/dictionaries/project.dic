@@ -80,6 +80,7 @@ opentelemetry
 outlen
 Outparam
 permissioned
+parameterises
 permissionless
 pg_isready
 plpgsql
