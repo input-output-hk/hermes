@@ -30,7 +30,7 @@ default interface logging {
     /// module being logged.
     /// The Webasm module does not need to concern itself with this kind of information, and should
     /// log as if it is the only instance.
-    /// It also should not log any webasm shared context, except where it is relevent to the log message itself.
+    /// It also should not log any webasm shared context, except where it is relevant to the log message itself.
     ///
     /// **Parameters**
     ///
@@ -53,6 +53,6 @@ default interface logging {
     /// The individual backtrace entries may contain line breaks if the backtrace entry is
     /// multiline.
     /// This is to keep the broadest flexibility for multiple languages capabilities.
-    /// The backtrace must be sorted with most recent lines of the backtrace occuring first in the array.
+    /// The backtrace must be sorted with most recent lines of the backtrace occurring first in the array.
     log: func(level: level, file: string, fn: string, line: u32, col:u32, msg: string, data: option<json>) -> ()
 }

@@ -2,7 +2,7 @@
 ///
 /// Note:
 /// Only types that can be used in multiple API's are defined here.
-/// All API specific types eside with their API definition.
+/// All API specific types reside with their API definition.
 
 default interface types {
     /// JSON is just a string.

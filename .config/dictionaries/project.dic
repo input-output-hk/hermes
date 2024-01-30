@@ -58,6 +58,7 @@ nextest
 oneshot
 openapi
 opentelemetry
+permissioned
 permissionless
 pg_isready
 plpgsql
@@ -87,4 +88,5 @@ vitss
 voteplan
 voteplans
 WASI
+webasm
 yoroi

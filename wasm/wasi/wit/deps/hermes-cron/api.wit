@@ -4,7 +4,9 @@
 ///
 /// ## Permissions
 ///
-/// This API is permissioned.
+/// This API is permissionless.
+
+// cspell: words crontabs mkcron retrigger retriggering
 
 /// CRON API Interface - Imports ONLY
 interface api {
@@ -21,7 +23,7 @@ interface api {
     /// A tagged crontab entry
     /// It is valid for multiple crontab entries at the same time to have different tags.
     /// It is valid for crontab entries at different times to have the same tag.
-    /// BUT there can only ever be 1 crontab entry at a specifed time with a specified tag.
+    /// BUT there can only ever be 1 crontab entry at a specified time with a specified tag.
     /// ie, `when` + `tag` is uniquely identifying of every crontab entry.
     /// See: [crontab.5 man page](https://www.man7.org/linux/man-pages/man5/crontab.5.html) for details on cron schedule format.
     record cron-tagged {
@@ -60,10 +62,10 @@ interface api {
     /// ## Parameters
     ///
     /// - `entry`: The crontab entry to add.
-    ///     - `when`: When the ewvent triggers.  Standard crontab format.
+    ///     - `when`: When the event triggers.  Standard crontab format.
     ///     - `tag`: A tag which will accompany the triggered event.
     /// - `retrigger`:
-    ///     - `true`: The event will retrigger every time the crontab entry matches until cancelled.
+    ///     - `true`: The event will re-trigger every time the crontab entry matches until cancelled.
     ///     - `false`: The event will automatically cancel after it is generated once.
     ///
     /// ## Returns
