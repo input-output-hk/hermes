@@ -4,7 +4,7 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy source files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.6.0+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.7.0+SETUP
 
     COPY --dir .cargo .config src byte-array-literals .
     COPY ..+wasi-src/wasi ../wasi
@@ -22,8 +22,19 @@ check:
 all-hosts-check:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check
 
+# Build the WASI Docs:
+build-wasi-docs:
+    FROM +builder
+
+    # Generate the WASI API Documnetation Artifact (Also checks the WASI definitions are valid.)
+    RUN wit-bindgen markdown ../wasi/wit
+
+    SAVE ARTIFACT hermes.md hermes.md
+
 # Build the service.
 build:
+    BUILD +build-was-docs
+
     FROM +builder
 
     RUN /scripts/std_build.py   --disable_tests \

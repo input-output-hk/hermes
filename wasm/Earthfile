@@ -10,3 +10,6 @@ wasi-src:
     COPY --dir wasi .
 
     SAVE ARTIFACT /wasi wasi
+
+wasi-hermes-docs:
+    FROM 

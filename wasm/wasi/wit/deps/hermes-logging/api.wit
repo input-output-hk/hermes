@@ -34,10 +34,11 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `level` : The log level this message is for.
-    /// - `file`  : The name of the src file being logged from.
-    /// - `fn`    : The function within the file being logged from.
-    /// - `msg`   : A Single line message to be logged. (Should have no newlines or format).
+    /// - `level` : The log level this message is for. 
+    /// - `file`  : The name of the src file being logged from. (Optional)
+    /// - `fn`    : The function within the file being logged from. (Optional)
+    /// - `context`: The logging context.  (Should have no newlines or formatting).
+    /// - `msg`   : A Single line message to be logged. (Should have no newlines or formatting).
     /// - `data`  : A Free form json payload that will be logged with the msg.  This must be valid JSON.
     ///
     /// *Notes*
@@ -49,12 +50,19 @@ interface api {
     /// }
     /// ```
     /// The logger will interpret this as a backtrace where each entry in the array is one line of the backtrace.
-    /// The format of the backtrace lines is up to the webasm, code.
+    /// The format of the backtrace lines is up to the webasm module generating the log.
     /// The individual backtrace entries may contain line breaks if the backtrace entry is
     /// multiline.
-    /// This is to keep the broadest flexibility for multiple languages capabilities.
+    ///     * Multiline backtrace entries should be de-dented, relative to the first line.  
+    ///     * This is to allow the display to properly format multiline entries.
+    /// This format is designed to keep the broadest flexibility for multiple languages capabilities.
     /// The backtrace must be sorted with most recent lines of the backtrace occurring first in the array.
-    log: func(level: level, file: string, fn: string, line: u32, col:u32, msg: string, data: option<json>) -> ();
+    /// Backtrace must be contained in a single `log` call.  Multiple log calls will be considered independent logs.
+    log: func(level: level, 
+                file: option<string>, fn: option<string>, line: option<u32>, col:option<u32>, 
+                context: option<string>, 
+                msg: string, 
+                data: option<json>);
 }
 
 /// World just for the Hermes 'json' API.

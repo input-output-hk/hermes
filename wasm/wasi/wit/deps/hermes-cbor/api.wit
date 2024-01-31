@@ -10,9 +10,12 @@
 
 /// CBOR API Interface - Imports ONLY
 interface api {
+    /// Get the `bstr` type from the `hermes:binary` module.
+    use hermes:binary/api.{bstr};
+
     /// CBOR is a binary cbor data type.
     ///    This type is used to indicate the binary array MUST be CBOR data.
-    type cbor = list<u8>;
+    type cbor = bstr;
 }
 
 

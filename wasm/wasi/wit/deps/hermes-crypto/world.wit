@@ -1,0 +1,10 @@
+package hermes:crypto;
+
+// API
+    // Generate ed25519 Private Key.
+    // Derive Public Key from ed25519 Private Key.
+    // Sign binary data with ed25519 Private Key.
+    // Check Signature with ed25519 Public Key.
+
+world all {
+}

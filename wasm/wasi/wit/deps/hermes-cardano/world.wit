@@ -1,0 +1,18 @@
+package hermes:cardano;
+
+// API
+    // Chain follower cfg
+    // Start follower at slot #/genesis/tip
+    // Get Block at slot #
+
+    // Subscribe to blocks
+    // Subscribe to txn
+    // Subscribe to rollback
+
+// Events
+    // on-cardano-block
+    // on-cardano-txn
+    // on-cardano-rollback
+
+world all {
+}

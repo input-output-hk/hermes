@@ -11,6 +11,7 @@ world hermes {
   include wasi:http/proxy@0.2.0;
 
   /// All possible Hermes Imports/Exports
+  include hermes:binary/all;
   include hermes:cbor/all;
   include hermes:cron/all;
   include hermes:init/all;
