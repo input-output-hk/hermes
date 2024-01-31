@@ -1,46 +1,7 @@
-# Packaging Overview
+# Packaging Requirements Overview
 
 Applications in Hermes are packaged and distributed using
 [HDF5](https://docs.hdfgroup.org/hdf5/develop/) (Hierarchical Data Format Version 5) files.
-
-## Hermes HDF5 File Metadata
-
-1. App Author
-2. Version
-3. Repo
-4. License
-5. Description
-6. Json Schema for its configuration, so a user can configure it.
-    1. This is the only config a user actually sets,  it will embed (and can have references to that config)
-        from individual wasm modules.
-    2. We need to work out how this will work and define it.
-7. other stuff
-
-### App Author
-
-### Version
-
-### Repo
-
-### License
-
-### Description
-
-### Json Schema
-
-For its configuration, so a user can configure it.
-
-1. This is the only config a user actually sets,  it will embed (and can have references to that config)
-    from individual wasm modules.
-2. We need to work out how this will work and define it.
-
-### Extra
-
-## Hermes HDF5 File Structure
-
-```kroki-d2
-@from_file:architecture/08_concepts/hermes_packaging_requirements/images/hdf5_file_structure.dot
-```
 
 ## **SJ Notes**
 

@@ -4,36 +4,13 @@
 [WASM components](https://component-model.bytecodealliance.org/introduction.html),
 [*HRE* config files](./hre_init_setup.md)
 and some metadata
-bundled in [hdf5](https://www.hdfgroup.org/solutions/hdf5/) package.
+bundled in [HDF5] file format.
 Each WASM component it is the event handlers implementation of `export` functions from the [WIT] file,
 specified by the [*Hermes runtime extension*].
 
-## Package structure
-
-```bash
-/ root
-├── static
-│   ├── data
-│   │   └── default
-│   │       ├── config.json
-│   │       └── ...
-│   └── www
-│       ├── site1
-│       │  ├── html
-│       │  └── ...
-│       └── site2
-│          ├── html
-│          └── ...
-├── data
-│   ├── module1_dataset
-│   ├── module2_dataset
-│   └── ...
-└── module
-    ├── module1.wasm
-    ├── module2.wasm
-    └── ...
-```
+For more details, see [Packaging A Hermes Application](../hermes_packaging_requirements/application.md)
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [*Hermes runtime extension*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
 [*Hermes application*]: ./../../05_building_block_view//hermes_core.md#hermes-application
+[HDF5]: https://www.hdfgroup.org/solutions/hdf5/
