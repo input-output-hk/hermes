@@ -26,7 +26,7 @@ all-hosts-check:
 build-wasi-docs:
     FROM +builder
 
-    # Generate the WASI API Documnetation Artifact (Also checks the WASI definitions are valid.)
+    # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
     RUN wit-bindgen markdown ../wasi/wit
 
     SAVE ARTIFACT hermes.md hermes.md
