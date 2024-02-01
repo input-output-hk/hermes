@@ -19,6 +19,7 @@ coti
 crontabs
 cryptoxide
 dbsync
+dcbor
 delegators
 dockerhub
 dotenv
