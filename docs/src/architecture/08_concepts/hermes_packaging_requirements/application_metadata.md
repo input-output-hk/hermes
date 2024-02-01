@@ -1,4 +1,4 @@
-# Definining Application Metadata
+# Defining Application Metadata
 
 Metadata for Hermes Applications is specified as an HDF5 Attribute attached to the root group
 in the HDF5 File as a CBOR-encoded object.

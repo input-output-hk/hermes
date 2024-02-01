@@ -3,15 +3,13 @@ Application: {
   shape: circle
 }
 static: {
-  label: static_assets
   shape: circle
 }
 data: {
-  label: static_data
   shape: circle
 }
 wasm: {
-  label: wasm_modules
+  label: modules
   shape: circle
 }
 
@@ -19,30 +17,24 @@ Application -> static: Group
 Application -> data: Group
 Application -> wasm: Group
 
-website_1: {
+www: {
   shape: circle
 }
-extra: {
+site_1: {
   shape: circle
 }
-
-static -> website_1: Group
-static -> extra: Group
-
-user_registration: {
-  shape: circle
-}
-historical_set: {
+default: {
   shape: circle
 }
 
-data -> user_registration: Group
-data -> historical_set: Group
+static -> default: Group
+static -> www: Group
+
+www -> site_1: Group
+
+data -> "user_registration.template": File
 
 module_a: {
-  shape: circle
-}
-module_b: {
   shape: circle
 }
 module_N: {
@@ -50,20 +42,15 @@ module_N: {
 }
 
 wasm -> module_a: Group
-wasm -> module_b: Group
 wasm -> module_N: Group
 
 a_wat: {
   label: wasm_module_a.wat
 }
 
-b_wat: {
-  label: wasm_module_b.wat
-}
 c_wat: {
   label: wasm_module_N.wat
 }
 
 module_a -> a_wat: File
-module_b -> b_wat: File
 module_N -> c_wat: File

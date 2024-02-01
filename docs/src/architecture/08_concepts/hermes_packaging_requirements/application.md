@@ -14,6 +14,12 @@ For example:
 
 The root group of the Application file-system.
 
+#### Diagram: Application Root
+
+```kroki-d2
+@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_root.dot
+```
+
 ### `/static`
 
 Static assets that can be served AS-IS to the local host over HTTP by WASM modules, or default values
@@ -50,7 +56,7 @@ Each application can store multiple modules.
 │          └── ...
 ├── data
 │   ├── module1
-│   │   ├── js_template
+│   │   ├── user_registration.template
 │   │   └── ...
 │   └── ...
 └── modules
@@ -66,34 +72,6 @@ Each application can store multiple modules.
 
 ```kroki-d2
 @from_file:architecture/08_concepts/hermes_packaging_requirements/images/hdf5_file_structure.dot
-```
-
-## Application Metadata (HDF5 Attributes)
-
-### App Author
-
-### Version
-
-### Repo
-
-### License
-
-### Description
-
-### Json Schema
-
-For its configuration, so a user can configure it.
-
-1. This is the only config a user actually sets,  it will embed (and can have references to that config)
-    from individual wasm modules.
-2. We need to work out how this will work and define it.
-
-### Other Stuff
-
-### Diagram: HDF5 Attributes for a Hermes Application
-
-```kroki-d2
-@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_metadata.dot
 ```
 
 [HD5 File]: https://docs.hdfgroup.org/hdf5/develop/_h5_d_m__u_g.html#title4

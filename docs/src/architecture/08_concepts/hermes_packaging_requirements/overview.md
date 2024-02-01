@@ -1,7 +1,16 @@
 # Packaging Requirements Overview
 
-Applications in Hermes are packaged and distributed using
-[HDF5](https://docs.hdfgroup.org/hdf5/develop/) (Hierarchical Data Format Version 5) files.
+Applications in Hermes are packaged and distributed using [HDF5] (Hierarchical Data Format Version 5) files.
+
+## Package Contents
+
+## Package Metadata
+
+### Diagram: Metadata is stored in HDF5 Attributes linked to stored objects
+
+```kroki-excalidraw
+@from_file:architecture/08_concepts/hermes_packaging_requirements/images/hermes_app_object_metadata.excalidraw
+```
 
 ## **SJ Notes**
 
@@ -25,3 +34,5 @@ change is the signature itself.
 This would allow an Author to sign it, pass it to a publisher who validates it, and just countersigns it.
 
  The publisher can't alter any of files, or the Authors signature will fail.
+
+[HDF5]: https://docs.hdfgroup.org/hdf5/develop/
