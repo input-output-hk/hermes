@@ -1,0 +1,16 @@
+/// Definitions of Common Types that can be used by multiple interfaces.
+///
+/// Note:
+/// Only types that can be used in multiple API's are defined here.
+/// All API specific types reside with their API definition.
+
+default interface types {
+    /// JSON is just a string.
+    ///   This type is used to indicate the string MUST be properly formatted JSON.
+    type json = string
+
+    /// CBOR is a binary cbor data type.
+    ///    This type is used to indicate the binary array MUST be CBOR data.
+    type cbor = list<u8>
+
+}
