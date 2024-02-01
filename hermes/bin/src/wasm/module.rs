@@ -11,10 +11,12 @@ use wasmtime::{
     Linker as WasmLinker, Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
 };
 
+use super::context::Context;
+
 ///
-pub(crate) trait LinkImport<ContextT> {
+pub(crate) trait LinkImport<Context> {
     ///
-    fn link(&self, linker: &mut WasmLinker<ContextT>) -> Result<(), Box<dyn Error>>;
+    fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>>;
 }
 
 /// Structure defines an abstaction over the WASM module
@@ -25,30 +27,30 @@ pub(crate) trait LinkImport<ContextT> {
 /// The primary goal for it is to make a WASM state *immutable* along WASM module
 /// execution. It means that `Module::call_func` execution does not have as side effect
 /// for the WASM module's state, it becomes unchanged.
-pub(crate) struct Module<ContextType: Clone> {
+pub(crate) struct Module {
     /// `wasmtime::InstancePre` entity
     ///
     /// A reason why it is used a `wasmtime::InstancePre` instead of `wasmtime::Instance`
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    instance: WasmModuleInstance<ContextType>,
+    instance: WasmModuleInstance<Context>,
 
     /// `wasmtime::Engine` entity
     engine: WasmEngine,
 
-    ///
-    context: ContextType,
+    /// `Context` entity
+    context: Context,
 }
 
-impl<ContextType: Clone> Module<ContextType> {
+impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
     ///  - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
     pub(crate) fn new(
-        context: ContextType, module_bytes: &[u8], imports: &[Box<dyn LinkImport<ContextType>>],
+        context: Context, module_bytes: &[u8], imports: &[Box<dyn LinkImport<Context>>],
     ) -> Result<Self, Box<dyn Error>> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);
@@ -85,7 +87,7 @@ impl<ContextType: Clone> Module<ContextType> {
         Args: WasmParams,
         Ret: WasmResults,
     {
-        let mut store: WasmStore<ContextType> = WasmStore::new(&self.engine, self.context.clone());
+        let mut store = WasmStore::new(&self.engine, self.context.clone());
         let instantiated_instance = self.instance.instantiate(&mut store)?;
         let func = instantiated_instance.get_typed_func(&mut store, name)?;
         Ok(func.call(&mut store, args)?)
@@ -98,8 +100,8 @@ mod tests {
 
     struct ImportHelloFunc;
 
-    impl LinkImport<i32> for ImportHelloFunc {
-        fn link(&self, linker: &mut WasmLinker<i32>) -> Result<(), Box<dyn Error>> {
+    impl LinkImport<Context> for ImportHelloFunc {
+        fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>> {
             linker.func_wrap("", "hello", || {
                 println!("hello");
             })?;
@@ -127,7 +129,8 @@ mod tests {
                         (global $global_val (mut i32) (i32.const 0))
                     )"#;
 
-        let mut module = Module::new(0, wat.as_bytes(), &[Box::new(ImportHelloFunc)]).expect("");
+        let mut module =
+            Module::new(Context, wat.as_bytes(), &[Box::new(ImportHelloFunc)]).expect("");
 
         for _ in 0..10 {
             let res: i32 = module.call_func("call_hello", ()).expect("");
