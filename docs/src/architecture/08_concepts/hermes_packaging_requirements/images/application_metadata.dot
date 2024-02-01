@@ -2,10 +2,19 @@ app_metadata: {
   label: Application Metadata (HDF5 Attributes)
   shape: class
 
+  metadata: CBOR
+}
+
+app_metadata_cbor: {
+  label: Application Metadata CBOR
+  shape: class
+
   app_author: String
   version: String
   repository: String
   license: String
   description: String
-  config_schema: String
+  config_schema: CBOR
+  signatures: CBOR
+  extra: CBOR
 }
