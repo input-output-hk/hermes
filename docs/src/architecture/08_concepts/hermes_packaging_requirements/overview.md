@@ -20,7 +20,12 @@ For detailed information see [Defining Application Metadata](./metadata.md).
 
 ### HDF5 Attributes
 
+* [HDF5 Attributes](https://docs.hdfgroup.org/hdf5/develop/_h5_a__u_g.html#sec_attribute)
+
 ### CBOR And dCBOR
+
+* [CBOR Specification](https://cbor.io/spec.html)
+* [`dcbor`](https://github.com/BlockchainCommons/bc-dcbor-rust) Rust crate.
 
 ### CDDL
 
@@ -32,11 +37,22 @@ For detailed information see [Packaging Static Files in a Hermes Application](./
 
 For detailed information see [Hermes Application Data](./data.md).
 
+## Application Modules
+
+### WASI And WIT
+
+* [WASI](https://wasi.dev/)
+* [WIT](https://component-model.bytecodealliance.org/design/wit.html)
+
 ## Package Signatures
 
 For detailed information see [Hermes Application Signatures](./signatures.md).
 
 ### COSE
+
+* [RFC 8152](https://www.rfc-editor.org/rfc/rfc8152)
+* [RFC 9052](https://www.rfc-editor.org/rfc/rfc9052)
+* [RFC 9053](https://www.rfc-editor.org/rfc/rfc9053)
 
 ## **SJ Notes**
 
