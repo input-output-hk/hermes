@@ -13,5 +13,4 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-thiserror = { workspace = true }
 wasmtime = { workspace = true, features = ["component-model"] }

@@ -1,6 +1,6 @@
 //! WASM module implementation.
 //! Wrapper over the `wasmtime::Module`, `wasmtime::Instance` etc. structs which
-//! define a WASM module abstrction with capability to interact with it.
+//! define a WASM module abstraction with capability to interact with it.
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
@@ -19,7 +19,7 @@ pub(crate) trait LinkImport<Context> {
     fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>>;
 }
 
-/// Structure defines an abstaction over the WASM module
+/// Structure defines an abstraction over the WASM module
 /// It instantiates the module with the provided context data,
 /// links all provided imports to the module instance,
 /// handles an internal state of the WASM module.
