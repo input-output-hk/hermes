@@ -9,9 +9,6 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[[bin]]
-name = "hermes"
-
 [lints]
 workspace = true
 
