@@ -4,6 +4,8 @@ mod follow;
 mod mithril_snapshot;
 mod read;
 
+use std::str::FromStr;
+
 pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
@@ -39,6 +41,9 @@ pub enum Error {
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshot,
+    /// Failed to parse
+    #[error("Failed to parse network")]
+    ParseNetwork,
 }
 
 /// Crate result type.
@@ -76,6 +81,7 @@ impl MultiEraBlockData {
 }
 
 /// Enum of possible Cardano networks.
+#[derive(Debug, PartialEq)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,
@@ -85,6 +91,20 @@ pub enum Network {
     Preview,
     /// Cardano testnet network.
     Testnet,
+}
+
+impl FromStr for Network {
+    type Err = Error;
+
+    fn from_str(input: &str) -> std::result::Result<Network, Self::Err> {
+        match input {
+            "mainnet" => Ok(Network::Mainnet),
+            "preprod" => Ok(Network::Preprod),
+            "preview" => Ok(Network::Preview),
+            "testnet" => Ok(Network::Testnet),
+            _ => Err(Error::ParseNetwork),
+        }
+    }
 }
 
 impl From<Network> for u64 {
