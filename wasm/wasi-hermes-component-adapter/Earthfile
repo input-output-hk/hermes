@@ -22,19 +22,8 @@ check:
 all-hosts-check:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check
 
-# Build the WASI Docs:
-build-wasi-docs:
-    FROM +builder
-
-    # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
-    RUN wit-bindgen markdown ../wasi/wit
-
-    SAVE ARTIFACT hermes.md hermes.md
-
 # Build the service.
 build:
-    BUILD +build-was-docs
-
     FROM +builder
 
     RUN /scripts/std_build.py   --disable_tests \
