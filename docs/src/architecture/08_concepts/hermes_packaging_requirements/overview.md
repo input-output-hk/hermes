@@ -1,20 +1,42 @@
 # Overview
 
+## Application Package
+
 Applications in Hermes are packaged and distributed using [HDF5] (Hierarchical Data Format Version 5) files.
 
-## Key Concepts
+For detailed information see [Packaging A Hermes Application](./application.md).
 
-### Application Contents
+### HDF5 File And Data Model
 
-### Package Metadata
+## Package Metadata
 
-#### Diagram: Metadata is stored in HDF5 Attributes linked to stored objects
+For detailed information see [Defining Application Metadata](./metadata.md).
+
+### Diagram: Metadata is stored in HDF5 Attributes linked to stored objects
 
 ```kroki-excalidraw
 @from_file:architecture/08_concepts/hermes_packaging_requirements/images/hermes_app_object_metadata.excalidraw
 ```
 
-### Cryptographic Signatures
+### HDF5 Attributes
+
+### CBOR And dCBOR
+
+### CDDL
+
+## Application Static Assets
+
+For detailed information see [Packaging Static Files in a Hermes Application](./static.md).
+
+## Application Data
+
+For detailed information see [Hermes Application Data](./data.md).
+
+## Package Signatures
+
+For detailed information see [Hermes Application Signatures](./signatures.md).
+
+### COSE
 
 ## **SJ Notes**
 
