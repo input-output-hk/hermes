@@ -1,11 +1,12 @@
 //! WASM engine implementation
 //! Wrapper over the `wasmtime::Engine` struct with some specific configuration setup.
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    error::Error,
+    ops::{Deref, DerefMut},
+};
 
 use wasmtime::{Config as WasmConfig, Engine as WasmEngine};
-
-use super::Error;
 
 /// WASM Engine struct
 pub(crate) struct Engine(WasmEngine);
@@ -31,7 +32,7 @@ impl Engine {
     ///
     /// - `Error::Wasm`. Returns an error if the `WasmEngine` fails to initialize.
     #[allow(dead_code)]
-    pub(crate) fn new() -> Result<Self, Error> {
+    pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);
         config.consume_fuel(false);

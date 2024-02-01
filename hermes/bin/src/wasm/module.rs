@@ -5,11 +5,9 @@
 use std::error::Error;
 
 use wasmtime::{
-    Instance as WasmModuleInstance, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
-    WasmParams, WasmResults,
+    Config as WasmConfig, Engine as WasmEngine, InstancePre as WasmModuleInstance,
+    Linker as WasmLinker, Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
 };
-
-use super::engine::Engine;
 
 ///
 pub(crate) trait LinkImport<ContextT> {
@@ -18,39 +16,53 @@ pub(crate) trait LinkImport<ContextT> {
 }
 
 /// WASM module struct
-pub(crate) struct Module<ContextType> {
+pub(crate) struct Module<ContextType: Clone> {
     /// `wasmtime::Instance` module instance
-    instance: WasmModuleInstance,
-    /// `wasmtime::Store`
-    store: WasmStore<ContextType>,
+    instance: WasmModuleInstance<ContextType>,
+
+    /// `wasmtime::Engine` entity
+    engine: WasmEngine,
+
+    ///
+    context: ContextType,
 }
 
-impl<ContextType: 'static> Module<ContextType> {
+impl<ContextType: Clone> Module<ContextType> {
     /// Instantiate WASM module
     ///
     /// # Errors
-    /// - `Error::Wasm`: WASM instantiation error
+    ///  - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
     pub(crate) fn new(
-        engine: &Engine, ctx: ContextType, module_bytes: &[u8],
-        imports: &[Box<dyn LinkImport<ContextType>>],
+        context: ContextType, module_bytes: &[u8], imports: &[Box<dyn LinkImport<ContextType>>],
     ) -> Result<Self, Box<dyn Error>> {
-        let module = WasmModule::new(engine, module_bytes)?;
-        let mut store = WasmStore::new(engine, ctx);
+        let mut config = WasmConfig::new();
+        config.wasm_component_model(true);
+        config.consume_fuel(false);
 
-        let mut linker = WasmLinker::new(engine);
+        let engine = WasmEngine::new(&config)?;
+
+        let module = WasmModule::new(&engine, module_bytes)?;
+
+        let mut linker = WasmLinker::new(&engine);
         for import in imports {
             import.link(&mut linker)?;
         }
-        let instance = linker.instantiate(&mut store, &module)?;
+        let instance = linker.instantiate_pre(&module)?;
 
-        Ok(Self { instance, store })
+        Ok(Self {
+            instance,
+            engine,
+            context,
+        })
     }
 
-    /// Call WASM module's function
+    /// Call WASM module's function.
+    /// For each call it create a brand new `wasmtime::Store` instance, which means that
+    /// is has a clean state for each call.
     ///
     /// # Errors
-    /// - `Error::Wasm`: WASM call error
+    /// - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
     pub(crate) fn call_func<Args, Ret>(
         &mut self, name: &str, args: Args,
@@ -59,8 +71,10 @@ impl<ContextType: 'static> Module<ContextType> {
         Args: WasmParams,
         Ret: WasmResults,
     {
-        let func = self.instance.get_typed_func(&mut self.store, name)?;
-        Ok(func.call(&mut self.store, args)?)
+        let mut store: WasmStore<ContextType> = WasmStore::new(&self.engine, self.context.clone());
+        let instantiated_instance = self.instance.instantiate(&mut store)?;
+        let func = instantiated_instance.get_typed_func(&mut store, name)?;
+        Ok(func.call(&mut store, args)?)
     }
 }
 
@@ -80,22 +94,30 @@ mod tests {
     }
 
     #[test]
-    fn module_test() {
-        let engine = Engine::new().expect("");
-
+    /// Tests that after instantiation of `Module` it's state does not change after each
+    /// `Module::call_func` execution
+    fn preserve_module_state_test() {
         let wat = r#"
                     (module
-                        (func $hello_2 (import "" "hello"))
-                        (func $hello_1 (import "" "hello"))
-                        (func (export "call_hello")
-                            call $hello_1
+                        (import "" "hello" (func $hello_0))
+                        (export "call_hello" (func $call_hello))
+
+                        (func $call_hello (result i32)
+                            global.get $global_val
+                            i32.const 1
+                            i32.add
+                            global.set $global_val
+                            global.get $global_val
                         )
+
+                        (global $global_val (mut i32) (i32.const 0))
                     )"#;
 
-        let hello_func: Box<dyn LinkImport<i32>> = Box::new(ImportHelloFunc);
-        let imports = [hello_func];
+        let mut module = Module::new(0, wat.as_bytes(), &[Box::new(ImportHelloFunc)]).expect("");
 
-        let mut module = Module::new(&engine, 0, wat.as_bytes(), &imports).expect("");
-        module.call_func::<(), ()>("call_hello", ()).expect("");
+        for _ in 0..10 {
+            let res: i32 = module.call_func("call_hello", ()).expect("");
+            assert_eq!(res, 1);
+        }
     }
 }
