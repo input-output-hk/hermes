@@ -8,17 +8,17 @@ For example:
 
 `/group1/group2/`" traverses the graph from the `root`, which contains `group1`, which contains and retrieves `group2`.
 
+## Diagram: Application Root
+
+```kroki-d2
+@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_root.dot
+```
+
 ## Application Package Structure (HDF5 File)
 
 ### `/`
 
 The root group of the Application file-system.
-
-#### Diagram: Application Root
-
-```kroki-d2
-@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_root.dot
-```
 
 ### `/static`
 
