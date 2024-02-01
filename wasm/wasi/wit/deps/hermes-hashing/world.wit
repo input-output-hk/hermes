@@ -1,7 +1,0 @@
-package hermes:hashing;
-
-// API
-    // Generate a blake2b-256 hash.
-
-world all {
-}
