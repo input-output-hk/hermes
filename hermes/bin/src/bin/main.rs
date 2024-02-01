@@ -1,4 +1,4 @@
-//! The Hermes Node
+//! The Hermes node cli binary.
 
 fn main() {
     println!("Hello, world!");

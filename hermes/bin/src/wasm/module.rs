@@ -1,6 +1,8 @@
 //! WASM module implementation.
-//! Wrapper over the `wasmtime::Module` struct with some specific validation and
-//! configuration setup.
+//! Wrapper over the `wasmtime::Module`, `wasmtime::Instance` etc. structs which
+//! define a WASM module abstrction with capability to interact with it.
+//!
+//! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
 use std::error::Error;
 
@@ -15,9 +17,21 @@ pub(crate) trait LinkImport<ContextT> {
     fn link(&self, linker: &mut WasmLinker<ContextT>) -> Result<(), Box<dyn Error>>;
 }
 
-/// WASM module struct
+/// Structure defines an abstaction over the WASM module
+/// It instantiates the module with the provided context data,
+/// links all provided imports to the module instance,
+/// handles an internal state of the WASM module.
+///
+/// The primary goal for it is to make a WASM state *immutable* along WASM module
+/// execution. It means that `Module::call_func` execution does not have as side effect
+/// for the WASM module's state, it becomes unchanged.
 pub(crate) struct Module<ContextType: Clone> {
-    /// `wasmtime::Instance` module instance
+    /// `wasmtime::InstancePre` entity
+    ///
+    /// A reason why it is used a `wasmtime::InstancePre` instead of `wasmtime::Instance`
+    /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
+    /// It separates and optimizes the linkage of the imports to the WASM runtime from the
+    /// module actual initialization process.
     instance: WasmModuleInstance<ContextType>,
 
     /// `wasmtime::Engine` entity
@@ -58,8 +72,8 @@ impl<ContextType: Clone> Module<ContextType> {
     }
 
     /// Call WASM module's function.
-    /// For each call it create a brand new `wasmtime::Store` instance, which means that
-    /// is has a clean state for each call.
+    /// For each call creates a brand new `wasmtime::Store` instance, which means that
+    /// is has an initial state, based on the provided context for each call.
     ///
     /// # Errors
     /// - `wasmtime::Error`: WASM call error
