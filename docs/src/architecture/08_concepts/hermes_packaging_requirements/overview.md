@@ -1,16 +1,20 @@
-# Packaging Requirements Overview
+# Overview
 
 Applications in Hermes are packaged and distributed using [HDF5] (Hierarchical Data Format Version 5) files.
 
-## Package Contents
+## Key Concepts
 
-## Package Metadata
+### Application Contents
 
-### Diagram: Metadata is stored in HDF5 Attributes linked to stored objects
+### Package Metadata
+
+#### Diagram: Metadata is stored in HDF5 Attributes linked to stored objects
 
 ```kroki-excalidraw
 @from_file:architecture/08_concepts/hermes_packaging_requirements/images/hermes_app_object_metadata.excalidraw
 ```
+
+### Cryptographic Signatures
 
 ## **SJ Notes**
 
