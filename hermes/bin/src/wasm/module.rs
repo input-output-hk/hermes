@@ -13,9 +13,9 @@ use wasmtime::{
 
 use super::context::Context;
 
-///
+/// Interface for linking WASM imports
 pub(crate) trait LinkImport<Context> {
-    ///
+    /// Link imports to the `wasmtime::Linker`
     fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>>;
 }
 
