@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    /// Tests that after instantiation of `Module` it's state does not change after each
+    /// Tests that after instantiation of `Module` its state does not change after each
     /// `Module::call_func` execution
     fn preserve_module_state_test() {
         let wat = r#"
