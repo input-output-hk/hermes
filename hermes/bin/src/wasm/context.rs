@@ -1,9 +1,9 @@
-//! WASM host context implementation.
+//! WASM module's context implementation.
 
 use rusty_ulid::Ulid;
 
-/// A WASM host context structure, which is intended to be passed to the `wasmtime::Store`
-/// during the WASM state initialization process.
+/// A WASM module's context structure, which is intended to be passed to the
+/// `wasmtime::Store` during the WASM module's state initialization process.
 #[derive(Clone)]
 pub(crate) struct Context {
     /// Hermes application name
@@ -12,10 +12,10 @@ pub(crate) struct Context {
     /// module ULID id
     module_id: Ulid,
 
-    ///
+    /// event name to be executed
     event_name: Option<String>,
 
-    ///
+    /// module's execution counter
     counter: u64,
 }
 
@@ -30,7 +30,7 @@ impl Context {
         }
     }
 
-    ///
+    /// Increments the module's execution counter and sets the event name to be executed
     pub(crate) fn use_for(&mut self, even_name: String) {
         self.event_name = Some(even_name);
         self.counter += 1;
