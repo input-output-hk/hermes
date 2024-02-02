@@ -69,3 +69,37 @@ build:
         mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/logging.md
 
     SAVE ARTIFACT wasi-hermes-docs wasi-hermes-docs
+
+# test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
+test-rust-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen rust ../wasi/wit --stubs
+
+# test-c-bindings - Test we can generate C bindings without error from the hermes default world
+test-c-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit
+
+# test-java-bindings - Test we can generate Java bindings without error from the hermes default world
+test-java-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `resource` is not yet implemented.
+    RUN wit-bindgen teavm-java ../wasi/wit | true
+
+# test-go-bindings - Test we can generate GO bindings without error from the hermes default world
+test-go-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `resource` is not yet implemented.
+    RUN wit-bindgen tiny-go ../wasi/wit
+
+# test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
+test-csharp-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `lots of stuff is not yet implemented.
+    RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true
+
