@@ -12,8 +12,10 @@ world hermes {
 
   /// All possible Hermes Imports/Exports
   include hermes:binary/all;
+  include hermes:cardano/all;
   include hermes:cbor/all;
   include hermes:cron/all;
+  include hermes:crypto/all;
   include hermes:init/all;
   include hermes:json/all;
   include hermes:kv-store/all;
