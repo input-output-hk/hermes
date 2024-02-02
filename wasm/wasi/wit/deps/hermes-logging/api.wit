@@ -37,7 +37,9 @@ interface api {
     /// - `level` : The log level this message is for. 
     /// - `file`  : The name of the src file being logged from. (Optional)
     /// - `fn`    : The function within the file being logged from. (Optional)
-    /// - `context`: The logging context.  (Should have no newlines or formatting).
+    /// - `line`  : The line of code the log was generated from. (Optional)
+    /// - `col`   : The column of code the log was generated from. (Optional)
+    /// - `ctx`   : The logging context.  (Should have no newlines or formatting).
     /// - `msg`   : A Single line message to be logged. (Should have no newlines or formatting).
     /// - `data`  : A Free form json payload that will be logged with the msg.  This must be valid JSON.
     ///
@@ -60,7 +62,7 @@ interface api {
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be considered independent logs.
     log: func(level: level, 
                 file: option<string>, fn: option<string>, line: option<u32>, col:option<u32>, 
-                context: option<string>, 
+                ctx: option<string>, 
                 msg: string, 
                 data: option<json>);
 }
