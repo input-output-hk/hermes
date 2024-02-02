@@ -34,7 +34,7 @@ element = ${ rulename | group | option | char_val | num_val | prose_val }
 
 group = ${ "(" ~ S ~ alternation ~ S ~ ")" }
 
-options = ${ "[" ~ S ~ alternation ~ S ~ "]" }
+option = ${ "[" ~ S ~ alternation ~ S ~ "]" }
 
 // Values
 char_val = ${ "\"" ~ ('\u{20}'..'\u{21}' | '\u{23}'..'\u{7E}')* ~ "\"" }
@@ -51,6 +51,9 @@ prose_val = ${ "<" ~ ('\u{20}'..'\u{3D}' | '\u{3F}'..'\u{7E}')* ~ ">" }
 
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
+
+c_wsp = _{ WHITESPACE | (c_nl ~ WHITESPACE) }
+c_nl = _{ COMMENT | NEWLINE }
 
 S = _{ (COMMENT | WHITESPACE)* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
