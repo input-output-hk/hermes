@@ -5,7 +5,7 @@
 // cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
 // cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
 
-cddl = ${
+abnf = ${
     SOI
     ~ S ~ (rule ~ S)+
     ~ EOI
@@ -13,132 +13,41 @@ cddl = ${
 
 // -----------------------------------------------------------------------------
 // Rules
-rule = ${
-    (typename ~ genericparm? ~ S ~ assignt ~ S ~ type)
-    | (groupname ~ genericparm? ~ S ~ assigng ~ S ~ grpent)
-}
+rule = ${ rulename ~ defined_as ~ elements ~ S }
 
-typename = { id }
-groupname = { id }
+rulename = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT | "-" )* }
 
-assignt = { "=" | "/=" }
-assigng = { "=" | "//=" }
+// basic rules definition and incremental alternatives
+defined_as = ${ S ~ ("=" | "=/")* ~ S }
 
-genericparm = ${ "<" ~ S ~ id ~ S ~ ("," ~ S ~ id ~ S)* ~ ">" }
-genericarg = ${ "<" ~ S ~ type1 ~ S ~ ("," ~ S ~ type1 ~ S)* ~ ">" }
+elements = ${ alternation ~ S }
 
-// -----------------------------------------------------------------------------
-// Type Declaration
-type = ${ type1 ~ (S ~ "/" ~ S ~ type1)* }
+alternation = ${ concatenation ~ (S ~ "/" ~ S ~ concatenation)* }
 
-type1 = ${ type2 ~ (S ~ (rangeop | ctlop) ~ S ~ type2)? }
+concatenation = ${ repetition ~ (S ~ repetition)* } // FIXME: a must +1 whtiespace
 
-type2 = ${
-    value
-    | typename ~ genericarg?
-    | ("(" ~ S ~ type ~ S ~ ")")
-    | ("{" ~ S ~ group ~ S ~ "}")
-    | ("[" ~ S ~ group ~ S ~ "]")
-    | ("~" ~ S ~ typename ~ genericarg?)
-    | ("&" ~ S ~ "(" ~ S ~ group ~ S ~ ")")
-    | ("&" ~ S ~ groupname ~ genericarg?)
-    | ("#" ~ "6" ~ ("." ~ uint)? ~ "(" ~ S ~ type ~ S ~ ")")
-    | ("#" ~ ASCII_DIGIT ~ ("." ~ uint)?)
-    | "#"
-}
+repetition = ${ repeat? ~ element }
 
-rangeop = { "..." | ".." }
-ctlop = ${ "." ~ id }
+repeat = ${ ASCII_DIGIT+ | (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) }
 
-// -----------------------------------------------------------------------------
-// Group Elements
-group = ${ grpchoice ~ (S ~ "//" ~ S ~ grpchoice)* }
+element = ${ rulename | group | option | char_val | num_val | prose_val }
 
-grpchoice = ${ (grpent ~ optcom)* }
+group = ${ "(" ~ S ~ alternation ~ S ~ ")" }
 
-grpent = ${
-    ((occur ~ S)? ~ (memberkey ~ S)? ~ type)
-    | ((occur ~ S)? ~ groupname ~ genericarg?)
-    | ((occur ~ S)? ~ "(" ~ S ~ group ~ S ~ ")")
-}
+options = ${ "[" ~ S ~ alternation ~ S ~ "]" }
 
-memberkey = ${
-    (type1 ~ S ~ ("^" ~ S)? ~ "=>")
-    | ((value | bareword) ~ S ~ ":")
-}
+// Values
+char_val = ${ "\"" ~ ('\u{20}'..'\u{21}' | '\u{23}'..'\u{7E}')* ~ "\"" }
 
-bareword = { id }
+num_val = ${ "%" ~ (bin_val | dec_val | hex_val) }
 
-/// Optional Comma - Note eligible for producing pairs as this might be useful for linting
-optcom = { S ~ ("," ~ S)? }
+bin_val = ${ "b" ~ ASCII_BIN_DIGIT+ ~ (("." ~ ASCII_BIN_DIGIT+)+ | ("-" ~ ASCII_BIN_DIGIT+))? }
 
-occur = {
-    (uint? ~ "*" ~ uint?)
-    | "+"
-    | "?"
-}
+dec_val = ${ "d" ~ ASCII_DIGIT+ ~ (("." ~ ASCII_DIGIT+)+ | ("-" ~ ASCII_DIGIT+))? }
 
-// -----------------------------------------------------------------------------
-// Literal Values
+hex_val = ${ "x" ~ ASCII_HEX_DIGIT+ ~ (("." ~ ASCII_HEX_DIGIT+)+ | ("-" ~ ASCII_HEX_DIGIT+))? }
 
-/// All Literal Values
-value = { number | text | bytes }
-
-/// Literal Numbers - A float if it has fraction or exponent; int otherwise
-number = { hexfloat | intfloat }
-
-/// Hex floats of the form -0x123.abc0p+12
-hexfloat = ${ "-"? ~ "0x" ~ ASCII_HEX_DIGIT+ ~ ("." ~ ASCII_HEX_DIGIT+)? ~ "p" ~ exponent }
-
-/// Ints or Int floats
-intfloat = ${ int ~ ("." ~ fraction)? ~ ("e" ~ exponent)? }
-
-/// Fractional part of a number
-fraction = ${ ASCII_DIGIT+ }
-
-/// Exponent for a number
-exponent = ${ ("+" | "-") ~ ASCII_DIGIT+ }
-
-/// All integers, singed and unsigned
-int = ${ "-"? ~ uint }
-
-
-/// Unsigned Integers
-uint = ${
-    (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
-    | ("0x" ~ ASCII_HEX_DIGIT+)
-    | ("0b" ~ ASCII_BIN_DIGIT+)
-    | "0"
-}
-
-/// Literal Text
-text = ${ "\"" ~ SCHAR* ~ "\"" }
-
-/// Literal Bytes.
-bytes = ${ bytes_hex | bytes_b64 | bytes_text }
-bytes_hex = ${ "h" ~ "'" ~ HEX_PAIR* ~ "'" }
-bytes_b64 = ${ "b64" ~ "'" ~ URL_BASE64 ~ "'" }
-bytes_text = ${ "'" ~ BCHAR* ~ "'" }
-
-// -----------------------------------------------------------------------------
-// Simple multiple character sequences
-
-/// identifier, called the `name` in the CDDL spec.
-id = ${ group_socket | type_socket | name }
-/// Special form of a name that represents a Group Socket.
-group_socket = ${ "$$" ~ ( ( "-" | "." )* ~ NAME_END )* }
-/// Special form of a name that represents a Type Socket.
-type_socket = ${ "$" ~ ( ( "-" | "." )* ~ NAME_END )* }
-/// General form of a name.
-name = ${ NAME_START ~ ( ( "-" | "." )* ~ NAME_END )* }
-
-/// A pair of hex digits. (Must always have even numbers of hex digits.)
-HEX_PAIR = _{ S ~ ASCII_HEX_DIGIT ~ S ~ ASCII_HEX_DIGIT ~ S }
-
-/// Whitespace is allowed and is ignored.
-/// This token will keep the whitespace, so it will need to handled when converted to binary.
-URL_BASE64 = _{ S ~ ( URL_BASE64_ALPHA ~ S)* ~ URL_BASE64_PAD? }
-
+prose_val = ${ "<" ~ ('\u{20}'..'\u{3D}' | '\u{3F}'..'\u{7E}')* ~ ">" }
 
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
@@ -147,19 +56,7 @@ S = _{ (COMMENT | WHITESPACE)* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
 COMMENT = { ";" ~ (PCHAR | "\t")* ~ NEWLINE }
 
-URL_BASE64_ALPHA = _{ ASCII_ALPHA | ASCII_DIGIT |  "-" | "_"  }
-// Optional Padding that goes at the end of Base64.
-URL_BASE64_PAD = _{ "~" }
-
 // Identifier Name Character sets.
-
-/// A name can start with an alphabetic character (including "@", "_", "$")
-/// The body of the name can consist of any of the characters from the set
-///   {"A" to "Z", "a" to "z", "0" to "9", "_", "-", "@", ".", "$"}
-// NAME_BODY = _{ NAME_END | "-" | "." }  -- Unused Rule
-NAME_START = _{ ASCII_ALPHA | "@" | "_" | "$" }
-/// A name can end with an alphabetic character (including "@", "_", "$") or a digit.
-NAME_END = _{ NAME_START | ASCII_DIGIT }
 
 /// All Visible characters.
 PCHAR = _{ ASCII_VISIBLE | UNICODE_CHAR }
