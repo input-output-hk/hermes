@@ -9,7 +9,7 @@ use std::str::FromStr;
 pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
-    ledger::traverse::MultiEraBlock,
+    ledger::traverse::{wellknown::GenesisValues, MultiEraBlock},
     network::miniprotocols::{
         chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC,
     },
@@ -115,6 +115,16 @@ impl From<Network> for u64 {
             Network::Preview => PREVIEW_MAGIC,
             Network::Testnet => TESTNET_MAGIC,
         }
+    }
+}
+
+/// Return genesis values for given network
+pub fn to_genesis_values(network: Network) -> Option<GenesisValues> {
+    match network {
+        Network::Mainnet => GenesisValues::from_magic(MAINNET_MAGIC),
+        Network::Preprod => GenesisValues::from_magic(PRE_PRODUCTION_MAGIC),
+        Network::Preview => GenesisValues::from_magic(PREVIEW_MAGIC),
+        Network::Testnet => GenesisValues::from_magic(TESTNET_MAGIC),
     }
 }
 
