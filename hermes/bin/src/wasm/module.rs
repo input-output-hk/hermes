@@ -79,8 +79,8 @@ impl Module {
         &mut self, name: &str, args: Args,
     ) -> Result<Ret, Box<dyn Error>>
     where
-        Args: WasmParams + 'static,
-        Ret: WasmResults + 'static,
+        Args: WasmParams,
+        Ret: WasmResults,
     {
         self.context.use_for(name.to_string());
 
