@@ -7,11 +7,11 @@
 use std::error::Error;
 
 use wasmtime::{
-    Config as WasmConfig, Engine as WasmEngine, InstancePre as WasmModuleInstance,
-    Linker as WasmLinker, Module as WasmModule, Store as WasmStore, WasmParams, WasmResults,
+    InstancePre as WasmInstancePre, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
+    WasmParams, WasmResults,
 };
 
-use super::context::Context;
+use super::{context::Context, engine::Engine};
 
 /// Interface for linking WASM imports
 pub(crate) trait LinkImport<Context> {
@@ -34,10 +34,10 @@ pub(crate) struct Module {
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    instance: WasmModuleInstance<Context>,
+    pre_instance: WasmInstancePre<Context>,
 
-    /// `wasmtime::Engine` entity
-    engine: WasmEngine,
+    /// `Engine` entity
+    engine: Engine,
 
     /// `Context` entity
     context: Context,
@@ -50,26 +50,21 @@ impl Module {
     ///  - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
     pub(crate) fn new(
-        context: Context, module_bytes: &[u8], imports: &[Box<dyn LinkImport<Context>>],
+        engine: Engine, app_name: String, module_bytes: &[u8],
+        imports: &[Box<dyn LinkImport<Context>>],
     ) -> Result<Self, Box<dyn Error>> {
-        let mut config = WasmConfig::new();
-        config.wasm_component_model(true);
-        config.consume_fuel(false);
-
-        let engine = WasmEngine::new(&config)?;
-
         let module = WasmModule::new(&engine, module_bytes)?;
 
         let mut linker = WasmLinker::new(&engine);
         for import in imports {
             import.link(&mut linker)?;
         }
-        let instance = linker.instantiate_pre(&module)?;
+        let pre_instance = linker.instantiate_pre(&module)?;
 
         Ok(Self {
-            instance,
+            pre_instance,
             engine,
-            context,
+            context: Context::new(app_name),
         })
     }
 
@@ -84,12 +79,14 @@ impl Module {
         &mut self, name: &str, args: Args,
     ) -> Result<Ret, Box<dyn Error>>
     where
-        Args: WasmParams,
-        Ret: WasmResults,
+        Args: WasmParams + 'static,
+        Ret: WasmResults + 'static,
     {
+        self.context.use_for(name.to_string());
+
         let mut store = WasmStore::new(&self.engine, self.context.clone());
-        let instantiated_instance = self.instance.instantiate(&mut store)?;
-        let func = instantiated_instance.get_typed_func(&mut store, name)?;
+        let instance = self.pre_instance.instantiate(&mut store)?;
+        let func = instance.get_typed_func(&mut store, name)?;
         Ok(func.call(&mut store, args)?)
     }
 }
@@ -113,6 +110,7 @@ mod tests {
     /// Tests that after instantiation of `Module` its state does not change after each
     /// `Module::call_func` execution
     fn preserve_module_state_test() {
+        let engine = Engine::new().expect("");
         let wat = r#"
                     (module
                         (import "" "hello" (func $hello_0))
@@ -129,8 +127,10 @@ mod tests {
                         (global $global_val (mut i32) (i32.const 0))
                     )"#;
 
-        let mut module =
-            Module::new(Context, wat.as_bytes(), &[Box::new(ImportHelloFunc)]).expect("");
+        let mut module = Module::new(engine, "app".to_string(), wat.as_bytes(), &[Box::new(
+            ImportHelloFunc,
+        )])
+        .expect("");
 
         for _ in 0..10 {
             let res: i32 = module.call_func("call_hello", ()).expect("");
