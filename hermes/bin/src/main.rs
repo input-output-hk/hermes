@@ -1,4 +1,4 @@
-//! The Hermes node cli binary.
+//! The Hermes Node.
 
 mod wasm;
 
