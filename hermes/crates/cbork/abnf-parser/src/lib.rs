@@ -37,7 +37,7 @@ pub struct AST<'a>(Pairs<'a, abnf::Rule>);
 pub struct ABNFError(Error<abnf::Rule>);
 
 pub fn parse_abnf<'a>(input: &'a str) -> Result<AST<'a>, Box<ABNFError>> {
-    let result: Result<AST<'_>, _> = abnf::ABNFParser::parse(abnf::Rule::cddl, input)
+    let result: Result<AST<'_>, _> = abnf::ABNFParser::parse(abnf::Rule::abnf, input)
         .map(AST)
         .map_err(ABNFError);
 

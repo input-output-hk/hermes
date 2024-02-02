@@ -1,30 +1,27 @@
-//! CDDL Grammar adapted from RFC8610 Appendix B
-//! https://www.rfc-editor.org/rfc/rfc8610#appendix-B
-
-// cspell: words assignt groupname grpent genericparm assigng optcom
-// cspell: words genericarg rangeop ctlop grpchoice memberkey bareword hexfloat intfloat
-// cspell: words SCHAR BCHAR PCHAR SESC FFFD Characterset Visiable
+//! ABNF Grammar adapted from RFC5234 Section 4 and Appendix B
+//! https://datatracker.ietf.org/doc/html/rfc5234#section-4
+//! https://datatracker.ietf.org/doc/html/rfc5234#appendix-B.1
 
 abnf = ${
     SOI
-    ~ S ~ (rule ~ S)+
+    ~ (rule | (c_wsp* ~ c_nl))+
     ~ EOI
 }
 
 // -----------------------------------------------------------------------------
 // Rules
-rule = ${ rulename ~ defined_as ~ elements ~ S }
+rule = ${ rulename ~ defined_as ~ elements ~ c_nl }
 
 rulename = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT | "-" )* }
 
 // basic rules definition and incremental alternatives
-defined_as = ${ S ~ ("=" | "=/")* ~ S }
+defined_as = ${ c_wsp* ~ ("=" | "=/")* ~ c_wsp* }
 
-elements = ${ alternation ~ S }
+elements = ${ alternation ~ c_wsp* }
 
-alternation = ${ concatenation ~ (S ~ "/" ~ S ~ concatenation)* }
+alternation = ${ concatenation ~ (c_wsp* ~ "/" ~ c_wsp* ~ concatenation)* }
 
-concatenation = ${ repetition ~ (S ~ repetition)* } // FIXME: a must +1 whtiespace
+concatenation = ${ repetition ~ (c_wsp+ ~ repetition)* } // FIXME: a must +1 whtiespace
 
 repetition = ${ repeat? ~ element }
 
@@ -32,55 +29,39 @@ repeat = ${ ASCII_DIGIT+ | (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) }
 
 element = ${ rulename | group | option | char_val | num_val | prose_val }
 
-group = ${ "(" ~ S ~ alternation ~ S ~ ")" }
+group = ${ "(" ~ c_wsp* ~ alternation ~ c_wsp* ~ ")" }
 
-option = ${ "[" ~ S ~ alternation ~ S ~ "]" }
+option = ${ "[" ~ c_wsp* ~ alternation ~ c_wsp* ~ "]" }
 
 // Values
+
+/// quoted string of SP and VCHAR without DQUOTE
 char_val = ${ "\"" ~ ('\u{20}'..'\u{21}' | '\u{23}'..'\u{7E}')* ~ "\"" }
 
 num_val = ${ "%" ~ (bin_val | dec_val | hex_val) }
 
+/// series of concatenated bit values or single ONEOF range
 bin_val = ${ "b" ~ ASCII_BIN_DIGIT+ ~ (("." ~ ASCII_BIN_DIGIT+)+ | ("-" ~ ASCII_BIN_DIGIT+))? }
 
 dec_val = ${ "d" ~ ASCII_DIGIT+ ~ (("." ~ ASCII_DIGIT+)+ | ("-" ~ ASCII_DIGIT+))? }
 
 hex_val = ${ "x" ~ ASCII_HEX_DIGIT+ ~ (("." ~ ASCII_HEX_DIGIT+)+ | ("-" ~ ASCII_HEX_DIGIT+))? }
 
+/// bracketed string of SP and VCHAR without angles
+/// prose description, to be used as last resort
 prose_val = ${ "<" ~ ('\u{20}'..'\u{3D}' | '\u{3F}'..'\u{7E}')* ~ ">" }
 
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
 
 c_wsp = _{ WHITESPACE | (c_nl ~ WHITESPACE) }
+
+/// comment or newline
 c_nl = _{ COMMENT | NEWLINE }
 
 S = _{ (COMMENT | WHITESPACE)* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = { ";" ~ (PCHAR | "\t")* ~ NEWLINE }
+COMMENT = { ";" ~ (VCHAR | "\t")* ~ NEWLINE }
 
-// Identifier Name Character sets.
-
-/// All Visible characters.
-PCHAR = _{ ASCII_VISIBLE | UNICODE_CHAR }
-
-/// The set of characters valid for a text string.
-SCHAR = _{ SCHAR_ASCII_VISIBLE | UNICODE_CHAR | SESC }
-
-/// The set of characters valid for a byte string.
-BCHAR = _{ BCHAR_ASCII_VISIBLE | UNICODE_CHAR | SESC | NEWLINE }
-
-/// Escaping code to allow invalid characters to be used in text or byte strings.
-SESC = ${ "\\" ~ (ASCII_VISIBLE | UNICODE_CHAR) }
-
-/// All Visible Ascii characters.
-ASCII_VISIBLE = _{ ' '..'~' }
-
-/// Ascii subset valid for text strings.
-SCHAR_ASCII_VISIBLE = _{ ' '..'!' | '#'..'[' | ']'..'~' }
-
-/// Ascii subset valid for byte text strings.
-BCHAR_ASCII_VISIBLE = _{ ' '..'&' | '('..'[' | ']'..'~' }
-
-/// Valid non ascii unicode Characters
-UNICODE_CHAR = _{ '\u{80}'..'\u{10FFFD}' }
+/// visible (printing) characters
+VCHAR = _{ '\u{21}'..'\u{7E}' }
