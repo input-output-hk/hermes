@@ -1,6 +1,6 @@
 VERSION 0.7
 
-#cspell: words rustfmt wasi
+#cspell: words rustfmt wasi autodrop teavm
 
 # Build the WASI Docs:
 build:
