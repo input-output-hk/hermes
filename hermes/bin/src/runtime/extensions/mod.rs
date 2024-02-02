@@ -13,6 +13,3 @@ bindgen!({
     world: "hermes",
     path: "../../wasm/wasi/wit",
 });
-
-//mod hermes;
-//mod wasi;
