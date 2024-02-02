@@ -119,7 +119,7 @@ impl From<Network> for u64 {
 }
 
 /// Return genesis values for given network
-pub fn to_genesis_values(network: Network) -> Option<GenesisValues> {
+pub fn network_genesis_values(network: Network) -> Option<GenesisValues> {
     match network {
         Network::Mainnet => GenesisValues::from_magic(MAINNET_MAGIC),
         Network::Preprod => GenesisValues::from_magic(PRE_PRODUCTION_MAGIC),
