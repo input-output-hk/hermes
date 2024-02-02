@@ -11,7 +11,6 @@ version = "0.0.1"
 authors = [
     "Steven Johnson <steven.johnson@iohk.io>"
 ]
-rust-version = "1.73"
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
@@ -55,3 +54,6 @@ missing_docs_in_private_items = "deny"
 # issue: https://github.com/input-output-hk/hermes/issues/63
 pallas = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
 pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "feat/hardano-read-blocks-iter-send" }
+
+wasmtime = "17.0.0"
+rusty_ulid = "2.0.0"
