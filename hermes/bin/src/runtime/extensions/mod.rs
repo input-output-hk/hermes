@@ -1,11 +1,9 @@
 //! Runtime modules - extensions
-
-//! Runtime modules - extensions - Hermes - Binary extensions
 //!
 //! *Note*
 //! Inspect the generated code with:
 //! ```
-//! cargo expand --bin hermes runtime::extensions::hermes::binary
+//! cargo expand --bin hermes runtime::extensions
 //! ```
 #![allow(clippy::indexing_slicing)]
 
