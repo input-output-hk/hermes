@@ -4,6 +4,7 @@ adminer
 asyncio
 auditability
 backpressure
+bindgen
 blockfetch
 BROTLI
 cardano
@@ -84,8 +85,8 @@ testunit
 thiserror
 timelike
 toolsets
-txns
 Traceback
+txns
 vitss
 voteplan
 voteplans

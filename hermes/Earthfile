@@ -10,6 +10,9 @@ builder:
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 
+    RUN mkdir /wasm
+    COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
+
 ## -----------------------------------------------------------------------------
 ##
 ## Standard CI targets.
