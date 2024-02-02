@@ -35,7 +35,7 @@ interface api {
     enum errno {
         invalid-localtime,
         unknown-timezone,
-        year-out-of-rangem // The earliest year which can convert to a datetime is 1970.
+        year-out-of-range // The earliest year which can convert to a datetime is 1970.
 
     }
 
@@ -43,7 +43,7 @@ interface api {
     /// 
     /// **Parameters**
     /// 
-    /// `when` : The dattime we want to convert (Optional, if not set it will convert `now`).
+    /// `when` : The datetime we want to convert (Optional, if not set it will convert `now`).
     /// `tz` : The timezone to use. (Optional, if not set uses the local machines configured local timezone.)
     /// 
     /// **Returns**

@@ -58,6 +58,7 @@ nextest
 oneshot
 openapi
 opentelemetry
+outlen
 permissioned
 permissionless
 pg_isready
@@ -83,6 +84,7 @@ testunit
 thiserror
 timelike
 toolsets
+txns
 Traceback
 vitss
 voteplan
