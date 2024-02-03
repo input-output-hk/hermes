@@ -1,4 +1,4 @@
 //! Runtime modules - Host implementations
 
-mod hermes;
-mod wasi;
+pub(crate) mod hermes;
+pub(crate) mod wasi;

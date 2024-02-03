@@ -2,9 +2,9 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::binary::api::Host;
+use crate::runtime::extensions::hermes::cbor::api::Host;
 
 /// State
-pub(crate) struct State {}
+struct State {}
 
 impl Host for State {}

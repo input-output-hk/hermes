@@ -29,7 +29,7 @@ interface api {
         ///
         /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
         /// 
-        constructor(private-key: option<list<ed25519-bip32-private-key>>);
+        constructor(private-key: option<ed25519-bip32-private-key>);
 
         /// Get the public key for this private key.
         public-key: func() -> ed25519-bip32-public-key;

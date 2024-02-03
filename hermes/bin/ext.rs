@@ -1,12 +1,12 @@
 mod extensions {
     //! Runtime modules - extensions
-    //! Runtime modules - extensions - Hermes - Binary extensions
     //!
     //! *Note*
     //! Inspect the generated code with:
     //! ```
-    //! cargo expand --bin hermes runtime::extensions::hermes::binary
+    //! cargo expand --bin hermes runtime::extensions
     //! ```
+    #![allow(clippy::indexing_slicing)]
     use wasmtime::component::bindgen;
     pub struct Hermes {
         interface0: exports::wasi::http::incoming_handler::IncomingHandler,
@@ -2822,44 +2822,31 @@ mod extensions {
                         )
                     }
                 };
-                /// The actual individual cron-time entry
-                #[component(enum)]
-                pub enum CronTime {
-                    #[component(name = "cron-component")]
-                    CronComponent,
-                    #[component(name = "cron-components")]
-                    CronComponents,
+                /// A discreet time entry used to help convert numeric times into crontab entries.
+                #[component(variant)]
+                pub enum CronComponent {
+                    /// Maps to `*` in a cron schedule (ie, match all)
+                    #[component(name = "all")]
+                    All,
+                    /// Match an absolute time/date
+                    #[component(name = "at")]
+                    At(u8),
+                    /// Match an inclusive list of time/date values.
+                    #[component(name = "range")]
+                    Range((u8, u8)),
                 }
                 #[automatically_derived]
-                impl ::core::clone::Clone for CronTime {
+                impl ::core::marker::Copy for CronComponent {}
+                #[automatically_derived]
+                impl ::core::clone::Clone for CronComponent {
                     #[inline]
-                    fn clone(&self) -> CronTime {
+                    fn clone(&self) -> CronComponent {
+                        let _: ::core::clone::AssertParamIsClone<u8>;
+                        let _: ::core::clone::AssertParamIsClone<(u8, u8)>;
                         *self
                     }
                 }
-                #[automatically_derived]
-                impl ::core::marker::Copy for CronTime {}
-                #[automatically_derived]
-                impl ::core::marker::StructuralPartialEq for CronTime {}
-                #[automatically_derived]
-                impl ::core::cmp::PartialEq for CronTime {
-                    #[inline]
-                    fn eq(&self, other: &CronTime) -> bool {
-                        let __self_tag = ::core::intrinsics::discriminant_value(self);
-                        let __arg1_tag = ::core::intrinsics::discriminant_value(other);
-                        __self_tag == __arg1_tag
-                    }
-                }
-                #[automatically_derived]
-                impl ::core::marker::StructuralEq for CronTime {}
-                #[automatically_derived]
-                impl ::core::cmp::Eq for CronTime {
-                    #[inline]
-                    #[doc(hidden)]
-                    #[coverage(off)]
-                    fn assert_receiver_is_total_eq(&self) -> () {}
-                }
-                unsafe impl wasmtime::component::Lower for CronTime {
+                unsafe impl wasmtime::component::Lower for CronComponent {
                     #[inline]
                     fn lower<T>(
                         &self,
@@ -2868,13 +2855,13 @@ mod extensions {
                         dst: &mut std::mem::MaybeUninit<Self::Lower>,
                     ) -> wasmtime::component::__internal::anyhow::Result<()> {
                         let ty = match ty {
-                            wasmtime::component::__internal::InterfaceType::Enum(i) => {
-                                &cx.types[i]
-                            }
+                            wasmtime::component::__internal::InterfaceType::Variant(
+                                i,
+                            ) => &cx.types[i],
                             _ => wasmtime::component::__internal::bad_type_info(),
                         };
                         match self {
-                            Self::CronComponent => {
+                            Self::All => {
                                 {
                                     #[allow(unused_unsafe)]
                                     {
@@ -2904,7 +2891,7 @@ mod extensions {
                                                 unsafe {
                                                     use ::wasmtime::component::__internal::MaybeUninitExt;
                                                     let m: &mut std::mem::MaybeUninit<_> = payload;
-                                                    m.map(|p| &raw mut (*p).CronComponent)
+                                                    m.map(|p| &raw mut (*p).All)
                                                 }
                                             }
                                         },
@@ -2912,7 +2899,7 @@ mod extensions {
                                     )
                                 }
                             }
-                            Self::CronComponents => {
+                            Self::At(value) => {
                                 {
                                     #[allow(unused_unsafe)]
                                     {
@@ -2942,11 +2929,73 @@ mod extensions {
                                                 unsafe {
                                                     use ::wasmtime::component::__internal::MaybeUninitExt;
                                                     let m: &mut std::mem::MaybeUninit<_> = payload;
-                                                    m.map(|p| &raw mut (*p).CronComponents)
+                                                    m.map(|p| &raw mut (*p).At)
                                                 }
                                             }
                                         },
-                                        |dst| Ok(()),
+                                        |dst| {
+                                            value
+                                                .lower(
+                                                    cx,
+                                                    ty
+                                                        .cases[1usize]
+                                                        .ty
+                                                        .unwrap_or_else(
+                                                            wasmtime::component::__internal::bad_type_info,
+                                                        ),
+                                                    dst,
+                                                )
+                                        },
+                                    )
+                                }
+                            }
+                            Self::Range(value) => {
+                                {
+                                    #[allow(unused_unsafe)]
+                                    {
+                                        unsafe {
+                                            use ::wasmtime::component::__internal::MaybeUninitExt;
+                                            let m: &mut std::mem::MaybeUninit<_> = dst;
+                                            m.map(|p| &raw mut (*p).tag)
+                                        }
+                                    }
+                                }
+                                    .write(wasmtime::ValRaw::u32(2u32));
+                                unsafe {
+                                    wasmtime::component::__internal::lower_payload(
+                                        {
+                                            #[allow(unused_unsafe)]
+                                            {
+                                                unsafe {
+                                                    use ::wasmtime::component::__internal::MaybeUninitExt;
+                                                    let m: &mut std::mem::MaybeUninit<_> = dst;
+                                                    m.map(|p| &raw mut (*p).payload)
+                                                }
+                                            }
+                                        },
+                                        |payload| {
+                                            #[allow(unused_unsafe)]
+                                            {
+                                                unsafe {
+                                                    use ::wasmtime::component::__internal::MaybeUninitExt;
+                                                    let m: &mut std::mem::MaybeUninit<_> = payload;
+                                                    m.map(|p| &raw mut (*p).Range)
+                                                }
+                                            }
+                                        },
+                                        |dst| {
+                                            value
+                                                .lower(
+                                                    cx,
+                                                    ty
+                                                        .cases[2usize]
+                                                        .ty
+                                                        .unwrap_or_else(
+                                                            wasmtime::component::__internal::bad_type_info,
+                                                        ),
+                                                    dst,
+                                                )
+                                        },
                                     )
                                 }
                             }
@@ -2960,9 +3009,9 @@ mod extensions {
                         mut offset: usize,
                     ) -> wasmtime::component::__internal::anyhow::Result<()> {
                         let ty = match ty {
-                            wasmtime::component::__internal::InterfaceType::Enum(i) => {
-                                &cx.types[i]
-                            }
+                            wasmtime::component::__internal::InterfaceType::Variant(
+                                i,
+                            ) => &cx.types[i],
                             _ => wasmtime::component::__internal::bad_type_info(),
                         };
                         if true {
@@ -2976,18 +3025,44 @@ mod extensions {
                             }
                         }
                         match self {
-                            Self::CronComponent => {
+                            Self::All => {
                                 *cx.get::<1usize>(offset) = 0u8.to_le_bytes();
                                 Ok(())
                             }
-                            Self::CronComponents => {
+                            Self::At(value) => {
                                 *cx.get::<1usize>(offset) = 1u8.to_le_bytes();
-                                Ok(())
+                                value
+                                    .store(
+                                        cx,
+                                        ty
+                                            .cases[1usize]
+                                            .ty
+                                            .unwrap_or_else(
+                                                wasmtime::component::__internal::bad_type_info,
+                                            ),
+                                        offset
+                                            + <Self as wasmtime::component::__internal::ComponentVariant>::PAYLOAD_OFFSET32,
+                                    )
+                            }
+                            Self::Range(value) => {
+                                *cx.get::<1usize>(offset) = 2u8.to_le_bytes();
+                                value
+                                    .store(
+                                        cx,
+                                        ty
+                                            .cases[2usize]
+                                            .ty
+                                            .unwrap_or_else(
+                                                wasmtime::component::__internal::bad_type_info,
+                                            ),
+                                        offset
+                                            + <Self as wasmtime::component::__internal::ComponentVariant>::PAYLOAD_OFFSET32,
+                                    )
                             }
                         }
                     }
                 }
-                unsafe impl wasmtime::component::Lift for CronTime {
+                unsafe impl wasmtime::component::Lift for CronComponent {
                     #[inline]
                     fn lift(
                         cx: &mut wasmtime::component::__internal::LiftContext<'_>,
@@ -2995,15 +3070,45 @@ mod extensions {
                         src: &Self::Lower,
                     ) -> wasmtime::component::__internal::anyhow::Result<Self> {
                         let ty = match ty {
-                            wasmtime::component::__internal::InterfaceType::Enum(i) => {
-                                &cx.types[i]
-                            }
+                            wasmtime::component::__internal::InterfaceType::Variant(
+                                i,
+                            ) => &cx.types[i],
                             _ => wasmtime::component::__internal::bad_type_info(),
                         };
                         Ok(
                             match src.tag.get_u32() {
-                                0u32 => Self::CronComponent,
-                                1u32 => Self::CronComponents,
+                                0u32 => Self::All,
+                                1u32 => {
+                                    Self::At(
+                                        <u8 as wasmtime::component::Lift>::lift(
+                                            cx,
+                                            ty
+                                                .cases[1usize]
+                                                .ty
+                                                .unwrap_or_else(
+                                                    wasmtime::component::__internal::bad_type_info,
+                                                ),
+                                            unsafe { &src.payload.At },
+                                        )?,
+                                    )
+                                }
+                                2u32 => {
+                                    Self::Range(
+                                        <(
+                                            u8,
+                                            u8,
+                                        ) as wasmtime::component::Lift>::lift(
+                                            cx,
+                                            ty
+                                                .cases[2usize]
+                                                .ty
+                                                .unwrap_or_else(
+                                                    wasmtime::component::__internal::bad_type_info,
+                                                ),
+                                            unsafe { &src.payload.Range },
+                                        )?,
+                                    )
+                                }
                                 discrim => {
                                     return ::anyhow::__private::Err(
                                         ::anyhow::Error::msg({
@@ -3035,15 +3140,48 @@ mod extensions {
                         let payload_offset = <Self as wasmtime::component::__internal::ComponentVariant>::PAYLOAD_OFFSET32;
                         let payload = &bytes[payload_offset..];
                         let ty = match ty {
-                            wasmtime::component::__internal::InterfaceType::Enum(i) => {
-                                &cx.types[i]
-                            }
+                            wasmtime::component::__internal::InterfaceType::Variant(
+                                i,
+                            ) => &cx.types[i],
                             _ => wasmtime::component::__internal::bad_type_info(),
                         };
                         Ok(
                             match discrim {
-                                0u8 => Self::CronComponent,
-                                1u8 => Self::CronComponents,
+                                0u8 => Self::All,
+                                1u8 => {
+                                    Self::At(
+                                        <u8 as wasmtime::component::Lift>::load(
+                                            cx,
+                                            ty
+                                                .cases[1usize]
+                                                .ty
+                                                .unwrap_or_else(
+                                                    wasmtime::component::__internal::bad_type_info,
+                                                ),
+                                            &payload[..<u8 as wasmtime::component::ComponentType>::SIZE32],
+                                        )?,
+                                    )
+                                }
+                                2u8 => {
+                                    Self::Range(
+                                        <(
+                                            u8,
+                                            u8,
+                                        ) as wasmtime::component::Lift>::load(
+                                            cx,
+                                            ty
+                                                .cases[2usize]
+                                                .ty
+                                                .unwrap_or_else(
+                                                    wasmtime::component::__internal::bad_type_info,
+                                                ),
+                                            &payload[..<(
+                                                u8,
+                                                u8,
+                                            ) as wasmtime::component::ComponentType>::SIZE32],
+                                        )?,
+                                    )
+                                }
                                 discrim => {
                                     return ::anyhow::__private::Err(
                                         ::anyhow::Error::msg({
@@ -3061,91 +3199,147 @@ mod extensions {
                 const _: () = {
                     #[doc(hidden)]
                     #[repr(C)]
-                    pub struct LowerCronTime {
+                    pub struct LowerCronComponent<T1: Copy, T2: Copy> {
                         tag: wasmtime::ValRaw,
-                        payload: LowerPayloadCronTime,
+                        payload: LowerPayloadCronComponent<T1, T2>,
                     }
                     #[automatically_derived]
-                    impl ::core::clone::Clone for LowerCronTime {
+                    impl<
+                        T1: ::core::clone::Clone + Copy,
+                        T2: ::core::clone::Clone + Copy,
+                    > ::core::clone::Clone for LowerCronComponent<T1, T2> {
                         #[inline]
-                        fn clone(&self) -> LowerCronTime {
-                            let _: ::core::clone::AssertParamIsClone<wasmtime::ValRaw>;
-                            let _: ::core::clone::AssertParamIsClone<
-                                LowerPayloadCronTime,
-                            >;
-                            *self
+                        fn clone(&self) -> LowerCronComponent<T1, T2> {
+                            LowerCronComponent {
+                                tag: ::core::clone::Clone::clone(&self.tag),
+                                payload: ::core::clone::Clone::clone(&self.payload),
+                            }
                         }
                     }
                     #[automatically_derived]
-                    impl ::core::marker::Copy for LowerCronTime {}
+                    impl<
+                        T1: ::core::marker::Copy + Copy,
+                        T2: ::core::marker::Copy + Copy,
+                    > ::core::marker::Copy for LowerCronComponent<T1, T2> {}
                     #[doc(hidden)]
                     #[allow(non_snake_case)]
                     #[repr(C)]
-                    union LowerPayloadCronTime {
-                        CronComponent: [wasmtime::ValRaw; 0],
-                        CronComponents: [wasmtime::ValRaw; 0],
+                    union LowerPayloadCronComponent<T1: Copy, T2: Copy> {
+                        All: [wasmtime::ValRaw; 0],
+                        At: T1,
+                        Range: T2,
                     }
                     #[automatically_derived]
                     #[allow(non_snake_case)]
-                    impl ::core::clone::Clone for LowerPayloadCronTime {
+                    impl<
+                        T1: ::core::marker::Copy + ::core::clone::Clone + Copy,
+                        T2: ::core::marker::Copy + ::core::clone::Clone + Copy,
+                    > ::core::clone::Clone for LowerPayloadCronComponent<T1, T2> {
                         #[inline]
-                        fn clone(&self) -> LowerPayloadCronTime {
+                        fn clone(&self) -> LowerPayloadCronComponent<T1, T2> {
                             let _: ::core::clone::AssertParamIsCopy<Self>;
                             *self
                         }
                     }
                     #[automatically_derived]
                     #[allow(non_snake_case)]
-                    impl ::core::marker::Copy for LowerPayloadCronTime {}
-                    unsafe impl wasmtime::component::ComponentType for CronTime {
-                        type Lower = LowerCronTime;
+                    impl<
+                        T1: ::core::marker::Copy + Copy,
+                        T2: ::core::marker::Copy + Copy,
+                    > ::core::marker::Copy for LowerPayloadCronComponent<T1, T2> {}
+                    unsafe impl wasmtime::component::ComponentType for CronComponent {
+                        type Lower = LowerCronComponent<
+                            <u8 as wasmtime::component::ComponentType>::Lower,
+                            <(u8, u8) as wasmtime::component::ComponentType>::Lower,
+                        >;
                         #[inline]
                         fn typecheck(
                             ty: &wasmtime::component::__internal::InterfaceType,
                             types: &wasmtime::component::__internal::InstanceType<'_>,
                         ) -> wasmtime::component::__internal::anyhow::Result<()> {
-                            wasmtime::component::__internal::typecheck_enum(
+                            wasmtime::component::__internal::typecheck_variant(
                                 ty,
                                 types,
-                                &["cron-component", "cron-components"],
+                                &[
+                                    ("all", None),
+                                    (
+                                        "at",
+                                        Some(<u8 as wasmtime::component::ComponentType>::typecheck),
+                                    ),
+                                    (
+                                        "range",
+                                        Some(
+                                            <(u8, u8) as wasmtime::component::ComponentType>::typecheck,
+                                        ),
+                                    ),
+                                ],
                             )
                         }
                         const ABI: wasmtime::component::__internal::CanonicalAbiInfo = wasmtime::component::__internal::CanonicalAbiInfo::variant_static(
-                            &[None, None],
+                            &[
+                                None,
+                                Some(<u8 as wasmtime::component::ComponentType>::ABI),
+                                Some(<(u8, u8) as wasmtime::component::ComponentType>::ABI),
+                            ],
                         );
                     }
                     unsafe impl wasmtime::component::__internal::ComponentVariant
-                    for CronTime {
+                    for CronComponent {
                         const CASES: &'static [Option<
                             wasmtime::component::__internal::CanonicalAbiInfo,
-                        >] = &[None, None];
+                        >] = &[
+                            None,
+                            Some(<u8 as wasmtime::component::ComponentType>::ABI),
+                            Some(<(u8, u8) as wasmtime::component::ComponentType>::ABI),
+                        ];
                     }
                 };
-                impl core::fmt::Debug for CronTime {
+                impl core::fmt::Debug for CronComponent {
                     fn fmt(
                         &self,
                         f: &mut core::fmt::Formatter<'_>,
                     ) -> core::fmt::Result {
                         match self {
-                            CronTime::CronComponent => {
-                                f.debug_tuple("CronTime::CronComponent").finish()
+                            CronComponent::All => {
+                                f.debug_tuple("CronComponent::All").finish()
                             }
-                            CronTime::CronComponents => {
-                                f.debug_tuple("CronTime::CronComponents").finish()
+                            CronComponent::At(e) => {
+                                f.debug_tuple("CronComponent::At").field(e).finish()
+                            }
+                            CronComponent::Range(e) => {
+                                f.debug_tuple("CronComponent::Range").field(e).finish()
                             }
                         }
                     }
                 }
                 const _: () = {
-                    if !(1 == <CronTime as wasmtime::component::ComponentType>::SIZE32) {
-                        ::core::panicking::panic(
-                            "assertion failed: 1 == <CronTime as wasmtime::component::ComponentType>::SIZE32",
-                        )
-                    }
-                    if !(1 == <CronTime as wasmtime::component::ComponentType>::ALIGN32)
+                    if !(3
+                        == <CronComponent as wasmtime::component::ComponentType>::SIZE32)
                     {
                         ::core::panicking::panic(
-                            "assertion failed: 1 == <CronTime as wasmtime::component::ComponentType>::ALIGN32",
+                            "assertion failed: 3 == <CronComponent as wasmtime::component::ComponentType>::SIZE32",
+                        )
+                    }
+                    if !(1
+                        == <CronComponent as wasmtime::component::ComponentType>::ALIGN32)
+                    {
+                        ::core::panicking::panic(
+                            "assertion failed: 1 == <CronComponent as wasmtime::component::ComponentType>::ALIGN32",
+                        )
+                    }
+                };
+                /// A list of cron time components
+                pub type CronTime = Vec<CronComponent>;
+                const _: () = {
+                    if !(8 == <CronTime as wasmtime::component::ComponentType>::SIZE32) {
+                        ::core::panicking::panic(
+                            "assertion failed: 8 == <CronTime as wasmtime::component::ComponentType>::SIZE32",
+                        )
+                    }
+                    if !(4 == <CronTime as wasmtime::component::ComponentType>::ALIGN32)
+                    {
+                        ::core::panicking::panic(
+                            "assertion failed: 4 == <CronTime as wasmtime::component::ComponentType>::ALIGN32",
                         )
                     }
                 };
@@ -23903,7 +24097,7 @@ mod extensions {
     const _: &str = "package wasi:clocks@0.2.0;\n/// WASI Wall Clock is a clock API intended to let users query the current\n/// time. The name \"wall\" makes an analogy to a \"clock on the wall\", which\n/// is not necessarily monotonic as it may be reset.\n///\n/// It is intended to be portable at least between Unix-family platforms and\n/// Windows.\n///\n/// A wall clock is a clock which measures the date and time according to\n/// some external reference.\n///\n/// External references may be reset, so this clock is not necessarily\n/// monotonic, making it unsuitable for measuring elapsed time.\n///\n/// It is intended for reporting the current date and time for humans.\ninterface wall-clock {\n    /// A time and date in seconds plus nanoseconds.\n    record datetime {\n        seconds: u64,\n        nanoseconds: u32,\n    }\n\n    /// Read the current value of the clock.\n    ///\n    /// This clock is not monotonic, therefore calling this function repeatedly\n    /// will not necessarily produce a sequence of non-decreasing values.\n    ///\n    /// The returned timestamps represent the number of seconds since\n    /// 1970-01-01T00:00:00Z, also known as [POSIX\'s Seconds Since the Epoch],\n    /// also known as [Unix Time].\n    ///\n    /// The nanoseconds field of the output is always less than 1000000000.\n    ///\n    /// [POSIX\'s Seconds Since the Epoch]: https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap04.html#tag_21_04_16\n    /// [Unix Time]: https://en.wikipedia.org/wiki/Unix_time\n    now: func() -> datetime;\n\n    /// Query the resolution of the clock.\n    ///\n    /// The nanoseconds field of the output is always less than 1000000000.\n    resolution: func() -> datetime;\n}\n";
     const _: &str = "package wasi:clocks@0.2.0;\n/// WASI Monotonic Clock is a clock API intended to let users measure elapsed\n/// time.\n///\n/// It is intended to be portable at least between Unix-family platforms and\n/// Windows.\n///\n/// A monotonic clock is a clock which has an unspecified initial value, and\n/// successive reads of the clock will produce non-decreasing values.\n///\n/// It is intended for measuring elapsed time.\ninterface monotonic-clock {\n    // Hermes does not support `poll`\n    //use wasi:io/poll@0.2.0.{pollable};\n\n    /// An instant in time, in nanoseconds. An instant is relative to an\n    /// unspecified initial value, and can only be compared to instances from\n    /// the same monotonic-clock.\n    type instant = u64;\n\n    /// A duration of time, in nanoseconds.\n    type duration = u64;\n\n    /// Read the current value of the clock.\n    ///\n    /// The clock is monotonic, therefore calling this function repeatedly will\n    /// produce a sequence of non-decreasing values.\n    now: func() -> instant;\n\n    /// Query the resolution of the clock. Returns the duration of time\n    /// corresponding to a clock tick.\n    resolution: func() -> duration;\n\n    /*\n    /// Create a `pollable` which will resolve once the specified instant\n    /// occured.\n    subscribe-instant: func(\n        when: instant,\n    ) -> pollable;\n    \n    /// Create a `pollable` which will resolve once the given duration has\n    /// elapsed, starting at the time at which this function was called.\n    /// occured.\n    subscribe-duration: func(\n        when: duration,\n    ) -> pollable;\n    */\n}\n";
     const _: &str = "/// # Cron API\n///\n/// Event triggered on CRON schedule.\n///\n/// ## Event Scheduling\n///\n/// **Guarantee**: Cron events with the same tag will be delivered and executed in the order\n/// they occur.\n///\n/// **Guarantee**: Later cron events with the same tag will not begin processing until the\n/// previous cron event with that tag has been fully processed by all processors of the event.\n///\n/// **Warning**: Events with different tags can arrive out of sequence with respect to each other.\n/// Sequence is only guaranteed by the tag.\n\n/// CRON API Interface - Export ONLY\ninterface event {\n    use api.{cron-event-tag, cron-tagged};\n\n    /// Triggered when a cron event fires.\n    ///\n    /// This event is only ever generated for the application that added\n    /// the cron job.\n    ///\n    /// The module must export this interface to use it.\n    ///\n    /// ## Parameters\n    ///\n    /// - `event` : The tagged cron event that was triggered.\n    /// - `last` : This cron event will not retrigger.\n    ///\n    /// Returns:\n    /// - `true`  - retrigger. (Ignored if the cron event is `final`).\n    /// - `false` - stop the cron.\n    on-cron: func(event: cron-tagged, last: bool) -> bool;\n}\n\nworld cron-event {\n    export event;\n}";
-    const _: &str = "/// # Cron API\n///\n/// Allow time based scheduling of events.\n///\n/// ## Permissions\n///\n/// This API is permissionless.\n\n// cspell: words crontabs mkcron retrigger retriggering\n\n/// CRON API Interface - Imports ONLY\ninterface api {\n\n    /// Get the `instant` type from the `wasi:clocks` module.\n    use wasi:clocks/monotonic-clock@0.2.0.{instant};\n\n    /// A Tag used to mark a delivered cron event.\n    type cron-event-tag = string;\n\n    /// A cron schedule in crontab format.\n    type cron-sched = string;\n\n    /// A tagged crontab entry\n    /// It is valid for multiple crontab entries at the same time to have different tags.\n    /// It is valid for crontab entries at different times to have the same tag.\n    /// BUT there can only ever be 1 crontab entry at a specified time with a specified tag.\n    /// ie, `when` + `tag` is uniquely identifying of every crontab entry.\n    /// See: [crontab.5 man page](https://www.man7.org/linux/man-pages/man5/crontab.5.html) for details on cron schedule format.\n    record cron-tagged {\n        /// The crontab entry in standard cron format.\n        /// The Time is ALWAYS relative to UTC and does not account for local time.\n        /// If Localtime adjustment is required it must be handled by the module.\n        when: cron-sched,\n\n        /// The tag associated with the crontab entry.\n        tag: cron-event-tag\n    }\n\n    /// A discreet time entry used to help convert numeric times into crontab entries.\n    variant cron-component {\n        // Maps to `*` in a cron schedule (ie, match all)\n        all,\n        // Match an absolute time/date\n        at(u8),\n        // Match an inclusive list of time/date values.\n        range(tuple<u8,u8>),\n    }\n\n    /// A list of cron time components\n    type cron-components = list<cron-component>;\n\n    /// The actual individual cron-time entry\n    enum cron-time {\n        cron-component,\n        cron-components\n    }\n\n    /// # Schedule Recurrent CRON event\n    ///\n    /// Cron events will be delivered to the `on-cron` event handler.\n    ///\n    /// ## Parameters\n    ///\n    /// - `entry`: The crontab entry to add.\n    ///     - `when`: When the event triggers.  Standard crontab format.\n    ///     - `tag`: A tag which will accompany the triggered event.\n    /// - `retrigger`:\n    ///     - `true`: The event will re-trigger every time the crontab entry matches until cancelled.\n    ///     - `false`: The event will automatically cancel after it is generated once.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: Crontab added successfully.  (Or the crontab event already exists)\n    /// - `false`: Crontab failed to be added.\n    ///\n    /// ## Note:\n    ///\n    /// If the crontab entry already exists, the retrigger flag can be changed by calling\n    /// this function.  This could be useful where a retriggering crontab event is desired\n    /// to be stopped, but ONLY after it has triggered once more.\n    ///\n    add: func(entry: cron-tagged, retrigger: bool) -> bool;\n\n    /// # Schedule A Single cron event after a fixed delay.\n    ///\n    /// Allows for easy timed wait events to be delivered without\n    /// requiring datetime calculations or formatting cron entries.\n    ///\n    /// ## Parameters\n    ///\n    /// - `duration`: How many nanoseconds to delay.  The delay will be AT LEAST this long.\n    /// - `tag`: A tag which will accompany the triggered event.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: Crontab added successfully.\n    /// - `false`: Crontab failed to be added.\n    ///\n    /// ## Note:\n    ///\n    /// This is a convenience function which will automatically calculate the crontab\n    /// entry needed to trigger the event after the requested `duration`.\n    /// It is added as a non-retriggering event.\n    /// Listing the crontabs after this call will list the delay in addition to all other\n    /// crontab entries.\n    ///\n    delay: func(duration: instant, tag: cron-event-tag) -> bool;\n\n\n    /// # List currently active cron schedule.\n    ///\n    /// Allows for management of scheduled cron events.\n    ///\n    /// ## Parameters\n    ///\n    /// - `tag`: Optional, the tag to limit the list to.  If `none` then all crons listed.\n    ///\n    /// ## Returns\n    ///\n    /// - A list of tuples containing the scheduled crontabs and their tags, along with the current retrigger flag.\n    ///   The list is sorted from most crontab that will trigger soonest to latest.\n    ///   Crontabs are only listed once, in the case where a crontab may be scheduled\n    ///   may times before a later one.\n    ///     - `0` - `cron-tagged` - The Tagged crontab event.\n    ///     - `1` - `bool` - The state of the retrigger flag.\n    ///\n    ls: func(tag: option<cron-event-tag>) -> list<tuple<cron-tagged, bool>>;\n\n    /// # Remove the requested crontab.\n    ///\n    /// Allows for management of scheduled cron events.\n    ///\n    /// ## Parameters\n    ///\n    /// - `when`: The crontab entry to add.  Standard crontab format.\n    /// - `tag`: A tag which will accompany the triggered event.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: The requested crontab was deleted and will not trigger.\n    /// - `false`: The requested crontab does not exist.\n    ///\n    rm: func(entry: cron-tagged) -> bool;\n\n    /// # Make a crontab entry from individual time values.\n    ///\n    /// Crates the properly formatted cron entry\n    /// from numeric cron time components.\n    /// Convenience function to make building cron strings simpler when they are\n    /// calculated from data.\n    ///\n    /// ## Parameters\n    ///\n    /// - `dow` - DayOfWeek (0-7, 0 or 7 = Sunday)\n    /// - `month` - Month of the year (1-12, 1 = January)\n    /// - `day` - Day in the month (1-31)\n    /// - `hour` - Hour in the day (0-23)\n    /// - `minute` - Minute in the hour (0-59)\n    ///\n    /// ## Returns\n    ///\n    /// - A matching `cron-sched` ready for use in the cron functions above.\n    ///\n    /// ## Note:\n    /// No checking is done to determine if the requested date is valid.\n    /// If a particular component is out of its allowable range it will be silently\n    /// clamped within the allowable range of each parameter.\n    /// Redundant entries will be removed.\n    ///     - For example specifying a `month` as `3` and `2-4` will\n    ///         remove the individual month and only produce the range.\n    mkcron: func(dow: cron-time, month: cron-time, day: cron-time,\n                 hour: cron-time, minute: cron-time ) -> cron-sched;\n}\n\n/// World just for the Hermes \'cron\' API and Event.\nworld cron-api {\n    import api;\n}\n  ";
+    const _: &str = "/// # Cron API\n///\n/// Allow time based scheduling of events.\n///\n/// ## Permissions\n///\n/// This API is permissionless.\n\n// cspell: words crontabs mkcron retrigger retriggering\n\n/// CRON API Interface - Imports ONLY\ninterface api {\n\n    /// Get the `instant` type from the `wasi:clocks` module.\n    use wasi:clocks/monotonic-clock@0.2.0.{instant};\n\n    /// A Tag used to mark a delivered cron event.\n    type cron-event-tag = string;\n\n    /// A cron schedule in crontab format.\n    type cron-sched = string;\n\n    /// A tagged crontab entry\n    /// It is valid for multiple crontab entries at the same time to have different tags.\n    /// It is valid for crontab entries at different times to have the same tag.\n    /// BUT there can only ever be 1 crontab entry at a specified time with a specified tag.\n    /// ie, `when` + `tag` is uniquely identifying of every crontab entry.\n    /// See: [crontab.5 man page](https://www.man7.org/linux/man-pages/man5/crontab.5.html) for details on cron schedule format.\n    record cron-tagged {\n        /// The crontab entry in standard cron format.\n        /// The Time is ALWAYS relative to UTC and does not account for local time.\n        /// If Localtime adjustment is required it must be handled by the module.\n        when: cron-sched,\n\n        /// The tag associated with the crontab entry.\n        tag: cron-event-tag\n    }\n\n    /// A discreet time entry used to help convert numeric times into crontab entries.\n    variant cron-component {\n        // Maps to `*` in a cron schedule (ie, match all)\n        all,\n        // Match an absolute time/date\n        at(u8),\n        // Match an inclusive list of time/date values.\n        range(tuple<u8,u8>),\n    }\n\n    /// A list of cron time components\n    type cron-time = list<cron-component>;\n\n    /// # Schedule Recurrent CRON event\n    ///\n    /// Cron events will be delivered to the `on-cron` event handler.\n    ///\n    /// ## Parameters\n    ///\n    /// - `entry`: The crontab entry to add.\n    ///     - `when`: When the event triggers.  Standard crontab format.\n    ///     - `tag`: A tag which will accompany the triggered event.\n    /// - `retrigger`:\n    ///     - `true`: The event will re-trigger every time the crontab entry matches until cancelled.\n    ///     - `false`: The event will automatically cancel after it is generated once.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: Crontab added successfully.  (Or the crontab event already exists)\n    /// - `false`: Crontab failed to be added.\n    ///\n    /// ## Note:\n    ///\n    /// If the crontab entry already exists, the retrigger flag can be changed by calling\n    /// this function.  This could be useful where a retriggering crontab event is desired\n    /// to be stopped, but ONLY after it has triggered once more.\n    ///\n    add: func(entry: cron-tagged, retrigger: bool) -> bool;\n\n    /// # Schedule A Single cron event after a fixed delay.\n    ///\n    /// Allows for easy timed wait events to be delivered without\n    /// requiring datetime calculations or formatting cron entries.\n    ///\n    /// ## Parameters\n    ///\n    /// - `duration`: How many nanoseconds to delay.  The delay will be AT LEAST this long.\n    /// - `tag`: A tag which will accompany the triggered event.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: Crontab added successfully.\n    /// - `false`: Crontab failed to be added.\n    ///\n    /// ## Note:\n    ///\n    /// This is a convenience function which will automatically calculate the crontab\n    /// entry needed to trigger the event after the requested `duration`.\n    /// It is added as a non-retriggering event.\n    /// Listing the crontabs after this call will list the delay in addition to all other\n    /// crontab entries.\n    ///\n    delay: func(duration: instant, tag: cron-event-tag) -> bool;\n\n\n    /// # List currently active cron schedule.\n    ///\n    /// Allows for management of scheduled cron events.\n    ///\n    /// ## Parameters\n    ///\n    /// - `tag`: Optional, the tag to limit the list to.  If `none` then all crons listed.\n    ///\n    /// ## Returns\n    ///\n    /// - A list of tuples containing the scheduled crontabs and their tags, along with the current retrigger flag.\n    ///   The list is sorted from most crontab that will trigger soonest to latest.\n    ///   Crontabs are only listed once, in the case where a crontab may be scheduled\n    ///   may times before a later one.\n    ///     - `0` - `cron-tagged` - The Tagged crontab event.\n    ///     - `1` - `bool` - The state of the retrigger flag.\n    ///\n    ls: func(tag: option<cron-event-tag>) -> list<tuple<cron-tagged, bool>>;\n\n    /// # Remove the requested crontab.\n    ///\n    /// Allows for management of scheduled cron events.\n    ///\n    /// ## Parameters\n    ///\n    /// - `when`: The crontab entry to add.  Standard crontab format.\n    /// - `tag`: A tag which will accompany the triggered event.\n    ///\n    /// ## Returns\n    ///\n    /// - `true`: The requested crontab was deleted and will not trigger.\n    /// - `false`: The requested crontab does not exist.\n    ///\n    rm: func(entry: cron-tagged) -> bool;\n\n    /// # Make a crontab entry from individual time values.\n    ///\n    /// Crates the properly formatted cron entry\n    /// from numeric cron time components.\n    /// Convenience function to make building cron strings simpler when they are\n    /// calculated from data.\n    ///\n    /// ## Parameters\n    ///\n    /// - `dow` - DayOfWeek (0-7, 0 or 7 = Sunday)\n    /// - `month` - Month of the year (1-12, 1 = January)\n    /// - `day` - Day in the month (1-31)\n    /// - `hour` - Hour in the day (0-23)\n    /// - `minute` - Minute in the hour (0-59)\n    ///\n    /// ## Returns\n    ///\n    /// - A matching `cron-sched` ready for use in the cron functions above.\n    ///\n    /// ## Note:\n    /// No checking is done to determine if the requested date is valid.\n    /// If a particular component is out of its allowable range it will be silently\n    /// clamped within the allowable range of each parameter.\n    /// Redundant entries will be removed.\n    ///     - For example specifying a `month` as `3` and `2-4` will\n    ///         remove the individual month and only produce the range.\n    mkcron: func(dow: cron-time, month: cron-time, day: cron-time,\n                 hour: cron-time, minute: cron-time ) -> cron-sched;\n}\n\n/// World just for the Hermes \'cron\' API and Event.\nworld cron-api {\n    import api;\n}\n  ";
     const _: &str = "package hermes:cron;\n\nworld all {\n    import api;\n    export event;\n}\n";
     const _: &str = "package hermes:crypto;\n\nworld all {\n    import api;\n}\n";
     const _: &str = "/// # Crypto API\n///\n/// Crypto API functionality exposed to the Hermes WASM Modules.\n///\n/// ## Permissions\n///\n/// This API is ALWAYS available.\n\n/// Crypto API Interface\ninterface api {\n    use hermes:binary/api.{bstr, b256, b512};\n\n    // ed25519-bip32 Private Key\n    type ed25519-bip32-private-key = b256;\n\n    // ed25519-bip32 Extended Private Key\n    type ed25519-bip32-extended-private-key = b512;\n\n    // ed25519-bip32 Public Key\n    type ed25519-bip32-public-key = b256;\n\n    // ed25519-bip32 Signature\n    type ed25519-bip32-signature = b256;\n\n    resource ed25519-bip32 {\n        /// Create a new ED25519-BIP32 Crypto resource\n        /// \n        /// **Parameters**\n        ///\n        /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.\n        /// \n        constructor(private-key: option<list<ed25519-bip32-private-key>>);\n\n        /// Get the public key for this private key.\n        public-key: func() -> ed25519-bip32-public-key;\n\n        /// Sign data with the Private key, and return it.\n        /// \n        /// **Parameters**\n        ///\n        /// - `data` : The data to sign.\n        /// \n        sign-data: func(data: bstr) -> ed25519-bip32-signature;\n\n\n        /// Check a signature on a set of data.\n        /// \n        /// **Parameters**\n        ///\n        /// - `data` : The data to check.\n        /// - `sig`  : The signature to check.\n        /// \n        /// **Returns**\n        /// \n        /// - `true` : Signature checked OK.\n        /// - `false` : Signature check failed.\n        ///\n        check-sig: func(data: bstr, sig: ed25519-bip32-signature) -> bool;\n\n        /// Derive a new private key from the current private key.\n        /// \n        /// Note: uses BIP32 HD key derivation.\n        /// \n        derive: func() -> ed25519-bip32;\n\n        /// Create a new RANDOM private key.\n        /// \n        /// Note, this does not need to be used, as the constructor will do this automatically.\n        /// \n        gen-private-key: static func() -> ed25519-bip32-private-key;\n    }\n}\n\n/// World just for the Hermes \'json\' API.\nworld crypto-api {\n    import api;\n}\n";

@@ -6,9 +6,9 @@ use crate::runtime::extensions::hermes::binary::api::Bstr;
 use crate::runtime::extensions::hermes::hash::api::{Errno, Host};
 
 /// State of the hash
-struct HashState {}
+struct State {}
 
-impl Host for HashState {
+impl Host for State {
     /// Hash a binary buffer with BLAKE2s
     fn blake2s(
         &mut self, buf: Bstr, outlen: Option<u8>, key: Option<Bstr>,

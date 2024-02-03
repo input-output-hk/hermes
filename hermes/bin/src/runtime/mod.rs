@@ -1,4 +1,4 @@
 //! Runtime modules
 
-mod extensions;
-mod host;
+pub(crate) mod extensions;
+pub(crate) mod host;

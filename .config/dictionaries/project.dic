@@ -16,6 +16,7 @@ ciphertext
 codegen
 codepoints
 coti
+crontabs
 cryptoxide
 dbsync
 delegators
@@ -52,6 +53,7 @@ mdlint
 miniprotocols
 mithril
 mitigations
+mkcron
 moderations
 multiera
 nanos
@@ -71,11 +73,13 @@ pubkey
 pubspec
 rapidoc
 redoc
+retriggering
 rustc
 rustdoc
 rustdocflags
 rustflags
 saibatizoku
+Sched
 seckey
 slotno
 stevenj
