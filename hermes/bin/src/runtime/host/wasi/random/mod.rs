@@ -5,3 +5,25 @@
 pub(crate) mod insecure;
 pub(crate) mod insecure_seed;
 pub(crate) mod secure;
+
+use crate::runtime::extensions::NewState;
+
+/// WASI State
+pub(crate) struct State {
+    /// insecure State
+    insecure: insecure::State,
+    /// insecure_seed State
+    insecure_seed: insecure_seed::State,
+    /// secure State
+    secure: secure::State,
+}
+
+impl NewState for State {
+    fn new(ctx: &crate::wasm::context::Context) -> Self {
+        Self {
+            insecure: insecure::State::new(ctx),
+            insecure_seed: insecure_seed::State::new(ctx),
+            secure: secure::State::new(ctx),
+        }
+    }
+}

@@ -1,11 +1,16 @@
 //! Insecure RNG
 
-use crate::runtime::extensions::wasi::random::insecure_seed::Host;
+use crate::runtime::extensions::{wasi::random::insecure_seed::Host, HermesState, NewState};
 
-/// State
-struct State {}
+/// WASI State
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        Self {}
+    }
+}
+impl Host for HermesState {
     #[doc = " Return a 128-bit value that may contain a pseudo-random value."]
     #[doc = " "]
     #[doc = " The returned value is not required to be computed from a CSPRNG, and may"]

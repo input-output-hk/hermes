@@ -1,11 +1,17 @@
 //! Insecure RNG
 
-use crate::runtime::extensions::wasi::random::insecure::Host;
+use crate::runtime::extensions::{wasi::random::insecure::Host, HermesState, NewState};
 
-/// State
-struct State {}
+/// WASI State
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        Self {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " Return `len` insecure pseudo-random bytes."]
     #[doc = " "]
     #[doc = " This function is not cryptographically secure. Do not use it for"]

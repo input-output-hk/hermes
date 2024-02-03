@@ -2,12 +2,21 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::wasi::io::error::{Error, Host, HostError};
+use crate::runtime::extensions::{
+    wasi::io::error::{Error, Host, HostError},
+    HermesState, NewState,
+};
 
-/// State
-struct State {}
+/// WASI State
+pub(crate) struct State {}
 
-impl HostError for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        Self {}
+    }
+}
+
+impl HostError for HermesState {
     #[doc = " Returns a string that is suitable to assist humans in debugging"]
     #[doc = " this error."]
     #[doc = " "]
@@ -26,4 +35,4 @@ impl HostError for State {
     }
 }
 
-impl Host for State {}
+impl Host for HermesState {}

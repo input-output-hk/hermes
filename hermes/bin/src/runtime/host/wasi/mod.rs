@@ -28,10 +28,18 @@ wasi::http::outgoing_handler::add_to_linker(linker, get)?;
 use crate::runtime::extensions::NewState;
 
 /// WASI State
-pub(crate) struct State {}
+pub(crate) struct State {
+    /// WASI IO State
+    io: io::State,
+    /// WASI Random State
+    random: random::State,
+}
 
 impl NewState for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
-        Self {}
+    fn new(ctx: &crate::wasm::context::Context) -> Self {
+        Self {
+            io: io::State::new(ctx),
+            random: random::State::new(ctx),
+        }
     }
 }

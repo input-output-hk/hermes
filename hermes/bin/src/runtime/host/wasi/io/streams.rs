@@ -2,14 +2,23 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::wasi::io::streams::{
-    Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+use crate::runtime::extensions::{
+    wasi::io::streams::{
+        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+    },
+    HermesState, NewState,
 };
 
-/// State
-struct State {}
+/// WASI State
+pub(crate) struct State {}
 
-impl HostInputStream for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        Self {}
+    }
+}
+
+impl HostInputStream for HermesState {
     #[doc = " Perform a non-blocking read from the stream."]
     #[doc = " "]
     #[doc = " This function returns a list of bytes containing the read data,"]
@@ -68,7 +77,7 @@ impl HostInputStream for State {
     }
 }
 
-impl HostOutputStream for State {
+impl HostOutputStream for HermesState {
     #[doc = " Check readiness for writing. This function never blocks."]
     #[doc = " "]
     #[doc = " Returns the number of bytes permitted for the next call to `write`,"]
@@ -243,4 +252,4 @@ impl HostOutputStream for State {
     }
 }
 
-impl Host for State {}
+impl Host for HermesState {}
