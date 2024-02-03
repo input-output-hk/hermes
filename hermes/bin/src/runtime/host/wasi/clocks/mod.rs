@@ -1,4 +1,4 @@
-//! Host - WASI - Random implementations
+//! Host - WASI - Clock implementations
 //!
 #![allow(unused_variables)]
 
