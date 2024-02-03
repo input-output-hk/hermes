@@ -4,7 +4,7 @@ pub(crate) mod io;
 pub(crate) mod random;
 //pub(crate) mod filesystem;
 //pub(crate) mod cli;
-//pub(crate) mod clocks;
+pub(crate) mod clocks;
 //pub(crate) mod http;
 
 /*
@@ -29,6 +29,8 @@ use crate::runtime::extensions::NewState;
 
 /// WASI State
 pub(crate) struct State {
+    /// WASI Clock State
+    clocks: clocks::State,
     /// WASI IO State
     io: io::State,
     /// WASI Random State
@@ -38,6 +40,7 @@ pub(crate) struct State {
 impl NewState for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
+            clocks: clocks::State::new(ctx),
             io: io::State::new(ctx),
             random: random::State::new(ctx),
         }
