@@ -7,8 +7,6 @@
 //! ```
 #![allow(clippy::indexing_slicing)]
 
-use std::path::Component;
-
 use crate::runtime;
 use crate::wasm::context::Context;
 use wasmtime::{
@@ -50,11 +48,13 @@ impl NewState for HermesState {
     }
 }
 
+#[allow(dead_code)]
+/// Link a component to the Hermes runtime.
 pub(crate) fn link_runtime(
-    engine: &Engine, component: &Component,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut linker = Linker::new(&engine);
+    engine: &Engine,
+) -> Result<Linker<HermesState>, Box<dyn std::error::Error>> {
+    let mut linker = Linker::new(engine);
     Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)?;
 
-    Ok(())
+    Ok(linker)
 }

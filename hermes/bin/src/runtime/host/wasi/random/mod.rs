@@ -8,6 +8,7 @@ pub(crate) mod secure;
 
 use crate::runtime::extensions::NewState;
 
+#[allow(dead_code)]
 /// WASI State
 pub(crate) struct State {
     /// insecure State

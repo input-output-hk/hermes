@@ -5,6 +5,7 @@ use crate::runtime::extensions::NewState;
 pub(crate) mod error;
 pub(crate) mod streams;
 
+#[allow(dead_code)]
 /// WASI State
 pub(crate) struct State {
     /// WASI IO error state

@@ -7,6 +7,7 @@ use crate::runtime::extensions::NewState;
 mod monotonic;
 mod wall;
 
+#[allow(dead_code)]
 /// WASI State
 pub(crate) struct State {
     /// monotonic State
