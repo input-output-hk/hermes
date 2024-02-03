@@ -5,12 +5,19 @@
 use crate::runtime::extensions::{
     hermes::localtime::api::{Errno, Host, Localtime, Timezone},
     wasi::clocks::wall_clock::Datetime,
+    HermesState, NewState,
 };
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " Get localtime from a datetime or now."]
     #[doc = " "]
     #[doc = " **Parameters**"]

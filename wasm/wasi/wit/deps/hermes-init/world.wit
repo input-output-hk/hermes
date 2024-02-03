@@ -1,5 +1,5 @@
 package hermes:init;
 
 world all {
-    import event;
+    export event;
 }

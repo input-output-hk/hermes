@@ -2,18 +2,27 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::{
-    binary::api::Bstr,
-    crypto::api::{
-        Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature, Host,
-        HostEd25519Bip32,
+use crate::runtime::extensions::{
+    hermes::{
+        binary::api::Bstr,
+        crypto::api::{
+            Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
+            Host, HostEd25519Bip32,
+        },
     },
+    HermesState, NewState,
 };
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl HostEd25519Bip32 for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl HostEd25519Bip32 for HermesState {
     #[doc = " Create a new ED25519-BIP32 Crypto resource"]
     #[doc = " "]
     #[doc = " **Parameters**"]
@@ -82,4 +91,4 @@ impl HostEd25519Bip32 for State {
     }
 }
 
-impl Host for State {}
+impl Host for HermesState {}

@@ -2,5 +2,5 @@ package hermes:kv-store;
 
 world all {
     import api;
-    import event;
+    export event;
 }

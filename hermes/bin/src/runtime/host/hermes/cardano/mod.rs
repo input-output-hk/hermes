@@ -2,15 +2,24 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::cardano::api::{
-    CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
-    UnsubscribeOptions,
+use crate::runtime::extensions::{
+    hermes::cardano::api::{
+        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
+        UnsubscribeOptions,
+    },
+    HermesState, NewState,
 };
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " Subscribe to the Blockchain block data."]
     #[doc = " "]
     #[doc = " **Parameters**"]

@@ -2,15 +2,24 @@
 //!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::{
-    json::api::Json,
-    logging::api::{Host, Level},
+use crate::runtime::extensions::{
+    hermes::{
+        json::api::Json,
+        logging::api::{Host, Level},
+    },
+    HermesState, NewState,
 };
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " Generate a Log"]
     #[doc = " "]
     #[doc = " The Hermes API will add extra information to the log, such as the instance of the webasm"]

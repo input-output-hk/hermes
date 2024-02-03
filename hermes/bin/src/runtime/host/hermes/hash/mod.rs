@@ -4,11 +4,18 @@
 
 use crate::runtime::extensions::hermes::binary::api::Bstr;
 use crate::runtime::extensions::hermes::hash::api::{Errno, Host};
+use crate::runtime::extensions::{HermesState, NewState};
 
-/// State of the hash
-struct State {}
+/// State
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     /// Hash a binary buffer with BLAKE2s
     fn blake2s(
         &mut self, buf: Bstr, outlen: Option<u8>, key: Option<Bstr>,

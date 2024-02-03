@@ -2,14 +2,21 @@
 //!
 #![allow(unused_variables)]
 
-//use crate::runtime::extensions::hermes::::api::Host;
-
-use crate::runtime::extensions::hermes::kv_store::api::{Host, KvValues};
+use crate::runtime::extensions::{
+    hermes::kv_store::api::{Host, KvValues},
+    HermesState, NewState,
+};
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " Set a value in the local key-value store"]
     #[doc = " Setting None will cause the Key to be deleted from the KV store."]
     fn kv_set(&mut self, key: String, value: Option<KvValues>) -> wasmtime::Result<()> {

@@ -5,12 +5,19 @@
 use crate::runtime::extensions::{
     hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
     wasi::clocks::monotonic_clock::Instant,
+    HermesState, NewState,
 };
 
 /// State
-struct State {}
+pub(crate) struct State {}
 
-impl Host for State {
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
+
+impl Host for HermesState {
     #[doc = " # Schedule Recurrent CRON event"]
     #[doc = " "]
     #[doc = " Cron events will be delivered to the `on-cron` event handler."]

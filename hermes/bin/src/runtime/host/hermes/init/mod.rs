@@ -2,10 +2,15 @@
 //!
 #![allow(unused_variables)]
 
-// This does not have any API state, it is only an event.
-
-//use crate::runtime::extensions::hermes::init::api::Host;
+use crate::runtime::extensions::NewState;
 
 #[allow(dead_code)]
+
 /// State
-struct State {}
+pub(crate) struct State {}
+
+impl NewState for State {
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {}
+    }
+}
