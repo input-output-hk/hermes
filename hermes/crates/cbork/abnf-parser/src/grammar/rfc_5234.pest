@@ -2,30 +2,32 @@
 //! https://datatracker.ietf.org/doc/html/rfc5234#section-4
 //! https://datatracker.ietf.org/doc/html/rfc5234#appendix-B.1
 
+// correction: https://www.rfc-editor.org/errata/eid3076
 abnf = ${
     SOI
-    ~ (rule | (c_wsp* ~ c_nl))+
+    ~ (rule | (WHITESPACE* ~ c_nl))+
     ~ EOI
 }
 
 // -----------------------------------------------------------------------------
 // Rules
-rule = ${ rulename ~ defined_as ~ elements ~ c_nl }
 
-rulename = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT | "-" )* }
+/// continues if next line starts with white space
+rule = ${ rulename ~ defined_as ~ elements ~ c_nl* }
 
-// basic rules definition and incremental alternatives
-defined_as = ${ c_wsp* ~ ("=" | "=/")* ~ c_wsp* }
+/// basic rules definition and incremental alternatives
+defined_as = ${ c_wsp* ~ ("=" | "=/") ~ c_wsp* }
 
-elements = ${ alternation ~ c_wsp* }
+/// correction: https://www.rfc-editor.org/errata/eid2968
+elements = ${ alternation ~ WHITESPACE* }
 
 alternation = ${ concatenation ~ (c_wsp* ~ "/" ~ c_wsp* ~ concatenation)* }
 
-concatenation = ${ repetition ~ (c_wsp+ ~ repetition)* } // FIXME: a must +1 whtiespace
+concatenation = ${ repetition ~ (c_wsp+ ~ repetition)* }
 
 repetition = ${ repeat? ~ element }
 
-repeat = ${ ASCII_DIGIT+ | (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) }
+repeat = ${ (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) | ASCII_DIGIT+ }
 
 element = ${ rulename | group | option | char_val | num_val | prose_val }
 
@@ -33,6 +35,7 @@ group = ${ "(" ~ c_wsp* ~ alternation ~ c_wsp* ~ ")" }
 
 option = ${ "[" ~ c_wsp* ~ alternation ~ c_wsp* ~ "]" }
 
+// -----------------------------------------------------------------------------
 // Values
 
 /// quoted string of SP and VCHAR without DQUOTE
@@ -47,9 +50,14 @@ dec_val = ${ "d" ~ ASCII_DIGIT+ ~ (("." ~ ASCII_DIGIT+)+ | ("-" ~ ASCII_DIGIT+))
 
 hex_val = ${ "x" ~ ASCII_HEX_DIGIT+ ~ (("." ~ ASCII_HEX_DIGIT+)+ | ("-" ~ ASCII_HEX_DIGIT+))? }
 
-/// bracketed string of SP and VCHAR without angles
+/// bracketed string of SP and VCHAR without ">"
 /// prose description, to be used as last resort
+/// correction: https://www.rfc-editor.org/errata/eid2914
 prose_val = ${ "<" ~ ('\u{20}'..'\u{3D}' | '\u{3F}'..'\u{7E}')* ~ ">" }
+
+// Identifiers
+
+rulename = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT | "-" )* }
 
 // -----------------------------------------------------------------------------
 // Characters, Whitespace and Comments
@@ -59,7 +67,6 @@ c_wsp = _{ WHITESPACE | (c_nl ~ WHITESPACE) }
 /// comment or newline
 c_nl = _{ COMMENT | NEWLINE }
 
-S = _{ (COMMENT | WHITESPACE)* }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
 COMMENT = { ";" ~ (VCHAR | "\t")* ~ NEWLINE }
 
