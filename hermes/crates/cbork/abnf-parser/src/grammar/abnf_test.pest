@@ -63,5 +63,8 @@ c_nl_TEST  = ${ SOI ~ c_nl ~ EOI }
 /// Test Expression for the `COMMENT` Rule.
 COMMENT_TEST = { SOI ~ COMMENT* ~ EOI }
 
+/// Test Expression for the `WHITESPACE` Rule.
+WHITESPACE_TEST = { SOI ~ WHITESPACE* ~ EOI }
+
 /// Test expression to the `VCHAR` Rule.
 VCHAR_TEST = ${ SOI ~ VCHAR ~ EOI}
