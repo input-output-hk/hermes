@@ -2,7 +2,7 @@
 ///
 /// ## Permissions
 ///
-/// This API is ALWAYS available.  It is permissionless.
+/// This API is ALWAYS available.
 
 /// Logging API Interface
 interface event {

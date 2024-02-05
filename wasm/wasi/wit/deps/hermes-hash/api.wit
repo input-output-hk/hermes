@@ -4,7 +4,7 @@
 ///
 /// ## Permissions
 ///
-/// This API is permissionless.
+/// This API is ALWAYS available.
 
 /// Hashing API Interface - Imports ONLY
 interface api {

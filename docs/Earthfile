@@ -12,7 +12,7 @@ src:
     COPY --dir ../+repo-docs/repo /docs/includes
     # copy Rust docs
     COPY ./../hermes+build/doc /docs/src/api/rust-docs
-    # Copy the WASI Components 
+    # Copy the WASM Component model API Docs
     COPY --dir ./../wasm/wasi+build/wasi-hermes-docs /docs/src/api/wasi-hermes
 
 # Build the docs here.
