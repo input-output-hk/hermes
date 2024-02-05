@@ -13,7 +13,7 @@ abnf = ${
 // Rules
 
 /// continues if next line starts with white space
-rule = ${ rulename ~ defined_as ~ elements ~ c_nl* }
+rule = ${ rulename ~ defined_as ~ elements ~ c_nl }
 
 /// basic rules definition and incremental alternatives
 defined_as = ${ c_wsp* ~ ("=" | "=/") ~ c_wsp* }
@@ -67,8 +67,8 @@ c_wsp = _{ WHITESPACE | (c_nl ~ WHITESPACE) }
 /// comment or newline
 c_nl = _{ COMMENT | NEWLINE }
 
-WHITESPACE = _{ " " | "\t" | NEWLINE }
-COMMENT = { ";" ~ (VCHAR | "\t")* ~ NEWLINE }
+COMMENT = { ";" ~ (VCHAR | WHITESPACE)* ~ NEWLINE }
+WHITESPACE = _{ " " | "\t" }
 
 /// visible (printing) characters
 VCHAR = _{ '\u{21}'..'\u{7E}' }
