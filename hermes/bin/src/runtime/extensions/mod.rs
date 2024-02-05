@@ -1,4 +1,4 @@
-//! Runtime modules - extensions
+//! Hermes runtime extensions
 //!
 //! *Note*
 //! Inspect the generated code with:
