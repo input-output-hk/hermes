@@ -57,3 +57,4 @@ pallas-hardano = { version = "0.21.0", git = "https://github.com/input-output-hk
 
 wasmtime = "17.0.0"
 rusty_ulid = "2.0.0"
+anyhow = "1.0.71"
