@@ -13,7 +13,7 @@ impl NewState for State {
 impl Host for HermesState {
     #[doc = " Return a 128-bit value that may contain a pseudo-random value."]
     #[doc = " "]
-    #[doc = " The returned value is not required to be computed from a CSPRNG, and may"]
+    #[doc = " The returned value is not required to be computed from a Cryptographically Secure RNG, and may"]
     #[doc = " even be entirely deterministic. Host implementations are encouraged to"]
     #[doc = " provide pseudo-random values to any program exposed to"]
     #[doc = " attacker-controlled content, to enable DoS protection built into many"]

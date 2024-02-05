@@ -162,7 +162,7 @@ impl HostOutputStream for HermesState {
 
     #[doc = " *"]
     #[doc = "         /// Create a `pollable` which will resolve once the output-stream"]
-    #[doc = "         /// is ready for more writing, or an error has occured. When this"]
+    #[doc = "         /// is ready for more writing, or an error has occurred. When this"]
     #[doc = "         /// pollable is ready, `check-write` will return `ok(n)` with n>0, or an"]
     #[doc = "         /// error."]
     #[doc = "         ///"]
@@ -217,7 +217,7 @@ impl HostOutputStream for HermesState {
 
     #[doc = " Read from one stream and write to another."]
     #[doc = " "]
-    #[doc = " The behavior of splice is equivelant to:"]
+    #[doc = " The behavior of splice is equivalent to:"]
     #[doc = " 1. calling `check-write` on the `output-stream`"]
     #[doc = " 2. calling `read` on the `input-stream` with the smaller of the"]
     #[doc = " `check-write` permitted length and the `len` provided to `splice`"]

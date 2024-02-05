@@ -1,3 +1,4 @@
+// cSpell:disable
 mod extensions {
     //! Runtime modules - extensions
     //!

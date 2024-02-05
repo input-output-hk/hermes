@@ -30,7 +30,7 @@ impl Host for HermesState {
     #[doc = " **Returns**"]
     #[doc = " "]
     #[doc = " - `ok(u64)` : The slot we are synching from now."]
-    #[doc = " - `error(fetch-error)` : If an error occured."]
+    #[doc = " - `error(fetch-error)` : If an error occurred."]
     #[doc = " "]
     #[doc = " **Notes**"]
     #[doc = " "]
