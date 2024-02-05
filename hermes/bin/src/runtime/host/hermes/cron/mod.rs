@@ -119,7 +119,7 @@ impl Host for HermesState {
     ///
     /// ## Parameters
     ///
-    /// - `dow` - DayOfWeek (0-7, 0 or 7 = Sunday)
+    /// - `dow` - `DayOfWeek` (0-7, 0 or 7 = Sunday)
     /// - `month` - Month of the year (1-12, 1 = January)
     /// - `day` - Day in the month (1-31)
     /// - `hour` - Hour in the day (0-23)
