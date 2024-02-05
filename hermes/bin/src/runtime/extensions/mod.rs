@@ -26,7 +26,7 @@ bindgen!({
     path: "../../wasm/wasi/wit",
 });
 
-/// All Hermes extensions states need to implement this.
+/// All Hermes runtime extensions states need to implement this.
 pub(crate) trait NewState {
     /// Initial state for the given context
     fn new(ctx: &Context) -> Self;
