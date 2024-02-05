@@ -1,10 +1,13 @@
 //! Host - Hash implementations
-//!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::binary::api::Bstr;
-use crate::runtime::extensions::hermes::hash::api::{Errno, Host};
-use crate::runtime::extensions::{HermesState, NewState};
+use crate::runtime::extensions::{
+    hermes::{
+        binary::api::Bstr,
+        hash::api::{Errno, Host},
+    },
+    HermesState, NewState,
+};
 
 /// State
 pub(crate) struct State {}

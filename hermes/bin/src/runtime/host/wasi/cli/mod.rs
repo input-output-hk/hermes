@@ -1,5 +1,4 @@
 //! Host - WASI - CLI implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
@@ -20,25 +19,25 @@ impl NewState for State {
 }
 
 impl cli::environment::Host for HermesState {
-    #[doc = " Get the POSIX-style environment variables."]
-    #[doc = " "]
-    #[doc = " Each environment variable is provided as a pair of string variable names"]
-    #[doc = " and string value."]
-    #[doc = " "]
-    #[doc = " Morally, these are a value import, but until value imports are available"]
-    #[doc = " in the component model, this import function should return the same"]
-    #[doc = " values each time it is called."]
+    /// Get the POSIX-style environment variables.
+    ///
+    /// Each environment variable is provided as a pair of string variable names
+    /// and string value.
+    ///
+    /// Morally, these are a value import, but until value imports are available
+    /// in the component model, this import function should return the same
+    /// values each time it is called.
     fn get_environment(&mut self) -> wasmtime::Result<Vec<(String, String)>> {
         todo!()
     }
 
-    #[doc = " Get the POSIX-style arguments to the program."]
+    /// Get the POSIX-style arguments to the program.
     fn get_arguments(&mut self) -> wasmtime::Result<Vec<String>> {
         todo!()
     }
 
-    #[doc = " Return a path that programs should use as their initial current working"]
-    #[doc = " directory, interpreting `.` as shorthand for this."]
+    /// Return a path that programs should use as their initial current working
+    /// directory, interpreting `.` as shorthand for this.
     fn initial_cwd(&mut self) -> wasmtime::Result<Option<String>> {
         todo!()
     }

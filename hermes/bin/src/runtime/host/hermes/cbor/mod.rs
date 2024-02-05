@@ -1,5 +1,4 @@
 //! Host - CBOR implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{hermes::cbor::api::Host, HermesState, NewState};

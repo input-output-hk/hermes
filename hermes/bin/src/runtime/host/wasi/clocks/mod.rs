@@ -1,5 +1,4 @@
 //! Host - WASI - Clock implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::NewState;

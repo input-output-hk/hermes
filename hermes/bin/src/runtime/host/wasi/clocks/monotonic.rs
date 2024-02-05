@@ -1,5 +1,4 @@
 //! Host - WASI - monotonic clock implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
@@ -17,16 +16,16 @@ impl NewState for State {
 }
 
 impl Host for HermesState {
-    #[doc = " Read the current value of the clock."]
-    #[doc = " "]
-    #[doc = " The clock is monotonic, therefore calling this function repeatedly will"]
-    #[doc = " produce a sequence of non-decreasing values."]
+    /// Read the current value of the clock.
+    ///
+    /// The clock is monotonic, therefore calling this function repeatedly will
+    /// produce a sequence of non-decreasing values.
     fn now(&mut self) -> wasmtime::Result<Instant> {
         todo!()
     }
 
-    #[doc = " Query the resolution of the clock. Returns the duration of time"]
-    #[doc = " corresponding to a clock tick."]
+    /// Query the resolution of the clock. Returns the duration of time
+    /// corresponding to a clock tick.
     fn resolution(&mut self) -> wasmtime::Result<Duration> {
         todo!()
     }

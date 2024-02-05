@@ -1,9 +1,7 @@
 //! Host - CBOR implementations
-//!
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::hermes::binary::api::Host;
-use crate::runtime::extensions::{HermesState, NewState};
+use crate::runtime::extensions::{hermes::binary::api::Host, HermesState, NewState};
 
 /// State
 pub(crate) struct State {}

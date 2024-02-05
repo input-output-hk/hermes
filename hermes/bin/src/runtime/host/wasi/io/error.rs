@@ -1,5 +1,4 @@
 //! WASI IO Error
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
@@ -17,13 +16,13 @@ impl NewState for State {
 }
 
 impl HostError for HermesState {
-    #[doc = " Returns a string that is suitable to assist humans in debugging"]
-    #[doc = " this error."]
-    #[doc = " "]
-    #[doc = " WARNING: The returned string should not be consumed mechanically!"]
-    #[doc = " It may change across platforms, hosts, or other implementation"]
-    #[doc = " details. Parsing this string is a major platform-compatibility"]
-    #[doc = " hazard."]
+    /// Returns a string that is suitable to assist humans in debugging
+    /// this error.
+    ///
+    /// WARNING: The returned string should not be consumed mechanically!
+    /// It may change across platforms, hosts, or other implementation
+    /// details. Parsing this string is a major platform-compatibility
+    /// hazard.
     fn to_debug_string(
         &mut self, self_: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<String> {

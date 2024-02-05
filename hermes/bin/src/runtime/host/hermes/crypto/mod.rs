@@ -1,5 +1,4 @@
 //! Host - Crypto implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
@@ -23,46 +22,46 @@ impl NewState for State {
 }
 
 impl HostEd25519Bip32 for HermesState {
-    #[doc = " Create a new ED25519-BIP32 Crypto resource"]
-    #[doc = " "]
-    #[doc = " **Parameters**"]
-    #[doc = " "]
-    #[doc = " - `private_key` : The key to use, if not supplied one is RANDOMLY generated."]
+    /// Create a new ED25519-BIP32 Crypto resource
+    ///
+    /// **Parameters**
+    ///
+    /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
     fn new(
         &mut self, private_key: Option<Ed25519Bip32PrivateKey>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         todo!()
     }
 
-    #[doc = " Get the public key for this private key."]
+    /// Get the public key for this private key.
     fn public_key(
         &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<Ed25519Bip32PublicKey> {
         todo!()
     }
 
-    #[doc = " Sign data with the Private key, and return it."]
-    #[doc = " "]
-    #[doc = " **Parameters**"]
-    #[doc = " "]
-    #[doc = " - `data` : The data to sign."]
+    /// Sign data with the Private key, and return it.
+    ///
+    /// **Parameters**
+    ///
+    /// - `data` : The data to sign.
     fn sign_data(
         &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
     ) -> wasmtime::Result<Ed25519Bip32Signature> {
         todo!()
     }
 
-    #[doc = " Check a signature on a set of data."]
-    #[doc = " "]
-    #[doc = " **Parameters**"]
-    #[doc = " "]
-    #[doc = " - `data` : The data to check."]
-    #[doc = " - `sig`  : The signature to check."]
-    #[doc = " "]
-    #[doc = " **Returns**"]
-    #[doc = " "]
-    #[doc = " - `true` : Signature checked OK."]
-    #[doc = " - `false` : Signature check failed."]
+    /// Check a signature on a set of data.
+    ///
+    /// **Parameters**
+    ///
+    /// - `data` : The data to check.
+    /// - `sig`  : The signature to check.
+    ///
+    /// **Returns**
+    ///
+    /// - `true` : Signature checked OK.
+    /// - `false` : Signature check failed.
     fn check_sig(
         &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
         sig: Ed25519Bip32Signature,
@@ -70,18 +69,19 @@ impl HostEd25519Bip32 for HermesState {
         todo!()
     }
 
-    #[doc = " Derive a new private key from the current private key."]
-    #[doc = " "]
-    #[doc = " Note: uses BIP32 HD key derivation."]
+    /// Derive a new private key from the current private key.
+    ///
+    /// Note: uses BIP32 HD key derivation.
     fn derive(
         &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         todo!()
     }
 
-    #[doc = " Create a new RANDOM private key."]
-    #[doc = " "]
-    #[doc = " Note, this does not need to be used, as the constructor will do this automatically."]
+    /// Create a new RANDOM private key.
+    ///
+    /// Note, this does not need to be used, as the constructor will do this
+    /// automatically.
     fn gen_private_key(&mut self) -> wasmtime::Result<Ed25519Bip32PrivateKey> {
         todo!()
     }

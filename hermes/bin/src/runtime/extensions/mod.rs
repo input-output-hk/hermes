@@ -7,8 +7,6 @@
 //! ```
 #![allow(clippy::indexing_slicing)]
 
-use crate::runtime;
-use crate::wasm::context::Context;
 use wasmtime::{
     component::{bindgen, Component, Linker},
     Config, Engine, Store,
@@ -21,6 +19,7 @@ use self::{
         cron::api::CronTagged,
     },
 };
+use crate::{runtime, wasm::context::Context};
 
 bindgen!({
     world: "hermes",

@@ -1,5 +1,4 @@
 //! Host - JSON implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{hermes::json::api::Host, HermesState, NewState};

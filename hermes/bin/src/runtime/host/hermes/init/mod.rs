@@ -1,5 +1,4 @@
 //! Host - Init implementations
-//!
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::NewState;
