@@ -137,9 +137,9 @@ impl<T: HermesEventPayload + Send + Sync> HermesEvent<T> {
     pub fn wait(&self) -> anyhow::Result<()> {
         if let Some(cv) = &self.cv {
             let (lock, cv) = &**cv;
-            let mut done = lock.lock()?;
+            let mut done = lock.lock()?; // Why??
             while !*done {
-                done = cv.wait(done)?;
+                done = cv.wait(done)?; // Why??
             }
         }
 
