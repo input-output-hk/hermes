@@ -4,7 +4,10 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
-use std::error::Error;
+use std::{
+    error::Error,
+    thread::{self, JoinHandle},
+};
 
 use wasmtime::{
     InstancePre as WasmInstancePre, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
@@ -74,20 +77,28 @@ impl Module {
     ///
     /// # Errors
     /// - `wasmtime::Error`: WASM call error
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::unwrap_used)]
     pub(crate) fn call_func<Args, Ret>(
-        &mut self, name: &str, args: Args,
-    ) -> Result<Ret, Box<dyn Error>>
+        &mut self, name: String, args: Args,
+    ) -> JoinHandle<Result<Ret, Box<dyn Error + Send>>>
     where
-        Args: WasmParams,
-        Ret: WasmResults,
+        Args: WasmParams + 'static,
+        Ret: WasmResults + 'static,
     {
-        self.context.use_for(name.to_string());
+        self.context.use_for(name.clone());
 
-        let mut store = WasmStore::new(&self.engine, self.context.clone());
-        let instance = self.pre_instance.instantiate(&mut store)?;
-        let func = instance.get_typed_func(&mut store, name)?;
-        Ok(func.call(&mut store, args)?)
+        thread::spawn({
+            let context = self.context.clone();
+            let engine = self.engine.clone();
+            let pre_instance = self.pre_instance.clone();
+            move || {
+                let mut store = WasmStore::new(&engine, context);
+                let instance = pre_instance.instantiate(&mut store).unwrap();
+                let func = instance.get_typed_func(&mut store, &name)?;
+                let res = func.call(&mut store, args)?;
+                Ok(res)
+            }
+        })
     }
 }
 
@@ -133,7 +144,11 @@ mod tests {
         .expect("");
 
         for _ in 0..10 {
-            let res: i32 = module.call_func("call_hello", ()).expect("");
+            let res: i32 = module
+                .call_func("call_hello".to_string(), ())
+                .join()
+                .expect("thread should not panics")
+                .expect("");
             assert_eq!(res, 1);
         }
     }
