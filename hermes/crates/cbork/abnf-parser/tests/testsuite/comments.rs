@@ -24,11 +24,11 @@ pub(crate) const C_NL_FAILS: &[&str] = &[
 ];
 
 pub(crate) const C_WSP_PASSES: &[&str] = &[
-    
+   " ", ";\n ", "; a\n ", "; a\r\n ", ";;\n ", "; a87246h\t\t\r\n ", "; And another\r "
 ];
 
 pub(crate) const C_WSP_FAILS: &[&str] = &[
-    
+    ";", ";abc", "not a comment", "; a\n     "
 ];
 
 #[test]
@@ -57,16 +57,5 @@ fn check_c_nl() {
 #[test]
 /// Test if the `c_wsp` rule passes properly.
 fn check_c_wsp() {
-    let passes: Vec<_> = C_WSP_PASSES
-        .iter()
-        .chain(COMMENT_PASSES)
-        .map(Deref::deref)
-        .collect();
-    let fails: Vec<_> = C_WSP_FAILS
-        .iter()
-        .chain(COMMENT_FAILS)
-        .map(Deref::deref)
-        .collect();
-
-    check_tests_rule(Rule::c_wsp_TEST, &passes, &fails)
+    check_tests_rule(Rule::c_wsp_TEST, C_WSP_PASSES, C_WSP_FAILS)
 }
