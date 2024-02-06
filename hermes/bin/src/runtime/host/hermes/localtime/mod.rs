@@ -4,13 +4,13 @@
 use crate::runtime::extensions::{
     hermes::localtime::api::{Errno, Host, Localtime, Timezone},
     wasi::clocks::wall_clock::Datetime,
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(_ctx: &crate::wasm::context::Context) -> Self {
         State {}
     }

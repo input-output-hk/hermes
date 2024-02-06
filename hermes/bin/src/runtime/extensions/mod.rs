@@ -27,7 +27,7 @@ bindgen!({
 });
 
 /// All Hermes runtime extensions states need to implement this.
-pub(crate) trait NewState {
+pub(crate) trait Stateful {
     /// Initial state for the given context
     fn new(ctx: &Context) -> Self;
 }
@@ -45,7 +45,7 @@ pub(crate) struct HermesState {
     pub ctx: Context,
 }
 
-impl NewState for HermesState {
+impl Stateful for HermesState {
     fn new(ctx: &Context) -> HermesState {
         HermesState {
             hermes: runtime::host::hermes::State::new(ctx),

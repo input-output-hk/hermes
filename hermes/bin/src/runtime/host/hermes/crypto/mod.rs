@@ -9,13 +9,13 @@ use crate::runtime::extensions::{
             Host, HostEd25519Bip32,
         },
     },
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(_ctx: &crate::wasm::context::Context) -> Self {
         State {}
     }

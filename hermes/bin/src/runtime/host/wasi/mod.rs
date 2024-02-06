@@ -7,7 +7,7 @@ pub(crate) mod http;
 pub(crate) mod io;
 pub(crate) mod random;
 
-use crate::runtime::extensions::NewState;
+use crate::runtime::extensions::Stateful;
 
 #[allow(dead_code)]
 /// WASI State
@@ -26,7 +26,7 @@ pub(crate) struct State {
     random: random::State,
 }
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
             cli: cli::State::new(ctx),

@@ -12,7 +12,7 @@ pub(crate) mod kv_store;
 pub(crate) mod localtime;
 pub(crate) mod logging;
 
-use crate::runtime::extensions::NewState;
+use crate::runtime::extensions::Stateful;
 
 #[allow(dead_code)]
 /// Hermes extensions state
@@ -41,7 +41,7 @@ pub(crate) struct State {
     logging: logging::State,
 }
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
             binary: binary::State::new(ctx),

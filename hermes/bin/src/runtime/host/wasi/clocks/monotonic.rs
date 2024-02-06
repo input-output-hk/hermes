@@ -3,13 +3,13 @@
 
 use crate::runtime::extensions::{
     wasi::clocks::monotonic_clock::{Duration, Host, Instant},
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {}
     }

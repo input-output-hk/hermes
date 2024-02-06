@@ -3,13 +3,13 @@
 
 use crate::runtime::extensions::{
     wasi::io::error::{Error, Host, HostError},
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(_ctx: &crate::wasm::context::Context) -> Self {
         Self {}
     }

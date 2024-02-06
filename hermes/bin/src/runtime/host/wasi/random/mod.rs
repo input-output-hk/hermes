@@ -5,7 +5,7 @@ pub(crate) mod insecure;
 pub(crate) mod insecure_seed;
 pub(crate) mod secure;
 
-use crate::runtime::extensions::NewState;
+use crate::runtime::extensions::Stateful;
 
 #[allow(dead_code)]
 /// WASI State
@@ -18,7 +18,7 @@ pub(crate) struct State {
     secure: secure::State,
 }
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
             insecure: insecure::State::new(ctx),

@@ -1,7 +1,7 @@
 //! Host - WASI - Clock implementations
 #![allow(unused_variables)]
 
-use crate::runtime::extensions::NewState;
+use crate::runtime::extensions::Stateful;
 
 mod monotonic;
 mod wall;
@@ -15,7 +15,7 @@ pub(crate) struct State {
     wall: wall::State,
 }
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
             monotonic: monotonic::State::new(ctx),

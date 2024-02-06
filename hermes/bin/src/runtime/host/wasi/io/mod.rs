@@ -1,6 +1,6 @@
 //! Host - WASI IO Implementation
 
-use crate::runtime::extensions::NewState;
+use crate::runtime::extensions::Stateful;
 
 pub(crate) mod error;
 pub(crate) mod streams;
@@ -14,7 +14,7 @@ pub(crate) struct State {
     streams: streams::State,
 }
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {
             error: error::State::new(ctx),

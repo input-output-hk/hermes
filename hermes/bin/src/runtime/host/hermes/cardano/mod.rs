@@ -6,13 +6,13 @@ use crate::runtime::extensions::{
         CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
         UnsubscribeOptions,
     },
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(_ctx: &crate::wasm::context::Context) -> Self {
         State {}
     }

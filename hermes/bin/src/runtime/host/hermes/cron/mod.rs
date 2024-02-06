@@ -4,13 +4,13 @@
 use crate::runtime::extensions::{
     hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
     wasi::clocks::monotonic_clock::Instant,
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(_ctx: &crate::wasm::context::Context) -> Self {
         State {}
     }

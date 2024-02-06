@@ -17,13 +17,13 @@ use crate::runtime::extensions::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    HermesState, NewState,
+    HermesState, Stateful,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
-impl NewState for State {
+impl Stateful for State {
     fn new(ctx: &crate::wasm::context::Context) -> Self {
         Self {}
     }
