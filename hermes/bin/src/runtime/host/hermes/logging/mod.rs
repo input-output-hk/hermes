@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::{
+    bindings::hermes::{
         json::api::Json,
         logging::api::{Host, Level},
     },

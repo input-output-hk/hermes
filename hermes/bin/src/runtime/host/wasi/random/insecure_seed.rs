@@ -1,6 +1,8 @@
 //! Insecure RNG
 
-use crate::runtime::extensions::{wasi::random::insecure_seed::Host, HermesState, Stateful};
+use crate::runtime::extensions::{
+    bindings::wasi::random::insecure_seed::Host, HermesState, Stateful,
+};
 
 /// WASI State
 pub(crate) struct State {}

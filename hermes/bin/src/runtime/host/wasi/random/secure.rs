@@ -1,6 +1,6 @@
 //! Random RNG
 
-use crate::runtime::extensions::{wasi::random::random::Host, HermesState, Stateful};
+use crate::runtime::extensions::{bindings::wasi::random::random::Host, HermesState, Stateful};
 
 /// WASI State
 pub(crate) struct State {}

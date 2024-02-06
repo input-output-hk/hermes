@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    wasi::io::error::{Error, Host, HostError},
+    bindings::wasi::io::error::{Error, Host, HostError},
     HermesState, Stateful,
 };
 

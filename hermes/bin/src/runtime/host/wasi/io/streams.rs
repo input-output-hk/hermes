@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    wasi::io::streams::{
+    bindings::wasi::io::streams::{
         Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
     HermesState, Stateful,
