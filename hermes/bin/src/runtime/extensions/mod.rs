@@ -111,7 +111,7 @@ fn example() -> anyhow::Result<()> {
     let arg1 = CardanoBlock::new();
     let arg2 = BlockSrc::TIP;
     bindings
-        .interface1
+        .hermes_cardano_event_on_block()
         .call_on_cardano_block(&mut store, arg0, &arg1, arg2)?;
 
     // Example of calling on_txn.
@@ -121,14 +121,14 @@ fn example() -> anyhow::Result<()> {
     let arg3 = CardanoTxn::new();
 
     bindings
-        .interface2
+        .hermes_cardano_event_on_txn()
         .call_on_cardano_txn(&mut store, arg0, arg1, arg2, &arg3)?;
 
     // Example of calling on_rollback.
     let arg0 = CardanoBlockchainId::Mainnet;
     let arg1: u64 = 123_456;
     bindings
-        .interface3
+        .hermes_cardano_event_on_rollback()
         .call_on_cardano_rollback(&mut store, arg0, arg1)?;
 
     // Example of calling on_cron.
