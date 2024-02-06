@@ -14,11 +14,35 @@ pub(crate) const REPETITION_FAILS: &[&str] = &[
 ];
 
 pub(crate) const REPEAT_PASSES: &[&str] = &[
-    
+    "*",
+    "5*10",
+    "*20",
+    "5*10",
+    "0*5",
+    "5*",
+    "*5",
+    "0123",
 ];
 
 pub(crate) const REPEAT_FAILS: &[&str] = &[
-    
+    "+",
+    "?",
+    "0x1*",
+    "0b110*",
+    "5**10",
+    "5 * 10",
+    "5\t\n*\n10",
+    "0x1*0b110",
+    "0x1*0b110",
+    "++",
+    "??",
+    // Fail cases for uint
+    "0xG",   // Invalid hex digit
+    "0b123", // Invalid binary digit
+    "0*5*",  // Multiple '*' not allowed
+    "0x1*0b110*",
+    "0x",
+    "0b",
 ];
 
 #[test]
