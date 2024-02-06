@@ -1,3 +1,5 @@
+// cspell: words abnf
+
 use abnf_parser::{
     self,
     abnf_test::Rule,

@@ -1,3 +1,5 @@
+# cspell: words abnf
+
 [workspace]
 resolver = "2"
 members = [
