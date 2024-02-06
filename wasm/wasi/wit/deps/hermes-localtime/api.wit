@@ -1,0 +1,88 @@
+/// # Localtime API
+///
+/// Localtime API functionality exposed to the Hermes WASM Modules.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// Logging API Interface
+interface api {
+
+    /// Get the `datetime` type from the `wasi:clocks` module.
+    use wasi:clocks/wall-clock@0.2.0.{datetime};
+
+    // The timezone we are localized for.
+    type timezone = string;
+
+    // Time in localtime format.
+    record localtime {
+        year: u64,   // Year 
+        month: u8,   // Month (0-11)
+        dow: u8,     // Day of week (0-6)
+        day: u8,     // Day (1-31)
+
+        hh: u8,      // Hour (0-23)
+        mm: u8,      // Minute (0-59)
+        ss: u8,      // Second (0-59)
+
+        ns: u32,     // Nanoseconds
+
+        tz: timezone // Timezone string.
+    }
+
+    // Errors that can occur converting times
+    enum errno {
+        invalid-localtime,
+        unknown-timezone,
+        year-out-of-range // The earliest year which can convert to a datetime is 1970.
+
+    }
+
+    /// Get localtime from a datetime or now.
+    /// 
+    /// **Parameters**
+    /// 
+    /// `when` : The datetime we want to convert (Optional, if not set it will convert `now`).
+    /// `tz` : The timezone to use. (Optional, if not set uses the local machines configured local timezone.)
+    /// 
+    /// **Returns**
+    /// 
+    /// `localtime` : the converted time.
+    /// `errno`     : An error indicating why conversion failed.
+    /// 
+    get-localtime: func(when: option<datetime>, tz: option<timezone>) -> result<localtime, errno>;
+
+
+    /// Get a new localtime from a localtime, by recalculating time for a new timezone.
+    /// 
+    /// **Parameters**
+    /// 
+    /// `time` : The localtime to convert.
+    /// `tz` : The timezone to use. (Optional, if not set uses the local machines configured local timezone.)
+    /// 
+    /// **Returns**
+    /// 
+    /// `localtime` : the converted time.
+    /// `errno`     : An error indicating why conversion failed.
+    /// 
+    alt-localtime: func(time: localtime, tz: option<timezone>) -> result<localtime, errno>;
+
+    /// Get a datetime from a localtime.
+    /// 
+    /// **Parameters**
+    /// 
+    /// `time` : The localtime to convert.
+    /// 
+    /// **Returns**
+    /// 
+    /// `datetime`  : the converted time.
+    /// `errno`     : An error indicating why conversion failed.
+    /// 
+    get-datetime: func(time: localtime) -> result<datetime, errno>;
+}
+
+/// World just for the Hermes 'json' API.
+world localtime-api {
+    import api;
+}

@@ -1,0 +1,81 @@
+/// Interface to local in-memory K-V database instance.
+/// 
+/// This API is atomic.  It is safe to call it from multiple wasm modules in the same application.
+/// The atomic nature of these calls allows multiple wasm modules to communicate without data race 
+/// conditions through the KV store.
+///
+/// These are primitive operations, and the caller is expected to provide more complex semaphore/mutex
+/// logic on top of these building blocks, if required.
+/// 
+/// There is no support for multi-key atomic operations, the application is required to manage
+/// multi-key updates given the functionality provided here.
+/// For example, a single Key could be used to "Lock" a set of other keys.
+/// 
+/// There is no protection against deadlock, if a key is used as a semaphore/mutex then it is the
+/// responsibility of the applications modules to properly manage them.
+/// 
+interface api {
+    /// Get the `bstr` type from the `hermes:binary` module.
+    use hermes:binary/api.{bstr};
+    /// Get the `cbor` type from the `hermes:cbor` module.
+    use hermes:cbor/api.{cbor};
+    /// Get the `json` type from the `hermes:json` module.
+    use hermes:json/api.{json};
+
+    /// A time and date in seconds plus nanoseconds.
+    variant kv-values {
+      kv-string(string),  // A String
+      kv-s64(s64),        // Just use the largest signed integer type supported
+      kv-u64(u64),        // Just use the largest integer type supported
+      kv-f64(float64),    // Just use the largest float type supported
+      kv-bstr(bstr),      // A byte string
+      kv-cbor(cbor),      // CBOR data
+      kv-json(json)       // JSON data
+    }
+
+  /// Set a value in the local key-value store
+  /// Setting None will cause the Key to be deleted from the KV store.
+  kv-set: func(key: string, value: option<kv-values>);
+
+  /// Get a value from the local key-value store
+  /// Returns the default if not set.
+  kv-get-default: func(key: string, default: option<kv-values>) -> option<kv-values>;
+
+  /// Get a value from the local key-value store
+  /// Returns None if the Key does not exist in the KV Store.
+  /// This is a convenience function, and is equivalent to `kv-get-default(key, none)`
+  kv-get: func(key: string) -> option<kv-values>;
+
+  /// Get a value, and then set it (Atomic)
+  /// Setting None will cause the Key to be deleted from the KV store.
+  kv-get-set: func(key: string, value: option<kv-values>) -> option<kv-values>;
+
+  /// Get a value, and then add to it (Atomic)
+  /// Adding to a string will concatenate the string.
+  ///   String concatenation will only occur up to the maximum possible size of a string value.\
+  ///   Concatenation beyond the maximum size will result in truncation.
+  /// Adding to a numeric will have the expected behavior (rounded to nearest if necessary).
+  ///   The original type does not change, so: `float64 + u64 = float64`.  `s64 + float64 = s64`
+  ///   If the value overflows or under-flows it will saturate at the limit.
+  ///   This behavior allows us to decrement values by using the signed version, so `u64(10) + s64(-5) = u64(5))`
+  /// If a string is added to a numeric, nothing happens.
+  /// If a numeric is added to a string, it is converted to a string first, and then concatenated
+  ///   Note: There will be no spaces added.  So "My string" + u32(77) = "My string77"
+  kv-add: func(key: string, value: option<kv-values>) -> option<kv-values>;
+
+  /// Check if the Key equals a test value (exact match) and if it does, store the new value.
+  /// In all cases, the current value is returned.
+  /// If the types are NOT the same, the comparison will fail, even if the values are equivalent.
+  /// For example: `u64(7) != s64(7)`, `float64(-1) != s64(-1)`.
+  kv-cas: func(key: string, test: option<kv-values>, value: option<kv-values>) -> option<kv-values>;
+
+  /// Subscribe to any updates made to a particular Key.
+  /// After this call, this module will receive Key Update events when a key is written.
+  /// It returns the current value of the Key and None if it is not set.
+  kv-subscribe: func(key: string) -> option<kv-values>;
+
+  /// Unsubscribe to any updates made to a particular Key.
+  /// After this call, this module will no longer receive Key Update events when a key is written.
+  /// It returns the current value of the Key and None if it is not set.
+  kv-unsubscribe: func(key: string) -> option<kv-values>;
+}

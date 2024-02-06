@@ -1,0 +1,77 @@
+/// # Crypto API
+///
+/// Crypto API functionality exposed to the Hermes WASM Modules.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// Crypto API Interface
+interface api {
+    use hermes:binary/api.{bstr, b256, b512};
+
+    // ed25519-bip32 Private Key
+    type ed25519-bip32-private-key = b256;
+
+    // ed25519-bip32 Extended Private Key
+    type ed25519-bip32-extended-private-key = b512;
+
+    // ed25519-bip32 Public Key
+    type ed25519-bip32-public-key = b256;
+
+    // ed25519-bip32 Signature
+    type ed25519-bip32-signature = b256;
+
+    resource ed25519-bip32 {
+        /// Create a new ED25519-BIP32 Crypto resource
+        /// 
+        /// **Parameters**
+        ///
+        /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
+        /// 
+        constructor(private-key: option<ed25519-bip32-private-key>);
+
+        /// Get the public key for this private key.
+        public-key: func() -> ed25519-bip32-public-key;
+
+        /// Sign data with the Private key, and return it.
+        /// 
+        /// **Parameters**
+        ///
+        /// - `data` : The data to sign.
+        /// 
+        sign-data: func(data: bstr) -> ed25519-bip32-signature;
+
+
+        /// Check a signature on a set of data.
+        /// 
+        /// **Parameters**
+        ///
+        /// - `data` : The data to check.
+        /// - `sig`  : The signature to check.
+        /// 
+        /// **Returns**
+        /// 
+        /// - `true` : Signature checked OK.
+        /// - `false` : Signature check failed.
+        ///
+        check-sig: func(data: bstr, sig: ed25519-bip32-signature) -> bool;
+
+        /// Derive a new private key from the current private key.
+        /// 
+        /// Note: uses BIP32 HD key derivation.
+        /// 
+        derive: func() -> ed25519-bip32;
+
+        /// Create a new RANDOM private key.
+        /// 
+        /// Note, this does not need to be used, as the constructor will do this automatically.
+        /// 
+        gen-private-key: static func() -> ed25519-bip32-private-key;
+    }
+}
+
+/// World just for the Hermes 'json' API.
+world crypto-api {
+    import api;
+}
