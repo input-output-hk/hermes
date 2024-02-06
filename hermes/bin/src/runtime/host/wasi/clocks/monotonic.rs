@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    wasi::clocks::monotonic_clock::{Duration, Host, Instant},
+    bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
     HermesState, Stateful,
 };
 

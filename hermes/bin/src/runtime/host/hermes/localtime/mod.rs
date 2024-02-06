@@ -2,8 +2,10 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::localtime::api::{Errno, Host, Localtime, Timezone},
-    wasi::clocks::wall_clock::Datetime,
+    bindings::{
+        hermes::localtime::api::{Errno, Host, Localtime, Timezone},
+        wasi::clocks::wall_clock::Datetime,
+    },
     HermesState, Stateful,
 };
 

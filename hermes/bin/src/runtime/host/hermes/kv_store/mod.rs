@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::kv_store::api::{Host, KvValues},
+    bindings::hermes::kv_store::api::{Host, KvValues},
     HermesState, Stateful,
 };
 

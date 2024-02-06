@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    wasi::{
+    bindings::wasi::{
         filesystem::{
             self,
             types::{

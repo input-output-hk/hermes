@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    wasi::{
+    bindings::wasi::{
         cli,
         io::streams::{InputStream, OutputStream},
     },

@@ -2,8 +2,10 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-    wasi::clocks::monotonic_clock::Instant,
+    bindings::{
+        hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+        wasi::clocks::monotonic_clock::Instant,
+    },
     HermesState, Stateful,
 };
 

@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::cardano::api::{
+    bindings::hermes::cardano::api::{
         CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
         UnsubscribeOptions,
     },
@@ -17,6 +17,8 @@ impl Stateful for State {
         State {}
     }
 }
+
+pub(crate) mod on_block;
 
 impl Host for HermesState {
     /// Subscribe to the Blockchain block data.

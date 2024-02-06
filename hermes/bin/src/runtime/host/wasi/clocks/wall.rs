@@ -1,7 +1,7 @@
 //! Host - WASI - Wall Clock implementations
 
 use crate::runtime::extensions::{
-    wasi::clocks::wall_clock::{Datetime, Host},
+    bindings::wasi::clocks::wall_clock::{Datetime, Host},
     HermesState, Stateful,
 };
 

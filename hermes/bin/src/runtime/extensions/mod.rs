@@ -1,30 +1,28 @@
 //! Hermes runtime extensions
 //!
-//! *Note*
-//! Inspect the generated code with:
-//! ```
-//! cargo expand --bin hermes runtime::extensions
-//! ```
 #![allow(clippy::indexing_slicing)]
 
 use wasmtime::{
-    component::{bindgen, Component, Linker},
+    component::{Component, Linker},
     Config, Engine, Store,
 };
 
 use self::{
-    exports::hermes::cardano::event_on_block::BlockSrc,
-    hermes::{
-        cardano::api::{CardanoBlock, CardanoBlockchainId, CardanoTxn},
-        cron::api::CronTagged,
+    bindings::{
+        hermes::{
+            cardano::api::{CardanoBlockchainId, CardanoTxn},
+            cron::api::CronTagged,
+            kv_store::api::KvValues,
+        },
+        Hermes,
     },
+    event::{HermesEvent, HermesEventPayload},
 };
+use super::host::hermes::cardano::on_block::CardanoOnBlockEventPayload;
 use crate::{runtime, wasm::context::Context};
+pub(crate) mod event;
 
-bindgen!({
-    world: "hermes",
-    path: "../../wasm/wasi/wit",
-});
+pub(crate) mod bindings;
 
 /// All Hermes runtime extensions states need to implement this.
 pub(crate) trait Stateful {
@@ -99,7 +97,7 @@ fn example() -> anyhow::Result<()> {
     let (bindings, _) = Hermes::instantiate_pre(&mut store, &instance_pre)?;
 
     // Show how we call the events in our API.
-    let _result = bindings.interface5.call_init(&mut store)?;
+    let _result = bindings.hermes_init_event().call_init(&mut store)?;
 
     // HTTP API to be rewritten, but this is how its called.
     // let arg1 = ??;
@@ -107,12 +105,28 @@ fn example() -> anyhow::Result<()> {
     // let result = bindings.interface0.call_handle(&mut store, arg1, arg2)?;
 
     // Example of calling on_block.
-    let arg0 = CardanoBlockchainId::Mainnet;
-    let arg1 = CardanoBlock::new();
-    let arg2 = BlockSrc::TIP;
-    bindings
-        .hermes_cardano_event_on_block()
-        .call_on_cardano_block(&mut store, arg0, &arg1, arg2)?;
+
+    // This event is sent over the event queue.
+    let event = HermesEvent::new(
+        CardanoOnBlockEventPayload {
+            mainnet: true,
+            block_data: vec![],
+            at_tip: true,
+            mithril: true,
+        },
+        true,
+    );
+
+    // A wasm module checks if it implements the event or not, if it does, it executes it.
+    // Repeat this for all wasm modules
+    if event.payload().event_name() == "on-block"
+    // AND the Wasm supports that event
+    {
+        event.payload().execute(&bindings, &mut store)?;
+    }
+
+    // When all wasm modules have executed the event...
+    event.notify()?;
 
     // Example of calling on_txn.
     let arg0 = CardanoBlockchainId::Mainnet;
@@ -137,13 +151,15 @@ fn example() -> anyhow::Result<()> {
         tag: "tag".to_string(),
     };
     let arg1 = false;
-    let _result = bindings.interface4.call_on_cron(&mut store, &arg0, arg1)?;
+    let _result = bindings
+        .hermes_cron_event()
+        .call_on_cron(&mut store, &arg0, arg1)?;
 
     // Example of calling kv_update
     let arg0 = "key";
-    let arg1 = hermes::kv_store::api::KvValues::KvString("value".to_string());
+    let arg1 = KvValues::KvString("value".to_string());
     bindings
-        .interface6
+        .hermes_kv_store_event()
         .call_kv_update(&mut store, arg0, &arg1)?;
 
     Ok(())

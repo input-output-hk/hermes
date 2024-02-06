@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::runtime::extensions::{
-    hermes::{
+    bindings::hermes::{
         binary::api::Bstr,
         hash::api::{Errno, Host},
     },
