@@ -1,9 +1,6 @@
-// cspell: words abnf
+// cspell: words abnf rulename rulelist
 
-use abnf_parser::{
-    self,
-    abnf_test::Rule,
-};
+use abnf_parser::{self, abnf_test::Rule};
 
 use crate::common::*;
 
@@ -17,24 +14,12 @@ pub(crate) const RULE_PASSES: &[&str] = &[
     "rulelist       =  1*( rule / (*c-wsp c-nl) )\n",
 ];
 
-pub(crate) const RULE_FAILS: &[&str] = &[
-    "rulename     =  \"abc\"",
-    "rulename     =  abc",
-];
+pub(crate) const RULE_FAILS: &[&str] = &["rulename     =  \"abc\"", "rulename     =  abc"];
 
-pub(crate) const DEFINED_AS_PASSES: &[&str] = &[
-    "= ",
-    "=/ ",
-    "=   ",
-    "=/   ",
-    "   =/   ",
-    "   =   ",
-];
+pub(crate) const DEFINED_AS_PASSES: &[&str] =
+    &["= ", "=/ ", "=   ", "=/   ", "   =/   ", "   =   "];
 
-pub(crate) const DEFINED_AS_FAILS: &[&str] = &[
-    "==",
-    "=\\",
-];
+pub(crate) const DEFINED_AS_FAILS: &[&str] = &["==", "=\\"];
 
 pub(crate) const ELEMENTS_PASSES: &[&str] = &[
     "foo",
@@ -46,27 +31,22 @@ pub(crate) const ELEMENTS_PASSES: &[&str] = &[
     "*%b1",
 ];
 
-pub(crate) const ELEMENTS_FAILS: &[&str] = &[
-    "%",
-    "=",
-    "()",
-    "[]",
-];
+pub(crate) const ELEMENTS_FAILS: &[&str] = &["%", "=", "()", "[]"];
 
 #[test]
 /// Test if the `rule` rule passes properly.
 fn check_rule() {
-    check_tests_rule(Rule::rule_TEST, RULE_PASSES, RULE_FAILS)
+    check_tests_rule(Rule::rule_TEST, RULE_PASSES, RULE_FAILS);
 }
 
 #[test]
 /// Test if the `defined_as` rule passes properly.
 fn check_defined_as() {
-    check_tests_rule(Rule::defined_as_TEST, DEFINED_AS_PASSES, DEFINED_AS_FAILS)
+    check_tests_rule(Rule::defined_as_TEST, DEFINED_AS_PASSES, DEFINED_AS_FAILS);
 }
 
 #[test]
 /// Test if the `elements` rule passes properly.
 fn check_elements() {
-    check_tests_rule(Rule::elements_TEST, ELEMENTS_PASSES, ELEMENTS_FAILS)
+    check_tests_rule(Rule::elements_TEST, ELEMENTS_PASSES, ELEMENTS_FAILS);
 }

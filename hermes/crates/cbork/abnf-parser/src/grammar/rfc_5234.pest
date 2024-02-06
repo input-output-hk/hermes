@@ -2,6 +2,8 @@
 //! https://datatracker.ietf.org/doc/html/rfc5234#section-4
 //! https://datatracker.ietf.org/doc/html/rfc5234#appendix-B.1
 
+// cspell: words ABNF abnf rulename VCHAR DQUOTE ONEOF
+
 // correction: https://www.rfc-editor.org/errata/eid3076
 abnf = ${
     SOI

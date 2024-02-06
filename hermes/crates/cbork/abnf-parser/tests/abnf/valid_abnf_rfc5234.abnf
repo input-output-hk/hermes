@@ -1,3 +1,5 @@
+; cspell: words rulelist rulename VCHAR DQUOTE VCHAR ONEOF HEXDIG
+
 rulelist       =  1*( rule / (*c-wsp c-nl) )
 
 rule           =  rulename defined-as elements c-nl

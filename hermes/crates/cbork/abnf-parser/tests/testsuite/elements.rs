@@ -1,48 +1,40 @@
-use abnf_parser::{
-    self,
-    abnf_test::Rule,
-};
+// cspell: words abnf RULENAME
 
-use crate::common::*;
-use crate::identifiers::*;
-use crate::values::*;
-use crate::groups::*;
+use abnf_parser::{self, abnf_test::Rule};
 
-pub(crate) const ELEMENT_PASSES: &[&str] = &[
-    
-];
+use crate::{common::*, groups::*, identifiers::*, values::*};
 
-pub(crate) const ELEMENT_FAILS: &[&str] = &[
-    
-];
+pub(crate) const ELEMENT_PASSES: &[&str] = &[];
+
+pub(crate) const ELEMENT_FAILS: &[&str] = &[];
 
 #[test]
 /// Test if the `element` rule passes properly.
 fn check_element() {
     let passes: Vec<_> = ELEMENT_PASSES
         .iter()
-        .map(|x| format!("{x}"))
-        .chain(RULENAME_PASSES.into_iter().map(|x| format!("{x}")))
-        .chain(OPTION_PASSES.into_iter().map(|x| format!("{x}")))
-        .chain(GROUP_PASSES.into_iter().map(|x| format!("{x}")))
-        .chain(BIN_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
-        .chain(DEC_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
-        .chain(HEX_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
+        .map(|x| (*x).to_string())
+        .chain(RULENAME_PASSES.iter().map(|x| (*x).to_string()))
+        .chain(OPTION_PASSES.iter().map(|x| (*x).to_string()))
+        .chain(GROUP_PASSES.iter().map(|x| (*x).to_string()))
+        .chain(BIN_VAL_PASSES.iter().map(|x| format!("%{x}")))
+        .chain(DEC_VAL_PASSES.iter().map(|x| format!("%{x}")))
+        .chain(HEX_VAL_PASSES.iter().map(|x| format!("%{x}")))
         .collect();
     let fails: Vec<_> = ELEMENT_FAILS
         .iter()
-        .map(|x| format!("{x}"))
-        .chain(RULENAME_FAILS.into_iter().map(|x| format!("{x}")))
-        .chain(OPTION_FAILS.into_iter().map(|x| format!("{x}")))
-        .chain(GROUP_FAILS.into_iter().map(|x| format!("{x}")))
-        .chain(BIN_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
-        .chain(DEC_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
-        .chain(HEX_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
+        .map(|x| (*x).to_string())
+        .chain(RULENAME_FAILS.iter().map(|x| (*x).to_string()))
+        .chain(OPTION_FAILS.iter().map(|x| (*x).to_string()))
+        .chain(GROUP_FAILS.iter().map(|x| (*x).to_string()))
+        .chain(BIN_VAL_FAILS.iter().map(|x| format!("%{x}")))
+        .chain(DEC_VAL_FAILS.iter().map(|x| format!("%{x}")))
+        .chain(HEX_VAL_FAILS.iter().map(|x| format!("%{x}")))
         .collect();
 
-        check_tests_rule(
-            Rule::element_TEST,
-            &passes.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            &fails.iter().map(|s| s.as_str()).collect::<Vec<_>>()
-        )
+    check_tests_rule(
+        Rule::element_TEST,
+        &passes.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+        &fails.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+    );
 }

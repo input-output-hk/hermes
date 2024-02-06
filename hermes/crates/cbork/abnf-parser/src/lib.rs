@@ -1,4 +1,4 @@
-// cspell: words apskhem
+// cspell: words apskhem ABNF abnf
 
 #![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
 
@@ -36,7 +36,7 @@ pub struct AST<'a>(Pairs<'a, abnf::Rule>);
 #[derive(Display, Debug, From)]
 pub struct ABNFError(Error<abnf::Rule>);
 
-pub fn parse_abnf<'a>(input: &'a str) -> Result<AST<'a>, Box<ABNFError>> {
+pub fn parse_abnf(input: &str) -> Result<AST<'_>, Box<ABNFError>> {
     let result: Result<AST<'_>, _> = abnf::ABNFParser::parse(abnf::Rule::abnf, input)
         .map(AST)
         .map_err(ABNFError);

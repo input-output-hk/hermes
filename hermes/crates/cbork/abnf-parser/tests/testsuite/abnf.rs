@@ -1,3 +1,5 @@
+// cspell: words abnf
+
 use std::{ffi::OsStr, fs, io::Result};
 
 use abnf_parser::parse_abnf;

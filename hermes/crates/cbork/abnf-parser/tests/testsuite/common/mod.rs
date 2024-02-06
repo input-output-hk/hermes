@@ -1,3 +1,5 @@
+// cspell: words abnf ABNF
+
 use abnf_parser::{
     self,
     abnf_test::{ABNFTestParser, Parser, Rule},

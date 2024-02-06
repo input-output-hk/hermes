@@ -1,9 +1,6 @@
 // cspell: words abnf
 
-use abnf_parser::{
-    self,
-    abnf_test::Rule,
-};
+use abnf_parser::{self, abnf_test::Rule};
 
 use crate::common::*;
 
@@ -26,14 +23,7 @@ pub(crate) const PROSE_VAL_FAILS: &[&str] = &[
     "<This string has a control character at the end\u{1F}>",
 ];
 
-pub(crate) const HEX_VAL_PASSES: &[&str] = &[
-    "x1A",
-    "xFF",
-    "x0",
-    "x1A.B2",
-    "xFF.FF.FF",
-    "x1A-FF",
-];
+pub(crate) const HEX_VAL_PASSES: &[&str] = &["x1A", "xFF", "x0", "x1A.B2", "xFF.FF.FF", "x1A-FF"];
 
 pub(crate) const HEX_VAL_FAILS: &[&str] = &[
     "x",
@@ -49,13 +39,7 @@ pub(crate) const HEX_VAL_FAILS: &[&str] = &[
     "x1A-FF-0D-",
 ];
 
-pub(crate) const DEC_VAL_PASSES: &[&str] = &[
-    "d123",
-    "d456.789",
-    "d0",
-    "d987.654.321",
-    "d123-456",
-];
+pub(crate) const DEC_VAL_PASSES: &[&str] = &["d123", "d456.789", "d0", "d987.654.321", "d123-456"];
 
 pub(crate) const DEC_VAL_FAILS: &[&str] = &[
     "d",
@@ -71,13 +55,8 @@ pub(crate) const DEC_VAL_FAILS: &[&str] = &[
     "d123-",
 ];
 
-pub(crate) const BIN_VAL_PASSES: &[&str] = &[
-    "b101",
-    "b1110.0101",
-    "b0",
-    "b1010.1010.1010",
-    "b1101-1001",
-];
+pub(crate) const BIN_VAL_PASSES: &[&str] =
+    &["b101", "b1110.0101", "b0", "b1010.1010.1010", "b1101-1001"];
 
 pub(crate) const BIN_VAL_FAILS: &[&str] = &[
     "b",
@@ -92,14 +71,9 @@ pub(crate) const BIN_VAL_FAILS: &[&str] = &[
     "b101-",
 ];
 
-pub(crate) const NUM_VAL_PASSES: &[&str] = &[
-    
-];
+pub(crate) const NUM_VAL_PASSES: &[&str] = &[];
 
-pub(crate) const NUM_VAL_FAILS: &[&str] = &[
-    "%",
-    "%%"
-];
+pub(crate) const NUM_VAL_FAILS: &[&str] = &["%", "%%"];
 
 pub(crate) const CHAR_VAL_PASSES: &[&str] = &[
     "\"Valid string\"",
@@ -118,25 +92,25 @@ pub(crate) const CHAR_VAL_FAILS: &[&str] = &[
 #[test]
 /// Test if the `prose_val` rule passes properly.
 fn check_prose_val() {
-    check_tests_rule(Rule::prose_val_TEST, PROSE_VAL_PASSES, PROSE_VAL_FAILS)
+    check_tests_rule(Rule::prose_val_TEST, PROSE_VAL_PASSES, PROSE_VAL_FAILS);
 }
 
 #[test]
 /// Test if the `hex_val` rule passes properly.
 fn check_hex_val() {
-    check_tests_rule(Rule::hex_val_TEST, HEX_VAL_PASSES, HEX_VAL_FAILS)
+    check_tests_rule(Rule::hex_val_TEST, HEX_VAL_PASSES, HEX_VAL_FAILS);
 }
 
 #[test]
 /// Test if the `dec_val` rule passes properly.
 fn check_dec_val() {
-    check_tests_rule(Rule::dec_val_TEST, DEC_VAL_PASSES, DEC_VAL_FAILS)
+    check_tests_rule(Rule::dec_val_TEST, DEC_VAL_PASSES, DEC_VAL_FAILS);
 }
 
 #[test]
 /// Test if the `bin_val` rule passes properly.
 fn check_bin_val() {
-    check_tests_rule(Rule::bin_val_TEST, BIN_VAL_PASSES, BIN_VAL_FAILS)
+    check_tests_rule(Rule::bin_val_TEST, BIN_VAL_PASSES, BIN_VAL_FAILS);
 }
 
 #[test]
@@ -144,28 +118,28 @@ fn check_bin_val() {
 fn check_num_val() {
     let passes: Vec<_> = NUM_VAL_PASSES
         .iter()
-        .map(|x| format!("{x}"))
-        .chain(BIN_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
-        .chain(DEC_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
-        .chain(HEX_VAL_PASSES.into_iter().map(|x| format!("%{x}")))
+        .map(|x| (*x).to_string())
+        .chain(BIN_VAL_PASSES.iter().map(|x| format!("%{x}")))
+        .chain(DEC_VAL_PASSES.iter().map(|x| format!("%{x}")))
+        .chain(HEX_VAL_PASSES.iter().map(|x| format!("%{x}")))
         .collect();
     let fails: Vec<_> = NUM_VAL_FAILS
         .iter()
-        .map(|x| format!("{x}"))
-        .chain(BIN_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
-        .chain(DEC_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
-        .chain(HEX_VAL_FAILS.into_iter().map(|x| format!("%{x}")))
+        .map(|x| (*x).to_string())
+        .chain(BIN_VAL_FAILS.iter().map(|x| format!("%{x}")))
+        .chain(DEC_VAL_FAILS.iter().map(|x| format!("%{x}")))
+        .chain(HEX_VAL_FAILS.iter().map(|x| format!("%{x}")))
         .collect();
 
     check_tests_rule(
         Rule::num_val_TEST,
-        &passes.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-        &fails.iter().map(|s| s.as_str()).collect::<Vec<_>>()
-    )
+        &passes.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+        &fails.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+    );
 }
 
 #[test]
 /// Test if the `char_val` rule passes properly.
 fn check_char_val() {
-    check_tests_rule(Rule::char_val_TEST, CHAR_VAL_PASSES, CHAR_VAL_FAILS)
+    check_tests_rule(Rule::char_val_TEST, CHAR_VAL_PASSES, CHAR_VAL_FAILS);
 }

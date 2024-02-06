@@ -1,3 +1,8 @@
+; cspell: words genericparm genericarg assignt assigng groupname
+; cspell: words memberkey rangeop ctlop grpchoice grpent optcom
+; cspell: words bareword HEXDIG BINDIG hexfloat SCHAR FFFD SESC
+; cspell: words bsqual BCHAR EALPHA PCHAR
+
 cddl = S 1*(rule S)
 rule = typename [genericparm] S assignt S type
      / groupname [genericparm] S assigng S grpent
