@@ -72,9 +72,7 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         self.follow_from = from.into();
         self
     }
@@ -182,9 +180,7 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let res = self.send_request_and_wait(follow_task::Request::SetReadPointer(at.into()));
 
         let follow_task::Response::SetReadPointer(res) = res.await? else {
@@ -194,14 +190,17 @@ impl Follower {
         res
     }
 
-    /// ...
+    /// Reads a single block from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `at`: The point at which to read the block.
     ///
     /// # Errors
-    /// ...
+    ///
+    /// Returns Err if the block was not found or if some communication error ocurred.
     pub async fn read_block<P>(&mut self, at: P) -> Result<MultiEraBlockData>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let res = self.send_request_and_wait(follow_task::Request::ReadBlock(at.into()));
         let follow_task::Response::ReadBlock(res) = res.await? else {
             todo!()
@@ -210,16 +209,21 @@ impl Follower {
         res
     }
 
-    /// ...
+    /// Reads a range of blocks from the chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `from`: The point at which to start reading block from.
+    /// * `to`: The point up to which the blocks will be read.
     ///
     /// # Errors
-    /// ...
+    ///
+    /// Returns Err if the block range was not found or if some communication error
+    /// ocurred.
     pub async fn read_block_range<P>(
         &mut self, from: Point, to: P,
     ) -> Result<Vec<MultiEraBlockData>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let res = self.send_request_and_wait(follow_task::Request::ReadBlockRange(from, to.into()));
         let follow_task::Response::ReadBlockRange(res) = res.await? else {
             todo!()
@@ -296,9 +300,9 @@ mod follow_task {
         /// Request the follow task to set the read pointer to the given point or to the
         /// tip.
         SetReadPointer(PointOrTip),
-        /// ...
+        /// Request the task to fetch a block at the given point.
         ReadBlock(PointOrTip),
-        /// ...
+        /// Request the task to fetch a range of blocks at the given point.
         ReadBlockRange(Point, PointOrTip),
     }
 
@@ -306,9 +310,9 @@ mod follow_task {
     pub enum Response {
         /// Whether the read pointer was set correctly.
         SetReadPointer(Result<Option<Point>>),
-        /// ...
+        /// Whether the requested block was read correctly.
         ReadBlock(Result<MultiEraBlockData>),
-        /// ...
+        /// Whether the requested block range was read correctly.
         ReadBlockRange(Result<Vec<MultiEraBlockData>>),
     }
 
@@ -356,9 +360,11 @@ mod follow_task {
         mut request_rx: mpsc::Receiver<(Request, oneshot::Sender<Response>)>,
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
     ) {
-        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| MithrilSnapshotState {
-            snapshot,
-            iter: None,
+        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| {
+            MithrilSnapshotState {
+                snapshot,
+                iter: None,
+            }
         });
 
         let task_state = TaskState {
@@ -395,154 +401,169 @@ mod follow_task {
     ) {
         match request {
             Request::SetReadPointer(at) => {
-                tracing::trace!("Setting follower's read point");
-
-                let mut current_read_pointer_lock = state.current_read_pointer.write().await;
-                let mut client = state.client.lock().await;
-                let mut mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
-
-                let set_to_snapshot = if let Some(s) = mithril_snapshot_lock.as_mut() {
-                    if let PointOrTip::Point(p) = &at {
-                        s.iter = s.snapshot.try_read_blocks_from_point(p.clone());
-                        s.iter.as_ref().map(|_| p.clone())
-                    } else {
-                        s.iter = None;
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                let result = if set_to_snapshot.is_some() {
-                    tracing::trace!("Found point in Mithril snapshot");
-                    Ok(set_to_snapshot)
-                } else {
-                    if mithril_snapshot_lock.is_some() {
-                        tracing::trace!("Point not found in Mithril snapshot. Asking remote node.");
-                    }
-
-                    set_client_read_pointer(&mut client, at).await
-                };
-
-                match result.as_ref() {
-                    Ok(Some(point)) => {
-                        tracing::trace!(slot = point.slot_or_default(), "Read pointer set");
-                        *current_read_pointer_lock = Some(point.clone());
-                    },
-                    _ => *current_read_pointer_lock = None,
-                }
-
-                drop(response_channel.send(Response::SetReadPointer(result)));
+                handle_set_read_pointer_request(at, state, response_channel).await;
             },
             Request::ReadBlock(at) => {
-                let mut blockfetch_client = state.blockfetch_client.lock().await;
-
-                let block_data = match at {
-                    PointOrTip::Tip => {
-                        let point = match resolve_tip(&mut blockfetch_client).await {
-                            Ok(p) => p,
-                            Err(e) => {
-                                drop(response_channel.send(Response::ReadBlock(Err(e))));
-                                return;
-                            },
-                        };
-
-                        read_block_from_network(&mut blockfetch_client, point).await
-                    },
-
-                    PointOrTip::Point(point) => {
-                        let mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
-
-                        let snapshot_res = mithril_snapshot_lock
-                            .as_ref()
-                            .and_then(|snapshot_state| {
-                                snapshot_state.snapshot.try_read_block(point.clone()).ok()
-                            })
-                            .flatten();
-
-                        match snapshot_res {
-                            Some(block_data) => {
-                                tracing::trace!("Read block from Mithril snapshot");
-                                Ok(block_data)
-                            },
-                            None => read_block_from_network(&mut blockfetch_client, point).await,
-                        }
-                    },
-                };
-
-                drop(response_channel.send(Response::ReadBlock(block_data)));
+                handle_read_block_request(at, state, response_channel).await;
             },
             Request::ReadBlockRange(from, to) => {
-                let mut blockfetch_client = state.blockfetch_client.lock().await;
+                handle_read_block_range_request(from, to, state, response_channel).await;
+            },
+        }
+    }
 
-                let block_range_data = match to {
-                    PointOrTip::Tip => {
-                        let to_point = match resolve_tip(&mut blockfetch_client).await {
-                            Ok(p) => p,
-                            Err(e) => {
-                                drop(response_channel.send(Response::ReadBlockRange(Err(e))));
-                                return;
-                            },
-                        };
-                        read_block_range_from_network(&mut blockfetch_client, from, to_point).await
-                    },
-                    PointOrTip::Point(to) => {
-                        let mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
+    /// Handles set read pointer requests.
+    async fn handle_set_read_pointer_request(
+        at: PointOrTip, state: TaskState, response_channel: oneshot::Sender<Response>,
+    ) {
+        tracing::trace!("Setting follower's read point");
 
-                        let snapshot_res = mithril_snapshot_lock
-                            .as_ref()
-                            .and_then(|snapshot_state| {
-                                snapshot_state
-                                    .snapshot
-                                    .try_read_block_range(from.clone(), to.clone())
-                                    .ok()
-                            })
-                            .flatten();
+        let mut current_read_pointer_lock = state.current_read_pointer.write().await;
+        let mut client = state.client.lock().await;
+        let mut mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
 
-                        match snapshot_res {
-                            Some((last_point_read, mut block_data_vec)) => {
-                                // If we couldn't get all the blocks from the snapshot,
-                                // try fetching the remaining ones from the network.
-                                if last_point_read.slot_or_default() < to.slot_or_default() {
-                                    let res = read_block_range_from_network(
-                                        &mut blockfetch_client,
-                                        last_point_read,
-                                        to,
-                                    )
-                                    .await;
+        let set_to_snapshot = if let Some(s) = mithril_snapshot_lock.as_mut() {
+            if let PointOrTip::Point(p) = &at {
+                s.iter = s.snapshot.try_read_blocks_from_point(p.clone());
+                s.iter.as_ref().map(|_| p.clone())
+            } else {
+                s.iter = None;
+                None
+            }
+        } else {
+            None
+        };
 
-                                    let network_blocks = match res {
-                                        Ok(nb) => nb,
-                                        Err(e) => {
-                                            drop(
-                                                response_channel
-                                                    .send(Response::ReadBlockRange(Err(e))),
-                                            );
-                                            return;
-                                        },
-                                    };
+        let result = if set_to_snapshot.is_some() {
+            tracing::trace!("Found point in Mithril snapshot");
+            Ok(set_to_snapshot)
+        } else {
+            if mithril_snapshot_lock.is_some() {
+                tracing::trace!("Point not found in Mithril snapshot. Asking remote node.");
+            }
 
-                                    // Discard 1st point as it's already been read from
-                                    // the snapshot
-                                    let mut network_blocks_iter = network_blocks.into_iter();
-                                    drop(network_blocks_iter.next());
+            set_client_read_pointer(&mut client, at).await
+        };
 
-                                    block_data_vec.extend(network_blocks_iter);
-                                }
+        match result.as_ref() {
+            Ok(Some(point)) => {
+                tracing::trace!(slot = point.slot_or_default(), "Read pointer set");
+                *current_read_pointer_lock = Some(point.clone());
+            },
+            _ => *current_read_pointer_lock = None,
+        }
 
-                                Ok(block_data_vec)
-                            },
-                            None => {
-                                read_block_range_from_network(&mut blockfetch_client, from, to)
-                                    .await
-                            },
-                        }
+        drop(response_channel.send(Response::SetReadPointer(result)));
+    }
+
+    /// Handles read block requests.
+    async fn handle_read_block_request(
+        at: PointOrTip, state: TaskState, response_channel: oneshot::Sender<Response>,
+    ) {
+        let mut blockfetch_client = state.blockfetch_client.lock().await;
+
+        let block_data = match at {
+            PointOrTip::Tip => {
+                let point = match resolve_tip(&mut blockfetch_client).await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        drop(response_channel.send(Response::ReadBlock(Err(e))));
+                        return;
                     },
                 };
 
-                drop(response_channel.send(Response::ReadBlockRange(block_range_data)));
+                read_block_from_network(&mut blockfetch_client, point).await
             },
-        }
+
+            PointOrTip::Point(point) => {
+                let mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
+
+                let snapshot_res = mithril_snapshot_lock
+                    .as_ref()
+                    .and_then(|snapshot_state| {
+                        snapshot_state.snapshot.try_read_block(point.clone()).ok()
+                    })
+                    .flatten();
+
+                match snapshot_res {
+                    Some(block_data) => {
+                        tracing::trace!("Read block from Mithril snapshot");
+                        Ok(block_data)
+                    },
+                    None => read_block_from_network(&mut blockfetch_client, point).await,
+                }
+            },
+        };
+
+        drop(response_channel.send(Response::ReadBlock(block_data)));
+    }
+
+    /// Handles read block range requests.
+    async fn handle_read_block_range_request(
+        from: Point, to: PointOrTip, state: TaskState, response_channel: oneshot::Sender<Response>,
+    ) {
+        let mut blockfetch_client = state.blockfetch_client.lock().await;
+
+        let block_range_data = match to {
+            PointOrTip::Tip => {
+                let to_point = match resolve_tip(&mut blockfetch_client).await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        drop(response_channel.send(Response::ReadBlockRange(Err(e))));
+                        return;
+                    },
+                };
+                read_block_range_from_network(&mut blockfetch_client, from, to_point).await
+            },
+            PointOrTip::Point(to) => {
+                let mithril_snapshot_lock = state.mithril_snapshot_state.write().await;
+
+                let snapshot_res = mithril_snapshot_lock
+                    .as_ref()
+                    .and_then(|snapshot_state| {
+                        snapshot_state
+                            .snapshot
+                            .try_read_block_range(from.clone(), to.clone())
+                            .ok()
+                    })
+                    .flatten();
+
+                match snapshot_res {
+                    Some((last_point_read, mut block_data_vec)) => {
+                        // If we couldn't get all the blocks from the snapshot,
+                        // try fetching the remaining ones from the network.
+                        if last_point_read.slot_or_default() < to.slot_or_default() {
+                            let res = read_block_range_from_network(
+                                &mut blockfetch_client,
+                                last_point_read,
+                                to,
+                            )
+                            .await;
+
+                            let network_blocks = match res {
+                                Ok(nb) => nb,
+                                Err(e) => {
+                                    drop(response_channel.send(Response::ReadBlockRange(Err(e))));
+                                    return;
+                                },
+                            };
+
+                            // Discard 1st point as it's already been read from
+                            // the snapshot
+                            let mut network_blocks_iter = network_blocks.into_iter();
+                            drop(network_blocks_iter.next());
+
+                            block_data_vec.extend(network_blocks_iter);
+                        }
+
+                        Ok(block_data_vec)
+                    },
+                    None => read_block_range_from_network(&mut blockfetch_client, from, to).await,
+                }
+            },
+        };
+
+        drop(response_channel.send(Response::ReadBlockRange(block_range_data)));
     }
 
     /// Sends the next chain update to the follower.
@@ -710,24 +731,30 @@ mod follow_task {
         client: &mut PeerClient, at: PointOrTip,
     ) -> Result<Option<Point>> {
         match at {
-            PointOrTip::Point(Point::Origin) => client
-                .chainsync()
-                .intersect_origin()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync),
-            PointOrTip::Point(p @ Point::Specific(..)) => client
-                .chainsync()
-                .find_intersect(vec![p])
-                .await
-                .map(|(point, _)| point)
-                .map_err(Error::Chainsync),
-            PointOrTip::Tip => client
-                .chainsync()
-                .intersect_tip()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync),
+            PointOrTip::Point(Point::Origin) => {
+                client
+                    .chainsync()
+                    .intersect_origin()
+                    .await
+                    .map(Some)
+                    .map_err(Error::Chainsync)
+            },
+            PointOrTip::Point(p @ Point::Specific(..)) => {
+                client
+                    .chainsync()
+                    .find_intersect(vec![p])
+                    .await
+                    .map(|(point, _)| point)
+                    .map_err(Error::Chainsync)
+            },
+            PointOrTip::Tip => {
+                client
+                    .chainsync()
+                    .intersect_tip()
+                    .await
+                    .map(Some)
+                    .map_err(Error::Chainsync)
+            },
         }
     }
 
