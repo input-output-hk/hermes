@@ -1,0 +1,173 @@
+/// # Cron API
+///
+/// Allow time based scheduling of events.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+// cspell: words crontabs mkcron retrigger retriggering
+
+/// CRON API Interface - Imports ONLY
+interface api {
+
+    /// Get the `instant` type from the `wasi:clocks` module.
+    use wasi:clocks/monotonic-clock@0.2.0.{instant};
+
+    /// A Tag used to mark a delivered cron event.
+    type cron-event-tag = string;
+
+    /// A cron schedule in crontab format.
+    type cron-sched = string;
+
+    /// A tagged crontab entry
+    /// It is valid for multiple crontab entries at the same time to have different tags.
+    /// It is valid for crontab entries at different times to have the same tag.
+    /// BUT there can only ever be 1 crontab entry at a specified time with a specified tag.
+    /// ie, `when` + `tag` is uniquely identifying of every crontab entry.
+    /// See: [crontab.5 man page](https://www.man7.org/linux/man-pages/man5/crontab.5.html) for details on cron schedule format.
+    record cron-tagged {
+        /// The crontab entry in standard cron format.
+        /// The Time is ALWAYS relative to UTC and does not account for local time.
+        /// If Localtime adjustment is required it must be handled by the module.
+        when: cron-sched,
+
+        /// The tag associated with the crontab entry.
+        tag: cron-event-tag
+    }
+
+    /// A discreet time entry used to help convert numeric times into crontab entries.
+    variant cron-component {
+        // Maps to `*` in a cron schedule (ie, match all)
+        all,
+        // Match an absolute time/date
+        at(u8),
+        // Match an inclusive list of time/date values.
+        range(tuple<u8,u8>),
+    }
+
+    /// A list of cron time components
+    type cron-time = list<cron-component>;
+
+    /// # Schedule Recurrent CRON event
+    ///
+    /// Cron events will be delivered to the `on-cron` event handler.
+    ///
+    /// ## Parameters
+    ///
+    /// - `entry`: The crontab entry to add.
+    ///     - `when`: When the event triggers.  Standard crontab format.
+    ///     - `tag`: A tag which will accompany the triggered event.
+    /// - `retrigger`:
+    ///     - `true`: The event will re-trigger every time the crontab entry matches until cancelled.
+    ///     - `false`: The event will automatically cancel after it is generated once.
+    ///
+    /// ## Returns
+    ///
+    /// - `true`: Crontab added successfully.  (Or the crontab event already exists)
+    /// - `false`: Crontab failed to be added.
+    ///
+    /// ## Note:
+    ///
+    /// If the crontab entry already exists, the retrigger flag can be changed by calling
+    /// this function.  This could be useful where a retriggering crontab event is desired
+    /// to be stopped, but ONLY after it has triggered once more.
+    ///
+    add: func(entry: cron-tagged, retrigger: bool) -> bool;
+
+    /// # Schedule A Single cron event after a fixed delay.
+    ///
+    /// Allows for easy timed wait events to be delivered without
+    /// requiring datetime calculations or formatting cron entries.
+    ///
+    /// ## Parameters
+    ///
+    /// - `duration`: How many nanoseconds to delay.  The delay will be AT LEAST this long.
+    /// - `tag`: A tag which will accompany the triggered event.
+    ///
+    /// ## Returns
+    ///
+    /// - `true`: Crontab added successfully.
+    /// - `false`: Crontab failed to be added.
+    ///
+    /// ## Note:
+    ///
+    /// This is a convenience function which will automatically calculate the crontab
+    /// entry needed to trigger the event after the requested `duration`.
+    /// It is added as a non-retriggering event.
+    /// Listing the crontabs after this call will list the delay in addition to all other
+    /// crontab entries.
+    ///
+    delay: func(duration: instant, tag: cron-event-tag) -> bool;
+
+
+    /// # List currently active cron schedule.
+    ///
+    /// Allows for management of scheduled cron events.
+    ///
+    /// ## Parameters
+    ///
+    /// - `tag`: Optional, the tag to limit the list to.  If `none` then all crons listed.
+    ///
+    /// ## Returns
+    ///
+    /// - A list of tuples containing the scheduled crontabs and their tags, along with the current retrigger flag.
+    ///   The list is sorted from most crontab that will trigger soonest to latest.
+    ///   Crontabs are only listed once, in the case where a crontab may be scheduled
+    ///   may times before a later one.
+    ///     - `0` - `cron-tagged` - The Tagged crontab event.
+    ///     - `1` - `bool` - The state of the retrigger flag.
+    ///
+    ls: func(tag: option<cron-event-tag>) -> list<tuple<cron-tagged, bool>>;
+
+    /// # Remove the requested crontab.
+    ///
+    /// Allows for management of scheduled cron events.
+    ///
+    /// ## Parameters
+    ///
+    /// - `when`: The crontab entry to add.  Standard crontab format.
+    /// - `tag`: A tag which will accompany the triggered event.
+    ///
+    /// ## Returns
+    ///
+    /// - `true`: The requested crontab was deleted and will not trigger.
+    /// - `false`: The requested crontab does not exist.
+    ///
+    rm: func(entry: cron-tagged) -> bool;
+
+    /// # Make a crontab entry from individual time values.
+    ///
+    /// Crates the properly formatted cron entry
+    /// from numeric cron time components.
+    /// Convenience function to make building cron strings simpler when they are
+    /// calculated from data.
+    ///
+    /// ## Parameters
+    ///
+    /// - `dow` - DayOfWeek (0-7, 0 or 7 = Sunday)
+    /// - `month` - Month of the year (1-12, 1 = January)
+    /// - `day` - Day in the month (1-31)
+    /// - `hour` - Hour in the day (0-23)
+    /// - `minute` - Minute in the hour (0-59)
+    ///
+    /// ## Returns
+    ///
+    /// - A matching `cron-sched` ready for use in the cron functions above.
+    ///
+    /// ## Note:
+    /// No checking is done to determine if the requested date is valid.
+    /// If a particular component is out of its allowable range it will be silently
+    /// clamped within the allowable range of each parameter.
+    /// Redundant entries will be removed.
+    ///     - For example specifying a `month` as `3` and `2-4` will
+    ///         remove the individual month and only produce the range.
+    mkcron: func(dow: cron-time, month: cron-time, day: cron-time,
+                 hour: cron-time, minute: cron-time ) -> cron-sched;
+}
+
+/// World just for the Hermes 'cron' API and Event.
+world cron-api {
+    import api;
+}
+  

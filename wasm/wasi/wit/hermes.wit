@@ -1,0 +1,25 @@
+package hermes:wasi;
+
+/// This import every single API and exports every single entrypoint for a module.
+/// Modules ONLY need to import API's they actually use.
+/// Modules only need to implement the exports they require.
+/// Take note of any permissions attached to a particular API before using it.
+world hermes {
+
+  /// All possible WASI compatible Imports/Exports
+  include wasi:cli/imports@0.2.0;
+  include wasi:http/proxy@0.2.0;
+
+  /// All possible Hermes Imports/Exports
+  include hermes:binary/all;
+  include hermes:cardano/all;
+  include hermes:cbor/all;
+  include hermes:cron/all;
+  include hermes:crypto/all;
+  include hermes:hash/all;
+  include hermes:init/all;
+  include hermes:json/all;
+  include hermes:kv-store/all;
+  include hermes:localtime/all;
+  include hermes:logging/all;
+}

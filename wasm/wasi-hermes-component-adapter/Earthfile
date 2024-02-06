@@ -1,0 +1,38 @@
+VERSION 0.7
+
+#cspell: words rustfmt wasi
+
+# Set up our target toolchains, and copy source files.
+builder:
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.7.0+SETUP
+
+    COPY --dir .cargo .config src byte-array-literals .
+    COPY ..+wasi-src/wasi ../wasi
+    COPY Cargo.toml build.rs .
+    COPY clippy.toml deny.toml rustfmt.toml .
+
+# Run quality checks.
+check:
+    FROM +builder
+
+    RUN /scripts/std_checks.py
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-check:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +check
+
+# Build the service.
+build:
+    FROM +builder
+
+    RUN /scripts/std_build.py   --disable_tests \
+                                --disable_benches \
+                                --build_flags="--target=wasm32-unknown-unknown"
+
+    SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_hermes.wasm wasi-hermes-component-adapter.wasm
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-build:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build

@@ -1,0 +1,12 @@
+VERSION 0.7
+
+#cspell: words rustfmt wasi
+
+# Make am Artifact which consists of the WASI SRC.
+wasi-src:
+    FROM scratch
+
+    WORKDIR /
+    COPY --dir wasi .
+
+    SAVE ARTIFACT /wasi wasi

@@ -1,0 +1,17 @@
+package hermes:localtime;
+
+// API
+    // localtime struct
+        // timezone string
+        // dd(u8 1-31) mm(u8 1-12) yy (s16 -32677 - +32767) hh(u8 0-11) mm(u8 0-59) ss(u8 0-59)
+
+    // Get localized time
+        // (optional secs since 1970 UTC time)
+        // (optional timezone string)
+
+    // localtime to UTC time
+    
+
+world all {
+    import api;
+}

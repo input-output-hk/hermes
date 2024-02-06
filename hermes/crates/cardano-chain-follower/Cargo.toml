@@ -3,9 +3,20 @@ name = "cardano-chain-follower"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
-rust-version.workspace = true
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
+pallas.workspace = true
+pallas-hardano.workspace = true
+thiserror = "1.0.50"
+tokio = { version = "1.34.0", default-features = false, features = ["macros", "rt", "net", "rt-multi-thread"] }
+tracing = "0.1.40"
+
+[dev-dependencies]
+hex = "0.4.3"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

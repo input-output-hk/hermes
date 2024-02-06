@@ -7,22 +7,29 @@ FROM debian:stable-slim
 
 # check-markdown markdown check using catalyst-ci.
 check-markdown:
-    DO github.com/input-output-hk/catalyst-ci/earthly/mdlint:v2.0.10+CHECK
+    DO github.com/input-output-hk/catalyst-ci/earthly/mdlint:v2.7.0+CHECK
 
 # markdown-check-fix markdown check and fix using catalyst-ci.
 markdown-check-fix:
     LOCALLY
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/mdlint:v2.0.10+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
+    DO github.com/input-output-hk/catalyst-ci/earthly/mdlint:v2.7.0+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
 
 # check-spelling Check spelling in this repo inside a container.
 check-spelling:
-    DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v2.0.10+CHECK
+    DO github.com/input-output-hk/catalyst-ci/earthly/cspell:v2.7.0+CHECK
 
-check:
-    BUILD +check-spelling
-    BUILD +check-markdown
- 
+# check-spelling Check spelling in this repo inside a container.
+spell-list-words:
+    FROM ghcr.io/streetsidesoftware/cspell:8.0.0
+    WORKDIR /work
+
+    COPY . .
+
+    RUN cspell-cli --words-only --unique "wasm/**" | sort -f
+
+
+
 repo-docs:
     # Create artifacts of extra files we embed inside the documentation when its built.
     FROM scratch

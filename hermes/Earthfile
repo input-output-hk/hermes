@@ -1,43 +1,17 @@
 VERSION 0.7
 
-#cspell: words rustfmt toolsets USERARCH
+#cspell: words rustfmt
 
 # Set up our target toolchains, and copy our files.
 builder:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+rust-base
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.7.0+SETUP
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SETUP --toolchain=rust-toolchain.toml
+    COPY --dir .cargo .config crates bin .
+    COPY Cargo.toml .
+    COPY clippy.toml deny.toml rustfmt.toml .
 
-    COPY --dir .cargo .config Cargo.* clippy.toml deny.toml rustfmt.toml bin crates .
-
-# Test rust build container - Use best architecture host tools.
-check-hosted:
-    FROM +builder
-
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+CHECK
-
-# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
-# Only used to validate tooling is working across host toolsets.
-check-all-hosts:    
-    BUILD --platform=linux/amd64 --platform=linux/arm64 +check-hosted
-
-build-hosted:
-    ARG TARGETPLATFORM
-
-    # Build the service
-    FROM +builder
- 
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+BUILD --libs="cardano-chain-follower" --bins="hermes/hermes"
-
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.0.12+SMOKE_TEST --bin=hermes
-
-    SAVE ARTIFACT target/$TARGETARCH/doc doc
-    SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-
-# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
-# Only used to validate tooling is working across host toolsets.
-build-all-hosts:    
-    BUILD --platform=linux/amd64 --platform=linux/arm64 +build-hosted
+    RUN mkdir /wasm
+    COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
 
 ## -----------------------------------------------------------------------------
 ##
@@ -48,45 +22,30 @@ build-all-hosts:
 # Run check using the most efficient host tooling
 # CI Automated Entry point.
 check:
-    FROM busybox
-    # This is necessary to pick the correct architecture build to suit the native machine.
-    # It primarily ensures that Darwin/Arm builds work as expected without needing x86 emulation.
-    # All target implementation of this should follow this pattern.
-    ARG USERARCH
+    FROM +builder
 
-    IF [ "$USERARCH" == "arm64" ]
-        BUILD --platform=linux/arm64 +check-hosted
-    ELSE
-        BUILD --platform=linux/amd64 +check-hosted
-    END
+    RUN /scripts/std_checks.py
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-check:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +check
 
 # Run build using the most efficient host tooling
 # CI Automated Entry point.
 build:
-    FROM busybox
-    # This is necessary to pick the correct architecture build to suit the native machine.
-    # It primarily ensures that Darwin/Arm builds work as expected without needing x86 emulation.
-    # All target implementation of this should follow this pattern.
-    ARG USERARCH
+    FROM +builder
 
-    IF [ "$USERARCH" == "arm64" ]
-        BUILD --platform=linux/arm64 +build-hosted
-    ELSE
-        BUILD --platform=linux/amd64 +build-hosted
-    END
+    RUN /scripts/std_build.py   --libs="cardano-chain-follower" \
+                                --bins="hermes/hermes"
 
+    SAVE ARTIFACT target/$TARGETARCH/doc doc
+    SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
 
-# This step will build any packages we would intend to publish or integration test.
-#package:
-#    FROM scratch
-
-# Run integration tests on all packages built during the `package` step.
-#test:
-#    FROM scratch
-
-# Publish packages if all integration tests have passed. (Failure to pass tests will prevent packages being published.)
-#publish:
-#    FROM scratch
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-build:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build
 
 ## -----------------------------------------------------------------------------
 

@@ -1,0 +1,5 @@
+package hermes:hash;
+
+world all {
+    import api;
+}

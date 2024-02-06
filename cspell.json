@@ -215,16 +215,18 @@
         //.config/dictionaries/cspell/sv/cspell-ext.json
         //.config/dictionaries/cspell/tr_TR/cspell-ext.json
         //.config/dictionaries/cspell/uk_UA/cspell-ext.json
-        //.config/dictionaries/cspell/vi_VN/cspell-ext.json        
+        //.config/dictionaries/cspell/vi_VN/cspell-ext.json
     ],
     "ignorePaths": [
         ".config/dictionaries/**",
+        "*.svg",
         "tmp/**",
         "cspell.json",
         ".git/**",
-        "**/.gitignore",
+        ".gitignore",
+        "*.excalidraw",
         ".vscode/**",
         "**/.idea/**",
-        "hermes/wasm/*/**"
+        "hermes/crates/cardano-chain-follower/examples/snapshot_data"
     ]
 }

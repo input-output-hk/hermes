@@ -1,0 +1,5 @@
+package hermes:init;
+
+world all {
+    export event;
+}
