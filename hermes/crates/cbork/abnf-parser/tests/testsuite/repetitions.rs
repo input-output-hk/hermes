@@ -6,11 +6,20 @@ use abnf_parser::{
 use crate::common::*;
 
 pub(crate) const REPETITION_PASSES: &[&str] = &[
-    
+    "1*1foo",
+    "1foo",
+    "1a",
+    "1%b1",
+    "*foo",
 ];
 
 pub(crate) const REPETITION_FAILS: &[&str] = &[
-    
+    "1*1 foo",
+    "1 foo",
+    "* foo",
+    "1",
+    "1%",
+    "1%b",
 ];
 
 pub(crate) const REPEAT_PASSES: &[&str] = &[

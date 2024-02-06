@@ -6,19 +6,29 @@ use abnf_parser::{
 use crate::common::*;
 
 pub(crate) const ALTERNATION_PASSES: &[&str] = &[
-    
+    "foo / bar",
+    "foo/bar",
+    "foo/bar baz",
 ];
 
 pub(crate) const ALTERNATION_FAILS: &[&str] = &[
-    
+    "foo /",
 ];
 
 pub(crate) const CONCATENATION_PASSES: &[&str] = &[
-    
+    "foo",
+    "foo bar",
+    "foo\tbar",
+    "foo bar baz",
+    "foo      bar      baz",
+    "foo
+    bar
+    baz",
 ];
 
 pub(crate) const CONCATENATION_FAILS: &[&str] = &[
-    
+    "foo\nbar\nbaz",
+    "foo bar\nbaz",
 ];
 
 #[test]

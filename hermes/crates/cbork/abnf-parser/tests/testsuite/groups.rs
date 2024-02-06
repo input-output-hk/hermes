@@ -6,19 +6,39 @@ use abnf_parser::{
 use crate::common::*;
 
 pub(crate) const GROUP_PASSES: &[&str] = &[
-  
+  "(foo)",
+  "( foo )",
+  "(Rule1 Rule2)",
+  "(foo / bar)",
+  "(elem foo blat)",
+  "((elem) (foo) (blat))",
+  "(((((foo)))))",
+  "(((((foo / bar)))))",
 ];
 
 pub(crate) const GROUP_FAILS: &[&str] = &[
-  
+  "()",
+  "((foo)",
+  "(())",
+  "())",
 ];
 
 pub(crate) const OPTION_PASSES: &[&str] = &[
-  
+  "[foo]",
+  "[(foo)]",
+  "[([(foo)])]",
+  "[ foo ]",
+  "[Rule1 Rule2]",
+  "[foo / bar]",
+  "[elem foo blat]",
+  "[[elem] [foo] [blat]]",
+  "[[[[[foo / bar]]]]]",
 ];
 
 pub(crate) const OPTION_FAILS: &[&str] = &[
-  
+  "[]",
+  "[]]",
+  "[]]",
 ];
 
 #[test]

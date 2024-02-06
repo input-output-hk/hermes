@@ -6,27 +6,49 @@ use abnf_parser::{
 use crate::common::*;
 
 pub(crate) const RULE_PASSES: &[&str] = &[
-    
+    "a = b\n",
+    "a=b\n",
+    "CRLF        =  %d13.10 \n",
+    "command     =  \"command string\"\n",
+    "rulename     =  \"abc\"\n",
+    "rulename    =  %d97 %d98 %d99\n",
+    "rulelist       =  1*( rule / (*c-wsp c-nl) )\n",
 ];
 
 pub(crate) const RULE_FAILS: &[&str] = &[
-    
+    "rulename     =  \"abc\"",
+    "rulename     =  abc",
 ];
 
 pub(crate) const DEFINED_AS_PASSES: &[&str] = &[
-    
+    "= ",
+    "=/ ",
+    "=   ",
+    "=/   ",
+    "   =/   ",
+    "   =   ",
 ];
 
 pub(crate) const DEFINED_AS_FAILS: &[&str] = &[
-    
+    "==",
+    "=\\",
 ];
 
 pub(crate) const ELEMENTS_PASSES: &[&str] = &[
-    
+    "foo",
+    "foo bar baz",
+    "foo / bar",
+    "(foo / bar) baz",
+    "*(1*1foo / 2*bar) 012*baz",
+    "%b1",
+    "*%b1",
 ];
 
 pub(crate) const ELEMENTS_FAILS: &[&str] = &[
-    
+    "%",
+    "=",
+    "()",
+    "[]",
 ];
 
 #[test]

@@ -16,7 +16,7 @@ abnf = ${
 rule = ${ rulename ~ defined_as ~ elements ~ c_nl }
 
 /// basic rules definition and incremental alternatives
-defined_as = ${ c_wsp* ~ ("=" | "=/") ~ c_wsp* }
+defined_as = ${ c_wsp* ~ ("=/" | "=") ~ c_wsp* }
 
 /// correction: https://www.rfc-editor.org/errata/eid2968
 elements = ${ alternation ~ WHITESPACE* }
