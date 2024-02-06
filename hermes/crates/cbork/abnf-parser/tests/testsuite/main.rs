@@ -4,6 +4,7 @@ mod alternations;
 mod character_sets;
 mod comments;
 mod elements;
+mod groups;
 mod identifiers;
 mod repetitions;
 mod rules;

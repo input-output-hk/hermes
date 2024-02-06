@@ -22,16 +22,7 @@ defined_as = ${ c_wsp* ~ ("=" | "=/") ~ c_wsp* }
 elements = ${ alternation ~ WHITESPACE* }
 
 // -----------------------------------------------------------------------------
-// Repetitions
-
-repetition = ${ repeat? ~ element }
-
-repeat = ${ (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) | ASCII_DIGIT+ }
-
-// -----------------------------------------------------------------------------
-// Elements
-
-element = ${ rulename | group | option | char_val | num_val | prose_val }
+// Groups and Options
 
 group = ${ "(" ~ c_wsp* ~ alternation ~ c_wsp* ~ ")" }
 
@@ -43,6 +34,18 @@ option = ${ "[" ~ c_wsp* ~ alternation ~ c_wsp* ~ "]" }
 alternation = ${ concatenation ~ (c_wsp* ~ "/" ~ c_wsp* ~ concatenation)* }
 
 concatenation = ${ repetition ~ (c_wsp+ ~ repetition)* }
+
+// -----------------------------------------------------------------------------
+// Repetitions
+
+repetition = ${ repeat? ~ element }
+
+repeat = ${ (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) | ASCII_DIGIT+ }
+
+// -----------------------------------------------------------------------------
+// Elements
+
+element = ${ rulename | group | option | char_val | num_val | prose_val }
 
 // -----------------------------------------------------------------------------
 // Values
