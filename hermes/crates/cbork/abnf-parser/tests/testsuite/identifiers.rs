@@ -6,11 +6,21 @@ use abnf_parser::{
 use crate::common::*;
 
 pub(crate) const RULENAME_PASSES: &[&str] = &[
-    
+    "ABCdef",
+    "ABC123def456",
+    "ABC-123-def-456",
+    "A",
+    "A1",
+    "A12345",
 ];
 
 pub(crate) const RULENAME_FAILS: &[&str] = &[
-    
+    "ABC@def",
+    "ABC def",
+    "ABC_def",
+    "$A12345",
+    "_A12345",
+    "123ABC",
 ];
 
 #[test]
