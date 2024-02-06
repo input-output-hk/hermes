@@ -21,13 +21,22 @@ defined_as = ${ c_wsp* ~ ("=" | "=/") ~ c_wsp* }
 /// correction: https://www.rfc-editor.org/errata/eid2968
 elements = ${ alternation ~ WHITESPACE* }
 
+// -----------------------------------------------------------------------------
+// Alternations
+
 alternation = ${ concatenation ~ (c_wsp* ~ "/" ~ c_wsp* ~ concatenation)* }
 
 concatenation = ${ repetition ~ (c_wsp+ ~ repetition)* }
 
+// -----------------------------------------------------------------------------
+// Repetitions
+
 repetition = ${ repeat? ~ element }
 
 repeat = ${ (ASCII_DIGIT* ~ "*" ~ ASCII_DIGIT*) | ASCII_DIGIT+ }
+
+// -----------------------------------------------------------------------------
+// Elements
 
 element = ${ rulename | group | option | char_val | num_val | prose_val }
 
@@ -55,6 +64,7 @@ hex_val = ${ "x" ~ ASCII_HEX_DIGIT+ ~ (("." ~ ASCII_HEX_DIGIT+)+ | ("-" ~ ASCII_
 /// correction: https://www.rfc-editor.org/errata/eid2914
 prose_val = ${ "<" ~ ('\u{20}'..'\u{3D}' | '\u{3F}'..'\u{7E}')* ~ ">" }
 
+// -----------------------------------------------------------------------------
 // Identifiers
 
 rulename = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT | "-" )* }
