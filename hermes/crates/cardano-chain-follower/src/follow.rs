@@ -112,7 +112,7 @@ pub struct FollowerConfig {
 /// Cardano chain follower.
 pub struct Follower {
     /// Task request sender.
-    task_request_tx: mpsc::Sender<(follow_task::Request, oneshot::Sender<follow_task::Response>)>,
+    task_request_tx: mpsc::Sender<(task::Request, oneshot::Sender<task::Response>)>,
     /// Chain update receiver.
     chain_update_rx: mpsc::Receiver<Result<ChainUpdate>>,
     /// Task thread join handle.
@@ -148,7 +148,7 @@ impl Follower {
             None
         };
 
-        let task_join_handle = tokio::spawn(follow_task::run(
+        let task_join_handle = tokio::spawn(task::run(
             client,
             blockfetch_client,
             mithril_snapshot,
@@ -181,9 +181,9 @@ impl Follower {
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
     where P: Into<PointOrTip> {
-        let res = self.send_request_and_wait(follow_task::Request::SetReadPointer(at.into()));
+        let res = self.send_request_and_wait(task::Request::SetReadPointer(at.into()));
 
-        let follow_task::Response::SetReadPointer(res) = res.await? else {
+        let task::Response::SetReadPointer(res) = res.await? else {
             todo!()
         };
 
@@ -201,8 +201,8 @@ impl Follower {
     /// Returns Err if the block was not found or if some communication error ocurred.
     pub async fn read_block<P>(&mut self, at: P) -> Result<MultiEraBlockData>
     where P: Into<PointOrTip> {
-        let res = self.send_request_and_wait(follow_task::Request::ReadBlock(at.into()));
-        let follow_task::Response::ReadBlock(res) = res.await? else {
+        let res = self.send_request_and_wait(task::Request::ReadBlock(at.into()));
+        let task::Response::ReadBlock(res) = res.await? else {
             todo!()
         };
 
@@ -224,8 +224,8 @@ impl Follower {
         &mut self, from: Point, to: P,
     ) -> Result<Vec<MultiEraBlockData>>
     where P: Into<PointOrTip> {
-        let res = self.send_request_and_wait(follow_task::Request::ReadBlockRange(from, to.into()));
-        let follow_task::Response::ReadBlockRange(res) = res.await? else {
+        let res = self.send_request_and_wait(task::Request::ReadBlockRange(from, to.into()));
+        let task::Response::ReadBlockRange(res) = res.await? else {
             todo!()
         };
 
@@ -260,9 +260,7 @@ impl Follower {
     }
 
     /// Sends a request to the background task and waits for its response.
-    async fn send_request_and_wait(
-        &self, req: follow_task::Request,
-    ) -> Result<follow_task::Response> {
+    async fn send_request_and_wait(&self, req: task::Request) -> Result<task::Response> {
         let (response_tx, response_rx) = oneshot::channel();
 
         self.task_request_tx
@@ -277,7 +275,7 @@ impl Follower {
 }
 
 /// Contains functions related to the Follower's background task.
-mod follow_task {
+mod task {
     use std::sync::Arc;
 
     use pallas::{
@@ -295,9 +293,9 @@ mod follow_task {
         Error, MultiEraBlockData, PointOrTip, Result,
     };
 
-    /// Follow task's requests.
+    /// Task requests.
     pub enum Request {
-        /// Request the follow task to set the read pointer to the given point or to the
+        /// Request the task to set the read pointer to the given point or to the
         /// tip.
         SetReadPointer(PointOrTip),
         /// Request the task to fetch a block at the given point.
@@ -306,7 +304,7 @@ mod follow_task {
         ReadBlockRange(Point, PointOrTip),
     }
 
-    /// Follow task's responses.
+    /// Task responses.
     pub enum Response {
         /// Whether the read pointer was set correctly.
         SetReadPointer(Result<Option<Point>>),
@@ -316,7 +314,7 @@ mod follow_task {
         ReadBlockRange(Result<Vec<MultiEraBlockData>>),
     }
 
-    /// Holds the state of Mithril snapshot functions in the follow task.
+    /// Holds the state of Mithril snapshot functions in the background task.
     struct MithrilSnapshotState {
         /// Mithril snapshot handle.
         snapshot: MithrilSnapshot,
@@ -325,7 +323,7 @@ mod follow_task {
     }
 
     // TODO(fsgr): Surely could improve this design?
-    /// Holds the locks and channels used by the follow task.
+    /// Holds the locks and channels used by the task.
     #[derive(Clone)]
     pub(crate) struct TaskState {
         /// Shared client.
