@@ -4,10 +4,10 @@
 ///
 /// ## Permissions
 ///
-/// This API is ALWAYS available, and not permissioned.
+/// This API is ALWAYS available.
 
 /// Logging API Interface
-default interface init {
+interface event {
 
     /// Perform application start up initialization.
     ///
@@ -17,5 +17,5 @@ default interface init {
     /// Returns:
     /// - `true`  - Initialization is successful, the application may commence.
     /// - `false` - Fatal error during Initialization.  DO NOT START APPLICATION.
-    init: func() -> bool
+    init: func() -> bool;
 }
