@@ -66,9 +66,13 @@ pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 
 // TODO: this is temporary. need to add more pragmatic nodes
 #[derive(Debug)]
+/// Abstract Syntax Tree (AST) representing parsed ABNF syntax.
 pub enum AST<'a> {
+    /// Represents the AST for RFC 8610 CDDL rules.
     RFC8610(Pairs<'a, rfc_8610::Rule>),
+    /// Represents the AST for RFC 9165 CDDL rules.
     RFC9165(Pairs<'a, rfc_9165::Rule>),
+    /// Represents the AST for CDDL Modules rules.
     CDDL(Pairs<'a, cddl::Rule>),
 }
 
