@@ -30,10 +30,12 @@ pub mod abnf_test {
 }
 
 #[derive(Debug)]
+/// Abstract Syntax Tree (AST) representing parsed ABNF syntax.
 pub struct AST<'a>(Pairs<'a, abnf::Rule>);
 
 /// Represents an error that may occur during ABNF parsing.
 #[derive(Display, Debug, From)]
+/// Error type for ABNF parsing.
 pub struct ABNFError(Error<abnf::Rule>);
 
 /// Parses the input string containing ABNF (Augmented Backus-Naur Form) syntax and
