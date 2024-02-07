@@ -30,6 +30,7 @@ pub mod abnf_test {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 /// Abstract Syntax Tree (AST) representing parsed ABNF syntax.
 pub struct AST<'a>(Pairs<'a, abnf::Rule>);
 
