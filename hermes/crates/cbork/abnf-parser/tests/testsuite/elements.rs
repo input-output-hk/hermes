@@ -34,7 +34,13 @@ fn check_element() {
 
     check_tests_rule(
         Rule::element_TEST,
-        &passes.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
-        &fails.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+        &passes
+            .iter()
+            .map(std::string::String::as_str)
+            .collect::<Vec<_>>(),
+        &fails
+            .iter()
+            .map(std::string::String::as_str)
+            .collect::<Vec<_>>(),
     );
 }

@@ -36,6 +36,34 @@ pub struct AST<'a>(Pairs<'a, abnf::Rule>);
 #[derive(Display, Debug, From)]
 pub struct ABNFError(Error<abnf::Rule>);
 
+/// Parses the input string containing ABNF (Augmented Backus-Naur Form) syntax and
+/// returns the Abstract Syntax Tree (AST).
+///
+/// # Arguments
+///
+/// * `input` - A reference to a string slice containing the ABNF syntax to parse.
+///
+/// # Returns
+///
+/// Returns a `Result` where the successful variant contains the Abstract Syntax Tree
+/// (AST) representing the parsed ABNF, and the error variant contains a boxed
+/// `ABNFError`.
+///
+/// # Errors
+///
+/// This function may return an error in the following cases:
+///
+/// - If there is an issue with parsing the ABNF input.
+///
+/// # Examples
+///
+/// ```rs
+/// use abnf_parser::parse_abnf;
+/// use std:fs;
+///
+/// let input = fs::read_to_string("path/to/your/file.abnf").unwrap();
+/// let result = parse_abnf(&input);
+/// ```
 pub fn parse_abnf(input: &str) -> Result<AST<'_>, Box<ABNFError>> {
     let result: Result<AST<'_>, _> = abnf::ABNFParser::parse(abnf::Rule::abnf, input)
         .map(AST)

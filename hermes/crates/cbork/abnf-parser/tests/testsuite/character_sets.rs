@@ -21,7 +21,10 @@ fn check_vchar() {
 
     check_tests_rule(
         Rule::VCHAR_TEST,
-        &passes.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+        &passes
+            .iter()
+            .map(std::string::String::as_str)
+            .collect::<Vec<_>>(),
         &fails,
     );
 }

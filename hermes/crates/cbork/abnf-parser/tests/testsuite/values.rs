@@ -133,8 +133,14 @@ fn check_num_val() {
 
     check_tests_rule(
         Rule::num_val_TEST,
-        &passes.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
-        &fails.iter().map(std::string::String::as_str).collect::<Vec<_>>(),
+        &passes
+            .iter()
+            .map(std::string::String::as_str)
+            .collect::<Vec<_>>(),
+        &fails
+            .iter()
+            .map(std::string::String::as_str)
+            .collect::<Vec<_>>(),
     );
 }
 
