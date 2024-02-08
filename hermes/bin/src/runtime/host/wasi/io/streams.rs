@@ -1,11 +1,10 @@
 //! WASI IO Streams
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    wasi::io::streams::{
+use crate::{
+    runtime::extensions::bindings::wasi::io::streams::{
         Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
-    HermesState, Stateful,
+    state::{HermesState, Stateful},
 };
 
 /// WASI State
@@ -40,7 +39,7 @@ impl HostInputStream for HermesState {
     /// as a return value by the callee. The callee may return a list of bytes
     /// less than `len` in size while more bytes are available for reading.
     fn read(
-        &mut self, self_: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
         todo!()
     }
@@ -48,7 +47,7 @@ impl HostInputStream for HermesState {
     /// Read bytes from a stream, after blocking until at least one byte can
     /// be read. Except for blocking, behavior is identical to `read`.
     fn blocking_read(
-        &mut self, self_: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
         todo!()
     }
@@ -58,7 +57,7 @@ impl HostInputStream for HermesState {
     /// Behaves identical to `read`, except instead of returning a list
     /// of bytes, returns the number of bytes consumed from the stream.
     fn skip(
-        &mut self, self_: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         todo!()
     }
@@ -66,12 +65,12 @@ impl HostInputStream for HermesState {
     /// Skip bytes from a stream, after blocking until at least one byte
     /// can be skipped. Except for blocking behavior, identical to `skip`.
     fn blocking_skip(
-        &mut self, self_: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         todo!()
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
+    fn drop(&mut self, _rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
         todo!()
     }
 }
@@ -87,7 +86,7 @@ impl HostOutputStream for HermesState {
     /// become ready when this function will report at least 1 byte, or an
     /// error.
     fn check_write(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         todo!()
     }
@@ -100,7 +99,7 @@ impl HostOutputStream for HermesState {
     /// returns Err(closed) without writing if the stream has closed since
     /// the last call to check-write provided a permit.
     fn write(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -130,7 +129,7 @@ impl HostOutputStream for HermesState {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_and_flush(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -146,7 +145,7 @@ impl HostOutputStream for HermesState {
     /// completed. The `subscribe` pollable will become ready when the
     /// flush has completed and the stream can accept more writes.
     fn flush(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -154,7 +153,7 @@ impl HostOutputStream for HermesState {
     /// Request to flush buffered output, and block until flush completes
     /// and stream is ready for writing again.
     fn blocking_flush(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -179,7 +178,7 @@ impl HostOutputStream for HermesState {
     /// passing a list of bytes, you simply pass the number of zero-bytes
     /// that should be written.
     fn write_zeroes(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -209,7 +208,7 @@ impl HostOutputStream for HermesState {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_zeroes_and_flush(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         todo!()
     }
@@ -228,8 +227,8 @@ impl HostOutputStream for HermesState {
     /// This function returns the number of bytes transferred; it may be less
     /// than `len`.
     fn splice(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>,
-        src: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
+        _src: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         todo!()
     }
@@ -240,13 +239,13 @@ impl HostOutputStream for HermesState {
     /// `output-stream` is ready for writing, and the `input-stream`
     /// is ready for reading, before performing the `splice`.
     fn blocking_splice(
-        &mut self, self_: wasmtime::component::Resource<OutputStream>,
-        src: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
+        _src: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         todo!()
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
+    fn drop(&mut self, _rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
         todo!()
     }
 }

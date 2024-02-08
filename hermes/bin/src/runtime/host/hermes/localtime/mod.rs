@@ -1,10 +1,11 @@
 //! Host - Localtime implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::localtime::api::{Errno, Host, Localtime, Timezone},
-    wasi::clocks::wall_clock::Datetime,
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::localtime::api::{Errno, Host, Localtime, Timezone},
+        bindings::wasi::clocks::wall_clock::Datetime,
+    },
+    state::{HermesState, Stateful},
 };
 
 /// State
@@ -31,7 +32,7 @@ impl Host for HermesState {
     /// `localtime` : the converted time.
     /// `errno`     : An error indicating why conversion failed.
     fn get_localtime(
-        &mut self, when: Option<Datetime>, tz: Option<Timezone>,
+        &mut self, _when: Option<Datetime>, _tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
         todo!()
     }
@@ -49,7 +50,7 @@ impl Host for HermesState {
     /// `localtime` : the converted time.
     /// `errno`     : An error indicating why conversion failed.
     fn alt_localtime(
-        &mut self, time: Localtime, tz: Option<Timezone>,
+        &mut self, _time: Localtime, _tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
         todo!()
     }
@@ -64,7 +65,7 @@ impl Host for HermesState {
     ///
     /// `datetime`  : the converted time.
     /// `errno`     : An error indicating why conversion failed.
-    fn get_datetime(&mut self, time: Localtime) -> wasmtime::Result<Result<Datetime, Errno>> {
+    fn get_datetime(&mut self, _time: Localtime) -> wasmtime::Result<Result<Datetime, Errno>> {
         todo!()
     }
 }

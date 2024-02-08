@@ -1,24 +1,23 @@
 //! Host - WASI IO Implementation
 
-use crate::runtime::extensions::Stateful;
+use crate::state::Stateful;
 
 pub(crate) mod error;
 pub(crate) mod streams;
 
-#[allow(dead_code)]
 /// WASI State
 pub(crate) struct State {
     /// WASI IO error state
-    error: error::State,
+    _error: error::State,
     /// WASI IO streams state
-    streams: streams::State,
+    _streams: streams::State,
 }
 
 impl Stateful for State {
     fn new(ctx: &crate::state::Context) -> Self {
         Self {
-            error: error::State::new(ctx),
-            streams: streams::State::new(ctx),
+            _error: error::State::new(ctx),
+            _streams: streams::State::new(ctx),
         }
     }
 }

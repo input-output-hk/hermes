@@ -1,6 +1,9 @@
 //! Insecure RNG
 
-use crate::runtime::extensions::{wasi::random::insecure::Host, HermesState, Stateful};
+use crate::{
+    runtime::extensions::bindings::wasi::random::insecure::Host,
+    state::{HermesState, Stateful},
+};
 
 /// WASI State
 pub(crate) struct State {}
@@ -20,7 +23,7 @@ impl Host for HermesState {
     /// There are no requirements on the values of the returned bytes, however
     /// implementations are encouraged to return evenly distributed values with
     /// a long period.
-    fn get_insecure_random_bytes(&mut self, len: u64) -> wasmtime::Result<Vec<u8>> {
+    fn get_insecure_random_bytes(&mut self, _len: u64) -> wasmtime::Result<Vec<u8>> {
         todo!()
     }
 

@@ -1,9 +1,6 @@
 //! Host - Init implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::Stateful;
-
-#[allow(dead_code)]
+use crate::state::Stateful;
 
 /// State
 pub(crate) struct State {}
