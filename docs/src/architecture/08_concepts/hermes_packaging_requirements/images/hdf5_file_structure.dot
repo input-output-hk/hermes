@@ -2,7 +2,10 @@ Application: {
   label: root
   shape: circle
 }
-static: {
+var: {
+  shape: circle
+}
+www: {
   shape: circle
 }
 data: {
@@ -13,22 +16,14 @@ wasm: {
   shape: circle
 }
 
-Application -> static: Group
-Application -> data: Group
+Application -> var: Group
 Application -> wasm: Group
+var -> data: Group
+var -> www: Group
 
-www: {
-  shape: circle
-}
 site_1: {
   shape: circle
 }
-default: {
-  shape: circle
-}
-
-static -> default: Group
-static -> www: Group
 
 www -> site_1: Group
 

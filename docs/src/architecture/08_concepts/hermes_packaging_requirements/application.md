@@ -20,52 +20,48 @@ For example:
 
 The root group of the Application file-system.
 
-### `/static`
+### `/modules`
+
+WebAssembly modules, and WIT definitions.
+Each application can store multiple modules.
+
+### `/var/data`
+
+Data that provides the dynamic functionality for WebAssembly modules.
+
+Files that are stored here are meant to be private, and should only be accessed by WASM modules.
+
+### `/var/www`
 
 Static assets that can be served AS-IS to the local host over HTTP by WASM modules, or default values
 used for configuring the Application, etc.
 
 Files that are stored here are meant to be public.
 
-### `/data`
-
-Data that provides the dynamic functionality for WebAssembly modules.
-
-Files that are stored here are meant to be private, and should only be accessed by WASM modules.
-
-### `/modules`
-
-WebAssembly modules, and WIT definitions.
-Each application can store multiple modules.
-
 ### Example: A Hermes Application Package
 
 ```bash
 /
-├── static
-│   ├── data
-│   │   └── default
-│   │       ├── config.json
-│   │       └── ...
-│   └── www
-│       ├── site1
-│       │  ├── html
-│       │  └── ...
-│       └── site2
-│          ├── html
-│          └── ...
-├── data
+├── modules
 │   ├── module1
-│   │   ├── user_registration.template
+│   │   ├── module1.wasm
 │   │   └── ...
-│   └── ...
-└── modules
-    ├── module1
-    │   ├── module1.wasm
-    │   └── ...
-    └── module2
-        ├── module2.wasm
-        └── ...
+│   └── module2
+│       ├── module2.wasm
+│       └── ...
+└── var
+    ├── data
+    │   └── module1
+    │      ├── user_registration.template
+    │      └── ...
+    └── www
+        ├── site1
+        │  ├── html
+        │  └── ...
+        └── site2
+           ├── html
+           └── ...
+
 ```
 
 ### Diagram: HDF5 file structure for a Hermes Application
