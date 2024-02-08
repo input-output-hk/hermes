@@ -8,8 +8,10 @@ package wasi:io@0.2.0;
 interface streams {
     use error.{error};
 
+    /*
     // Hermes does not support `poll`
-    //use poll.{pollable};
+    use poll.{pollable};
+    */
 
     /// An error for input-stream and output-stream operations.
     variant stream-error {

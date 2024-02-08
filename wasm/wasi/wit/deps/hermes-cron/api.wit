@@ -4,7 +4,7 @@
 ///
 /// ## Permissions
 ///
-/// This API is permissionless.
+/// This API is ALWAYS available.
 
 // cspell: words crontabs mkcron retrigger retriggering
 
@@ -47,13 +47,7 @@ interface api {
     }
 
     /// A list of cron time components
-    type cron-components = list<cron-component>;
-
-    /// The actual individual cron-time entry
-    enum cron-time {
-        cron-component,
-        cron-components
-    }
+    type cron-time = list<cron-component>;
 
     /// # Schedule Recurrent CRON event
     ///
