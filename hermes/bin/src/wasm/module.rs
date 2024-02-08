@@ -38,13 +38,20 @@ impl Instance for WasmInstance {
     }
 }
 
-#[allow(dead_code)]
+/// Structure defines an abstraction over the WASM module instance.
+/// It holds the state of the WASM module along with its context data.
+/// It is used to interact with the WASM module.
 pub(crate) struct ModuleInstance<I: Instance> {
-    store: WasmStore<Context>,
-    instance: I,
+    /// `wasmtime::Store` entity
+    #[allow(dead_code)]
+    pub(crate) store: WasmStore<Context>,
+    /// `Instance` entity
+    #[allow(dead_code)]
+    pub(crate) instance: I,
 }
 
 impl<I: Instance> ModuleInstance<I> {
+    /// Instantiates WASM module
     pub(crate) fn new(
         mut store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
     ) -> anyhow::Result<Self> {
@@ -76,6 +83,7 @@ pub(crate) struct Module<H: Host<Context>> {
     /// `Context` entity
     context: Context,
 
+    /// `Host` type
     _host: std::marker::PhantomData<H>,
 }
 
@@ -102,7 +110,10 @@ impl<H: Host<Context>> Module<H> {
         })
     }
 
-    /// Call WASM module's function.
+    /// Executes a Hermes event by calling some WASM function.
+    /// This function abstraction over actual execution of the WASM function,
+    /// actuall definition is inside `HermesEventPayload` trait implementation.
+    ///
     /// For each call creates a brand new `wasmtime::Store` instance, which means that
     /// is has an initial state, based on the provided context for each call.
     ///

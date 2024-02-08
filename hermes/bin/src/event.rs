@@ -1,3 +1,6 @@
+//! Hermes event definition
+
+/// A trait for defining the behavior of a Hermes event.
 pub trait HermesEventPayload<Executor> {
     /// Returns the name of the event associated with the payload.
     fn event_name(&self) -> &str;
