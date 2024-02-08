@@ -93,9 +93,8 @@ impl<H: Host<Context>> Module<H> {
     /// # Errors
     ///  - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
-    pub(crate) fn new(
-        engine: Engine, app_name: String, module_bytes: &[u8],
-    ) -> anyhow::Result<Self> {
+    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+        let engine = Engine::new()?;
         let module = WasmModule::new(&engine, module_bytes)?;
 
         let mut linker = WasmLinker::new(&engine);
@@ -163,7 +162,6 @@ mod tests {
     /// Tests that after instantiation of `Module` its state does not change after each
     /// `Module::call_func` execution
     fn preserve_module_state_test() {
-        let engine = Engine::new().expect("");
         let wat = r#"
         (component
             (core module $Module
@@ -184,11 +182,13 @@ mod tests {
             (export "inc-global" (func $inc_global))
         )"#;
 
-        let mut module =
-            Module::<TestHost>::new(engine, "app".to_string(), wat.as_bytes()).expect("");
+        let mut module = Module::<TestHost>::new("app".to_string(), wat.as_bytes())
+            .expect("cannot load a WASM module");
 
         for _ in 0..10 {
-            module.execute_event(&TestEvent).expect("");
+            module
+                .execute_event(&TestEvent)
+                .expect("cannot execute `TestEvent` event");
         }
     }
 }
