@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let config = FollowerConfigBuilder::default().build();
 
-    let mut follower = Follower::connect(
+    let follower = Follower::connect(
         "relays-new.cardano-mainnet.iohk.io:3001",
         Network::Mainnet,
         config,
@@ -37,6 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 hex::decode("16e97a73e866280582ee1201a5e1815993978eede956af1869b0733bedc131f2")?,
             ),
         )
+        .read()
         .await?;
 
     let mut total_txs = 0;

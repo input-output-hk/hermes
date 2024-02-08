@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .build();
 
-    let mut follower = Follower::connect(
+    let follower = Follower::connect(
         "preprod-node.play.dev.cardano.org:3001",
         Network::Preprod,
         config,
@@ -40,6 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             49_075_418,
             hex::decode("bdb5ce7788850c30342794f252b1d955086862e8f7cb90a32a8f560b693ca78a")?,
         ))
+        .read()
         .await?;
 
     let block = data.decode()?;
