@@ -111,7 +111,7 @@ impl<H: Host<Context>> Module<H> {
 
     /// Executes a Hermes event by calling some WASM function.
     /// This function abstraction over actual execution of the WASM function,
-    /// actuall definition is inside `HermesEventPayload` trait implementation.
+    /// actual definition is inside `HermesEventPayload` trait implementation.
     ///
     /// For each call creates a brand new `wasmtime::Store` instance, which means that
     /// is has an initial state, based on the provided context for each call.
