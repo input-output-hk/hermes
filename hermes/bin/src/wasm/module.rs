@@ -20,11 +20,35 @@ pub(crate) trait Host<Context> {
 }
 
 /// Interface for WASM module instance
-pub(crate) trait ModuleInstance: Sized {
+pub(crate) trait WasmInstance: Sized {
     /// Instantiate WASM module instance
     fn instantiate(
-        store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
+        store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
     ) -> anyhow::Result<Self>;
+}
+
+impl WasmInstance for wasmtime::Instance {
+    fn instantiate(
+        mut store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
+    ) -> anyhow::Result<Self> {
+        let instance = pre_instance.instantiate(&mut store)?;
+        Ok(instance)
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) struct ModuleInstance<Instance: WasmInstance> {
+    store: WasmStore<Context>,
+    instance: Instance,
+}
+
+impl<Instance: WasmInstance> ModuleInstance<Instance> {
+    pub(crate) fn new(
+        mut store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
+    ) -> anyhow::Result<Self> {
+        let instance = Instance::instantiate(&mut store, pre_instance)?;
+        Ok(Self { store, instance })
+    }
 }
 
 /// Structure defines an abstraction over the WASM module
@@ -83,13 +107,13 @@ impl<H: Host<Context>> Module<H> {
     /// # Errors
     /// - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
-    pub(crate) fn execute_event<M: ModuleInstance>(
-        &mut self, event: &impl HermesEventPayload<M>,
+    pub(crate) fn execute_event<I: WasmInstance>(
+        &mut self, event: &impl HermesEventPayload<ModuleInstance<I>>,
     ) -> Result<(), Box<dyn Error>> {
         self.context.use_for(event.event_name().to_string());
 
         let store = WasmStore::new(&self.engine, self.context.clone());
-        let mut intance = M::instantiate(store, &self.pre_instance)?;
+        let mut intance = ModuleInstance::new(store, &self.pre_instance)?;
         event.execute(&mut intance)?;
         Ok(())
     }
@@ -109,26 +133,13 @@ mod tests {
         }
     }
 
-    struct TestModuleInstance {
-        store: WasmStore<Context>,
-        instance: wasmtime::Instance,
-    }
-    impl ModuleInstance for TestModuleInstance {
-        fn instantiate(
-            mut store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
-        ) -> anyhow::Result<Self> {
-            let instance = pre_instance.instantiate(&mut store)?;
-            Ok(Self { store, instance })
-        }
-    }
-
     struct TestEvent;
-    impl HermesEventPayload<TestModuleInstance> for TestEvent {
+    impl HermesEventPayload<ModuleInstance<wasmtime::Instance>> for TestEvent {
         fn event_name(&self) -> &str {
             "inc_global"
         }
 
-        fn execute(&self, instance: &mut TestModuleInstance) -> anyhow::Result<()> {
+        fn execute(&self, instance: &mut ModuleInstance<wasmtime::Instance>) -> anyhow::Result<()> {
             let func = instance
                 .instance
                 .get_typed_func::<(), i32>(&mut instance.store, "inc_global")?;
