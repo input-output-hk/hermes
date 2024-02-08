@@ -5,59 +5,25 @@
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
 use wasmtime::{
-    component::{
-        Component as WasmModule, Instance as WasmInstance, InstancePre as WasmInstancePre,
-        Linker as WasmLinker,
-    },
+    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
     Store as WasmStore,
 };
 
 use super::engine::Engine;
-use crate::{event::HermesEventPayload, state::Context};
-
-/// Interface for linking WASM imports
-pub(crate) trait Host<Context> {
-    /// Link imports to the `wasmtime::Linker`
-    fn link_imports(linker: &mut WasmLinker<Context>) -> anyhow::Result<()>;
-}
-
-/// Interface for WASM module instance
-pub(crate) trait Instance: Sized {
-    /// Instantiate WASM module instance
-    fn instantiate(
-        store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
-    ) -> anyhow::Result<Self>;
-}
-
-impl Instance for WasmInstance {
-    fn instantiate(
-        mut store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
-    ) -> anyhow::Result<Self> {
-        let instance = pre_instance.instantiate(&mut store)?;
-        Ok(instance)
-    }
-}
+use crate::{
+    event::HermesEventPayload,
+    runtime::extensions::bindings,
+    state::{Context, HermesState, Stateful},
+};
 
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
-pub(crate) struct ModuleInstance<I: Instance> {
+pub(crate) struct ModuleInstance {
     /// `wasmtime::Store` entity
-    #[allow(dead_code)]
-    pub(crate) store: WasmStore<Context>,
+    pub(crate) _store: WasmStore<HermesState>,
     /// `Instance` entity
-    #[allow(dead_code)]
-    pub(crate) instance: I,
-}
-
-impl<I: Instance> ModuleInstance<I> {
-    /// Instantiates WASM module
-    pub(crate) fn new(
-        mut store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
-    ) -> anyhow::Result<Self> {
-        let instance = I::instantiate(&mut store, pre_instance)?;
-        Ok(Self { store, instance })
-    }
+    pub(crate) _instance: bindings::Hermes,
 }
 
 /// Structure defines an abstraction over the WASM module
@@ -68,26 +34,23 @@ impl<I: Instance> ModuleInstance<I> {
 /// The primary goal for it is to make a WASM state *immutable* along WASM module
 /// execution. It means that `Module::call_func` execution does not have as side effect
 /// for the WASM module's state, it becomes unchanged.
-pub(crate) struct Module<H: Host<Context>> {
+pub(crate) struct Module {
     /// `wasmtime::InstancePre` entity
     ///
     /// A reason why it is used a `wasmtime::InstancePre` instead of `wasmtime::Instance`
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    pre_instance: WasmInstancePre<Context>,
+    pre_instance: WasmInstancePre<HermesState>,
 
     /// `Engine` entity
     engine: Engine,
 
     /// `Context` entity
     context: Context,
-
-    /// `Host` type
-    _host: std::marker::PhantomData<H>,
 }
 
-impl<H: Host<Context>> Module<H> {
+impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
@@ -98,14 +61,13 @@ impl<H: Host<Context>> Module<H> {
         let module = WasmModule::new(&engine, module_bytes)?;
 
         let mut linker = WasmLinker::new(&engine);
-        H::link_imports(&mut linker)?;
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)?;
         let pre_instance = linker.instantiate_pre(&module)?;
 
         Ok(Self {
             pre_instance,
             engine,
             context: Context::new(app_name),
-            _host: std::marker::PhantomData,
         })
     }
 
@@ -119,14 +81,17 @@ impl<H: Host<Context>> Module<H> {
     /// # Errors
     /// - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
-    pub(crate) fn execute_event<I: Instance>(
-        &mut self, event: &impl HermesEventPayload<ModuleInstance<I>>,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn execute_event(&mut self, event: &impl HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
+        let state = HermesState::new(&self.context);
 
-        let store = WasmStore::new(&self.engine, self.context.clone());
-        let mut instance = ModuleInstance::new(store, &self.pre_instance)?;
-        event.execute(&mut instance)?;
+        let mut store = WasmStore::new(&self.engine, state);
+        let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)?;
+
+        event.execute(&mut ModuleInstance {
+            _instance: instance,
+            _store: store,
+        })?;
         Ok(())
     }
 }
@@ -136,7 +101,7 @@ mod tests {
     use super::*;
 
     struct TestHost;
-    impl Host<Context> for TestHost {
+    impl Host for TestHost {
         fn link_imports(_linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
             Ok(())
         }

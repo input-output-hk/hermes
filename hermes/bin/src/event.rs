@@ -1,7 +1,9 @@
 //! Hermes event definition
 
+use crate::wasm::module::ModuleInstance;
+
 /// A trait for defining the behavior of a Hermes event.
-pub trait HermesEventPayload<Executor> {
+pub trait HermesEventPayload {
     /// Returns the name of the event associated with the payload.
     fn event_name(&self) -> &str;
 
@@ -14,5 +16,5 @@ pub trait HermesEventPayload<Executor> {
     /// # Returns
     ///
     /// An `anyhow::Result` indicating the success or failure of the payload execution.
-    fn execute(&self, executor: &mut Executor) -> anyhow::Result<()>;
+    fn execute(&self, executor: &mut ModuleInstance) -> anyhow::Result<()>;
 }
