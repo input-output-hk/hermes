@@ -6,7 +6,7 @@ pub trait HermesEventPayload<Executor> {
     ///
     /// # Arguments
     ///
-    /// * `executor` - The  to use for executing the payload's behavior.
+    /// * `executor` - The executor to use for executing the payload's behavior.
     ///
     /// # Returns
     ///

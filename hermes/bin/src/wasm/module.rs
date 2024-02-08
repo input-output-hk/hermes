@@ -4,8 +4,6 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
-use std::error::Error;
-
 use wasmtime::{
     InstancePre as WasmInstancePre, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
 };
@@ -85,7 +83,7 @@ impl<H: Host<Context>> Module<H> {
     #[allow(dead_code)]
     pub(crate) fn new(
         engine: Engine, app_name: String, module_bytes: &[u8],
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> anyhow::Result<Self> {
         let module = WasmModule::new(&engine, module_bytes)?;
 
         let mut linker = WasmLinker::new(&engine);
@@ -109,12 +107,12 @@ impl<H: Host<Context>> Module<H> {
     #[allow(dead_code)]
     pub(crate) fn execute_event<I: WasmInstance>(
         &mut self, event: &impl HermesEventPayload<ModuleInstance<I>>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
 
         let store = WasmStore::new(&self.engine, self.context.clone());
-        let mut intance = ModuleInstance::new(store, &self.pre_instance)?;
-        event.execute(&mut intance)?;
+        let mut instance = ModuleInstance::new(store, &self.pre_instance)?;
+        event.execute(&mut instance)?;
         Ok(())
     }
 }
