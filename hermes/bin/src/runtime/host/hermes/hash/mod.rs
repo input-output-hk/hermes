@@ -30,6 +30,7 @@ impl Host for HermesState {
     fn blake2b(
         &mut self, buf: Bstr, outlen: Option<u8>, key: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
+        // WIP
         todo!()
     }
 
