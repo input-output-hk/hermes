@@ -1,4 +1,4 @@
-//! WASM module's context implementation.
+//! Hermes state implementation.
 
 use rusty_ulid::Ulid;
 

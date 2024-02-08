@@ -2,6 +2,7 @@
 
 pub(crate) mod event;
 mod runtime;
+pub(crate) mod state;
 pub(crate) mod wasm;
 
 fn main() {

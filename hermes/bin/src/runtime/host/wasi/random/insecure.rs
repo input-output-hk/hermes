@@ -6,7 +6,7 @@ use crate::runtime::extensions::{wasi::random::insecure::Host, HermesState, Stat
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &crate::state::Context) -> Self {
         Self {}
     }
 }

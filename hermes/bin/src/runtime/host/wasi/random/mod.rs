@@ -19,7 +19,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &crate::state::Context) -> Self {
         Self {
             insecure: insecure::State::new(ctx),
             insecure_seed: insecure_seed::State::new(ctx),

@@ -16,7 +16,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &crate::state::Context) -> Self {
         Self {
             monotonic: monotonic::State::new(ctx),
             wall: wall::State::new(ctx),

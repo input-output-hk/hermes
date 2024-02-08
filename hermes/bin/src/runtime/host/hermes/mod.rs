@@ -42,7 +42,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &crate::state::Context) -> Self {
         Self {
             binary: binary::State::new(ctx),
             cardano: cardano::State::new(ctx),

@@ -19,7 +19,7 @@ use self::{
         cron::api::CronTagged,
     },
 };
-use crate::{runtime, wasm::context::Context};
+use crate::{runtime, state::Context};
 
 bindgen!({
     world: "hermes",

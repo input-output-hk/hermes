@@ -7,7 +7,7 @@ use crate::runtime::extensions::{hermes::binary::api::Host, HermesState, Statefu
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &crate::state::Context) -> Self {
         State {}
     }
 }

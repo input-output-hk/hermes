@@ -27,7 +27,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &crate::state::Context) -> Self {
         Self {
             cli: cli::State::new(ctx),
             clocks: clocks::State::new(ctx),

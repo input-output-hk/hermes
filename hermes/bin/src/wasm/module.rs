@@ -12,8 +12,8 @@ use wasmtime::{
     Store as WasmStore,
 };
 
-use super::{context::Context, engine::Engine};
-use crate::event::HermesEventPayload;
+use super::engine::Engine;
+use crate::{event::HermesEventPayload, state::Context};
 
 /// Interface for linking WASM imports
 pub(crate) trait Host<Context> {
