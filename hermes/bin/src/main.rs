@@ -1,7 +1,8 @@
 //! The Hermes Node.
 
+pub(crate) mod event;
 mod runtime;
-mod wasm;
+pub(crate) mod wasm;
 
 fn main() {
     println!("Hello, world!");
