@@ -2,5 +2,5 @@
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
 pub(crate) mod context;
-pub(crate) mod engine;
-pub(crate) mod module;
+mod engine;
+mod module;
