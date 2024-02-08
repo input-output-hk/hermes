@@ -5,7 +5,11 @@
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
 use wasmtime::{
-    InstancePre as WasmInstancePre, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
+    component::{
+        Component as WasmModule, Instance as WasmInstance, InstancePre as WasmInstancePre,
+        Linker as WasmLinker,
+    },
+    Store as WasmStore,
 };
 
 use super::{context::Context, engine::Engine};
@@ -18,14 +22,14 @@ pub(crate) trait Host<Context> {
 }
 
 /// Interface for WASM module instance
-pub(crate) trait WasmInstance: Sized {
+pub(crate) trait Instance: Sized {
     /// Instantiate WASM module instance
     fn instantiate(
         store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
     ) -> anyhow::Result<Self>;
 }
 
-impl WasmInstance for wasmtime::Instance {
+impl Instance for WasmInstance {
     fn instantiate(
         mut store: &mut WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
     ) -> anyhow::Result<Self> {
@@ -35,16 +39,16 @@ impl WasmInstance for wasmtime::Instance {
 }
 
 #[allow(dead_code)]
-pub(crate) struct ModuleInstance<Instance: WasmInstance> {
+pub(crate) struct ModuleInstance<I: Instance> {
     store: WasmStore<Context>,
-    instance: Instance,
+    instance: I,
 }
 
-impl<Instance: WasmInstance> ModuleInstance<Instance> {
+impl<I: Instance> ModuleInstance<I> {
     pub(crate) fn new(
         mut store: WasmStore<Context>, pre_instance: &WasmInstancePre<Context>,
     ) -> anyhow::Result<Self> {
-        let instance = Instance::instantiate(&mut store, pre_instance)?;
+        let instance = I::instantiate(&mut store, pre_instance)?;
         Ok(Self { store, instance })
     }
 }
@@ -105,7 +109,7 @@ impl<H: Host<Context>> Module<H> {
     /// # Errors
     /// - `wasmtime::Error`: WASM call error
     #[allow(dead_code)]
-    pub(crate) fn execute_event<I: WasmInstance>(
+    pub(crate) fn execute_event<I: Instance>(
         &mut self, event: &impl HermesEventPayload<ModuleInstance<I>>,
     ) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
@@ -124,25 +128,26 @@ mod tests {
     struct TestHost;
     impl Host<Context> for TestHost {
         fn link_imports(linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
-            linker.func_wrap("", "hello", || {
+            linker.instance("")?.func_wrap("hello", |_, ()| {
                 println!("hello");
+                Ok(())
             })?;
             Ok(())
         }
     }
 
     struct TestEvent;
-    impl HermesEventPayload<ModuleInstance<wasmtime::Instance>> for TestEvent {
+    impl HermesEventPayload<ModuleInstance<WasmInstance>> for TestEvent {
         fn event_name(&self) -> &str {
-            "inc_global"
+            "inc-global"
         }
 
-        fn execute(&self, instance: &mut ModuleInstance<wasmtime::Instance>) -> anyhow::Result<()> {
+        fn execute(&self, instance: &mut ModuleInstance<WasmInstance>) -> anyhow::Result<()> {
             let func = instance
                 .instance
-                .get_typed_func::<(), i32>(&mut instance.store, "inc_global")?;
-            let result = func.call(&mut instance.store, ())?;
-            assert_eq!(result, 1);
+                .get_typed_func::<(), (i32,)>(&mut instance.store, "inc-global")?;
+            let (res,) = func.call(&mut instance.store, ())?;
+            assert_eq!(res, 1);
             Ok(())
         }
     }
@@ -153,20 +158,24 @@ mod tests {
     fn preserve_module_state_test() {
         let engine = Engine::new().expect("");
         let wat = r#"
-                    (module
-                        (import "" "hello" (func $hello_0))
-                        (export "inc_global" (func $inc_global))
+        (component
+            (core module $Module
+                (export "inc-global" (func $inc_global))
 
-                        (func $inc_global (result i32)
-                            global.get $global_val
-                            i32.const 1
-                            i32.add
-                            global.set $global_val
-                            global.get $global_val
-                        )
+                (func $inc_global (result i32)
+                    global.get $global_val
+                    i32.const 1
+                    i32.add
+                    global.set $global_val
+                    global.get $global_val
+                )
 
-                        (global $global_val (mut i32) (i32.const 0))
-                    )"#;
+                (global $global_val (mut i32) (i32.const 0))
+            )
+            (core instance $module (instantiate (module $Module)))
+            (func $inc_global (result s32) (canon lift (core func $module "inc-global")))
+            (export "inc-global" (func $inc_global))
+        )"#;
 
         let mut module =
             Module::<TestHost>::new(engine, "app".to_string(), wat.as_bytes()).expect("");
