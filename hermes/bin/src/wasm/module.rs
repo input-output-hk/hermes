@@ -127,11 +127,7 @@ mod tests {
 
     struct TestHost;
     impl Host<Context> for TestHost {
-        fn link_imports(linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
-            linker.instance("")?.func_wrap("hello", |_, ()| {
-                println!("hello");
-                Ok(())
-            })?;
+        fn link_imports(_linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
             Ok(())
         }
     }
