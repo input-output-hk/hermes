@@ -31,8 +31,8 @@ impl Context {
     }
 
     /// Increments the module's execution counter and sets the event name to be executed
-    pub(crate) fn use_for(&mut self, even_name: String) {
-        self.event_name = Some(even_name);
+    pub(crate) fn use_for(&mut self, event_name: String) {
+        self.event_name = Some(event_name);
         self.counter += 1;
     }
 
