@@ -57,7 +57,7 @@ Module metadata is linked to the module path that it describes.
 #### Module Signatures
 
 Same as with [Application Signatures](#application-signatures), Module Signatures are included in the metadata.
-These signatures are [COSE](#cose) bytes of a deterministic hash of the contents of the Application Package.
+These signatures are [COSE](#cose) bytes of a deterministic hash of the contents of the Module contents.
 Multisig support is required, so that Module Authors can sign, and the Module Publisher can verify and countersign the Module
 without being able to modify the original contents.
 
