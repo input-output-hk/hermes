@@ -32,12 +32,6 @@ impl Stateful for State {
 }
 
 impl http::types::HostFutureIncomingResponse for HermesState {
-    /// *
-    ///     /// Returns a pollable which becomes ready when either the Response has
-    ///     /// been received, or an error has occurred. When this pollable is ready,
-    ///     /// the `get` method will return `some`.
-    ///     subscribe: func() -> pollable;
-    ///     */
     /// Returns the incoming HTTP Response, or an error, once one is ready.
     ///
     /// The outer `option` represents future readiness. Users can wait on this
@@ -173,10 +167,6 @@ impl http::types::HostFields for HermesState {
 }
 
 impl http::types::HostFutureTrailers for HermesState {
-    /// Returns a pollable which becomes ready when either the trailers have
-    /// been received, or an error has occurred. When this pollable is ready,
-    /// the `get` method will return `some`.
-    /// subscribe: func() -> pollable; // Hermes does NOT support `poll`
     /// Returns the contents of the trailers, or an error which occurred,
     /// once the future is ready.
     ///

@@ -2,9 +2,7 @@
 //!
 //! *Note*
 //! Inspect the generated code with:
-//! ```
-//! cargo expand --bin hermes runtime::extensions::bindings
-//! ```
+//! `cargo expand --bin hermes runtime::extensions::bindings`
 
 #![allow(clippy::indexing_slicing)]
 

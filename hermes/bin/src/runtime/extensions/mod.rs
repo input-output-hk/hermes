@@ -1,10 +1,4 @@
 //! Hermes runtime extensions
-//!
-//! *Note*
-//! Inspect the generated code with:
-//! ```
-//! cargo expand --bin hermes runtime::extensions
-//! ```
 
 use wasmtime::{
     component::{Component, Linker},

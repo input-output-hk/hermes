@@ -9,7 +9,6 @@ use wasmtime::{
     Store as WasmStore,
 };
 
-use super::engine::Engine;
 use crate::{
     event_queue::event::HermesEventPayload,
     runtime::extensions::{
@@ -17,6 +16,7 @@ use crate::{
         state::{Context, Stateful},
     },
     state::HermesState,
+    wasm::engine::Engine,
 };
 
 /// Bad WASM module error

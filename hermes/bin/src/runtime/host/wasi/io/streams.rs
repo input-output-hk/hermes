@@ -161,19 +161,6 @@ impl HostOutputStream for HermesState {
         todo!()
     }
 
-    /// *
-    ///         /// Create a `pollable` which will resolve once the output-stream
-    ///         /// is ready for more writing, or an error has occurred. When this
-    ///         /// pollable is ready, `check-write` will return `ok(n)` with n>0, or an
-    ///         /// error.
-    ///         ///
-    ///         /// If the stream is closed, this pollable is always ready immediately.
-    ///         ///
-    ///         /// The created `pollable` is a child resource of the `output-stream`.
-    ///         /// Implementations may trap if the `output-stream` is dropped before
-    ///         /// all derived `pollable`s created with this function are dropped.
-    ///         subscribe: func() -> pollable;
-    ///         */
     /// Write zeroes to a stream.
     ///
     /// this should be used precisely like `write` with the exact same
