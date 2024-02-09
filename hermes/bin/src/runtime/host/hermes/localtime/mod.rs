@@ -1,9 +1,9 @@
 //! Host - Localtime implementations
 
 use crate::{
-    runtime::extensions::{
-        bindings::hermes::localtime::api::{Errno, Host, Localtime, Timezone},
-        bindings::wasi::clocks::wall_clock::Datetime,
+    runtime::extensions::bindings::{
+        hermes::localtime::api::{Errno, Host, Localtime, Timezone},
+        wasi::clocks::wall_clock::Datetime,
     },
     state::{HermesState, Stateful},
 };

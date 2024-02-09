@@ -1,9 +1,9 @@
 //! Host - Cron implementations
 
 use crate::{
-    runtime::extensions::{
-        bindings::hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-        bindings::wasi::clocks::monotonic_clock::Instant,
+    runtime::extensions::bindings::{
+        hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+        wasi::clocks::monotonic_clock::Instant,
     },
     state::{HermesState, Stateful},
 };
