@@ -1,7 +1,15 @@
 //! Host - Hash implementations
 #![allow(unused_variables)]
 
-use blake2_rfc::blake2b::Blake2b;
+use blake2::digest::OutputSizeUser;
+use blake2::Blake2bVar;
+use blake2::{
+    digest::{
+        consts::{U20, U32, U48, U64},
+        Update, VariableOutput
+    },
+    Blake2bMac,
+};
 
 use crate::runtime::extensions::{
     hermes::{
@@ -21,13 +29,27 @@ impl Stateful for State {
 }
 
 fn blake2b_impl(buf: Bstr, outlen: Option<u8>, key: Option<Bstr>) -> Result<Bstr, Errno> {
-    let outlen = outlen.unwrap_or(64).into();
-
-    let key = key.unwrap_or_default();
-
-    let mut hasher = Blake2b::with_key(outlen, &key);
-    hasher.update(&buf);
-    Ok(hasher.finalize().as_bytes().to_vec())
+    // Default to 64 bytes Blake2b-512
+    let outlen = outlen.unwrap_or(64) as usize;
+    let mut output = vec![0u8; outlen];
+    // Key is specified, use MAC
+    if let Some(k) = key {
+        // Type issue, doesn't work
+        let mut hasher: Blake2bMac<dyn OutputSizeUser> = match outlen {
+            20 => Blake2bMac::<U20>::new_with_salt_and_personal(&k, &[], &[]),
+            32 => Blake2bMac::<U32>::new_with_salt_and_personal(&k, &[], &[]),
+            48 => Blake2bMac::<U48>::new_with_salt_and_personal(&k, &[], &[]),
+            64 => Blake2bMac::<U64>::new_with_salt_and_personal(&k, &[], &[]),
+            _ => unreachable!(),
+        };
+        hasher.update(&buf);
+        output = hasher.finalize_fixed().to_vec();
+    } else {
+        let mut hasher: Blake2bVar = Blake2bVar::new(outlen).unwrap();
+        hasher.update(&buf);
+        hasher.finalize_variable(&mut output).unwrap();
+    }
+    return Ok(Bstr::from(output));
 }
 
 impl Host for HermesState {
@@ -123,7 +145,6 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(0);
 
-        let result =
-            blake2b_impl(buf, outlen, None).expect("");
+        let result = blake2b_impl(buf, outlen, None).expect("");
     }
 }
