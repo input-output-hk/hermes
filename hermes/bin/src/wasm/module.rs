@@ -11,7 +11,7 @@ use wasmtime::{
 
 use super::engine::Engine;
 use crate::{
-    event::HermesEventPayload,
+    event_queue::event::HermesEventPayload,
     runtime::extensions::bindings,
     state::{Context, HermesState, Stateful},
 };

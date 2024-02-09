@@ -1,6 +1,6 @@
 //! The Hermes Node.
 
-mod event;
+mod event_queue;
 mod runtime;
 mod state;
 mod wasm;
