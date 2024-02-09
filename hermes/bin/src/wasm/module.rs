@@ -19,6 +19,11 @@ use crate::{
     state::HermesState,
 };
 
+/// Bad WASM module error
+#[derive(thiserror::Error, Debug)]
+#[error("Bad WASM module")]
+struct BadWASMModuleError;
+
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
@@ -57,15 +62,19 @@ impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
-    ///  - `wasmtime::Error`: WASM call error
+    ///  - `BadModuleError`
+    ///  - `BadEngineConfigError`
     #[allow(dead_code)]
     pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
-        let module = WasmModule::new(&engine, module_bytes)?;
+        let module = WasmModule::new(&engine, module_bytes).map_err(|_| BadWASMModuleError)?;
 
         let mut linker = WasmLinker::new(&engine);
-        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)?;
-        let pre_instance = linker.instantiate_pre(&module)?;
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)
+            .map_err(|_| BadWASMModuleError)?;
+        let pre_instance = linker
+            .instantiate_pre(&module)
+            .map_err(|_| BadWASMModuleError)?;
 
         Ok(Self {
             pre_instance,
@@ -82,14 +91,15 @@ impl Module {
     /// is has an initial state, based on the provided context for each call.
     ///
     /// # Errors
-    /// - `wasmtime::Error`: WASM call error
+    /// - `BadModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(&mut self, event: &impl HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
         let state = HermesState::new(&self.context);
 
         let mut store = WasmStore::new(&self.engine, state);
-        let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)?;
+        let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
+            .map_err(|_| BadWASMModuleError)?;
 
         event.execute(&mut ModuleInstance {
             _instance: instance,

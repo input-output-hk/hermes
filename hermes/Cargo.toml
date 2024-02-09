@@ -56,3 +56,4 @@ pallas-hardano = { version = "0.22.0" }
 wasmtime = "17.0.0"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
+thiserror = "1.0.56"
