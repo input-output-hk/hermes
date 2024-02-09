@@ -21,15 +21,9 @@ impl Stateful for State {
 }
 
 fn blake2b_impl(buf: Bstr, outlen: Option<u8>, key: Option<Bstr>) -> Result<Bstr, Errno> {
-    let outlen = match outlen {
-        Some(len) => len as usize,
-        None => 64, // Default output length is 64 bytes, blake2b-512
-    };
+    let outlen = outlen.unwrap_or(64).into();
 
-    let key = match key {
-        Some(k) => k,
-        None => (&[]).to_vec(),
-    };
+    let key = key.unwrap_or_default();
 
     let mut hasher = Blake2b::with_key(outlen, &key);
     hasher.update(&buf);
