@@ -1,18 +1,21 @@
 //! Host - Cardano Blockchain implementations
 
 use crate::{
-    runtime::extensions::bindings::hermes::cardano::api::{
-        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
-        UnsubscribeOptions,
+    runtime::extensions::{
+        bindings::hermes::cardano::api::{
+            CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
+            UnsubscribeOptions,
+        },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

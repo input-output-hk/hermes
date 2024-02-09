@@ -1,18 +1,21 @@
 //! Host - Logging implementations
 
 use crate::{
-    runtime::extensions::bindings::hermes::{
-        json::api::Json,
-        logging::api::{Host, Level},
+    runtime::extensions::{
+        bindings::hermes::{
+            json::api::Json,
+            logging::api::{Host, Level},
+        },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

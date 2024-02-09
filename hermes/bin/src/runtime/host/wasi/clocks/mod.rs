@@ -1,6 +1,6 @@
 //! Host - WASI - Clock implementations
 
-use crate::state::Stateful;
+use crate::runtime::extensions::state::{Context, Stateful};
 
 mod monotonic;
 mod wall;
@@ -14,7 +14,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::state::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
             _monotonic: monotonic::State::new(ctx),
             _wall: wall::State::new(ctx),

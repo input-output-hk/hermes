@@ -1,18 +1,21 @@
 //! Host - Cron implementations
 
 use crate::{
-    runtime::extensions::bindings::{
-        hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-        wasi::clocks::monotonic_clock::Instant,
+    runtime::extensions::{
+        bindings::{
+            hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+            wasi::clocks::monotonic_clock::Instant,
+        },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

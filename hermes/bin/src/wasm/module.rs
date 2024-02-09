@@ -12,8 +12,11 @@ use wasmtime::{
 use super::engine::Engine;
 use crate::{
     event_queue::event::HermesEventPayload,
-    runtime::extensions::bindings,
-    state::{Context, HermesState, Stateful},
+    runtime::extensions::{
+        bindings,
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// Structure defines an abstraction over the WASM module instance.

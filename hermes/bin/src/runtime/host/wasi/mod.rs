@@ -1,6 +1,6 @@
 //! Runtime modules - extensions - WASI standard extensions
 
-use crate::state::Stateful;
+use crate::runtime::extensions::state::{Context, Stateful};
 
 pub(crate) mod cli;
 pub(crate) mod clocks;
@@ -26,7 +26,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::state::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
             _cli: cli::State::new(ctx),
             _clocks: clocks::State::new(ctx),

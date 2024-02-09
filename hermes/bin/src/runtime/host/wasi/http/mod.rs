@@ -1,29 +1,32 @@
 //! Host - WASI - HTTP implementations
 
 use crate::{
-    runtime::extensions::bindings::wasi::{
-        http::{
-            self,
-            outgoing_handler::{
-                ErrorCode, FutureIncomingResponse, OutgoingRequest, RequestOptions,
+    runtime::extensions::{
+        bindings::wasi::{
+            http::{
+                self,
+                outgoing_handler::{
+                    ErrorCode, FutureIncomingResponse, OutgoingRequest, RequestOptions,
+                },
+                types::{
+                    Duration, FieldKey, FieldValue, Fields, FutureTrailers, HeaderError, Headers,
+                    HostIncomingResponse, HostOutgoingResponse, IncomingBody, IncomingRequest,
+                    IncomingResponse, IoError, Method, OutgoingBody, OutgoingResponse,
+                    ResponseOutparam, Scheme, StatusCode, Trailers,
+                },
             },
-            types::{
-                Duration, FieldKey, FieldValue, Fields, FutureTrailers, HeaderError, Headers,
-                HostIncomingResponse, HostOutgoingResponse, IncomingBody, IncomingRequest,
-                IncomingResponse, IoError, Method, OutgoingBody, OutgoingResponse,
-                ResponseOutparam, Scheme, StatusCode, Trailers,
-            },
+            io::streams::{InputStream, OutputStream},
         },
-        io::streams::{InputStream, OutputStream},
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

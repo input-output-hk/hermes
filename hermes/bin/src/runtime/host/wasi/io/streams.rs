@@ -1,17 +1,20 @@
 //! WASI IO Streams
 
 use crate::{
-    runtime::extensions::bindings::wasi::io::streams::{
-        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+    runtime::extensions::{
+        bindings::wasi::io::streams::{
+            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+        },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

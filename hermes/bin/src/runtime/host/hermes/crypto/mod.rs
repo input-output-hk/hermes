@@ -1,21 +1,24 @@
 //! Host - Crypto implementations
 
 use crate::{
-    runtime::extensions::bindings::hermes::{
-        binary::api::Bstr,
-        crypto::api::{
-            Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
-            Host, HostEd25519Bip32,
+    runtime::extensions::{
+        bindings::hermes::{
+            binary::api::Bstr,
+            crypto::api::{
+                Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
+                Host, HostEd25519Bip32,
+            },
         },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

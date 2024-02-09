@@ -1,18 +1,21 @@
 //! Host - Localtime implementations
 
 use crate::{
-    runtime::extensions::bindings::{
-        hermes::localtime::api::{Errno, Host, Localtime, Timezone},
-        wasi::clocks::wall_clock::Datetime,
+    runtime::extensions::{
+        bindings::{
+            hermes::localtime::api::{Errno, Host, Localtime, Timezone},
+            wasi::clocks::wall_clock::Datetime,
+        },
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

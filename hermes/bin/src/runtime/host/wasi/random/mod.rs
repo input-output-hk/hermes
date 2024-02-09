@@ -1,6 +1,6 @@
 //! Host - WASI - Random implementations
 
-use crate::state::Stateful;
+use crate::runtime::extensions::state::{Context, Stateful};
 
 pub(crate) mod insecure;
 pub(crate) mod insecure_seed;
@@ -17,7 +17,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::state::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
             _insecure: insecure::State::new(ctx),
             _insecure_seed: insecure_seed::State::new(ctx),

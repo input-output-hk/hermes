@@ -1,6 +1,6 @@
 //! Runtime modules - extensions - HERMES custom extensions
 
-use crate::state::Stateful;
+use crate::runtime::extensions::state::{Context, Stateful};
 
 pub(crate) mod binary;
 pub(crate) mod cardano;
@@ -41,7 +41,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::state::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
             _binary: binary::State::new(ctx),
             _cardano: cardano::State::new(ctx),

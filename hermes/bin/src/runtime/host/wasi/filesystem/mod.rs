@@ -1,25 +1,28 @@
 //! Host - WASI - Filesystem implementations
 
 use crate::{
-    runtime::extensions::bindings::wasi::{
-        filesystem::{
-            self,
-            types::{
-                Advice, Descriptor, DescriptorFlags, DescriptorStat, DescriptorType,
-                DirectoryEntry, DirectoryEntryStream, Error, ErrorCode, Filesize,
-                MetadataHashValue, NewTimestamp, OpenFlags, PathFlags,
+    runtime::extensions::{
+        bindings::wasi::{
+            filesystem::{
+                self,
+                types::{
+                    Advice, Descriptor, DescriptorFlags, DescriptorStat, DescriptorType,
+                    DirectoryEntry, DirectoryEntryStream, Error, ErrorCode, Filesize,
+                    MetadataHashValue, NewTimestamp, OpenFlags, PathFlags,
+                },
             },
+            io::streams::{InputStream, OutputStream},
         },
-        io::streams::{InputStream, OutputStream},
+        state::{Context, Stateful},
     },
-    state::{HermesState, Stateful},
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

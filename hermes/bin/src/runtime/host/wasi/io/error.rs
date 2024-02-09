@@ -1,15 +1,18 @@
 //! WASI IO Error
 
 use crate::{
-    runtime::extensions::bindings::wasi::io::error::{Error, Host, HostError},
-    state::{HermesState, Stateful},
+    runtime::extensions::{
+        bindings::wasi::io::error::{Error, Host, HostError},
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::state::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }
