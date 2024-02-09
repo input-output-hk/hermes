@@ -16,5 +16,5 @@ workspace = true
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2.workspace = { workspace = true }
-hex-literal.workspace = { workspace = true }
+blake2 = { workspace = true }  
+hex-literal = { workspace = true }  
