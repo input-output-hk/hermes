@@ -1,9 +1,16 @@
 //! Host - Cron implementations
 
+use std::{
+    cmp::{max, min},
+    fmt::{Display, Formatter},
+};
+
 use crate::{
     runtime::extensions::{
         bindings::{
-            hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+            hermes::cron::api::{
+                CronComponent, CronEventTag, CronSched, CronTagged, CronTime, Host,
+            },
             wasi::clocks::monotonic_clock::Instant,
         },
         state::{Context, Stateful},
@@ -116,7 +123,7 @@ impl Host for HermesState {
 
     /// # Make a crontab entry from individual time values.
     ///
-    /// Crates the properly formatted cron entry
+    /// Creates the properly formatted cron entry
     /// from numeric cron time components.
     /// Convenience function to make building cron strings simpler when they are
     /// calculated from data.
@@ -144,6 +151,93 @@ impl Host for HermesState {
         &mut self, _dow: CronTime, _month: CronTime, _day: CronTime, _hour: CronTime,
         _minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
-        todo!()
+        let dow_scheds: CronSched =
+            cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
+        let month_scheds: CronSched =
+            cron_time_to_cron_sched(&month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
+        let day_scheds: CronSched =
+            cron_time_to_cron_sched(&day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
+        let hour_scheds: CronSched =
+            cron_time_to_cron_sched(&hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
+        let minute_scheds: CronSched = cron_time_to_cron_sched(
+            &minute,
+            CronComponent::MIN_MINUTE,
+            CronComponent::MAX_MINUTE,
+        );
+        let cron_sched =
+            format!("{minute_scheds} {hour_scheds} {day_scheds} {month_scheds} {dow_scheds}",);
+        Ok(cron_sched)
+    }
+}
+
+/// Returns the `CronSched` with silently clampled values.
+fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
+    if cron_time.is_empty() {
+        format!("{}", CronComponent::All)
+    } else {
+        cron_time
+            .iter()
+            .map(|d| format!("{}", d.clamp_inner(min_val, max_val)))
+            .collect::<Vec<String>>()
+            .join(",")
+    }
+}
+
+impl CronComponent {
+    /// Represents all possible values, `"*"`.
+    const ALL_STR: &'static str = "*";
+    /// Maximum value for `Day`.
+    const MAX_DAY: u8 = 31;
+    /// Maximum value for `DayOfWeek`.
+    const MAX_DOW: u8 = 7;
+    /// Maximum value for `Hour`.
+    const MAX_HOUR: u8 = 23;
+    /// Maximum value for `Minute`.
+    const MAX_MINUTE: u8 = 59;
+    /// Maximum value for `Month`.
+    const MAX_MONTH: u8 = 12;
+    /// Minimum value for `Day`.
+    const MIN_DAY: u8 = 1;
+    /// Minimum value for `DayOfWeek`.
+    const MIN_DOW: u8 = 0;
+    /// Minimum value for `Hour`.
+    const MIN_HOUR: u8 = 0;
+    /// Minimum value for `Minute`.
+    const MIN_MINUTE: u8 = 0;
+    /// Minimum value for `Month`.
+    const MIN_MONTH: u8 = 1;
+
+    /// Clamp inner values within the given range values.
+    fn clamp_inner(self, min_val: u8, max_val: u8) -> Self {
+        /// Implement clamping inner values within the given range values.
+        fn clamp_val(val: u8, mn: u8, mx: u8) -> u8 {
+            min(max(val, mn), mx)
+        }
+
+        match self {
+            Self::All => self,
+            Self::At(when) => Self::At(clamp_val(when, min_val, max_val)),
+            Self::Range((a, b)) => {
+                let (c, d) = (
+                    clamp_val(a, min_val, max_val),
+                    clamp_val(b, min_val, max_val),
+                );
+                if c <= d {
+                    Self::Range((c, d))
+                } else {
+                    Self::Range((d, c))
+                }
+            },
+        }
+    }
+}
+
+impl Display for CronComponent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => write!(f, "{}", Self::ALL_STR),
+            Self::At(val) => write!(f, "{val}"),
+            Self::Range((start, end)) => write!(f, "{start}-{end}"),
+        }
     }
 }
