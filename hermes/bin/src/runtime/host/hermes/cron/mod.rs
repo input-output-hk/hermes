@@ -205,10 +205,9 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
                 })
                 .fold(Vec::new(), |mut v, (i, d)| {
                     if let Some(remaining) = clamped.get((i + 1)..clamped.len()) {
-                        for c in remaining {
-                            if c.contains(*d) {
-                                v.push(d.to_string());
-                            }
+                        let should_include = remaining.iter().all(|c| !c.contains(*d));
+                        if should_include {
+                            v.push(d.to_string());
                         }
                     }
                     v
