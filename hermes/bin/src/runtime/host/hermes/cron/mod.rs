@@ -151,35 +151,67 @@ impl Host for HermesState {
         &mut self, _dow: CronTime, _month: CronTime, _day: CronTime, _hour: CronTime,
         _minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
-        let dow_scheds: CronSched =
+        let dow_schedule: CronSched =
             cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
-        let month_scheds: CronSched =
+        let month_schedule: CronSched =
             cron_time_to_cron_sched(&month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
-        let day_scheds: CronSched =
+        let day_schedule: CronSched =
             cron_time_to_cron_sched(&day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
-        let hour_scheds: CronSched =
+        let hour_schedule: CronSched =
             cron_time_to_cron_sched(&hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
-        let minute_scheds: CronSched = cron_time_to_cron_sched(
+        let minute_schedule: CronSched = cron_time_to_cron_sched(
             &minute,
             CronComponent::MIN_MINUTE,
             CronComponent::MAX_MINUTE,
         );
-        let cron_sched =
-            format!("{minute_scheds} {hour_scheds} {day_scheds} {month_scheds} {dow_scheds}",);
+        let cron_sched = format!(
+            "{minute_schedule} {hour_schedule} {day_schedule} {month_schedule} {dow_schedule}",
+        );
         Ok(cron_sched)
     }
 }
 
-/// Returns the `CronSched` with silently clampled values.
+/// Returns the `CronSched` with silently clamping values within the `min_val`..=`max_val`
+/// range.
 fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
-    if cron_time.is_empty() {
-        format!("{}", CronComponent::All)
+    // If vec has no components or if it includes `CronComponent::All`, skip processing and
+    // return "*"
+    if cron_time.is_empty() || cron_time.contains(&CronComponent::All) {
+        CronComponent::All.to_string()
     } else {
-        cron_time
-            .iter()
-            .map(|d| format!("{}", d.clamp_inner(min_val, max_val)))
-            .collect::<Vec<String>>()
-            .join(",")
+        // Silently clamp values, and ensure that range values are in the right order: `first <=
+        // last`. For the case of finding `CronComponent::Range((final, last))`, it is
+        // replaced with `CronComponent::All`.
+        let mut clamped: Vec<CronComponent> = cron_time
+            .into_iter()
+            .map(|d| d.clamp_inner(min_val, max_val))
+            .collect();
+        // If vec includes `CronComponent::All`, skip processing and return "*"
+        if clamped.contains(&CronComponent::All) {
+            CronComponent::All.to_string()
+        } else {
+            // Otherwise, process and return joined string
+            // Only `At` and `Range` variants remain, we can now sort and dedup them.
+            clamped.sort();
+            let filtered_and_deduped: CronSched = clamped
+                .iter()
+                .enumerate()
+                .filter(|(i, d)| !clamped[(*i + 1)..clamped.len()].contains(d))
+                .fold(Vec::new(), |mut v, (i, d)| {
+                    let mut should_include = true;
+                    for c in &clamped[(i + 1)..clamped.len()] {
+                        if c.contains(d) {
+                            should_include = false;
+                        }
+                    }
+                    if !should_include {
+                        v.push(d.to_string());
+                    }
+                    v
+                })
+                .join(",");
+            filtered_and_deduped
+        }
     }
 }
 
@@ -207,25 +239,47 @@ impl CronComponent {
     /// Minimum value for `Month`.
     const MIN_MONTH: u8 = 1;
 
-    /// Clamp inner values within the given range values.
-    fn clamp_inner(self, min_val: u8, max_val: u8) -> Self {
+    /// Clamp inner values within the given range values. Returns `CronComponent`.
+    fn clamp_inner(self, first: u8, last: u8) -> Self {
         /// Implement clamping inner values within the given range values.
-        fn clamp_val(val: u8, mn: u8, mx: u8) -> u8 {
-            min(max(val, mn), mx)
+        fn clamp_val(val: u8, min_limit: u8, max_limit: u8) -> u8 {
+            min(max(val, min_limit), max_limit)
         }
 
         match self {
             Self::All => self,
-            Self::At(when) => Self::At(clamp_val(when, min_val, max_val)),
+            Self::At(when) => Self::At(clamp_val(when, first, last)),
             Self::Range((a, b)) => {
-                let (c, d) = (
-                    clamp_val(a, min_val, max_val),
-                    clamp_val(b, min_val, max_val),
-                );
-                if c <= d {
-                    Self::Range((c, d))
+                // Clamp values.
+                let (c, d) = (clamp_val(a, first, last), clamp_val(b, first, last));
+                // Ensure lowest value is first.
+                let range = if c <= d { (c, d) } else { (d, c) };
+                // If the range is the set as clamping limits, return `All`.
+                if range == (first, last) {
+                    Self::All
                 } else {
-                    Self::Range((d, c))
+                    // Return the range.
+                    Self::Range(range)
+                }
+            },
+        }
+    }
+
+    /// Determine if inner value includes the argument. Returns `bool`.
+    fn contains(&self, other: &CronComponent) -> bool {
+        match self {
+            Self::All => true,
+            Self::At(when) => {
+                match other {
+                    Self::At(w) if when == w => true,
+                    _ => false,
+                }
+            },
+            Self::Range((first, last)) => {
+                match other {
+                    Self::At(w) if (first..=last).contains(&w) => true,
+                    Self::Range((a, b)) if first <= a && b <= last => true,
+                    _ => false,
                 }
             },
         }
@@ -239,5 +293,64 @@ impl Display for CronComponent {
             Self::At(val) => write!(f, "{val}"),
             Self::Range((start, end)) => write!(f, "{start}-{end}"),
         }
+    }
+}
+
+impl PartialEq for CronComponent {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::All => {
+                match other {
+                    Self::All => true,
+                    _ => false,
+                }
+            },
+            Self::At(when) => {
+                match other {
+                    Self::At(w) if w == when => true,
+                    _ => false,
+                }
+            },
+            Self::Range((first, last)) => {
+                match other {
+                    Self::Range((a, b)) if first == a && last == b => true,
+                    _ => false,
+                }
+            },
+        }
+    }
+}
+
+impl PartialOrd for CronComponent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self {
+            Self::All => {
+                match other {
+                    Self::All => Some(std::cmp::Ordering::Equal),
+                    _ => Some(std::cmp::Ordering::Greater),
+                }
+            },
+            Self::At(when) => {
+                match other {
+                    Self::At(w) => Some(when.cmp(w)),
+                    _ => Some(std::cmp::Ordering::Less),
+                }
+            },
+            Self::Range((first, last)) => {
+                match other {
+                    Self::All => Some(std::cmp::Ordering::Less),
+                    Self::At(_) => Some(std::cmp::Ordering::Greater),
+                    Self::Range((start, end)) => Some(first.cmp(start).then(last.cmp(end))),
+                }
+            },
+        }
+    }
+}
+
+impl Eq for CronComponent {}
+
+impl Ord for CronComponent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
