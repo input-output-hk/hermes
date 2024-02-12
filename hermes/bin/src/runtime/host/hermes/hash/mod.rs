@@ -88,7 +88,6 @@ mod tests_blake2b {
 
     #[test]
     fn blake2b_512() {
-        // Setup
         let buf = Bstr::from("test test");
         let outlen = Some(64);
 
@@ -102,7 +101,6 @@ mod tests_blake2b {
 
     #[test]
     fn blake2b_256() {
-        // Setup
         let buf = Bstr::from("test test");
         let outlen = Some(32);
 
@@ -115,7 +113,6 @@ mod tests_blake2b {
     }
     #[test]
     fn blake2b_512_with_default_outlen() {
-        // Setup
         let buf = Bstr::from("test test");
 
         let result =
