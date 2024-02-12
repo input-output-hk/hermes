@@ -183,7 +183,7 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
         // last`. For the case of finding `CronComponent::Range((final, last))`, it is
         // replaced with `CronComponent::All`.
         let mut clamped: Vec<CronComponent> = cron_time
-            .into_iter()
+            .iter()
             .map(|d| d.clamp_inner(min_val, max_val))
             .collect();
         // If vec includes `CronComponent::All`, skip processing and return "*"
@@ -196,16 +196,20 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             let filtered_and_deduped: CronSched = clamped
                 .iter()
                 .enumerate()
-                .filter(|(i, d)| !clamped[(*i + 1)..clamped.len()].contains(d))
-                .fold(Vec::new(), |mut v, (i, d)| {
-                    let mut should_include = true;
-                    for c in &clamped[(i + 1)..clamped.len()] {
-                        if c.contains(d) {
-                            should_include = false;
-                        }
+                .filter(|(i, d)| {
+                    if let Some(remaining) = clamped.get((*i + 1)..clamped.len()) {
+                        !remaining.contains(d)
+                    } else {
+                        false
                     }
-                    if !should_include {
-                        v.push(d.to_string());
+                })
+                .fold(Vec::new(), |mut v, (i, d)| {
+                    if let Some(remaining) = clamped.get((i + 1)..clamped.len()) {
+                        for c in remaining {
+                            if c.contains(*d) {
+                                v.push(d.to_string());
+                            }
+                        }
                     }
                     v
                 })
@@ -266,15 +270,10 @@ impl CronComponent {
     }
 
     /// Determine if inner value includes the argument. Returns `bool`.
-    fn contains(&self, other: &CronComponent) -> bool {
+    fn contains(self, other: CronComponent) -> bool {
         match self {
             Self::All => true,
-            Self::At(when) => {
-                match other {
-                    Self::At(w) if when == w => true,
-                    _ => false,
-                }
-            },
+            Self::At(when) => matches!(other, Self::At(w) if when == w),
             Self::Range((first, last)) => {
                 match other {
                     Self::At(w) if (first..=last).contains(&w) => true,
@@ -299,28 +298,16 @@ impl Display for CronComponent {
 impl PartialEq for CronComponent {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Self::All => {
-                match other {
-                    Self::All => true,
-                    _ => false,
-                }
-            },
-            Self::At(when) => {
-                match other {
-                    Self::At(w) if w == when => true,
-                    _ => false,
-                }
-            },
+            Self::All => matches!(other, Self::All),
+            Self::At(when) => matches!(other, Self::At(w) if w == when),
             Self::Range((first, last)) => {
-                match other {
-                    Self::Range((a, b)) if first == a && last == b => true,
-                    _ => false,
-                }
+                matches!(other, Self::Range((a, b)) if first == a && last == b)
             },
         }
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for CronComponent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match self {
@@ -350,6 +337,7 @@ impl PartialOrd for CronComponent {
 impl Eq for CronComponent {}
 
 impl Ord for CronComponent {
+    #[allow(clippy::unwrap_used)]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
