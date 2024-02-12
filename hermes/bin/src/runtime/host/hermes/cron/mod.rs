@@ -307,6 +307,21 @@ impl PartialEq for CronComponent {
 }
 
 #[allow(clippy::non_canonical_partial_ord_impl)]
+/// Compare two `CronComponent`s.
+///
+/// Example:
+///
+/// ```rust
+/// # use hermes::runtime::host::hermes::cron::*;
+/// assert!(CronComponent::At(1) < CronComponent::At(2));
+/// assert!(CronComponent::At(1) < CronComponent::Range((2, 3)));
+/// assert!(CronComponent::At(1) < CronComponent::All);
+/// assert!(CronComponent::Range((1, 2)) < CronComponent::Range((3, 4)));
+/// assert!(CronComponent::Range((1, 2)) < CronComponent::All);
+/// assert!(CronComponent::All == CronComponent::All);
+/// assert!(CronComponent::All > CronComponent::Range((1, 2)));
+/// assert!(CronComponent::All > CronComponent::At(1));
+/// ```
 impl PartialOrd for CronComponent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match self {
@@ -336,8 +351,8 @@ impl PartialOrd for CronComponent {
 impl Eq for CronComponent {}
 
 impl Ord for CronComponent {
-    #[allow(clippy::unwrap_used)]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        self.partial_cmp(other)
+            .expect("CronComponent should always be comparable")
     }
 }
