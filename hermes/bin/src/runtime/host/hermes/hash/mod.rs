@@ -128,11 +128,20 @@ mod tests_blake2b {
     }
 
     #[test]
-    fn blake2b_0_outlen() {
-        // Setup
+    fn blake2b_0_outlen_err() {
         let buf = Bstr::from("test test");
         let outlen = Some(0);
 
-        let result = blake2b_impl(buf, outlen).expect("");
+        let result = blake2b_impl(buf, outlen);
+        assert_eq!(result.unwrap_err(), Errno::InvalidDigestByteLength)
+    }
+
+    #[test]
+    fn blake2b_hash_too_big_err() {
+        let buf = Bstr::from("test test");
+        let outlen = Some(100);
+
+        let result = blake2b_impl(buf, outlen);
+        assert_eq!(result.unwrap_err(), Errno::HashTooBig)
     }
 }
