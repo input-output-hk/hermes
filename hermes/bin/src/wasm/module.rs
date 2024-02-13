@@ -111,10 +111,13 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
-#[allow(dead_code, missing_docs)]
+#[allow(dead_code)]
 pub mod bench {
     use super::*;
 
+    /// Benchmark for executing the `init` event of the Hermes dummy component.
+    /// It aims to measure the overhead of the WASM module and WASM state initialization
+    /// process.
     pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
         struct Event;
         impl HermesEventPayload for Event {
@@ -142,6 +145,10 @@ pub mod bench {
         });
     }
 
+    /// Benchmark for executing the `foo` WASM function of the tiny component.
+    /// The general flow of how WASM module is instantiated and executed is the same as in
+    /// the previous one `module_hermes_component_bench`.
+    /// It aims to compare how the size of the component affects on the execution time.
     pub fn module_small_component_bench(b: &mut criterion::Bencher) {
         let wat = r#"
             (component
@@ -172,6 +179,9 @@ pub mod bench {
         });
     }
 
+    /// Benchmark for executing the `foo` WASM function of the tiny component.
+    /// BUT with the changed execution flow. Here the WASM module and WASM state is
+    /// instantiated ONCE during the whole execution process.
     pub fn module_small_component_full_pre_load_bench(b: &mut criterion::Bencher) {
         let wat = r#"
             (component
