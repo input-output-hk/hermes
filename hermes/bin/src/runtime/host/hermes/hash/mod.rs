@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use blake2::digest::{consts::U64, FixedOutput, Update, VariableOutput};
-use blake2::Blake2bVar;
+use blake2::{Blake2bMac, Blake2bVar};
 
 use crate::runtime::extensions::{
     hermes::{
@@ -35,10 +35,19 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
 
     // Create an vector of length outlen
     let mut output = vec![0u8; outlen];
-    let mut hasher: Blake2bVar = Blake2bVar::new(outlen).unwrap();
+    let mut hasher: Blake2bVar = match Blake2bVar::new(outlen) {
+        Ok(hasher) => hasher,
+        Err(_) => {
+            return Err(Errno::HashTooBig);
+        },
+    };
     hasher.update(&buf);
-    hasher.finalize_variable(&mut output).unwrap();
-
+    match hasher.finalize_variable(&mut output) {
+        Ok(_) => {},
+        Err(_) => {
+            return Err(Errno::HashTooBig);
+        },
+    }
     return Ok(Bstr::from(output));
 }
 
@@ -58,10 +67,14 @@ fn blake2bmac_impl(
 
     let salt = salt.unwrap_or_default();
     let persona = persona.unwrap_or_default();
-    let mut hasher =
-        blake2::Blake2bMac::<U64>::new_with_salt_and_personal(&key, &salt, &persona).unwrap();
-    hasher.update(&buf);
+    let mut hasher = match Blake2bMac::<U64>::new_with_salt_and_personal(&key, &salt, &persona) {
+        Ok(hasher) => hasher,
+        Err(_) => {
+            return Err(Errno::HashTooBig);
+        },
+    };
 
+    hasher.update(&buf);
     return Ok(Bstr::from(hasher.finalize_fixed().to_vec()));
 }
 
@@ -142,8 +155,7 @@ mod tests_blake2b {
     fn blake2b_512_with_default_outlen() {
         let buf = Bstr::from("test test");
 
-        let result =
-            blake2b_impl(buf, None).expect("Failed to hash blake2b-512 default outlen");
+        let result = blake2b_impl(buf, None).expect("Failed to hash blake2b-512 default outlen");
 
         assert_eq!(
             result.as_ref(),
@@ -191,8 +203,8 @@ mod tests_blake2b {
         let persona = Bstr::from("persona");
         let outlen = Some(64);
 
-        let result =
-            blake2bmac_impl(buf, outlen, key, Some(salt), Some(persona)).expect("Failed to hash blake2bmac-512");
+        let result = blake2bmac_impl(buf, outlen, key, Some(salt), Some(persona))
+            .expect("Failed to hash blake2bmac-512");
 
         assert_eq!(
         result.as_ref(),
@@ -206,8 +218,8 @@ mod tests_blake2b {
         let key = vec![];
         let outlen = Some(64);
 
-        let result =
-            blake2bmac_impl(buf, outlen, key, None, None).expect("Failed to hash blake2bmac-512 with emprty key");
+        let result = blake2bmac_impl(buf, outlen, key, None, None)
+            .expect("Failed to hash blake2bmac-512 with emprty key");
 
         assert_eq!(
             result.as_ref(),
