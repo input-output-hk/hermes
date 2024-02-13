@@ -17,7 +17,8 @@ interface api {
         hash-too-big,  // The hash size requested is larger than supported by the hash function.
         invalid-buffer-size, // The buffer length is not equal to hash output size.
         invalid-digest-byte-length, // The digest byte length is equal to zero.
-        invalid-length // The key length, salt length, or persona length is not valid.
+        invalid-length, // The key length, salt length, or persona length is not valid.
+        unsupported-outlen // The length of output is not supported.
     }
 
     /// # BLAKE2s Hash Function
@@ -66,7 +67,6 @@ interface api {
     /// - Or an error:
     ///     - `key_too_big` if `key` is specified and is > 32 bytes.
     ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
-    ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
     ///     - `invalid_length` if `salt` length, or `persona` length is not valid.
     ///
     /// ## Note:
@@ -124,8 +124,8 @@ interface api {
     /// - Or an error:
     ///     - `key_too_big` if `key` is specified and is > 64 bytes.
     ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
-    ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
     ///     - `invalid_length` if `salt` length, or `persona` length is not valid.
+    ///     - `unsupported_outlen` if `outlen` is not 20, 32, 48, 64.
     ///
     /// ## Note:
     ///
