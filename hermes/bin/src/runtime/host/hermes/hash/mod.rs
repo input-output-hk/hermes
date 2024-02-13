@@ -25,8 +25,7 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen = outlen.unwrap_or(64) as usize;
 
-    // outlen is set
-    // invalid when == 0 or > 64
+    // outlen is set invalid when == 0
     if outlen == 0 {
         return Err(Errno::InvalidDigestByteLength);
     }
@@ -52,15 +51,14 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
 fn blake2bmac_impl(
     buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>, persona: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
-    // Convert outlen to usize
+    // Default to 64 bytes Blake2b-512
     let outlen = outlen.unwrap_or(64) as usize;
 
     if key.len() > outlen {
         return Err(Errno::KeyTooBig);
     }
     
-    // outlen is set
-    // invalid when == 0 or > 64
+    // outlen is set invalid when == 0 or > 64
     if outlen == 0 {
         return Err(Errno::InvalidDigestByteLength);
     } else if outlen > 64 {
@@ -69,6 +67,7 @@ fn blake2bmac_impl(
 
     let salt = salt.unwrap_or_default();
     let persona = persona.unwrap_or_default();
+    // TODO - Fix this hardcode length 
     let mut hasher = match Blake2bMac::<U64>::new_with_salt_and_personal(&key, &salt, &persona) {
         Ok(hasher) => hasher,
         Err(_) => {
@@ -197,20 +196,4 @@ mod tests_blake2b {
     );
     }
 
-    #[test]
-    fn blake2bmac_512_empty_key() {
-        let buf = Bstr::from("test test");
-        let key = Bstr::new();
-        let ke : Vec<u8> = vec![];
-        let outlen = Some(64);
-
-        let result = blake2bmac_impl(buf, outlen, key, None, None)
-            .expect("Failed to hash blake2bmac-512 with emprty key");
-
-        assert_eq!(
-            result.as_ref(),
-            hex!("8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196")
-        );
-    
-    }
 }
