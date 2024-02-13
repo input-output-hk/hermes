@@ -110,6 +110,39 @@ impl Module {
     }
 }
 
+#[cfg(feature = "bench")]
+#[allow(dead_code, missing_docs)]
+pub mod bench {
+    use super::*;
+
+    pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
+        struct Event;
+        impl HermesEventPayload for Event {
+            fn event_name(&self) -> &str {
+                "init"
+            }
+
+            fn execute(&self, instance: &mut ModuleInstance) -> anyhow::Result<()> {
+                instance
+                    ._instance
+                    .hermes_init_event()
+                    .call_init(&mut instance._store)?;
+                Ok(())
+            }
+        }
+
+        let mut module = Module::new(
+            "app".to_string(),
+            include_bytes!("../../benches/component.wasm"),
+        )
+        .unwrap();
+
+        b.iter(|| {
+            module.execute_event(&Event).unwrap();
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // use super::*;

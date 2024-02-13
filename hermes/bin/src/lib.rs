@@ -5,3 +5,6 @@ mod event_queue;
 mod runtime;
 mod state;
 mod wasm;
+
+#[cfg(feature = "bench")]
+pub use wasm::module::bench::module_hermes_component_bench;
