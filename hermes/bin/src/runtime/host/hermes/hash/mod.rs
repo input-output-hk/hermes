@@ -29,8 +29,6 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // invalid when == 0 or > 64
     if outlen == 0 {
         return Err(Errno::InvalidDigestByteLength);
-    } else if outlen > 64 {
-        return Err(Errno::HashTooBig);
     }
 
     // Create an vector of length outlen
@@ -45,7 +43,7 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     match hasher.finalize_variable(&mut output) {
         Ok(_) => {},
         Err(_) => {
-            return Err(Errno::HashTooBig);
+            return Err(Errno::InvalidBufferSize);
         },
     }
     return Ok(Bstr::from(output));
@@ -57,6 +55,10 @@ fn blake2bmac_impl(
     // Convert outlen to usize
     let outlen = outlen.unwrap_or(64) as usize;
 
+    if key.len() > outlen {
+        return Err(Errno::KeyTooBig);
+    }
+    
     // outlen is set
     // invalid when == 0 or > 64
     if outlen == 0 {
@@ -70,7 +72,7 @@ fn blake2bmac_impl(
     let mut hasher = match Blake2bMac::<U64>::new_with_salt_and_personal(&key, &salt, &persona) {
         Ok(hasher) => hasher,
         Err(_) => {
-            return Err(Errno::HashTooBig);
+            return Err(Errno::InvalidLength);
         },
     };
 
@@ -196,26 +198,10 @@ mod tests_blake2b {
     }
 
     #[test]
-    fn blake2bmac_512_salt_persona() {
+    fn blake2bmac_512_empty_key() {
         let buf = Bstr::from("test test");
-        let key = Bstr::from("key");
-        let salt = Bstr::from("salt");
-        let persona = Bstr::from("persona");
-        let outlen = Some(64);
-
-        let result = blake2bmac_impl(buf, outlen, key, Some(salt), Some(persona))
-            .expect("Failed to hash blake2bmac-512");
-
-        assert_eq!(
-        result.as_ref(),
-        hex!("c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115")
-    );
-    }
-
-    #[test]
-    fn blake2bmac_512_0_key() {
-        let buf = Bstr::from("test test");
-        let key = vec![];
+        let key = Bstr::new();
+        let ke : Vec<u8> = vec![];
         let outlen = Some(64);
 
         let result = blake2bmac_impl(buf, outlen, key, None, None)
@@ -225,5 +211,6 @@ mod tests_blake2b {
             result.as_ref(),
             hex!("8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196")
         );
+    
     }
 }

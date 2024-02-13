@@ -15,7 +15,9 @@ interface api {
     enum errno {
         key-too-big,  // The key is larger than supported by the hash function.
         hash-too-big,  // The hash size requested is larger than supported by the hash function.
-        invalid-digest-byte-length // The digest byte length is equal to zero.
+        invalid-buffer-size, // The buffer length is not equal to hash output size.
+        invalid-digest-byte-length, // The digest byte length is equal to zero.
+        invalid-length // The key length, salt length, or persona length is not valid.
     }
 
     /// # BLAKE2s Hash Function
@@ -34,6 +36,7 @@ interface api {
     /// - Or an error:
     ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
+    ///     - `invalid_buffer_size` if buffer length is not equal to hash output size.
     ///
     blake2s: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
 
@@ -64,11 +67,15 @@ interface api {
     ///     - `key_too_big` if `key` is specified and is > 32 bytes.
     ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
+    ///     - `invalid_length` if `salt` length, or `persona` length is not valid.
     ///
     /// ## Note:
     ///
     /// `key` length is checked before `outlen` so if both sizes are invalid, only
     /// `key_too_big` will be returned.
+    /// `salt` and `persona` length should not be bigger than quarter of block size
+    //// If any of the conditions is false. the method will return an error.
+    /// `invalid_length` will be returned.
     ///
     blake2smac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
 
@@ -88,6 +95,7 @@ interface api {
     /// - Or an error:
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
     ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
+    ///     - `invalid_buffer_size` if buffer length is not equal to hash output size.
     blake2b: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
 
     /// # BLAKE2bMac Hash Function
@@ -117,11 +125,15 @@ interface api {
     ///     - `key_too_big` if `key` is specified and is > 64 bytes.
     ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
+    ///     - `invalid_length` if `salt` length, or `persona` length is not valid.
     ///
     /// ## Note:
     ///
     /// `key` length is checked before `outlen` so if both sizes are invalid, only
     /// `key_too_big` will be returned.
+    /// `salt` and `persona` length should not be bigger than quarter of block size
+    //// If any of the conditions is false. the method will return an error.
+    /// `invalid_length` will be returned.
     ///
     blake2bmac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
 
