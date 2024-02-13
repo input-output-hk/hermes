@@ -46,8 +46,8 @@ interface api {
     /// - `buf`: The binary data buffer to hash.
     /// - `outlen`: Optional.  The size of the digest.
     ///             If the outlen is not defined, it defaults to 32.
-    /// - `key`: Optional. The key to use with the hash.
-    ///             If not defined, the hash is not keyed.
+    /// - `key`: The key to use with the hash.
+    ///             With MAC mode, key is needed to be defined
     ///             Should not be > 32 bytes.
     /// - `salt`: Optional. An arbitrary string of 16 bytes 
     ///             use to increase the randomness and uniqueness of the hash output
@@ -70,7 +70,7 @@ interface api {
     /// `key` length is checked before `outlen` so if both sizes are invalid, only
     /// `key_too_big` will be returned.
     ///
-    blake2smac: func( buf: bstr, outlen: option<u8>, key: option<bstr>, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
+    blake2smac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
 
     /// # BLAKE2b Hash Function
     ///
@@ -99,8 +99,8 @@ interface api {
     /// - `buf`: The binary data buffer to hash.
     /// - `outlen`: Optional.  The size of the digest.
     ///             If the outlen is not defined, it defaults to 64.
-    /// - `key`: Optional. The key to use with the hash.
-    ///             If not defined, the hash is not keyed.
+    /// - `key`: The key to use with the hash.
+    ///             With MAC mode, key is needed to be defined
     ///             Should not be > 64 bytes.
     /// - `salt`: Optional. An arbitrary string of 16 bytes 
     ///             use to increase the randomness and uniqueness of the hash output
@@ -123,7 +123,7 @@ interface api {
     /// `key` length is checked before `outlen` so if both sizes are invalid, only
     /// `key_too_big` will be returned.
     ///
-    blake2bmac: func( buf: bstr, outlen: option<u8>, key: option<bstr>, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
+    blake2bmac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, persona: option<bstr> ) -> result<bstr, errno>;
 
     /// # BLAKE3 Hash Function
     ///
