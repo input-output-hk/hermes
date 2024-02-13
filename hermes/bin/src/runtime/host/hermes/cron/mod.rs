@@ -173,11 +173,27 @@ impl Host for HermesState {
 
 /// Returns the `CronSched` with silently clamping values within the `min_val`..=`max_val`
 /// range.
+///
+/// Example:
+///
+/// ```
+/// use hermes::runtime::host::hermes::cron::{cron_time_to_cron_sched, CronComponent};
+///
+/// let mut cron_time = vec![
+///     CronComponent::All,
+///     CronComponent::Range((2, 4)),
+///     CronComponent::At(5),
+/// ];
+/// cron_time.sort();
+/// let dow_schedule =
+///     cron_time_to_cron_sched(&cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
+/// assert_eq!(dow_schedule, "*");
+/// ```
 fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
     // If vec has no components or if it includes `CronComponent::All`, skip processing and
     // return "*"
-    if cron_time.is_empty() || cron_time.contains(&CronComponent::All) {
-        CronComponent::All.to_string()
+    let cron_sched: CronSched = if cron_time.is_empty() {
+        format!("{}", CronComponent::All)
     } else {
         // Silently clamp values, and ensure that range values are in the right order: `first <=
         // last`. For the case of finding `CronComponent::Range((final, last))`, it is
@@ -186,36 +202,65 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             .iter()
             .map(|d| d.clamp_inner(min_val, max_val))
             .collect();
-        // If vec includes `CronComponent::All`, skip processing and return "*"
-        if clamped.contains(&CronComponent::All) {
-            CronComponent::All.to_string()
-        } else {
-            // Otherwise, process and return joined string
-            // Only `At` and `Range` variants remain, we can now sort and dedup them.
-            clamped.sort();
-            let filtered_and_deduped: CronSched = clamped
-                .iter()
-                .enumerate()
-                .filter(|(i, d)| {
-                    if let Some(remaining) = clamped.get((*i + 1)..clamped.len()) {
-                        !remaining.contains(d)
-                    } else {
-                        false
+
+        clamped.sort();
+
+        let clamped_len = clamped.len();
+        let mut deduped: CronTime = clamped.clone().iter_mut().enumerate().fold(
+            Vec::new(),
+            |mut out, (i, cron_component)| {
+                let idx = i + 1;
+                if let Some(remaining) = clamped.get_mut(idx..clamped_len) {
+                    let not_downstream = remaining
+                        .iter()
+                        .all(|other| !other.contains(*cron_component));
+                    if not_downstream {
+                        // Push the current cron component
+                        out.push(*cron_component);
                     }
-                })
-                .fold(Vec::new(), |mut v, (i, d)| {
-                    if let Some(remaining) = clamped.get((i + 1)..clamped.len()) {
-                        let should_include = remaining.iter().all(|c| !c.contains(*d));
-                        if should_include {
-                            v.push(d.to_string());
+                }
+                out
+            },
+        );
+
+        let deduped_len = deduped.len();
+        let merged = deduped.clone().iter_mut().enumerate().fold(
+            Vec::new(),
+            |mut out, (i, cron_component)| {
+                let idx = i + 1;
+                if let Some(remaining) = deduped.get_mut(idx..deduped_len) {
+                    let no_overlap = remaining
+                        .iter()
+                        .all(|other| !other.overlaps(*cron_component));
+                    if no_overlap {
+                        // Push the current cron component
+                        out.push(*cron_component);
+                    } else {
+                        for other in remaining.iter_mut() {
+                            // Check if the cron components overlap
+                            if cron_component.overlaps(*other) {
+                                // Merge the two cron components
+                                let merged = cron_component
+                                    .merge(*other)
+                                    .expect("Should be able to merge");
+                                // Replace the cron component downstream with the merged value
+                                *other = merged;
+                                // Once merged, stop iterating over the remaining cron components
+                                break;
+                            }
                         }
                     }
-                    v
-                })
-                .join(",");
-            filtered_and_deduped
-        }
-    }
+                }
+                out
+            },
+        );
+        merged
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<CronSched>>()
+            .join(",")
+    };
+    cron_sched
 }
 
 impl CronComponent {
@@ -260,6 +305,8 @@ impl CronComponent {
                 // If the range is the set as clamping limits, return `All`.
                 if range == (first, last) {
                     Self::All
+                } else if c == d {
+                    Self::At(c)
                 } else {
                     // Return the range.
                     Self::Range(range)
@@ -269,15 +316,76 @@ impl CronComponent {
     }
 
     /// Determine if inner value includes the argument. Returns `bool`.
+    fn merge(self, other: CronComponent) -> Option<Self> {
+        match self {
+            Self::All => Some(self),
+            Self::At(when) => {
+                match other {
+                    Self::All => Some(Self::All),
+                    Self::At(w) if w == when => Some(self),
+                    Self::Range((a, b)) if (a..=b).contains(&when) => Some(other),
+                    _ => None,
+                }
+            },
+            Self::Range((first, last)) => {
+                match other {
+                    Self::All => Some(Self::All),
+                    Self::At(w) if (first..=last).contains(&w) => Some(self),
+                    Self::Range((a, b))
+                        if (first..=last).contains(&a) || (first..=last).contains(&b) =>
+                    {
+                        Some(Self::Range((min(first, a), max(last, b))))
+                    },
+                    _ => None,
+                }
+            },
+        }
+    }
+
     fn contains(self, other: CronComponent) -> bool {
         match self {
             Self::All => true,
-            Self::At(when) => matches!(other, Self::At(w) if when == w),
+            Self::At(when) => matches!(other, Self::At(w) if w == when),
             Self::Range((first, last)) => {
                 match other {
-                    Self::At(w) if (first..=last).contains(&w) => true,
-                    Self::Range((a, b)) if first <= a && b <= last => true,
-                    _ => false,
+                    Self::All => true,
+                    Self::At(w) => (first..=last).contains(&w),
+                    Self::Range((a, b)) => {
+                        (first..=last).contains(&a) && (first..=last).contains(&b)
+                    },
+                }
+            },
+        }
+    }
+
+    /// Determine if inner value overlaps with the argument. Returns `bool`.
+    /// `CronComponent::Range((a, b))` overlaps with `CronComponent::At(c)` if `a <= c <=
+    /// b`. `CronComponent::At(c)` overlaps with `CronComponent::Range((a, b))` if `a
+    /// <= c <= b`. `CronComponent::At(c)` overlaps with `CronComponent::At(d)` if `c
+    /// == d`. `CronComponent::Range((a, b))` overlaps with `CronComponent::Range((c,
+    /// d))` if `a <= c <= d` and `c <= b <= d`.
+    /// `CronComponent::Range((a, b))` overlaps with `CronComponent::All` if `a <= b`.
+    /// `CronComponent::All` overlaps with `CronComponent::Range((a, b))` if `a <= b`.
+    /// `CronComponent::All` overlaps with `CronComponent::All`.
+    ///
+    /// Returns `bool`.
+    fn overlaps(self, other: CronComponent) -> bool {
+        match self {
+            Self::All => true,
+            Self::At(when) => {
+                match other {
+                    Self::All => true,
+                    Self::At(w) => w == when,
+                    Self::Range((a, b)) => (a..=b).contains(&when),
+                }
+            },
+            Self::Range((first, last)) => {
+                match other {
+                    Self::All => true,
+                    Self::At(w) => (first..=last).contains(&w),
+                    Self::Range((a, b)) => {
+                        (first..=last).contains(&a) || (first..=last).contains(&b)
+                    },
                 }
             },
         }
@@ -298,9 +406,19 @@ impl PartialEq for CronComponent {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Self::All => matches!(other, Self::All),
-            Self::At(when) => matches!(other, Self::At(w) if w == when),
+            Self::At(when) => {
+                match other {
+                    Self::At(w) if w == when => true,
+                    Self::Range((a, b)) if (a..=b).contains(&when) => true,
+                    _ => false,
+                }
+            },
             Self::Range((first, last)) => {
-                matches!(other, Self::Range((a, b)) if first == a && last == b)
+                match other {
+                    Self::At(w) if first == w && last == w => true,
+                    Self::Range((a, b)) if first == a && last == b => true,
+                    _ => false,
+                }
             },
         }
     }
