@@ -18,4 +18,3 @@ rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
 blake2 = { workspace = true }  
 hex-literal = { workspace = true }  
-blake2-rfc = { workspace = true }
