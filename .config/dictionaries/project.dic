@@ -127,6 +127,6 @@ wasmtime
 webasm
 yoroi
 smac
-bamc
+bmac
 typenum
 hasher
