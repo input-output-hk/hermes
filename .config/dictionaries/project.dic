@@ -126,3 +126,7 @@ WASI
 wasmtime
 webasm
 yoroi
+smac
+bamc
+typenum
+hasher
