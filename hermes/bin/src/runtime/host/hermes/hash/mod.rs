@@ -1,7 +1,12 @@
 //! Host - Hash implementations
 #![allow(unused_variables)]
 
-use blake2::digest::{consts::U64, FixedOutput, Update, VariableOutput};
+use blake2::digest::{
+    consts::{U20, U32, U48, U64},
+    generic_array::ArrayLength,
+    typenum::{IsLessOrEqual, LeEq, NonZero},
+    FixedOutput, Update, VariableOutput,
+};
 use blake2::{Blake2bMac, Blake2bVar};
 
 use crate::runtime::extensions::{
@@ -25,7 +30,7 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen = outlen.unwrap_or(64) as usize;
 
-    // outlen is set invalid when == 0
+    // outlen is set, but invalid when == 0
     if outlen == 0 {
         return Err(Errno::InvalidDigestByteLength);
     }
@@ -48,6 +53,21 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     return Ok(Bstr::from(output));
 }
 
+fn blake2bmac<T>(buf: Bstr, key: Bstr, salt: Bstr, persona: Bstr) -> Result<Bstr, Errno>
+where
+    T: ArrayLength<u8> + IsLessOrEqual<U64>,
+    LeEq<T, U64>: NonZero,
+{
+    let mut hasher = match Blake2bMac::<T>::new_with_salt_and_personal(&key, &salt, &persona) {
+        Ok(hasher) => hasher,
+        Err(_) => {
+            return Err(Errno::InvalidLength);
+        },
+    };
+    hasher.update(&buf);
+    return Ok(Bstr::from(hasher.finalize_fixed().to_vec()));
+}
+
 fn blake2bmac_impl(
     buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>, persona: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
@@ -57,26 +77,28 @@ fn blake2bmac_impl(
     if key.len() > outlen {
         return Err(Errno::KeyTooBig);
     }
-    
-    // outlen is set invalid when == 0 or > 64
-    if outlen == 0 {
-        return Err(Errno::InvalidDigestByteLength);
-    } else if outlen > 64 {
+
+    // outlen is set, invalid when > 64
+    // Omit outlen == 0, because it will failed because of key.len() > outlen
+    if outlen > 64 {
         return Err(Errno::HashTooBig);
     }
 
     let salt = salt.unwrap_or_default();
     let persona = persona.unwrap_or_default();
-    // TODO - Fix this hardcode length 
-    let mut hasher = match Blake2bMac::<U64>::new_with_salt_and_personal(&key, &salt, &persona) {
-        Ok(hasher) => hasher,
-        Err(_) => {
-            return Err(Errno::InvalidLength);
-        },
-    };
 
-    hasher.update(&buf);
-    return Ok(Bstr::from(hasher.finalize_fixed().to_vec()));
+    // TODO - I don't think it is possible to pass outlen to Blake2bMac
+    if outlen == 64 {
+        return blake2bmac::<U64>(buf, key, salt, persona);
+    } else if outlen == 32 {
+        return blake2bmac::<U32>(buf, key, salt, persona);
+    } else if outlen == 48 {
+        return blake2bmac::<U48>(buf, key, salt, persona);
+    } else if outlen == 20 {
+        return blake2bmac::<U20>(buf, key, salt, persona);
+    } else {
+        return Err(Errno::UnsupportedOutlen);
+    }
 }
 
 impl Host for HermesState {
@@ -196,4 +218,45 @@ mod tests_blake2b {
     );
     }
 
+    #[test]
+    fn blake2bmac_512_unsupport_outlen_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(10);
+
+        let result = blake2bmac_impl(buf, outlen, key, None, None);
+
+        assert_eq!(result.unwrap_err(), Errno::UnsupportedOutlen)
+    }
+
+    #[test]
+    fn blake2bmac_512_key_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key".repeat(22));
+        let outlen = Some(10);
+
+        let result = blake2bmac_impl(buf, outlen, key, None, None);
+
+        assert_eq!(result.unwrap_err(), Errno::KeyTooBig)
+    }
+
+    #[test]
+    fn blake2bmac_0_outlen_key_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(0);
+
+        let result = blake2bmac_impl(buf, outlen, key, None, None);
+        assert_eq!(result.unwrap_err(), Errno::KeyTooBig)
+    }
+
+    #[test]
+    fn blake2bmac_hash_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(100);
+
+        let result = blake2bmac_impl(buf, outlen, key, None, None);
+        assert_eq!(result.unwrap_err(), Errno::HashTooBig)
+    }
 }
