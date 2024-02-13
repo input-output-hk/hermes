@@ -267,13 +267,12 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
                             // Check if the cron components overlap
                             if cron_component.overlaps(*other) {
                                 // Merge the two cron components
-                                let merged = cron_component
-                                    .merge(*other)
-                                    .expect("Should be able to merge");
-                                // Replace the cron component downstream with the merged value
-                                *other = merged;
-                                // Once merged, stop iterating over the remaining cron components
-                                break;
+                                if let Some(merged) = cron_component.merge(*other) {
+                                    *other = merged;
+                                    // Once merged, stop iterating over the remaining cron
+                                    // components
+                                    break;
+                                }
                             }
                         }
                     }
@@ -486,6 +485,7 @@ impl PartialOrd for CronComponent {
 
 impl Eq for CronComponent {}
 
+#[allow(clippy::expect_used)]
 impl Ord for CronComponent {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other)
