@@ -1,13 +1,15 @@
 //! Host - Hash implementations
 #![allow(unused_variables)]
 
-use blake2::digest::{
-    consts::{U20, U32, U48, U64},
-    generic_array::ArrayLength,
-    typenum::{IsLessOrEqual, LeEq, NonZero},
-    FixedOutput, Update, VariableOutput,
+use blake2::{
+    digest::{
+        consts::{U20, U32, U48, U64},
+        generic_array::ArrayLength,
+        typenum::{IsLessOrEqual, LeEq, NonZero},
+        FixedOutput, Update, VariableOutput,
+    },
+    Blake2bMac, Blake2bVar,
 };
-use blake2::{Blake2bMac, Blake2bVar};
 
 use crate::runtime::extensions::{
     hermes::{
@@ -26,7 +28,8 @@ impl Stateful for State {
     }
 }
 
-fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
+/// Implementation of blake2b given a buffer and outlen.
+fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen = outlen.unwrap_or(64) as usize;
 
@@ -43,33 +46,32 @@ fn blake2b_impl(buf: Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
             return Err(Errno::HashTooBig);
         },
     };
-    hasher.update(&buf);
+    hasher.update(buf);
     match hasher.finalize_variable(&mut output) {
-        Ok(_) => {},
+        Ok(()) => {},
         Err(_) => {
             return Err(Errno::InvalidBufferSize);
         },
     }
-    return Ok(Bstr::from(output));
+    Ok(Bstr::from(output))
 }
 
-fn blake2bmac<T>(buf: Bstr, key: Bstr, salt: Bstr, persona: Bstr) -> Result<Bstr, Errno>
+/// Helper function for `blake2bmac_impl`
+fn blake2bmac<T>(buf: &Bstr, key: &Bstr, salt: &Bstr, persona: &Bstr) -> Result<Bstr, Errno>
 where
     T: ArrayLength<u8> + IsLessOrEqual<U64>,
     LeEq<T, U64>: NonZero,
 {
-    let mut hasher = match Blake2bMac::<T>::new_with_salt_and_personal(&key, &salt, &persona) {
-        Ok(hasher) => hasher,
-        Err(_) => {
-            return Err(Errno::InvalidLength);
-        },
+    let Ok(mut hasher) = Blake2bMac::<T>::new_with_salt_and_personal(key, salt, persona) else {
+        return Err(Errno::InvalidLength);
     };
-    hasher.update(&buf);
-    return Ok(Bstr::from(hasher.finalize_fixed().to_vec()));
+    hasher.update(buf);
+    Ok(Bstr::from(hasher.finalize_fixed().to_vec()))
 }
 
+/// Implementation of blake2bmac given a buffer, outlen, key, salt, and persona.
 fn blake2bmac_impl(
-    buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>, persona: Option<Bstr>,
+    buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, persona: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen = outlen.unwrap_or(64) as usize;
@@ -89,16 +91,15 @@ fn blake2bmac_impl(
 
     // TODO - I don't think it is possible to pass outlen to Blake2bMac
     if outlen == 64 {
-        return blake2bmac::<U64>(buf, key, salt, persona);
+        return blake2bmac::<U64>(buf, key, &salt, &persona);
     } else if outlen == 32 {
-        return blake2bmac::<U32>(buf, key, salt, persona);
+        return blake2bmac::<U32>(buf, key, &salt, &persona);
     } else if outlen == 48 {
-        return blake2bmac::<U48>(buf, key, salt, persona);
+        return blake2bmac::<U48>(buf, key, &salt, &persona);
     } else if outlen == 20 {
-        return blake2bmac::<U20>(buf, key, salt, persona);
-    } else {
-        return Err(Errno::UnsupportedOutlen);
+        return blake2bmac::<U20>(buf, key, &salt, &persona);
     }
+    Err(Errno::UnsupportedOutlen)
 }
 
 impl Host for HermesState {
@@ -117,7 +118,7 @@ impl Host for HermesState {
 
     /// Hash a binary buffer with `BLAKE2b`
     fn blake2b(&mut self, buf: Bstr, outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
-        let hash = blake2b_impl(buf, outlen);
+        let hash = blake2b_impl(&buf, outlen);
         match hash {
             Ok(hash) => Ok(Ok(hash)),
             Err(err) => Err(err.into()),
@@ -129,7 +130,7 @@ impl Host for HermesState {
         &mut self, buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>,
         persona: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        let hash = blake2bmac_impl(buf, outlen, key, salt, persona);
+        let hash = blake2bmac_impl(&buf, outlen, &key, salt, persona);
         match hash {
             Ok(hash) => Ok(Ok(hash)),
             Err(err) => Err(err.into()),
@@ -146,15 +147,16 @@ impl Host for HermesState {
 
 #[cfg(test)]
 mod tests_blake2b {
-    use super::*;
     use hex_literal::hex;
+
+    use super::*;
 
     #[test]
     fn blake2b_512() {
         let buf = Bstr::from("test test");
         let outlen = Some(64);
 
-        let result = blake2b_impl(buf, outlen).expect("Failed to hash blake2b-512");
+        let result = blake2b_impl(&buf, outlen).expect("Failed to hash blake2b-512");
 
         assert_eq!(
             result.as_ref(),
@@ -167,7 +169,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(32);
 
-        let result = blake2b_impl(buf, outlen).expect("Failed to hash blake2b-256");
+        let result = blake2b_impl(&buf, outlen).expect("Failed to hash blake2b-256");
 
         assert_eq!(
             result.as_ref(),
@@ -178,7 +180,7 @@ mod tests_blake2b {
     fn blake2b_512_with_default_outlen() {
         let buf = Bstr::from("test test");
 
-        let result = blake2b_impl(buf, None).expect("Failed to hash blake2b-512 default outlen");
+        let result = blake2b_impl(&buf, None).expect("Failed to hash blake2b-512 default outlen");
 
         assert_eq!(
             result.as_ref(),
@@ -191,8 +193,8 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(0);
 
-        let result = blake2b_impl(buf, outlen);
-        assert_eq!(result.unwrap_err(), Errno::InvalidDigestByteLength)
+        let result =
+            blake2b_impl(&buf, outlen).expect_err(Errno::InvalidDigestByteLength.message());
     }
 
     #[test]
@@ -200,8 +202,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(100);
 
-        let result = blake2b_impl(buf, outlen);
-        assert_eq!(result.unwrap_err(), Errno::HashTooBig)
+        let result = blake2b_impl(&buf, outlen).expect_err(Errno::HashTooBig.message());
     }
     #[test]
     fn blake2bmac_512() {
@@ -210,7 +211,7 @@ mod tests_blake2b {
         let outlen = Some(64);
 
         let result =
-            blake2bmac_impl(buf, outlen, key, None, None).expect("Failed to hash blake2bmac-512");
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect("Failed to hash blake2bmac-512");
 
         assert_eq!(
         result.as_ref(),
@@ -224,9 +225,8 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(10);
 
-        let result = blake2bmac_impl(buf, outlen, key, None, None);
-
-        assert_eq!(result.unwrap_err(), Errno::UnsupportedOutlen)
+        let result = blake2bmac_impl(&buf, outlen, &key, None, None)
+            .expect_err(Errno::UnsupportedOutlen.message());
     }
 
     #[test]
@@ -235,9 +235,8 @@ mod tests_blake2b {
         let key = Bstr::from("key".repeat(22));
         let outlen = Some(10);
 
-        let result = blake2bmac_impl(buf, outlen, key, None, None);
-
-        assert_eq!(result.unwrap_err(), Errno::KeyTooBig)
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
     }
 
     #[test]
@@ -246,8 +245,8 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(0);
 
-        let result = blake2bmac_impl(buf, outlen, key, None, None);
-        assert_eq!(result.unwrap_err(), Errno::KeyTooBig)
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
     }
 
     #[test]
@@ -256,7 +255,7 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(100);
 
-        let result = blake2bmac_impl(buf, outlen, key, None, None);
-        assert_eq!(result.unwrap_err(), Errno::HashTooBig)
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::HashTooBig.message());
     }
 }
