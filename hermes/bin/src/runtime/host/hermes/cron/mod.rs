@@ -1,29 +1,37 @@
 //! Host - Cron implementations
+#![allow(unused_variables)]
 
 use std::{
     cmp::{max, min},
+    collections::HashMap,
     fmt::{Display, Formatter},
 };
 
-use crate::{
-    runtime::extensions::{
-        bindings::{
-            hermes::cron::api::{
-                CronComponent, CronEventTag, CronSched, CronTagged, CronTime, Host,
-            },
-            wasi::clocks::monotonic_clock::Instant,
-        },
-        state::{Context, Stateful},
-    },
-    state::HermesState,
+use crate::runtime::extensions::{
+    hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime, Host},
+    wasi::clocks::monotonic_clock::Instant,
+    HermesState, Stateful,
 };
 
+/// A crontab entry.
+struct CronTab {
+    /// The crontab entry.
+    entry: CronTagged,
+    /// When the event triggers.
+    retrigger: bool,
+}
+
 /// State
-pub(crate) struct State {}
+pub(crate) struct State {
+    /// The crontabs hash map.
+    crontabs: HashMap<CronEventTag, CronTab>,
+}
 
 impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        State {}
+    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+        State {
+            crontabs: HashMap::new(),
+        }
     }
 }
 
@@ -52,8 +60,12 @@ impl Host for HermesState {
     /// If the crontab entry already exists, the retrigger flag can be changed by calling
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
-    fn add(&mut self, _entry: CronTagged, _retrigger: bool) -> wasmtime::Result<bool> {
-        todo!()
+    fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
+        self.hermes
+            .cron
+            .crontabs
+            .insert(entry.tag.clone(), CronTab { entry, retrigger });
+        Ok(true)
     }
 
     /// # Schedule A Single cron event after a fixed delay.
@@ -79,7 +91,7 @@ impl Host for HermesState {
     /// It is added as a non-retriggering event.
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
-    fn delay(&mut self, _duration: Instant, _tag: CronEventTag) -> wasmtime::Result<bool> {
+    fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
         todo!()
     }
 
@@ -100,8 +112,21 @@ impl Host for HermesState {
     /// may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
-    fn ls(&mut self, _tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
-        todo!()
+    fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
+        if let Some(tag) = tag {
+            match self.hermes.cron.crontabs.get(&tag) {
+                Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
+                None => Ok(vec![]),
+            }
+        } else {
+            Ok(self
+                .hermes
+                .cron
+                .crontabs
+                .values()
+                .map(|cron| (cron.entry.clone(), cron.retrigger))
+                .collect())
+        }
     }
 
     /// # Remove the requested crontab.
@@ -117,8 +142,11 @@ impl Host for HermesState {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm(&mut self, _entry: CronTagged) -> wasmtime::Result<bool> {
-        todo!()
+    fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
+        match self.hermes.cron.crontabs.remove(&entry.tag) {
+            Some(_) => Ok(true),
+            None => Ok(false),
+        }
     }
 
     /// # Make a crontab entry from individual time values.
@@ -148,8 +176,7 @@ impl Host for HermesState {
     /// - For example specifying a `month` as `3` and `2-4` will
     /// remove the individual month and only produce the range.
     fn mkcron(
-        &mut self, _dow: CronTime, _month: CronTime, _day: CronTime, _hour: CronTime,
-        _minute: CronTime,
+        &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
         let dow_schedule: CronSched =
             cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
@@ -342,6 +369,7 @@ impl CronComponent {
         }
     }
 
+    /// Determine if inner value includes the argument. Returns `bool`.
     fn contains(self, other: CronComponent) -> bool {
         match self {
             Self::All => true,
@@ -359,16 +387,6 @@ impl CronComponent {
     }
 
     /// Determine if inner value overlaps with the argument. Returns `bool`.
-    /// `CronComponent::Range((a, b))` overlaps with `CronComponent::At(c)` if `a <= c <=
-    /// b`. `CronComponent::At(c)` overlaps with `CronComponent::Range((a, b))` if `a
-    /// <= c <= b`. `CronComponent::At(c)` overlaps with `CronComponent::At(d)` if `c
-    /// == d`. `CronComponent::Range((a, b))` overlaps with `CronComponent::Range((c,
-    /// d))` if `a <= c <= d` and `c <= b <= d`.
-    /// `CronComponent::Range((a, b))` overlaps with `CronComponent::All` if `a <= b`.
-    /// `CronComponent::All` overlaps with `CronComponent::Range((a, b))` if `a <= b`.
-    /// `CronComponent::All` overlaps with `CronComponent::All`.
-    ///
-    /// Returns `bool`.
     fn overlaps(self, other: CronComponent) -> bool {
         match self {
             Self::All => true,
