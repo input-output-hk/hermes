@@ -9,11 +9,20 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+bench = ["dep:criterion"]
+
 [lints]
 workspace = true
+
+[[bench]]
+name = "module"
+harness = false
+required-features = ["bench"]
 
 [dependencies]
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+criterion = { workspace = true, optional = true }
