@@ -220,7 +220,7 @@ mod tests_blake2b {
     }
 
     #[test]
-    fn blake2bmac_512_unsupport_outlen_err() {
+    fn blake2bmac_512_unsupported_outlen_err() {
         let buf = Bstr::from("test test");
         let key = Bstr::from("key");
         let outlen = Some(10);
