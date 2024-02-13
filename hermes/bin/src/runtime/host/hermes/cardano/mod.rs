@@ -1,19 +1,21 @@
 //! Host - Cardano Blockchain implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::cardano::api::{
-        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
-        UnsubscribeOptions,
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::cardano::api::{
+            CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
+            UnsubscribeOptions,
+        },
+        state::{Context, Stateful},
     },
-    HermesState, Stateful,
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
@@ -47,7 +49,7 @@ impl Host for HermesState {
     /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
     /// unsubscribed.
     fn subscribe_blocks(
-        &mut self, net: CardanoBlockchainId, whence: Slot,
+        &mut self, _net: CardanoBlockchainId, _whence: Slot,
     ) -> wasmtime::Result<Result<u64, FetchError>> {
         todo!()
     }
@@ -72,7 +74,7 @@ impl Host for HermesState {
     /// the last block received.  This would result in the last block being sent as an
     /// event twice,
     /// once before the `stop` and once after the `continue`.
-    fn unsubscribe(&mut self, events: UnsubscribeOptions) -> wasmtime::Result<()> {
+    fn unsubscribe(&mut self, _events: UnsubscribeOptions) -> wasmtime::Result<()> {
         todo!()
     }
 
@@ -82,7 +84,7 @@ impl Host for HermesState {
     /// **Parameters**
     ///
     /// - `net` : The blockchain network to subscribe to txn events from.
-    fn subscribe_txn(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+    fn subscribe_txn(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
         todo!()
     }
 
@@ -99,7 +101,7 @@ impl Host for HermesState {
     /// data from the rollback point.  No action is required to actually follow the
     /// rollback, unless the
     /// default behavior is not desired.
-    fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+    fn subscribe_rollback(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
         todo!()
     }
 
@@ -124,7 +126,7 @@ impl Host for HermesState {
     /// parallel
     /// to automated block fetch.
     fn fetch_block(
-        &mut self, net: CardanoBlockchainId, whence: Slot,
+        &mut self, _net: CardanoBlockchainId, _whence: Slot,
     ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
         todo!()
     }
@@ -146,7 +148,7 @@ impl Host for HermesState {
     /// This function exists to support `fetch-block`.
     /// Transactions from subscribed block events, should be processed as transaction
     /// events.
-    fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
+    fn get_txns(&mut self, _block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
         todo!()
     }
 
@@ -168,7 +170,7 @@ impl Host for HermesState {
     /// This is proposed functionality, and is not yet active.
     /// All calls to this function will return `post-txn-not-allowed` error.
     fn post_txn(
-        &mut self, net: CardanoBlockchainId, txn: CardanoTxn,
+        &mut self, _net: CardanoBlockchainId, _txn: CardanoTxn,
     ) -> wasmtime::Result<Result<(), TxnError>> {
         todo!()
     }

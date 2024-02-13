@@ -1,13 +1,18 @@
 //! Host - CBOR implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{hermes::cbor::api::Host, HermesState, Stateful};
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::cbor::api::Host,
+        state::{Context, Stateful},
+    },
+    state::HermesState,
+};
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }

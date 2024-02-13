@@ -1,12 +1,18 @@
 //! Insecure RNG
 
-use crate::runtime::extensions::{wasi::random::insecure_seed::Host, HermesState, Stateful};
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::random::insecure_seed::Host,
+        state::{Context, Stateful},
+    },
+    state::HermesState,
+};
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

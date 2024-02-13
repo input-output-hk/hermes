@@ -1,5 +1,7 @@
 //! Runtime modules - extensions - WASI standard extensions
 
+use crate::runtime::extensions::state::{Context, Stateful};
+
 pub(crate) mod cli;
 pub(crate) mod clocks;
 pub(crate) mod filesystem;
@@ -7,34 +9,31 @@ pub(crate) mod http;
 pub(crate) mod io;
 pub(crate) mod random;
 
-use crate::runtime::extensions::Stateful;
-
-#[allow(dead_code)]
 /// WASI State
 pub(crate) struct State {
     /// WASI CLI State
-    cli: cli::State,
+    _cli: cli::State,
     /// WASI Clock State
-    clocks: clocks::State,
+    _clocks: clocks::State,
     /// WASI Filesystem State
-    filesystem: filesystem::State,
+    _filesystem: filesystem::State,
     /// WASI HTTP State
-    http: http::State,
+    _http: http::State,
     /// WASI IO State
-    io: io::State,
+    _io: io::State,
     /// WASI Random State
-    random: random::State,
+    _random: random::State,
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
-            cli: cli::State::new(ctx),
-            clocks: clocks::State::new(ctx),
-            filesystem: filesystem::State::new(ctx),
-            http: http::State::new(ctx),
-            io: io::State::new(ctx),
-            random: random::State::new(ctx),
+            _cli: cli::State::new(ctx),
+            _clocks: clocks::State::new(ctx),
+            _filesystem: filesystem::State::new(ctx),
+            _http: http::State::new(ctx),
+            _io: io::State::new(ctx),
+            _random: random::State::new(ctx),
         }
     }
 }

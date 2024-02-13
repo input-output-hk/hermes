@@ -1,22 +1,24 @@
 //! Host - Crypto implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::{
-        binary::api::Bstr,
-        crypto::api::{
-            Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
-            Host, HostEd25519Bip32,
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::{
+            binary::api::Bstr,
+            crypto::api::{
+                Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
+                Host, HostEd25519Bip32,
+            },
         },
+        state::{Context, Stateful},
     },
-    HermesState, Stateful,
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
@@ -28,14 +30,14 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
     fn new(
-        &mut self, private_key: Option<Ed25519Bip32PrivateKey>,
+        &mut self, _private_key: Option<Ed25519Bip32PrivateKey>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         todo!()
     }
 
     /// Get the public key for this private key.
     fn public_key(
-        &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>,
+        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<Ed25519Bip32PublicKey> {
         todo!()
     }
@@ -46,7 +48,7 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// - `data` : The data to sign.
     fn sign_data(
-        &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
+        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>, _data: Bstr,
     ) -> wasmtime::Result<Ed25519Bip32Signature> {
         todo!()
     }
@@ -63,8 +65,8 @@ impl HostEd25519Bip32 for HermesState {
     /// - `true` : Signature checked OK.
     /// - `false` : Signature check failed.
     fn check_sig(
-        &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
-        sig: Ed25519Bip32Signature,
+        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>, _data: Bstr,
+        _sig: Ed25519Bip32Signature,
     ) -> wasmtime::Result<bool> {
         todo!()
     }
@@ -73,7 +75,7 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// Note: uses BIP32 HD key derivation.
     fn derive(
-        &mut self, self_: wasmtime::component::Resource<Ed25519Bip32>,
+        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         todo!()
     }
@@ -86,7 +88,7 @@ impl HostEd25519Bip32 for HermesState {
         todo!()
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Ed25519Bip32>) -> wasmtime::Result<()> {
+    fn drop(&mut self, _rep: wasmtime::component::Resource<Ed25519Bip32>) -> wasmtime::Result<()> {
         todo!()
     }
 }

@@ -1,15 +1,18 @@
 //! Host - WASI - Wall Clock implementations
 
-use crate::runtime::extensions::{
-    wasi::clocks::wall_clock::{Datetime, Host},
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::clocks::wall_clock::{Datetime, Host},
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

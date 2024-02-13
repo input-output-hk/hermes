@@ -1,12 +1,18 @@
 //! Random RNG
 
-use crate::runtime::extensions::{wasi::random::random::Host, HermesState, Stateful};
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::random::random::Host,
+        state::{Context, Stateful},
+    },
+    state::HermesState,
+};
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }
@@ -25,7 +31,7 @@ impl Host for HermesState {
     /// This function must always return fresh data. Deterministic environments
     /// must omit this function, rather than implementing it with deterministic
     /// data.
-    fn get_random_bytes(&mut self, len: u64) -> wasmtime::Result<Vec<u8>> {
+    fn get_random_bytes(&mut self, _len: u64) -> wasmtime::Result<Vec<u8>> {
         todo!()
     }
 
