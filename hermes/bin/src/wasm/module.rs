@@ -141,6 +141,66 @@ pub mod bench {
             module.execute_event(&Event).unwrap();
         });
     }
+
+    pub fn module_small_component_bench(b: &mut criterion::Bencher) {
+        let wat = r#"
+            (component
+                (core module $Module
+                    (export "foo" (func $foo))
+                    (func $foo (result i32)
+                        i32.const 1
+                    )
+                )
+                (core instance $module (instantiate (module $Module)))
+                (func $foo (result s32) (canon lift (core func $module "foo")))
+                (export "foo" (func $foo))
+            )"#;
+
+        let engine = Engine::new().unwrap();
+        let module = WasmModule::new(&engine, wat.as_bytes()).unwrap();
+        let linker = WasmLinker::new(&engine);
+        let pre_instance = linker.instantiate_pre(&module).unwrap();
+
+        b.iter(|| {
+            let mut store = WasmStore::new(&engine, ());
+            let instance = pre_instance.instantiate(&mut store).unwrap();
+            let func = instance
+                .get_typed_func::<(), (i32,)>(&mut store, "foo")
+                .unwrap();
+            let (res,) = func.call(&mut store, ()).unwrap();
+            assert_eq!(res, 1);
+        });
+    }
+
+    pub fn module_small_component_full_pre_load_bench(b: &mut criterion::Bencher) {
+        let wat = r#"
+            (component
+                (core module $Module
+                    (export "foo" (func $foo))
+                    (func $foo (result i32)
+                        i32.const 1
+                    )
+                )
+                (core instance $module (instantiate (module $Module)))
+                (func $foo (result s32) (canon lift (core func $module "foo")))
+                (export "foo" (func $foo))
+            )"#;
+
+        let engine = Engine::new().unwrap();
+        let module = WasmModule::new(&engine, wat.as_bytes()).unwrap();
+        let linker = WasmLinker::new(&engine);
+        let mut store = WasmStore::new(&engine, ());
+        let instance = linker.instantiate(&mut store, &module).unwrap();
+        let func = instance
+            .get_typed_func::<(), (i32,)>(&mut store, "foo")
+            .unwrap();
+
+        b.iter(|| {
+            let (res,) = func.call(&mut store, ()).unwrap();
+            assert_eq!(res, 1);
+            func.post_return(&mut store).unwrap();
+        });
+    }
 }
 
 #[cfg(test)]
