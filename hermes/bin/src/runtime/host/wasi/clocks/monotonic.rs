@@ -1,16 +1,18 @@
 //! Host - WASI - monotonic clock implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    wasi::clocks::monotonic_clock::{Duration, Host, Instant},
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }

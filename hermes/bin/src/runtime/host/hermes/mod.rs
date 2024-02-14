@@ -1,5 +1,7 @@
 //! Runtime modules - extensions - HERMES custom extensions
 
+use crate::runtime::extensions::state::{Context, Stateful};
+
 pub(crate) mod binary;
 pub(crate) mod cardano;
 pub(crate) mod cbor;
@@ -12,49 +14,46 @@ pub(crate) mod kv_store;
 pub(crate) mod localtime;
 pub(crate) mod logging;
 
-use crate::runtime::extensions::Stateful;
-
-#[allow(dead_code)]
 /// Hermes extensions state
 pub(crate) struct State {
     /// Binary extensions state
-    binary: binary::State,
+    _binary: binary::State,
     /// Cardano extensions state
-    cardano: cardano::State,
+    _cardano: cardano::State,
     /// CBOR extensions state
-    cbor: cbor::State,
+    _cbor: cbor::State,
     /// Cron extensions state
-    cron: cron::State,
+    _cron: cron::State,
     /// Crypto extensions state
-    crypto: crypto::State,
+    _crypto: crypto::State,
     /// Hash extensions state
-    hash: hash::State,
+    _hash: hash::State,
     /// Init extensions state
-    init: init::State,
+    _init: init::State,
     /// JSON extensions state
-    json: json::State,
+    _json: json::State,
     /// KV store extensions state
-    kv_store: kv_store::State,
+    _kv_store: kv_store::State,
     /// Localtime extensions state
-    localtime: localtime::State,
+    _localtime: localtime::State,
     /// Logging extensions state
-    logging: logging::State,
+    _logging: logging::State,
 }
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(ctx: &Context) -> Self {
         Self {
-            binary: binary::State::new(ctx),
-            cardano: cardano::State::new(ctx),
-            cbor: cbor::State::new(ctx),
-            cron: cron::State::new(ctx),
-            crypto: crypto::State::new(ctx),
-            hash: hash::State::new(ctx),
-            init: init::State::new(ctx),
-            json: json::State::new(ctx),
-            kv_store: kv_store::State::new(ctx),
-            localtime: localtime::State::new(ctx),
-            logging: logging::State::new(ctx),
+            _binary: binary::State::new(ctx),
+            _cardano: cardano::State::new(ctx),
+            _cbor: cbor::State::new(ctx),
+            _cron: cron::State::new(ctx),
+            _crypto: crypto::State::new(ctx),
+            _hash: hash::State::new(ctx),
+            _init: init::State::new(ctx),
+            _json: json::State::new(ctx),
+            _kv_store: kv_store::State::new(ctx),
+            _localtime: localtime::State::new(ctx),
+            _logging: logging::State::new(ctx),
         }
     }
 }

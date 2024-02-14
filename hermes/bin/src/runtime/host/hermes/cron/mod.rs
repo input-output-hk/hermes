@@ -1,17 +1,21 @@
 //! Host - Cron implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-    wasi::clocks::monotonic_clock::Instant,
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::{
+            hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+            wasi::clocks::monotonic_clock::Instant,
+        },
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
@@ -41,7 +45,7 @@ impl Host for HermesState {
     /// If the crontab entry already exists, the retrigger flag can be changed by calling
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
-    fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
+    fn add(&mut self, _entry: CronTagged, _retrigger: bool) -> wasmtime::Result<bool> {
         todo!()
     }
 
@@ -68,7 +72,7 @@ impl Host for HermesState {
     /// It is added as a non-retriggering event.
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
-    fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
+    fn delay(&mut self, _duration: Instant, _tag: CronEventTag) -> wasmtime::Result<bool> {
         todo!()
     }
 
@@ -89,7 +93,7 @@ impl Host for HermesState {
     /// may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
-    fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
+    fn ls(&mut self, _tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
         todo!()
     }
 
@@ -106,7 +110,7 @@ impl Host for HermesState {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
+    fn rm(&mut self, _entry: CronTagged) -> wasmtime::Result<bool> {
         todo!()
     }
 
@@ -137,7 +141,8 @@ impl Host for HermesState {
     /// - For example specifying a `month` as `3` and `2-4` will
     /// remove the individual month and only produce the range.
     fn mkcron(
-        &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
+        &mut self, _dow: CronTime, _month: CronTime, _day: CronTime, _hour: CronTime,
+        _minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
         todo!()
     }

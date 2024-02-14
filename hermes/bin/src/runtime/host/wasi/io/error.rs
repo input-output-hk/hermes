@@ -1,16 +1,18 @@
 //! WASI IO Error
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    wasi::io::error::{Error, Host, HostError},
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::io::error::{Error, Host, HostError},
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }
@@ -24,12 +26,12 @@ impl HostError for HermesState {
     /// details. Parsing this string is a major platform-compatibility
     /// hazard.
     fn to_debug_string(
-        &mut self, self_: wasmtime::component::Resource<Error>,
+        &mut self, _rep: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<String> {
         todo!()
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Error>) -> wasmtime::Result<()> {
+    fn drop(&mut self, _rep: wasmtime::component::Resource<Error>) -> wasmtime::Result<()> {
         todo!()
     }
 }

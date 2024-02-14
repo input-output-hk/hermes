@@ -1,19 +1,21 @@
 //! Host - Logging implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::{
-        json::api::Json,
-        logging::api::{Host, Level},
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::{
+            json::api::Json,
+            logging::api::{Host, Level},
+        },
+        state::{Context, Stateful},
     },
-    HermesState, Stateful,
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
@@ -65,8 +67,8 @@ impl Host for HermesState {
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be
     /// considered independent logs.
     fn log(
-        &mut self, level: Level, file: Option<String>, fn_: Option<String>, line: Option<u32>,
-        col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
+        &mut self, _level: Level, _file: Option<String>, _fn_: Option<String>, _line: Option<u32>,
+        _col: Option<u32>, _ctx: Option<String>, _msg: String, _data: Option<Json>,
     ) -> wasmtime::Result<()> {
         todo!()
     }

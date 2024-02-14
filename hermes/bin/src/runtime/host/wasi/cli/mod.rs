@@ -1,19 +1,21 @@
 //! Host - WASI - CLI implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    wasi::{
-        cli,
-        io::streams::{InputStream, OutputStream},
+use crate::{
+    runtime::extensions::{
+        bindings::wasi::{
+            cli,
+            io::streams::{InputStream, OutputStream},
+        },
+        state::{Context, Stateful},
     },
-    HermesState, Stateful,
+    state::HermesState,
 };
 
 /// WASI State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         Self {}
     }
 }
