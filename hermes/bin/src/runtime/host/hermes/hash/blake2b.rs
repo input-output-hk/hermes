@@ -7,7 +7,7 @@ use crate::runtime::extensions::bindings::hermes::{binary::api::Bstr, hash::api:
 /// Implementation of blake2b given a buffer and outlen.
 pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
-    let outlen = outlen.unwrap_or(64) as usize;
+    let outlen: usize = outlen.unwrap_or(64).into();
 
     // outlen is set, but invalid when == 0
     if outlen == 0 {
@@ -21,15 +21,15 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
         .update(buf)
         .finalize();
 
-    return Ok(Bstr::from(hash.as_bytes()));
+    return Ok(hash.as_bytes().into());
 }
 
 /// Implementation of blake2bmac given a buffer, outlen, key, salt, and persona.
 pub(crate) fn blake2bmac_impl(
     buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
-    // Default to 64 bytes Blake2b-512
-    let outlen = outlen.unwrap_or(64) as usize;
+    // Default to 64 bytes Blake2bMac-512
+    let outlen: usize = outlen.unwrap_or(64).into();
 
     if key.len() > outlen {
         return Err(Errno::KeyTooBig);
@@ -64,7 +64,7 @@ pub(crate) fn blake2bmac_impl(
         .update(buf)
         .finalize();
 
-    return Ok(Bstr::from(hash.as_bytes()));
+    return Ok(hash.as_bytes().into());
 }
 
 #[cfg(test)]
