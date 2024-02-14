@@ -198,23 +198,42 @@ impl Host for HermesState {
     }
 }
 
-/// Returns the `CronSched` with silently clamping values within the `min_val`..=`max_val`
-/// range.
+/// Convert a `CronTime` to a `CronSched`.
+///
+/// Silently clamps values, removes duplicates, and ensures that range values are
+/// in the right order: `first <= last`.
+/// If the `CronTime` contains no components, returns `*`.
+/// If the `CronTime` contains `CronComponent::All`, returns `*`.
+/// If the `CronTime` contains `CronComponent::Range(first, last)`, returns `*`.
+/// If the `CronTime` contains overlapping components, it merges them.
 ///
 /// Example:
 ///
 /// ```
 /// use hermes::runtime::host::hermes::cron::{cron_time_to_cron_sched, CronComponent};
 ///
-/// let mut cron_time = vec![
+/// let cron_time = vec![
 ///     CronComponent::All,
 ///     CronComponent::Range((2, 4)),
 ///     CronComponent::At(5),
 /// ];
-/// cron_time.sort();
+///
 /// let dow_schedule =
 ///     cron_time_to_cron_sched(&cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
 /// assert_eq!(dow_schedule, "*");
+///
+/// let cron_time = vec![
+///     CronComponent::Range((2, 4)),
+///     CronComponent::At(5),
+///     CronComponent::Range((6, 7)),
+///     CronComponent::At(8),
+///     CronComponent::Range((9, 10)),
+///     CronComponent::At(11),
+/// ];
+///
+/// let dow_schedule =
+///     cron_time_to_cron_sched(&cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
+/// assert_eq!(dow_schedule, "5,8,11,2-4,6-7,9-10");
 /// ```
 fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
     // If vec has no components or if it includes `CronComponent::All`, skip processing and
