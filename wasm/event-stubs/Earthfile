@@ -1,5 +1,7 @@
 VERSION 0.7
 
+# cspell: words wasi autodrop webassembly WORKDIR CFLAGS
+
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 

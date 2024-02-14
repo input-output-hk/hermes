@@ -1,3 +1,5 @@
+// cspell: words wasi WASI bstr CBOR cbor cardano Cardano
+
 #include "hermes.h"
 
 int main(int argc, char *argv[]) {
