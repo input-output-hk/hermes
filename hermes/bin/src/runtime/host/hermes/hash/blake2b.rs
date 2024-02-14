@@ -57,8 +57,8 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
 ///
 /// **Notes**
 /// - When blake2b is keyed, blake2b becomes a MAC (Message Authentication Code) mode.
-/// - `salt` is an arbitary string of 16 bytes for blake2b.
-/// - `personal` is an arbitary string of 16 bytes for blake2b.
+/// - `salt` is an arbitrary string of 16 bytes for blake2b.
+/// - `personal` is an arbitrary string of 16 bytes for blake2b.
 pub(crate) fn blake2bmac_impl(
     buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
