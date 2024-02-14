@@ -94,7 +94,7 @@ impl Module {
     /// # Errors
     /// - `BadModuleError`
     #[allow(dead_code)]
-    pub(crate) fn execute_event(&mut self, event: &impl HermesEventPayload) -> anyhow::Result<()> {
+    pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
         let state = HermesState::new(&self.context);
 
