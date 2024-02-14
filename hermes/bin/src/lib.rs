@@ -4,6 +4,6 @@
 mod event_queue;
 #[allow(missing_docs, clippy::missing_docs_in_private_items, dead_code)]
 mod reactor;
-mod runtime;
+mod runtime_extensions;
 mod state;
 mod wasm;

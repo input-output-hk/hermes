@@ -1,6 +1,6 @@
 //! Hermes state implementation.
 
-use crate::runtime::{
+use crate::runtime_extensions::{
     extensions::state::{Context, Stateful},
     host::{hermes, wasi},
 };
