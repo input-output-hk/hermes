@@ -1,0 +1,16 @@
+build-c-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit
+
+    SAVE ARTIFACT ./hermes.h
+
+build-c-wasm:
+    FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-21
+    WORKDIR /repo
+    COPY . .
+    COPY +build-c-bindings/hermes.h ./
+
+    RUN $CC my-component.c -o out.wasm $CFLAGS
+
+    SAVE ARTIFACT /repo repo
