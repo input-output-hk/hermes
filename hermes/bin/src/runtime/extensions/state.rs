@@ -1,4 +1,4 @@
-//! WASM module's context implementation.
+//! Hermes runtime extensions state.
 
 use rusty_ulid::Ulid;
 
@@ -31,8 +31,8 @@ impl Context {
     }
 
     /// Increments the module's execution counter and sets the event name to be executed
-    pub(crate) fn use_for(&mut self, even_name: String) {
-        self.event_name = Some(even_name);
+    pub(crate) fn use_for(&mut self, event_name: String) {
+        self.event_name = Some(event_name);
         self.counter += 1;
     }
 
@@ -59,4 +59,10 @@ impl Context {
     pub(crate) fn counter(&self) -> u64 {
         self.counter
     }
+}
+
+/// All Hermes runtime extensions states need to implement this.
+pub(crate) trait Stateful {
+    /// Initial state for the given context
+    fn new(ctx: &Context) -> Self;
 }

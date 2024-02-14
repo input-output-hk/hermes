@@ -1,16 +1,18 @@
 //! Host - KV-Store implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::kv_store::api::{Host, KvValues},
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::kv_store::api::{Host, KvValues},
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// State
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
@@ -18,14 +20,14 @@ impl Stateful for State {
 impl Host for HermesState {
     /// Set a value in the local key-value store
     /// Setting None will cause the Key to be deleted from the KV store.
-    fn kv_set(&mut self, key: String, value: Option<KvValues>) -> wasmtime::Result<()> {
+    fn kv_set(&mut self, _key: String, _value: Option<KvValues>) -> wasmtime::Result<()> {
         todo!()
     }
 
     /// Get a value from the local key-value store
     /// Returns the default if not set.
     fn kv_get_default(
-        &mut self, key: String, default: Option<KvValues>,
+        &mut self, _key: String, _default: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
@@ -33,14 +35,14 @@ impl Host for HermesState {
     /// Get a value from the local key-value store
     /// Returns None if the Key does not exist in the KV Store.
     /// This is a convenience function, and is equivalent to `kv-get-default(key, none)`
-    fn kv_get(&mut self, key: String) -> wasmtime::Result<Option<KvValues>> {
+    fn kv_get(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
 
     /// Get a value, and then set it (Atomic)
     /// Setting None will cause the Key to be deleted from the KV store.
     fn kv_get_set(
-        &mut self, key: String, value: Option<KvValues>,
+        &mut self, _key: String, _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
@@ -62,7 +64,7 @@ impl Host for HermesState {
     /// concatenated
     /// Note: There will be no spaces added.  So "My string" + u32(77) = "My string77"
     fn kv_add(
-        &mut self, key: String, value: Option<KvValues>,
+        &mut self, _key: String, _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
@@ -74,7 +76,7 @@ impl Host for HermesState {
     /// equivalent.
     /// For example: `u64(7) != s64(7)`, `float64(-1) != s64(-1)`.
     fn kv_cas(
-        &mut self, key: String, test: Option<KvValues>, value: Option<KvValues>,
+        &mut self, _key: String, _test: Option<KvValues>, _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
@@ -82,7 +84,7 @@ impl Host for HermesState {
     /// Subscribe to any updates made to a particular Key.
     /// After this call, this module will receive Key Update events when a key is written.
     /// It returns the current value of the Key and None if it is not set.
-    fn kv_subscribe(&mut self, key: String) -> wasmtime::Result<Option<KvValues>> {
+    fn kv_subscribe(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
 
@@ -90,7 +92,7 @@ impl Host for HermesState {
     /// After this call, this module will no longer receive Key Update events when a key
     /// is written.
     /// It returns the current value of the Key and None if it is not set.
-    fn kv_unsubscribe(&mut self, key: String) -> wasmtime::Result<Option<KvValues>> {
+    fn kv_unsubscribe(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
         todo!()
     }
 }

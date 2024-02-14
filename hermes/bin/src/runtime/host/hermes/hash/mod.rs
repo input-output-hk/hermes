@@ -1,12 +1,14 @@
 //! Host - Hash implementations
-#![allow(unused_variables)]
 
-use crate::runtime::extensions::{
-    hermes::{
-        binary::api::Bstr,
-        hash::api::{Errno, Host},
+use crate::{
+    runtime::extensions::{
+        bindings::hermes::{
+            binary::api::Bstr,
+            hash::api::{Errno, Host},
+        },
+        state::{Context, Stateful},
     },
-    HermesState, Stateful,
+    state::HermesState,
 };
 
 mod blake2b;
@@ -15,21 +17,21 @@ mod blake2b;
 pub(crate) struct State {}
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {}
     }
 }
 
 impl Host for HermesState {
     /// Hash a binary buffer with BLAKE2s
-    fn blake2s(&mut self, buf: Bstr, outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
+    fn blake2s(&mut self, _buf: Bstr, _outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
         todo!()
     }
 
     /// Hash a binary buffer with `BLAKE2s` with `MAC` (Message Authentication Code) mode
     fn blake2smac(
-        &mut self, buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>,
-        persona: Option<Bstr>,
+        &mut self, _buf: Bstr, _outlen: Option<u8>, _key: Bstr, _salt: Option<Bstr>,
+        _persona: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
         todo!()
     }
@@ -53,7 +55,7 @@ impl Host for HermesState {
 
     /// Hash a binary buffer with BLAKE3
     fn blake3(
-        &mut self, buf: Bstr, outlen: Option<u8>, key: Option<Bstr>,
+        &mut self, _buf: Bstr, _outlen: Option<u8>, _key: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
         todo!()
     }
