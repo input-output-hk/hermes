@@ -4,7 +4,19 @@ use blake2b_simd::Params;
 
 use crate::runtime::extensions::bindings::hermes::{binary::api::Bstr, hash::api::Errno};
 
-/// Implementation of blake2b given a buffer and outlen.
+/// Implementation of blake2b.
+///
+/// **Parameters**
+///
+/// - `buf`: Bytes string
+/// - `outlen`: Optional output length, if not specified it is set to 64.
+///
+/// **Returns**
+///
+/// - `ok(Bstr)`: Hash of bytes string.
+/// - `error(Errno)`: InvalidDigestByteLength if an `outlen` is 0.
+///                   HashTooBig if `outlen` is greater than 64.
+/// 
 pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen: usize = outlen.unwrap_or(64).into();
@@ -25,6 +37,28 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
 }
 
 /// Implementation of blake2bmac given a buffer, outlen, key, salt, and persona.
+/// 
+/// **Parameters**
+///
+/// - `buf`: Bytes string
+/// - `outlen`: Optional output length, if not specified it is set to 64.
+/// - `key`: Key
+/// - `salt`: Optional salt
+/// - `personal`: Optional personal
+///
+/// **Returns**
+///
+/// - `ok(Bstr)`: Hash of bytes string.
+/// - `error(Errno)`: KeyTooBig if an key length is greater than `outlen`.
+///                   HashTooBig if `outlen` is greater than 64.
+///                   SaltTooBig if `salt` length is greater than 16.
+///                   PersonalTooBig if `personal` length is greater than 16.
+/// 
+/// **Notes**
+/// - When blake2b is keyed, blake2b becomes a MAC (Message Authentication Code) mode.
+/// - `salt` is an arbitary string of 16 bytes for blake2b.
+/// - `personal` is an arbitary string of 16 bytes for blake2b.
+/// 
 pub(crate) fn blake2bmac_impl(
     buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
