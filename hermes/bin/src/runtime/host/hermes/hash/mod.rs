@@ -40,9 +40,7 @@ impl Host for HermesState {
 
     /// Hash a binary buffer with `BLAKE2b`
     fn blake2b(&mut self, buf: Bstr, outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
-        blake2b::blake2b_impl(&buf, outlen)
-            .map(Ok)
-            .map_err(Into::into)
+        Ok(blake2b::blake2b_impl(&buf, outlen))
     }
 
     /// Hash a binary buffer with `BLAKE2b` with `MAC` (Message Authentication Code) mode
@@ -50,9 +48,7 @@ impl Host for HermesState {
         &mut self, buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>,
         personal: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        blake2b::blake2bmac_impl(&buf, outlen, &key, salt, personal)
-            .map(Ok)
-            .map_err(Into::into)
+        Ok(blake2b::blake2bmac_impl(&buf, outlen, &key, salt, personal))
     }
 
     /// Hash a binary buffer with BLAKE3
