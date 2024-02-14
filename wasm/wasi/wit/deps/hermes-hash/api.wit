@@ -15,7 +15,6 @@ interface api {
     enum errno {
         key-too-big,  // The key is larger than supported by the hash function.
         hash-too-big,  // The hash size requested is larger than supported by the hash function.
-        invalid-buffer-size, // The buffer length is not equal to hash output size.
         invalid-digest-byte-length, // The digest byte length is equal to zero.
         invalid-length, // The key length, salt length, or persona length is not valid.
         unsupported-outlen // The length of output is not supported.
@@ -37,7 +36,6 @@ interface api {
     /// - Or an error:
     ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
-    ///     - `invalid_buffer_size` if buffer length is not equal to hash output size.
     ///
     blake2s: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
 
@@ -95,7 +93,6 @@ interface api {
     /// - Or an error:
     ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
     ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
-    ///     - `invalid_buffer_size` if buffer length is not equal to hash output size.
     blake2b: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
 
     /// # BLAKE2bMac Hash Function
