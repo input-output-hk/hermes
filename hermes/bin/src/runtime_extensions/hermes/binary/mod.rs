@@ -1,12 +1,8 @@
-//! Host - CBOR implementations
+//! Binary runtime extension implementation.
 
-use crate::{
-    runtime_extensions::{
-        bindings::hermes::binary::api::Host,
-        state::{Context, Stateful},
-    },
-    state::HermesState,
-};
+use crate::runtime_extensions::state::{Context, Stateful};
+
+mod host;
 
 /// State
 pub(crate) struct State {}
@@ -16,5 +12,3 @@ impl Stateful for State {
         State {}
     }
 }
-
-impl Host for HermesState {}
