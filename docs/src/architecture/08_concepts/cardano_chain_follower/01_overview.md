@@ -3,15 +3,15 @@
 The `cardano-chain-follower` crate provides functionality to read arbitrary blocks
 and follow updates (new blocks and rollbacks) from a Cardano network (e.g. mainnet, preprod).
 
+Currently, the all communication with a Cardano node (remote or local) is done using the [Node-to-Node protocol](https://docs.cardano.org/explore-cardano/cardano-network/about-the-cardano-network).
+A [Mithril snapshot](https://github.com/input-output-hk/mithril) can be configured to be used both when reading blocks and following chain updates.
+
 The [Pallas](https://github.com/txpipe/pallas) crate is used under the hood to provide
 node communication, block parsing and other Cardano chain features.
 
-## 1.1 Chain Follower
+## 1.1 Chain Follow
 
-The chain follower is responsible for receiving chain updates from a Cardano node using the ChainSync miniprotocol.
-
-Currently, the all communication with a Cardano node (remote or local) is done using the Node-to-Node protocol.
-A Mithril snapshot can be configured to be used both when reading blocks and following chain updates.
+The chain follower is capable of receiving chain updates from a Cardano node using the ChainSync miniprotocol.
 
 ```kroki-excalidraw
 @from_file:architecture/08_concepts/cardano_chain_follower/images/overview.excalidraw
@@ -47,22 +47,21 @@ Below is a simplified flow diagram of the background task's process for producin
 @from_file:architecture/08_concepts/cardano_chain_follower/images/simplified-get-update-flow.excalidraw
 ```
 
-## 1.2 Chain Reader
+## 1.2 Chain Read
 
-*The reader's functions will be moved to the follower soon.*
+*NOTE: Reading blocks does not affect the follower read pointer.*
 
-The chain reader maintains its own Node-to-Node connection with a Cardano node
-which is used to read a single or a range of arbitrary blocks from the chain using
-the Blockfetch miniprotocol.
-The reader can be configured to read blocks from a Mithril snapshot as well.
+When reading a single or a range of arbitrary blocks from the chain the follower initiates a new connection with the configured node
+blocks are read using the Blockfetch miniprotocol.
+If configured, available blocks are read from the Mithril snapshot as well.
 
-When a block is requested, the reader will try reading the block from the Mithril snapshot
+When a block is requested, the follower will try reading the block from the Mithril snapshot
 first (if configured) and, only if the block is not found, it'll ask the connected node for the block.
 
-When a range of blocks is requested, the reader will try reading as many blocks as it can from the Mithril snapshot
+When a range of blocks is requested, the follower will try reading as many blocks as it can from the Mithril snapshot
 (if configured) and, if any blocks are not contained in the snapshot, it'll ask the connected node for them.
 
-Below is a simplified flow diagram of the reader's logics.
+Below is a simplified flow diagram of the block reading logic.
 
 ### A. Single block flow diagram
 
