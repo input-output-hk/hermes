@@ -1,23 +1,11 @@
-//! WASI IO Streams
+//! IO Streams host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::{
-        bindings::wasi::io::streams::{
-            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
-        },
-        state::{Context, Stateful},
+    runtime_extensions::bindings::wasi::io::streams::{
+        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
     state::HermesState,
 };
-
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
 
 impl HostInputStream for HermesState {
     /// Perform a non-blocking read from the stream.

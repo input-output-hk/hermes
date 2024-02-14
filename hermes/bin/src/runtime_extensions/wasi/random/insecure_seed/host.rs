@@ -1,21 +1,7 @@
-//! Insecure RNG
+//! Insecure RNG seed host implementation for WASM runtime.
 
-use crate::{
-    runtime_extensions::{
-        bindings::wasi::random::insecure_seed::Host,
-        state::{Context, Stateful},
-    },
-    state::HermesState,
-};
+use crate::{runtime_extensions::bindings::wasi::random::insecure_seed::Host, state::HermesState};
 
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
 impl Host for HermesState {
     /// Return a 128-bit value that may contain a pseudo-random value.
     ///

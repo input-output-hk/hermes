@@ -1,4 +1,4 @@
-//! CLI runtime extension implementation.
+//! Monotonic clock runtime extension implementation.
 
 use crate::runtime_extensions::state::{Context, Stateful};
 

@@ -1,21 +1,6 @@
-//! Random RNG
+//! Random RNG host implementation for WASM runtime.
 
-use crate::{
-    runtime_extensions::{
-        bindings::wasi::random::random::Host,
-        state::{Context, Stateful},
-    },
-    state::HermesState,
-};
-
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
+use crate::{runtime_extensions::bindings::wasi::random::random::Host, state::HermesState};
 
 impl Host for HermesState {
     /// Return `len` cryptographically-secure random or pseudo-random bytes.

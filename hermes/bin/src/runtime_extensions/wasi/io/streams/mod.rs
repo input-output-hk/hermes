@@ -1,4 +1,4 @@
-//! CLI runtime extension implementation.
+//! IO Streams runtime extension implementation.
 
 use crate::runtime_extensions::state::{Context, Stateful};
 

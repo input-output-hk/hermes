@@ -1,21 +1,9 @@
-//! WASI IO Error
+//! IO Error host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::{
-        bindings::wasi::io::error::{Error, Host, HostError},
-        state::{Context, Stateful},
-    },
+    runtime_extensions::bindings::wasi::io::error::{Error, Host, HostError},
     state::HermesState,
 };
-
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
 
 impl HostError for HermesState {
     /// Returns a string that is suitable to assist humans in debugging

@@ -1,21 +1,9 @@
-//! Host - WASI - Wall Clock implementations
+//! Wall clock host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::{
-        bindings::wasi::clocks::wall_clock::{Datetime, Host},
-        state::{Context, Stateful},
-    },
+    runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
     state::HermesState,
 };
-
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
 
 impl Host for HermesState {
     /// Read the current value of the clock.

@@ -1,4 +1,4 @@
-//! CLI runtime extension implementation.
+//! Insecure RNG seed runtime extension implementation.
 
 use crate::runtime_extensions::state::{Context, Stateful};
 

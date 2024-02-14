@@ -1,21 +1,9 @@
-//! Host - WASI - monotonic clock implementations
+//! Monotonic clock host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::{
-        bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
-        state::{Context, Stateful},
-    },
+    runtime_extensions::bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
     state::HermesState,
 };
-
-/// WASI State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        Self {}
-    }
-}
 
 impl Host for HermesState {
     /// Read the current value of the clock.

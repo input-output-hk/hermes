@@ -1,4 +1,4 @@
-//! CLI runtime extension implementation.
+//! Random RNG runtime extension implementation.
 
 use crate::runtime_extensions::state::{Context, Stateful};
 
