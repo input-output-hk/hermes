@@ -1,6 +1,6 @@
 # 1. Overview
 
-The cardano-chain-follower crate provides functionality to read arbitrary blocks
+The `cardano-chain-follower` crate provides functionality to read arbitrary blocks
 and follow updates (new blocks and rollbacks) from a Cardano chain (e.g. mainnet, preprod).
 
 The [Pallas](https://github.com/txpipe/pallas) crate is used under the hood to provide
