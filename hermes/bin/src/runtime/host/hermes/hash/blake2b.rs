@@ -2,7 +2,7 @@
 
 use blake2b_simd::Params;
 
-use crate::runtime::extensions::hermes::{binary::api::Bstr, hash::api::Errno};
+use crate::runtime::extensions::bindings::hermes::{binary::api::Bstr, hash::api::Errno};
 
 /// Implementation of blake2b given a buffer and outlen.
 pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
@@ -115,8 +115,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(0);
 
-        let result =
-            blake2b_impl(&buf, outlen).expect_err(Errno::InvalidDigestByteLength.message());
+        blake2b_impl(&buf, outlen).expect_err(Errno::InvalidDigestByteLength.message());
     }
 
     #[test]
@@ -124,7 +123,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(100);
 
-        let result = blake2b_impl(&buf, outlen).expect_err(Errno::HashTooBig.message());
+        blake2b_impl(&buf, outlen).expect_err(Errno::HashTooBig.message());
     }
     #[test]
     fn blake2bmac_512() {
@@ -146,8 +145,7 @@ mod tests_blake2b {
         let key = Bstr::from("key".repeat(22));
         let outlen = Some(10);
 
-        let result =
-            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
+        blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
     }
 
     #[test]
@@ -156,8 +154,7 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(0);
 
-        let result =
-            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
+        blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
     }
 
     #[test]
@@ -166,8 +163,7 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(100);
 
-        let result =
-            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::HashTooBig.message());
+        blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::HashTooBig.message());
     }
 
     #[test]
@@ -177,7 +173,7 @@ mod tests_blake2b {
         let salt = Bstr::from("salt".repeat(6));
         let outlen = Some(64);
 
-        let result = blake2bmac_impl(&buf, outlen, &key, Some(salt), None)
+        blake2bmac_impl(&buf, outlen, &key, Some(salt), None)
             .expect_err(Errno::SaltTooBig.message());
     }
 
@@ -188,7 +184,7 @@ mod tests_blake2b {
         let personal = Bstr::from("personal".repeat(16));
         let outlen = Some(64);
 
-        let result = blake2bmac_impl(&buf, outlen, &key, None, Some(personal))
+        blake2bmac_impl(&buf, outlen, &key, None, Some(personal))
             .expect_err(Errno::PersonalTooBig.message());
     }
 }

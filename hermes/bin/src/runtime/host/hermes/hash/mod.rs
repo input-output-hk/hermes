@@ -24,7 +24,9 @@ impl Stateful for State {
 
 impl Host for HermesState {
     /// Hash a binary buffer with BLAKE2s
-    fn blake2s(&mut self, _buf: Bstr, _outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
+    fn blake2s(
+        &mut self, _buf: Bstr, _outlen: Option<u8>,
+    ) -> wasmtime::Result<Result<Bstr, Errno>> {
         todo!()
     }
 
