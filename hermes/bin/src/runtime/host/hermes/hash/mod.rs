@@ -36,10 +36,52 @@ fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
         .to_state()
         .update(buf)
         .finalize();
-    
+
     return Ok(Bstr::from(hash.as_bytes()));
 }
 
+/// Implementation of blake2bmac given a buffer, outlen, key, salt, and persona.
+fn blake2bmac_impl(
+    buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
+) -> Result<Bstr, Errno> {
+    // Default to 64 bytes Blake2b-512
+    let outlen = outlen.unwrap_or(64) as usize;
+
+    if key.len() > outlen {
+        return Err(Errno::KeyTooBig);
+    }
+
+    // outlen is set, invalid when > 64
+    // Omit outlen == 0, because it will failed because of key.len() > outlen
+    if outlen > 64 {
+        return Err(Errno::HashTooBig);
+    }
+
+    let salt = salt.unwrap_or_default();
+
+    // salt length of blake2b should not exceeds 16 bytes
+    if salt.len() > 16 {
+        return Err(Errno::SaltTooBig);
+    }
+
+    let personal = personal.unwrap_or_default();
+
+    // personal length of blake2b should not exceeds 16 bytes
+    if personal.len() > 16 {
+        return Err(Errno::PersonalTooBig);
+    }
+
+    let hash = Params::new()
+        .hash_length(outlen)
+        .key(key)
+        .salt(&salt)
+        .personal(&personal)
+        .to_state()
+        .update(buf)
+        .finalize();
+
+    return Ok(Bstr::from(hash.as_bytes()));
+}
 impl Host for HermesState {
     /// Hash a binary buffer with BLAKE2s
     fn blake2s(&mut self, buf: Bstr, outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
@@ -56,19 +98,17 @@ impl Host for HermesState {
 
     /// Hash a binary buffer with `BLAKE2b`
     fn blake2b(&mut self, buf: Bstr, outlen: Option<u8>) -> wasmtime::Result<Result<Bstr, Errno>> {
-        let hash = blake2b_impl(&buf, outlen);
-        match hash {
-            Ok(hash) => Ok(Ok(hash)),
-            Err(err) => Err(err.into()),
-        }
+        blake2b_impl(&buf, outlen).map(Ok).map_err(Into::into)
     }
 
     /// Hash a binary buffer with `BLAKE2b` with `MAC` (Message Authentication Code) mode
     fn blake2bmac(
         &mut self, buf: Bstr, outlen: Option<u8>, key: Bstr, salt: Option<Bstr>,
-        persona: Option<Bstr>,
+        personal: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        todo!()
+        blake2bmac_impl(&buf, outlen, &key, salt, personal)
+            .map(Ok)
+            .map_err(Into::into)
     }
 
     /// Hash a binary buffer with BLAKE3
@@ -123,7 +163,7 @@ mod tests_blake2b {
     }
 
     #[test]
-    fn blake2b_0_outlen_err() {
+    fn blake2b_zero_outlen_err() {
         let buf = Bstr::from("test test");
         let outlen = Some(0);
 
@@ -138,58 +178,69 @@ mod tests_blake2b {
 
         let result = blake2b_impl(&buf, outlen).expect_err(Errno::HashTooBig.message());
     }
-    // #[test]
-    // fn blake2bmac_512() {
-    //     let buf = Bstr::from("test test");
-    //     let key = Bstr::from("key");
-    //     let outlen = Some(64);
+    #[test]
+    fn blake2bmac_512() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(64);
 
-    //     let result =
-    //         blake2bmac_impl(&buf, outlen, &key, None, None).expect("Failed to hash blake2bmac-512");
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect("Failed to hash blake2bmac-512");
 
-    //     assert_eq!(
-    //     result.as_ref(),
-    //     hex!("c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115")
-    // );
-    // }
+        assert_eq!(
+        result.as_ref(),
+        hex!("c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115"));
+    }
 
-    // #[test]
-    // fn blake2bmac_512_unsupported_outlen_err() {
-    //     let buf = Bstr::from("test test");
-    //     let key = Bstr::from("key");
-    //     let outlen = Some(10);
+    #[test]
+    fn blake2bmac_512_key_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key".repeat(22));
+        let outlen = Some(10);
 
-    //     let result = blake2bmac_impl(&buf, outlen, &key, None, None)
-    //         .expect_err(Errno::UnsupportedOutlen.message());
-    // }
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
+    }
 
-    // #[test]
-    // fn blake2bmac_512_key_too_big_err() {
-    //     let buf = Bstr::from("test test");
-    //     let key = Bstr::from("key".repeat(22));
-    //     let outlen = Some(10);
+    #[test]
+    fn blake2bmac_zero_outlen_key_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(0);
 
-    //     let result =
-    //         blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
-    // }
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
+    }
 
-    // #[test]
-    // fn blake2bmac_0_outlen_key_too_big_err() {
-    //     let buf = Bstr::from("test test");
-    //     let key = Bstr::from("key");
-    //     let outlen = Some(0);
+    #[test]
+    fn blake2bmac_hash_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let outlen = Some(100);
 
-    //     let result =
-    //         blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::KeyTooBig.message());
-    // }
+        let result =
+            blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::HashTooBig.message());
+    }
 
-    // #[test]
-    // fn blake2bmac_hash_too_big_err() {
-    //     let buf = Bstr::from("test test");
-    //     let key = Bstr::from("key");
-    //     let outlen = Some(100);
+    #[test]
+    fn blake2bmac_salt_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let salt = Bstr::from("salt".repeat(6));
+        let outlen = Some(64);
 
-    //     let result =
-    //         blake2bmac_impl(&buf, outlen, &key, None, None).expect_err(Errno::HashTooBig.message());
-    // }
+        let result = blake2bmac_impl(&buf, outlen, &key, Some(salt), None)
+            .expect_err(Errno::SaltTooBig.message());
+    }
+
+    #[test]
+    fn blake2bmac_personal_too_big_err() {
+        let buf = Bstr::from("test test");
+        let key = Bstr::from("key");
+        let personal = Bstr::from("personal".repeat(16));
+        let outlen = Some(64);
+
+        let result = blake2bmac_impl(&buf, outlen, &key, None, Some(personal))
+            .expect_err(Errno::PersonalTooBig.message());
+    }
 }
