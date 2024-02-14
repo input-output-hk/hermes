@@ -29,9 +29,9 @@ struct BadWASMModuleError(String);
 /// It is used to interact with the WASM module.
 pub(crate) struct ModuleInstance {
     /// `wasmtime::Store` entity
-    pub(crate) _store: WasmStore<HermesState>,
+    pub(crate) store: WasmStore<HermesState>,
     /// `Instance` entity
-    pub(crate) _instance: bindings::Hermes,
+    pub(crate) instance: bindings::Hermes,
 }
 
 /// Structure defines an abstraction over the WASM module
@@ -102,10 +102,7 @@ impl Module {
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
-        event.execute(&mut ModuleInstance {
-            _instance: instance,
-            _store: store,
-        })?;
+        event.execute(&mut ModuleInstance { store, instance })?;
         Ok(())
     }
 }

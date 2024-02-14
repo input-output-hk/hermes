@@ -16,5 +16,5 @@ pub trait HermesEventPayload: Send {
     /// # Returns
     ///
     /// An `anyhow::Result` indicating the success or failure of the payload execution.
-    fn execute(&self, executor: &mut ModuleInstance) -> anyhow::Result<()>;
+    fn execute(&self, module: &mut ModuleInstance) -> anyhow::Result<()>;
 }
