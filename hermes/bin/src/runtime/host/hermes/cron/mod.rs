@@ -7,10 +7,17 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::runtime::extensions::{
-    hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime, Host},
-    wasi::clocks::monotonic_clock::Instant,
-    HermesState, Stateful,
+use crate::{
+    runtime::extensions::{
+        bindings::{
+            hermes::cron::api::{
+                CronComponent, CronEventTag, CronSched, CronTagged, CronTime, Host,
+            },
+            wasi::clocks::monotonic_clock::Instant,
+        },
+        state::{Context, Stateful},
+    },
+    state::HermesState,
 };
 
 /// A crontab entry.
@@ -28,7 +35,7 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(_ctx: &crate::wasm::context::Context) -> Self {
+    fn new(_ctx: &Context) -> Self {
         State {
             crontabs: HashMap::new(),
         }
@@ -62,7 +69,7 @@ impl Host for HermesState {
     /// to be stopped, but ONLY after it has triggered once more.
     fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
         self.hermes
-            .cron
+            ._cron
             .crontabs
             .insert(entry.tag.clone(), CronTab { entry, retrigger });
         Ok(true)
@@ -114,14 +121,14 @@ impl Host for HermesState {
     /// - `1` - `bool` - The state of the retrigger flag.
     fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
         if let Some(tag) = tag {
-            match self.hermes.cron.crontabs.get(&tag) {
+            match self.hermes._cron.crontabs.get(&tag) {
                 Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
                 None => Ok(vec![]),
             }
         } else {
             Ok(self
                 .hermes
-                .cron
+                ._cron
                 .crontabs
                 .values()
                 .map(|cron| (cron.entry.clone(), cron.retrigger))
@@ -143,7 +150,7 @@ impl Host for HermesState {
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
     fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
-        match self.hermes.cron.crontabs.remove(&entry.tag) {
+        match self.hermes._cron.crontabs.remove(&entry.tag) {
             Some(_) => Ok(true),
             None => Ok(false),
         }
