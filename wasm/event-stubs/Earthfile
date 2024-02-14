@@ -1,3 +1,5 @@
+VERSION 0.7
+
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
@@ -5,7 +7,7 @@ build-c-bindings:
 
     SAVE ARTIFACT ./hermes.h
 
-build-c-wasm:
+build-c-stub:
     FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-21
     WORKDIR /repo
     COPY . .
@@ -13,4 +15,4 @@ build-c-wasm:
 
     RUN $CC my-component.c -o out.wasm $CFLAGS
 
-    SAVE ARTIFACT /repo repo
+    SAVE ARTIFACT ./out.wasm
