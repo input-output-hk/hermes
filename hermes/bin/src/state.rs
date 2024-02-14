@@ -1,8 +1,9 @@
 //! Hermes state implementation.
 
 use crate::runtime_extensions::{
-    extensions::state::{Context, Stateful},
-    host::{hermes, wasi},
+    hermes,
+    state::{Context, Stateful},
+    wasi,
 };
 
 #[allow(dead_code)]

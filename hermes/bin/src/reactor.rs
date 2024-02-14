@@ -34,7 +34,7 @@ impl HermesReactor {
     }
 
     pub(crate) fn run(self) -> anyhow::Result<()> {
-        let events_thread = thread::spawn(|| {
+        let _events_thread = thread::spawn(|| {
             Self::event_execution_loop(self.wasm_module, self.event_receiver).unwrap();
         });
         Ok(())

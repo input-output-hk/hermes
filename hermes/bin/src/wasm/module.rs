@@ -11,7 +11,7 @@ use wasmtime::{
 
 use crate::{
     event_queue::event::HermesEventPayload,
-    runtime_extensions::extensions::{
+    runtime_extensions::{
         bindings,
         state::{Context, Stateful},
     },
