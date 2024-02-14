@@ -5,11 +5,11 @@ use crate::{
     runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
-///
+/// On cron event
 struct OnCronEvent {
-    ///
+    /// The tagged cron event that was triggered.
     tag: CronTagged,
-    ///
+    /// This cron event will not retrigger.
     last: bool,
 }
 
