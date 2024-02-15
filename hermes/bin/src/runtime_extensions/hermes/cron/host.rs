@@ -4,6 +4,8 @@ use std::{
     fmt::{Display, Formatter},
 };
 
+use time::OffsetDateTime;
+
 use crate::{
     runtime_extensions::{
         bindings::{
@@ -74,7 +76,9 @@ impl Host for HermesState {
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
     fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
-        todo!()
+        let crontab = mkdelay_crontab(duration, tag)?;
+        self.add(crontab, false)?;
+        Ok(true)
     }
 
     /// # List currently active cron schedule.
@@ -160,24 +164,40 @@ impl Host for HermesState {
     fn mkcron(
         &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
-        let dow_schedule: CronSched =
-            cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
-        let month_schedule: CronSched =
-            cron_time_to_cron_sched(&month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
-        let day_schedule: CronSched =
-            cron_time_to_cron_sched(&day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
-        let hour_schedule: CronSched =
-            cron_time_to_cron_sched(&hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
-        let minute_schedule: CronSched = cron_time_to_cron_sched(
-            &minute,
-            CronComponent::MIN_MINUTE,
-            CronComponent::MAX_MINUTE,
-        );
-        let cron_sched = format!(
-            "{minute_schedule} {hour_schedule} {day_schedule} {month_schedule} {dow_schedule}",
-        );
-        Ok(cron_sched)
+        Ok(mkcron_impl(dow, month, day, hour, minute))
     }
+}
+
+/// Create a delayed crontab entry.
+fn mkdelay_crontab(duration: Instant, tag: CronEventTag) -> wasmtime::Result<CronTagged> {
+    // Add the delay to the current time as nanoseconds.
+    let delayed_nanos = OffsetDateTime::now_utc().unix_timestamp_nanos() + i128::from(duration);
+    let delayed = OffsetDateTime::from_unix_timestamp_nanos(delayed_nanos)?;
+    let (month, day) = (delayed.month() as u8, delayed.day());
+    let (hour, minute, _secs) = delayed.to_hms();
+    let when = format!("{minute} {hour} {day} {month} *");
+    Ok(CronTagged { tag, when })
+}
+
+/// Convert `CronTime` arguments to a `CronSched`.
+fn mkcron_impl(
+    dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
+) -> CronSched {
+    let dow_schedule: CronSched =
+        cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
+    let month_schedule: CronSched =
+        cron_time_to_cron_sched(&month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
+    let day_schedule: CronSched =
+        cron_time_to_cron_sched(&day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
+    let hour_schedule: CronSched =
+        cron_time_to_cron_sched(&hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
+    let minute_schedule: CronSched = cron_time_to_cron_sched(
+        &minute,
+        CronComponent::MIN_MINUTE,
+        CronComponent::MAX_MINUTE,
+    );
+    // Return the merged schedule.
+    format!("{minute_schedule} {hour_schedule} {day_schedule} {month_schedule} {dow_schedule}",)
 }
 
 /// Convert a `CronTime` to a `CronSched`.
