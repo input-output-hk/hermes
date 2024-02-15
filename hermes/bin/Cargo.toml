@@ -17,3 +17,4 @@ wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+ed25519-bip32 = { workspace = true }
