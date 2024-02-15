@@ -1,5 +1,6 @@
 //! Hash host implementation for WASM runtime.
 
+use super::blake2b;
 use crate::{
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
@@ -7,8 +8,6 @@ use crate::{
     },
     state::HermesState,
 };
-
-use super::blake2b;
 
 impl Host for HermesState {
     /// Hash a binary buffer with BLAKE2s
