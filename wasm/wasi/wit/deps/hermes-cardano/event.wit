@@ -22,13 +22,7 @@
 
 /// Cardano API Interface - Export ONLY
 interface event-on-block {
-    use api.{cardano-blockchain-id, cardano-block};
-
-    flags block-src {
-        tip,
-        node,
-        mithril
-    }
+    use api.{cardano-blockchain-id, cardano-block, block-src};
 
     /// Triggered when a cardano block event fires.
     ///
@@ -43,7 +37,7 @@ interface event-on-block {
     /// Returns:
     ///     Nothing.
     /// 
-    on-cardano-block: func(blockchain: cardano-blockchain-id, block: cardano-block, source:block-src);
+    on-cardano-block: func(blockchain: cardano-blockchain-id, block: cardano-block, source: block-src);
 }
 
 /// Cardano API Interface - Export ONLY
@@ -64,7 +58,7 @@ interface event-on-txn {
     /// Returns:
     ///     Nothing.
     /// 
-    on-cardano-txn: func(blockchain: cardano-blockchain-id, slot:u64, txn-index: u32, txn: cardano-txn);
+    on-cardano-txn: func(blockchain: cardano-blockchain-id, slot: u64, txn-index: u32, txn: cardano-txn);
 }
 
 /// Cardano API Interface - Export ONLY
@@ -83,7 +77,7 @@ interface event-on-rollback {
     /// Returns:
     ///     Nothing.
     /// 
-    on-cardano-rollback: func(blockchain: cardano-blockchain-id, slot:u64);
+    on-cardano-rollback: func(blockchain: cardano-blockchain-id, slot: u64);
 }
 
 

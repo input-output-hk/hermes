@@ -1,7 +1,7 @@
 //! The Hermes Node.
 
 mod event_queue;
-mod runtime;
+mod runtime_extensions;
 mod state;
 mod wasm;
 

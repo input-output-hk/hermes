@@ -24,6 +24,13 @@ interface api {
         local-test-blockchain // A local isolated test blockchain.
     }
 
+    /// Source information about where the block came from, and if we are at tip or not.
+    flags block-src {
+        tip,
+        node,
+        mithril
+    }
+
     /// The Slot number to interact with
     variant slot {
         genesis,      // The very start of the blockchain.
