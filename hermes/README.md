@@ -19,3 +19,8 @@ This workaround has effectively bypassed the mentioned problems until a permanen
 ```shell
 CARGO_FEATURE_STD=1 cargo b
 ```
+
+## Running benchmarks
+```
+cargo bench --features bench
+```

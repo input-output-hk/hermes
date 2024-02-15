@@ -124,9 +124,9 @@ pub mod bench {
 
             fn execute(&self, instance: &mut ModuleInstance) -> anyhow::Result<()> {
                 instance
-                    ._instance
+                    .instance
                     .hermes_init_event()
-                    .call_init(&mut instance._store)?;
+                    .call_init(&mut instance.store)?;
                 Ok(())
             }
         }
