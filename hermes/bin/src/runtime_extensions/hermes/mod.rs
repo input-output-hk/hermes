@@ -1,4 +1,4 @@
-//! Hermes runtime extensions implmentations - HERMES custom extensions
+//! Hermes runtime extensions implementations - HERMES custom extensions
 
 use crate::runtime_extensions::state::{Context, Stateful};
 
