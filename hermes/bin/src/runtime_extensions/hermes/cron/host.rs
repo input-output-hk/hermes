@@ -468,12 +468,16 @@ impl PartialEq for CronComponent {
 /// Example:
 ///
 /// ```rust
-/// # use hermes::runtime::host::hermes::cron::*;
+/// use hermes::runtime_extensions::hermes::cron::CronComponent;
+///
 /// assert!(CronComponent::At(1) < CronComponent::At(2));
 /// assert!(CronComponent::At(1) < CronComponent::Range((2, 3)));
 /// assert!(CronComponent::At(1) < CronComponent::All);
+///
+/// assert!(CronComponent::Range((1, 2)) > CronComponent::At(1));
 /// assert!(CronComponent::Range((1, 2)) < CronComponent::Range((3, 4)));
 /// assert!(CronComponent::Range((1, 2)) < CronComponent::All);
+///
 /// assert!(CronComponent::All == CronComponent::All);
 /// assert!(CronComponent::All > CronComponent::Range((1, 2)));
 /// assert!(CronComponent::All > CronComponent::At(1));
