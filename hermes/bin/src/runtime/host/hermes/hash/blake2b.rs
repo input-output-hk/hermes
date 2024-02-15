@@ -4,19 +4,24 @@ use blake2b_simd::Params;
 
 use crate::runtime::extensions::bindings::hermes::{binary::api::Bstr, hash::api::Errno};
 
-/// Implementation of blake2b.
+/// Implementation of the Blake2b hash function.
 ///
-/// **Parameters**
+/// # Arguments
 ///
-/// - `buf`: Bytes string
-/// - `outlen`: Optional output length, if not specified it is set to 64.
+/// - `buf`: A reference to the byte string for which the hash is to be computed.
+/// - `outlen`: Optional output length in bytes. If not specified,
+/// it defaults to 64 bytes.
 ///
-/// **Returns**
+/// # Returns
 ///
-/// - `ok(Bstr)`: Hash of bytes string.
-/// - `error(Errno)`:
-///     - `InvalidDigestByteLength` if an `outlen` is 0.
-///     - `HashTooBig` if `outlen` is greater than 64.
+/// Returns the `Blake2b` hash of the byte string as a `Result`.
+/// If the hash computation is successful, it returns `Ok` with the hash value.
+/// If there is an error during the computation, it returns `Err` with an `Errno`.
+///
+/// # Errors
+///
+/// - `InvalidDigestByteLength`: If `outlen` is 0.
+/// - `HashTooBig`: If `outlen` is greater than 64.
 pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen: usize = outlen.unwrap_or(64).into();
@@ -36,29 +41,30 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
     return Ok(hash.as_bytes().into());
 }
 
-/// Implementation of blake2bmac given a buffer, outlen, key, salt, and persona.
+/// Implementation of the Blake2b Message Authentication Code.
 ///
-/// **Parameters**
+/// # Arguments
 ///
-/// - `buf`: Bytes string
-/// - `outlen`: Optional output length, if not specified it is set to 64.
-/// - `key`: Key
-/// - `salt`: Optional salt
-/// - `personal`: Optional personal
+/// - `buf`: A reference to the byte string for which the blake2bMac is to be computed.
+/// - `outlen`: Optional output length in bytes. If not specified,
+/// it defaults to 64 bytes.
+/// - `key`: A reference to the byte string used as the key for computing the blake2bMac.
+/// - `salt`: Optional salt value. If not specified, it defaults to an empty byte string.
+/// - `personal`: Optional personalization string. If not specified,
+/// it defaults to an empty byte string.
 ///
-/// **Returns**
+/// # Returns
 ///
-/// - `ok(Bstr)`: Hash of bytes string.
-/// - `error(Errno)`:
-///     - `KeyTooBig` if an key length is greater than `outlen`.
-///     - `HashTooBig` if `outlen` is greater than 64.
-///     - `SaltTooBig` if `salt` length is greater than 16.
-///     - `PersonalTooBig` if `personal` length is greater than 16.
+/// Returns the `Blake2bMac` hash of the byte string as a `Result`.
+/// If the hash computation is successful, it returns `Ok` with the hash value.
+/// If there is an error during the computation, it returns `Err` with an `Errno`.
 ///
-/// **Notes**
-/// - When blake2b is keyed, blake2b becomes a MAC (Message Authentication Code) mode.
-/// - `salt` is an arbitrary string of 16 bytes for blake2b.
-/// - `personal` is an arbitrary string of 16 bytes for blake2b.
+/// # Errors
+///
+/// - `KeyTooBig`: If the length of the key exceeds the specified output length.
+/// - `HashTooBig`: If the specified output length exceeds 64 bytes.
+/// - `SaltTooBig`: If the length of the salt exceeds 16 bytes.
+/// - `PersonalTooBig`: If the length of the personalization string exceeds 16 bytes.
 pub(crate) fn blake2bmac_impl(
     buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
