@@ -15,7 +15,7 @@ build-c-stub:
     COPY . .
     COPY +build-c-bindings/ ./
 
-    RUN $CC hermes.h hermes_component_type.o my-component.c -o out.wasm $CFLAGS
+    RUN $CC hermes.h hermes_component_type.o my-component.c -o out.wasm -mexec-model=reactor $CFLAGS
 
     SAVE ARTIFACT ./out.wasm
 
