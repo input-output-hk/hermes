@@ -57,24 +57,20 @@ pub(crate) fn mkdelay_crontab(
 pub(crate) fn mkcron_impl(
     dow: &CronTime, month: &CronTime, day: &CronTime, hour: &CronTime, minute: &CronTime,
 ) -> CronSched {
-    let dow_schedule: CronSched =
-        cron_time_to_cron_sched(dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
-    let month_schedule: CronSched =
-        cron_time_to_cron_sched(month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
-    let day_schedule: CronSched =
-        cron_time_to_cron_sched(day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
-    let hour_schedule: CronSched =
-        cron_time_to_cron_sched(hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
-    let minute_schedule: CronSched =
-        cron_time_to_cron_sched(minute, CronComponent::MIN_MINUTE, CronComponent::MAX_MINUTE);
+    let dow_schedule: CronSched = cron_time_to_cron_sched_dow(dow);
+    let month_schedule: CronSched = cron_time_to_cron_sched_month(month);
+    let day_schedule: CronSched = cron_time_to_cron_sched_day(day);
+    let hour_schedule: CronSched = cron_time_to_cron_sched_hour(hour);
+    let minute_schedule: CronSched = cron_time_to_cron_sched_minute(minute);
     // Return the merged schedule.
     format!("{minute_schedule} {hour_schedule} {day_schedule} {month_schedule} {dow_schedule}",)
 }
 
 /// Convert a `CronTime` to a `CronSched`.
 ///
-/// Silently clamps values, removes duplicates, and ensures that range values are
-/// in the right order: `first <= last`.
+/// Silently clamps values within the specified `min_val..=max_val` range, removes
+/// duplicates, and ensures that range values are in the right order: `first <= last`.
+///
 /// If the `CronTime` contains no components, returns `*`.
 /// If the `CronTime` contains `CronComponent::All`, returns `*`.
 /// If the `CronTime` contains `CronComponent::Range(first, last)`, returns `*`.
@@ -92,14 +88,16 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             .iter()
             .map(|d| d.clamp_inner(min_val, max_val))
             .collect();
-
+        // Sort the clamped components to have a consistent order
         clamped.sort();
 
+        // Eliminate duplicates
         let clamped_len = clamped.len();
         let mut deduped: CronTime = clamped.clone().iter_mut().enumerate().fold(
             Vec::new(),
             |mut out, (i, cron_component)| {
                 let idx = i + 1;
+                // Get a mutable slice of the remaining components
                 if let Some(remaining) = clamped.get_mut(idx..clamped_len) {
                     let not_downstream = remaining
                         .iter()
@@ -113,11 +111,13 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             },
         );
 
+        // Scan over the remaining components and merge them if they overlap
         let deduped_len = deduped.len();
         let merged = deduped.clone().iter_mut().enumerate().fold(
             Vec::new(),
             |mut out, (i, cron_component)| {
                 let idx = i + 1;
+                // Get a mutable slice of the remaining components
                 if let Some(remaining) = deduped.get_mut(idx..deduped_len) {
                     let no_overlap = remaining
                         .iter()
@@ -129,11 +129,11 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
                         for other in remaining.iter_mut() {
                             // Check if the cron components overlap
                             if cron_component.overlaps(*other) {
-                                // Merge the two cron components
+                                // Merge the two cron components into the
+                                // component downstream, and stop iterating
+                                // over the remaining cron components
                                 if let Some(merged) = cron_component.merge(*other) {
                                     *other = merged;
-                                    // Once merged, stop iterating over the remaining cron
-                                    // components
                                     break;
                                 }
                             }
@@ -143,6 +143,7 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
                 out
             },
         );
+        // Return the merged cron schedule
         merged
             .into_iter()
             .map(|s| s.to_string())
@@ -150,6 +151,39 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             .join(",")
     };
     cron_sched
+}
+
+/// Convert a `CronTime` to a `CronSched` for the day of week.
+fn cron_time_to_cron_sched_dow(cron_time: &CronTime) -> CronSched {
+    cron_time_to_cron_sched(cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW)
+}
+
+/// Convert a `CronTime` to a `CronSched` for the month.
+fn cron_time_to_cron_sched_month(cron_time: &CronTime) -> CronSched {
+    cron_time_to_cron_sched(
+        cron_time,
+        CronComponent::MIN_MONTH,
+        CronComponent::MAX_MONTH,
+    )
+}
+
+/// Convert a `CronTime` to a `CronSched` for the day of month.
+fn cron_time_to_cron_sched_day(cron_time: &CronTime) -> CronSched {
+    cron_time_to_cron_sched(cron_time, CronComponent::MIN_DAY, CronComponent::MAX_DAY)
+}
+
+/// Convert a `CronTime` to a `CronSched` for the hour of day.
+fn cron_time_to_cron_sched_hour(cron_time: &CronTime) -> CronSched {
+    cron_time_to_cron_sched(cron_time, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR)
+}
+
+/// Convert a `CronTime` to a `CronSched` for the minute of hour.
+fn cron_time_to_cron_sched_minute(cron_time: &CronTime) -> CronSched {
+    cron_time_to_cron_sched(
+        cron_time,
+        CronComponent::MIN_MINUTE,
+        CronComponent::MAX_MINUTE,
+    )
 }
 
 impl CronComponent {
