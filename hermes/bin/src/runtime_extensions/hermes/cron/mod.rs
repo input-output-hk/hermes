@@ -380,3 +380,122 @@ impl Ord for CronComponent {
             .expect("CronComponent should always be comparable")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Define lower limit for the schedule component values.
+    const FIRST: u8 = 1;
+    // Define upper limit for the schedule component values.
+    const LAST: u8 = 59;
+
+    #[test]
+    fn test_cron_component_order() {
+        // `All` is always greater than all other `CronComponent`s.
+        assert_eq!(CronComponent::All, CronComponent::All);
+        assert!(CronComponent::All > CronComponent::At(0));
+        assert!(CronComponent::All > CronComponent::Range((0, 0)));
+
+        // `At(a)` is less than `All` and `Range(a, b)`
+        assert!(CronComponent::At(0) < CronComponent::All);
+        assert!(CronComponent::At(0) < CronComponent::Range((0, 0)));
+
+        assert!(CronComponent::Range((0, 0)) < CronComponent::All);
+        assert!(CronComponent::Range((0, 0)) > CronComponent::At(0));
+        // `Range(a, b)` is equal to `Range(c, d)` if `a == c` and `b == d`.
+        assert_eq!(CronComponent::Range((0, 0)), CronComponent::Range((0, 0)));
+        // `Range(a, b)` is equal to `Range(c, d)` if `a == c` and `b == d`.
+        assert!(CronComponent::Range((0, 0)) < CronComponent::Range((0, 1)));
+    }
+
+    #[test]
+    fn test_cron_time_to_cron_sched_returns_all_if_empty() {
+        let cron_schedule = cron_time_to_cron_sched(&vec![], FIRST, LAST);
+        assert_eq!(cron_schedule, "*");
+    }
+
+    #[test]
+    fn test_cron_time_to_cron_sched_clamps_values_within_limits() {
+        // Components with values outside the clamping limits
+        let cron_schedule = cron_time_to_cron_sched(&vec![CronComponent::At(0)], FIRST, LAST);
+        assert_eq!(cron_schedule, format!("{FIRST}"));
+
+        let cron_schedule = cron_time_to_cron_sched(&vec![CronComponent::At(100)], FIRST, LAST);
+        assert_eq!(cron_schedule, format!("{LAST}"));
+
+        let cron_schedule =
+            cron_time_to_cron_sched(&vec![CronComponent::Range((62, 64))], FIRST, LAST);
+        assert_eq!(cron_schedule, format!("{LAST}")); // clamps to (59, 59), which is simplified to 59
+
+        let cron_schedule =
+            cron_time_to_cron_sched(&vec![CronComponent::Range((0, 200))], FIRST, LAST);
+        assert_eq!(cron_schedule, format!("{FIRST}-{LAST}"));
+    }
+
+    #[test]
+    fn test_cron_time_to_cron_sched_removes_duplicate_components() {
+        // `CronTime`s that contain `All` removes everything else.
+        let cron_schedule =
+            cron_time_to_cron_sched(&vec![CronComponent::At(3), CronComponent::All], FIRST, LAST);
+        assert_eq!(cron_schedule, "*");
+
+        let cron_schedule =
+            cron_time_to_cron_sched(&vec![CronComponent::All, CronComponent::All], FIRST, LAST);
+        assert_eq!(cron_schedule, "*");
+
+        let cron_schedule = cron_time_to_cron_sched(
+            &vec![
+                CronComponent::At(5),
+                CronComponent::At(5),
+                CronComponent::Range((5, 5)),
+                CronComponent::Range((5, 5)),
+            ],
+            FIRST,
+            LAST,
+        );
+        assert_eq!(cron_schedule, "5");
+
+        let cron_schedule = cron_time_to_cron_sched(
+            &vec![
+                CronComponent::At(7),
+                CronComponent::Range((5, 30)),
+                CronComponent::Range((5, 55)),
+            ],
+            FIRST,
+            LAST,
+        );
+        assert_eq!(cron_schedule, "5-55");
+    }
+
+    #[test]
+    fn test_cron_time_to_cron_sched_merges_overlapping_ranges() {
+        let cron_schedule = cron_time_to_cron_sched(
+            &vec![
+                CronComponent::Range((5, 15)),
+                CronComponent::Range((10, 15)),
+                CronComponent::Range((15, 25)),
+            ],
+            FIRST,
+            LAST,
+        );
+        assert_eq!(cron_schedule, "5-25");
+    }
+
+    #[test]
+    fn test_cron_time_to_cron_sched_orders_components() {
+        let cron_schedule = cron_time_to_cron_sched(
+            &vec![
+                CronComponent::Range((2, 4)),
+                CronComponent::At(1),
+                CronComponent::Range((6, 7)),
+                CronComponent::At(8),
+                CronComponent::Range((9, 10)),
+                CronComponent::At(11),
+            ],
+            FIRST,
+            LAST,
+        );
+        assert_eq!(cron_schedule, "1,8,11,2-4,6-7,9-10");
+    }
+}
