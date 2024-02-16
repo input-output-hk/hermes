@@ -1,6 +1,6 @@
 VERSION 0.7
 
-# cspell: words wasi autodrop webassembly WORKDIR CFLAGS
+# cspell: words wasi autodrop webassembly WORKDIR CFLAGS mexec
 
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
