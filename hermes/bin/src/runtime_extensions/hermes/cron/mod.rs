@@ -118,7 +118,6 @@ fn merge_cron_time_overlaps(cron_time: Vec<CronComponent>) -> Vec<CronComponent>
         .clone()
         .iter()
         .fold(Vec::new(), |mut out, cron_component| {
-            println!("processing {cron_component:?}");
             let has_no_overlap = out
                 .iter()
                 .all(|&item: &CronComponent| !item.overlaps(*cron_component));
@@ -134,7 +133,6 @@ fn merge_cron_time_overlaps(cron_time: Vec<CronComponent>) -> Vec<CronComponent>
                 }
             }
             out.sort();
-            println!("merged so far: {out:?}");
             out
         });
     merged
