@@ -176,7 +176,7 @@ impl CronComponent {
     const ALL_STR: &'static str = "*";
     /// Maximum value for `Day`.
     const MAX_DAY: u8 = 31;
-    /// Maximum value for `DayOfWeek`.
+    /// Maximum value for `DayOfWeek`. Sunday.
     const MAX_DOW: u8 = 7;
     /// Maximum value for `Hour`.
     const MAX_HOUR: u8 = 23;
@@ -186,7 +186,7 @@ impl CronComponent {
     const MAX_MONTH: u8 = 12;
     /// Minimum value for `Day`.
     const MIN_DAY: u8 = 1;
-    /// Minimum value for `DayOfWeek`.
+    /// Minimum value for `DayOfWeek`. Monday.
     const MIN_DOW: u8 = 0;
     /// Minimum value for `Hour`.
     const MIN_HOUR: u8 = 0;
@@ -419,26 +419,23 @@ mod tests {
     #[test]
     fn test_clamp_cron_time_values_within_limits() {
         // Components with values outside the clamping limits
-        let cron_schedule = clamp_cron_time_values(&vec![CronComponent::At(0)], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&[CronComponent::At(0)], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(FIRST)]);
 
-        let cron_schedule = clamp_cron_time_values(&vec![CronComponent::At(100)], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&[CronComponent::At(100)], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
 
-        let cron_schedule =
-            clamp_cron_time_values(&vec![CronComponent::Range((62, 64))], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&[CronComponent::Range((62, 64))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
 
-        let cron_schedule =
-            clamp_cron_time_values(&vec![CronComponent::Range((0, 20))], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&[CronComponent::Range((0, 20))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::Range((FIRST, 20))]);
 
-        let cron_schedule =
-            clamp_cron_time_values(&vec![CronComponent::Range((0, 200))], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&[CronComponent::Range((0, 200))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
 
         let cron_schedule =
-            clamp_cron_time_values(&vec![CronComponent::Range((FIRST, LAST))], FIRST, LAST);
+            clamp_cron_time_values(&[CronComponent::Range((FIRST, LAST))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
     }
 
@@ -533,6 +530,6 @@ mod tests {
                 CronComponent::MIN_MONTH,
                 CronComponent::MIN_DOW
             )
-        )
+        );
     }
 }
