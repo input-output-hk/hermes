@@ -5,6 +5,7 @@ VERSION 0.7
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
+    # FIXME: right now we need to remove `--no-object-file` flag to make it runs with our bench, should we add this back?
     RUN wit-bindgen c --autodrop-borrows yes ../wasi/wit
 
     SAVE ARTIFACT ./
