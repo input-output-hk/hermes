@@ -1,5 +1,8 @@
 //! Crypto host implementation for WASM runtime.
 
+use ed25519_bip32::XPrv;
+use wasmtime::component::Resource;
+
 use crate::{
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
@@ -11,6 +14,8 @@ use crate::{
     state::HermesState,
 };
 
+use super::Ed25519Bip32Struct;
+
 impl HostEd25519Bip32 for HermesState {
     /// Create a new ED25519-BIP32 Crypto resource
     ///
@@ -18,9 +23,22 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
     fn new(
-        &mut self, _private_key: Option<Ed25519Bip32PrivateKey>,
+        &mut self, private_key: Option<Ed25519Bip32PrivateKey>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
-        todo!()
+        match private_key {
+            Some(private_key) => {
+                let check = XPrv::from_slice_verified(&private_key);
+                let pk = Ed25519Bip32Struct {
+                    private_key,
+                };
+                if check.is_ok() {
+                    return Ok(Resource::new_own(self.hermes._crypto.private_key.new(Some(pk))));
+                } else {
+                    todo!()
+                }
+            },
+            None => todo!(),
+        }
     }
 
     /// Get the public key for this private key.
