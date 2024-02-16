@@ -11,10 +11,7 @@ use wasmtime::{
 
 use crate::{
     event_queue::event::HermesEventPayload,
-    runtime_extensions::{
-        bindings,
-        state::{Context, Stateful},
-    },
+    runtime_extensions::{bindings, state::Context},
     state::HermesState,
     wasm::engine::Engine,
 };
@@ -96,7 +93,7 @@ impl Module {
     #[allow(dead_code)]
     pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
-        let state = HermesState::new(&self.context);
+        let state = HermesState::new(self.context.clone());
 
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)

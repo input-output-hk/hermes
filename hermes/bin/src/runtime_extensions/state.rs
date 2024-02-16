@@ -2,6 +2,32 @@
 
 use rusty_ulid::Ulid;
 
+use super::{hermes, wasi};
+
+/// All Hermes runtime extensions states need to implement this.
+pub(crate) trait Stateful {
+    /// Initial state for the given context
+    fn new(ctx: &Context) -> Self;
+}
+
+/// All runtime extensions state
+pub(crate) struct State {
+    /// Hermes custom extensions state
+    _hermes: hermes::State,
+
+    /// WASI standard extensions state
+    _wasi: wasi::State,
+}
+
+impl Stateful for State {
+    fn new(ctx: &Context) -> Self {
+        Self {
+            _hermes: hermes::State::new(ctx),
+            _wasi: wasi::State::new(ctx),
+        }
+    }
+}
+
 /// A WASM module's context structure, which is intended to be passed to the
 /// `wasmtime::Store` during the WASM module's state initialization process.
 #[derive(Clone)]
@@ -59,10 +85,4 @@ impl Context {
     pub(crate) fn counter(&self) -> u64 {
         self.counter
     }
-}
-
-/// All Hermes runtime extensions states need to implement this.
-pub(crate) trait Stateful {
-    /// Initial state for the given context
-    fn new(ctx: &Context) -> Self;
 }

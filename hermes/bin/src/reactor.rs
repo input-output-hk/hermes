@@ -1,11 +1,11 @@
 //! Hermes Reactor implementation.
 
-use std::{
-    sync::mpsc::{channel, Receiver, Sender},
-    thread,
-};
+use std::thread;
 
-use crate::{event_queue::event::HermesEventPayload, wasm::module::Module};
+use crate::{
+    event_queue::{self, HermesEventQueueIn, HermesEventQueueOut},
+    wasm::module::Module,
+};
 
 /// Thread panics error
 #[derive(thiserror::Error, Debug)]
@@ -18,17 +18,17 @@ pub(crate) struct HermesReactor {
     wasm_module: Module,
 
     ///
-    event_sender: Sender<Box<dyn HermesEventPayload>>,
+    event_queue_in: HermesEventQueueIn,
     ///
-    event_receiver: Receiver<Box<dyn HermesEventPayload>>,
+    event_queue_out: HermesEventQueueOut,
 }
 
 impl HermesReactor {
     ///
     fn event_execution_loop(
-        mut wasm_module: Module, event_receiver: Receiver<Box<dyn HermesEventPayload>>,
+        mut wasm_module: Module, event_queue_out: HermesEventQueueOut,
     ) -> anyhow::Result<()> {
-        for event in event_receiver {
+        for event in event_queue_out {
             wasm_module.execute_event(event.as_ref())?;
         }
         Ok(())
@@ -37,19 +37,19 @@ impl HermesReactor {
     /// Create a new Hermes Reactor
     pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
         let wasm_module = Module::new(app_name, module_bytes)?;
-        let (event_sender, event_receiver) = channel();
+        let (event_queue_in, event_queue_out) = event_queue::new();
 
         Ok(Self {
             wasm_module,
-            event_sender,
-            event_receiver,
+            event_queue_in,
+            event_queue_out,
         })
     }
 
     ///
     pub(crate) fn run(self) -> anyhow::Result<()> {
         let events_thread =
-            thread::spawn(|| Self::event_execution_loop(self.wasm_module, self.event_receiver));
+            thread::spawn(|| Self::event_execution_loop(self.wasm_module, self.event_queue_out));
 
         events_thread
             .join()
