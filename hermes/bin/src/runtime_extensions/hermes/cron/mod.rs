@@ -223,7 +223,7 @@ impl CronComponent {
         }
     }
 
-    /// Determine if inner value includes the argument. Returns `bool`.
+    /// Merge two `CronComponent` values. Returns `Option<CronComponent>`.
     ///
     /// This method makes no checks to determine if the values are within
     /// any limit.
