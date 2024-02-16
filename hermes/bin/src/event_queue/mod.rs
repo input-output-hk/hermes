@@ -14,6 +14,13 @@ pub(crate) fn new() -> (HermesEventQueueIn, HermesEventQueueOut) {
 #[derive(Clone)]
 pub(crate) struct HermesEventQueueIn(Sender<Box<dyn event::HermesEventPayload>>);
 
+impl HermesEventQueueIn {
+    ///
+    pub(crate) fn add(&self, event: Box<dyn event::HermesEventPayload>) {
+        self.0.send(event).unwrap();
+    }
+}
+
 ///
 pub(crate) struct HermesEventQueueOut(Receiver<Box<dyn event::HermesEventPayload>>);
 
