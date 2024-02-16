@@ -11,16 +11,16 @@ interface api {
     use hermes:binary/api.{bstr, b256, b512};
 
     // ed25519-bip32 Private Key
-    type ed25519-bip32-private-key = b256;
+    type ed25519-bip32-private-key = bstr;
 
     // ed25519-bip32 Extended Private Key
     type ed25519-bip32-extended-private-key = b512;
 
     // ed25519-bip32 Public Key
-    type ed25519-bip32-public-key = b256;
+    type ed25519-bip32-public-key = bstr;
 
     // ed25519-bip32 Signature
-    type ed25519-bip32-signature = b256;
+    type ed25519-bip32-signature = bstr;
 
     resource ed25519-bip32 {
         /// Create a new ED25519-BIP32 Crypto resource
