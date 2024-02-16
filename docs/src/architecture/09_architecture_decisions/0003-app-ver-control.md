@@ -9,6 +9,7 @@
 ## Context
 
 Hermes should be a robust and reliable platform for Hermes applications to be run on.
+So it has to have a defined boundaries of which application would be executed and which not.
 
 ## Assumptions
 
@@ -30,3 +31,5 @@ Validation is a equlity check.
 * Eliminates maintaince and support complexity for the Hermes development itself.
 * Eliminates the need of the internal api version managment system.
 * Force Hermes application developers and it's users to use the latest version of the Hermes engine.
+* As `api_version` is separated from the Hermes version itself,
+allows to continue deliver new versions which does not change runtime extensions api.
