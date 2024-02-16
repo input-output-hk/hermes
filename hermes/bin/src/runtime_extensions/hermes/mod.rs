@@ -17,27 +17,27 @@ pub(crate) mod logging;
 /// Hermes extensions state
 pub(crate) struct State {
     /// Binary extensions state
-    _binary: binary::State,
+    pub(crate) _binary: binary::State,
     /// Cardano extensions state
-    _cardano: cardano::State,
+    pub(crate) _cardano: cardano::State,
     /// CBOR extensions state
-    _cbor: cbor::State,
+    pub(crate) _cbor: cbor::State,
     /// Cron extensions state
-    _cron: cron::State,
+    pub(crate) _cron: cron::State,
     /// Crypto extensions state
-    _crypto: crypto::State,
+    pub(crate) _crypto: crypto::State,
     /// Hash extensions state
-    _hash: hash::State,
+    pub(crate) _hash: hash::State,
     /// Init extensions state
-    pub(crate) _init: init::State,
+    pub(crate) init: init::State,
     /// JSON extensions state
-    _json: json::State,
+    pub(crate) _json: json::State,
     /// KV store extensions state
-    _kv_store: kv_store::State,
+    pub(crate) _kv_store: kv_store::State,
     /// Localtime extensions state
-    _localtime: localtime::State,
+    pub(crate) _localtime: localtime::State,
     /// Logging extensions state
-    _logging: logging::State,
+    pub(crate) _logging: logging::State,
 }
 
 impl Stateful for State {
@@ -49,7 +49,7 @@ impl Stateful for State {
             _cron: cron::State::new(event_queue_in),
             _crypto: crypto::State::new(event_queue_in),
             _hash: hash::State::new(event_queue_in),
-            _init: init::State::new(event_queue_in),
+            init: init::State::new(event_queue_in),
             _json: json::State::new(event_queue_in),
             _kv_store: kv_store::State::new(event_queue_in),
             _localtime: localtime::State::new(event_queue_in),

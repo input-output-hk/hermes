@@ -19,7 +19,7 @@ impl Stateful for State {
 }
 
 impl State {
-    /// Init event
+    /// Emit Init event
     pub(crate) fn emit_init_event(&self) -> anyhow::Result<()> {
         self.event_queue_in.add(Box::new(event::InitEvent {}))?;
         Ok(())
