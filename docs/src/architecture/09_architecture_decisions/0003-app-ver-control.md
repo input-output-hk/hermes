@@ -1,7 +1,7 @@
 ---
     title: 0003 Hermes runtime extensions api version control
     adr:
-        author: Steven Johnson <steven.johnson@iohk.io>
+        author: Alex Pozhylenkov <alex.pozhylenkov@iohk.io>
         created: 16-Feb-2024
         status:  draft
 ---
