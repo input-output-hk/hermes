@@ -69,7 +69,8 @@ pub(crate) fn mkcron_impl(
 /// Convert a `CronTime` to a `CronSched`.
 ///
 /// Silently clamps values within the specified `min_val..=max_val` range, removes
-/// duplicates, and ensures that range values are in the right order: `first <= last`.
+/// duplicates, merges overlaps, and ensures that range values are in the right order:
+/// `first <= last`.
 ///
 /// If the `CronTime` contains no components, returns `*`.
 /// If the `CronTime` contains `CronComponent::All`, returns `*`.
@@ -84,65 +85,9 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
         // Silently clamp values, and ensure that range values are in the right order: `first <=
         // last`. For the case of finding `CronComponent::Range((final, last))`, it is
         // replaced with `CronComponent::All`.
-        let mut clamped: Vec<CronComponent> = cron_time
-            .iter()
-            .map(|d| d.clamp_inner(min_val, max_val))
-            .collect();
-        // Sort the clamped components to have a consistent order
-        clamped.sort();
-
-        // Eliminate duplicates
-        let clamped_len = clamped.len();
-        let mut deduped: CronTime = clamped.clone().iter_mut().enumerate().fold(
-            Vec::new(),
-            |mut out, (i, cron_component)| {
-                let idx = i + 1;
-                // Get a mutable slice of the remaining components
-                if let Some(remaining) = clamped.get_mut(idx..clamped_len) {
-                    let not_downstream = remaining
-                        .iter()
-                        .all(|other| !other.contains(*cron_component));
-                    if not_downstream {
-                        // Push the current cron component
-                        out.push(*cron_component);
-                    }
-                }
-                out
-            },
-        );
-
-        // Scan over the remaining components and merge them if they overlap
-        let deduped_len = deduped.len();
-        let merged = deduped.clone().iter_mut().enumerate().fold(
-            Vec::new(),
-            |mut out, (i, cron_component)| {
-                let idx = i + 1;
-                // Get a mutable slice of the remaining components
-                if let Some(remaining) = deduped.get_mut(idx..deduped_len) {
-                    let no_overlap = remaining
-                        .iter()
-                        .all(|other| !other.overlaps(*cron_component));
-                    if no_overlap {
-                        // Push the current cron component
-                        out.push(*cron_component);
-                    } else {
-                        for other in remaining.iter_mut() {
-                            // Check if the cron components overlap
-                            if cron_component.overlaps(*other) {
-                                // Merge the two cron components into the
-                                // component downstream, and stop iterating
-                                // over the remaining cron components
-                                if let Some(merged) = cron_component.merge(*other) {
-                                    *other = merged;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                out
-            },
-        );
+        let clamped: Vec<CronComponent> = clamp_cron_time_values(cron_time, min_val, max_val);
+        // Merge overlapping components
+        let merged: Vec<CronComponent> = merge_cron_time_overlaps(clamped);
         // Return the merged cron schedule
         merged
             .into_iter()
@@ -151,6 +96,48 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
             .join(",")
     };
     cron_sched
+}
+
+/// Clamp values within the specified `min_val..=max_val` range
+fn clamp_cron_time_values(
+    cron_time: &[CronComponent], min_val: u8, max_val: u8,
+) -> Vec<CronComponent> {
+    cron_time
+        .iter()
+        .map(|d| d.clamp_inner(min_val, max_val))
+        .collect()
+}
+
+/// Scan over the remaining components and merge them if they overlap
+fn merge_cron_time_overlaps(cron_time: Vec<CronComponent>) -> Vec<CronComponent> {
+    let mut cron_time = cron_time;
+    // Sort the clamped components to have a consistent order
+    cron_time.sort();
+
+    let merged = cron_time
+        .clone()
+        .iter()
+        .fold(Vec::new(), |mut out, cron_component| {
+            println!("processing {cron_component:?}");
+            let has_no_overlap = out
+                .iter()
+                .all(|&item: &CronComponent| !item.overlaps(*cron_component));
+            if has_no_overlap {
+                out.push(*cron_component);
+            } else {
+                for item in &mut out {
+                    if item.overlaps(*cron_component) {
+                        if let Some(merged_item) = item.merge(*cron_component) {
+                            *item = merged_item;
+                        }
+                    }
+                }
+            }
+            out.sort();
+            println!("merged so far: {out:?}");
+            out
+        });
+    merged
 }
 
 /// Convert a `CronTime` to a `CronSched` for the day of week.
@@ -239,6 +226,9 @@ impl CronComponent {
     }
 
     /// Determine if inner value includes the argument. Returns `bool`.
+    ///
+    /// This method makes no checks to determine if the values are within
+    /// any limit.
     fn merge(self, other: CronComponent) -> Option<Self> {
         match self {
             Self::All => Some(self),
@@ -254,35 +244,17 @@ impl CronComponent {
                 match other {
                     Self::All => Some(Self::All),
                     Self::At(w) if (first..=last).contains(&w) => Some(self),
-                    Self::Range((a, b))
-                        if (first..=last).contains(&a) || (first..=last).contains(&b) =>
-                    {
-                        Some(Self::Range((min(first, a), max(last, b))))
-                    },
-                    _ => None,
-                }
-            },
-        }
-    }
-
-    /// Determine if inner value includes the argument. Returns `bool`.
-    fn contains(self, other: CronComponent) -> bool {
-        match self {
-            Self::All => true,
-            Self::At(when) => matches!(other, Self::At(w) if w == when),
-            Self::Range((first, last)) => {
-                match other {
-                    Self::All => true,
-                    Self::At(w) => (first..=last).contains(&w),
-                    Self::Range((a, b)) => {
-                        (first..=last).contains(&a) && (first..=last).contains(&b)
-                    },
+                    Self::Range((a, b)) => Some(Self::Range((min(first, a), max(last, b)))),
+                    Self::At(_) => None,
                 }
             },
         }
     }
 
     /// Determine if inner value overlaps with the argument. Returns `bool`.
+    ///
+    /// This method makes no checks to determine if the values are within
+    /// any limit.
     fn overlaps(self, other: CronComponent) -> bool {
         match self {
             Self::All => true,
@@ -298,7 +270,8 @@ impl CronComponent {
                     Self::All => true,
                     Self::At(w) => (first..=last).contains(&w),
                     Self::Range((a, b)) => {
-                        (first..=last).contains(&a) || (first..=last).contains(&b)
+                        ((first..=last).contains(&a) || (first..=last).contains(&b))
+                            || ((a..=b).contains(&first) || (a..=b).contains(&last))
                     },
                 }
             },
@@ -441,33 +414,33 @@ mod tests {
 
     #[test]
     fn test_cron_time_to_cron_sched_returns_all_if_empty() {
-        let cron_schedule = cron_time_to_cron_sched(vec![], FIRST, LAST);
+        let cron_schedule = cron_time_to_cron_sched(&vec![], FIRST, LAST);
         assert_eq!(cron_schedule, "*");
     }
 
     #[test]
     fn test_clamp_cron_time_values_within_limits() {
         // Components with values outside the clamping limits
-        let cron_schedule = clamp_cron_time_values(vec![CronComponent::At(0)], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&vec![CronComponent::At(0)], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(FIRST)]);
 
-        let cron_schedule = clamp_cron_time_values(vec![CronComponent::At(100)], FIRST, LAST);
+        let cron_schedule = clamp_cron_time_values(&vec![CronComponent::At(100)], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
 
         let cron_schedule =
-            clamp_cron_time_values(vec![CronComponent::Range((62, 64))], FIRST, LAST);
+            clamp_cron_time_values(&vec![CronComponent::Range((62, 64))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
 
         let cron_schedule =
-            clamp_cron_time_values(vec![CronComponent::Range((0, 20))], FIRST, LAST);
+            clamp_cron_time_values(&vec![CronComponent::Range((0, 20))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::Range((FIRST, 20))]);
 
         let cron_schedule =
-            clamp_cron_time_values(vec![CronComponent::Range((0, 200))], FIRST, LAST);
+            clamp_cron_time_values(&vec![CronComponent::Range((0, 200))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
 
         let cron_schedule =
-            clamp_cron_time_values(vec![CronComponent::Range((FIRST, LAST))], FIRST, LAST);
+            clamp_cron_time_values(&vec![CronComponent::Range((FIRST, LAST))], FIRST, LAST);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
     }
 
@@ -507,7 +480,7 @@ mod tests {
     #[test]
     fn test_cron_time_to_cron_sched_orders_components() {
         let cron_schedule = cron_time_to_cron_sched(
-            vec![
+            &vec![
                 CronComponent::Range((2, 4)),
                 CronComponent::At(1),
                 CronComponent::Range((6, 7)),
@@ -525,17 +498,17 @@ mod tests {
     fn test_mkcron_impl() {
         // Test empty `CronTime`s
         assert_eq!(
-            mkcron_impl(vec![], vec![], vec![], vec![], vec![]),
+            mkcron_impl(&vec![], &vec![], &vec![], &vec![], &vec![]),
             "* * * * *"
         );
         // Test clamp values use `CronComponent` constants
         assert_eq!(
             mkcron_impl(
-                vec![CronComponent::At(100)],
-                vec![CronComponent::At(100)],
-                vec![CronComponent::At(100)],
-                vec![CronComponent::At(100)],
-                vec![CronComponent::At(100)]
+                &vec![CronComponent::At(100)],
+                &vec![CronComponent::At(100)],
+                &vec![CronComponent::At(100)],
+                &vec![CronComponent::At(100)],
+                &vec![CronComponent::At(100)]
             ),
             format!(
                 "{} {} {} {} {}",
@@ -548,11 +521,11 @@ mod tests {
         );
         assert_eq!(
             mkcron_impl(
-                vec![CronComponent::At(0)],
-                vec![CronComponent::At(0)],
-                vec![CronComponent::At(0)],
-                vec![CronComponent::At(0)],
-                vec![CronComponent::At(0)]
+                &vec![CronComponent::At(0)],
+                &vec![CronComponent::At(0)],
+                &vec![CronComponent::At(0)],
+                &vec![CronComponent::At(0)],
+                &vec![CronComponent::At(0)]
             ),
             format!(
                 "{} {} {} {} {}",
