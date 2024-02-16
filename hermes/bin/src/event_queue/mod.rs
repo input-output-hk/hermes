@@ -16,8 +16,11 @@ pub(crate) struct HermesEventQueueIn(Sender<Box<dyn event::HermesEventPayload>>)
 
 impl HermesEventQueueIn {
     ///
-    pub(crate) fn add(&self, event: Box<dyn event::HermesEventPayload>) {
-        self.0.send(event).unwrap();
+    pub(crate) fn add(&self, event: Box<dyn event::HermesEventPayload>) -> anyhow::Result<()> {
+        self.0.send(event).map_err(|_| {
+            anyhow::anyhow!("Failed to add event into the event queue. Event queue is closed")
+        })?;
+        Ok(())
     }
 }
 

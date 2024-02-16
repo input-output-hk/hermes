@@ -52,6 +52,8 @@ impl HermesReactor {
 
     ///
     pub(crate) fn run(mut self) -> anyhow::Result<()> {
+        self.state._hermes._init.emit_init_event()?;
+
         let events_thread = thread::spawn(move || {
             Self::event_execution_loop(&mut self.wasm_module, self.event_queue_out, &self.state)
         });

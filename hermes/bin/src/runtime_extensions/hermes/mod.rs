@@ -29,7 +29,7 @@ pub(crate) struct State {
     /// Hash extensions state
     _hash: hash::State,
     /// Init extensions state
-    _init: init::State,
+    pub(crate) _init: init::State,
     /// JSON extensions state
     _json: json::State,
     /// KV store extensions state
