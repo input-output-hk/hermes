@@ -391,6 +391,36 @@ mod tests {
     const LAST: u8 = 59;
 
     #[test]
+    fn test_cron_component_overlaps() {
+        assert!(CronComponent::At(1).overlaps(CronComponent::At(1)));
+        assert!(!CronComponent::At(1).overlaps(CronComponent::At(2)));
+        assert!(CronComponent::At(1).overlaps(CronComponent::Range((1, 2))));
+        assert!(!CronComponent::At(1).overlaps(CronComponent::Range((2, 3))));
+        assert!(CronComponent::At(1).overlaps(CronComponent::All));
+
+        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::Range((1, 2))));
+        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::Range((2, 3))));
+        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::All));
+
+        assert!(CronComponent::All.overlaps(CronComponent::At(1)));
+        assert!(CronComponent::All.overlaps(CronComponent::Range((1, 2))));
+        assert!(CronComponent::All.overlaps(CronComponent::All));
+    }
+
+    #[test]
+    fn test_cron_component_merge() {
+        assert_eq!(CronComponent::At(1).merge(CronComponent::At(2)), None);
+        assert_eq!(
+            CronComponent::At(1).merge(CronComponent::Range((1, 2))),
+            Some(CronComponent::Range((1, 2)))
+        );
+        assert_eq!(
+            CronComponent::Range((0, 1)).merge(CronComponent::Range((1, 2))),
+            Some(CronComponent::Range((0, 2)))
+        );
+    }
+
+    #[test]
     fn test_cron_component_order() {
         // `All` is always greater than all other `CronComponent`s.
         assert_eq!(CronComponent::All, CronComponent::All);
@@ -411,81 +441,73 @@ mod tests {
 
     #[test]
     fn test_cron_time_to_cron_sched_returns_all_if_empty() {
-        let cron_schedule = cron_time_to_cron_sched(&vec![], FIRST, LAST);
+        let cron_schedule = cron_time_to_cron_sched(vec![], FIRST, LAST);
         assert_eq!(cron_schedule, "*");
     }
 
     #[test]
-    fn test_cron_time_to_cron_sched_clamps_values_within_limits() {
+    fn test_clamp_cron_time_values_within_limits() {
         // Components with values outside the clamping limits
-        let cron_schedule = cron_time_to_cron_sched(&vec![CronComponent::At(0)], FIRST, LAST);
-        assert_eq!(cron_schedule, format!("{FIRST}"));
+        let cron_schedule = clamp_cron_time_values(vec![CronComponent::At(0)], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::At(FIRST)]);
 
-        let cron_schedule = cron_time_to_cron_sched(&vec![CronComponent::At(100)], FIRST, LAST);
-        assert_eq!(cron_schedule, format!("{LAST}"));
-
-        let cron_schedule =
-            cron_time_to_cron_sched(&vec![CronComponent::Range((62, 64))], FIRST, LAST);
-        assert_eq!(cron_schedule, format!("{LAST}")); // clamps to (59, 59), which is simplified to 59
+        let cron_schedule = clamp_cron_time_values(vec![CronComponent::At(100)], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
 
         let cron_schedule =
-            cron_time_to_cron_sched(&vec![CronComponent::Range((0, 200))], FIRST, LAST);
-        assert_eq!(cron_schedule, format!("{FIRST}-{LAST}"));
+            clamp_cron_time_values(vec![CronComponent::Range((62, 64))], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::At(LAST)]);
+
+        let cron_schedule =
+            clamp_cron_time_values(vec![CronComponent::Range((0, 20))], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::Range((FIRST, 20))]);
+
+        let cron_schedule =
+            clamp_cron_time_values(vec![CronComponent::Range((0, 200))], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::All]);
+
+        let cron_schedule =
+            clamp_cron_time_values(vec![CronComponent::Range((FIRST, LAST))], FIRST, LAST);
+        assert_eq!(cron_schedule, vec![CronComponent::All]);
     }
 
     #[test]
-    fn test_cron_time_to_cron_sched_removes_duplicate_components() {
+    fn test_merge_cron_time_overlaps() {
         // `CronTime`s that contain `All` removes everything else.
         let cron_schedule =
-            cron_time_to_cron_sched(&vec![CronComponent::At(3), CronComponent::All], FIRST, LAST);
-        assert_eq!(cron_schedule, "*");
+            merge_cron_time_overlaps(vec![CronComponent::At(3), CronComponent::All]);
+        assert_eq!(cron_schedule, vec![CronComponent::All]);
 
-        let cron_schedule =
-            cron_time_to_cron_sched(&vec![CronComponent::All, CronComponent::All], FIRST, LAST);
-        assert_eq!(cron_schedule, "*");
+        let cron_schedule = merge_cron_time_overlaps(vec![CronComponent::All, CronComponent::All]);
+        assert_eq!(cron_schedule, vec![CronComponent::All]);
 
-        let cron_schedule = cron_time_to_cron_sched(
-            &vec![
-                CronComponent::At(5),
-                CronComponent::At(5),
-                CronComponent::Range((5, 5)),
-                CronComponent::Range((5, 5)),
-            ],
-            FIRST,
-            LAST,
-        );
-        assert_eq!(cron_schedule, "5");
+        let cron_schedule = merge_cron_time_overlaps(vec![
+            CronComponent::At(5),
+            CronComponent::At(5),
+            CronComponent::Range((5, 5)),
+            CronComponent::Range((5, 5)),
+        ]);
+        assert_eq!(cron_schedule, vec![CronComponent::At(5)]);
 
-        let cron_schedule = cron_time_to_cron_sched(
-            &vec![
-                CronComponent::At(7),
-                CronComponent::Range((5, 30)),
-                CronComponent::Range((5, 55)),
-            ],
-            FIRST,
-            LAST,
-        );
-        assert_eq!(cron_schedule, "5-55");
-    }
+        let cron_schedule = merge_cron_time_overlaps(vec![
+            CronComponent::At(7),
+            CronComponent::Range((5, 30)),
+            CronComponent::Range((5, 55)),
+        ]);
+        assert_eq!(cron_schedule, vec![CronComponent::Range((5, 55))]);
 
-    #[test]
-    fn test_cron_time_to_cron_sched_merges_overlapping_ranges() {
-        let cron_schedule = cron_time_to_cron_sched(
-            &vec![
-                CronComponent::Range((5, 15)),
-                CronComponent::Range((10, 15)),
-                CronComponent::Range((15, 25)),
-            ],
-            FIRST,
-            LAST,
-        );
-        assert_eq!(cron_schedule, "5-25");
+        let cron_schedule = merge_cron_time_overlaps(vec![
+            CronComponent::Range((10, 15)),
+            CronComponent::Range((14, 25)),
+            CronComponent::Range((5, 15)),
+        ]);
+        assert_eq!(cron_schedule, vec![CronComponent::Range((5, 25))]);
     }
 
     #[test]
     fn test_cron_time_to_cron_sched_orders_components() {
         let cron_schedule = cron_time_to_cron_sched(
-            &vec![
+            vec![
                 CronComponent::Range((2, 4)),
                 CronComponent::At(1),
                 CronComponent::Range((6, 7)),
@@ -497,5 +519,49 @@ mod tests {
             LAST,
         );
         assert_eq!(cron_schedule, "1,8,11,2-4,6-7,9-10");
+    }
+
+    #[test]
+    fn test_mkcron_impl() {
+        // Test empty `CronTime`s
+        assert_eq!(
+            mkcron_impl(vec![], vec![], vec![], vec![], vec![]),
+            "* * * * *"
+        );
+        // Test clamp values use `CronComponent` constants
+        assert_eq!(
+            mkcron_impl(
+                vec![CronComponent::At(100)],
+                vec![CronComponent::At(100)],
+                vec![CronComponent::At(100)],
+                vec![CronComponent::At(100)],
+                vec![CronComponent::At(100)]
+            ),
+            format!(
+                "{} {} {} {} {}",
+                CronComponent::MAX_MINUTE,
+                CronComponent::MAX_HOUR,
+                CronComponent::MAX_DAY,
+                CronComponent::MAX_MONTH,
+                CronComponent::MAX_DOW
+            )
+        );
+        assert_eq!(
+            mkcron_impl(
+                vec![CronComponent::At(0)],
+                vec![CronComponent::At(0)],
+                vec![CronComponent::At(0)],
+                vec![CronComponent::At(0)],
+                vec![CronComponent::At(0)]
+            ),
+            format!(
+                "{} {} {} {} {}",
+                CronComponent::MIN_MINUTE,
+                CronComponent::MIN_HOUR,
+                CronComponent::MIN_DAY,
+                CronComponent::MIN_MONTH,
+                CronComponent::MIN_DOW
+            )
+        )
     }
 }
