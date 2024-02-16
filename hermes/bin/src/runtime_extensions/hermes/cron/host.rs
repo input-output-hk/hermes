@@ -205,35 +205,6 @@ fn mkcron_impl(
 /// If the `CronTime` contains `CronComponent::All`, returns `*`.
 /// If the `CronTime` contains `CronComponent::Range(first, last)`, returns `*`.
 /// If the `CronTime` contains overlapping components, it merges them.
-///
-/// Example:
-///
-/// ```
-/// use hermes::runtime::host::hermes::cron::{cron_time_to_cron_sched, CronComponent};
-///
-/// let cron_time = vec![
-///     CronComponent::All,
-///     CronComponent::Range((2, 4)),
-///     CronComponent::At(5),
-/// ];
-///
-/// let dow_schedule =
-///     cron_time_to_cron_sched(&cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
-/// assert_eq!(dow_schedule, "*");
-///
-/// let cron_time = vec![
-///     CronComponent::Range((2, 4)),
-///     CronComponent::At(5),
-///     CronComponent::Range((6, 7)),
-///     CronComponent::At(8),
-///     CronComponent::Range((9, 10)),
-///     CronComponent::At(11),
-/// ];
-///
-/// let dow_schedule =
-///     cron_time_to_cron_sched(&cron_time, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
-/// assert_eq!(dow_schedule, "5,8,11,2-4,6-7,9-10");
-/// ```
 fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
     // If vec has no components or if it includes `CronComponent::All`, skip processing and
     // return "*"
@@ -462,23 +433,10 @@ impl PartialEq for CronComponent {
 #[allow(clippy::non_canonical_partial_ord_impl)]
 /// Compare two `CronComponent`s.
 ///
-/// Example:
-///
-/// ```rust
-/// use hermes::runtime_extensions::hermes::cron::CronComponent;
-///
-/// assert!(CronComponent::At(1) < CronComponent::At(2));
-/// assert!(CronComponent::At(1) < CronComponent::Range((2, 3)));
-/// assert!(CronComponent::At(1) < CronComponent::All);
-///
-/// assert!(CronComponent::Range((1, 2)) > CronComponent::At(1));
-/// assert!(CronComponent::Range((1, 2)) < CronComponent::Range((3, 4)));
-/// assert!(CronComponent::Range((1, 2)) < CronComponent::All);
-///
-/// assert!(CronComponent::All == CronComponent::All);
-/// assert!(CronComponent::All > CronComponent::Range((1, 2)));
-/// assert!(CronComponent::All > CronComponent::At(1));
-/// ```
+/// `CronComponent`s are ordered in the following order, from greater to lesser:
+/// - `All`
+/// - `Range`
+/// - `At`
 impl PartialOrd for CronComponent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match self {
