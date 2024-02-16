@@ -1,6 +1,6 @@
 #include "hermes.h"
 
-// cspell: words wasi cardano
+// cspell: words cardano
 
 int main(int argc, char *argv[]) {
   return 0;
