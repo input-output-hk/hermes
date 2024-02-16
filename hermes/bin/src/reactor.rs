@@ -1,6 +1,6 @@
 //! Hermes Reactor implementation.
 
-use std::thread;
+use std::{sync::Arc, thread};
 
 use crate::{
     event_queue::{self, HermesEventQueueOut},
@@ -19,7 +19,7 @@ pub(crate) struct HermesReactor {
     wasm_module: Module,
 
     ///
-    state: State,
+    state: Arc<State>,
 
     ///
     event_queue_out: HermesEventQueueOut,
@@ -28,10 +28,10 @@ pub(crate) struct HermesReactor {
 impl HermesReactor {
     ///
     fn event_execution_loop(
-        mut wasm_module: Module, event_queue_out: HermesEventQueueOut,
+        wasm_module: &mut Module, event_queue_out: HermesEventQueueOut, state: &Arc<State>,
     ) -> anyhow::Result<()> {
         for event in event_queue_out {
-            wasm_module.execute_event(event.as_ref())?;
+            wasm_module.execute_event(event.as_ref(), state.clone())?;
         }
         Ok(())
     }
@@ -41,7 +41,7 @@ impl HermesReactor {
         let wasm_module = Module::new(app_name, module_bytes)?;
         let (event_queue_in, event_queue_out) = event_queue::new();
 
-        let state = State::new(&event_queue_in);
+        let state = State::new(&event_queue_in).into();
 
         Ok(Self {
             wasm_module,
@@ -51,9 +51,10 @@ impl HermesReactor {
     }
 
     ///
-    pub(crate) fn run(self) -> anyhow::Result<()> {
-        let events_thread =
-            thread::spawn(|| Self::event_execution_loop(self.wasm_module, self.event_queue_out));
+    pub(crate) fn run(mut self) -> anyhow::Result<()> {
+        let events_thread = thread::spawn(move || {
+            Self::event_execution_loop(&mut self.wasm_module, self.event_queue_out, &self.state)
+        });
 
         events_thread
             .join()

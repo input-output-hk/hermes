@@ -4,6 +4,8 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
+use std::sync::Arc;
+
 use wasmtime::{
     component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
     Store as WasmStore,
@@ -92,7 +94,7 @@ impl Module {
     /// - `BadModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(
-        &mut self, event: &dyn HermesEventPayload, state: State,
+        &mut self, event: &dyn HermesEventPayload, state: Arc<State>,
     ) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
         let state = HermesState::new(self.context.clone(), state);

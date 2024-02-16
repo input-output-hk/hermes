@@ -12,10 +12,10 @@ pub(crate) trait Stateful {
 /// All runtime extensions state
 pub(crate) struct State {
     /// Hermes custom extensions state
-    _hermes: hermes::State,
+    pub(crate) _hermes: hermes::State,
 
     /// WASI standard extensions state
-    _wasi: wasi::State,
+    pub(crate) _wasi: wasi::State,
 }
 
 impl Stateful for State {
