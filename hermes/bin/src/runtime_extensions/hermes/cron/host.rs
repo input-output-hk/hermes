@@ -46,7 +46,7 @@ impl Host for HermesState {
     /// to be stopped, but ONLY after it has triggered once more.
     fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
         self.hermes
-            ._cron
+            .cron
             .crontabs
             .insert(entry.tag.clone(), CronTab { entry, retrigger });
         Ok(true)
@@ -100,14 +100,14 @@ impl Host for HermesState {
     /// - `1` - `bool` - The state of the retrigger flag.
     fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
         if let Some(tag) = tag {
-            match self.hermes._cron.crontabs.get(&tag) {
+            match self.hermes.cron.crontabs.get(&tag) {
                 Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
                 None => Ok(vec![]),
             }
         } else {
             Ok(self
                 .hermes
-                ._cron
+                .cron
                 .crontabs
                 .values()
                 .map(|cron| (cron.entry.clone(), cron.retrigger))
@@ -129,7 +129,7 @@ impl Host for HermesState {
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
     fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
-        match self.hermes._cron.crontabs.remove(&entry.tag) {
+        match self.hermes.cron.crontabs.remove(&entry.tag) {
             Some(_) => Ok(true),
             None => Ok(false),
         }
@@ -164,7 +164,7 @@ impl Host for HermesState {
     fn mkcron(
         &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
-        Ok(mkcron_impl(dow, month, day, hour, minute))
+        Ok(mkcron_impl(&dow, &month, &day, &hour, &minute))
     }
 }
 
@@ -176,26 +176,23 @@ fn mkdelay_crontab(duration: Instant, tag: CronEventTag) -> wasmtime::Result<Cro
     let (month, day) = (delayed.month() as u8, delayed.day());
     let (hour, minute, _secs) = delayed.to_hms();
     let when = format!("{minute} {hour} {day} {month} *");
-    Ok(CronTagged { tag, when })
+    Ok(CronTagged { when, tag })
 }
 
 /// Convert `CronTime` arguments to a `CronSched`.
 fn mkcron_impl(
-    dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
+    dow: &CronTime, month: &CronTime, day: &CronTime, hour: &CronTime, minute: &CronTime,
 ) -> CronSched {
     let dow_schedule: CronSched =
-        cron_time_to_cron_sched(&dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
+        cron_time_to_cron_sched(dow, CronComponent::MIN_DOW, CronComponent::MAX_DOW);
     let month_schedule: CronSched =
-        cron_time_to_cron_sched(&month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
+        cron_time_to_cron_sched(month, CronComponent::MIN_MONTH, CronComponent::MAX_MONTH);
     let day_schedule: CronSched =
-        cron_time_to_cron_sched(&day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
+        cron_time_to_cron_sched(day, CronComponent::MIN_DAY, CronComponent::MAX_DAY);
     let hour_schedule: CronSched =
-        cron_time_to_cron_sched(&hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
-    let minute_schedule: CronSched = cron_time_to_cron_sched(
-        &minute,
-        CronComponent::MIN_MINUTE,
-        CronComponent::MAX_MINUTE,
-    );
+        cron_time_to_cron_sched(hour, CronComponent::MIN_HOUR, CronComponent::MAX_HOUR);
+    let minute_schedule: CronSched =
+        cron_time_to_cron_sched(minute, CronComponent::MIN_MINUTE, CronComponent::MAX_MINUTE);
     // Return the merged schedule.
     format!("{minute_schedule} {hour_schedule} {day_schedule} {month_schedule} {dow_schedule}",)
 }
