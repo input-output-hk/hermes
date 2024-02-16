@@ -49,7 +49,13 @@ pub(crate) fn mkdelay_crontab(
     let delayed = OffsetDateTime::from_unix_timestamp_nanos(delayed_nanos)?;
     let (month, day) = (delayed.month() as u8, delayed.day());
     let (hour, minute, _secs) = delayed.to_hms();
-    let when = format!("{minute} {hour} {day} {month} *");
+    let when = mkcron_impl(
+        &vec![],
+        &vec![CronComponent::At(month)],
+        &vec![CronComponent::At(day)],
+        &vec![CronComponent::At(hour)],
+        &vec![CronComponent::At(minute)],
+    );
     Ok(CronTagged { when, tag })
 }
 
@@ -354,12 +360,53 @@ impl Ord for CronComponent {
 
 #[cfg(test)]
 mod tests {
+    use time::Duration;
+
     use super::*;
 
     // Define lower limit for the schedule component values.
     const FIRST: u8 = 1;
     // Define upper limit for the schedule component values.
     const LAST: u8 = 59;
+
+    #[test]
+    fn test_mkdelay_crontab() {
+        // Get the cron schedule from the current time.
+        let test_tag = "test".to_string();
+        let now = OffsetDateTime::now_utc();
+        let (month, day) = (now.month() as u8, now.day());
+        let (hour, minute, _secs) = now.to_hms();
+        let now_schedule = mkcron_impl(
+            &vec![],
+            &vec![CronComponent::At(month)],
+            &vec![CronComponent::At(day)],
+            &vec![CronComponent::At(hour)],
+            &vec![CronComponent::At(minute)],
+        );
+        // Test the case with 0 duration
+        let duration = 0u64;
+        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag.clone()).unwrap();
+        assert_eq!(when, now_schedule);
+        assert_eq!(tag, "test");
+        // Test the case with 5 minutes duration
+        let minute_duration = 5u64;
+        let secs_per_minute = 60u64;
+        let nanos = 1_000_000_000u64;
+        let duration = minute_duration * secs_per_minute * nanos;
+        let then = now + Duration::minutes(minute_duration as i64);
+        let (month, day) = (then.month() as u8, then.day());
+        let (hour, minute, _secs) = then.to_hms();
+        let then_schedule = mkcron_impl(
+            &vec![],
+            &vec![CronComponent::At(month)],
+            &vec![CronComponent::At(day)],
+            &vec![CronComponent::At(hour)],
+            &vec![CronComponent::At(minute)],
+        );
+        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag).unwrap();
+        assert_eq!(when, then_schedule);
+        assert_eq!(tag, "test");
+    }
 
     #[test]
     fn test_cron_component_overlaps() {
