@@ -17,19 +17,19 @@ So it has to have a defined boundaries of which application would be executed an
 
 ## Decision
 
-As a part of the metadate of the Hermes application, provide a `api_version` field.
+As a part of the metadata of the Hermes application, provide a `api_version` field.
 During the application loading step it should be validated,
 against the current Hermes `api_version` on which this application going to be executed.
-Validation is a equlity check.
+Validation is a equality check.
 
 ## Risks
 
-* Disallows backward compatability for the older applications to be run on the latest version of Hermes.
+* Disallows backward compatibility for the older applications to be run on the latest version of Hermes.
 
 ## Consequences
 
-* Eliminates maintaince and support complexity for the Hermes development itself.
-* Eliminates the need of the internal api version managment system.
+* Eliminates maintenance and support complexity for the Hermes development itself.
+* Eliminates the need of the internal api version management system.
 * Force Hermes application developers and it's users to use the latest version of the Hermes engine.
 * As `api_version` is separated from the Hermes version itself,
 allows to continue deliver new versions which does not change runtime extensions api.
