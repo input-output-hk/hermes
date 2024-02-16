@@ -3,7 +3,8 @@
 use std::thread;
 
 use crate::{
-    event_queue::{self, HermesEventQueueIn, HermesEventQueueOut},
+    event_queue::{self, HermesEventQueueOut},
+    runtime_extensions::state::{State, Stateful},
     wasm::module::Module,
 };
 
@@ -18,7 +19,8 @@ pub(crate) struct HermesReactor {
     wasm_module: Module,
 
     ///
-    event_queue_in: HermesEventQueueIn,
+    state: State,
+
     ///
     event_queue_out: HermesEventQueueOut,
 }
@@ -39,9 +41,11 @@ impl HermesReactor {
         let wasm_module = Module::new(app_name, module_bytes)?;
         let (event_queue_in, event_queue_out) = event_queue::new();
 
+        let state = State::new(&event_queue_in);
+
         Ok(Self {
             wasm_module,
-            event_queue_in,
+            state,
             event_queue_out,
         })
     }

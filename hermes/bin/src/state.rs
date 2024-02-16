@@ -1,6 +1,6 @@
 //! Hermes state implementation.
 
-use crate::runtime_extensions::state::{Context, State, Stateful};
+use crate::{runtime_extensions::state::State, wasm::context::Context};
 
 #[allow(dead_code)]
 /// State for Hermes runtime
@@ -14,10 +14,7 @@ pub(crate) struct HermesState {
 
 impl HermesState {
     /// Creates a new instance of the `HermesState`.
-    pub(crate) fn new(ctx: Context) -> HermesState {
-        Self {
-            state: State::new(&ctx),
-            ctx,
-        }
+    pub(crate) fn new(ctx: Context, state: State) -> HermesState {
+        Self { state, ctx }
     }
 }

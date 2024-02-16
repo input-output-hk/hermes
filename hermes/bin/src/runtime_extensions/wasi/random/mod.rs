@@ -1,6 +1,6 @@
 //! Host - WASI - Random implementations
 
-use crate::runtime_extensions::state::{Context, Stateful};
+use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
 
 pub(crate) mod insecure;
 pub(crate) mod insecure_seed;
@@ -17,11 +17,11 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &Context) -> Self {
+    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
         Self {
-            _insecure: insecure::State::new(ctx),
-            _insecure_seed: insecure_seed::State::new(ctx),
-            _secure: secure::State::new(ctx),
+            _insecure: insecure::State::new(event_queue_in),
+            _insecure_seed: insecure_seed::State::new(event_queue_in),
+            _secure: secure::State::new(event_queue_in),
         }
     }
 }

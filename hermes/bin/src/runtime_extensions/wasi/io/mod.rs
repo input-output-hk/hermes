@@ -1,6 +1,6 @@
 //! Host - WASI IO Implementation
 
-use crate::runtime_extensions::state::{Context, Stateful};
+use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
 
 pub(crate) mod error;
 pub(crate) mod streams;
@@ -14,10 +14,10 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(ctx: &Context) -> Self {
+    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
         Self {
-            _error: error::State::new(ctx),
-            _streams: streams::State::new(ctx),
+            _error: error::State::new(event_queue_in),
+            _streams: streams::State::new(event_queue_in),
         }
     }
 }
