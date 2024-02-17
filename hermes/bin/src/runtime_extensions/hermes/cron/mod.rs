@@ -359,7 +359,6 @@ impl Ord for CronComponent {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use time::Duration;
 
@@ -371,6 +370,7 @@ mod tests {
     const LAST: u8 = 59;
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn test_mkdelay_crontab() {
         // Get the cron schedule from the current time.
         let test_tag = "test".to_string();
@@ -394,7 +394,7 @@ mod tests {
         let secs_per_minute = 60u64;
         let nanos = 1_000_000_000u64;
         let duration = minute_duration * secs_per_minute * nanos;
-        let then = now + Duration::minutes(minute_duration as i64);
+        let then = now + Duration::minutes(minute_duration.try_into().unwrap());
         let (month, day) = (then.month() as u8, then.day());
         let (hour, minute, _secs) = then.to_hms();
         let then_schedule = mkcron_impl(
