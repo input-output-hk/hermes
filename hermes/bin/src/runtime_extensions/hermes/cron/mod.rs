@@ -359,6 +359,7 @@ impl Ord for CronComponent {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use time::Duration;
 
