@@ -27,5 +27,5 @@ anyhow = { workspace = true }
 blake2b_simd = { workspace = true }  
 hex-literal = { workspace = true }  
 thiserror = { workspace = true }
-criterion = { workspace = true, optional = true }
-time = { workspace = true }
+time = { workspace = true, features = ["local-offset", "macros", "parsing"] }
+time-tz = { workspace = true, features = ["system"] }
