@@ -13,6 +13,7 @@ builder:
     RUN mkdir /wasm
     COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
 
+# Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
 bindings-expand:
     FROM +builder
 
