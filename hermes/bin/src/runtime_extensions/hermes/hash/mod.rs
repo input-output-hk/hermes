@@ -2,6 +2,7 @@
 
 use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
 
+mod blake2b;
 mod host;
 
 /// State
