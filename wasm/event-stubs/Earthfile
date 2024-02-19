@@ -25,7 +25,7 @@ build-c-stub:
 # build-c-component - turns a C .wasm module into a component ready to be used with Hermes
 build-c-component:
     FROM ../wasi-hermes-component-adapter+builder
-    COPY +build-c-bindings/out.wasm ./
+    COPY +build-c-bindings/out.wasm .
 
     RUN wasm-tools validate ./out.wasm && \
         wasm-tools component new out.wasm -o component.wasm
