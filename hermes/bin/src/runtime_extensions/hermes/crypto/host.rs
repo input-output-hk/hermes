@@ -1,6 +1,6 @@
 //! Crypto host implementation for WASM runtime.
 
-use ed25519_bip32::XPrv;
+use ed25519_bip32::{Signature, XPrv};
 use wasmtime::component::Resource;
 
 use crate::{
@@ -66,8 +66,21 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// - `data` : The data to sign.
     fn sign_data(
-        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>, _data: Bstr,
+        &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
     ) -> wasmtime::Result<Ed25519Bip32Signature> {
+        let private_key = self
+        .hermes
+        .crypto
+        .private_key
+        .get(resource.rep())
+        .unwrap()
+        .private_key
+        .clone();
+        let check = XPrv::from_slice_verified(&private_key);
+        if check.is_ok() {
+            let sig: Signature<&Bstr> = check.unwrap().sign(&data);
+            return Ok(sig.to_bytes().to_vec());
+        }
         todo!()
     }
 
