@@ -20,12 +20,12 @@ build-c-stub:
 
     RUN clang-17 hermes.h hermes_component_type.o my-component.c -o out.wasm -mexec-model=reactor --target=wasm32-wasi --sysroot=/wasi-sysroot
 
-    SAVE ARTIFACT out.wasm out.wasm
+    SAVE ARTIFACT ./out.wasm
 
 # build-c-component - turns a C .wasm module into a component ready to be used with Hermes
 build-c-component:
     FROM ../wasi-hermes-component-adapter+builder
-    COPY +build-c-bindings/out.wasm ./out.wasm
+    COPY +build-c-stub/out.wasm .
 
     RUN wasm-tools validate ./out.wasm && \
         wasm-tools component new out.wasm -o component.wasm
