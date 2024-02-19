@@ -9,14 +9,16 @@ build-c-bindings:
     # FIXME: right now we need to remove `--no-object-file` flag to make it runs with our bench, should we add this back?
     RUN wit-bindgen c --autodrop-borrows yes ../wasi/wit
 
-    SAVE ARTIFACT ./
+    SAVE ARTIFACT hermes.c hermes.c
+    SAVE ARTIFACT hermes.h hermes.h
+    SAVE ARTIFACT hermes_component_type.o hermes_component_type.o
 
 # build-c-stub - compiles the generated C files into .wasm module
 build-c-stub:
     FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-21
     WORKDIR /repo
-    COPY . .
-    COPY +build-c-bindings/ ./
+    COPY my-component.c .
+    COPY +build-c-bindings/hermes.c +build-c-bindings/hermes.h +build-c-bindings/hermes_component_type.o .
 
     RUN clang-17 hermes.h hermes_component_type.o my-component.c -o out.wasm -mexec-model=reactor --target=wasm32-wasi --sysroot=/wasi-sysroot
 
