@@ -1,7 +1,5 @@
 #include "hermes.h"
 
-// cspell: words cardano
-
 int main(int argc, char *argv[]) {
   return 0;
 }
