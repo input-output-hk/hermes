@@ -5,7 +5,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::runtime_extensions::{
     bindings::{
@@ -44,9 +44,8 @@ struct CronTab {
 pub(crate) fn mkdelay_crontab(
     duration: Instant, tag: CronEventTag,
 ) -> wasmtime::Result<CronTagged> {
-    // Add the delay to the current time as nanoseconds.
-    let delayed_nanos = OffsetDateTime::now_utc().unix_timestamp_nanos() + i128::from(duration);
-    let delayed = OffsetDateTime::from_unix_timestamp_nanos(delayed_nanos)?;
+    // Add the delay to the current time.
+    let delayed = OffsetDateTime::now_utc() + Duration::nanoseconds(duration.try_into()?);
     let (month, day) = (delayed.month() as u8, delayed.day());
     let (hour, minute, _secs) = delayed.to_hms();
     let when = mkcron_impl(
