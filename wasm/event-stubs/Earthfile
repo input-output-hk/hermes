@@ -31,3 +31,7 @@ build-c-component:
         wasm-tools component new out.wasm -o component.wasm
 
     SAVE ARTIFACT ./component.wasm
+
+# build - builds all event stub components
+build:
+    BUILD +build-c-component
