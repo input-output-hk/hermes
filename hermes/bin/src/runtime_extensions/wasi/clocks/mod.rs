@@ -14,10 +14,10 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(_event_queue_in: &HermesEventQueueIn) -> Self {
+    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
         Self {
-            _monotonic: monotonic::State::new(_event_queue_in),
-            _wall: wall::State::new(_event_queue_in),
+            _monotonic: monotonic::State::new(event_queue_in),
+            _wall: wall::State::new(event_queue_in),
         }
     }
 }
