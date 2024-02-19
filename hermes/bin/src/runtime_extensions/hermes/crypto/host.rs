@@ -28,11 +28,9 @@ impl HostEd25519Bip32 for HermesState {
         match private_key {
             Some(private_key) => {
                 let check = XPrv::from_slice_verified(&private_key);
-                let pk = Ed25519Bip32Struct {
-                    private_key,
-                };
+                let pk = Ed25519Bip32Struct { private_key };
                 if check.is_ok() {
-                    return Ok(Resource::new_own(self.hermes.crypto.private_key.new(Some(pk))));
+                    return Ok(Resource::new_own(self.hermes.crypto.private_key.new(pk)));
                 } else {
                     todo!()
                 }
@@ -45,7 +43,14 @@ impl HostEd25519Bip32 for HermesState {
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<Ed25519Bip32PublicKey> {
-        let private_key = self.hermes.crypto.private_key.get(resource.rep()).unwrap().private_key.clone();
+        let private_key = self
+            .hermes
+            .crypto
+            .private_key
+            .get(resource.rep())
+            .unwrap()
+            .private_key
+            .clone();
         let check = XPrv::from_slice_verified(&private_key);
         if check.is_ok() {
             let pubk = XPrv::public(&check.unwrap());

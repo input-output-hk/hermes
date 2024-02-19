@@ -23,7 +23,7 @@ impl<T> ResHolder<T> {
         id
     }
 
-    fn _get(&self, id: u32) -> Option<&T> {
+    fn get(&self, id: u32) -> Option<&T> {
         self.resources.get(&id)
     }
 
@@ -32,7 +32,7 @@ impl<T> ResHolder<T> {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[allow(dead_code)]
 struct Ed25519Bip32Struct {
     private_key: Ed25519Bip32PrivateKey,
@@ -40,7 +40,7 @@ struct Ed25519Bip32Struct {
 
 /// State
 pub(crate) struct State {
-    private_key: ResHolder<Option<Ed25519Bip32Struct>>,
+    private_key: ResHolder<Ed25519Bip32Struct>,
 }
 
 impl Stateful for State {
