@@ -1,6 +1,6 @@
 //! Crypto host implementation for WASM runtime.
 
-use ed25519_bip32::{Signature, XPrv};
+use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 use wasmtime::component::Resource;
 
 use crate::{
@@ -119,8 +119,23 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// Note: uses BIP32 HD key derivation.
     fn derive(
-        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>,
+        &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
+        let private_key = self
+        .hermes
+        .crypto
+        .private_key
+        .get(resource.rep())
+        .unwrap()
+        .private_key
+        .clone();
+        let check = XPrv::from_slice_verified(&private_key);
+        if check.is_ok() {
+            // Recheck the index
+            let new_key = check.unwrap().derive(DerivationScheme::V2, 0);
+            let r_new_key = self.new(Some(new_key.as_ref().to_vec()));
+            return r_new_key;
+        }
         todo!()
     }
 
