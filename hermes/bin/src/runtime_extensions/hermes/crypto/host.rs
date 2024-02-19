@@ -32,7 +32,7 @@ impl HostEd25519Bip32 for HermesState {
                     private_key,
                 };
                 if check.is_ok() {
-                    return Ok(Resource::new_own(self.hermes._crypto.private_key.new(Some(pk))));
+                    return Ok(Resource::new_own(self.hermes.crypto.private_key.new(Some(pk))));
                 } else {
                     todo!()
                 }
