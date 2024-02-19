@@ -1,9 +1,12 @@
 //! Localtime host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::{
-        hermes::localtime::api::{Errno, Host, Localtime, Timezone},
-        wasi::clocks::wall_clock::Datetime,
+    runtime_extensions::{
+        bindings::{
+            hermes::localtime::api::{Errno, Host, Localtime, Timezone},
+            wasi::clocks::wall_clock::Datetime,
+        },
+        hermes::localtime::get_localtime_impl,
     },
     state::HermesState,
 };
@@ -23,9 +26,9 @@ impl Host for HermesState {
     /// `localtime` : the converted time.
     /// `errno`     : An error indicating why conversion failed.
     fn get_localtime(
-        &mut self, _when: Option<Datetime>, _tz: Option<Timezone>,
+        &mut self, when: Option<Datetime>, tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
-        todo!()
+        Ok(get_localtime_impl(when, tz)?)
     }
 
     /// Get a new localtime from a localtime, by recalculating time for a new timezone.
