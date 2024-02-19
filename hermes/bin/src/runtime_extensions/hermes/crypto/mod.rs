@@ -32,15 +32,9 @@ impl<T> ResHolder<T> {
     }
 }
 
-#[derive(Default, Clone)]
-#[allow(dead_code)]
-struct Ed25519Bip32Struct {
-    private_key: Ed25519Bip32PrivateKey,
-}
-
 /// State
 pub(crate) struct State {
-    private_key: ResHolder<Ed25519Bip32Struct>,
+    private_key: ResHolder<Ed25519Bip32PrivateKey>,
 }
 
 impl Stateful for State {
