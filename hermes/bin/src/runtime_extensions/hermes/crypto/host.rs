@@ -1,5 +1,6 @@
 //! Crypto host implementation for WASM runtime.
 
+// cspell: words prvk pubk 
 use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 use wasmtime::component::Resource;
 
