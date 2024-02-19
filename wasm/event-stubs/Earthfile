@@ -1,6 +1,6 @@
 VERSION 0.7
 
-# cspell: words autodrop CFLAGS mexec
+# cspell: words autodrop CFLAGS mexec sysroot
 
 # build-c-bindings - generates `wit-bindgen` with C, this should generate `hermes.c`, `hermes.h`, and `hermes_component_type.o`
 build-c-bindings:
