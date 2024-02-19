@@ -14,8 +14,6 @@ use crate::{
     state::HermesState,
 };
 
-use super::Ed25519Bip32Struct;
-
 impl HostEd25519Bip32 for HermesState {
     /// Create a new ED25519-BIP32 Crypto resource
     ///
@@ -26,15 +24,14 @@ impl HostEd25519Bip32 for HermesState {
         &mut self, private_key: Option<Ed25519Bip32PrivateKey>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         match private_key {
-            Some(private_key) => {
-                let check = XPrv::from_slice_verified(&private_key);
-                let pk = Ed25519Bip32Struct { private_key };
-                if check.is_ok() {
-                    return Ok(Resource::new_own(self.hermes.crypto.private_key.new(pk)));
-                } else {
-                    todo!()
-                }
+            // Private key is supplied
+            Some(private_key) => match XPrv::from_slice_verified(&private_key) {
+                Ok(_) => Ok(Resource::new_own(
+                    self.hermes.crypto.private_key.new(private_key),
+                )),
+                Err(e) => Err(wasmtime::Error::new(e)),
             },
+            // TODO - Generate new private key
             None => todo!(),
         }
     }
@@ -43,20 +40,20 @@ impl HostEd25519Bip32 for HermesState {
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<Ed25519Bip32PublicKey> {
-        let private_key = self
-            .hermes
-            .crypto
-            .private_key
-            .get(resource.rep())
-            .unwrap()
-            .private_key
-            .clone();
-        let check = XPrv::from_slice_verified(&private_key);
-        if check.is_ok() {
-            let pubk = XPrv::public(&check.unwrap());
-            Ok(pubk.public_key_slice().to_vec())
-        } else {
-            todo!()
+        match self.hermes.crypto.private_key.get(resource.rep()) {
+            // The given private key exists
+            Some(private_key) => {
+                let prvk = XPrv::from_slice_verified(&private_key);
+                return match prvk {
+                    Ok(prvk) => {
+                        let pubk = XPrv::public(&prvk);
+                        Ok(pubk.public_key_slice().to_vec())
+                    },
+                    Err(e) => Err(wasmtime::Error::new(e)),
+                };
+            },
+            // TODO - create custom error, private key not found
+            None => todo!(),
         }
     }
 
@@ -68,20 +65,21 @@ impl HostEd25519Bip32 for HermesState {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
     ) -> wasmtime::Result<Ed25519Bip32Signature> {
-        let private_key = self
-        .hermes
-        .crypto
-        .private_key
-        .get(resource.rep())
-        .unwrap()
-        .private_key
-        .clone();
-        let check = XPrv::from_slice_verified(&private_key);
-        if check.is_ok() {
-            let sig: Signature<&Bstr> = check.unwrap().sign(&data);
-            return Ok(sig.to_bytes().to_vec());
+        match self.hermes.crypto.private_key.get(resource.rep()) {
+            // The given private key exists
+            Some(private_key) => {
+                let prvk = XPrv::from_slice_verified(&private_key);
+                return match prvk {
+                    Ok(prvk) => {
+                        let sig: Signature<&Bstr> = prvk.sign(&data);
+                        return Ok(sig.to_bytes().into());
+                    },
+                    Err(e) => Err(wasmtime::Error::new(e)),
+                };
+            },
+            // TODO - create custom error, private key not found
+            None => todo!(),
         }
-        todo!()
     }
 
     /// Check a signature on a set of data.
@@ -99,20 +97,22 @@ impl HostEd25519Bip32 for HermesState {
         &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
         sig: Ed25519Bip32Signature,
     ) -> wasmtime::Result<bool> {
-        let private_key = self
-        .hermes
-        .crypto
-        .private_key
-        .get(resource.rep())
-        .unwrap()
-        .private_key
-        .clone();
-        let check = XPrv::from_slice_verified(&private_key);
-        let signature: Signature<Bstr>  = Signature::from_slice(&sig).unwrap();
-        if check.is_ok() {
-            return Ok(check.unwrap().verify(&data, &signature));
+        match self.hermes.crypto.private_key.get(resource.rep()) {
+            // The given private key exists
+            Some(private_key) => {
+                let prvk = XPrv::from_slice_verified(&private_key);
+                let signature: Signature<Bstr> = match Signature::from_slice(&sig) {
+                    Ok(sig) => sig,
+                    Err(e) => return Err(wasmtime::Error::new(e)),
+                };
+                return match prvk {
+                    Ok(prvk) => Ok(prvk.verify(&data, &signature)),
+                    Err(e) => Err(wasmtime::Error::new(e)),
+                };
+            },
+            // TODO - create custom error, private key not found
+            None => todo!(),
         }
-        todo!()
     }
 
     /// Derive a new private key from the current private key.
@@ -121,22 +121,22 @@ impl HostEd25519Bip32 for HermesState {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
-        let private_key = self
-        .hermes
-        .crypto
-        .private_key
-        .get(resource.rep())
-        .unwrap()
-        .private_key
-        .clone();
-        let check = XPrv::from_slice_verified(&private_key);
-        if check.is_ok() {
-            // Recheck the index
-            let new_key = check.unwrap().derive(DerivationScheme::V2, 0);
-            let r_new_key = self.new(Some(new_key.as_ref().to_vec()));
-            return r_new_key;
+        match self.hermes.crypto.private_key.get(resource.rep()) {
+            // The given private key exists
+            Some(private_key) => {
+                let prvk = XPrv::from_slice_verified(&private_key);
+                return match prvk {
+                    // TODO - Recheck the index
+                    Ok(prvk) => {
+                        let new_derive_key = prvk.derive(DerivationScheme::V2, 0);
+                        return self.new(Some(new_derive_key.as_ref().to_vec()));
+                    },
+                    Err(e) => Err(wasmtime::Error::new(e)),
+                };
+            },
+            // TODO - create custom error, private key not found
+            None => todo!(),
         }
-        todo!()
     }
 
     /// Create a new RANDOM private key.
