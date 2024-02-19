@@ -2,6 +2,7 @@
 
 use crate::runtime_extensions::state::{Context, Stateful};
 
+mod blake2b;
 mod host;
 
 /// State
