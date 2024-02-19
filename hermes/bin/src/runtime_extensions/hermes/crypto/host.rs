@@ -43,9 +43,16 @@ impl HostEd25519Bip32 for HermesState {
 
     /// Get the public key for this private key.
     fn public_key(
-        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>,
+        &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>,
     ) -> wasmtime::Result<Ed25519Bip32PublicKey> {
-        todo!()
+        let private_key = self.hermes.crypto.private_key.get(resource.rep()).unwrap().private_key.clone();
+        let check = XPrv::from_slice_verified(&private_key);
+        if check.is_ok() {
+            let pubk = XPrv::public(&check.unwrap());
+            Ok(pubk.public_key_slice().to_vec())
+        } else {
+            todo!()
+        }
     }
 
     /// Sign data with the Private key, and return it.
