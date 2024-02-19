@@ -18,7 +18,7 @@ bindings-expand:
     FROM +builder
 
     RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
-    SAVE ARTIFACT bindings.rs bindings.rs AS LOCAL bindings.rs
+    SAVE ARTIFACT bindings.rs AS LOCAL bindings.rs
 
 ## -----------------------------------------------------------------------------
 ##
