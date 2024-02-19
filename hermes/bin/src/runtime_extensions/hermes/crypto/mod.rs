@@ -27,7 +27,7 @@ impl<T> ResHolder<T> {
         self.resources.get(&id)
     }
 
-    fn _drop(&mut self, id: u32) -> Result<(), ()> {
+    fn drop(&mut self, id: u32) -> Result<(), ()> {
         self.resources.remove(&id).map(|_| ()).ok_or(())
     }
 }

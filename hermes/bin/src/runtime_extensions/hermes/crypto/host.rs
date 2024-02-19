@@ -132,8 +132,8 @@ impl HostEd25519Bip32 for HermesState {
         todo!()
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Ed25519Bip32>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, rep: wasmtime::component::Resource<Ed25519Bip32>) -> wasmtime::Result<()> {
+        Ok(self.hermes.crypto.private_key.drop(rep.rep()).unwrap_or(()))
     }
 }
 
