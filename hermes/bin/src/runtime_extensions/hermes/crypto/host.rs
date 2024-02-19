@@ -96,9 +96,22 @@ impl HostEd25519Bip32 for HermesState {
     /// - `true` : Signature checked OK.
     /// - `false` : Signature check failed.
     fn check_sig(
-        &mut self, _resource: wasmtime::component::Resource<Ed25519Bip32>, _data: Bstr,
-        _sig: Ed25519Bip32Signature,
+        &mut self, resource: wasmtime::component::Resource<Ed25519Bip32>, data: Bstr,
+        sig: Ed25519Bip32Signature,
     ) -> wasmtime::Result<bool> {
+        let private_key = self
+        .hermes
+        .crypto
+        .private_key
+        .get(resource.rep())
+        .unwrap()
+        .private_key
+        .clone();
+        let check = XPrv::from_slice_verified(&private_key);
+        let signature: Signature<Bstr>  = Signature::from_slice(&sig).unwrap();
+        if check.is_ok() {
+            return Ok(check.unwrap().verify(&data, &signature));
+        }
         todo!()
     }
 
