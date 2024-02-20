@@ -23,3 +23,12 @@ world hermes {
   include hermes:localtime/all;
   include hermes:logging/all;
 }
+
+/// This exports only the event parts
+/// Modules only need to implement the exports they require.
+world hermes-stub {
+  include hermes:cardano/cardano-events;
+  include hermes:cron/cron-event;
+  include hermes:init/init-event;
+  include hermes:kv-store/kv-store-event;
+}

@@ -19,3 +19,7 @@ interface event {
     /// - `false` - Fatal error during Initialization.  DO NOT START APPLICATION.
     init: func() -> bool;
 }
+
+world init-event {
+    export event;
+}

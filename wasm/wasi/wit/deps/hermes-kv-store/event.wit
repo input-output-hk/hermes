@@ -18,3 +18,7 @@ interface event {
     ///     Nothing.
     kv-update: func(key: string, value: kv-values);
 }
+
+world kv-store-event {
+    export event;
+}
