@@ -130,12 +130,10 @@ fn merge_cron_time_overlaps(cron_time: &CronTime) -> CronTime {
                 // component. If it does, merge it with the current component, and add the
                 // index of the merged item to the `already_merged` vector.
                 for item in &mut out {
-                    if item.overlaps(*cron_component) {
+                    if let Some(merged_item) = item.merge(*cron_component) {
                         has_no_overlap = false;
-                        if let Some(merged_item) = item.merge(*cron_component) {
-                            *item = merged_item;
-                            already_merged.push(idx);
-                        }
+                        *item = merged_item;
+                        already_merged.push(idx);
                     }
                 }
                 if has_not_been_merged && has_no_overlap {
@@ -251,35 +249,13 @@ impl CronComponent {
                 match other {
                     Self::All => Some(Self::All),
                     Self::At(w) if (first..=last).contains(&w) => Some(self),
-                    Self::Range((a, b)) => Some(Self::Range((min(first, a), max(last, b)))),
-                    Self::At(_) => None,
-                }
-            },
-        }
-    }
-
-    /// Determine if inner value overlaps with the argument. Returns `bool`.
-    ///
-    /// This method makes no checks to determine if the values are within
-    /// any limit.
-    fn overlaps(self, other: CronComponent) -> bool {
-        match self {
-            Self::All => true,
-            Self::At(when) => {
-                match other {
-                    Self::All => true,
-                    Self::At(w) => w == when,
-                    Self::Range((a, b)) => (a..=b).contains(&when),
-                }
-            },
-            Self::Range((first, last)) => {
-                match other {
-                    Self::All => true,
-                    Self::At(w) => (first..=last).contains(&w),
-                    Self::Range((a, b)) => {
-                        ((first..=last).contains(&a) || (first..=last).contains(&b))
-                            || ((a..=b).contains(&first) || (a..=b).contains(&last))
+                    Self::Range((a, b))
+                        if ((first..=last).contains(&a) || (first..=last).contains(&b))
+                            || ((a..=b).contains(&first) || (a..=b).contains(&last)) =>
+                    {
+                        Some(Self::Range((min(first, a), max(last, b))))
                     },
+                    _ => None,
                 }
             },
         }
@@ -410,23 +386,6 @@ mod tests {
         let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag).unwrap();
         assert_eq!(when, then_schedule);
         assert_eq!(tag, "test");
-    }
-
-    #[test]
-    fn test_cron_component_overlaps() {
-        assert!(CronComponent::At(1).overlaps(CronComponent::At(1)));
-        assert!(!CronComponent::At(1).overlaps(CronComponent::At(2)));
-        assert!(CronComponent::At(1).overlaps(CronComponent::Range((1, 2))));
-        assert!(!CronComponent::At(1).overlaps(CronComponent::Range((2, 3))));
-        assert!(CronComponent::At(1).overlaps(CronComponent::All));
-
-        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::Range((1, 2))));
-        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::Range((2, 3))));
-        assert!(CronComponent::Range((1, 2)).overlaps(CronComponent::All));
-
-        assert!(CronComponent::All.overlaps(CronComponent::At(1)));
-        assert!(CronComponent::All.overlaps(CronComponent::Range((1, 2))));
-        assert!(CronComponent::All.overlaps(CronComponent::All));
     }
 
     #[test]
