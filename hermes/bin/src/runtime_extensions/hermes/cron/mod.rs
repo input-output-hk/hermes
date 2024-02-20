@@ -81,6 +81,8 @@ pub(crate) fn mkcron_impl(
 /// If the `CronTime` contains `CronComponent::All`, returns `*`.
 /// If the `CronTime` contains `CronComponent::Range(first, last)`, returns `*`.
 /// If the `CronTime` contains overlapping components, it merges them.
+///
+/// Returns `CronSched`
 fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
     // If vec has no components or if it includes `CronComponent::All`, skip processing and
     // return "*"
@@ -104,6 +106,8 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
 }
 
 /// Clamp values within the specified `min_val..=max_val` range
+///
+/// Returns `CronTime`
 fn clamp_cron_time_values(cron_time: &[CronComponent], min_val: u8, max_val: u8) -> CronTime {
     cron_time
         .iter()
@@ -117,7 +121,7 @@ fn clamp_cron_time_values(cron_time: &[CronComponent], min_val: u8, max_val: u8)
 
 /// Scan and merge components if they overlap.
 ///
-/// Returns a vector of `CronComponent`
+/// Returns `CronTime`
 fn merge_cron_time_overlaps(cron_time: &CronTime) -> CronTime {
     BTreeSet::from_iter(cron_time)
         .iter()
