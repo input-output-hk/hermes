@@ -20,3 +20,4 @@ blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }  
 thiserror = { workspace = true }
 ed25519-bip32 = { workspace = true }
+dashmap = { workspace = true }
