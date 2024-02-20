@@ -1,6 +1,7 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
 
+mod app;
 mod event_queue;
 #[allow(dead_code)]
 mod reactor;

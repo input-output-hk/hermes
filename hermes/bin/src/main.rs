@@ -1,5 +1,6 @@
 //! The Hermes Node.
 
+mod app;
 mod event_queue;
 #[allow(dead_code)]
 mod reactor;
