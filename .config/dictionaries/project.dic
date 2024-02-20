@@ -68,6 +68,7 @@ miniprotocols
 mithril
 mitigations
 mkcron
+mkdelay
 mkdirat
 moderations
 multiera
@@ -127,3 +128,7 @@ WASI
 wasmtime
 webasm
 yoroi
+smac
+bmac
+typenum
+hasher
