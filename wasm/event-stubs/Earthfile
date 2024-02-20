@@ -2,51 +2,13 @@ VERSION 0.7
 
 # cspell: words autodrop CFLAGS mexec sysroot
 
-# build-c-bindings - generates `wit-bindgen` with C, this should generate `hermes.c`, `hermes.h`, and `hermes_component_type.o`
-build-c-bindings:
-    FROM ../wasi-hermes-component-adapter+builder
-
-    # FIXME: right now we need to remove `--no-object-file` flag to make it runs with our bench, should we add this back?
-    RUN wit-bindgen c --autodrop-borrows yes ../wasi/wit
-
-    SAVE ARTIFACT hermes.c hermes.c
-    SAVE ARTIFACT hermes.h hermes.h
-    SAVE ARTIFACT hermes_component_type.o hermes_component_type.o
-
-# build-c-stub - compiles the generated C files into .wasm module
-build-c-stub:
-    FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-21
-    WORKDIR /repo
-    COPY my-component.c .
-    COPY +build-c-bindings/hermes.c +build-c-bindings/hermes.h +build-c-bindings/hermes_component_type.o .
-
-    RUN clang-17 hermes.c hermes_component_type.o my-component.c -o out.wasm -mexec-model=reactor --target=wasm32-wasi --sysroot=/wasi-sysroot
-
-    SAVE ARTIFACT out.wasm out.wasm
-
-# build-c-component - turns a C .wasm module into a component ready to be used with Hermes
-build-c-component:
-    FROM ../wasi-hermes-component-adapter+builder
-    COPY +build-c-stub/out.wasm .
-
-    RUN wasm-tools validate ./out.wasm && \
-        wasm-tools component new out.wasm -o component.wasm
-
-    SAVE ARTIFACT ./component.wasm
-
-# build - builds all event stub components
+# build - generate a wasm component from a C file
 build:
-    BUILD +build-c-component
+    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:feat/wasm-c-base+wasm-c-base
 
-# build-c-component - generate a wasm component from a C file
-# build-c-component:
-#     FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:feat/wasm-c-base+wasm-c-base
+    COPY ./my-component.c .
+    COPY ..+wasi-src/wasi .
 
-#     COPY ./my-component.c .
+    RUN /scripts/std_build.py --wit_path="wit" --c_files="my-component.c" --out="component.wasm"
 
-#     RUN /scripts/std_build.py --wit_path="../wasi/wit" --c_files="my-component.c" --out="component.wasm"
-
-#     SAVE ARTIFACT component.wasm component.wasm
-
-# build:
-#     BUILD +build-c-component
+    SAVE ARTIFACT component.wasm
