@@ -15,6 +15,5 @@
         "rust-lang.rust-analyzer",
         "JScearcy.rust-doc-viewer",
         "serayuzgur.crates",
-        "panicbit.cargo",
     ]
 }
