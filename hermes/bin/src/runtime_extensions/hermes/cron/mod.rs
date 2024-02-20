@@ -119,30 +119,24 @@ fn clamp_cron_time_values(cron_time: &[CronComponent], min_val: u8, max_val: u8)
 ///
 /// Returns a vector of `CronComponent`
 fn merge_cron_time_overlaps(cron_time: &CronTime) -> CronTime {
-    let (merged, _): (Vec<CronComponent>, _) =
-        BTreeSet::from_iter(cron_time).iter().enumerate().fold(
-            (Vec::new(), Vec::new()),
-            |(mut out, mut already_merged), (idx, &cron_component)| {
-                let mut has_no_overlap = true;
-                // Check if the component has already been merged.
-                let has_not_been_merged = !already_merged.contains(&idx);
-                // For each item in the output vector, check if it overlaps with the current
-                // component. If it does, merge it with the current component, and add the
-                // index of the merged item to the `already_merged` vector.
-                for item in &mut out {
-                    if let Some(merged_item) = item.merge(*cron_component) {
-                        has_no_overlap = false;
-                        *item = merged_item;
-                        already_merged.push(idx);
-                    }
+    BTreeSet::from_iter(cron_time)
+        .iter()
+        .fold(Vec::new(), |mut out, &cron_component| {
+            let mut is_not_merged = true;
+            // For each item in the output vector, check if it overlaps with the current
+            // component. If it does, merge it with the current component, and set the
+            // `is_not_merged` flag to false.
+            for item in &mut out {
+                if let Some(merged_item) = item.merge(*cron_component) {
+                    is_not_merged = false;
+                    *item = merged_item;
                 }
-                if has_not_been_merged && has_no_overlap {
-                    out.push(*cron_component);
-                }
-                (out, already_merged)
-            },
-        );
-    merged
+            }
+            if is_not_merged {
+                out.push(*cron_component);
+            }
+            out
+        })
 }
 
 /// Convert a `CronTime` to a `CronSched` for the day of week.
