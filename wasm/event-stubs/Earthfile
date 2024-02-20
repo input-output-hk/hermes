@@ -1,7 +1,5 @@
 VERSION 0.7
 
-# cspell: words autodrop CFLAGS mexec sysroot
-
 # build - generate a wasm component from a C file
 build:
     FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:feat/wasm-c-base+wasm-c-base
