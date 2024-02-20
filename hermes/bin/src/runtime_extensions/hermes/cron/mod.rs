@@ -1,7 +1,7 @@
 //! Cron runtime extension implementation.
 use std::{
     cmp::{max, min},
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     fmt::{Display, Formatter},
 };
 
@@ -92,7 +92,7 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
         // replaced with `CronComponent::All`.
         let clamped: Vec<CronComponent> = clamp_cron_time_values(cron_time, min_val, max_val);
         // Merge overlapping components
-        let merged: Vec<CronComponent> = merge_cron_time_overlaps(clamped);
+        let merged: Vec<CronComponent> = merge_cron_time_overlaps(&clamped);
         // Return the merged cron schedule
         merged
             .into_iter()
@@ -104,42 +104,46 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
 }
 
 /// Clamp values within the specified `min_val..=max_val` range
-fn clamp_cron_time_values(
-    cron_time: &[CronComponent], min_val: u8, max_val: u8,
-) -> Vec<CronComponent> {
+fn clamp_cron_time_values(cron_time: &[CronComponent], min_val: u8, max_val: u8) -> CronTime {
     cron_time
         .iter()
-        .map(|d| d.clamp_inner(min_val, max_val))
+        .fold(BTreeSet::new(), |mut out, cron_component| {
+            out.insert(cron_component.clamp_inner(min_val, max_val));
+            out
+        })
+        .into_iter()
         .collect()
 }
 
-/// Scan over the remaining components and merge them if they overlap
-fn merge_cron_time_overlaps(cron_time: Vec<CronComponent>) -> Vec<CronComponent> {
-    let mut cron_time = cron_time;
-    // Sort the clamped components to have a consistent order
-    cron_time.sort();
-
-    let merged = cron_time
-        .clone()
-        .iter()
-        .fold(Vec::new(), |mut out, cron_component| {
-            let has_no_overlap = out
-                .iter()
-                .all(|&item: &CronComponent| !item.overlaps(*cron_component));
-            if has_no_overlap {
-                out.push(*cron_component);
-            } else {
+/// Scan and merge components if they overlap.
+///
+/// Returns a vector of `CronComponent`
+fn merge_cron_time_overlaps(cron_time: &CronTime) -> CronTime {
+    let (merged, _): (Vec<CronComponent>, _) =
+        BTreeSet::from_iter(cron_time).iter().enumerate().fold(
+            (Vec::new(), Vec::new()),
+            |(mut out, mut already_merged), (idx, &cron_component)| {
+                let mut has_no_overlap = true;
+                // Check if the component has already been merged.
+                let has_not_been_merged = !already_merged.contains(&idx);
+                // For each item in the output vector, check if it overlaps with the current
+                // component. If it does, merge it with the current component, and add the
+                // index of the merged item to the `already_merged` vector.
                 for item in &mut out {
                     if item.overlaps(*cron_component) {
+                        has_no_overlap = false;
                         if let Some(merged_item) = item.merge(*cron_component) {
                             *item = merged_item;
+                            already_merged.push(idx);
                         }
                     }
                 }
-            }
-            out.sort();
-            out
-        });
+                if has_not_been_merged && has_no_overlap {
+                    out.push(*cron_component);
+                }
+                (out, already_merged)
+            },
+        );
     merged
 }
 
@@ -490,13 +494,13 @@ mod tests {
     fn test_merge_cron_time_overlaps() {
         // `CronTime`s that contain `All` removes everything else.
         let cron_schedule =
-            merge_cron_time_overlaps(vec![CronComponent::At(3), CronComponent::All]);
+            merge_cron_time_overlaps(&vec![CronComponent::At(3), CronComponent::All]);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
 
-        let cron_schedule = merge_cron_time_overlaps(vec![CronComponent::All, CronComponent::All]);
+        let cron_schedule = merge_cron_time_overlaps(&vec![CronComponent::All, CronComponent::All]);
         assert_eq!(cron_schedule, vec![CronComponent::All]);
 
-        let cron_schedule = merge_cron_time_overlaps(vec![
+        let cron_schedule = merge_cron_time_overlaps(&vec![
             CronComponent::At(5),
             CronComponent::At(5),
             CronComponent::Range((5, 5)),
@@ -504,14 +508,14 @@ mod tests {
         ]);
         assert_eq!(cron_schedule, vec![CronComponent::At(5)]);
 
-        let cron_schedule = merge_cron_time_overlaps(vec![
+        let cron_schedule = merge_cron_time_overlaps(&vec![
             CronComponent::At(7),
             CronComponent::Range((5, 30)),
             CronComponent::Range((5, 55)),
         ]);
         assert_eq!(cron_schedule, vec![CronComponent::Range((5, 55))]);
 
-        let cron_schedule = merge_cron_time_overlaps(vec![
+        let cron_schedule = merge_cron_time_overlaps(&vec![
             CronComponent::Range((10, 15)),
             CronComponent::Range((14, 25)),
             CronComponent::Range((5, 15)),
