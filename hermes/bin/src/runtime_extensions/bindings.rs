@@ -10,6 +10,13 @@
 
 use wasmtime::component::bindgen;
 
+#[cfg(test_harness = "WASM Component Integration Tests")]
+bindgen!({
+    world: "hermes-test",
+    path: "../../wasm/wasi/wit",
+});
+
+#[cfg(not(test_harness = "WASM Component Integration Tests")]
 bindgen!({
     world: "hermes",
     path: "../../wasm/wasi/wit",

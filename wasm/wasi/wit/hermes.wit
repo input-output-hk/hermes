@@ -23,3 +23,10 @@ world hermes {
   include hermes:localtime/all;
   include hermes:logging/all;
 }
+
+world hermes-test {
+  include hermes;
+
+  include hermes:integration-test/all;
+
+}

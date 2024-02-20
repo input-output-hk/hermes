@@ -16,7 +16,13 @@ workspace = true
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2b_simd = { workspace = true }  
-hex-literal = { workspace = true }  
+blake2b_simd = { workspace = true }
+hex-literal = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
+libtest_mimic = { workspace = true }
+
+[[test]]
+name = "WASM Component Integration Tests"
+path = "tests/wasm-integration/main.rs"
+harness = false

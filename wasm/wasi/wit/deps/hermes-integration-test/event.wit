@@ -1,0 +1,30 @@
+/// Interface to Hermes Integration Tests.
+///
+/// ## Permissions
+///
+/// This API is ONLY Available to Integration Tests and is not normally exposed.
+
+/// Integration Test API Interface
+interface event {
+
+    // Time in localtime format.
+    record test-result {
+        name: string,   // Name of the test
+        status: bool,   // True = test passed, False = failed.
+    }
+
+    /// Run or List a WASM provided integration test.
+    ///
+    /// This is a single entrypoint in a wasm component, which can provide multiple tests.
+    /// Each test must be numbered from 0-n, with no gaps.
+    ///
+    /// test : u32 - The test number to run/list
+    /// run  : bool - True = Run the test, False = Just list the test name.
+    ///
+    /// Returns:
+    ///     None - There is no test at that test number.
+    ///     test-result - The result of the test,  if the test was not run, just returns the name and 
+    ///                   status is True.  Otherwise the test is executed, and the result is 
+    ///                   the result of the test run.
+    test: func(test: u32, run: bool) -> option<test-result>;
+}
