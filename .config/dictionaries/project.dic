@@ -124,9 +124,12 @@ utimensat
 vitss
 voteplan
 voteplans
+wasi
 WASI
 wasmtime
 webasm
+webassembly
+WORKDIR
 yoroi
 smac
 bmac
