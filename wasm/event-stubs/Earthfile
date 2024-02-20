@@ -37,3 +37,16 @@ build-c-component:
 # build - builds all event stub components
 build:
     BUILD +build-c-component
+
+# build-c-component - generate a wasm component from a C file
+# build-c-component:
+#     FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:feat/wasm-c-base+wasm-c-base
+
+#     COPY ./my-component.c .
+
+#     RUN /scripts/std_build.py --wit_path="../wasi/wit" --c_files="my-component.c" --out="component.wasm"
+
+#     SAVE ARTIFACT component.wasm component.wasm
+
+# build:
+#     BUILD +build-c-component
