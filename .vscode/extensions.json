@@ -15,5 +15,13 @@
         "rust-lang.rust-analyzer",
         "JScearcy.rust-doc-viewer",
         "serayuzgur.crates",
+        "bierner.markdown-checkbox",
+        "bierner.markdown-emoji",
+        "bierner.markdown-footnotes",
+        "bierner.markdown-mermaid",
+        "bpruitt-goddard.mermaid-markdown-syntax-highlighting",
+        "bytecodealliance.wit-idl",
+        "foxundermoon.shell-format",
+        "dtsvet.vscode-wasm",
     ]
 }
