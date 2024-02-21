@@ -6,7 +6,7 @@ use crate::{
             hermes::localtime::api::{Errno, Host, Localtime, Timezone},
             wasi::clocks::wall_clock::Datetime,
         },
-        hermes::localtime::get_localtime_impl,
+        hermes::localtime::{alt_localtime_impl, get_localtime_impl},
     },
     state::HermesState,
 };
@@ -28,7 +28,7 @@ impl Host for HermesState {
     fn get_localtime(
         &mut self, when: Option<Datetime>, tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
-        Ok(get_localtime_impl(when, tz)?)
+        get_localtime_impl(when, tz)
     }
 
     /// Get a new localtime from a localtime, by recalculating time for a new timezone.
@@ -44,9 +44,9 @@ impl Host for HermesState {
     /// `localtime` : the converted time.
     /// `errno`     : An error indicating why conversion failed.
     fn alt_localtime(
-        &mut self, _time: Localtime, _tz: Option<Timezone>,
+        &mut self, time: Localtime, tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
-        todo!()
+        alt_localtime_impl(time, tz)
     }
 
     /// Get a datetime from a localtime.
