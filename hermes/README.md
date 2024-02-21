@@ -21,6 +21,7 @@ CARGO_FEATURE_STD=1 cargo b
 ```
 
 ## Running benchmarks
+
 Before running benchmarks need to compile a simple WASM module:
 
 ```shell
