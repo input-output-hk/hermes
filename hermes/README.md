@@ -28,7 +28,7 @@ Before running benchmarks need to compile a simple WASM module:
 earthly ./wasm/c+save-local
 ```
 
-And then you can run benchmars:
+And then you can run benchmarks:
 
 ```shell
 cargo bench --features bench
