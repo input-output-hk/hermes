@@ -27,4 +27,22 @@ interface event {
     ///                   status is True.  Otherwise the test is executed, and the result is 
     ///                   the result of the test run.
     test: func(test: u32, run: bool) -> option<test-result>;
+
+    /// Run or List a WASM provided benchmark test.
+    ///
+    /// This is a single entrypoint in a wasm component, which can provide multiple benchmarks.
+    /// Each benchmark must be numbered from 0-n, with no gaps.
+    ///
+    /// Each time this function is called the bench function is run exactly once.
+    ///
+    /// test : u32 - The bench number to run/list
+    /// run  : bool - True = Run the benchmark, False = Just list the test name.
+    ///
+    /// Returns:
+    ///     None - There is no test at that test number.
+    ///     test-result - The result of the test,  if the test was not run, just returns the name and 
+    ///                   status is True.  Otherwise the test is executed, and the result is 
+    ///                   the result of the test run.
+    bench: func(test: u32, run: bool) -> option<test-result>;
+
 }
