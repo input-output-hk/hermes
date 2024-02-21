@@ -56,5 +56,8 @@ pallas-hardano = { version = "0.22.0" }
 wasmtime = "17.0.0"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
+blake2b_simd = "1.0.2"
+hex-literal = "0.4.1"
 thiserror = "1.0.56"
 criterion = "0.5.1"
+time = "0.3.34"

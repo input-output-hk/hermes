@@ -24,5 +24,8 @@ required-features = ["bench"]
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
+blake2b_simd = { workspace = true }  
+hex-literal = { workspace = true }  
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
+time = { workspace = true }
