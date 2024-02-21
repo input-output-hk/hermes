@@ -39,7 +39,25 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                         // execute result = test(test_case,false)
 
                         // if result is not None {
-                        //   let test = Trial::test(result.name, move || check_file(test_case, &path)).with_kind(name);
+                        //   let test = Trial::test(result.name, move || execute_text(test_case, &path)).with_kind(name);
+                        //   tests.push(test);
+                        //   test_case += 1;
+                        // } else {
+                        //   no_more_tests = true;
+                        // }
+
+                        if no_more_tests {
+                            break;
+                        }
+                    }
+
+                    let mut no_more_tests = false;
+                    let mut test_case = 0;
+                    loop {
+                        // execute result = bench(test_case,false)
+
+                        // if result is not None {
+                        //   let test = Trial::test(result.name, move || execute_bench(test_case, &path)).with_kind(name);
                         //   tests.push(test);
                         //   test_case += 1;
                         // } else {
@@ -72,12 +90,23 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     Ok(tests)
 }
 
-/// Performs a couple of tidy tests.
+/// Test a wasm modules numbered integration test.
 fn execute_test(test_case: u32, path: &Path) -> Result<(), Failed> {
     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
     // Load the module into the executor
     // Execute the test_case
+    // Check the result
+
+    Ok(())
+}
+
+/// Test a wasm modules numbered integration test.
+fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {
+    let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
+
+    // Load the module into the executor
+    // Execute the test_case benchmark
     // Check the result
 
     Ok(())
