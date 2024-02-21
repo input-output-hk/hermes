@@ -1,4 +1,4 @@
-#include "bindings_src/hermes.h"
+#include "bindings_src/hermes_stub.h"
 
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out) {
@@ -31,6 +31,6 @@ bool exports_hermes_init_event_init(void) {
 }
 
 // Exported Functions from `hermes:kv-store/event`
-void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_hermes_kv_store_event_kv_values_t *value) {
+void exports_hermes_kv_store_event_kv_update(hermes_stub_string_t *key, exports_hermes_kv_store_event_kv_values_t *value) {
 
 }

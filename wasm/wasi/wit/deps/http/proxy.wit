@@ -30,3 +30,7 @@ world proxy {
   /// thus a component must be able to handle 0..N calls to `handle`.
   export incoming-handler;
 }
+
+world proxy-event {
+  export incoming-handler;
+}

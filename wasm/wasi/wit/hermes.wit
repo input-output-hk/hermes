@@ -27,6 +27,7 @@ world hermes {
 /// This exports only the event parts
 /// Modules only need to implement the exports they require.
 world hermes-stub {
+  include wasi:http/proxy-event@0.2.0;
   include hermes:cardano/cardano-events;
   include hermes:cron/cron-event;
   include hermes:init/init-event;
