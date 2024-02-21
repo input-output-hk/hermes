@@ -133,7 +133,7 @@ pub mod bench {
 
         let mut module = Module::new(
             "app".to_string(),
-            include_bytes!("../../benches/component.wasm"),
+            include_bytes!("../../../../wasm/c/bench_component.wasm"),
         )
         .unwrap();
 
