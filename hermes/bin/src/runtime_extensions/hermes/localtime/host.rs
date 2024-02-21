@@ -1,5 +1,6 @@
 //! Localtime host implementation for WASM runtime.
 
+use super::get_datetime_impl;
 use crate::{
     runtime_extensions::{
         bindings::{
@@ -59,7 +60,7 @@ impl Host for HermesState {
     ///
     /// `datetime`  : the converted time.
     /// `errno`     : An error indicating why conversion failed.
-    fn get_datetime(&mut self, _time: Localtime) -> wasmtime::Result<Result<Datetime, Errno>> {
-        todo!()
+    fn get_datetime(&mut self, time: Localtime) -> wasmtime::Result<Result<Datetime, Errno>> {
+        get_datetime_impl(time)
     }
 }
