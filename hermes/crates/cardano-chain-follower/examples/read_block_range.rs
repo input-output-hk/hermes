@@ -3,7 +3,7 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{Network, Point, Reader};
+use cardano_chain_follower::{Follower, FollowerConfigBuilder, Network, Point};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -17,14 +17,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    let mut reader = Reader::connect(
+    let config = FollowerConfigBuilder::default().build();
+
+    let follower = Follower::connect(
         "relays-new.cardano-mainnet.iohk.io:3001",
         Network::Mainnet,
-        None,
+        config,
     )
     .await?;
 
-    let data_vec = reader
+    let data_vec = follower
         .read_block_range(
             Point::Specific(
                 110_908_236,
@@ -35,6 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 hex::decode("16e97a73e866280582ee1201a5e1815993978eede956af1869b0733bedc131f2")?,
             ),
         )
+        .read()
         .await?;
 
     let mut total_txs = 0;

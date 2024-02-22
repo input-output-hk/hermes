@@ -2,7 +2,6 @@
 
 mod follow;
 mod mithril_snapshot;
-mod read;
 
 use std::str::FromStr;
 
@@ -14,7 +13,6 @@ use pallas::{
         chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC,
     },
 };
-pub use read::*;
 use thiserror::Error;
 
 /// Crate error type.
@@ -50,6 +48,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A point in the chain or the tip.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum PointOrTip {
     /// Represents a specific point of the chain.
     Point(Point),
@@ -64,6 +63,7 @@ impl From<Point> for PointOrTip {
 }
 
 /// CBOR encoded data of a multi-era block.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MultiEraBlockData(Vec<u8>);
 
 impl MultiEraBlockData {
@@ -81,7 +81,7 @@ impl MultiEraBlockData {
 }
 
 /// Enum of possible Cardano networks.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,

@@ -63,10 +63,12 @@ linkat
 lintfix
 localizable
 mdlint
+miniprotocol
 miniprotocols
 mithril
 mitigations
 mkcron
+mkdelay
 mkdirat
 moderations
 multiera
@@ -122,7 +124,14 @@ utimensat
 vitss
 voteplan
 voteplans
+wasi
 WASI
 wasmtime
 webasm
+webassembly
+WORKDIR
 yoroi
+smac
+bmac
+typenum
+hasher
