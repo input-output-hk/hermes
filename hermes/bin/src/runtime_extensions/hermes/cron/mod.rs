@@ -1,10 +1,11 @@
 //! Cron runtime extension implementation.
 use std::{
     cmp::{max, min},
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     fmt::{Display, Formatter},
 };
 
+use dashmap::DashMap;
 use time::{Duration, OffsetDateTime};
 
 use crate::runtime_extensions::{
@@ -21,13 +22,13 @@ mod host;
 /// State
 pub(crate) struct State {
     /// The crontabs hash map.
-    crontabs: HashMap<CronEventTag, CronTab>,
+    crontabs: DashMap<CronEventTag, CronTab>,
 }
 
 impl Stateful for State {
     fn new(_ctx: &Context) -> Self {
         State {
-            crontabs: HashMap::new(),
+            crontabs: DashMap::new(),
         }
     }
 }

@@ -101,7 +101,7 @@ impl Host for HermesState {
                 .hermes
                 .cron
                 .crontabs
-                .values()
+                .iter()
                 .map(|cron| (cron.entry.clone(), cron.retrigger))
                 .collect())
         }
