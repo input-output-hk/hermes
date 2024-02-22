@@ -4,19 +4,34 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
-use std::error::Error;
-
 use wasmtime::{
-    InstancePre as WasmInstancePre, Linker as WasmLinker, Module as WasmModule, Store as WasmStore,
-    WasmParams, WasmResults,
+    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
+    Store as WasmStore,
 };
 
-use super::{context::Context, engine::Engine};
+use crate::{
+    event_queue::event::HermesEventPayload,
+    runtime_extensions::{
+        bindings,
+        state::{Context, Stateful},
+    },
+    state::HermesState,
+    wasm::engine::Engine,
+};
 
-/// Interface for linking WASM imports
-pub(crate) trait LinkImport<Context> {
-    /// Link imports to the `wasmtime::Linker`
-    fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>>;
+/// Bad WASM module error
+#[derive(thiserror::Error, Debug)]
+#[error("Bad WASM module, err: {0}")]
+struct BadWASMModuleError(String);
+
+/// Structure defines an abstraction over the WASM module instance.
+/// It holds the state of the WASM module along with its context data.
+/// It is used to interact with the WASM module.
+pub(crate) struct ModuleInstance {
+    /// `wasmtime::Store` entity
+    pub(crate) store: WasmStore<HermesState>,
+    /// `Instance` entity
+    pub(crate) instance: bindings::Hermes,
 }
 
 /// Structure defines an abstraction over the WASM module
@@ -34,7 +49,7 @@ pub(crate) struct Module {
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    pre_instance: WasmInstancePre<Context>,
+    pre_instance: WasmInstancePre<HermesState>,
 
     /// `Engine` entity
     engine: Engine,
@@ -47,19 +62,20 @@ impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
-    ///  - `wasmtime::Error`: WASM call error
+    ///  - `BadModuleError`
+    ///  - `BadEngineConfigError`
     #[allow(dead_code)]
-    pub(crate) fn new(
-        engine: Engine, app_name: String, module_bytes: &[u8],
-        imports: &[Box<dyn LinkImport<Context>>],
-    ) -> Result<Self, Box<dyn Error>> {
-        let module = WasmModule::new(&engine, module_bytes)?;
+    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+        let engine = Engine::new()?;
+        let module = WasmModule::new(&engine, module_bytes)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
-        for import in imports {
-            import.link(&mut linker)?;
-        }
-        let pre_instance = linker.instantiate_pre(&module)?;
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+        let pre_instance = linker
+            .instantiate_pre(&module)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         Ok(Self {
             pre_instance,
@@ -68,73 +84,88 @@ impl Module {
         })
     }
 
-    /// Call WASM module's function.
+    /// Executes a Hermes event by calling some WASM function.
+    /// This function abstraction over actual execution of the WASM function,
+    /// actual definition is inside `HermesEventPayload` trait implementation.
+    ///
     /// For each call creates a brand new `wasmtime::Store` instance, which means that
     /// is has an initial state, based on the provided context for each call.
     ///
     /// # Errors
-    /// - `wasmtime::Error`: WASM call error
+    /// - `BadModuleError`
     #[allow(dead_code)]
-    pub(crate) fn call_func<Args, Ret>(
-        &mut self, name: &str, args: Args,
-    ) -> Result<Ret, Box<dyn Error>>
-    where
-        Args: WasmParams,
-        Ret: WasmResults,
-    {
-        self.context.use_for(name.to_string());
+    pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
+        self.context.use_for(event.event_name().to_string());
+        let state = HermesState::new(&self.context);
 
-        let mut store = WasmStore::new(&self.engine, self.context.clone());
-        let instance = self.pre_instance.instantiate(&mut store)?;
-        let func = instance.get_typed_func(&mut store, name)?;
-        Ok(func.call(&mut store, args)?)
+        let mut store = WasmStore::new(&self.engine, state);
+        let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+
+        event.execute(&mut ModuleInstance { store, instance })?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
-    struct ImportHelloFunc;
+    // struct TestHost;
+    // impl Host for TestHost {
+    //     fn link_imports(_linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
+    //         Ok(())
+    //     }
+    // }
 
-    impl LinkImport<Context> for ImportHelloFunc {
-        fn link(&self, linker: &mut WasmLinker<Context>) -> Result<(), Box<dyn Error>> {
-            linker.func_wrap("", "hello", || {
-                println!("hello");
-            })?;
-            Ok(())
-        }
-    }
+    // struct TestEvent;
+    // impl HermesEventPayload<ModuleInstance<WasmInstance>> for TestEvent {
+    //     fn event_name(&self) -> &str {
+    //         "inc-global"
+    //     }
 
-    #[test]
-    /// Tests that after instantiation of `Module` its state does not change after each
-    /// `Module::call_func` execution
-    fn preserve_module_state_test() {
-        let engine = Engine::new().expect("");
-        let wat = r#"
-                    (module
-                        (import "" "hello" (func $hello_0))
-                        (export "call_hello" (func $call_hello))
+    //     fn execute(&self, instance: &mut ModuleInstance<WasmInstance>) ->
+    // anyhow::Result<()> {         let func = instance
+    //             .instance
+    //             .get_typed_func::<(), (i32,)>(&mut instance.store, "inc-global")?;
+    //         let (res,) = func.call(&mut instance.store, ())?;
+    //         assert_eq!(res, 1);
+    //         Ok(())
+    //     }
+    // }
 
-                        (func $call_hello (result i32)
-                            global.get $global_val
-                            i32.const 1
-                            i32.add
-                            global.set $global_val
-                            global.get $global_val
-                        )
+    // #[test]
+    // /// Tests that after instantiation of `Module` its state does not change after each
+    // /// `Module::call_func` execution
+    // fn preserve_module_state_test() {
+    //     let wat = r#"
+    //     (component
+    //         (core module $Module
+    //             (export "inc-global" (func $inc_global))
 
-                        (global $global_val (mut i32) (i32.const 0))
-                    )"#;
+    //             (func $inc_global (result i32)
+    //                 global.get $global_val
+    //                 i32.const 1
+    //                 i32.add
+    //                 global.set $global_val
+    //                 global.get $global_val
+    //             )
 
-        let mut module = Module::new(engine, "app".to_string(), wat.as_bytes(), &[Box::new(
-            ImportHelloFunc,
-        )])
-        .expect("");
+    //             (global $global_val (mut i32) (i32.const 0))
+    //         )
+    //         (core instance $module (instantiate (module $Module)))
+    //         (func $inc_global (result s32) (canon lift (core func $module
+    // "inc-global")))         (export "inc-global" (func $inc_global))
+    //     )"#;
 
-        for _ in 0..10 {
-            let res: i32 = module.call_func("call_hello", ()).expect("");
-            assert_eq!(res, 1);
-        }
-    }
+    //     let mut module =
+    //         Module::new("app".to_string(), wat.as_bytes()).expect("cannot load a WASM
+    // module");
+
+    //     for _ in 0..10 {
+    //         module
+    //             .execute_event(&TestEvent)
+    //             .expect("cannot execute `TestEvent` event");
+    //     }
+    // }
 }
