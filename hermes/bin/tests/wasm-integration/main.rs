@@ -4,6 +4,11 @@
 
 use libtest_mimic::{Arguments, Failed, Trial};
 
+// use wasmtime::{
+//     component::{Component, Linker},
+//     Config, Engine, Store,
+// };
+
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -16,63 +21,71 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// sub-directories of the current directory.
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            let file_type = entry.file_type()?;
+        let entries: Vec<_> = fs::read_dir(path)?
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|entry| entry.file_type().map(|file_type| (file_type, entry.path())))
+            .collect::<Result<_, _>>()?;
+        let wasm_file_paths: Vec<_> = entries
+            .iter()
+            .filter_map(|(file_type, path)| (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then(|| path))
+            .collect();
+        let dir_paths: Vec<_> = entries
+            .iter()
+            .filter_map(|(file_type, path)| file_type.is_dir().then(|| path))
+            .collect();
 
-            // Handle files
-            let path = entry.path();
-            if file_type.is_file() {
-                if path.extension() == Some(OsStr::new("wasm")) {
-                    let name = path
-                        .strip_prefix(env::current_dir()?)?
-                        .display()
-                        .to_string();
+        // process `.wasm` files
+        for path in wasm_file_paths.into_iter() {
+            let name = path
+                .strip_prefix(env::current_dir()?)?
+                .display()
+                .to_string();
 
-                    /// Execute the wasm tests to get their name
-                    // Load WASM module in the executor.
+            /// Execute the wasm tests to get their name
+            // Load WASM module in the executor.
 
-                    // Run the tests in a loop until no more tests.
-                    let mut no_more_tests = false;
-                    let mut test_case = 0;
-                    loop {
-                        // execute result = test(test_case,false)
+            // Run the tests in a loop until no more tests.
+            let mut no_more_tests = false;
+            let mut test_case = 0;
+            loop {
+                // execute result = test(test_case,false)
 
-                        // if result is not None {
-                        //   let test = Trial::test(result.name, move || execute_text(test_case, &path)).with_kind(name);
-                        //   tests.push(test);
-                        //   test_case += 1;
-                        // } else {
-                        //   no_more_tests = true;
-                        // }
+                // if result is not None {
+                //   let test = Trial::test(result.name, move || execute_text(test_case, &path)).with_kind(name);
+                //   tests.push(test);
+                //   test_case += 1;
+                // } else {
+                //   no_more_tests = true;
+                // }
 
-                        if no_more_tests {
-                            break;
-                        }
-                    }
-
-                    let mut no_more_tests = false;
-                    let mut test_case = 0;
-                    loop {
-                        // execute result = bench(test_case,false)
-
-                        // if result is not None {
-                        //   let test = Trial::test(result.name, move || execute_bench(test_case, &path)).with_kind(name);
-                        //   tests.push(test);
-                        //   test_case += 1;
-                        // } else {
-                        //   no_more_tests = true;
-                        // }
-
-                        if no_more_tests {
-                            break;
-                        }
-                    }
+                if no_more_tests {
+                    break;
                 }
-            } else if file_type.is_dir() {
-                // Handle directories
-                visit_dir(&path, tests)?;
             }
+
+            let mut no_more_tests = false;
+            let mut test_case = 0;
+            loop {
+                // execute result = bench(test_case,false)
+
+                // if result is not None {
+                //   let test = Trial::test(result.name, move || execute_bench(test_case, &path)).with_kind(name);
+                //   tests.push(test);
+                //   test_case += 1;
+                // } else {
+                //   no_more_tests = true;
+                // }
+
+                if no_more_tests {
+                    break;
+                }
+            }
+        }
+
+        // process items inside directories
+        for path in dir_paths.into_iter() {
+            visit_dir(path, tests)?;
         }
 
         Ok(())
@@ -110,4 +123,8 @@ fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {
     // Check the result
 
     Ok(())
+}
+
+fn load_executor() {
+
 }
