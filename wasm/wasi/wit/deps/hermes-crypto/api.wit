@@ -20,7 +20,7 @@ interface api {
     type ed25519-bip32-public-key = b256;
 
     // ed25519-bip32 Signature
-    type ed25519-bip32-signature = b256;
+    type ed25519-bip32-signature = b512;
 
     resource ed25519-bip32 {
         /// Create a new ED25519-BIP32 Crypto resource
