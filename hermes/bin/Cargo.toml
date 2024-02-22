@@ -20,9 +20,9 @@ blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
-libtest_mimic = { workspace = true }
+libtest-mimic = { workspace = true }
 
 [[test]]
-name = "WASM Component Integration Tests"
+name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
