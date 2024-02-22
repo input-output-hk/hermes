@@ -30,10 +30,6 @@ fn now_impl() -> wasmtime::Result<Instant> {
 /// corresponding to a clock tick.
 ///
 /// The resolution of the clock may vary based on the environment.
-/// On Linux, the resolution is typically 1 nanosecond.
-/// On FreeBSD, the resolution is typically 1 microsecond.
-/// On Windows, the resolution is typically 1 nanosecond.
-/// On macOS, the resolution is typically 1 microsecond.
 ///
 /// Returns an error if the resolution cannot be determined.
 fn resolution_impl() -> wasmtime::Result<Duration> {
