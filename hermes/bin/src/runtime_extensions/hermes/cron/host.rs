@@ -42,17 +42,15 @@ impl Host for HermesState {
         let app_name = self.ctx.app_name();
         let tag = entry.tag.clone();
         let crontab = CronTab { entry, retrigger };
-        if self.hermes.cron.crontabs.contains_key(app_name) {
-            if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
-                app_cron.insert(tag, crontab);
-            } else {
-                let app_cron: DashMap<CronEventTag, CronTab> = DashMap::new();
-                app_cron.insert(tag, crontab);
-                self.hermes
-                    .cron
-                    .crontabs
-                    .insert(app_name.to_string(), app_cron);
-            }
+        if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
+            app_cron.insert(tag, crontab);
+        } else {
+            let app_cron: DashMap<CronEventTag, CronTab> = DashMap::new();
+            app_cron.insert(tag, crontab);
+            self.hermes
+                .cron
+                .crontabs
+                .insert(app_name.to_string(), app_cron);
         }
 
         Ok(true)
@@ -106,26 +104,19 @@ impl Host for HermesState {
     /// - `1` - `bool` - The state of the retrigger flag.
     fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
         let app_name = self.ctx.app_name();
-        if self.hermes.cron.crontabs.contains_key(app_name) {
-            if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
-                //
-                if let Some(tag) = tag {
-                    match app_cron.get(&tag) {
-                        Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
-                        None => Ok(vec![]),
-                    }
-                } else {
-                    Ok(app_cron
-                        .iter()
-                        .map(|cron| (cron.entry.clone(), cron.retrigger))
-                        .collect())
+        if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
+            if let Some(tag) = tag {
+                match app_cron.get(&tag) {
+                    Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
+                    None => Ok(vec![]),
                 }
             } else {
-                //
-                Ok(vec![])
+                Ok(app_cron
+                    .iter()
+                    .map(|cron| (cron.entry.clone(), cron.retrigger))
+                    .collect())
             }
         } else {
-            //
             Ok(vec![])
         }
     }
@@ -145,14 +136,10 @@ impl Host for HermesState {
     /// - `false`: The requested crontab does not exist.
     fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
         let app_name = self.ctx.app_name();
-        if self.hermes.cron.crontabs.contains_key(app_name) {
-            if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
-                match app_cron.remove(&entry.tag) {
-                    Some(_) => Ok(true),
-                    None => Ok(false),
-                }
-            } else {
-                Ok(false)
+        if let Some(app_cron) = self.hermes.cron.crontabs.get_mut(app_name) {
+            match app_cron.remove(&entry.tag) {
+                Some(_) => Ok(true),
+                None => Ok(false),
             }
         } else {
             Ok(false)
