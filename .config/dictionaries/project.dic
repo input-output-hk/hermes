@@ -48,6 +48,7 @@ fstat
 fstatat
 futimens
 genhtml
+getres
 GETFL
 gmtime
 happ
@@ -65,6 +66,7 @@ jormungandr
 Jörmungandr
 lcov
 Leshiy
+libc
 linkat
 lintfix
 localizable
@@ -81,6 +83,7 @@ multiera
 nanos
 netkey
 nextest
+nsec
 oneshot
 openapi
 openat
@@ -126,6 +129,7 @@ testdocs
 testunit
 thiserror
 timelike
+timespec
 toolsets
 Traceback
 txns
