@@ -19,10 +19,13 @@ use crate::runtime_extensions::{
 mod event;
 mod host;
 
+/// Name of the Application that has `CronTab`s.
+type AppName = String;
+
 /// State
 pub(crate) struct State {
     /// The crontabs hash map.
-    crontabs: DashMap<CronEventTag, CronTab>,
+    crontabs: DashMap<AppName, DashMap<CronEventTag, CronTab>>,
 }
 
 impl Stateful for State {
