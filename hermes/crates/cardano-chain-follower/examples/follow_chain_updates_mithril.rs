@@ -68,9 +68,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // Waits for the follower background task to exit.
     follower.close().await?;
 
     Ok(())
-
-    // Waits for the follower background task to exit.
 }
