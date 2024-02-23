@@ -39,7 +39,7 @@ struct ResourceHolder<XPriv> {
     resources: DashMap<u32, XPriv>,
 }
 
-impl<XPriv> ResourceHolder<XPriv> {
+impl ResourceHolder<XPriv> {
     /// Insert new Resource where item is added with the id.
     /// Id will be incremented by 1 each time.
     fn add(&mut self, item: XPriv) -> u32 {
