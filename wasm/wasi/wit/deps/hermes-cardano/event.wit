@@ -1,0 +1,88 @@
+/// # Cardano API
+///
+/// Events triggered by subscribing to blockchain updates.
+///
+/// ## Event Scheduling
+///
+/// **Guarantee**: Block events will occur and be fully processed, 
+/// before any transaction events from that block are sent.
+///
+/// **Guarantee**: Transaction events will be sent and could arrive in any order,
+/// BUT only after all event processing of the block they come from is complete.
+/// Further block or rollback events will not occur until all transaction events
+/// from a block are fully processed.
+/// 
+/// **Guarantee**: Rollback events will be fully processed before the next block 
+/// event will be sent.  The block event sent immediately after a rollback event 
+/// will be the target of the rollback.  This means that rollback processing does 
+/// not need to reset or re-subscribe the blockchain follower.
+///
+/// **Warning**: Events from different blockchains are not synchronized between 
+/// each other.
+
+/// Cardano API Interface - Export ONLY
+interface event-on-block {
+    use api.{cardano-blockchain-id, cardano-block, block-src};
+
+    /// Triggered when a cardano block event fires.
+    ///
+    /// The module must export this interface to use it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `blockchain` : The blockchain id the block originated from.
+    /// - `block` : This raw CBOR block data.
+    /// - `source` : Source information about where the block came from, and if we are at tip or not.
+    ///
+    /// Returns:
+    ///     Nothing.
+    /// 
+    on-cardano-block: func(blockchain: cardano-blockchain-id, block: cardano-block, source: block-src);
+}
+
+/// Cardano API Interface - Export ONLY
+interface event-on-txn {
+    use api.{cardano-blockchain-id, cardano-txn};
+
+    /// Triggered when a cardano transaction event fires.
+    ///
+    /// The module must export this interface to use it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `blockchain` : The blockchain id the block originated from.
+    /// - `slot`       : The slot the transaction is in.
+    /// - `txn-index`  : The offset in the block this transaction is at.
+    /// - `txn`        : The raw transaction data itself.
+    ///
+    /// Returns:
+    ///     Nothing.
+    /// 
+    on-cardano-txn: func(blockchain: cardano-blockchain-id, slot: u64, txn-index: u32, txn: cardano-txn);
+}
+
+/// Cardano API Interface - Export ONLY
+interface event-on-rollback {
+    use api.{cardano-blockchain-id};
+
+    /// Triggered when a cardano rollback event fires.
+    ///
+    /// The module must export this interface to use it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `blockchain` : The blockchain id the rollback originated from.
+    /// - `slot`       : The slot the rollback is targeting. (The next block event will be from this slot.)
+    ///
+    /// Returns:
+    ///     Nothing.
+    /// 
+    on-cardano-rollback: func(blockchain: cardano-blockchain-id, slot: u64);
+}
+
+
+world cardano-events {
+    export event-on-block;
+    export event-on-txn;
+    export event-on-rollback;
+}

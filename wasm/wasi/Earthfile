@@ -1,0 +1,105 @@
+VERSION 0.7
+
+#cspell: words rustfmt wasi autodrop teavm
+
+# Build the WASI Docs:
+build:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs ../wasi/wit 
+
+    # We do this because the single doc above seems broken.  Rather than automate this, 
+    # it would be better to fix whats wrong with doc generating a large file.
+
+    RUN mkdir -p wasi-hermes-docs/wasi &&\
+        mkdir -p wasi-hermes-docs/hermes
+
+    # WASI standard APIs
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:cli/imports@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/cli.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:clocks/imports@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/clock.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:filesystem/imports@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/filesystem.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:http/proxy@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/proxy.md wasi-hermes-docs/wasi/http.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:io/imports@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/io.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:random/imports@0.2.0 ../wasi/wit &&\
+        mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/random.md
+
+    # Hermes Specific APIs
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:binary/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/binary.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:cardano/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/cardano.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:cbor/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/cbor.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:cron/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/cron.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:crypto/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/crypto.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:hash/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/hash.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:init/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/init.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:json/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/json.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:kv-store/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/kv-store.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:localtime/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/localtime.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:logging/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/logging.md
+
+    SAVE ARTIFACT wasi-hermes-docs wasi-hermes-docs
+
+# test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
+test-rust-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen rust ../wasi/wit --stubs
+
+# test-c-bindings - Test we can generate C bindings without error from the hermes default world
+test-c-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit
+
+# test-java-bindings - Test we can generate Java bindings without error from the hermes default world
+test-java-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `resource` is not yet implemented.
+    RUN wit-bindgen teavm-java ../wasi/wit | true
+
+# test-go-bindings - Test we can generate GO bindings without error from the hermes default world
+test-go-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `resource` is not yet implemented.
+    RUN wit-bindgen tiny-go ../wasi/wit
+
+# test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
+test-csharp-bindings:
+    FROM ../wasi-hermes-component-adapter+builder
+
+    # java bindings are currently broken because `lots of stuff is not yet implemented.
+    RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true
+

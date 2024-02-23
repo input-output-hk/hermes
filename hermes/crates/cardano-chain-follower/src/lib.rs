@@ -2,19 +2,17 @@
 
 mod follow;
 mod mithril_snapshot;
-mod read;
 
 use std::str::FromStr;
 
 pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
-    ledger::traverse::MultiEraBlock,
+    ledger::traverse::{wellknown::GenesisValues, MultiEraBlock},
     network::miniprotocols::{
         chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC,
     },
 };
-pub use read::*;
 use thiserror::Error;
 
 /// Crate error type.
@@ -50,6 +48,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A point in the chain or the tip.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum PointOrTip {
     /// Represents a specific point of the chain.
     Point(Point),
@@ -64,6 +63,7 @@ impl From<Point> for PointOrTip {
 }
 
 /// CBOR encoded data of a multi-era block.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MultiEraBlockData(Vec<u8>);
 
 impl MultiEraBlockData {
@@ -81,7 +81,7 @@ impl MultiEraBlockData {
 }
 
 /// Enum of possible Cardano networks.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,
@@ -115,6 +115,17 @@ impl From<Network> for u64 {
             Network::Preview => PREVIEW_MAGIC,
             Network::Testnet => TESTNET_MAGIC,
         }
+    }
+}
+
+/// Return genesis values for given network
+#[must_use]
+pub fn network_genesis_values(network: &Network) -> Option<GenesisValues> {
+    match network {
+        Network::Mainnet => GenesisValues::from_magic(MAINNET_MAGIC),
+        Network::Preprod => GenesisValues::from_magic(PRE_PRODUCTION_MAGIC),
+        Network::Preview => GenesisValues::from_magic(PREVIEW_MAGIC),
+        Network::Testnet => GenesisValues::from_magic(TESTNET_MAGIC),
     }
 }
 

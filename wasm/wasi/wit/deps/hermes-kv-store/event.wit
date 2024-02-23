@@ -1,0 +1,20 @@
+/// Interface to local in-memory K-V database instance.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// Logging API Interface
+interface event {
+
+    use api.{kv-values};
+
+    /// A Subscribed key has updated.
+    ///
+    /// This will only ever be called if the module has subscribed to updates using 
+    /// `kv-subscribe`
+    ///
+    /// Returns:
+    ///     Nothing.
+    kv-update: func(key: string, value: kv-values);
+}

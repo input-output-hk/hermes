@@ -1,0 +1,23 @@
+/// # JSON API
+///
+/// JSON Data types and functions.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+// cspell: words
+
+/// JSON API Interface - Imports ONLY
+interface api {
+    /// JSON is just a string.
+    ///   This type is used to indicate the string MUST be properly formatted JSON.
+    type json = string;
+}
+
+
+/// World just for the Hermes 'json' API.
+world json-api {
+    import api;
+}
+  

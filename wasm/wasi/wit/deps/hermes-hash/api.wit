@@ -1,0 +1,170 @@
+/// # Data Hash API
+///
+/// Hashing Data types and functions.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// Hashing API Interface - Imports ONLY
+interface api {
+    /// Get the `bstr` type from the `hermes:binary` module.
+    use hermes:binary/api.{bstr};
+
+    //  Errors that can occur during hashing.
+    enum errno {
+        key-too-big,  // The key exceeds the supported size of the hash function.
+        hash-too-big,  // The hash size requested is larger than supported by the hash function.
+        salt-too-big, // The salt exceeds the supported size of the hash function.
+        personal-too-big, // The personal exceeds the supported size of the hash function.
+        invalid-digest-byte-length, // The digest byte length is equal to zero.
+    }
+
+    /// # BLAKE2s Hash Function
+    ///
+    /// Hash a binary buffer with BLAKE2s.
+    ///
+    /// ## Parameters
+    ///
+    /// - `buf`: The binary data buffer to hash.
+    /// - `outlen`: Optional.  The size of the digest.
+    ///             If the outlen is not defined, it defaults to 32.
+    ///
+    /// ## Returns
+    ///
+    /// - Either a buffer the size requested, with the hash.
+    /// - Or an error:
+    ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
+    ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
+    ///
+    blake2s: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
+
+    /// # BLAKE2sMac Hash Function
+    ///
+    /// Hash a binary buffer with BLAKE2s with MAC (Message Authentication Code) mode.
+    ///
+    /// ## Parameters
+    ///
+    /// - `buf`: The binary data buffer to hash.
+    /// - `outlen`: Optional.  The size of the digest.
+    ///             If the outlen is not defined, it defaults to 32.
+    /// - `key`: The key to use with the hash.
+    ///             With MAC mode, key is needed to be defined
+    ///             Should not be > 32 bytes.
+    /// - `salt`: Optional. Salt uses to increase the randomness and
+    ///             uniqueness of the hash output
+    ///             Should not be > 8 bytes.
+    ///             If not defined, salt is not used.
+    /// - `personal`: Optional. Personal allows to 
+    ///             add customization to the hash function behavior.
+    ///             Should not be > 8 bytes.
+    ///             If not defined, personal is not used.
+    ///
+    /// ## Returns
+    ///
+    /// - Either a buffer the size requested, with the hash.
+    /// - Or an error:
+    ///     - `key_too_big` if `key` is > 32 bytes.
+    ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
+    ///     - `salt_too_big` if `salt` is specified and is > 8 bytes.
+    ///     - `personal_too_big` if `personal` is specified and is > 8 bytes.
+    ///
+    /// ## Note:
+    ///
+    /// `key` length is checked before `outlen` so if both sizes are invalid, only
+    /// `key_too_big` will be returned.
+    /// If `salt` length exceeds 8 bytes, `salt_too_big` will be returned.
+    /// if `personal` length exceeds 8 bytes, `personal_too_big` will be returned.
+    blake2smac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, personal: option<bstr> ) -> result<bstr, errno>;
+
+    /// # BLAKE2b Hash Function
+    ///
+    /// Hash a binary buffer with BLAKE2b.
+    ///
+    /// ## Parameters
+    ///
+    /// - `buf`: The binary data buffer to hash.
+    /// - `outlen`: Optional. The size of the digest.
+    ///             If the outlen is not defined, it defaults to 64.
+    ///
+    /// ## Returns
+    ///
+    /// - Either a buffer the size requested, with the hash.
+    /// - Or an error:
+    ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
+    ///     - `invalid_digest_byte_length` if `outlen` is specified and is = 0.
+    blake2b: func( buf: bstr, outlen: option<u8> ) -> result<bstr, errno>;
+
+    /// # BLAKE2bMac Hash Function
+    ///
+    /// Hash a binary buffer with BLAKE2b with MAC (Message Authentication Code) mode.
+    ///
+    /// ## Parameters
+    ///
+    /// - `buf`: The binary data buffer to hash.
+    /// - `outlen`: Optional.  The size of the digest.
+    ///             If the outlen is not defined, it defaults to 64.
+    /// - `key`: The key to use with the hash.
+    ///             With MAC mode, key is needed to be defined
+    ///             Should not be > 64 bytes.
+    /// - `salt`: Optional. Salt uses to increase the randomness and
+    ///             uniqueness of the hash output
+    ///             Should not be > 16 bytes.
+    ///             If not defined, salt is not used.
+    /// - `personal`: Optional. Personal allows to 
+    ///             add customization to the hash function behavior.
+    ///             Should not be > 16 bytes.
+    ///             If not defined, personal is not used.
+    ///
+    /// ## Returns
+    ///
+    /// - Either a buffer the size requested, with the hash.
+    /// - Or an error:
+    ///     - `key_too_big` if `key` is specified and is > 64 bytes.
+    ///     - `hash_too_big` if `outlen` is specified and is > 64 bytes.
+    ///     - `salt_too_big` if `salt` is specified and is > 16 bytes.
+    ///     - `personal_too_big` if `personal` is specified and is > 16 bytes.
+    ///
+    /// ## Note:
+    ///
+    /// `key` length is checked before `outlen` so if both sizes are invalid, only
+    /// `key_too_big` will be returned.
+    /// If `salt` length exceeds 16 bytes, `salt_too_big` will be returned.
+    /// if `personal` length exceeds 16 bytes, `personal_too_big` will be returned.
+    ///
+    blake2bmac: func( buf: bstr, outlen: option<u8>, key: bstr, salt: option<bstr>, personal: option<bstr> ) -> result<bstr, errno>;
+
+    /// # BLAKE3 Hash Function
+    ///
+    /// Hash a binary buffer with BLAKE3.
+    ///
+    /// ## Parameters
+    ///
+    /// - `buf`: The binary data buffer to hash.
+    /// - `outlen`: Optional.  The size of the digest.
+    ///             If the outlen is not defined, it defaults to 32.
+    /// - `key`: Optional. The key to use with the hash.
+    ///             If not defined, the hash is not keyed.
+    ///             Should not be > 32 bytes.
+    ///
+    /// ## Returns
+    ///
+    /// - Either a buffer the size requested, with the hash.
+    /// - Or an error:
+    ///     - `key_too_big` if `key` is specified and is > 32 bytes.
+    ///     - `hash_too_big` if `outlen` is specified and is > 32 bytes.
+    ///
+    /// ## Note:
+    ///
+    /// `key` length is checked before `outlen` so if both sizes are invalid, only
+    /// `key_too_big` will be returned.
+    ///
+    blake3:  func( buf: bstr, outlen: option<u8>, key: option<bstr> ) -> result<bstr, errno>;   
+}
+
+
+/// World just for the Hermes 'hash' API.
+world hash-api {
+    import api;
+}
+  

@@ -438,7 +438,7 @@ interface types {
     /// Returns a pollable which becomes ready when either the trailers have
     /// been received, or an error has occured. When this pollable is ready,
     /// the `get` method will return `some`.
-    //subscribe: func() -> pollable; // Hermes does NOT support `poll`
+    // subscribe: func() -> pollable; // Hermes does NOT support `poll`
 
     /// Returns the contents of the trailers, or an error which occured,
     /// once the future is ready.
@@ -547,12 +547,10 @@ interface types {
   /// This resource is returned by the `wasi:http/outgoing-handler` interface to
   /// provide the HTTP Response corresponding to the sent Request.
   resource future-incoming-response {
-    /*
     /// Returns a pollable which becomes ready when either the Response has
     /// been received, or an error has occured. When this pollable is ready,
     /// the `get` method will return `some`.
-    subscribe: func() -> pollable;
-    */ 
+    // subscribe: func() -> pollable; // Hermes does NOT support `poll`
     
     /// Returns the incoming HTTP Response, or an error, once one is ready.
     ///
