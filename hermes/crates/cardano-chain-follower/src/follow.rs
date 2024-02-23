@@ -72,7 +72,9 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         self.follow_from = from.into();
         self
     }
@@ -100,6 +102,7 @@ impl FollowerConfigBuilder {
 }
 
 /// Configuration for the Cardano chain follower.
+#[derive(Clone)]
 pub struct FollowerConfig {
     /// Configured chain update buffer size.
     pub chain_update_buffer_size: usize,
@@ -268,7 +271,9 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let (response_tx, response_rx) = oneshot::channel();
 
         let req = task::Request::SetReadPointer {
@@ -293,7 +298,9 @@ impl Follower {
     /// * `at`: Point at which to read the block.
     #[must_use]
     pub fn read_block<P>(&self, at: P) -> ReadBlock
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         ReadBlock(
             at.into(),
             self.client_connect_info.clone(),
@@ -309,7 +316,9 @@ impl Follower {
     /// * `to`: Block range end.
     #[must_use]
     pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         ReadBlockRange(
             from,
             to.into(),
@@ -438,11 +447,9 @@ mod task {
         mut request_rx: mpsc::Receiver<Request>,
         chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
     ) {
-        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| {
-            MithrilSnapshotState {
-                snapshot,
-                iter: None,
-            }
+        let mithril_snapshot_state = mithril_snapshot.map(|snapshot| MithrilSnapshotState {
+            snapshot,
+            iter: None,
         });
 
         let task_state = TaskState {
@@ -813,30 +820,24 @@ mod task {
         client: &mut PeerClient, at: PointOrTip,
     ) -> Result<Option<Point>> {
         match at {
-            PointOrTip::Point(Point::Origin) => {
-                client
-                    .chainsync()
-                    .intersect_origin()
-                    .await
-                    .map(Some)
-                    .map_err(Error::Chainsync)
-            },
-            PointOrTip::Point(p @ Point::Specific(..)) => {
-                client
-                    .chainsync()
-                    .find_intersect(vec![p])
-                    .await
-                    .map(|(point, _)| point)
-                    .map_err(Error::Chainsync)
-            },
-            PointOrTip::Tip => {
-                client
-                    .chainsync()
-                    .intersect_tip()
-                    .await
-                    .map(Some)
-                    .map_err(Error::Chainsync)
-            },
+            PointOrTip::Point(Point::Origin) => client
+                .chainsync()
+                .intersect_origin()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync),
+            PointOrTip::Point(p @ Point::Specific(..)) => client
+                .chainsync()
+                .find_intersect(vec![p])
+                .await
+                .map(|(point, _)| point)
+                .map_err(Error::Chainsync),
+            PointOrTip::Tip => client
+                .chainsync()
+                .intersect_tip()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync),
         }
     }
 

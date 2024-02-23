@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .await?;
 
     // Wait for some chain updates and shutdown.
-    for _ in 0..10 {
+    loop {
         let chain_update = follower.next().await?;
 
         match chain_update {
@@ -69,7 +69,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Waits for the follower background task to exit.
-    follower.close().await?;
-
-    Ok(())
 }
