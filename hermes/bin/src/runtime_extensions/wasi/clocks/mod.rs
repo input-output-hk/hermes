@@ -1,6 +1,6 @@
 //! Host - WASI - Clock implementations
 
-use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
+use crate::runtime_extensions::state::Stateful;
 
 mod monotonic;
 mod wall;
@@ -14,10 +14,10 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
+    fn new() -> Self {
         Self {
-            _monotonic: monotonic::State::new(event_queue_in),
-            _wall: wall::State::new(event_queue_in),
+            _monotonic: monotonic::State::new(),
+            _wall: wall::State::new(),
         }
     }
 }

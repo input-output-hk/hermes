@@ -4,7 +4,7 @@ use std::{sync::Arc, thread};
 
 use crate::{
     app::HermesApp,
-    event_queue::{self, HermesEventQueueOut},
+    event_queue::{self, HermesEventQueueIn, HermesEventQueueOut},
     runtime_extensions::state::{State, Stateful},
 };
 
@@ -21,6 +21,9 @@ pub(crate) struct HermesReactor {
     /// Runtime extensions state
     state: Arc<State>,
 
+    /// Event queue in
+    event_queue_in: HermesEventQueueIn,
+
     /// Event queue
     event_queue_out: HermesEventQueueOut,
 }
@@ -31,11 +34,12 @@ impl HermesReactor {
         let app = HermesApp::new(app_name, module_bytes)?;
         let (event_queue_in, event_queue_out) = event_queue::new();
 
-        let state = State::new(&event_queue_in).into();
+        let state = State::new().into();
 
         Ok(Self {
             app,
             state,
+            event_queue_in,
             event_queue_out,
         })
     }
@@ -46,7 +50,10 @@ impl HermesReactor {
     /// This is a blocking call util all tasks are finished.
     pub(crate) fn run(mut self) -> anyhow::Result<()> {
         // Emits init event
-        self.state.hermes.init.emit_init_event()?;
+        self.state
+            .hermes
+            .init
+            .emit_init_event(&self.event_queue_in)?;
 
         let events_thread = thread::spawn(move || {
             self.app

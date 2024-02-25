@@ -1,6 +1,6 @@
 //! Hermes runtime extensions implementations - HERMES custom extensions
 
-use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
+use crate::runtime_extensions::state::Stateful;
 
 pub(crate) mod binary;
 pub(crate) mod cardano;
@@ -41,19 +41,19 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
+    fn new() -> Self {
         Self {
-            _binary: binary::State::new(event_queue_in),
-            _cardano: cardano::State::new(event_queue_in),
-            _cbor: cbor::State::new(event_queue_in),
-            _cron: cron::State::new(event_queue_in),
-            _crypto: crypto::State::new(event_queue_in),
-            _hash: hash::State::new(event_queue_in),
-            init: init::State::new(event_queue_in),
-            _json: json::State::new(event_queue_in),
-            _kv_store: kv_store::State::new(event_queue_in),
-            _localtime: localtime::State::new(event_queue_in),
-            _logging: logging::State::new(event_queue_in),
+            _binary: binary::State::new(),
+            _cardano: cardano::State::new(),
+            _cbor: cbor::State::new(),
+            _cron: cron::State::new(),
+            _crypto: crypto::State::new(),
+            _hash: hash::State::new(),
+            init: init::State::new(),
+            _json: json::State::new(),
+            _kv_store: kv_store::State::new(),
+            _localtime: localtime::State::new(),
+            _logging: logging::State::new(),
         }
     }
 }

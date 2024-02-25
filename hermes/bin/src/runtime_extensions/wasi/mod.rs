@@ -1,6 +1,6 @@
 //! Hermes runtime extensions implementations - WASI standard extensions
 
-use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
+use crate::runtime_extensions::state::Stateful;
 
 pub(crate) mod cli;
 pub(crate) mod clocks;
@@ -26,14 +26,14 @@ pub(crate) struct State {
 }
 
 impl Stateful for State {
-    fn new(event_queue_in: &HermesEventQueueIn) -> Self {
+    fn new() -> Self {
         Self {
-            _cli: cli::State::new(event_queue_in),
-            _clocks: clocks::State::new(event_queue_in),
-            _filesystem: filesystem::State::new(event_queue_in),
-            _http: http::State::new(event_queue_in),
-            _io: io::State::new(event_queue_in),
-            _random: random::State::new(event_queue_in),
+            _cli: cli::State::new(),
+            _clocks: clocks::State::new(),
+            _filesystem: filesystem::State::new(),
+            _http: http::State::new(),
+            _io: io::State::new(),
+            _random: random::State::new(),
         }
     }
 }
