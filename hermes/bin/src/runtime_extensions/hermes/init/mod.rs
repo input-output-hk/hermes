@@ -1,6 +1,6 @@
 //! Init runtime extension implementation.
 
-use crate::{event_queue::HermesEventQueueIn, runtime_extensions::state::Stateful};
+use crate::{event_queue::HermesEventQueue, runtime_extensions::state::Stateful};
 
 mod event;
 
@@ -16,10 +16,8 @@ impl Stateful for State {
 impl State {
     /// Emit Init event
     #[allow(clippy::unused_self)]
-    pub(crate) fn emit_init_event(
-        &self, event_queue_in: &HermesEventQueueIn,
-    ) -> anyhow::Result<()> {
-        event_queue_in.add(Box::new(event::InitEvent {}))?;
+    pub(crate) fn emit_init_event(&self, event_queue: &HermesEventQueue) -> anyhow::Result<()> {
+        event_queue.add(Box::new(event::InitEvent {}))?;
         Ok(())
     }
 }
