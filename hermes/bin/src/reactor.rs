@@ -27,7 +27,7 @@ pub(crate) struct HermesReactor {
 
 impl HermesReactor {
     /// Create a new Hermes Reactor
-    pub(crate) fn new(app_name: &str, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
+    pub(crate) fn new(app_name: String, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
         let app = HermesApp::new(app_name, module_bytes)?;
         let event_queue = HermesEventQueue::new().into();
 

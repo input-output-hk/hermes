@@ -4,18 +4,15 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
-use std::sync::Arc;
-
+use rusty_ulid::Ulid;
 use wasmtime::{
     component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
     Store as WasmStore,
 };
 
 use crate::{
-    event_queue::event::HermesEventPayload,
-    runtime_extensions::{bindings, state::State},
-    state::HermesState,
-    wasm::{context::Context, engine::Engine},
+    event_queue::event::HermesEventPayload, runtime_extensions::bindings, state::HermesState,
+    wasm::engine::Engine,
 };
 
 /// Bad WASM module error
@@ -53,18 +50,25 @@ pub(crate) struct Module {
     /// `Engine` entity
     engine: Engine,
 
-    /// `Context` entity
-    context: Context,
+    /// Module ULID id
+    module_id: Ulid,
+
+    /// Module's execution counter
+    exc_counter: u64,
 }
 
 impl Module {
+    /// Get the module id
+    pub(crate) fn _module_id(&self) -> &Ulid {
+        &self.module_id
+    }
+
     /// Instantiate WASM module
     ///
     /// # Errors
     ///  - `BadModuleError`
     ///  - `BadEngineConfigError`
-    #[allow(dead_code)]
-    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub(crate) fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
@@ -79,7 +83,8 @@ impl Module {
         Ok(Self {
             pre_instance,
             engine,
-            context: Context::new(app_name),
+            module_id: Ulid::generate(),
+            exc_counter: 0,
         })
     }
 
@@ -94,16 +99,15 @@ impl Module {
     /// - `BadModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(
-        &mut self, event: &dyn HermesEventPayload, state: Arc<State>,
+        &mut self, event: &dyn HermesEventPayload, state: HermesState,
     ) -> anyhow::Result<()> {
-        self.context.use_for(event.event_name().to_string());
-        let state = HermesState::new(self.context.clone(), state);
-
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
+
+        self.exc_counter += 1;
         Ok(())
     }
 }
