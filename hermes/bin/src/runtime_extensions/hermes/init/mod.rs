@@ -1,7 +1,7 @@
 //! Init runtime extension implementation.
 
 use crate::{
-    event::{event_queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule},
+    event::{queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule},
     runtime_extensions::state::Stateful,
 };
 
@@ -21,7 +21,7 @@ impl State {
     #[allow(clippy::unused_self)]
     pub(crate) fn emit_init_event(&self, event_queue: &HermesEventQueue) -> anyhow::Result<()> {
         let init_event = HermesEvent::new(event::InitEvent {}, TargetApp::All, TargetModule::All);
-        event_queue.add(init_event)?;
+        event_queue.add_into_queue(init_event)?;
         Ok(())
     }
 }
