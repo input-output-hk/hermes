@@ -1,6 +1,12 @@
 //! Init runtime extension implementation.
 
-use crate::{event_queue::HermesEventQueue, runtime_extensions::state::Stateful};
+use crate::{
+    event_queue::{
+        event::{HermesEvent, TargetApp, TargetModule},
+        HermesEventQueue,
+    },
+    runtime_extensions::state::Stateful,
+};
 
 mod event;
 
@@ -17,7 +23,8 @@ impl State {
     /// Emit Init event
     #[allow(clippy::unused_self)]
     pub(crate) fn emit_init_event(&self, event_queue: &HermesEventQueue) -> anyhow::Result<()> {
-        event_queue.add(Box::new(event::InitEvent {}))?;
+        let init_event = HermesEvent::new(event::InitEvent {}, TargetApp::All, TargetModule::All);
+        event_queue.add(init_event)?;
         Ok(())
     }
 }

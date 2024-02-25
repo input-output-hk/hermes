@@ -2,8 +2,11 @@
 
 use std::sync::{
     mpsc::{Receiver, Sender},
-    Mutex,
+    Arc, Mutex,
 };
+
+use self::event::HermesEvent;
+use crate::runtime_extensions::state::State;
 
 pub(crate) mod event;
 
@@ -18,10 +21,9 @@ pub(crate) enum Error {
 /// Hermes event queue
 pub(crate) struct HermesEventQueue {
     /// Hermes event queue sender
-    sender: Sender<Box<dyn event::HermesEventPayload>>,
-
+    sender: Sender<HermesEvent>,
     /// Hermes event queue receiver
-    receiver: Mutex<Receiver<Box<dyn event::HermesEventPayload>>>,
+    receiver: Mutex<Receiver<HermesEvent>>,
 }
 
 impl HermesEventQueue {
@@ -41,7 +43,7 @@ impl HermesEventQueue {
         unused_variables,
         clippy::needless_pass_by_value
     )]
-    pub(crate) fn add(&self, event: Box<dyn event::HermesEventPayload>) -> anyhow::Result<()> {
+    pub(crate) fn add(&self, event: HermesEvent) -> anyhow::Result<()> {
         self.sender.send(event).map_err(|_| Error::QueueClosed)?;
         Ok(())
     }
@@ -51,7 +53,7 @@ impl HermesEventQueue {
     /// # Note:
     /// This is a blocking call and consumes the event queue.
     #[allow(clippy::unnecessary_wraps, clippy::unwrap_used)]
-    pub(crate) fn event_execution_loop(&self) -> anyhow::Result<()> {
+    pub(crate) fn event_execution_loop(&self, _state: &Arc<State>) -> anyhow::Result<()> {
         let receiver = self.receiver.lock().unwrap();
         for _event in receiver.iter() {}
         Ok(())

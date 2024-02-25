@@ -30,6 +30,9 @@ pub(crate) struct ModuleInstance {
     pub(crate) instance: bindings::Hermes,
 }
 
+/// Module id type
+pub(crate) struct ModuleId(pub(crate) Ulid);
+
 /// Structure defines an abstraction over the WASM module
 /// It instantiates the module with the provided context data,
 /// links all provided imports to the module instance,
@@ -50,19 +53,14 @@ pub(crate) struct Module {
     /// `Engine` entity
     engine: Engine,
 
-    /// Module ULID id
-    module_id: Ulid,
+    /// Module id
+    _id: ModuleId,
 
     /// Module's execution counter
     exc_counter: u64,
 }
 
 impl Module {
-    /// Get the module id
-    pub(crate) fn _module_id(&self) -> &Ulid {
-        &self.module_id
-    }
-
     /// Instantiate WASM module
     ///
     /// # Errors
@@ -83,7 +81,7 @@ impl Module {
         Ok(Self {
             pre_instance,
             engine,
-            module_id: Ulid::generate(),
+            _id: ModuleId(Ulid::generate()),
             exc_counter: 0,
         })
     }
