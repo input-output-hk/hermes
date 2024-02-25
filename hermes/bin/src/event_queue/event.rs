@@ -41,13 +41,13 @@ pub(crate) enum TargetModule {
 /// Hermes event
 pub(crate) struct HermesEvent {
     /// The payload carried by the HermesEvent.
-    _payload: Box<dyn HermesEventPayload>,
+    payload: Box<dyn HermesEventPayload>,
 
     /// Target app
-    _target_app: TargetApp,
+    target_app: TargetApp,
 
     /// Target module
-    _target_module: TargetModule,
+    target_module: TargetModule,
 }
 
 impl HermesEvent {
@@ -56,9 +56,24 @@ impl HermesEvent {
         payload: impl HermesEventPayload, target_app: TargetApp, target_module: TargetModule,
     ) -> Self {
         Self {
-            _payload: Box::new(payload),
-            _target_app: target_app,
-            _target_module: target_module,
+            payload: Box::new(payload),
+            target_app,
+            target_module,
         }
+    }
+
+    /// Get event's payload
+    pub(crate) fn payload(&self) -> &dyn HermesEventPayload {
+        self.payload.as_ref()
+    }
+
+    /// Get event's target app
+    pub(crate) fn target_app(&self) -> &TargetApp {
+        &self.target_app
+    }
+
+    /// Get event's target module
+    pub(crate) fn target_module(&self) -> &TargetModule {
+        &self.target_module
     }
 }

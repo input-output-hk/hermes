@@ -17,7 +17,7 @@ pub(crate) struct HermesState {
 
 impl HermesState {
     /// Creates a new instance of the `HermesState`.
-    pub(crate) fn _new(state: Arc<State>) -> HermesState {
+    pub(crate) fn new(state: Arc<State>) -> HermesState {
         Self { state }
     }
 }

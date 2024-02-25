@@ -31,6 +31,7 @@ pub(crate) struct ModuleInstance {
 }
 
 /// Module id type
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ModuleId(pub(crate) Ulid);
 
 /// Structure defines an abstraction over the WASM module
@@ -54,7 +55,7 @@ pub(crate) struct Module {
     engine: Engine,
 
     /// Module id
-    _id: ModuleId,
+    id: ModuleId,
 
     /// Module's execution counter
     exc_counter: u64,
@@ -81,9 +82,15 @@ impl Module {
         Ok(Self {
             pre_instance,
             engine,
-            _id: ModuleId(Ulid::generate()),
+            id: ModuleId(Ulid::generate()),
             exc_counter: 0,
         })
+    }
+
+    /// Get the module id
+    #[allow(dead_code)]
+    pub(crate) fn id(self) -> ModuleId {
+        self.id
     }
 
     /// Executes a Hermes event by calling some WASM function.

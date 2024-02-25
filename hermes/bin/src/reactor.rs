@@ -3,8 +3,8 @@
 use std::{sync::Arc, thread};
 
 use crate::{
-    app::{HermesApp, HermesAppName},
-    event_queue::HermesEventQueue,
+    app::HermesApp,
+    event_queue::{HermesEventExecutionManager, HermesEventQueue},
     runtime_extensions::state::{State, Stateful},
 };
 
@@ -15,36 +15,36 @@ struct ThreadPanicsError(&'static str);
 
 /// Hermes Reactor struct
 pub(crate) struct HermesReactor {
-    /// Hermes app
-    app: HermesApp,
-
     /// Runtime extensions state
     state: Arc<State>,
 
     /// Hermes event queue
     event_queue: Arc<HermesEventQueue>,
+
+    ///
+    event_exec_manager: HermesEventExecutionManager,
 }
 
 impl HermesReactor {
     /// Create a new Hermes Reactor
-    pub(crate) fn new(app_name: HermesAppName, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
-        let app = HermesApp::new(app_name, module_bytes)?;
+    pub(crate) fn new(_apps: Vec<HermesApp>) -> Self {
         let event_queue = HermesEventQueue::new().into();
+        let event_exec_manager = HermesEventExecutionManager::new();
 
         let state = State::new().into();
 
-        Ok(Self {
-            app,
+        Self {
             state,
             event_queue,
-        })
+            event_exec_manager,
+        }
     }
 
     /// Run Hermes.
     ///
     /// # Note:
     /// This is a blocking call util all tasks are finished.
-    pub(crate) fn run(self) -> anyhow::Result<()> {
+    pub(crate) fn run(mut self) -> anyhow::Result<()> {
         // Emits init event
         thread::spawn({
             let event_queue = self.event_queue.clone();
@@ -54,7 +54,11 @@ impl HermesReactor {
 
         let events_thread = thread::spawn({
             let state = self.state.clone();
-            move || self.event_queue.event_execution_loop(&state)
+            let event_queue = self.event_queue.clone();
+            move || {
+                self.event_exec_manager
+                    .event_execution_loop(&event_queue, &state)
+            }
         });
 
         events_thread
