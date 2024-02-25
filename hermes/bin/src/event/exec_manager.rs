@@ -1,14 +1,8 @@
-//! Hermes event queue implementation.
+//! Hermes event execution manager implementation.
 
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
-    },
-};
+use std::{collections::HashMap, sync::Arc};
 
-use self::event::{HermesEvent, TargetApp, TargetModule};
+use super::{event_queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule};
 use crate::{
     app::HermesAppName,
     runtime_extensions::state::State,
@@ -16,15 +10,9 @@ use crate::{
     wasm::module::{Module, ModuleId},
 };
 
-pub(crate) mod event;
-
 /// Hermes event queue error
 #[derive(thiserror::Error, Debug, Clone)]
 pub(crate) enum Error {
-    /// Failed to add event into the event queue. Event queue is closed.
-    #[error("Failed to add event into the event queue. Event queue is closed.")]
-    QueueClosed,
-
     /// Target app not found.
     #[error("Target app not found.")]
     AppNotFound,
@@ -124,39 +112,5 @@ impl HermesEventExecutionManager {
             self.filtered_execution(&event, state)?;
         }
         Ok(())
-    }
-}
-
-/// Hermes event queue
-pub(crate) struct HermesEventQueue {
-    /// Hermes event queue sender
-    sender: Sender<HermesEvent>,
-    /// Hermes event queue receiver
-    receiver: Mutex<Receiver<HermesEvent>>,
-}
-
-impl HermesEventQueue {
-    /// Create a new Hermes event queue
-    pub(crate) fn new() -> Self {
-        let (sender, receiver) = std::sync::mpsc::channel();
-
-        Self {
-            sender,
-            receiver: Mutex::new(receiver),
-        }
-    }
-
-    /// Add event into the event queue
-    pub(crate) fn add(&self, event: HermesEvent) -> anyhow::Result<()> {
-        self.sender.send(event).map_err(|_| Error::QueueClosed)?;
-        Ok(())
-    }
-}
-
-impl Iterator for &HermesEventQueue {
-    type Item = HermesEvent;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.receiver.lock().unwrap().try_recv().ok()
     }
 }

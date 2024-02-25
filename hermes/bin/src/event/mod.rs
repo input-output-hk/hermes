@@ -1,4 +1,7 @@
-//! Hermes event definition
+//! Hermes event's primitives.
+
+pub(crate) mod event_queue;
+pub(crate) mod exec_manager;
 
 use crate::{
     app::HermesAppName,

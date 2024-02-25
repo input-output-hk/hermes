@@ -4,7 +4,7 @@ use std::{sync::Arc, thread};
 
 use crate::{
     app::HermesApp,
-    event_queue::{HermesEventExecutionManager, HermesEventQueue},
+    event::{event_queue::HermesEventQueue, exec_manager::HermesEventExecutionManager},
     runtime_extensions::state::{State, Stateful},
 };
 
@@ -27,7 +27,7 @@ pub(crate) struct HermesReactor {
 
 impl HermesReactor {
     /// Create a new Hermes Reactor
-    pub(crate) fn new(_apps: Vec<HermesApp>) -> Self {
+    pub(crate) fn new(_apps: &Vec<HermesApp>) -> Self {
         let event_queue = HermesEventQueue::new().into();
         let event_exec_manager = HermesEventExecutionManager::new();
 

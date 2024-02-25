@@ -1,8 +1,7 @@
 //! KV-Store runtime extension event handler implementation.
 
 use crate::{
-    event_queue::event::HermesEventPayload,
-    runtime_extensions::bindings::hermes::kv_store::api::KvValues,
+    event::HermesEventPayload, runtime_extensions::bindings::hermes::kv_store::api::KvValues,
 };
 
 /// KV update event

@@ -1,10 +1,7 @@
 //! Init runtime extension implementation.
 
 use crate::{
-    event_queue::{
-        event::{HermesEvent, TargetApp, TargetModule},
-        HermesEventQueue,
-    },
+    event::{event_queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule},
     runtime_extensions::state::Stateful,
 };
 

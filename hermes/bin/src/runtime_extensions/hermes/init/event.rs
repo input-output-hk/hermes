@@ -1,6 +1,6 @@
 //! Init runtime extension event handler implementation.
 
-use crate::event_queue::event::HermesEventPayload;
+use crate::event::HermesEventPayload;
 
 /// Init event
 pub(crate) struct InitEvent {}
