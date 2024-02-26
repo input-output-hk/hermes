@@ -6,11 +6,11 @@ use crate::{
 };
 
 /// On cron event
-struct OnCronEvent {
+pub(crate) struct OnCronEvent {
     /// The tagged cron event that was triggered.
-    tag: CronTagged,
+    pub(crate) tag: CronTagged,
     /// This cron event will not retrigger.
-    last: bool,
+    pub(crate) last: bool,
 }
 
 impl HermesEventPayload for OnCronEvent {
