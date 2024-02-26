@@ -2,7 +2,7 @@
 
 // SEE: https://docs.rs/libtest-mimic/latest/libtest_mimic/index.html
 
-use libtest_mimic::{Arguments, Failed, Trial};
+use libtest_mimic::{Arguments, /* Failed, */ Trial};
 
 use wasmtime::{
     component::{Component, Linker},
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// sub-directories of the current directory.
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
-        let current_dir = env::current_dir()?;
+        // let current_dir = env::current_dir()?;
         let entries: Vec<_> = fs::read_dir(path)?
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
@@ -38,17 +38,29 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
         // process `.wasm` files
         for path in wasm_file_paths.into_iter() {
-            let name = path
-                .strip_prefix(&current_dir)?
-                .display()
-                .to_string();
+            // let name = path
+            //     .strip_prefix(&current_dir)?
+            //     .display()
+            //     .to_string();
 
-            /// Execute the wasm tests to get their name
+            // Execute the wasm tests to get their name
             // Load WASM module in the executor.
+            let (_, _, _) = {
+                let mut config = Config::new();
+                config.wasm_component_model(true);
+                let engine = Engine::new(&config)?;
+                let component = Component::from_file(&engine, &path)?;
+
+                let linker = Linker::new(&engine);
+                let mut store = Store::new(&engine, ());
+                let instance = linker.instantiate(&mut store, &component)?;
+
+                (component, store, instance)
+            };
 
             // Run the tests in a loop until no more tests.
-            let mut no_more_tests = false;
-            let mut test_case = 0;
+            // let mut no_more_tests = false;
+            // let mut test_case = 0;
             loop {
                 // execute result = test(test_case,false)
 
@@ -60,13 +72,13 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 //   no_more_tests = true;
                 // }
 
-                if no_more_tests {
+                if /* no_more_tests */ true {
                     break;
                 }
             }
 
-            let mut no_more_tests = false;
-            let mut test_case = 0;
+            // let mut no_more_tests = false;
+            // let mut test_case = 0;
             loop {
                 // execute result = bench(test_case,false)
 
@@ -78,7 +90,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 //   no_more_tests = true;
                 // }
 
-                if no_more_tests {
+                if /* no_more_tests */ true {
                     break;
                 }
             }
@@ -104,42 +116,24 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     Ok(tests)
 }
 
-/// Test a wasm modules numbered integration test.
-fn execute_test(test_case: u32, path: &Path) -> Result<(), Failed> {
-    let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
+// /// Test a wasm modules numbered integration test.
+// fn execute_test(test_case: u32, path: &Path) -> Result<(), Failed> {
+//     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    // Load the module into the executor
-    // Execute the test_case
-    // Check the result
+//     // Load the module into the executor
+//     // Execute the test_case
+//     // Check the result
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-/// Test a wasm modules numbered integration test.
-fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {
-    let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
+// /// Test a wasm modules numbered integration test.
+// fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {
+//     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    // Load the module into the executor
-    // Execute the test_case benchmark
-    // Check the result
+//     // Load the module into the executor
+//     // Execute the test_case benchmark
+//     // Check the result
 
-    Ok(())
-}
-
-fn load_executor(component_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut config = Config::new();
-    config.wasm_component_model(true);
-    let engine = Engine::new(&config)?;
-    let component = Component::from_file(&engine, component_path)?;
-
-    let mut linker = Linker::new(&engine);
-    let mut store = Store::new(&engine, ());
-    let instance = linker.instantiate(&mut store, &component).unwrap();
-
-    // let mut store = Store::new(
-    //     &engine,
-    //     HermesState::new(&Context::new("my-app".to_string())),
-    // );
-
-    Ok(())
-}
+//     Ok(())
+// }
