@@ -2,6 +2,8 @@
 
 // SEE: https://docs.rs/libtest-mimic/latest/libtest_mimic/index.html
 
+const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
+
 use libtest_mimic::{Arguments, /* Failed, */ Trial};
 
 use wasmtime::{
@@ -21,7 +23,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// sub-directories of the current directory.
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
-        // let current_dir = env::current_dir()?;
         let entries: Vec<_> = fs::read_dir(path)?
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
@@ -46,16 +47,17 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             let (_, _, _) = {
+                let wasm_bin = fs::read(path)?;
                 let mut config = Config::new();
                 config.wasm_component_model(true);
                 let engine = Engine::new(&config)?;
-                let component = Component::from_file(&engine, &path)?;
+                let module = Component::from_binary(&engine, &wasm_bin)?;
 
                 let linker = Linker::new(&engine);
                 let mut store = Store::new(&engine, ());
-                let instance = linker.instantiate(&mut store, &component)?;
+                let instance = linker.instantiate(&mut store, &module)?;
 
-                (component, store, instance)
+                (module, store, instance)
             };
 
             // Run the tests in a loop until no more tests.
@@ -109,9 +111,10 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     let mut tests = Vec::new();
 
     // Maybe we point this to an env_var or something so its easier in CI/CD.
-    let current_dir = env::current_dir()?;
+    let test_module_dir = env::var(ENV_MODULE_DIR)?;
+    let path = Path::new(&test_module_dir);
 
-    visit_dir(&current_dir, &mut tests)?;
+    visit_dir(&path, &mut tests)?;
 
     Ok(tests)
 }
