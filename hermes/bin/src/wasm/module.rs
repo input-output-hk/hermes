@@ -67,14 +67,14 @@ impl Module {
     #[allow(dead_code)]
     pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
-        let module = WasmModule::new(&engine, module_bytes)
+        let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
         bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
-            .instantiate_pre(&module)
+            .instantiate_pre(&wasm_module)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         Ok(Self {
