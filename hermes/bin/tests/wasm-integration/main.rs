@@ -4,10 +4,10 @@
 
 use libtest_mimic::{Arguments, Failed, Trial};
 
-// use wasmtime::{
-//     component::{Component, Linker},
-//     Config, Engine, Store,
-// };
+use wasmtime::{
+    component::{Component, Linker},
+    Config, Engine, Store,
+};
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// sub-directories of the current directory.
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
+        let current_dir = env::current_dir()?;
         let entries: Vec<_> = fs::read_dir(path)?
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
@@ -38,7 +39,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
         // process `.wasm` files
         for path in wasm_file_paths.into_iter() {
             let name = path
-                .strip_prefix(env::current_dir()?)?
+                .strip_prefix(&current_dir)?
                 .display()
                 .to_string();
 
@@ -125,6 +126,20 @@ fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {
     Ok(())
 }
 
-fn load_executor() {
+fn load_executor(component_path: &str) -> Result<(), Box<dyn Error>> {
+    let mut config = Config::new();
+    config.wasm_component_model(true);
+    let engine = Engine::new(&config)?;
+    let component = Component::from_file(&engine, component_path)?;
 
+    let mut linker = Linker::new(&engine);
+    let mut store = Store::new(&engine, ());
+    let instance = linker.instantiate(&mut store, &component).unwrap();
+
+    // let mut store = Store::new(
+    //     &engine,
+    //     HermesState::new(&Context::new("my-app".to_string())),
+    // );
+
+    Ok(())
 }
