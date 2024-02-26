@@ -15,6 +15,13 @@ builder:
     # Compiled WASM component for benchmarks
     COPY ../wasm/c+build/component.wasm /wasm/c/bench_component.wasm
 
+# Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
+bindings-expand:
+    FROM +builder
+
+    RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
+    SAVE ARTIFACT bindings.rs AS LOCAL bindings.rs
+
 ## -----------------------------------------------------------------------------
 ##
 ## Standard CI targets.
