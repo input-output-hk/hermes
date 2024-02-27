@@ -4,6 +4,8 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use rusty_ulid::Ulid;
 use wasmtime::{
     component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
@@ -58,7 +60,7 @@ pub(crate) struct Module {
     id: ModuleId,
 
     /// Module's execution counter
-    exc_counter: u64,
+    exc_counter: AtomicU32,
 }
 
 impl Module {
@@ -83,7 +85,7 @@ impl Module {
             pre_instance,
             engine,
             id: ModuleId(Ulid::generate()),
-            exc_counter: 0,
+            exc_counter: AtomicU32::new(0),
         })
     }
 
@@ -104,7 +106,7 @@ impl Module {
     /// - `BadModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(
-        &mut self, event: &dyn HermesEventPayload, state: HermesState,
+        &self, event: &dyn HermesEventPayload, state: HermesState,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
@@ -112,7 +114,11 @@ impl Module {
 
         event.execute(&mut ModuleInstance { store, instance })?;
 
-        self.exc_counter += 1;
+        // Using the highest memory ordering constraint.
+        // It provides a highest consistency guarantee and in some cases could decrease
+        // perfomance.
+        // We could revise ordering approach for this case in future.
+        self.exc_counter.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 }

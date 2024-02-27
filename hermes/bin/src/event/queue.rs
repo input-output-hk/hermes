@@ -31,9 +31,10 @@ pub(crate) enum Error {
     #[error("Failed to add event into the event queue. Event queue is closed.")]
     CanotAddEvent,
 
-    /// Event execution loop panics in another thread.
-    #[error("Event execution loop panics in another thread. error: {0}")]
-    ExecutionLoopPanics(String),
+    /// Trying to execute one more event execution loop. It is allowed to run only one
+    /// execution loop in a time.
+    #[error("Trying to execute one more event execution loop. It is allowed to run only one execution loop in a time.")]
+    AnotherEventExecutionLoop,
 }
 
 ///
@@ -72,16 +73,16 @@ impl HermesEventQueue {
     pub(crate) fn event_execution_loop(&self, state: &Arc<State>) -> anyhow::Result<()> {
         let events = self
             .receiver
-            .lock()
-            .map_err(|err| Error::ExecutionLoopPanics(err.to_string()))?;
+            .try_lock()
+            .map_err(|_| Error::AnotherEventExecutionLoop)?;
 
         for event in events.iter() {
             match event.target_app() {
                 &TargetApp::All => {
-                    for target_modules in self.targets.values_mut() {
+                    for target_modules in self.targets.values() {
                         match event.target_module() {
                             TargetModule::All => {
-                                for module in target_modules.values_mut() {
+                                for module in target_modules.values() {
                                     module.execute_event(
                                         event.payload(),
                                         HermesState::new(state.clone()),
@@ -91,7 +92,7 @@ impl HermesEventQueue {
                             TargetModule::_List(modules) => {
                                 for module_id in modules {
                                     let module = target_modules
-                                        .get_mut(module_id)
+                                        .get(module_id)
                                         .ok_or(Error::ModuleNotFound)?;
 
                                     module.execute_event(
@@ -106,11 +107,11 @@ impl HermesEventQueue {
                 TargetApp::_List(apps) => {
                     for app_name in apps {
                         let target_modules =
-                            self.targets.get_mut(app_name).ok_or(Error::AppNotFound)?;
+                            self.targets.get(app_name).ok_or(Error::AppNotFound)?;
 
                         match event.target_module() {
                             TargetModule::All => {
-                                for module in target_modules.values_mut() {
+                                for module in target_modules.values() {
                                     module.execute_event(
                                         event.payload(),
                                         HermesState::new(state.clone()),
@@ -120,7 +121,7 @@ impl HermesEventQueue {
                             TargetModule::_List(modules) => {
                                 for module_id in modules {
                                     let module = target_modules
-                                        .get_mut(module_id)
+                                        .get(module_id)
                                         .ok_or(Error::ModuleNotFound)?;
                                     module.execute_event(
                                         event.payload(),
