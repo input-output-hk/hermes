@@ -29,7 +29,7 @@ Validation is a equality check.
 
 ## Risks
 
-* Failing to specify a version control policy and method of enforcemen
+* Failing to specify a version control policy and method of enforcement
 at a sufficiently advanced state of maturity could make it difficult
 to interoperate with Hermes applications over time.
 
