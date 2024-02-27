@@ -11,6 +11,9 @@
 Hermes should be a robust and reliable platform for Hermes applications to be run on.
 So it has to have a defined boundaries of which application would be executed and which not.
 
+**NOTE**
+There is an acknowledged need for version control of the APIs in a mature Hermes state, however at this stage we will not define such a policy until the core hermes engine and libraries have matured enough to make an informed choice.
+
 ## Assumptions
 
 * Hermes runtime extensions api could not be stable and evolve during the development process.
