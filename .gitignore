@@ -22,7 +22,6 @@
 # Icon must end with two \r
 Icon
 
-
 # Thumbnails
 ._*
 
@@ -78,3 +77,7 @@ $RECYCLE.BIN/
 !/.vscode/launch.recommended.json
 !/.vscode/settings.recommended.json
 !/.vscode/tasks.recommended.json
+
+# Dart stuff
+/pubspec.lock
+/.dart_tool/**/*

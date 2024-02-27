@@ -1,9 +1,12 @@
 //! Cron host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::{
-        hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-        wasi::clocks::monotonic_clock::Instant,
+    runtime_extensions::{
+        bindings::{
+            hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+            wasi::clocks::monotonic_clock::Instant,
+        },
+        hermes::cron::{mkcron_impl, mkdelay_crontab},
     },
     runtime_state::HermesRuntimeState,
 };
@@ -34,7 +37,13 @@ impl Host for HermesRuntimeState {
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
     fn add(&mut self, _entry: CronTagged, _retrigger: bool) -> wasmtime::Result<bool> {
-        todo!()
+        // This will be fixed as a part of this PR https://github.com/input-output-hk/hermes/pull/145
+        // self.state
+        //     .hermes
+        //     .cron
+        //     .crontabs
+        //     .insert(entry.tag.clone(), CronTab { entry, retrigger });
+        Ok(true)
     }
 
     /// # Schedule A Single cron event after a fixed delay.
@@ -60,8 +69,10 @@ impl Host for HermesRuntimeState {
     /// It is added as a non-retriggering event.
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
-    fn delay(&mut self, _duration: Instant, _tag: CronEventTag) -> wasmtime::Result<bool> {
-        todo!()
+    fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
+        let crontab = mkdelay_crontab(duration, tag)?;
+        self.add(crontab, false)?;
+        Ok(true)
     }
 
     /// # List currently active cron schedule.
@@ -81,8 +92,22 @@ impl Host for HermesRuntimeState {
     /// may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
-    fn ls(&mut self, _tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
-        todo!()
+    fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
+        if let Some(tag) = tag {
+            match self.state.hermes.cron.crontabs.get(&tag) {
+                Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
+                None => Ok(vec![]),
+            }
+        } else {
+            Ok(self
+                .state
+                .hermes
+                .cron
+                .crontabs
+                .values()
+                .map(|cron| (cron.entry.clone(), cron.retrigger))
+                .collect())
+        }
     }
 
     /// # Remove the requested crontab.
@@ -99,12 +124,17 @@ impl Host for HermesRuntimeState {
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
     fn rm(&mut self, _entry: CronTagged) -> wasmtime::Result<bool> {
-        todo!()
+        // This will be fixed as a part of this PR https://github.com/input-output-hk/hermes/pull/145
+        // match self.state.hermes.cron.crontabs.remove(&entry.tag) {
+        //     Some(_) => Ok(true),
+        //     None => Ok(false),
+        // }
+        Ok(false)
     }
 
     /// # Make a crontab entry from individual time values.
     ///
-    /// Crates the properly formatted cron entry
+    /// Creates the properly formatted cron entry
     /// from numeric cron time components.
     /// Convenience function to make building cron strings simpler when they are
     /// calculated from data.
@@ -129,9 +159,8 @@ impl Host for HermesRuntimeState {
     /// - For example specifying a `month` as `3` and `2-4` will
     /// remove the individual month and only produce the range.
     fn mkcron(
-        &mut self, _dow: CronTime, _month: CronTime, _day: CronTime, _hour: CronTime,
-        _minute: CronTime,
+        &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
-        todo!()
+        Ok(mkcron_impl(&dow, &month, &day, &hour, &minute))
     }
 }
