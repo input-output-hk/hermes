@@ -99,7 +99,7 @@ impl Module {
     pub(crate) fn exec_counter(&self) -> u32 {
         // Using the highest memory ordering constraint.
         // It provides a highest consistency guarantee and in some cases could decrease
-        // perfomance.
+        // performance.
         // We could revise ordering approach for this case in future.
         self.exc_counter.load(Ordering::SeqCst)
     }
@@ -125,7 +125,7 @@ impl Module {
 
         // Using the highest memory ordering constraint.
         // It provides a highest consistency guarantee and in some cases could decrease
-        // perfomance.
+        // performance.
         // We could revise ordering approach for this case in future.
         self.exc_counter.fetch_add(1, Ordering::SeqCst);
         Ok(())
