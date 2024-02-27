@@ -2,7 +2,6 @@
 
 mod app;
 mod event;
-#[allow(dead_code)]
 mod reactor;
 mod runtime_extensions;
 mod runtime_state;

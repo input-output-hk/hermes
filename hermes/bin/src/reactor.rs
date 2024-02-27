@@ -3,7 +3,6 @@
 use std::{sync::Arc, thread};
 
 use crate::{
-    app::HermesApp,
     event::queue::HermesEventQueue,
     runtime_extensions::state::{State, Stateful},
 };
@@ -14,6 +13,7 @@ use crate::{
 struct ThreadPanicsError(&'static str);
 
 /// Hermes Reactor struct
+#[allow(dead_code)]
 pub(crate) struct HermesReactor {
     /// Runtime extensions state
     state: Arc<State>,
@@ -24,7 +24,8 @@ pub(crate) struct HermesReactor {
 
 impl HermesReactor {
     /// Create a new Hermes Reactor
-    pub(crate) fn new(_apps: &Vec<HermesApp>) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn new() -> Self {
         let event_queue = HermesEventQueue::new().into();
 
         let state = State::new().into();
@@ -36,13 +37,13 @@ impl HermesReactor {
     ///
     /// # Note:
     /// This is a blocking call util all tasks are finished.
+    #[allow(dead_code)]
     pub(crate) fn run(self) -> anyhow::Result<()> {
         // Emits init event
-        thread::spawn({
-            let event_queue = self.event_queue.clone();
-            let state = self.state.clone();
-            move || state.hermes.init.emit_init_event(event_queue.as_ref())
-        });
+        self.state
+            .hermes
+            .init
+            .emit_init_event(self.event_queue.as_ref())?;
 
         let events_thread = thread::spawn({
             let state = self.state.clone();
