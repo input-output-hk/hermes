@@ -91,8 +91,17 @@ impl Module {
 
     /// Get the module id
     #[allow(dead_code)]
-    pub(crate) fn id(self) -> ModuleId {
-        self.id
+    pub(crate) fn id(&self) -> &ModuleId {
+        &self.id
+    }
+
+    /// Get the module's execution counter
+    pub(crate) fn exec_counter(&self) -> u32 {
+        // Using the highest memory ordering constraint.
+        // It provides a highest consistency guarantee and in some cases could decrease
+        // perfomance.
+        // We could revise ordering approach for this case in future.
+        self.exc_counter.load(Ordering::SeqCst)
     }
 
     /// Executes a Hermes event by calling some WASM function.

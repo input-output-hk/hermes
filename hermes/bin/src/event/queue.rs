@@ -8,11 +8,11 @@ use std::{
     },
 };
 
-use super::{HermesEvent, TargetApp, TargetModule};
+use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
 use crate::{
     app::HermesAppName,
     runtime_extensions::state::State,
-    runtime_state::HermesRuntimeState,
+    runtime_state::{HermesRuntimeContext, HermesRuntimeState},
     wasm::module::{Module, ModuleId},
 };
 
@@ -44,8 +44,8 @@ pub(crate) struct HermesEventQueue {
     /// Hermes event queue receiver
     receiver: Mutex<Receiver<HermesEvent>>,
 
-    /// Targets to execute the event
-    targets: HashMap<HermesAppName, HashMap<ModuleId, Module>>,
+    /// Current available hermes apps with their modules
+    apps: HashMap<HermesAppName, HashMap<ModuleId, Module>>,
 }
 
 impl HermesEventQueue {
@@ -56,13 +56,87 @@ impl HermesEventQueue {
             sender,
             receiver: Mutex::new(receiver),
 
-            targets: HashMap::new(),
+            apps: HashMap::new(),
         }
     }
 
     /// Add event into the event queue
     pub(crate) fn add_into_queue(&self, event: HermesEvent) -> anyhow::Result<()> {
         self.sender.send(event).map_err(|_| Error::CanotAddEvent)?;
+        Ok(())
+    }
+
+    /// Execute a hermes event on the provided module and all necesary info.
+    fn execute(
+        app_name: HermesAppName, module_id: ModuleId, state: &Arc<State>,
+        event: &dyn HermesEventPayload, module: &Module,
+    ) -> anyhow::Result<()> {
+        let runtime_context = HermesRuntimeContext::new(
+            app_name,
+            module_id,
+            event.event_name().to_string(),
+            module.exec_counter(),
+        );
+
+        let runtime_state = HermesRuntimeState::new(state.clone(), runtime_context);
+        module.execute_event(event, runtime_state)?;
+        Ok(())
+    }
+
+    /// Executes provided Hermes event filtering by target app and target module.
+    ///
+    /// # Errors:
+    /// - `Error::ModuleNotFound`
+    /// - `Error::AppNotFound`
+    fn filtered_execution(&self, event: &HermesEvent, state: &Arc<State>) -> anyhow::Result<()> {
+        let filtered_modules_exec = |target_module: &TargetModule,
+                                     app_name: &HermesAppName,
+                                     modules: &HashMap<ModuleId, Module>|
+         -> anyhow::Result<()> {
+            match target_module {
+                TargetModule::All => {
+                    for (module_id, module) in modules {
+                        Self::execute(
+                            app_name.clone(),
+                            module_id.clone(),
+                            state,
+                            event.payload(),
+                            module,
+                        )?;
+                    }
+                },
+                TargetModule::_List(target_modules) => {
+                    for module_id in target_modules {
+                        let module = modules.get(module_id).ok_or(Error::ModuleNotFound)?;
+
+                        Self::execute(
+                            app_name.clone(),
+                            module_id.clone(),
+                            state,
+                            event.payload(),
+                            module,
+                        )?;
+                    }
+                },
+            }
+            Ok(())
+        };
+
+        match event.target_app() {
+            TargetApp::All => {
+                for (app_name, modules) in &self.apps {
+                    filtered_modules_exec(event.target_module(), app_name, modules)?;
+                }
+            },
+            TargetApp::_List(apps) => {
+                for app_name in apps {
+                    let modules = self.apps.get(app_name).ok_or(Error::AppNotFound)?;
+
+                    filtered_modules_exec(event.target_module(), app_name, modules)?;
+                }
+            },
+        }
+
         Ok(())
     }
 
@@ -81,62 +155,7 @@ impl HermesEventQueue {
             .map_err(|_| Error::AnotherEventExecutionLoop)?;
 
         for event in events.iter() {
-            match event.target_app() {
-                &TargetApp::All => {
-                    for target_modules in self.targets.values() {
-                        match event.target_module() {
-                            TargetModule::All => {
-                                for module in target_modules.values() {
-                                    module.execute_event(
-                                        event.payload(),
-                                        HermesRuntimeState::new(state.clone()),
-                                    )?;
-                                }
-                            },
-                            TargetModule::_List(modules) => {
-                                for module_id in modules {
-                                    let module = target_modules
-                                        .get(module_id)
-                                        .ok_or(Error::ModuleNotFound)?;
-
-                                    module.execute_event(
-                                        event.payload(),
-                                        HermesRuntimeState::new(state.clone()),
-                                    )?;
-                                }
-                            },
-                        }
-                    }
-                },
-                TargetApp::_List(apps) => {
-                    for app_name in apps {
-                        let target_modules =
-                            self.targets.get(app_name).ok_or(Error::AppNotFound)?;
-
-                        match event.target_module() {
-                            TargetModule::All => {
-                                for module in target_modules.values() {
-                                    module.execute_event(
-                                        event.payload(),
-                                        HermesRuntimeState::new(state.clone()),
-                                    )?;
-                                }
-                            },
-                            TargetModule::_List(modules) => {
-                                for module_id in modules {
-                                    let module = target_modules
-                                        .get(module_id)
-                                        .ok_or(Error::ModuleNotFound)?;
-                                    module.execute_event(
-                                        event.payload(),
-                                        HermesRuntimeState::new(state.clone()),
-                                    )?;
-                                }
-                            },
-                        }
-                    }
-                },
-            }
+            self.filtered_execution(&event, state)?;
         }
         Ok(())
     }

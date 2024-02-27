@@ -9,14 +9,14 @@ use crate::{app::HermesAppName, runtime_extensions::state::State, wasm::module::
 pub(crate) struct HermesRuntimeState {
     /// Runtime extensions state
     pub(crate) state: Arc<State>,
-    // /// The context of the wasm modules using this State.
-    // pub(crate) ctx: Context,
+    /// Runtime context.
+    pub(crate) ctx: HermesRuntimeContext,
 }
 
 impl HermesRuntimeState {
     /// Creates a new instance of the `HermesState`.
-    pub(crate) fn new(state: Arc<State>) -> HermesRuntimeState {
-        Self { state }
+    pub(crate) fn new(state: Arc<State>, ctx: HermesRuntimeContext) -> HermesRuntimeState {
+        Self { state, ctx }
     }
 }
 
@@ -26,20 +26,20 @@ pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
     app_name: HermesAppName,
 
-    /// module ULID id
+    /// module's id
     module_id: ModuleId,
 
     /// event name to be executed
     event_name: String,
 
     /// module's execution counter
-    exc_counter: u64,
+    exc_counter: u32,
 }
 
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
-    pub(crate) fn _new(
-        app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u64,
+    pub(crate) fn new(
+        app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u32,
     ) -> Self {
         Self {
             app_name,
@@ -69,7 +69,7 @@ impl HermesRuntimeContext {
 
     /// Get the counter value
     #[allow(dead_code)]
-    pub(crate) fn exc_counter(&self) -> u64 {
+    pub(crate) fn exc_counter(&self) -> u32 {
         self.exc_counter
     }
 }
