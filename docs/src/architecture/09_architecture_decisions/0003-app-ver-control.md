@@ -12,7 +12,9 @@ Hermes should be a robust and reliable platform for Hermes applications to be ru
 So it has to have a defined boundaries of which application would be executed and which not.
 
 **NOTE**
-There is an acknowledged need for version control of the APIs in a mature Hermes state, however at this stage we will not define such a policy until the core hermes engine and libraries have matured enough to make an informed choice.
+There is an acknowledged need for version control of the APIs in a mature Hermes state,
+however at this stage we will not define such a policy until the core hermes engine
+and libraries have matured enough to make an informed choice.
 
 ## Assumptions
 
@@ -27,7 +29,9 @@ Validation is a equality check.
 
 ## Risks
 
-* Failing to specify a version control policy and method of enforcement at a sufficiently advanced state of maturity could make it difficult to interoperate with Hermes applications over time.
+* Failing to specify a version control policy and method of enforcemen
+at a sufficiently advanced state of maturity could make it difficult
+to interoperate with Hermes applications over time.
 
 ## Consequences
 
