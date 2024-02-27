@@ -29,7 +29,7 @@ pub(crate) enum Error {
 
     /// Failed to add event into the event queue. Event queue is closed.
     #[error("Failed to add event into the event queue. Event queue is closed.")]
-    CanotAddEvent,
+    CannotAddEvent,
 
     /// Trying to execute one more event execution loop. It is allowed to run only one
     /// execution loop in a time.
@@ -61,12 +61,15 @@ impl HermesEventQueue {
     }
 
     /// Add event into the event queue
+    ///
+    /// # Errors:
+    /// - `Error::CannotAddEvent`
     pub(crate) fn add_into_queue(&self, event: HermesEvent) -> anyhow::Result<()> {
-        self.sender.send(event).map_err(|_| Error::CanotAddEvent)?;
+        self.sender.send(event).map_err(|_| Error::CannotAddEvent)?;
         Ok(())
     }
 
-    /// Execute a hermes event on the provided module and all necesary info.
+    /// Execute a hermes event on the provided module and all necessary info.
     fn execute(
         app_name: HermesAppName, module_id: ModuleId, state: &Arc<State>,
         event: &dyn HermesEventPayload, module: &Module,
@@ -143,8 +146,7 @@ impl HermesEventQueue {
     /// Executes Hermes events from provided the event queue.
     ///
     /// # Errors:
-    /// - `Error::AnotherEventExecutionLoop` - Trying to execute one more event execution
-    ///   loop. It is allowed to run only one execution loop in a time.
+    /// - `Error::AnotherEventExecutionLoop`
     ///
     /// # Note:
     /// This is a blocking call.
