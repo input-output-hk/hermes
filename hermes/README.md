@@ -19,3 +19,17 @@ This workaround has effectively bypassed the mentioned problems until a permanen
 ```shell
 CARGO_FEATURE_STD=1 cargo b
 ```
+
+## Running benchmarks
+
+Before running benchmarks need to compile a simple WASM module:
+
+```shell
+earthly ./wasm/c+save-local
+```
+
+And then you can run benchmarks:
+
+```shell
+cargo bench --features bench
+```
