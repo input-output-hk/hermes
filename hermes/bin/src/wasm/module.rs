@@ -71,14 +71,14 @@ impl Module {
     ///  - `BadEngineConfigError`
     pub(crate) fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
-        let module = WasmModule::new(&engine, module_bytes)
+        let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
         bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeState| state)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
-            .instantiate_pre(&module)
+            .instantiate_pre(&wasm_module)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         Ok(Self {
@@ -129,6 +129,108 @@ impl Module {
         // We could revise ordering approach for this case in future.
         self.exc_counter.fetch_add(1, Ordering::SeqCst);
         Ok(())
+    }
+}
+
+#[cfg(feature = "bench")]
+pub mod bench {
+    use super::*;
+
+    /// Benchmark for executing the `init` event of the Hermes dummy component.
+    /// It aims to measure the overhead of the WASM module and WASM state initialization
+    /// process.
+    pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
+        struct Event;
+        impl HermesEventPayload for Event {
+            fn event_name(&self) -> &str {
+                "init"
+            }
+
+            fn execute(&self, instance: &mut ModuleInstance) -> anyhow::Result<()> {
+                instance
+                    .instance
+                    .hermes_init_event()
+                    .call_init(&mut instance.store)?;
+                Ok(())
+            }
+        }
+
+        let mut module = Module::new(
+            "app".to_string(),
+            include_bytes!("../../../../wasm/c/bench_component.wasm"),
+        )
+        .unwrap();
+
+        b.iter(|| {
+            module.execute_event(&Event).unwrap();
+        });
+    }
+
+    /// Benchmark for executing the `foo` WASM function of the tiny component.
+    /// The general flow of how WASM module is instantiated and executed is the same as in
+    /// the previous one `module_hermes_component_bench`.
+    /// It aims to compare how the size of the component affects on the execution time.
+    pub fn module_small_component_bench(b: &mut criterion::Bencher) {
+        let wat = r#"
+            (component
+                (core module $Module
+                    (export "foo" (func $foo))
+                    (func $foo (result i32)
+                        i32.const 1
+                    )
+                )
+                (core instance $module (instantiate (module $Module)))
+                (func $foo (result s32) (canon lift (core func $module "foo")))
+                (export "foo" (func $foo))
+            )"#;
+
+        let engine = Engine::new().unwrap();
+        let module = WasmModule::new(&engine, wat.as_bytes()).unwrap();
+        let linker = WasmLinker::new(&engine);
+        let pre_instance = linker.instantiate_pre(&module).unwrap();
+
+        b.iter(|| {
+            let mut store = WasmStore::new(&engine, ());
+            let instance = pre_instance.instantiate(&mut store).unwrap();
+            let func = instance
+                .get_typed_func::<(), (i32,)>(&mut store, "foo")
+                .unwrap();
+            let (res,) = func.call(&mut store, ()).unwrap();
+            assert_eq!(res, 1);
+        });
+    }
+
+    /// Benchmark for executing the `foo` WASM function of the tiny component.
+    /// BUT with the changed execution flow. Here the WASM module and WASM state is
+    /// instantiated ONCE during the whole execution process.
+    pub fn module_small_component_full_pre_load_bench(b: &mut criterion::Bencher) {
+        let wat = r#"
+            (component
+                (core module $Module
+                    (export "foo" (func $foo))
+                    (func $foo (result i32)
+                        i32.const 1
+                    )
+                )
+                (core instance $module (instantiate (module $Module)))
+                (func $foo (result s32) (canon lift (core func $module "foo")))
+                (export "foo" (func $foo))
+            )"#;
+
+        let engine = Engine::new().unwrap();
+        let module = WasmModule::new(&engine, wat.as_bytes()).unwrap();
+        let linker = WasmLinker::new(&engine);
+        let mut store = WasmStore::new(&engine, ());
+        let instance = linker.instantiate(&mut store, &module).unwrap();
+        let func = instance
+            .get_typed_func::<(), (i32,)>(&mut store, "foo")
+            .unwrap();
+
+        b.iter(|| {
+            let (res,) = func.call(&mut store, ()).unwrap();
+            assert_eq!(res, 1);
+            func.post_return(&mut store).unwrap();
+        });
     }
 }
 
