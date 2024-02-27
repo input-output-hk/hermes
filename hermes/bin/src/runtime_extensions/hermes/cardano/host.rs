@@ -5,10 +5,10 @@ use crate::{
         CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
         UnsubscribeOptions,
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// Subscribe to the Blockchain block data.
     ///
     /// **Parameters**

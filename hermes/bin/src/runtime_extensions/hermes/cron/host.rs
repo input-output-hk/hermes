@@ -5,10 +5,10 @@ use crate::{
         hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
         wasi::clocks::monotonic_clock::Instant,
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// # Schedule Recurrent CRON event
     ///
     /// Cron events will be delivered to the `on-cron` event handler.

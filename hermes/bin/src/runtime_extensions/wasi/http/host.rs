@@ -16,10 +16,10 @@ use crate::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl http::types::HostFutureIncomingResponse for HermesState {
+impl http::types::HostFutureIncomingResponse for HermesRuntimeState {
     /// Returns the incoming HTTP Response, or an error, once one is ready.
     ///
     /// The outer `option` represents future readiness. Users can wait on this
@@ -49,7 +49,7 @@ impl http::types::HostFutureIncomingResponse for HermesState {
     }
 }
 
-impl http::types::HostFields for HermesState {
+impl http::types::HostFields for HermesRuntimeState {
     /// Construct an empty HTTP Fields.
     ///
     /// The resulting `fields` is mutable.
@@ -154,7 +154,7 @@ impl http::types::HostFields for HermesState {
     }
 }
 
-impl http::types::HostFutureTrailers for HermesState {
+impl http::types::HostFutureTrailers for HermesRuntimeState {
     /// Returns the contents of the trailers, or an error which occurred,
     /// once the future is ready.
     ///
@@ -189,7 +189,7 @@ impl http::types::HostFutureTrailers for HermesState {
     }
 }
 
-impl http::types::HostOutgoingBody for HermesState {
+impl http::types::HostOutgoingBody for HermesRuntimeState {
     /// Returns a stream for writing the body contents.
     ///
     /// The returned `output-stream` is a child resource: it must be dropped
@@ -226,7 +226,7 @@ impl http::types::HostOutgoingBody for HermesState {
     }
 }
 
-impl HostOutgoingResponse for HermesState {
+impl HostOutgoingResponse for HermesRuntimeState {
     /// Construct an `outgoing-response`, with a default `status-code` of `200`.
     /// If a different `status-code` is needed, it must be set via the
     /// `set-status-code` method.
@@ -285,7 +285,7 @@ impl HostOutgoingResponse for HermesState {
     }
 }
 
-impl http::types::HostIncomingBody for HermesState {
+impl http::types::HostIncomingBody for HermesRuntimeState {
     /// Returns the contents of the body, as a stream of bytes.
     ///
     /// Returns success on first call: the stream representing the contents
@@ -320,7 +320,7 @@ impl http::types::HostIncomingBody for HermesState {
     }
 }
 
-impl HostIncomingResponse for HermesState {
+impl HostIncomingResponse for HermesRuntimeState {
     /// Returns the status code from the incoming response.
     fn status(
         &mut self, _rep: wasmtime::component::Resource<IncomingResponse>,
@@ -356,7 +356,7 @@ impl HostIncomingResponse for HermesState {
     }
 }
 
-impl http::types::HostResponseOutparam for HermesState {
+impl http::types::HostResponseOutparam for HermesRuntimeState {
     /// Set the value of the `response-outparam` to either send a response,
     /// or indicate an error.
     ///
@@ -380,7 +380,7 @@ impl http::types::HostResponseOutparam for HermesState {
     }
 }
 
-impl http::types::HostRequestOptions for HermesState {
+impl http::types::HostRequestOptions for HermesRuntimeState {
     /// Construct a default `request-options` value.
     fn new(&mut self) -> wasmtime::Result<wasmtime::component::Resource<RequestOptions>> {
         todo!()
@@ -440,7 +440,7 @@ impl http::types::HostRequestOptions for HermesState {
     }
 }
 
-impl http::types::HostOutgoingRequest for HermesState {
+impl http::types::HostOutgoingRequest for HermesRuntimeState {
     /// Construct a new `outgoing-request` with a default `method` of `GET`, and
     /// `none` values for `path-with-query`, `scheme`, and `authority`.
     ///
@@ -559,7 +559,7 @@ impl http::types::HostOutgoingRequest for HermesState {
     }
 }
 
-impl http::types::HostIncomingRequest for HermesState {
+impl http::types::HostIncomingRequest for HermesRuntimeState {
     /// Returns the method of the incoming request.
     fn method(
         &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
@@ -617,7 +617,7 @@ impl http::types::HostIncomingRequest for HermesState {
     }
 }
 
-impl http::types::Host for HermesState {
+impl http::types::Host for HermesRuntimeState {
     /// Attempts to extract a http-related `error` from the wasi:io `error`
     /// provided.
     ///
@@ -636,7 +636,7 @@ impl http::types::Host for HermesState {
     }
 }
 
-impl http::outgoing_handler::Host for HermesState {
+impl http::outgoing_handler::Host for HermesRuntimeState {
     /// This function is invoked with an outgoing HTTP Request, and it returns
     /// a resource `future-incoming-response` which represents an HTTP Response
     /// which may arrive in the future.

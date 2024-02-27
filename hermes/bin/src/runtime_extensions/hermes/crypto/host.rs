@@ -8,10 +8,10 @@ use crate::{
             Host, HostEd25519Bip32,
         },
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl HostEd25519Bip32 for HermesState {
+impl HostEd25519Bip32 for HermesRuntimeState {
     /// Create a new ED25519-BIP32 Crypto resource
     ///
     /// **Parameters**
@@ -81,4 +81,4 @@ impl HostEd25519Bip32 for HermesState {
     }
 }
 
-impl Host for HermesState {}
+impl Host for HermesRuntimeState {}

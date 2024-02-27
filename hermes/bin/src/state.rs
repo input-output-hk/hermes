@@ -2,80 +2,74 @@
 
 use std::sync::Arc;
 
-use rusty_ulid::Ulid;
-
-use crate::runtime_extensions::state::State;
+use crate::{app::HermesAppName, runtime_extensions::state::State, wasm::module::ModuleId};
 
 #[allow(dead_code)]
 /// State for Hermes state
-pub(crate) struct HermesState {
+pub(crate) struct HermesRuntimeState {
     /// Runtime extensions state
     pub(crate) state: Arc<State>,
     // /// The context of the wasm modules using this State.
     // pub(crate) ctx: Context,
 }
 
-impl HermesState {
+impl HermesRuntimeState {
     /// Creates a new instance of the `HermesState`.
-    pub(crate) fn new(state: Arc<State>) -> HermesState {
+    pub(crate) fn new(state: Arc<State>) -> HermesRuntimeState {
         Self { state }
     }
 }
 
 /// A Hermes running context, which should be passed to the WASM runtime.
-#[derive(Clone)]
-pub(crate) struct Context {
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
-    app_name: String,
+    app_name: HermesAppName,
 
     /// module ULID id
-    module_id: Ulid,
+    module_id: ModuleId,
 
     /// event name to be executed
-    event_name: Option<String>,
+    event_name: String,
 
     /// module's execution counter
-    counter: u64,
+    exc_counter: u64,
 }
 
-impl Context {
+impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
-    pub(crate) fn _new(app_name: String) -> Self {
+    pub(crate) fn _new(
+        app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u64,
+    ) -> Self {
         Self {
             app_name,
-            module_id: Ulid::generate(),
-            event_name: None,
-            counter: 0,
+            module_id,
+            event_name,
+            exc_counter,
         }
-    }
-
-    /// Increments the module's execution counter and sets the event name to be executed
-    pub(crate) fn _use_for(&mut self, event_name: String) {
-        self.event_name = Some(event_name);
-        self.counter += 1;
     }
 
     /// Get the application name
     #[allow(dead_code)]
-    pub(crate) fn app_name(&self) -> &str {
+    pub(crate) fn app_name(&self) -> &HermesAppName {
         &self.app_name
     }
 
     /// Get the module id
     #[allow(dead_code)]
-    pub(crate) fn module_id(&self) -> &Ulid {
+    pub(crate) fn module_id(&self) -> &ModuleId {
         &self.module_id
     }
 
     /// Get the event name
     #[allow(dead_code)]
-    pub(crate) fn event_name(&self) -> Option<&String> {
+    pub(crate) fn event_name(&self) -> &str {
         self.event_name.as_ref()
     }
 
     /// Get the counter value
     #[allow(dead_code)]
-    pub(crate) fn counter(&self) -> u64 {
-        self.counter
+    pub(crate) fn exc_counter(&self) -> u64 {
+        self.exc_counter
     }
 }

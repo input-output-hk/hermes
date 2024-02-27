@@ -4,10 +4,10 @@ use crate::{
     runtime_extensions::bindings::wasi::io::streams::{
         Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl HostInputStream for HermesState {
+impl HostInputStream for HermesRuntimeState {
     /// Perform a non-blocking read from the stream.
     ///
     /// This function returns a list of bytes containing the read data,
@@ -66,7 +66,7 @@ impl HostInputStream for HermesState {
     }
 }
 
-impl HostOutputStream for HermesState {
+impl HostOutputStream for HermesRuntimeState {
     /// Check readiness for writing. This function never blocks.
     ///
     /// Returns the number of bytes permitted for the next call to `write`,
@@ -228,4 +228,4 @@ impl HostOutputStream for HermesState {
     }
 }
 
-impl Host for HermesState {}
+impl Host for HermesRuntimeState {}

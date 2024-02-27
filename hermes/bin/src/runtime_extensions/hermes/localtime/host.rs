@@ -5,10 +5,10 @@ use crate::{
         hermes::localtime::api::{Errno, Host, Localtime, Timezone},
         wasi::clocks::wall_clock::Datetime,
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// Get localtime from a datetime or now.
     ///
     /// **Parameters**

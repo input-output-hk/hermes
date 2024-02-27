@@ -6,10 +6,10 @@ use crate::{
         binary::api::Bstr,
         hash::api::{Errno, Host},
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// Hash a binary buffer with BLAKE2s
     fn blake2s(
         &mut self, _buf: Bstr, _outlen: Option<u8>,

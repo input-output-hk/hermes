@@ -13,7 +13,7 @@ use wasmtime::{
 };
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings, state::HermesState,
+    event::HermesEventPayload, runtime_extensions::bindings, state::HermesRuntimeState,
     wasm::engine::Engine,
 };
 
@@ -27,7 +27,7 @@ struct BadWASMModuleError(String);
 /// It is used to interact with the WASM module.
 pub(crate) struct ModuleInstance {
     /// `wasmtime::Store` entity
-    pub(crate) store: WasmStore<HermesState>,
+    pub(crate) store: WasmStore<HermesRuntimeState>,
     /// `Instance` entity
     pub(crate) instance: bindings::Hermes,
 }
@@ -51,7 +51,7 @@ pub(crate) struct Module {
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    pre_instance: WasmInstancePre<HermesState>,
+    pre_instance: WasmInstancePre<HermesRuntimeState>,
 
     /// `Engine` entity
     engine: Engine,
@@ -75,7 +75,7 @@ impl Module {
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
-        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeState| state)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&module)
@@ -106,7 +106,7 @@ impl Module {
     /// - `BadModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(
-        &self, event: &dyn HermesEventPayload, state: HermesState,
+        &self, event: &dyn HermesEventPayload, state: HermesRuntimeState,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)

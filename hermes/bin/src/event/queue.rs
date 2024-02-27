@@ -12,7 +12,7 @@ use super::{HermesEvent, TargetApp, TargetModule};
 use crate::{
     app::HermesAppName,
     runtime_extensions::state::State,
-    state::HermesState,
+    state::HermesRuntimeState,
     wasm::module::{Module, ModuleId},
 };
 
@@ -37,7 +37,7 @@ pub(crate) enum Error {
     AnotherEventExecutionLoop,
 }
 
-///
+/// Hermes event queue.
 pub(crate) struct HermesEventQueue {
     /// Hermes event queue sender
     sender: Sender<HermesEvent>,
@@ -49,7 +49,7 @@ pub(crate) struct HermesEventQueue {
 }
 
 impl HermesEventQueue {
-    ///
+    /// Creates a new instance of the `HermesEventQueue`.
     pub(crate) fn new() -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         Self {
@@ -68,6 +68,10 @@ impl HermesEventQueue {
 
     /// Executes Hermes events from provided the event queue.
     ///
+    /// # Errors:
+    /// - `Error::AnotherEventExecutionLoop` - Trying to execute one more event execution
+    ///   loop. It is allowed to run only one execution loop in a time.
+    ///
     /// # Note:
     /// This is a blocking call.
     pub(crate) fn event_execution_loop(&self, state: &Arc<State>) -> anyhow::Result<()> {
@@ -85,7 +89,7 @@ impl HermesEventQueue {
                                 for module in target_modules.values() {
                                     module.execute_event(
                                         event.payload(),
-                                        HermesState::new(state.clone()),
+                                        HermesRuntimeState::new(state.clone()),
                                     )?;
                                 }
                             },
@@ -97,7 +101,7 @@ impl HermesEventQueue {
 
                                     module.execute_event(
                                         event.payload(),
-                                        HermesState::new(state.clone()),
+                                        HermesRuntimeState::new(state.clone()),
                                     )?;
                                 }
                             },
@@ -114,7 +118,7 @@ impl HermesEventQueue {
                                 for module in target_modules.values() {
                                     module.execute_event(
                                         event.payload(),
-                                        HermesState::new(state.clone()),
+                                        HermesRuntimeState::new(state.clone()),
                                     )?;
                                 }
                             },
@@ -125,7 +129,7 @@ impl HermesEventQueue {
                                         .ok_or(Error::ModuleNotFound)?;
                                     module.execute_event(
                                         event.payload(),
-                                        HermesState::new(state.clone()),
+                                        HermesRuntimeState::new(state.clone()),
                                     )?;
                                 }
                             },

@@ -1,8 +1,10 @@
 //! Insecure RNG seed host implementation for WASM runtime.
 
-use crate::{runtime_extensions::bindings::wasi::random::insecure_seed::Host, state::HermesState};
+use crate::{
+    runtime_extensions::bindings::wasi::random::insecure_seed::Host, state::HermesRuntimeState,
+};
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// Return a 128-bit value that may contain a pseudo-random value.
     ///
     /// The returned value is not required to be computed from a Cryptographically Secure

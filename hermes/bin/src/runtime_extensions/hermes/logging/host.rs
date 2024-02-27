@@ -5,10 +5,10 @@ use crate::{
         json::api::Json,
         logging::api::{Host, Level},
     },
-    state::HermesState,
+    state::HermesRuntimeState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeState {
     /// Generate a Log
     ///
     /// The Hermes API will add extra information to the log, such as the instance of the
