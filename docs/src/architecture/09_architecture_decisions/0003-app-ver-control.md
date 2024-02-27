@@ -28,6 +28,8 @@ Validation is a equality check.
 
 ## Consequences
 
+Consequences to consider:
+
 * Eliminates maintenance and support complexity for the Hermes development itself.
 * Eliminates the need of the internal api version management system.
 * Force Hermes application developers and it's users to use the latest version of the Hermes engine.
