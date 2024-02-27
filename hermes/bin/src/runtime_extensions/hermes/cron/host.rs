@@ -1,12 +1,10 @@
 //! Cron host implementation for WASM runtime.
 
+use super::{mkcron_impl, state::CRON_INTERNAL_STATE};
 use crate::{
-    runtime_extensions::{
-        bindings::{
-            hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
-            wasi::clocks::monotonic_clock::Instant,
-        },
-        hermes::cron::mkcron_impl,
+    runtime_extensions::bindings::{
+        hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
+        wasi::clocks::monotonic_clock::Instant,
     },
     state::HermesState,
 };
@@ -37,10 +35,11 @@ impl Host for HermesState {
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
     fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
-        Ok(self
-            .hermes
-            .cron
-            .add_crontab(self.ctx.app_name(), entry, retrigger))
+        if let Ok(state) = CRON_INTERNAL_STATE.lock() {
+            Ok(state.add_crontab(self.ctx.app_name(), entry, retrigger))
+        } else {
+            Ok(false)
+        }
     }
 
     /// # Schedule A Single cron event after a fixed delay.
@@ -67,9 +66,11 @@ impl Host for HermesState {
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
     fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
-        self.hermes
-            .cron
-            .delay_crontab(self.ctx.app_name(), duration, tag)
+        if let Ok(state) = CRON_INTERNAL_STATE.lock() {
+            state.delay_crontab(self.ctx.app_name(), duration, tag)
+        } else {
+            Ok(false)
+        }
     }
 
     /// # List currently active cron schedule.
@@ -90,7 +91,11 @@ impl Host for HermesState {
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
     fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
-        Ok(self.hermes.cron.ls_crontabs(self.ctx.app_name(), tag))
+        if let Ok(state) = CRON_INTERNAL_STATE.lock() {
+            Ok(state.ls_crontabs(self.ctx.app_name(), tag))
+        } else {
+            Ok(vec![])
+        }
     }
 
     /// # Remove the requested crontab.
@@ -107,7 +112,11 @@ impl Host for HermesState {
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
     fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
-        Ok(self.hermes.cron.rm_crontab(self.ctx.app_name(), &entry))
+        if let Ok(state) = CRON_INTERNAL_STATE.lock() {
+            Ok(state.rm_crontab(self.ctx.app_name(), &entry))
+        } else {
+            Ok(false)
+        }
     }
 
     /// # Make a crontab entry from individual time values.

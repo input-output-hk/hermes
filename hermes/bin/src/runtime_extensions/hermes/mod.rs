@@ -23,7 +23,7 @@ pub(crate) struct State {
     /// CBOR extensions state
     _cbor: cbor::State,
     /// Cron extensions state
-    cron: cron::State,
+    _cron: cron::State,
     /// Crypto extensions state
     _crypto: crypto::State,
     /// Hash extensions state
@@ -46,7 +46,7 @@ impl Stateful for State {
             _binary: binary::State::new(ctx),
             _cardano: cardano::State::new(ctx),
             _cbor: cbor::State::new(ctx),
-            cron: cron::State::new(ctx),
+            _cron: cron::State::new(ctx),
             _crypto: crypto::State::new(ctx),
             _hash: hash::State::new(ctx),
             _init: init::State::new(ctx),

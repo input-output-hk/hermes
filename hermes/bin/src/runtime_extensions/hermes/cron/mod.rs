@@ -4,10 +4,8 @@ use std::{
     collections::BTreeSet,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
-    sync::Arc,
 };
 
-use dashmap::DashMap;
 use time::{Duration, OffsetDateTime};
 
 use crate::runtime_extensions::{
@@ -20,142 +18,14 @@ use crate::runtime_extensions::{
 
 mod event;
 mod host;
-
-use event::OnCronEvent;
-
-/// Name of the Application that owns the `OnCronEvent`s.
-type AppName = String;
+mod state;
 
 /// State
-pub(crate) struct State {
-    /// The crontabs hash map.
-    crontabs: Arc<DashMap<AppName, DashMap<CronTagged, OnCronEvent>>>,
-}
+pub(crate) struct State {}
 
 impl Stateful for State {
     fn new(_ctx: &Context) -> Self {
-        State {
-            crontabs: Arc::new(DashMap::new()),
-        }
-    }
-}
-
-impl State {
-    /// Add a new crontab entry.
-    ///
-    /// Allows for management of scheduled cron events queue.
-    ///
-    /// Cron events will be delivered to the `on-cron` event handler.
-    ///
-    /// ## Parameters
-    ///
-    /// - `app_name`:  `AppName`. The name of the application that owns the crontab.
-    /// - `entry`:  `CronTagged`. The crontab entry to add.
-    /// - `retrigger`:  `bool`. If `true`, the event will re-trigger every time the
-    ///   crontab entry matches until cancelled.
-    ///
-    /// ## Returns
-    ///
-    /// - `true`: Crontab added successfully.
-    /// - `false`: Crontab failed to be added.
-    fn add_crontab(&mut self, app_name: &str, entry: CronTagged, retrigger: bool) -> bool {
-        let tagged = entry.clone();
-        let crontab = OnCronEvent {
-            tag: entry,
-            last: retrigger,
-        };
-        if let Some(app_cron) = self.crontabs.get_mut(app_name) {
-            app_cron.insert(tagged, crontab);
-        } else {
-            let app_cron: DashMap<CronTagged, OnCronEvent> = DashMap::new();
-            app_cron.insert(tagged, crontab);
-            self.crontabs.insert(app_name.into(), app_cron);
-        }
-        todo!("implement cron event queue")
-    }
-
-    /// Schedule a single cron event after a fixed delay.
-    ///
-    /// Allows for easy timed wait events to be delivered without
-    /// requiring datetime calculations or formatting cron entries.
-    ///
-    /// ## Parameters
-    ///
-    /// - `app_name`:  `AppName`. The name of the application that owns the crontab.
-    /// - `duration`: `Instant`. How many nanoseconds to delay.  The delay will be AT
-    ///   LEAST this long.
-    /// - `tag`:  `CronEventTag`. A tag which will accompany the triggered event.
-    ///
-    /// ## Returns
-    ///
-    /// - `Ok(true)`: Crontab added successfully.
-    /// - `Ok(false)`: Crontab failed to be added.
-    /// - `Err`: Returns error if the duration is invalid for generating a crontab entry.
-    fn delay_crontab(
-        &mut self, app_name: &str, duration: Instant, tag: CronEventTag,
-    ) -> wasmtime::Result<bool> {
-        let crontagged = mkdelay_crontab(duration, tag)?;
-        self.add_crontab(app_name, crontagged, false);
-        todo!("implement cron event queue")
-    }
-
-    /// List crontabs for an application.
-    ///
-    /// Allows for management of scheduled cron events queue.
-    /// If `tag` is `none` then all crontabs are listed.
-    /// Otherwise, only the crontabs with the specified tag are listed.
-    ///
-    /// ## Parameters
-    ///
-    /// - `tag`: Optional, the tag to limit the list to.  If `none` then all crons listed.
-    ///
-    /// ## Returns
-    ///
-    /// - A list of tuples containing the scheduled crontabs and their tags, along with
-    ///   the current retrigger flag.  `Vec<(CronEventTag, bool)>`
-    /// The list is sorted from most crontab that will trigger soonest to latest.
-    /// Crontabs are only listed once, in the case where a crontab may be scheduled
-    /// may times before a later one.
-    pub(crate) fn ls_crontabs(
-        &mut self, app_name: &str, tag: Option<CronEventTag>,
-    ) -> Vec<(CronTagged, bool)> {
-        if let Some(app_cron) = self.crontabs.get_mut(app_name) {
-            if let Some(tag) = tag {
-                app_cron
-                    .iter()
-                    .filter(|cron| cron.tag.tag == tag)
-                    .map(|cron| (cron.tag.clone(), cron.last))
-                    .collect()
-            } else {
-                app_cron
-                    .iter()
-                    .map(|cron| (cron.tag.clone(), cron.last))
-                    .collect()
-            }
-        } else {
-            vec![]
-        }
-    }
-
-    /// Remove the requested crontab.
-    ///
-    /// Allows for management of scheduled cron events.
-    ///
-    /// ## Parameters
-    ///
-    /// - `when`: The crontab entry to add.  Standard crontab format.
-    /// - `tag`: A tag which will accompany the triggered event.
-    ///
-    /// ## Returns
-    ///
-    /// - `true`: The requested crontab was deleted and will not trigger.
-    /// - `false`: The requested crontab does not exist.
-    pub(crate) fn rm_crontab(&mut self, app_name: &str, entry: &CronTagged) -> bool {
-        if let Some(app_cron) = self.crontabs.get_mut(app_name) {
-            app_cron.remove(entry).is_some()
-        } else {
-            false
-        }
+        State {}
     }
 }
 

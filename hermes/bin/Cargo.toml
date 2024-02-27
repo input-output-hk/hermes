@@ -32,3 +32,4 @@ dashmap = { workspace = true }
 once_cell = { workspace = true }
 saffron = { workspace = true }
 time = { workspace = true }
+chrono = { workspace = true }
