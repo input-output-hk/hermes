@@ -4,7 +4,7 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.7.0+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.9.0+SETUP
 
     COPY --dir .cargo .config crates bin .
     COPY Cargo.toml .
@@ -12,6 +12,13 @@ builder:
 
     RUN mkdir /wasm
     COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
+
+# Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
+bindings-expand:
+    FROM +builder
+
+    RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
+    SAVE ARTIFACT bindings.rs AS LOCAL bindings.rs
 
 ## -----------------------------------------------------------------------------
 ##

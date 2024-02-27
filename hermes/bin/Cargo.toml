@@ -19,3 +19,4 @@ anyhow = { workspace = true }
 blake2b_simd = { workspace = true }  
 hex-literal = { workspace = true }  
 thiserror = { workspace = true }
+time = { workspace = true }
