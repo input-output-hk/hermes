@@ -3,76 +3,59 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use ed25519_bip32::XPrv;
+// use ed25519_bip32::XPrv;
 //  std::sync::LazyLock is still unstable
 use once_cell::sync::Lazy;
 use rusty_ulid::Ulid;
 
 /// Map of app name, module ULID, event name, and module execution counter to resource holder
 type State = DashMap<String, DashMap<Ulid, DashMap<String, DashMap<u64, ResourceHolder>>>>;
+type XPrvBytes = [u8; 96];
 
-#[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
 pub(crate) struct ResourceHolder {
-    /// Map of resources.
-    resources: DashMap<u32, XPrv>,
+    /// Map of resource to id.
+    id_to_resource_map: DashMap<u32, XPrvBytes>,
+    /// Map of id to resource.
+    resource_to_id_map: DashMap<XPrvBytes, u32>,
+    /// Next Id to be used.
+    next_id: u32,
 }
 
+// TODO - Remove dead code,once everthing is done
 #[allow(dead_code)]
 impl ResourceHolder {
-    /// Insert new Resource where item is added with the id.
-    /// Id will be incremented by 1 each time.
 
-    fn get_id(&self) -> u32 {
-        // Get the highest key and increment it by 1
-        // Can't rely on the length since item can be removed.
-        let id = self
-            .resources
-            .iter()
-            .map(|entry| entry.key().clone())
-            .max()
-            .unwrap_or(0)
-            + 1;
-        id
+    fn new() -> Self {
+        Self {
+            id_to_resource_map: DashMap::new(),
+            resource_to_id_map: DashMap::new(),
+            next_id: 0,
+        }
+    }
+
+    /// Get the Id that should be use for inserting new Resource.
+    fn get_next_id(&self) -> u32 {
+        self.next_id + 1
     }
 
     /// Get the item from resources using id if possible.
-    fn get_resource(&self, id: &u32) -> Option<XPrv> {
-        self.resources.get(id).map(|entry| entry.value().clone())
+    fn get_resource(&self, id: &u32) -> Option<XPrvBytes> {
+        self.id_to_resource_map.get(id).map(|entry| entry.value().clone())
     }
 
     /// Drop the item from resources using id if possible.
+    // TODO - remove the value in resqource_to_id_map
     fn drop(&mut self, id: u32) -> Result<(), ()> {
-        self.resources.remove(&id).map(|_| ()).ok_or(())
+        self.id_to_resource_map.remove(&id).map(|_| ()).ok_or(())
     }
 }
 
-#[allow(dead_code)]
 static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::new()));
 
-#[allow(dead_code)]
-/// Set the state according to the app context.
-pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, counter: u64) {
-    // Counter -> ResourceHolder
-    let counter_map = DashMap::new();
-    counter_map.insert(
-        counter,
-        ResourceHolder {
-            resources: DashMap::new(),
-        },
-    );
-    // Event -> Counter
-    let event_map = DashMap::new();
-    event_map.insert(event_name, counter_map);
-    // Module -> Event
-    let module_map = DashMap::new();
-    module_map.insert(module_id, event_map);
-    // App -> Module
-    CRYPTO_INTERNAL_STATE.insert(app_name, module_map);
-}
 
 /// Check the state whether the context exists and return the resources if possible.
-pub(crate) fn check_context_and_return_resources(
+fn check_context_and_return_resources(
     app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64,
 ) -> Option<ResourceHolder> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
@@ -89,10 +72,29 @@ pub(crate) fn check_context_and_return_resources(
 }
 
 #[allow(dead_code)]
+/// Set the state according to the app context.
+pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, counter: u64) {
+    // Counter -> ResourceHolder
+    let counter_map = DashMap::new();
+    counter_map.insert(
+        counter,
+        ResourceHolder::new(),
+    );
+    // Event -> Counter
+    let event_map = DashMap::new();
+    event_map.insert(event_name, counter_map);
+    // Module -> Event
+    let module_map = DashMap::new();
+    module_map.insert(module_id, event_map);
+    // App -> Module
+    CRYPTO_INTERNAL_STATE.insert(app_name, module_map);
+}
+
+#[allow(dead_code)]
 /// Get the resource from the state using id if possible.
 pub(crate) fn get_resource(
     app_name: &String, module_id: &Ulid, event_name:&String, counter: &u64, id: &u32,
-) -> Option<XPrv> {
+) -> Option<XPrvBytes> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(res_holder) = res_holder {
         return res_holder.get_resource(&id)
@@ -104,17 +106,20 @@ pub(crate) fn get_resource(
 /// Add the resource of XPrv to the state if possible.
 /// Return the id if successful.
 pub(crate) fn add_resource(
-    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, xprv: XPrv,
+    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, xprv: XPrvBytes,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
         if let Some(module_map) = app_map.get(module_id) {
             if let Some(event_map) = module_map.get(event_name) {
                 if let Some(counter_map) = event_map.get(counter) {
-                    // TODO - Check whether the resource already exists                    
-                    let id = counter_map.get_id();
-                    counter_map.resources.insert(id, xprv);
-                    return Some(id)
+                    // Check whether the resource already exists
+                    if !counter_map.resource_to_id_map.contains_key(&xprv) {
+                        let id = counter_map.get_next_id();
+                        counter_map.id_to_resource_map.insert(id, xprv);
+                        counter_map.resource_to_id_map.insert(xprv, id);
+                        return Some(id)
+                    }                
                 }
             }
         }
@@ -124,7 +129,7 @@ pub(crate) fn add_resource(
 #[cfg(test)]
 mod tests_crypto_state {
     use super::*;
-    const KEY: [u8; 96] = [
+    const KEY1: [u8; 96] = [
         0xf8, 0xa2, 0x92, 0x31, 0xee, 0x38, 0xd6, 0xc5, 0xbf, 0x71, 0x5d, 0x5b, 0xac, 0x21,
         0xc7, 0x50, 0x57, 0x7a, 0xa3, 0x79, 0x8b, 0x22, 0xd7, 0x9d, 0x65, 0xbf, 0x97, 0xd6,
         0xfa, 0xde, 0xa1, 0x5a, 0xdc, 0xd1, 0xee, 0x1a, 0xbd, 0xf7, 0x8b, 0xd4, 0xbe, 0x64,
@@ -137,7 +142,7 @@ mod tests_crypto_state {
     #[test]
     fn test_set_state_and_add_resource() {
        
-        let prv = XPrv::from_bytes_verified(KEY).expect("Invalid private key");
+        // let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
 
         let app_name = "App name".to_string();
         let module_id: Ulid = 1.into();
@@ -158,7 +163,7 @@ mod tests_crypto_state {
             &module_id,
             &event_name,
             &counter,
-            prv.clone(),
+            KEY1.clone(),
         );
 
         // Should return id 1
@@ -172,8 +177,30 @@ mod tests_crypto_state {
             &counter,
             &1,
         );
-
+        
         // The resource should be the same
-        assert_eq!(k, Some(prv));
+        assert_eq!(k, Some(KEY1.clone()));
+        
+        // Add another resource
+        let id2 = add_resource(
+            &app_name,
+            &module_id,
+            &event_name,
+            &counter,
+            KEY1.clone(),
+        );
+        
+        // Resource already exist, so it should return None
+        assert_eq!(id2, None);
+        // Get the resource from id
+        let k2 = get_resource(
+            &app_name,
+            &module_id,
+            &event_name,
+            &counter,
+            &2,
+        );
+        // Resource already exist, so it should return None
+        assert_eq!(k2, None);
     }
 }
