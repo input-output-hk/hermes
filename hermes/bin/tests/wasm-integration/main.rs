@@ -51,13 +51,24 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 let mut config = Config::new();
                 config.wasm_component_model(true);
                 let engine = Engine::new(&config)?;
-                let module = Component::from_binary(&engine, &wasm_bin)?;
+                let component = Component::from_binary(&engine, &wasm_bin)?;
 
                 let linker = Linker::new(&engine);
                 let mut store = Store::new(&engine, ());
-                let instance = linker.instantiate(&mut store, &module)?;
+                let instance = linker.instantiate(&mut store, &component)?;
 
-                (module, store, instance)
+                // let mut a = instance.exports(store.as_context_mut());
+                // let aa = a.root();
+                // let a = aa.instance("hermes:integration-test/event");
+                // let a = aa.;
+
+                // if a.is_some() {
+                //     println!("some")
+                // } else {
+                //     println!("none")
+                // }
+
+                (component, store, instance)
             };
 
             // Run the tests in a loop until no more tests.

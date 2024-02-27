@@ -10,3 +10,10 @@ wasi-src:
     COPY --dir wasi .
 
     SAVE ARTIFACT /wasi wasi
+
+# Build and locally save an output artifact
+save-local:
+    FROM scratch
+
+    COPY ./event-stubs+build/component.wasm .
+    SAVE ARTIFACT component.wasm AS LOCAL bench_component.wasm
