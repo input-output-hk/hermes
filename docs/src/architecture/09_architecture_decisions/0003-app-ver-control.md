@@ -24,7 +24,7 @@ Validation is a equality check.
 
 ## Risks
 
-* Disallows backward compatibility for the older applications to be run on the latest version of Hermes.
+* Failing to specify a version control policy and method of enforcement at a sufficiently advanced state of maturity could make it difficult to interoperate with Hermes applications over time.
 
 ## Consequences
 
