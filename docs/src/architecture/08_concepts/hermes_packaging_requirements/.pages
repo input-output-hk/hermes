@@ -1,9 +1,10 @@
 title: Hermes Application Packaging Requirements
 arrange:
   - overview.md
-  - application.md
-  - metadata.md
-  - static.md
-  - data.md
+  - app_package.md
+  - app_metadata.md
+  - app_srv_www.md
+  - app_data.md
   - wasm_modules.md
-  - signatures.md
+  - app_signatures.md
+  - app_loading.md

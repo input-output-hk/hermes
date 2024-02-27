@@ -8,7 +8,7 @@ bundled in [HDF5] file format.
 Each WASM component it is the event handlers implementation of `export` functions from the [WIT] file,
 specified by the [*Hermes runtime extension*].
 
-For more details, see [Packaging A Hermes Application](../hermes_packaging_requirements/application.md)
+For more details, see [Hermes Application Package](../hermes_packaging_requirements/overview.md)
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [*Hermes runtime extension*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre

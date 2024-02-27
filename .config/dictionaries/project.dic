@@ -5,7 +5,9 @@ asyncio
 auditability
 backpressure
 bindgen
+blockdiag
 blockfetch
+bmac
 BROTLI
 cardano
 cbor
@@ -48,6 +50,7 @@ genhtml
 GETFL
 gmtime
 hardano
+hasher
 ideascale
 idents
 IFMT
@@ -82,8 +85,8 @@ openat
 opentelemetry
 outlen
 Outparam
-permissioned
 parameterises
+permissioned
 permissionless
 pg_isready
 plpgsql
@@ -107,9 +110,11 @@ rustdoc
 rustdocflags
 rustflags
 saibatizoku
+sandboxed
 Sched
 seckey
 slotno
+smac
 stevenj
 symlinkat
 tacho
@@ -121,6 +126,7 @@ timelike
 toolsets
 Traceback
 txns
+typenum
 unlinkat
 utimensat
 vitss
@@ -133,7 +139,3 @@ webasm
 webassembly
 WORKDIR
 yoroi
-smac
-bmac
-typenum
-hasher
