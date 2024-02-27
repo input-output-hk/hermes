@@ -1,36 +1,51 @@
-# Defining Application Metadata
+# Application Metadata
 
-Metadata for Hermes Applications is specified as an HDF5 Attribute attached to the root group
-in the HDF5 File as a CBOR-encoded object.
+Metadata for Hermes Applications is specified as a `metadata.json` file located in the root group
+in the HDF5 File.
+It is a `json` document and must conform to the Application metadata jsonschema to be valid.
 
-## Application Metadata (HDF5 Attribute)
+## Application Metadata Contents
 
-### Diagram: Hermes Application Metadata Stored as CBOR-encoded HDF5 Attributes
+The Application Metadata is formally defined by `hermes_metadata.jsonschema`.
+All Application metadata files MUST conform to that schema, or the Application will be considered invalid.
 
-```kroki-d2
-@from_file:architecture/08_concepts/hermes_packaging_requirements/images/application_metadata.dot
-```
+### Diagram: Hermes Application Metadata
 
-### CBOR-encoded Application Metadata
+![Diagram](images/application_metadata.d2)
 
-#### Application Author
+*Note: Diagram is illustrative of metadata contents only.
+See `hermes_metadata.jsonschema` for the formal definition.*
 
-#### Version
+### Application identifying Data
 
-#### Repo
+* Application Name : Single Line name of the application.
+* Icon
+* Version
+* Description - Short Description of the Application
+* About - Long form Description of the Application
+* Copyright - Copyright Notices
+* License - SPDX Strings and/or a Link to a License held within the app image.
 
-#### License
+### Application Developer/Author
 
-#### Description
+* Developers Name
+* Optional contact information
+* Optional payment address
 
-#### Configuration Schema
+### Resources
 
-For its configuration, so a user can configure it.
+Each application will need a minimum set of resources from Hermes.
+The Metadata also lists the minimum viable resources required for the application.
+It should also list what are the resources the Application would like to have available.
+It can optionally list the maximum allocatable resources which could enable enhanced features or other functions in the application.
 
-1. This is the only config a user actually sets,  it will embed (and can have references to that config)
-    from individual wasm modules.
-2. We need to work out how this will work and define it.
+If a resource minimum is set as 0, then it means the resource can be denied by the user but the application can still operate.
 
-#### Signatures
+### Permissions
 
-#### Extra
+When Hermes has permissioned resources, the metadata will list the permissions being requested by the application.
+
+## Configuration
+
+Other than resourcing and permissions, the `metadata.json` file does not contain the configuration of the application.
+Application configuration is defined by the WASM Component modules.

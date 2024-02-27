@@ -41,7 +41,7 @@ To get a list of options related to packaging:
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
 * `app_package_name` - The name to give the application file.
 
-*Note: the extension `.hap` will automatically be added to the `<app_package_name>` to signify this is a Hermes App.
+*Note: the extension `.hap` will automatically be added to the `<app_package_name>` to signify this is a Hermes App.*
 
 ### Signing the Application Package
 
