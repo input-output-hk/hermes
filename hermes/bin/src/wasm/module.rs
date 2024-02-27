@@ -108,7 +108,6 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
-#[allow(dead_code)]
 pub mod bench {
     use super::*;
 
