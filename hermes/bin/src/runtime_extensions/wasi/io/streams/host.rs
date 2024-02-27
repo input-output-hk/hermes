@@ -4,7 +4,7 @@ use crate::{
     runtime_extensions::bindings::wasi::io::streams::{
         Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl HostInputStream for HermesRuntimeState {

@@ -2,7 +2,7 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::io::error::{Error, Host, HostError},
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl HostError for HermesRuntimeState {

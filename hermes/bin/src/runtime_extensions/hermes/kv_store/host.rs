@@ -2,7 +2,7 @@
 
 use crate::{
     runtime_extensions::bindings::hermes::kv_store::api::{Host, KvValues},
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

@@ -5,7 +5,7 @@ use crate::{
         hermes::localtime::api::{Errno, Host, Localtime, Timezone},
         wasi::clocks::wall_clock::Datetime,
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

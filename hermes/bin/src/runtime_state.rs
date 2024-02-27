@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{app::HermesAppName, runtime_extensions::state::State, wasm::module::ModuleId};
 
 #[allow(dead_code)]
-/// State for Hermes state
+/// Hermes Runtime state. This state is passed to the WASM runtime.
 pub(crate) struct HermesRuntimeState {
     /// Runtime extensions state
     pub(crate) state: Arc<State>,
@@ -20,7 +20,7 @@ impl HermesRuntimeState {
     }
 }
 
-/// A Hermes running context, which should be passed to the WASM runtime.
+/// Hermes Runtime Context.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct HermesRuntimeContext {
     /// Hermes application name

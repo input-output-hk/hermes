@@ -6,7 +6,7 @@ use crate::{
         binary::api::Bstr,
         hash::api::{Errno, Host},
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

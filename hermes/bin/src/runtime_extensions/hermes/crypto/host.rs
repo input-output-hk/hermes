@@ -8,7 +8,7 @@ use crate::{
             Host, HostEd25519Bip32,
         },
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl HostEd25519Bip32 for HermesRuntimeState {

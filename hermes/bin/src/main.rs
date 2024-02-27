@@ -5,7 +5,7 @@ mod event;
 #[allow(dead_code)]
 mod reactor;
 mod runtime_extensions;
-mod state;
+mod runtime_state;
 mod wasm;
 
 fn main() {

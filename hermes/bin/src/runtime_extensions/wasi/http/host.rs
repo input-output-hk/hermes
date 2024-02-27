@@ -16,7 +16,7 @@ use crate::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl http::types::HostFutureIncomingResponse for HermesRuntimeState {

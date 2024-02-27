@@ -5,7 +5,7 @@ use crate::{
         CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
         UnsubscribeOptions,
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

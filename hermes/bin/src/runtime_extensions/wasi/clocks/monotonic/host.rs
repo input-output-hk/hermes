@@ -2,7 +2,7 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

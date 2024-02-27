@@ -12,7 +12,7 @@ use super::{HermesEvent, TargetApp, TargetModule};
 use crate::{
     app::HermesAppName,
     runtime_extensions::state::State,
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
     wasm::module::{Module, ModuleId},
 };
 

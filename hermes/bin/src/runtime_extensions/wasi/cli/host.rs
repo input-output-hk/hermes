@@ -5,7 +5,7 @@ use crate::{
         cli,
         io::streams::{InputStream, OutputStream},
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl cli::environment::Host for HermesRuntimeState {

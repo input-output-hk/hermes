@@ -5,7 +5,7 @@ use crate::{
         json::api::Json,
         logging::api::{Host, Level},
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

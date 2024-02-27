@@ -2,7 +2,7 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

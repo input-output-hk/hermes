@@ -13,7 +13,7 @@ use wasmtime::{
 };
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings, state::HermesRuntimeState,
+    event::HermesEventPayload, runtime_extensions::bindings, runtime_state::HermesRuntimeState,
     wasm::engine::Engine,
 };
 

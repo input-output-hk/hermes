@@ -5,7 +5,7 @@ use crate::{
         hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
         wasi::clocks::monotonic_clock::Instant,
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl Host for HermesRuntimeState {

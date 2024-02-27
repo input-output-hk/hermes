@@ -12,7 +12,7 @@ use crate::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    state::HermesRuntimeState,
+    runtime_state::HermesRuntimeState,
 };
 
 impl filesystem::types::HostDescriptor for HermesRuntimeState {
