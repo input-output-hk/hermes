@@ -3,7 +3,9 @@
 use std::{
     collections::BTreeSet,
     hash::{Hash, Hasher},
+    process::exit,
     sync::Mutex,
+    thread::JoinHandle,
 };
 
 use dashmap::DashMap;
@@ -33,13 +35,20 @@ type CronTabStorage = DashMap<AppName, AppCronState>;
 pub(crate) struct InternalState {
     /// The crontabs hash map.
     storage: CronTabStorage,
+    /// The crontab queue task.
+    _task: JoinHandle<()>,
 }
 
 impl InternalState {
     /// Create a new `InternalState`.
     pub(crate) fn new() -> Self {
+        let handle = std::thread::spawn(|| {
+            println!("wip: cron queue task goes here");
+            exit(0);
+        });
         Self {
             storage: CronTabStorage::default(),
+            _task: handle,
         }
     }
 
