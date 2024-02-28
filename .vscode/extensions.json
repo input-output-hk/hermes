@@ -23,5 +23,6 @@
         "bytecodealliance.wit-idl",
         "foxundermoon.shell-format",
         "dtsvet.vscode-wasm",
+        "terrastruct.d2",
     ]
 }
