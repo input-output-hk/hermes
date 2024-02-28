@@ -77,12 +77,12 @@
                     "spdx": {
                         "type": "string",
                         "title": "License SPDX ID",
-                        "description": "SPDX ID of the License"
+                        "description": "SPDX ID of the License.\nIn the case of proprietary or non SPDX licenses, do not specify a SPDX ID and just include a license file."
                     },
                     "file": {
                         "type": "string",
                         "title": "License File",
-                        "description": "Path to the License File inside the Package.\nMust be a `.txt` file and it must exist at Package creation time.",
+                        "description": "Path to the License File inside the Package.\nMust be a `.txt` file and it must exist at Package creation time.\nFile MUST be text, displayable using monospaced fonts and no line exceeds 80 characters.",
                         "pattern": "^/.*\\.txt$"
                     },
                     "note": {
@@ -108,7 +108,10 @@
                     "title": "Application Developer Name",
                     "description": "Name of the Developer"
                 }
-            }
+            },
+            "required": [
+                "name"
+            ]
         },
         "resources": {
             "type": "object",
@@ -136,13 +139,17 @@
                             "title": "Application Maximum File Storage",
                             "description": "Maximum File Storage of the Application.\nSize is in MegaBytes."
                         }
-                    }
+                    },
+                    "required": [
+                        "minimum"
+                    ]
                 },
                 "sqlite-db": {
                     "type": "object",
                     "title": "Application SQLite DB Storage Allocation",
                     "description": "SQLite DB Storage Allocation of the Application",
                     "additionalProperties": false,
+                    "minProperties": 1,
                     "properties": {
                         "minimum": {
                             "type": "integer",
@@ -159,7 +166,10 @@
                             "title": "Application Maximum SQLite DB Storage",
                             "description": "Maximum SQLite DB Storage of the Application.\nSize is in MegaBytes."
                         }
-                    }
+                    },
+                    "required": [
+                        "minimum"
+                    ]
                 }
             }
         },
@@ -184,6 +194,7 @@
         "version",
         "description",
         "copyright",
-        "license"
+        "license",
+        "build_date"
     ]
 }
