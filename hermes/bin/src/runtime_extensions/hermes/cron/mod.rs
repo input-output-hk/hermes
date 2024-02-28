@@ -3,7 +3,6 @@ use std::{
     cmp::{max, min},
     collections::BTreeSet,
     fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
 };
 
 use time::{Duration, OffsetDateTime};
@@ -323,21 +322,6 @@ impl Ord for CronComponent {
             .expect("CronComponent should always be comparable")
     }
 }
-
-impl Hash for CronTagged {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tag.hash(state);
-        self.when.hash(state);
-    }
-}
-
-impl PartialEq for CronTagged {
-    fn eq(&self, other: &Self) -> bool {
-        self.tag == other.tag && self.when == other.when
-    }
-}
-
-impl Eq for CronTagged {}
 
 #[cfg(test)]
 mod tests {

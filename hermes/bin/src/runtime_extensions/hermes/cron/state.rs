@@ -1,6 +1,10 @@
 //! Cron State.
 /// The crontabs hash map.
-use std::sync::Mutex;
+use std::{
+    collections::BTreeSet,
+    hash::{Hash, Hasher},
+    sync::Mutex,
+};
 
 use dashmap::DashMap;
 //  std::sync::LazyLock is still unstable
@@ -133,11 +137,15 @@ impl InternalState {
                     .iter()
                     .filter(|cron| cron.tag.tag == tag)
                     .map(|cron| (cron.tag.clone(), cron.last))
+                    .collect::<BTreeSet<(CronTagged, bool)>>()
+                    .into_iter()
                     .collect()
             } else {
                 app_cron
                     .iter()
                     .map(|cron| (cron.tag.clone(), cron.last))
+                    .collect::<BTreeSet<(CronTagged, bool)>>()
+                    .into_iter()
                     .collect()
             }
         } else {
@@ -167,12 +175,93 @@ impl InternalState {
     }
 }
 
+impl Hash for CronTagged {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.tag.hash(state);
+        self.when.hash(state);
+    }
+}
+
+impl PartialEq for CronTagged {
+    fn eq(&self, other: &Self) -> bool {
+        self.tag == other.tag && self.when == other.when
+    }
+}
+
+impl Eq for CronTagged {}
+
+impl PartialOrd for CronTagged {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(std::cmp::Ord::cmp(self, other))
+    }
+}
+
+#[allow(clippy::expect_used)]
+impl Ord for CronTagged {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other)
+            .expect("CronTagged should always be comparable")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn test_cron_state() {
-        assert!(CRON_INTERNAL_STATE.lock().is_ok());
+        let state = CRON_INTERNAL_STATE.lock().unwrap();
+        let app_name = "test";
+        // Initial state for any AppName is always empty
+        assert!(state.ls_crontabs(app_name, None).is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_state_add_crontab() {
+        let state = CRON_INTERNAL_STATE.lock().unwrap();
+        let app_name = "test";
+        let every_minute_when = "* * * * *";
+        let every_day_when = "0 0 * * *";
+        let every_month_when = "0 0 1 * *";
+        let example_tag = "ExampleTag";
+        let other_tag = "OtherTag";
+        let crontab_example_1 = CronTagged {
+            // triggers every minute
+            when: every_minute_when.into(),
+            tag: example_tag.into(),
+        };
+        let crontab_example_2 = CronTagged {
+            // triggers every minute
+            when: every_month_when.into(),
+            tag: example_tag.into(),
+        };
+        let _crontab_example_3 = CronTagged {
+            // triggers every minute
+            when: every_day_when.into(),
+            tag: example_tag.into(),
+        };
+        let _crontab_other_1 = CronTagged {
+            // triggers every minute
+            when: every_minute_when.into(),
+            tag: other_tag.into(),
+        };
+        let retrigger_yes = true;
+        let retrigger_no = false;
+        // Initial state for any AppName is always empty
+        assert!(state.ls_crontabs(app_name, None).is_empty());
+        assert!(state.add_crontab(app_name, crontab_example_1.clone(), retrigger_yes));
+        // re-inserting returns true
+        assert!(state.add_crontab(app_name, crontab_example_1.clone(), retrigger_no));
+        assert_eq!(state.ls_crontabs(app_name, None), vec![(
+            crontab_example_1.clone(),
+            retrigger_no
+        )]);
+        assert!(state.add_crontab(app_name, crontab_example_2.clone(), retrigger_yes));
+        assert_eq!(state.ls_crontabs(app_name, None), vec![
+            (crontab_example_1, retrigger_no),
+            (crontab_example_2, retrigger_yes),
+        ]);
     }
 }
