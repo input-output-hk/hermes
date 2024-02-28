@@ -132,9 +132,12 @@ impl Module {
 
 #[cfg(feature = "bench")]
 pub mod bench {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         app::HermesAppName,
+        event::queue::HermesEventQueue,
         runtime_extensions::state::{State, Stateful},
         runtime_state::HermesRuntimeContext,
     };
@@ -161,25 +164,24 @@ pub mod bench {
         let module =
             Module::new(include_bytes!("../../../../wasm/c/bench_component.wasm")).unwrap();
 
-        let state = State::new().into();
-        b.iter({
-            let state = state.clone();
-            || {
-                module
-                    .execute_event(
-                        &Event,
-                        HermesRuntimeState::new(
-                            state,
-                            HermesRuntimeContext::new(
-                                HermesAppName("app 1".to_string()),
-                                module.id().clone(),
-                                "init".to_string(),
-                                0,
-                            ),
+        let state: Arc<_> = State::new().into();
+        let event_queue: Arc<_> = HermesEventQueue::new().into();
+        b.iter(|| {
+            module
+                .execute_event(
+                    &Event,
+                    HermesRuntimeState::new(
+                        state.clone(),
+                        HermesRuntimeContext::new(
+                            HermesAppName("app 1".to_string()),
+                            module.id().clone(),
+                            "init".to_string(),
+                            0,
                         ),
-                    )
-                    .unwrap();
-            }
+                        event_queue.clone(),
+                    ),
+                )
+                .unwrap();
         });
     }
 
