@@ -14,6 +14,9 @@ src:
     COPY ./../hermes+build/doc /docs/src/api/rust-docs
     # Copy the WASM Component model API Docs
     COPY --dir ./../wasm/wasi+build/wasi-hermes-docs /docs/src/api/wasi-hermes
+    # Copy the Hermes JSON Schemas and Examples
+    COPY --dir ./../hermes+json-schemas/schemas /docs/includes/
+
 
 # Build the docs here.
 docs:

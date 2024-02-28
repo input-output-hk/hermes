@@ -2,11 +2,12 @@
 
 Metadata for Hermes Applications is specified as a `metadata.json` file located in the root group
 in the HDF5 File.
-It is a `json` document and must conform to the Application metadata jsonschema to be valid.
+It is a `json` document and must conform to the Application metadata json schema to be valid.
 
 ## Application Metadata Contents
 
-The Application Metadata is formally defined by `hermes_metadata.jsonschema`.
+The Application Metadata is formally defined by [`hermes_app_metadata.schema.json`](#metadata-schema).
+
 All Application metadata files MUST conform to that schema, or the Application will be considered invalid.
 
 ### Diagram: Hermes Application Metadata
@@ -14,7 +15,7 @@ All Application metadata files MUST conform to that schema, or the Application w
 ![Diagram](images/application_metadata.d2)
 
 *Note: Diagram is illustrative of metadata contents only.
-See `hermes_metadata.jsonschema` for the formal definition.*
+See [`hermes_app_metadata.schema.json`](#metadata-schema) for the formal definition.*
 
 ### Application identifying Data
 
@@ -49,3 +50,22 @@ When Hermes has permissioned resources, the metadata will list the permissions b
 
 Other than resourcing and permissions, the `metadata.json` file does not contain the configuration of the application.
 Application configuration is defined by the WASM Component modules.
+
+## Metadata Schema
+
+<!-- markdownlint-disable max-one-sentence-per-line -->
+
+??? note "Schema: `hermes_app_metadata.schema.json`"
+
+    ```json
+    {{ include_file('includes/schemas/hermes_app_metadata.schema.json', indent=4) }}
+    ```
+
+## Metadata Example
+
+??? note "Example: `hermes_app_metadata.json`"
+
+    ```json
+    {{ include_file('includes/schemas/example/hermes_app_metadata.json', indent=4) }}
+    ```
+<!-- markdownlint-enable max-one-sentence-per-line -->

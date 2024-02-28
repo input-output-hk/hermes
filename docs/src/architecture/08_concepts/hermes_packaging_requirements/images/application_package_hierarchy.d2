@@ -306,7 +306,7 @@ root group: {
         }
         component config jsonschema object: {
           shape: page
-          label: config.jsonschema
+          label: config.schema.json
           style: {
             opacity: 0.6
             font: mono
@@ -329,12 +329,12 @@ root group: {
 
             Modules runtime config file.
 
-            MUST Exist if `config.jsonschema` exists.
+            MUST Exist if `config.schema.json` exists.
           |
         }
         component settings jsonschema object: {
           shape: page
-          label: settings.jsonschema
+          label: settings.schema.json
           style: {
             opacity: 0.6
             font: mono
