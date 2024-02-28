@@ -14,7 +14,7 @@ workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, default-features = false, features = ["macros", "rt", "net", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"] }
 tracing.workspace = true
 
 [dev-dependencies]
