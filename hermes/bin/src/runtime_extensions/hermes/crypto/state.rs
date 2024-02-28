@@ -22,8 +22,9 @@ struct WrappedXPrv(XPrv);
 
 /// Implemnt Hash for WrappedXPrv
 impl Hash for WrappedXPrv {
-    /// FIXME - This should be implemented properly
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.as_ref().hash(state);
+    }
 }
 
 impl WrappedXPrv {
@@ -61,16 +62,16 @@ impl ResourceHolder {
         num
     }
 
-    //FIXME - This should return a reference
-    pub fn get_resource_from_id(&self, id: &u32) -> Option<&XPrv> {
-        self.id_to_resource_map.get(id).map(|entry| &entry.value().clone())
+    //FIXME - This should return a reference?
+    fn get_resource_from_id(&self, id: &u32) -> Option<XPrv> {
+        self.id_to_resource_map.get(id).map(|entry| entry.value().clone())
     }
     
-    //FIXME - This should return a reference
-    fn get_id_from_resource(&self, resource: &XPrv) -> Option<&u32> {
+    //FIXME - This should return a reference?
+    fn get_id_from_resource(&self, resource: &XPrv) -> Option<u32> {
         self.resource_to_id_map
             .get(&WrappedXPrv::from_xprv(resource.clone()))
-            .map(|entry| entry.value())
+            .map(|entry| entry.value().clone())
     }
 
     /// Drop the item from resources using id if possible.
@@ -78,10 +79,10 @@ impl ResourceHolder {
     fn drop(&mut self, id: u32) -> Option<u32> {
         if let Some(resource) = self.get_resource_from_id(&id) {
             if let Some(associated_id) = self.get_id_from_resource(&resource) {
-                if associated_id == &id {
+                if associated_id == id {
                     if let Some(r) = self.id_to_resource_map.remove(&id) {
                         self.resource_to_id_map.remove(&WrappedXPrv(r.1));
-                        return Some(*associated_id);
+                        return Some(associated_id);
                     }
                 }
             }
@@ -126,11 +127,12 @@ pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, c
     CRYPTO_INTERNAL_STATE.insert(app_name, module_map);
 }
 
+#[allow(dead_code)]
 /// Get the resource from the state using id if possible.
 // FIXME - Should this return a reference?
-pub(crate) fn get_resource<'a>(
-    app_name: &String, module_id: &Ulid, event_name: &String, counter: &'a u64, id: &u32,
-) -> Option<&'a XPrv> {
+pub(crate) fn get_resource(
+    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, id: &u32,
+) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
         return resource.get_resource_from_id(&id);
@@ -146,13 +148,14 @@ pub(crate) fn add_resource(
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
-        if let Some(module_map) = app_map.get(module_id) {
-            if let Some(event_map) = module_map.get(event_name) {
-                if let Some(counter_map) = event_map.get(counter) {
-                    // Check whether the resource already exists
+        if let Some(module_map) = app_map.value().get(module_id) {
+            if let Some(event_map) = module_map.value().get(event_name) {
+                if let Some(counter_map) = event_map.value().get(counter) {
+                    // Check whether the resource already exists.
                     let wrapped_xprv = WrappedXPrv::from_xprv(xprv.clone());
                     if !counter_map.resource_to_id_map.contains_key(&wrapped_xprv) {
-                        let id = counter_map.get_next_id();
+                        // FIXME - This shouldn't be clone?
+                        let id = counter_map.clone().get_next_id();
                         counter_map.id_to_resource_map.insert(id, xprv);
                         counter_map.resource_to_id_map.insert(wrapped_xprv, id);
                         return Some(id);
@@ -199,7 +202,7 @@ mod tests_crypto_state {
         // Get the resource from id
         let k = get_resource(&app_name, &module_id, &event_name, &counter, &1);
         // The resource should be the same
-        assert_eq!(k, Some(&prv));
+        assert_eq!(k, Some(prv.clone()));
 
         // Add another resource, with the same key
         let id2 = add_resource(
