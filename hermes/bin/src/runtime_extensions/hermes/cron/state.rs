@@ -17,28 +17,18 @@ use crate::runtime_extensions::{
 };
 
 /// Cron Internal State
-pub(crate) static CRON_INTERNAL_STATE: Lazy<Mutex<InternalState>> = Lazy::new(|| {
-    Mutex::new(InternalState {
-        storage: CronTabStorage::default(),
-    })
-});
+pub(crate) static CRON_INTERNAL_STATE: Lazy<Mutex<InternalState>> =
+    Lazy::new(|| Mutex::new(InternalState::new()));
 
-#[allow(dead_code)]
 /// Name of the Application that owns the `OnCronEvent`s.
 type AppName = String;
 
-#[allow(dead_code)]
+/// Storage for application-specific crontabs.
+type AppCronState = DashMap<CronTagged, OnCronEvent>;
+
 /// Storage for the crontabs.
-type CronTabStorage = DashMap<AppName, DashMap<CronTagged, OnCronEvent>>;
+type CronTabStorage = DashMap<AppName, AppCronState>;
 
-#[allow(dead_code)]
-/// Cron State
-pub(crate) struct CronState {
-    ///  The queue of `OnCronEvent`s.
-    cronqueue: (),
-}
-
-#[allow(dead_code)]
 /// Internal State.
 pub(crate) struct InternalState {
     /// The crontabs hash map.
@@ -47,9 +37,9 @@ pub(crate) struct InternalState {
 
 impl InternalState {
     /// Create a new `InternalState`.
-    pub(crate) fn _new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            storage: DashMap::default(),
+            storage: CronTabStorage::default(),
         }
     }
 
@@ -81,7 +71,7 @@ impl InternalState {
         } else {
             let app_cron: DashMap<CronTagged, OnCronEvent> = DashMap::new();
             app_cron.insert(tagged, crontab);
-            self.storage.insert(app_name.into(), app_cron);
+            self.storage.insert(AppName::from(app_name), app_cron);
         }
         todo!("implement cron event queue")
     }
