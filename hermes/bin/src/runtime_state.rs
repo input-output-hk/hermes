@@ -2,21 +2,31 @@
 
 use std::sync::Arc;
 
-use crate::{app::HermesAppName, runtime_extensions::state::State, wasm::module::ModuleId};
+use crate::{
+    app::HermesAppName, event::queue::HermesEventQueue, runtime_extensions::state::State,
+    wasm::module::ModuleId,
+};
 
-#[allow(dead_code)]
 /// Hermes Runtime state. This state is passed to the WASM runtime.
 pub(crate) struct HermesRuntimeState {
     /// Runtime extensions state
     pub(crate) state: Arc<State>,
     /// Runtime context.
-    pub(crate) ctx: HermesRuntimeContext,
+    pub(crate) _ctx: HermesRuntimeContext,
+    /// Hermes event queue.
+    pub(crate) _event_queue: Arc<HermesEventQueue>,
 }
 
 impl HermesRuntimeState {
     /// Creates a new instance of the `HermesState`.
-    pub(crate) fn new(state: Arc<State>, ctx: HermesRuntimeContext) -> HermesRuntimeState {
-        Self { state, ctx }
+    pub(crate) fn new(
+        state: Arc<State>, ctx: HermesRuntimeContext, event_queue: Arc<HermesEventQueue>,
+    ) -> HermesRuntimeState {
+        Self {
+            state,
+            _ctx: ctx,
+            _event_queue: event_queue,
+        }
     }
 }
 

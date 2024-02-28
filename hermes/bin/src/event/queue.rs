@@ -1,16 +1,13 @@
 //! Hermes event queue implementation.
 
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
-    },
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Arc, Mutex,
 };
 
 use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
 use crate::{
-    app::HermesAppName,
+    app::{HermesAppName, IndexedApps},
     runtime_extensions::state::State,
     runtime_state::{HermesRuntimeContext, HermesRuntimeState},
     wasm::module::{Module, ModuleId},
@@ -43,8 +40,6 @@ pub(crate) struct HermesEventQueue {
     sender: Sender<HermesEvent>,
     /// Hermes event queue receiver
     receiver: Mutex<Receiver<HermesEvent>>,
-    /// Current available hermes apps with their modules
-    apps: HashMap<HermesAppName, HashMap<ModuleId, Module>>,
 }
 
 impl HermesEventQueue {
@@ -54,7 +49,6 @@ impl HermesEventQueue {
         Self {
             sender,
             receiver: Mutex::new(receiver),
-            apps: HashMap::new(),
         }
     }
 
@@ -73,8 +67,8 @@ impl HermesEventQueue {
 /// # Errors:
 /// - `wasm::module::BadWASMModuleError`
 fn execute_event(
-    app_name: HermesAppName, module_id: ModuleId, state: &Arc<State>,
-    event: &dyn HermesEventPayload, module: &Module,
+    app_name: HermesAppName, module_id: ModuleId, state: Arc<State>,
+    event_queue: Arc<HermesEventQueue>, event: &dyn HermesEventPayload, module: &Module,
 ) -> anyhow::Result<()> {
     let runtime_context = HermesRuntimeContext::new(
         app_name,
@@ -83,7 +77,7 @@ fn execute_event(
         module.exec_counter(),
     );
 
-    let runtime_state = HermesRuntimeState::new(state.clone(), runtime_context);
+    let runtime_state = HermesRuntimeState::new(state, runtime_context, event_queue);
     module.execute_event(event, runtime_state)?;
     Ok(())
 }
@@ -95,17 +89,18 @@ fn execute_event(
 /// - `Error::AppNotFound`
 #[allow(clippy::unnecessary_wraps)]
 fn targeted_event_execution(
-    indexed_apps: &HashMap<HermesAppName, HashMap<ModuleId, Module>>, event: &HermesEvent,
-    state: &Arc<State>,
+    indexed_apps: &IndexedApps, event: &HermesEvent, state: &Arc<State>,
+    event_queue: &Arc<HermesEventQueue>,
 ) -> anyhow::Result<()> {
     match (event.target_app(), event.target_module()) {
         (TargetApp::All, TargetModule::All) => {
-            for (app_name, indexed_modules) in indexed_apps {
-                for (module_id, module) in indexed_modules {
+            for (app_name, app) in indexed_apps {
+                for (module_id, module) in app.indexed_modules() {
                     execute_event(
                         app_name.clone(),
                         module_id.clone(),
-                        state,
+                        state.clone(),
+                        event_queue.clone(),
                         event.payload(),
                         module,
                     )?;
@@ -113,16 +108,18 @@ fn targeted_event_execution(
             }
         },
         (TargetApp::All, TargetModule::_List(target_modules)) => {
-            for (app_name, indexed_modules) in indexed_apps {
+            for (app_name, app) in indexed_apps {
                 for module_id in target_modules {
-                    let module = indexed_modules
+                    let module = app
+                        .indexed_modules()
                         .get(module_id)
                         .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
 
                     execute_event(
                         app_name.clone(),
                         module_id.clone(),
-                        state,
+                        state.clone(),
+                        event_queue.clone(),
                         event.payload(),
                         module,
                     )?;
@@ -131,14 +128,15 @@ fn targeted_event_execution(
         },
         (TargetApp::_List(target_apps), TargetModule::All) => {
             for app_name in target_apps {
-                let indexed_modules = indexed_apps
+                let app = indexed_apps
                     .get(app_name)
                     .ok_or(Error::AppNotFound(app_name.to_owned()))?;
-                for (module_id, module) in indexed_modules {
+                for (module_id, module) in app.indexed_modules() {
                     execute_event(
                         app_name.clone(),
                         module_id.clone(),
-                        state,
+                        state.clone(),
+                        event_queue.clone(),
                         event.payload(),
                         module,
                     )?;
@@ -147,18 +145,20 @@ fn targeted_event_execution(
         },
         (TargetApp::_List(target_apps), TargetModule::_List(target_modules)) => {
             for app_name in target_apps {
-                let indexed_modules = indexed_apps
+                let app = indexed_apps
                     .get(app_name)
                     .ok_or(Error::AppNotFound(app_name.to_owned()))?;
                 for module_id in target_modules {
-                    let module = indexed_modules
+                    let module = app
+                        .indexed_modules()
                         .get(module_id)
                         .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
 
                     execute_event(
                         app_name.clone(),
                         module_id.clone(),
-                        state,
+                        state.clone(),
+                        event_queue.clone(),
                         event.payload(),
                         module,
                     )?;
@@ -180,7 +180,7 @@ fn targeted_event_execution(
 /// # Note:
 /// This is a blocking call.
 pub(crate) fn event_execution_loop(
-    event_queue: &HermesEventQueue, state: &Arc<State>,
+    indexed_apps: &IndexedApps, event_queue: &Arc<HermesEventQueue>, state: &Arc<State>,
 ) -> anyhow::Result<()> {
     let events = event_queue
         .receiver
@@ -188,7 +188,7 @@ pub(crate) fn event_execution_loop(
         .map_err(|_| Error::AnotherEventExecutionLoop)?;
 
     for event in events.iter() {
-        targeted_event_execution(&event_queue.apps, &event, state)?;
+        targeted_event_execution(indexed_apps, &event, state, event_queue)?;
     }
     Ok(())
 }

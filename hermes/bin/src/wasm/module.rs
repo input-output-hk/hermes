@@ -90,7 +90,6 @@ impl Module {
     }
 
     /// Get the module id
-    #[allow(dead_code)]
     pub(crate) fn id(&self) -> &ModuleId {
         &self.id
     }
@@ -113,7 +112,6 @@ impl Module {
     ///
     /// # Errors:
     /// - `BadWASMModuleError`
-    #[allow(dead_code)]
     pub(crate) fn execute_event(
         &self, event: &dyn HermesEventPayload, state: HermesRuntimeState,
     ) -> anyhow::Result<()> {
