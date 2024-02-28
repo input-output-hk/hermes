@@ -82,7 +82,8 @@ impl InternalState {
             app_cron.insert(tagged, crontab);
             self.storage.insert(AppName::from(app_name), app_cron);
         }
-        todo!("implement cron event queue")
+        // todo!("implement cron event queue")
+        true
     }
 
     /// Schedule a single cron event after a fixed delay.
@@ -107,7 +108,8 @@ impl InternalState {
     ) -> wasmtime::Result<bool> {
         let crontagged = mkdelay_crontab(duration, tag)?;
         self.add_crontab(app_name, crontagged, false);
-        todo!("implement cron event queue")
+        // todo!("implement cron event queue")
+        Ok(true)
     }
 
     /// List crontabs for an application.
