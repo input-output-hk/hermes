@@ -3,7 +3,7 @@
 use std::{sync::Arc, thread};
 
 use crate::{
-    event::queue::HermesEventQueue,
+    event::queue::{event_execution_loop, HermesEventQueue},
     runtime_extensions::state::{State, Stateful},
 };
 
@@ -47,7 +47,7 @@ impl HermesReactor {
 
         let events_thread = thread::spawn({
             let state = self.state.clone();
-            move || self.event_queue.event_execution_loop(&state)
+            move || event_execution_loop(&self.event_queue, &state)
         });
 
         events_thread

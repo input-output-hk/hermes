@@ -67,7 +67,7 @@ impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
-    ///  - `BadModuleError`
+    ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
     pub(crate) fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
@@ -111,8 +111,8 @@ impl Module {
     /// For each call creates a brand new `wasmtime::Store` instance, which means that
     /// is has an initial state, based on the provided context for each call.
     ///
-    /// # Errors
-    /// - `BadModuleError`
+    /// # Errors:
+    /// - `BadWASMModuleError`
     #[allow(dead_code)]
     pub(crate) fn execute_event(
         &self, event: &dyn HermesEventPayload, state: HermesRuntimeState,

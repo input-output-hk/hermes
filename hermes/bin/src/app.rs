@@ -29,7 +29,7 @@ impl HermesApp {
 
     /// Get app name
     #[allow(dead_code)]
-    pub(crate) fn app_name(self) -> HermesAppName {
-        self.app_name
+    pub(crate) fn app_name(&self) -> &HermesAppName {
+        &self.app_name
     }
 }
