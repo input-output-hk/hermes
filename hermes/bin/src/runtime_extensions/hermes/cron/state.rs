@@ -4,10 +4,11 @@ use std::{
     collections::BTreeSet,
     hash::{Hash, Hasher},
     process::exit,
-    sync::Mutex,
+    sync::{mpsc, Arc, Mutex},
     thread::JoinHandle,
 };
 
+use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 //  std::sync::LazyLock is still unstable
 use once_cell::sync::Lazy;
@@ -31,24 +32,49 @@ type AppCronState = DashMap<CronTagged, OnCronEvent>;
 /// Storage for the crontabs.
 type CronTabStorage = DashMap<AppName, AppCronState>;
 
+/// Scheduled Date and Time for sending a cron event.
+struct ScheduledCron {
+    /// Scheduled time for running the event.
+    _date_time: DateTime<Utc>,
+    /// The crontab event.
+    _event: OnCronEvent,
+}
+
 /// Internal State.
 pub(crate) struct InternalState {
     /// The crontabs hash map.
     storage: CronTabStorage,
-    /// The crontab queue task.
+    /// The send events to the crontab queue.
+    _cron_queue: mpsc::Sender<ScheduledCron>,
+    /// The crontab queue task runs in the background.
+    _task: CronQueueTask,
+}
+
+/// The crontab queue task runs in the background.
+struct CronQueueTask {
+    /// Handle to the crontab queue task.
     _task: JoinHandle<()>,
+}
+
+impl CronQueueTask {
+    /// Create a new `CronQueueTask`.
+    fn new(_receiver: &Arc<Mutex<mpsc::Receiver<ScheduledCron>>>) -> Self {
+        let handle = std::thread::spawn(|| {
+            println!("wip: cron queue task goes here");
+            exit(0);
+        });
+        Self { _task: handle }
+    }
 }
 
 impl InternalState {
     /// Create a new `InternalState`.
     pub(crate) fn new() -> Self {
-        let handle = std::thread::spawn(|| {
-            println!("wip: cron queue task goes here");
-            exit(0);
-        });
+        let (sender, receiver) = mpsc::channel();
         Self {
             storage: CronTabStorage::default(),
-            _task: handle,
+            _cron_queue: sender,
+            _task: CronQueueTask::new(&Arc::new(Mutex::new(receiver))),
         }
     }
 
