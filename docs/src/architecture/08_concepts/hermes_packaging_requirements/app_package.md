@@ -39,9 +39,11 @@ To get a list of options related to packaging:
 ```
 
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
+  This file must conform to the manifests [json schema](#manifest-schema).
+  An example manifest of this [json schema](#manifest-schema) if [here](#manifest-example).
 * `app_package_name` - The name to give the application file.
 
-*Note: the extension `.hap` will automatically be added to the `<app_package_name>` to signify this is a Hermes App.*
+*Note: the extension `.happ` will automatically be added to the `<app_package_name>` to signify this is a Hermes App.*
 
 ### Signing the Application Package
 
@@ -72,6 +74,25 @@ This takes the X.509 Private Certificate presented, and signs or counter-signs t
 This command will dump the logical contents of the Application package and if it is considered valid or not.
 It does not extract files from the package.  
 If files need to be extracted or individually accessed outside of Hermes, any [HDF5 Viewer] can be used.
+
+## Manifest Schema
+
+<!-- markdownlint-disable max-one-sentence-per-line code-block-style -->
+
+??? note "Schema: `hermes_app_manifest.schema.json`"
+
+    ```json
+    {{ include_file('includes/schemas/hermes_app_manifest.schema.json', indent=4) }}
+    ```
+
+## Manifest Example
+
+??? note "Example: `hermes_app_manifest.json`"
+
+    ```json
+    {{ include_file('includes/schemas/example/hermes_app_manifest.json', indent=4) }}
+    ```
+<!-- markdownlint-enable max-one-sentence-per-line code-block-style-->
 
 [HDF5 Viewer]: https://myhdf5.hdfgroup.org/
 [HDF5 File]: https://docs.hdfgroup.org/hdf5/develop/_h5_d_m__u_g.html#title4
