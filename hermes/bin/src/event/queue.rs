@@ -79,7 +79,7 @@ impl HermesEventQueue {
 ///
 /// # Errors:
 /// - `wasm::module::BadWASMModuleError`
-fn execute_event(
+fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, event: &dyn HermesEventPayload, module: &Module,
 ) -> anyhow::Result<()> {
     let runtime_context = HermesRuntimeContext::new(
@@ -101,53 +101,50 @@ fn execute_event(
 /// - `wasm::module::BadWASMModuleError`
 #[allow(clippy::unnecessary_wraps)]
 fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
-    match (event.target_app(), event.target_module()) {
-        (TargetApp::_All, TargetModule::All) => {
-            for (app_name, app) in indexed_apps {
+    // Find target apps
+    let target_apps = match event.target_app() {
+        TargetApp::_All => indexed_apps.iter().collect(),
+        TargetApp::List(target_apps) => {
+            let mut res = Vec::new();
+            for app_name in target_apps {
+                let app = indexed_apps
+                    .get(app_name)
+                    .ok_or(Error::AppNotFound(app_name.to_owned()))?;
+                res.push((app_name, app));
+            }
+            res
+        },
+    };
+    // Find target modules
+    let target_module = match event.target_module() {
+        TargetModule::All => {
+            let mut res = Vec::new();
+            for (app_name, app) in target_apps {
                 for (module_id, module) in app.indexed_modules() {
-                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
+                    res.push((app_name, module_id, module));
                 }
             }
+            res
         },
-        (TargetApp::_All, TargetModule::_List(target_modules)) => {
-            for (app_name, app) in indexed_apps {
+        TargetModule::_List(target_modules) => {
+            let mut res = Vec::new();
+            for (app_name, app) in target_apps {
                 for module_id in target_modules {
                     let module = app
                         .indexed_modules()
                         .get(module_id)
                         .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
+                    res.push((app_name, module_id, module));
+                }
+            }
+            res
+        },
+    };
 
-                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
-                }
-            }
-        },
-        (TargetApp::List(target_apps), TargetModule::All) => {
-            for app_name in target_apps {
-                let app = indexed_apps
-                    .get(app_name)
-                    .ok_or(Error::AppNotFound(app_name.to_owned()))?;
-                for (module_id, module) in app.indexed_modules() {
-                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
-                }
-            }
-        },
-        (TargetApp::List(target_apps), TargetModule::_List(target_modules)) => {
-            for app_name in target_apps {
-                let app = indexed_apps
-                    .get(app_name)
-                    .ok_or(Error::AppNotFound(app_name.to_owned()))?;
-                for module_id in target_modules {
-                    let module = app
-                        .indexed_modules()
-                        .get(module_id)
-                        .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
-
-                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
-                }
-            }
-        },
+    // Event dispatch
+    for (app_name, module_id, module) in target_module {
+        event_dispatch(app_name.clone(), module_id.clone(), event.payload(), module)?;
     }
-
     Ok(())
 }
 
