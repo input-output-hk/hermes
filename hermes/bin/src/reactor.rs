@@ -1,10 +1,10 @@
 //! Hermes Reactor implementation.
 
-use std::{sync::Arc, thread};
+use std::sync::Arc;
 
 use crate::{
     app::{HermesApp, IndexedApps},
-    event::queue::{event_execution_loop, HermesEventQueue},
+    event::queue::HermesEventQueue,
     runtime_extensions::hermes::init,
 };
 
@@ -20,44 +20,29 @@ pub(crate) struct HermesReactor {
     event_queue: Arc<HermesEventQueue>,
 
     /// Hermes apps
-    indexed_apps: IndexedApps,
+    indexed_apps: Arc<IndexedApps>,
 }
 
 impl HermesReactor {
-    /// Create a new Hermes Reactor
+    /// Create a new Hermes Reactor.
+    /// Runs all necessary tasks in separed threads.
     #[allow(dead_code)]
     pub(crate) fn new(apps: Vec<HermesApp>) -> anyhow::Result<Self> {
-        let event_queue = Arc::new(HermesEventQueue::new());
+        let target_apps = apps.iter().map(|app| app.app_name().clone()).collect();
 
-        // Emit init event
-        init::emit_init_event(
-            &event_queue,
-            apps.iter().map(|app| app.app_name().clone()).collect(),
-        )?;
+        let indexed_apps: Arc<IndexedApps> = Arc::new(
+            apps.into_iter()
+                .map(|app| (app.app_name().clone(), app))
+                .collect(),
+        );
 
-        let indexed_apps = apps
-            .into_iter()
-            .map(|app| (app.app_name().clone(), app))
-            .collect();
+        let event_queue = Arc::new(HermesEventQueue::new(indexed_apps.clone()));
+
+        init::emit_init_event(&event_queue, target_apps)?;
 
         Ok(Self {
             event_queue,
             indexed_apps,
         })
-    }
-
-    /// Run Hermes.
-    ///
-    /// # Note:
-    /// This is a blocking call util all tasks are finished.
-    #[allow(dead_code)]
-    pub(crate) fn run(self) -> anyhow::Result<()> {
-        let events_thread =
-            thread::spawn(move || event_execution_loop(&self.indexed_apps, &self.event_queue));
-
-        events_thread
-            .join()
-            .map_err(|_| ThreadPanicsError("events handler"))??;
-        Ok(())
     }
 }

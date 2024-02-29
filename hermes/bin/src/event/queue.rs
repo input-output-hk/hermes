@@ -1,8 +1,11 @@
 //! Hermes event queue implementation.
 
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Mutex,
+use std::{
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
+    thread,
 };
 
 use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
@@ -27,28 +30,28 @@ pub(crate) enum Error {
     #[error("Failed to add event into the event queue. Event queue is closed.")]
     CannotAddEvent,
 
-    /// Trying to execute one more event execution loop. It is allowed to run only one
-    /// execution loop in a time.
-    #[error("Trying to execute one more event execution loop. It is allowed to run only one execution loop in a time.")]
-    AnotherEventExecutionLoop,
+    /// Panics inside the `event_execution_loop` function error.
+    #[error("Panics inside the `event_execution_loop` function!")]
+    EventLoopPanics,
 }
 
 /// Hermes event queue.
 pub(crate) struct HermesEventQueue {
     /// Hermes event queue sender
     sender: Sender<HermesEvent>,
-    /// Hermes event queue receiver
-    receiver: Mutex<Receiver<HermesEvent>>,
+    /// Event loop thread handler
+    event_loop: thread::JoinHandle<anyhow::Result<()>>,
 }
 
 impl HermesEventQueue {
     /// Creates a new instance of the `HermesEventQueue`.
-    pub(crate) fn new() -> Self {
+    /// Runs an event loop thread.
+    pub(crate) fn new(indexed_apps: Arc<IndexedApps>) -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
-        Self {
-            sender,
-            receiver: Mutex::new(receiver),
-        }
+
+        let event_loop = thread::spawn(move || event_execution_loop(&indexed_apps, receiver));
+
+        Self { sender, event_loop }
     }
 
     /// Add event into the event queue
@@ -57,6 +60,17 @@ impl HermesEventQueue {
     /// - `Error::CannotAddEvent`
     pub(crate) fn add_into_queue(&self, event: HermesEvent) -> anyhow::Result<()> {
         self.sender.send(event).map_err(|_| Error::CannotAddEvent)?;
+        Ok(())
+    }
+
+    /// Waits for the event loop to finish.
+    /// # Note:
+    /// This is a blocking call.
+    #[allow(dead_code)]
+    pub(crate) fn wait(self) -> anyhow::Result<()> {
+        self.event_loop
+            .join()
+            .map_err(|_| Error::EventLoopPanics)??;
         Ok(())
     }
 }
@@ -84,6 +98,7 @@ fn execute_event(
 /// # Errors:
 /// - `Error::ModuleNotFound`
 /// - `Error::AppNotFound`
+/// - `wasm::module::BadWASMModuleError`
 #[allow(clippy::unnecessary_wraps)]
 fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
     match (event.target_app(), event.target_module()) {
@@ -136,24 +151,16 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> 
     Ok(())
 }
 
-/// Executes Hermes events from provided the event queue.
+/// Executes Hermes events from the provided receiver .
 ///
 /// # Errors:
-/// - `Error::AnotherEventExecutionLoop`
 /// - `Error::ModuleNotFound`
 /// - `Error::AppNotFound`
-///
-/// # Note:
-/// This is a blocking call.
-pub(crate) fn event_execution_loop(
-    indexed_apps: &IndexedApps, event_queue: &HermesEventQueue,
+/// - `wasm::module::BadWASMModuleError`
+fn event_execution_loop(
+    indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>,
 ) -> anyhow::Result<()> {
-    let events = event_queue
-        .receiver
-        .try_lock()
-        .map_err(|_| Error::AnotherEventExecutionLoop)?;
-
-    for event in events.iter() {
+    for event in receiver {
         targeted_event_execution(indexed_apps, &event)?;
     }
     Ok(())
