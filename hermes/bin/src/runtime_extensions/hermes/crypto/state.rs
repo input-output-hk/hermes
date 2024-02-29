@@ -27,9 +27,9 @@ impl Hash for WrappedXPrv {
     }
 }
 
-impl WrappedXPrv {
+impl From<XPrv> for WrappedXPrv {
     /// Turn XPrv into WrappedXPrv
-    fn from_xprv(xprv: XPrv) -> Self {
+    fn from(xprv: XPrv) -> Self {
         WrappedXPrv(xprv)
     }
 }
@@ -62,15 +62,13 @@ impl ResourceHolder {
         num
     }
 
-    //FIXME - This should return a reference?
     fn get_resource_from_id(&self, id: &u32) -> Option<XPrv> {
         self.id_to_resource_map.get(id).map(|entry| entry.value().clone())
     }
     
-    //FIXME - This should return a reference?
     fn get_id_from_resource(&self, resource: &XPrv) -> Option<u32> {
         self.resource_to_id_map
-            .get(&WrappedXPrv::from_xprv(resource.clone()))
+            .get(&WrappedXPrv::from(resource.clone()))
             .map(|entry| entry.value().clone())
     }
 
@@ -102,7 +100,6 @@ fn check_context_and_return_resources(
         if let Some(module_map) = app_map.get(module_id) {
             if let Some(event_map) = module_map.get(event_name) {
                 if let Some(counter_map) = event_map.get(counter) {
-                    // FIXME - This shouldn't be clone?
                     return Some(counter_map.clone());
                 }
             }
@@ -129,13 +126,12 @@ pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, c
 
 #[allow(dead_code)]
 /// Get the resource from the state using id if possible.
-// FIXME - Should this return a reference?
 pub(crate) fn get_resource(
     app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, id: &u32,
 ) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
-        return resource.get_resource_from_id(&id);
+        return resource.get_resource_from_id(&id).clone();
     }
     return None;
 }
@@ -152,9 +148,8 @@ pub(crate) fn add_resource(
             if let Some(event_map) = module_map.value().get(event_name) {
                 if let Some(counter_map) = event_map.value().get(counter) {
                     // Check whether the resource already exists.
-                    let wrapped_xprv = WrappedXPrv::from_xprv(xprv.clone());
+                    let wrapped_xprv = WrappedXPrv::from(xprv.clone());
                     if !counter_map.resource_to_id_map.contains_key(&wrapped_xprv) {
-                        // FIXME - This shouldn't be clone?
                         let id = counter_map.clone().get_next_id();
                         counter_map.id_to_resource_map.insert(id, xprv);
                         counter_map.resource_to_id_map.insert(wrapped_xprv, id);
