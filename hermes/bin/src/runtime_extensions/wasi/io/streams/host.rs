@@ -1,10 +1,10 @@
 //! IO Streams host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::io::streams::{
         Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl HostInputStream for HermesRuntimeContext {

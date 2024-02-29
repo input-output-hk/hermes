@@ -2,11 +2,11 @@
 
 use super::blake2b;
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
         hash::api::{Errno, Host},
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl Host for HermesRuntimeContext {

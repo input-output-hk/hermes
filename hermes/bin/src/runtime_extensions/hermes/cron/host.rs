@@ -1,6 +1,7 @@
 //! Cron host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::{
             hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
@@ -8,7 +9,6 @@ use crate::{
         },
         hermes::cron::{mkcron_impl, mkdelay_crontab},
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl Host for HermesRuntimeContext {

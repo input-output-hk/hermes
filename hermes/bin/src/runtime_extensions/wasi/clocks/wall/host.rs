@@ -1,8 +1,8 @@
 //! Wall clock host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
     runtime_context::HermesRuntimeContext,
+    runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
 };
 
 impl Host for HermesRuntimeContext {

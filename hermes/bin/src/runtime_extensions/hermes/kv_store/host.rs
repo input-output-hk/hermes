@@ -1,8 +1,8 @@
 //! KV-Store host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::hermes::kv_store::api::{Host, KvValues},
     runtime_context::HermesRuntimeContext,
+    runtime_extensions::bindings::hermes::kv_store::api::{Host, KvValues},
 };
 
 impl Host for HermesRuntimeContext {

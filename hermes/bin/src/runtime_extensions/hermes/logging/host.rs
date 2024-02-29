@@ -1,11 +1,11 @@
 //! Logging host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
         json::api::Json,
         logging::api::{Host, Level},
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl Host for HermesRuntimeContext {

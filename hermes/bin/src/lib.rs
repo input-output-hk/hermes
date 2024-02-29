@@ -4,8 +4,8 @@
 mod app;
 mod event;
 mod reactor;
-mod runtime_extensions;
 mod runtime_context;
+mod runtime_extensions;
 mod wasm;
 
 #[cfg(feature = "bench")]

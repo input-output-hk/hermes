@@ -1,11 +1,11 @@
 //! CLI host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::{
         cli,
         io::streams::{InputStream, OutputStream},
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl cli::environment::Host for HermesRuntimeContext {

@@ -1,8 +1,8 @@
 //! Monotonic clock host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
     runtime_context::HermesRuntimeContext,
+    runtime_extensions::bindings::wasi::clocks::monotonic_clock::{Duration, Host, Instant},
 };
 
 impl Host for HermesRuntimeContext {

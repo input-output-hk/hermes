@@ -13,7 +13,7 @@ use wasmtime::{
 };
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings, runtime_context::HermesRuntimeContext,
+    event::HermesEventPayload, runtime_context::HermesRuntimeContext, runtime_extensions::bindings,
     wasm::engine::Engine,
 };
 
@@ -138,8 +138,8 @@ pub mod bench {
     use crate::{
         app::HermesAppName,
         event::queue::HermesEventQueue,
-        runtime_extensions::state::{State, Stateful},
         runtime_context::HermesRuntimeContext,
+        runtime_extensions::state::{State, Stateful},
     };
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.

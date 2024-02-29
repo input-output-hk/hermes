@@ -1,6 +1,7 @@
 //! Crypto host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
         crypto::api::{
@@ -8,7 +9,6 @@ use crate::{
             Host, HostEd25519Bip32,
         },
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl HostEd25519Bip32 for HermesRuntimeContext {

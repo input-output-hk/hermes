@@ -1,7 +1,7 @@
 //! JSON host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::hermes::json::api::Host, runtime_context::HermesRuntimeContext,
+    runtime_context::HermesRuntimeContext, runtime_extensions::bindings::hermes::json::api::Host,
 };
 
 impl Host for HermesRuntimeContext {}

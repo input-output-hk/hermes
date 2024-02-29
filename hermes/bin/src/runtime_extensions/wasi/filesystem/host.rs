@@ -1,6 +1,7 @@
 //! Filesystem host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::{
         filesystem::{
             self,
@@ -12,7 +13,6 @@ use crate::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    runtime_context::HermesRuntimeContext,
 };
 
 impl filesystem::types::HostDescriptor for HermesRuntimeContext {
