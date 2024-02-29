@@ -12,10 +12,10 @@ use crate::{
         },
         io::streams::{InputStream, OutputStream},
     },
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl filesystem::types::HostDescriptor for HermesRuntimeState {
+impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     /// Return a stream for reading from a file, if available.
     ///
     /// May fail with an error-code describing why the file cannot be read.
@@ -386,7 +386,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeState {
     }
 }
 
-impl filesystem::types::HostDirectoryEntryStream for HermesRuntimeState {
+impl filesystem::types::HostDirectoryEntryStream for HermesRuntimeContext {
     /// Read a single directory entry from a `directory-entry-stream`.
     fn read_directory_entry(
         &mut self, _dir: wasmtime::component::Resource<DirectoryEntryStream>,
@@ -401,7 +401,7 @@ impl filesystem::types::HostDirectoryEntryStream for HermesRuntimeState {
     }
 }
 
-impl filesystem::types::Host for HermesRuntimeState {
+impl filesystem::types::Host for HermesRuntimeContext {
     /// Attempts to extract a filesystem-related `error-code` from the stream
     /// `error` provided.
     ///
@@ -419,7 +419,7 @@ impl filesystem::types::Host for HermesRuntimeState {
     }
 }
 
-impl filesystem::preopens::Host for HermesRuntimeState {
+impl filesystem::preopens::Host for HermesRuntimeContext {
     /// Return the set of preopened directories, and their path.
     fn get_directories(
         &mut self,

@@ -2,10 +2,10 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl Host for HermesRuntimeState {
+impl Host for HermesRuntimeContext {
     /// Read the current value of the clock.
     ///
     /// This clock is not monotonic, therefore calling this function repeatedly

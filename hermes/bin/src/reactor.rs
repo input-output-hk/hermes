@@ -57,10 +57,8 @@ impl HermesReactor {
             .init
             .emit_init_event(self.event_queue.as_ref())?;
 
-        let events_thread = thread::spawn({
-            let state = self.state.clone();
-            move || event_execution_loop(&self.indexed_apps, &self.event_queue, &state)
-        });
+        let events_thread =
+            thread::spawn(move || event_execution_loop(&self.indexed_apps, &self.event_queue));
 
         events_thread
             .join()

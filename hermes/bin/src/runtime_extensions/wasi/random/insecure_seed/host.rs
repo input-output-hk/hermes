@@ -2,10 +2,10 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::random::insecure_seed::Host,
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl Host for HermesRuntimeState {
+impl Host for HermesRuntimeContext {
     /// Return a 128-bit value that may contain a pseudo-random value.
     ///
     /// The returned value is not required to be computed from a Cryptographically Secure

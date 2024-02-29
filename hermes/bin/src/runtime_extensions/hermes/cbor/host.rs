@@ -1,7 +1,7 @@
 //! CBOR host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::hermes::cbor::api::Host, runtime_state::HermesRuntimeState,
+    runtime_extensions::bindings::hermes::cbor::api::Host, runtime_context::HermesRuntimeContext,
 };
 
-impl Host for HermesRuntimeState {}
+impl Host for HermesRuntimeContext {}

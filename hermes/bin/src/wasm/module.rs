@@ -13,7 +13,7 @@ use wasmtime::{
 };
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings, runtime_state::HermesRuntimeState,
+    event::HermesEventPayload, runtime_extensions::bindings, runtime_context::HermesRuntimeContext,
     wasm::engine::Engine,
 };
 
@@ -27,7 +27,7 @@ struct BadWASMModuleError(String);
 /// It is used to interact with the WASM module.
 pub(crate) struct ModuleInstance {
     /// `wasmtime::Store` entity
-    pub(crate) store: WasmStore<HermesRuntimeState>,
+    pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
     pub(crate) instance: bindings::Hermes,
 }
@@ -51,7 +51,7 @@ pub(crate) struct Module {
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    pre_instance: WasmInstancePre<HermesRuntimeState>,
+    pre_instance: WasmInstancePre<HermesRuntimeContext>,
 
     /// `Engine` entity
     engine: Engine,
@@ -75,7 +75,7 @@ impl Module {
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
-        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeState| state)
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeContext| state)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
@@ -113,7 +113,7 @@ impl Module {
     /// # Errors:
     /// - `BadWASMModuleError`
     pub(crate) fn execute_event(
-        &self, event: &dyn HermesEventPayload, state: HermesRuntimeState,
+        &self, event: &dyn HermesEventPayload, state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
@@ -139,7 +139,7 @@ pub mod bench {
         app::HermesAppName,
         event::queue::HermesEventQueue,
         runtime_extensions::state::{State, Stateful},
-        runtime_state::HermesRuntimeContext,
+        runtime_context::HermesRuntimeContext,
     };
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
@@ -170,7 +170,7 @@ pub mod bench {
             module
                 .execute_event(
                     &Event,
-                    HermesRuntimeState::new(
+                    HermesRuntimeContext::new(
                         state.clone(),
                         HermesRuntimeContext::new(
                             HermesAppName("app 1".to_string()),

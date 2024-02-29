@@ -3,8 +3,8 @@
 mod app;
 mod event;
 mod reactor;
+mod runtime_context;
 mod runtime_extensions;
-mod runtime_state;
 mod wasm;
 
 #[cfg(feature = "bench")]

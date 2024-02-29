@@ -5,10 +5,10 @@ use crate::{
         cli,
         io::streams::{InputStream, OutputStream},
     },
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl cli::environment::Host for HermesRuntimeState {
+impl cli::environment::Host for HermesRuntimeContext {
     /// Get the POSIX-style environment variables.
     ///
     /// Each environment variable is provided as a pair of string variable names
@@ -33,19 +33,19 @@ impl cli::environment::Host for HermesRuntimeState {
     }
 }
 
-impl cli::stdin::Host for HermesRuntimeState {
+impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         todo!()
     }
 }
 
-impl cli::stdout::Host for HermesRuntimeState {
+impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         todo!()
     }
 }
 
-impl cli::stderr::Host for HermesRuntimeState {
+impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         todo!()
     }

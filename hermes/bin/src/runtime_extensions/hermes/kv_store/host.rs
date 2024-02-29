@@ -2,10 +2,10 @@
 
 use crate::{
     runtime_extensions::bindings::hermes::kv_store::api::{Host, KvValues},
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl Host for HermesRuntimeState {
+impl Host for HermesRuntimeContext {
     /// Set a value in the local key-value store
     /// Setting None will cause the Key to be deleted from the KV store.
     fn kv_set(&mut self, _key: String, _value: Option<KvValues>) -> wasmtime::Result<()> {

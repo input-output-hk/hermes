@@ -1,10 +1,10 @@
 //! Insecure RNG host implementation for WASM runtime.
 
 use crate::{
-    runtime_extensions::bindings::wasi::random::insecure::Host, runtime_state::HermesRuntimeState,
+    runtime_extensions::bindings::wasi::random::insecure::Host, runtime_context::HermesRuntimeContext,
 };
 
-impl Host for HermesRuntimeState {
+impl Host for HermesRuntimeContext {
     /// Return `len` insecure pseudo-random bytes.
     ///
     /// This function is not cryptographically secure. Do not use it for

@@ -21,13 +21,13 @@ mod host;
 /// State
 pub(crate) struct State {
     /// The crontabs hash map.
-    crontabs: HashMap<CronEventTag, CronTab>,
+    _crontabs: HashMap<CronEventTag, CronTab>,
 }
 
 impl Stateful for State {
     fn new() -> Self {
         State {
-            crontabs: HashMap::new(),
+            _crontabs: HashMap::new(),
         }
     }
 }
@@ -35,9 +35,9 @@ impl Stateful for State {
 /// A crontab entry.
 struct CronTab {
     /// The crontab entry.
-    entry: CronTagged,
+    _entry: CronTagged,
     /// When the event triggers.
-    retrigger: bool,
+    _retrigger: bool,
 }
 
 /// Create a delayed crontab entry.

@@ -2,14 +2,13 @@
 
 use std::sync::{
     mpsc::{Receiver, Sender},
-    Arc, Mutex,
+    Mutex,
 };
 
 use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
 use crate::{
     app::{HermesAppName, IndexedApps},
-    runtime_extensions::state::State,
-    runtime_state::{HermesRuntimeContext, HermesRuntimeState},
+    runtime_context::HermesRuntimeContext,
     wasm::module::{Module, ModuleId},
 };
 
@@ -67,8 +66,7 @@ impl HermesEventQueue {
 /// # Errors:
 /// - `wasm::module::BadWASMModuleError`
 fn execute_event(
-    app_name: HermesAppName, module_id: ModuleId, state: Arc<State>,
-    event_queue: Arc<HermesEventQueue>, event: &dyn HermesEventPayload, module: &Module,
+    app_name: HermesAppName, module_id: ModuleId, event: &dyn HermesEventPayload, module: &Module,
 ) -> anyhow::Result<()> {
     let runtime_context = HermesRuntimeContext::new(
         app_name,
@@ -77,8 +75,7 @@ fn execute_event(
         module.exec_counter(),
     );
 
-    let runtime_state = HermesRuntimeState::new(state, runtime_context, event_queue);
-    module.execute_event(event, runtime_state)?;
+    module.execute_event(event, runtime_context)?;
     Ok(())
 }
 
@@ -88,22 +85,12 @@ fn execute_event(
 /// - `Error::ModuleNotFound`
 /// - `Error::AppNotFound`
 #[allow(clippy::unnecessary_wraps)]
-fn targeted_event_execution(
-    indexed_apps: &IndexedApps, event: &HermesEvent, state: &Arc<State>,
-    event_queue: &Arc<HermesEventQueue>,
-) -> anyhow::Result<()> {
+fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
     match (event.target_app(), event.target_module()) {
         (TargetApp::All, TargetModule::All) => {
             for (app_name, app) in indexed_apps {
                 for (module_id, module) in app.indexed_modules() {
-                    execute_event(
-                        app_name.clone(),
-                        module_id.clone(),
-                        state.clone(),
-                        event_queue.clone(),
-                        event.payload(),
-                        module,
-                    )?;
+                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
                 }
             }
         },
@@ -115,14 +102,7 @@ fn targeted_event_execution(
                         .get(module_id)
                         .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
 
-                    execute_event(
-                        app_name.clone(),
-                        module_id.clone(),
-                        state.clone(),
-                        event_queue.clone(),
-                        event.payload(),
-                        module,
-                    )?;
+                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
                 }
             }
         },
@@ -132,14 +112,7 @@ fn targeted_event_execution(
                     .get(app_name)
                     .ok_or(Error::AppNotFound(app_name.to_owned()))?;
                 for (module_id, module) in app.indexed_modules() {
-                    execute_event(
-                        app_name.clone(),
-                        module_id.clone(),
-                        state.clone(),
-                        event_queue.clone(),
-                        event.payload(),
-                        module,
-                    )?;
+                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
                 }
             }
         },
@@ -154,14 +127,7 @@ fn targeted_event_execution(
                         .get(module_id)
                         .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
 
-                    execute_event(
-                        app_name.clone(),
-                        module_id.clone(),
-                        state.clone(),
-                        event_queue.clone(),
-                        event.payload(),
-                        module,
-                    )?;
+                    execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
                 }
             }
         },
@@ -180,7 +146,7 @@ fn targeted_event_execution(
 /// # Note:
 /// This is a blocking call.
 pub(crate) fn event_execution_loop(
-    indexed_apps: &IndexedApps, event_queue: &Arc<HermesEventQueue>, state: &Arc<State>,
+    indexed_apps: &IndexedApps, event_queue: &HermesEventQueue,
 ) -> anyhow::Result<()> {
     let events = event_queue
         .receiver
@@ -188,7 +154,7 @@ pub(crate) fn event_execution_loop(
         .map_err(|_| Error::AnotherEventExecutionLoop)?;
 
     for event in events.iter() {
-        targeted_event_execution(indexed_apps, &event, state, event_queue)?;
+        targeted_event_execution(indexed_apps, &event)?;
     }
     Ok(())
 }

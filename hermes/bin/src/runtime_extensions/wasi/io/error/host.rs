@@ -2,10 +2,10 @@
 
 use crate::{
     runtime_extensions::bindings::wasi::io::error::{Error, Host, HostError},
-    runtime_state::HermesRuntimeState,
+    runtime_context::HermesRuntimeContext,
 };
 
-impl HostError for HermesRuntimeState {
+impl HostError for HermesRuntimeContext {
     /// Returns a string that is suitable to assist humans in debugging
     /// this error.
     ///
@@ -24,4 +24,4 @@ impl HostError for HermesRuntimeState {
     }
 }
 
-impl Host for HermesRuntimeState {}
+impl Host for HermesRuntimeContext {}
