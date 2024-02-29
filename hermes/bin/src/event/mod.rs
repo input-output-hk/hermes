@@ -27,9 +27,9 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
 /// Target Hermes app to execute the event
 pub(crate) enum TargetApp {
     /// Execute for all available apps
-    All,
+    _All,
     /// Execute for a specific list of apps
-    _List(Vec<HermesAppName>),
+    List(Vec<HermesAppName>),
 }
 
 /// Target WASM module to execute the event

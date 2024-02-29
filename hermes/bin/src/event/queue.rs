@@ -87,14 +87,14 @@ fn execute_event(
 #[allow(clippy::unnecessary_wraps)]
 fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
     match (event.target_app(), event.target_module()) {
-        (TargetApp::All, TargetModule::All) => {
+        (TargetApp::_All, TargetModule::All) => {
             for (app_name, app) in indexed_apps {
                 for (module_id, module) in app.indexed_modules() {
                     execute_event(app_name.clone(), module_id.clone(), event.payload(), module)?;
                 }
             }
         },
-        (TargetApp::All, TargetModule::_List(target_modules)) => {
+        (TargetApp::_All, TargetModule::_List(target_modules)) => {
             for (app_name, app) in indexed_apps {
                 for module_id in target_modules {
                     let module = app
@@ -106,7 +106,7 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> 
                 }
             }
         },
-        (TargetApp::_List(target_apps), TargetModule::All) => {
+        (TargetApp::List(target_apps), TargetModule::All) => {
             for app_name in target_apps {
                 let app = indexed_apps
                     .get(app_name)
@@ -116,7 +116,7 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> 
                 }
             }
         },
-        (TargetApp::_List(target_apps), TargetModule::_List(target_modules)) => {
+        (TargetApp::List(target_apps), TargetModule::_List(target_modules)) => {
             for app_name in target_apps {
                 let app = indexed_apps
                     .get(app_name)
