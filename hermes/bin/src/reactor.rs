@@ -25,7 +25,7 @@ pub(crate) struct HermesReactor {
 
 impl HermesReactor {
     /// Create a new Hermes Reactor.
-    /// Runs all necessary tasks in separed threads.
+    /// Runs all necessary tasks in separate threads.
     #[allow(dead_code)]
     pub(crate) fn new(apps: Vec<HermesApp>) -> anyhow::Result<Self> {
         let target_apps = apps.iter().map(|app| app.app_name().clone()).collect();
