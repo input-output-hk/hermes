@@ -1,13 +1,13 @@
 //! IO Streams runtime extension implementation.
 
-use crate::runtime_extensions::state::Stateful;
-
 mod host;
 
 /// WASI State
 pub(crate) struct State {}
 
-impl Stateful for State {
+impl State {
+    ///
+    #[allow(dead_code)]
     fn new() -> Self {
         Self {}
     }

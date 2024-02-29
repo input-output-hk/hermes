@@ -7,12 +7,9 @@ use std::{
 
 use time::{Duration, OffsetDateTime};
 
-use crate::runtime_extensions::{
-    bindings::{
-        hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
-        wasi::clocks::monotonic_clock::Instant,
-    },
-    state::Stateful,
+use crate::runtime_extensions::bindings::{
+    hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
+    wasi::clocks::monotonic_clock::Instant,
 };
 
 mod event;
@@ -24,7 +21,9 @@ pub(crate) struct State {
     _crontabs: HashMap<CronEventTag, CronTab>,
 }
 
-impl Stateful for State {
+impl State {
+    ///
+    #[allow(dead_code)]
     fn new() -> Self {
         State {
             _crontabs: HashMap::new(),

@@ -5,7 +5,6 @@ use std::{sync::Arc, thread};
 use crate::{
     app::{HermesApp, IndexedApps},
     event::queue::{event_execution_loop, HermesEventQueue},
-    runtime_extensions::state::{State, Stateful},
 };
 
 /// Thread panics error
@@ -16,9 +15,6 @@ struct ThreadPanicsError(&'static str);
 /// Hermes Reactor struct
 #[allow(dead_code)]
 pub(crate) struct HermesReactor {
-    /// Runtime extensions state
-    state: Arc<State>,
-
     /// Hermes event queue
     event_queue: Arc<HermesEventQueue>,
 
@@ -32,14 +28,12 @@ impl HermesReactor {
     pub(crate) fn new(apps: Vec<HermesApp>) -> Self {
         let event_queue = HermesEventQueue::new().into();
 
-        let state = State::new().into();
         let indexed_apps = apps
             .into_iter()
             .map(|app| (app.app_name().clone(), app))
             .collect();
 
         Self {
-            state,
             event_queue,
             indexed_apps,
         }
@@ -52,10 +46,10 @@ impl HermesReactor {
     #[allow(dead_code)]
     pub(crate) fn run(self) -> anyhow::Result<()> {
         // Emits init event
-        self.state
-            .hermes
-            .init
-            .emit_init_event(self.event_queue.as_ref())?;
+        // self.state
+        //     .hermes
+        //     .init
+        //     .emit_init_event(self.event_queue.as_ref())?;
 
         let events_thread =
             thread::spawn(move || event_execution_loop(&self.indexed_apps, &self.event_queue));
