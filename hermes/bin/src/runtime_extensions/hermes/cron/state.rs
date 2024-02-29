@@ -8,10 +8,11 @@ use std::{
     thread::JoinHandle,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use dashmap::DashMap;
 //  std::sync::LazyLock is still unstable
 use once_cell::sync::Lazy;
+use saffron::Cron;
 
 use super::event::OnCronEvent;
 use crate::runtime_extensions::{
@@ -32,17 +33,90 @@ type AppCronState = DashMap<CronTagged, OnCronEvent>;
 /// Storage for the crontabs.
 type CronTabStorage = DashMap<AppName, AppCronState>;
 
+/// Timestamp for when to run the cron.
+type CronTimestamp = u64;
+
 /// Scheduled Date and Time for sending a cron event.
 struct ScheduledCron {
     /// Scheduled time for running the event.
-    _date_time: DateTime<Utc>,
+    _timestamp: CronTimestamp,
     /// The crontab event.
     _event: OnCronEvent,
 }
 
+impl OnCronEvent {
+    /// Get the next scheduled cron event after (excluding) an optional start timestamp.
+    ///
+    /// # Parameters
+    ///
+    /// * `start: Option<CronTimestamp>` - The optional start timestamp. If `None`, the
+    ///   current time is used.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
+    /// * `None` if the timestamp could not be calculated.
+    fn _after(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+        let cron = self._cron()?;
+        if cron.any() {
+            let datetime = Self::_start_datetime(start)?;
+            let cdt = cron.iter_after(datetime).next()?;
+            let timestamp = cdt.timestamp_nanos_opt()?;
+            timestamp.try_into().ok()
+        } else {
+            None
+        }
+    }
+
+    /// Get the next scheduled cron event from (including) an optional start timestamp.
+    ///
+    /// # Parameters
+    ///
+    /// * `start: Option<CronTimestamp>` - The optional start timestamp. If `None`, the
+    ///   current time is used.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
+    /// * `None` if the timestamp could not be calculated.
+    fn _from(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+        let cron = self._cron()?;
+        if cron.any() {
+            let datetime = Self::_start_datetime(start)?;
+            let cdt = cron.iter_from(datetime).next()?;
+            let timestamp = cdt.timestamp_nanos_opt()?;
+            timestamp.try_into().ok()
+        } else {
+            None
+        }
+    }
+
+    /// Get the cron.
+    fn _cron(&self) -> Option<Cron> {
+        let when = &self.tag.when;
+        when.parse::<Cron>().ok()
+    }
+
+    /// Get the UTC datetime from an optional start timestamp.
+    ///
+    /// Use the `start` timestamp if provided, otherwise use the current time.
+    ///
+    /// Returns `None` if the datetime could not be calculated.:w
+    fn _start_datetime(start: Option<CronTimestamp>) -> Option<chrono::DateTime<Utc>> {
+        let datetime = match start {
+            None => Utc::now(),
+            Some(dt) => {
+                let dt = chrono::NaiveDateTime::from_timestamp_nanos(dt.try_into().ok()?)?;
+                chrono::DateTime::from_naive_utc_and_offset(dt, Utc)
+            },
+        };
+        Some(datetime)
+    }
+}
+
 /// Internal State.
 pub(crate) struct InternalState {
-    /// The crontabs hash map.
+    /// The storage for crontabs.
     storage: CronTabStorage,
     /// The send events to the crontab queue.
     _cron_queue: mpsc::Sender<ScheduledCron>,
