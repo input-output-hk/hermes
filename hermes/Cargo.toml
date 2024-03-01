@@ -51,7 +51,7 @@ missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
 pallas = { version = "0.22.0" }
-pallas-hardano = { version = "0.22.0" }
+pallas-hardano = { version = "0.23.0" }
 
 wasmtime = "17.0.0"
 rusty_ulid = "2.0.0"
