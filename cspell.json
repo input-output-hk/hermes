@@ -220,6 +220,7 @@
     "ignorePaths": [
         ".config/dictionaries/**",
         "*.svg",
+        "*.wasm",
         "tmp/**",
         "cspell.json",
         ".git/**",

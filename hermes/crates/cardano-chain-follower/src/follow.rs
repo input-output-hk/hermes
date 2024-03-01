@@ -100,6 +100,7 @@ impl FollowerConfigBuilder {
 }
 
 /// Configuration for the Cardano chain follower.
+#[derive(Clone)]
 pub struct FollowerConfig {
     /// Configured chain update buffer size.
     pub chain_update_buffer_size: usize,
