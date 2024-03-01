@@ -132,15 +132,8 @@ impl Module {
 
 #[cfg(feature = "bench")]
 pub mod bench {
-    use std::sync::Arc;
-
     use super::*;
-    use crate::{
-        app::HermesAppName,
-        event::queue::HermesEventQueue,
-        runtime_context::HermesRuntimeContext,
-        runtime_extensions::state::{State, Stateful},
-    };
+    use crate::{app::HermesAppName, runtime_context::HermesRuntimeContext};
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization
@@ -164,21 +157,15 @@ pub mod bench {
         let module =
             Module::new(include_bytes!("../../../../wasm/c/bench_component.wasm")).unwrap();
 
-        let state: Arc<_> = State::new().into();
-        let event_queue: Arc<_> = HermesEventQueue::new().into();
         b.iter(|| {
             module
                 .execute_event(
                     &Event,
                     HermesRuntimeContext::new(
-                        state.clone(),
-                        HermesRuntimeContext::new(
-                            HermesAppName("app 1".to_string()),
-                            module.id().clone(),
-                            "init".to_string(),
-                            0,
-                        ),
-                        event_queue.clone(),
+                        HermesAppName("app 1".to_string()),
+                        module.id().clone(),
+                        "init".to_string(),
+                        0,
                     ),
                 )
                 .unwrap();

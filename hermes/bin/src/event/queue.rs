@@ -5,8 +5,10 @@ use std::{
         mpsc::{Receiver, Sender},
         Arc,
     },
-    thread,
+    thread::{self, JoinHandle},
 };
+
+use once_cell::sync::OnceCell;
 
 use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
 use crate::{
@@ -14,6 +16,9 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     wasm::module::{Module, ModuleId},
 };
+
+/// Singleton instance of the Hermes event queue.
+static EVENT_QUEUE_INTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 
 /// Hermes event queue error
 #[derive(thiserror::Error, Debug, Clone)]
@@ -30,28 +35,46 @@ pub(crate) enum Error {
     #[error("Failed to add event into the event queue. Event queue is closed.")]
     CannotAddEvent,
 
-    /// Panics inside the `event_execution_loop` function error.
-    #[error("Panics inside the `event_execution_loop` function!")]
-    EventLoopPanics,
+    /// Failed when event queue already been initialized.
+    #[error("Event queue already been initialized.")]
+    AlreadyInitialized,
+
+    /// Failed when event queue not been initialized.
+    #[error("Event queue not been initialized. Call `HermesEventQueue::init` first.")]
+    NotInitialized,
 }
 
+/// Hermes event queue execution loop thread handler
+pub(crate) type HermesEventLoopHandler = JoinHandle<anyhow::Result<()>>;
+
 /// Hermes event queue.
+/// It is a singleton struct.
 pub(crate) struct HermesEventQueue {
     /// Hermes event queue sender
     sender: Sender<HermesEvent>,
-    /// Event loop thread handler
-    event_loop: thread::JoinHandle<anyhow::Result<()>>,
 }
 
 impl HermesEventQueue {
     /// Creates a new instance of the `HermesEventQueue`.
     /// Runs an event loop thread.
-    pub(crate) fn new(indexed_apps: Arc<IndexedApps>) -> Self {
+    pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEventLoopHandler> {
         let (sender, receiver) = std::sync::mpsc::channel();
+
+        EVENT_QUEUE_INTANCE
+            .set(Self { sender })
+            .map_err(|_| Error::AlreadyInitialized)?;
 
         let event_loop = thread::spawn(move || event_execution_loop(&indexed_apps, receiver));
 
-        Self { sender, event_loop }
+        Ok(event_loop)
+    }
+
+    /// Get the singleton instance of the `HermesEventQueue`.
+    ///
+    /// # Errors:
+    /// - `Error::NotInitialized`
+    pub(crate) fn get_instance() -> anyhow::Result<&'static HermesEventQueue> {
+        Ok(EVENT_QUEUE_INTANCE.get().ok_or(Error::NotInitialized)?)
     }
 
     /// Add event into the event queue
@@ -60,17 +83,6 @@ impl HermesEventQueue {
     /// - `Error::CannotAddEvent`
     pub(crate) fn add_into_queue(&self, event: HermesEvent) -> anyhow::Result<()> {
         self.sender.send(event).map_err(|_| Error::CannotAddEvent)?;
-        Ok(())
-    }
-
-    /// Waits for the event loop to finish.
-    /// # Note:
-    /// This is a blocking call.
-    #[allow(dead_code)]
-    pub(crate) fn wait(self) -> anyhow::Result<()> {
-        self.event_loop
-            .join()
-            .map_err(|_| Error::EventLoopPanics)??;
         Ok(())
     }
 }
