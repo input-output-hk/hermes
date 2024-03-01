@@ -5,7 +5,8 @@
 Hermes applications are fully sandboxed.  
 They do not have direct access to Filesystem resources on the host.
 
-However internally, a Hermes application will see a filesystem hierarchy that represents all the files that it may read and/or write.
+However internally, a Hermes application will see a filesystem hierarchy that represents
+all the files that it may read and/or write.
 
 Hermes presents a filesystem hierarchy to the application which is adapted from the [Linux Filesystem Hierarchy Standard V3].
 Hermes application packages are structured around this standard to  maximize consistency.
@@ -62,6 +63,8 @@ Data is divided between them to make merging those views easy and consistent.
 * :octicons-file-badge-16: - [COSE](#cose) Certificate
 * <span style="color: orange;">:octicons-circle-16:</span> - NO
 * <span style="color: green;">:octicons-check-circle-fill-12:</span> - YES
+
+<!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
 ### Writable Data
 
@@ -139,7 +142,8 @@ An Application package consists of a number of HDF5 files in the following relat
 ### Application Root
 
 Each application package is an HDF5 file that stores all the static assets, data, and WASM modules.
-Each application package has associated [metadata](#application-metadata) that is stored in the `metadata.json` file linked to the root path `/`.
+Each application package has associated [metadata](#application-metadata)
+that is stored in the `metadata.json` file linked to the root path `/`.
 
 ### Application Metadata
 
