@@ -111,9 +111,8 @@ fn event_dispatch(
 /// - `Error::ModuleNotFound`
 /// - `Error::AppNotFound`
 /// - `wasm::module::BadWASMModuleError`
-#[allow(clippy::unnecessary_wraps)]
 fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
-    // Find target apps
+    // Gather target apps
     let target_apps = match event.target_app() {
         TargetApp::_All => indexed_apps.iter().collect(),
         TargetApp::List(target_apps) => {
@@ -127,8 +126,8 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> 
             res
         },
     };
-    // Find target modules
-    let target_module = match event.target_module() {
+    // Gather target modules
+    let target_modules = match event.target_module() {
         TargetModule::All => {
             let mut res = Vec::new();
             for (app_name, app) in target_apps {
@@ -154,7 +153,7 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> 
     };
 
     // Event dispatch
-    for (app_name, module_id, module) in target_module {
+    for (app_name, module_id, module) in target_modules {
         event_dispatch(app_name.clone(), module_id.clone(), event.payload(), module)?;
     }
     Ok(())
