@@ -115,9 +115,11 @@ Packaging a Module is controlled by a manifest file which must conform to the He
 
 #### Creating the unsigned Application Package
 
+<!-- markdownlint-disable code-block-style -->
 ```sh
 ./hermes module <manifest.json> <module_package_name>
 ```
+<!-- markdownlint-enable code-block-style -->
 
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
   This file must conform to the manifests [json schema](#wasm-component-module-manifest---schema).
@@ -132,9 +134,11 @@ to signify this is a Hermes WASM Component Module.*
 
 As the author of the Application:
 
+<!-- markdownlint-disable code-block-style -->
 ```sh
 ./hermes module sign <X.509 Private Cert> <app_package_name>
 ```
+<!-- markdownlint-enable code-block-style -->
 
 This takes the X.509 Private Certificate presented, and signs or counter-signs the Application package.
 
@@ -142,9 +146,11 @@ This takes the X.509 Private Certificate presented, and signs or counter-signs t
 
 #### Inspecting a Hermes Application
 
+<!-- markdownlint-disable code-block-style -->
 ```sh
 ./hermes package inspect <app_package_name>
 ```
+<!-- markdownlint-enable code-block-style -->
 
 This command will dump the logical contents of the WASM Component Module and if it is considered valid or not.
 It does not extract files from the module.  

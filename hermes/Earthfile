@@ -64,7 +64,7 @@ local-ci-run:
     #BUILD +integrate
     #BUILD +publish
 
-# json-schemas - Artifact so we can use the Hermes jsonschemas in other parts of the build.
+# json-schemas - Artifact so we can use the Hermes json schemas in other parts of the build.
 json-schemas:
     FROM scratch
 

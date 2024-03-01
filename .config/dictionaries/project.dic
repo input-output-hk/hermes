@@ -38,6 +38,7 @@ fdatasync
 fdstat
 Filesize
 filestat
+filestorage
 filesystems
 fmtchk
 fmtfix

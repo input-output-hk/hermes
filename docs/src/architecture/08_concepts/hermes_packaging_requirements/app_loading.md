@@ -20,7 +20,8 @@ Initially the Applications RW HDF5 Filesystem looks like this:
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
 The Application is at this stage un-configured.
-Once the user has configured the Application, the following files are created in the Application RW Storage and loading can continue.
+Once the user has configured the Application,
+the following files are created in the Application RW Storage and loading can continue.
 
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
@@ -80,7 +81,7 @@ During this process symbolic RO links are created for the following files within
 At this stage the Applications `/srv/www` from the RW Filesystem (as linked to the application package itself)
 is registered with the HTTP gateway inside the hermes node, and it can begin serving those files.
 
-## Loading and initialising the WASM Modules
+## Loading and Initializing the WASM Modules
 
 The final step is to iterate all the WASM Modules in the RW Filesystem (as linked to the App) and load them
 in canonical order into the WASM Executor.

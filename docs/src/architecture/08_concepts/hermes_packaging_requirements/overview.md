@@ -93,7 +93,8 @@ This data is used by Hermes to store persistent configuration.
 It can be read by the application.
 This prevents the application from re-writing application settings without the users permission.
 
-From the full Filesystem Hierarchy, the following directories and files are contained in the Application writable and persistent storage.
+From the full Filesystem Hierarchy,
+the following directories and files are contained in the Application writable and persistent storage.
 
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | App Writable | Hermes Writable |
