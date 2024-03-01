@@ -57,6 +57,9 @@ pub(crate) struct HermesEventQueue {
 impl HermesEventQueue {
     /// Creates a new instance of the `HermesEventQueue`.
     /// Runs an event loop thread.
+    ///
+    /// # Errors:
+    /// - `Error::AlreadyInitialized`
     pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEventLoopHandler> {
         let (sender, receiver) = std::sync::mpsc::channel();
 
