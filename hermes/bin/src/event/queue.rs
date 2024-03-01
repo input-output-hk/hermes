@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Singleton instance of the Hermes event queue.
-static EVENT_QUEUE_INTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
+static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 
 /// Hermes event queue error
 #[derive(thiserror::Error, Debug, Clone)]
@@ -60,7 +60,7 @@ impl HermesEventQueue {
     pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEventLoopHandler> {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        EVENT_QUEUE_INTANCE
+        EVENT_QUEUE_INSTANCE
             .set(Self { sender })
             .map_err(|_| Error::AlreadyInitialized)?;
 
@@ -74,7 +74,7 @@ impl HermesEventQueue {
     /// # Errors:
     /// - `Error::NotInitialized`
     pub(crate) fn get_instance() -> anyhow::Result<&'static HermesEventQueue> {
-        Ok(EVENT_QUEUE_INTANCE.get().ok_or(Error::NotInitialized)?)
+        Ok(EVENT_QUEUE_INSTANCE.get().ok_or(Error::NotInitialized)?)
     }
 
     /// Add event into the event queue
