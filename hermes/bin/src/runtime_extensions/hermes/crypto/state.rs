@@ -41,8 +41,8 @@ pub(crate) struct ResourceHolder {
     id_to_resource_map: DashMap<u32, XPrv>,
     /// Map of id to resource.
     resource_to_id_map: DashMap<WrappedXPrv, u32>,
-    /// Next Id to be used.
-    next_id: u32,
+    /// Current Id.
+    current_id: u32,
 }
 
 // TODO - Remove dead code, once everthing is done
@@ -52,20 +52,22 @@ impl ResourceHolder {
         Self {
             id_to_resource_map: DashMap::new(),
             resource_to_id_map: DashMap::new(),
-            next_id: 0,
+            current_id: 0,
         }
     }
 
-    fn get_next_id(&mut self) -> u32 {
-        let num = self.next_id + 1;
-        self.next_id = num;
-        num
+    fn get_and_increment_next_id(&mut self) -> u32 {
+        let next_id = self.current_id + 1;
+        self.current_id = next_id;
+        next_id
     }
 
     fn get_resource_from_id(&self, id: &u32) -> Option<XPrv> {
-        self.id_to_resource_map.get(id).map(|entry| entry.value().clone())
+        self.id_to_resource_map
+            .get(id)
+            .map(|entry| entry.value().clone())
     }
-    
+
     fn get_id_from_resource(&self, resource: &XPrv) -> Option<u32> {
         self.resource_to_id_map
             .get(&WrappedXPrv::from(resource.clone()))
@@ -75,9 +77,13 @@ impl ResourceHolder {
     /// Drop the item from resources using id if possible.
     /// Return the id of the resource if successful remove from maps
     fn drop(&mut self, id: u32) -> Option<u32> {
+        // Check if the resource exists in id_to_resource_map.
         if let Some(resource) = self.get_resource_from_id(&id) {
+            // Check if the id exists in resource_to_id_map.
             if let Some(associated_id) = self.get_id_from_resource(&resource) {
+                // The id should be the same.
                 if associated_id == id {
+                    // Remove the resource from both maps.
                     if let Some(r) = self.id_to_resource_map.remove(&id) {
                         self.resource_to_id_map.remove(&WrappedXPrv(r.1));
                         return Some(associated_id);
@@ -131,9 +137,9 @@ pub(crate) fn get_resource(
 ) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
-        return resource.get_resource_from_id(&id).clone();
+        return resource.get_resource_from_id(&id);
     }
-    return None;
+    None
 }
 
 #[allow(dead_code)]
@@ -143,14 +149,15 @@ pub(crate) fn add_resource(
     app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, xprv: XPrv,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
-    if let Some(app_map) = binding.get(app_name) {
-        if let Some(module_map) = app_map.value().get(module_id) {
-            if let Some(event_map) = module_map.value().get(event_name) {
-                if let Some(counter_map) = event_map.value().get(counter) {
-                    // Check whether the resource already exists.
+    if let Some(app_map) = binding.get_mut(app_name) {
+        if let Some(module_map) = app_map.get_mut(module_id) {
+            if let Some(event_map) = module_map.get_mut(event_name) {
+                if let Some(mut counter_map) = event_map.get_mut(counter) {
                     let wrapped_xprv = WrappedXPrv::from(xprv.clone());
+                    // Check whether the resource already exists.
                     if !counter_map.resource_to_id_map.contains_key(&wrapped_xprv) {
-                        let id = counter_map.clone().get_next_id();
+                        // if not get the next id and insert the resource to both maps.
+                        let id = counter_map.get_and_increment_next_id();
                         counter_map.id_to_resource_map.insert(id, xprv);
                         counter_map.resource_to_id_map.insert(wrapped_xprv, id);
                         return Some(id);
@@ -163,6 +170,8 @@ pub(crate) fn add_resource(
 }
 #[cfg(test)]
 mod tests_crypto_state {
+    use std::thread;
+
     use super::*;
     const KEY1: [u8; 96] = [
         0xF8, 0xA2, 0x92, 0x31, 0xEE, 0x38, 0xD6, 0xC5, 0xBF, 0x71, 0x5D, 0x5B, 0xAC, 0x21, 0xC7,
@@ -174,15 +183,25 @@ mod tests_crypto_state {
         0x12, 0x62, 0xED, 0xDF, 0xAD, 0x0D,
     ];
 
-    #[test]
-    fn test_set_state_and_add_resource() {
-        let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+    const KEY2: [u8; 96] = [
+        0x60, 0xd3, 0x99, 0xda, 0x83, 0xef, 0x80, 0xd8, 0xd4, 0xf8, 0xd2, 0x23, 0x23, 0x9e, 0xfd,
+        0xc2, 0xb8, 0xfe, 0xf3, 0x87, 0xe1, 0xb5, 0x21, 0x91, 0x37, 0xff, 0xb4, 0xe8, 0xfb, 0xde,
+        0xa1, 0x5a, 0xdc, 0x93, 0x66, 0xb7, 0xd0, 0x03, 0xaf, 0x37, 0xc1, 0x13, 0x96, 0xde, 0x9a,
+        0x83, 0x73, 0x4e, 0x30, 0xe0, 0x5e, 0x85, 0x1e, 0xfa, 0x32, 0x74, 0x5c, 0x9c, 0xd7, 0xb4,
+        0x27, 0x12, 0xc8, 0x90, 0x60, 0x87, 0x63, 0x77, 0x0e, 0xdd, 0xf7, 0x72, 0x48, 0xab, 0x65,
+        0x29, 0x84, 0xb2, 0x1b, 0x84, 0x97, 0x60, 0xd1, 0xda, 0x74, 0xa6, 0xf5, 0xbd, 0x63, 0x3c,
+        0xe4, 0x1a, 0xdc, 0xee, 0xf0, 0x7a,
+    ];
 
+    #[test]
+    fn test_basic_func_resource() {
+        let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
         let app_name = "App name".to_string();
         let module_id: Ulid = 1.into();
         let event_name = "test_event".to_string();
         let counter = 10;
-        // Set the global state
+
+        // Set the global state.
         set_state(
             app_name.clone(),
             module_id.clone(),
@@ -190,28 +209,121 @@ mod tests_crypto_state {
             counter.clone(),
         );
 
-        // Add the resource
-        let id = add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
-        // Should return id 1
-        assert_eq!(id, Some(1));
-        // Get the resource from id
-        let k = get_resource(&app_name, &module_id, &event_name, &counter, &1);
+        // Add the resource.
+        let id1 = add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+        // Should return id 1.
+        assert_eq!(id1, Some(1));
+        // Get the resource from id 1.
+        let resource = get_resource(&app_name, &module_id, &event_name, &counter, &1);
         // The resource should be the same
-        assert_eq!(k, Some(prv.clone()));
+        assert_eq!(resource, Some(prv.clone()));
 
-        // Add another resource, with the same key
-        let id2 = add_resource(
-            &app_name,
-            &module_id,
-            &event_name,
-            &counter,
-            prv.clone().into(),
-        );
-        // Resource already exist, so it should return None
+        // Add another resource, with the same key.
+        let id2 = add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+        // Resource already exist, so it should return None.
         assert_eq!(id2, None);
-        // Get the resource from id
+        // Get the resource from id.
         let k2 = get_resource(&app_name, &module_id, &event_name, &counter, &2);
-        // Resource already exist, so it should return None
+        // Resource already exist, so it should return None.
         assert_eq!(k2, None);
+
+        let mut res_holder =
+            check_context_and_return_resources(&app_name, &module_id, &event_name, &counter)
+                .expect("Resource holder not found");
+        // Dropping the resource with id 1.
+        let drop_id_1 = res_holder.drop(1);
+        assert_eq!(drop_id_1, Some(1));
+        assert_eq!(res_holder.id_to_resource_map.len(), 0);
+        assert_eq!(res_holder.resource_to_id_map.len(), 0);
+
+        // Dropping the resource with id 2 which doesn't exist.
+        let drop_id_1 = res_holder.drop(2);
+        assert_eq!(drop_id_1, None);
+        assert_eq!(res_holder.id_to_resource_map.len(), 0);
+        assert_eq!(res_holder.resource_to_id_map.len(), 0);
+    }
+
+    #[test]
+    fn test_thread_safe_insert_resources() {
+        let app_name = "App name".to_string();
+        let module_id: Ulid = 1.into();
+        let event_name = "test_event".to_string();
+        let counter = 10;
+
+        // Setup initial state.
+        set_state(
+            app_name.clone(),
+            module_id.clone(),
+            event_name.clone(),
+            counter,
+        );
+
+        // Run the test with multiple threads.
+        let mut handles = vec![];
+
+        // Spawning 20 threads.
+        for _ in 0..20 {
+            let handle = thread::spawn(|| {
+                let app_name = "App name".to_string();
+                let module_id: Ulid = 1.into();
+                let event_name = "test_event".to_string();
+                let counter = 10;
+                let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+                // Adding resource
+                add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+            });
+            handles.push(handle);
+        }
+
+        // Spawning another thread to add new private key.
+        let handle = thread::spawn(|| {
+            let app_name = "App name".to_string();
+            let module_id: Ulid = 1.into();
+            let event_name = "test_event".to_string();
+            let counter = 10;
+            let prv = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
+            // Adding resource.
+            add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+        });
+        handles.push(handle);
+
+        // Wait for all threads to finish.
+        for handle in handles {
+            handle.join().expect("Thread panicked");
+        }
+
+        // Checking the results.
+        let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+        let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
+
+        // Resrouce at id 1 should be prv1.
+        let resource1 = get_resource(&app_name, &module_id, &event_name, &counter, &1);
+        assert_eq!(resource1, Some(prv1.clone()));
+        // Resrouce at id 2 should be prv2.
+        let resource2 = get_resource(&app_name, &module_id, &event_name, &counter, &2);
+        assert_eq!(resource2, Some(prv2.clone()));
+
+        let res_holder =
+            check_context_and_return_resources(&app_name, &module_id, &event_name, &counter);
+        res_holder.map(|res| {
+            // Maps should contains 2 resources.
+            assert_eq!(res.id_to_resource_map.len(), 2);
+            assert_eq!(res.resource_to_id_map.len(), 2);
+            assert_eq!(res.current_id, 2);
+            // Maps should contains prv1 and prv2.
+            assert_eq!(
+                res.resource_to_id_map
+                    .contains_key(&WrappedXPrv::from(prv1.clone())),
+                true
+            );
+            assert_eq!(
+                res.resource_to_id_map
+                    .contains_key(&WrappedXPrv::from(prv2.clone())),
+                true
+            );
+            // Map should contains id 1 and 2.
+            assert_eq!(res.id_to_resource_map.contains_key(&1), true);
+            assert_eq!(res.id_to_resource_map.contains_key(&2), true);
+        });
     }
 }
