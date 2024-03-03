@@ -160,6 +160,8 @@ pub(crate) fn add_resource(
                         let id = counter_map.get_and_increment_next_id();
                         counter_map.id_to_resource_map.insert(id, xprv);
                         counter_map.resource_to_id_map.insert(wrapped_xprv, id);
+                        // FIXME - Remove log
+                        println!("Resource added with id: {}", id);
                         return Some(id);
                     }
                 }
