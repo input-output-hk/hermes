@@ -22,14 +22,21 @@ interface api {
     // ed25519-bip32 Signature
     type ed25519-bip32-signature = b512;
 
+    // mnemonic
+    type mnemonic-phrase = string;
+
+    // passphrase
+    type passphrase = string;
+
     resource ed25519-bip32 {
         /// Create a new ED25519-BIP32 Crypto resource
         /// 
         /// **Parameters**
         ///
-        /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
+        /// - `mnemonic-phrase` : BIP39 mnemonic, if not supplied one is RANDOMLY generated.
+        /// - `passphrase` : Optional BIP39 passphrase.
         /// 
-        constructor(private-key: option<ed25519-bip32-private-key>);
+        constructor(mnemonic: option<mnemonic-phrase>, passphrase: option<passphrase>);
 
         /// Get the public key for this private key.
         public-key: func() -> ed25519-bip32-public-key;

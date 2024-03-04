@@ -2,19 +2,19 @@
 
 use std::u8;
 
+
 // cspell: words prvk pubk
-// use ed25519_bip32::{DerivationScheme, Signature, XPrv, DerivationIndex};
 use crate::{
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
         crypto::api::{
             Ed25519Bip32, Ed25519Bip32PrivateKey, Ed25519Bip32PublicKey, Ed25519Bip32Signature,
-            Host, HostEd25519Bip32,
+            Host, HostEd25519Bip32, Passphrase, MnemonicPhrase
         },
     },
     state::HermesState,
 };
-
+// use ed25519_bip32::{DerivationIndex, DerivationScheme, Signature, XPrv};
 
 // The tuple should contain only u64 values
 fn _b256_u64_tuple_to_u8_array(tuple: &(u64, u64, u64, u64)) -> [u8; 32] {
@@ -99,7 +99,7 @@ impl HostEd25519Bip32 for HermesState {
     ///
     /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
     fn new(
-        &mut self, _private_key: Option<Ed25519Bip32PrivateKey>,
+        &mut self, _mnemonic: Option<MnemonicPhrase>, _passphrase: Option<Passphrase>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Ed25519Bip32>> {
         todo!()
     }
