@@ -1,19 +1,14 @@
-# HRE interface
+# HRE design
 
-Each [Hermes Runtime Extension (*HRE*)][*HRE*] defines a
-[WIT](https://component-model.bytecodealliance.org/design/wit.html) file.
-It is a 1 on 1 match, so every [*HRE*] has to have a corresponding [WIT] file.
-It specifies the following important parts:
+[Hermes Runtime Extension (*HRE*)][*HRE*] - a set of [*Hermes events*] and *HRE api* defined in the [WIT] files.
 
-* *Hermes events* signature, which produced by the corresponding [*HRE*].
-* *HRE calls* which could invoked by the *Hermes application*.
-
-Example of the [WIT] file for the [cron](https://en.wikipedia.org/wiki/Cron) [*HRE*]:
+Example of the [WIT] file for the some [cron](https://en.wikipedia.org/wiki/Cron) [*HRE*]
+(It is an example, not related to what is implemented in Hermes):
 
 ```wit
 package hermes:cron;
 
-interface cron-types {
+interface cron-api {
     record cron-tagged {
         /// The crontab entry in standard cron format.
         /// The Time is ALWAYS relative to UTC and does not account for local time.
@@ -23,20 +18,6 @@ interface cron-types {
         /// The tag associated with the crontab entry.
         tag: string
     }
-}
-
-interface cron-events {
-    use cron-types.{cron-tagged};
-
-    /// Triggered when a cron event fires.
-    ///
-    /// This event is only ever generated for the application that added
-    /// the cron job.
-    on-cron: func(event: cron-tagged, last: bool) -> bool;
-}
-
-interface cron-calls {
-    use cron-types.{cron-tagged};
 
     /// # Schedule Recurrent CRON event
     ///
@@ -49,8 +30,18 @@ interface cron-calls {
     rm: func(entry: cron-tagged) -> bool;
 }
 
+interface cron-events {
+    use cron-types.{cron-api};
+
+    /// Triggered when a cron event fires.
+    ///
+    /// This event is only ever generated for the application that added
+    /// the cron job.
+    on-cron: func(event: cron-tagged, last: bool) -> bool;
+}
+
 world cron {
-  import cron-calls;
+  import cron-api;
   export cron-events;
 }
 ```
@@ -59,10 +50,28 @@ world cron {
 
 * `on-cron: func(event: cron-tagged, last: bool) -> bool`
   
-*HRE calls*:
+*HRE api*:
 
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool`
 * `rm: func(entry: cron-tagged) -> bool`
 
+## Host implementation
+ 
+Hermes host runtime implementation based on the [`wasmtime`] Rust library.
+It starts from the specifying the path to the [WIT] files to use and define for Hermes.
+
+```Rust
+use wasmtime::component::bindgen;
+
+bindgen!({
+    world: "hermes",
+    path: "path/to/the/wit/files/dir",
+});
+```
+
+
+
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
+[*Hermes events*]: ../../05_building_block_view/hermes_core.md#hermes-event
 [*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
+[`wasmtime`]: https://github.com/bytecodealliance/wasmtime
