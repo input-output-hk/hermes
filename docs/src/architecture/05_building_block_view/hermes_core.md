@@ -16,30 +16,35 @@ which means that it could be developed on any language with the WASM support e.g
 ## Hermes runtime extension (HRE)
 
 *Hermes runtime extension (HRE)* - a Hermes module
-which will provides an additional functionality to the *Hermes application* and stands as a library.
-It could produce a *Hermes events*,
-which can then be placed into the *Hermes events queue* for further processing by the *Hermes application*.
-Each *HRE* defines a specific [WIT] file,
-with the described interface of *HRE calls* (directly by the *Hermes application*) and specification of produced events.
+which will provides an additional functionality, besides the  to the [*Hermes application*] and stands as a library.
+It defines the following parts:
+
+* [*Hermes events*].
+* *HRE api* - defines a set of types and functions which could be used from WASM by the [*Hermes application*].
+  
+Specification of the [*Hermes events*] and *HRE api* defined in [WIT] files.
 
 ## Hermes event
 
-*Hermes event* - an event produced by *HRE* that encapsulates all the necessary data needed to process it.
-After successful delivery, each event can be executed by the *Hermes application*,
-depending on whether that specific *Hermes application* has subscribed to such events or not.
+*Hermes event* - an event produced and defined by [*HRE*] that encapsulates all the necessary data needed to process it.
+After successful delivery, each event can be executed by the [*Hermes application*],
+depending on whether that specific [*Hermes application*] has subscribed to such events or not.
 
 ## Hermes events queue
 
 *Hermes events queue* - a queue-like data structure.
-Events are added to one end, one by one, by the *HRE*.
-The *Hermes application* then executes/consumes these events from the other end of the queue.
+[*Hermes events*] are added to the one end, one by one, by the [*HRE*].
+The [*Hermes application*] then executes/consumes these events from the other end of the queue.
 The queue preserves the order of event execution based on how they were added in it.
 
 ## Hermes application
 
 *Hermes application* - a collection of WASM components, which are packed together and executes a specific business logic.
-It mainly serves as an event handler for the of the *Hermes Events*.
-Each *Hermes application* can interact with the *HRE* through *HRE calls* based on corresponding
+It mainly serves as an event handler for the of the [*Hermes Events*].
+Each *Hermes application* can interact with the [*HRE*] through the defined *HRE api* based on corresponding
 [WIT] definitions.
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
+[*HRE*]: #hermes-runtime-extension-hre
+[*Hermes Events*]: #hermes-event
+[*Hermes application*]: #hermes-application
