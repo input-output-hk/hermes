@@ -2,15 +2,15 @@
 
 use crate::runtime_extensions::state::{Context, Stateful};
 
-pub(crate) mod cli;
-pub(crate) mod clocks;
-pub(crate) mod filesystem;
-pub(crate) mod http;
-pub(crate) mod io;
-pub(crate) mod random;
+pub mod cli;
+pub mod clocks;
+pub mod filesystem;
+pub mod http;
+pub mod io;
+pub mod random;
 
 /// WASI State
-pub(crate) struct State {
+pub struct State {
     /// WASI CLI State
     _cli: cli::State,
     /// WASI Clock State

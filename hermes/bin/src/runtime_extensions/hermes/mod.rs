@@ -2,20 +2,20 @@
 
 use crate::runtime_extensions::state::{Context, Stateful};
 
-pub(crate) mod binary;
-pub(crate) mod cardano;
-pub(crate) mod cbor;
-pub(crate) mod cron;
-pub(crate) mod crypto;
-pub(crate) mod hash;
-pub(crate) mod init;
-pub(crate) mod json;
-pub(crate) mod kv_store;
-pub(crate) mod localtime;
-pub(crate) mod logging;
+pub mod binary;
+pub mod cardano;
+pub mod cbor;
+pub mod cron;
+pub mod crypto;
+pub mod hash;
+pub mod init;
+pub mod json;
+pub mod kv_store;
+pub mod localtime;
+pub mod logging;
 
 /// Hermes extensions state
-pub(crate) struct State {
+pub struct State {
     /// Binary extensions state
     _binary: binary::State,
     /// Cardano extensions state
