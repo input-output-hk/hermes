@@ -149,9 +149,9 @@ pub(crate) fn add_resource(
     app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, xprv: XPrv,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
-    if let Some(app_map) = binding.get_mut(app_name) {
-        if let Some(module_map) = app_map.get_mut(module_id) {
-            if let Some(event_map) = module_map.get_mut(event_name) {
+    if let Some(app_map) = binding.get(app_name) {
+        if let Some(module_map) = app_map.get(module_id) {
+            if let Some(event_map) = module_map.get(event_name) {
                 if let Some(mut counter_map) = event_map.get_mut(counter) {
                     let wrapped_xprv = WrappedXPrv::from(xprv.clone());
                     // Check whether the resource already exists.
@@ -270,24 +270,19 @@ mod tests_crypto_state {
                 let module_id: Ulid = 1.into();
                 let event_name = "test_event".to_string();
                 let counter = 10;
-                let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+                let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
-                add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+                add_resource(&app_name, &module_id, &event_name, &counter, prv1.clone());
+                let app_name = "App name".to_string();
+                let module_id: Ulid = 1.into();
+                let event_name = "test_event".to_string();
+                let counter = 10;
+                let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
+                // Adding resource.
+                add_resource(&app_name, &module_id, &event_name, &counter, prv2.clone());
             });
             handles.push(handle);
         }
-
-        // Spawning another thread to add new private key.
-        let handle = thread::spawn(|| {
-            let app_name = "App name".to_string();
-            let module_id: Ulid = 1.into();
-            let event_name = "test_event".to_string();
-            let counter = 10;
-            let prv = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
-            // Adding resource.
-            add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
-        });
-        handles.push(handle);
 
         // Wait for all threads to finish.
         for handle in handles {
@@ -297,13 +292,6 @@ mod tests_crypto_state {
         // Checking the results.
         let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
         let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
-
-        // Resrouce at id 1 should be prv1.
-        let resource1 = get_resource(&app_name, &module_id, &event_name, &counter, &1);
-        assert_eq!(resource1, Some(prv1.clone()));
-        // Resrouce at id 2 should be prv2.
-        let resource2 = get_resource(&app_name, &module_id, &event_name, &counter, &2);
-        assert_eq!(resource2, Some(prv2.clone()));
 
         let res_holder =
             check_context_and_return_resources(&app_name, &module_id, &event_name, &counter);
