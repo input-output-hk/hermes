@@ -1,3 +1,3 @@
 //! Hermes event queue implementation.
 
-pub(crate) mod event;
+pub mod event;

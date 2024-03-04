@@ -1,7 +1,7 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
 
-mod event_queue;
-mod runtime_extensions;
-mod state;
-mod wasm;
+pub mod event_queue;
+pub mod runtime_extensions;
+pub mod state;
+pub mod wasm;

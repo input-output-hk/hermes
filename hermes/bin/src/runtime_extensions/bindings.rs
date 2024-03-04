@@ -7,6 +7,7 @@
 //! `earthly +bindings-expand`
 
 #![allow(clippy::indexing_slicing)]
+#![allow(missing_docs)]
 
 use wasmtime::component::bindgen;
 

@@ -6,10 +6,11 @@ const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
 
 use libtest_mimic::{Arguments, /* Failed, */ Trial};
 
-use wasmtime::{
+/* use wasmtime::{
     component::{Component, Linker},
     Config, Engine, Store,
-};
+}; */
+use hermes::wasm::module::Module;
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
@@ -46,12 +47,20 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
-            let (_, _, _) = {
-                let wasm_bin = fs::read(path)?;
+            {
+                let wasm_buf = fs::read(path)?;
+
+                let module = Module::new("testing".to_string(), &wasm_buf)?;
+                
+                drop(module)
+            };
+
+            /* let (_, _, _) = {
+                let wasm_buf = fs::read(path)?;
                 let mut config = Config::new();
                 config.wasm_component_model(true);
                 let engine = Engine::new(&config)?;
-                let component = Component::from_binary(&engine, &wasm_bin)?;
+                let component = Component::from_binary(&engine, &wasm_buf)?;
 
                 let linker = Linker::new(&engine);
                 let mut store = Store::new(&engine, ());
@@ -69,7 +78,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 // }
 
                 (component, store, instance)
-            };
+            }; */
 
             // Run the tests in a loop until no more tests.
             // let mut no_more_tests = false;

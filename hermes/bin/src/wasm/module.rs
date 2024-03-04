@@ -27,7 +27,7 @@ struct BadWASMModuleError(String);
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
-pub(crate) struct ModuleInstance {
+pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesState>,
     /// `Instance` entity
@@ -42,7 +42,7 @@ pub(crate) struct ModuleInstance {
 /// The primary goal for it is to make a WASM state *immutable* along WASM module
 /// execution. It means that `Module::call_func` execution does not have as side effect
 /// for the WASM module's state, it becomes unchanged.
-pub(crate) struct Module {
+pub struct Module {
     /// `wasmtime::InstancePre` entity
     ///
     /// A reason why it is used a `wasmtime::InstancePre` instead of `wasmtime::Instance`
@@ -65,7 +65,7 @@ impl Module {
     ///  - `BadModuleError`
     ///  - `BadEngineConfigError`
     #[allow(dead_code)]
-    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
@@ -94,7 +94,7 @@ impl Module {
     /// # Errors
     /// - `BadModuleError`
     #[allow(dead_code)]
-    pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
+    pub fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
         let state = HermesState::new(&self.context);
 
