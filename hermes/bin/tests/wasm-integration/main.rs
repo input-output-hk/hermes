@@ -48,7 +48,16 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             let wasm_buf = fs::read(file_path)?;
-            let module = Module::new(name, &wasm_buf)?;
+            let mut module = Module::new(name, &wasm_buf)?;
+
+            for i in 0..32 {
+                let on_test_event = hermes::runtime_extensions::hermes::integration_test::event::OnTestEvent {
+                    test: i,
+                    run: false
+                };
+
+                module.execute_event(&on_test_event)?
+            }
             
             drop(module);
 

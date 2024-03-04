@@ -9,6 +9,7 @@ pub mod cron;
 pub mod crypto;
 pub mod hash;
 pub mod init;
+pub mod integration_test;
 pub mod json;
 pub mod kv_store;
 pub mod localtime;

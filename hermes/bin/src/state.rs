@@ -8,7 +8,7 @@ use crate::runtime_extensions::{
 
 #[allow(dead_code)]
 /// State for Hermes runtime
-pub struct HermesState {
+pub(crate) struct HermesState {
     /// Hermes custom extensions state
     pub hermes: hermes::State,
 
