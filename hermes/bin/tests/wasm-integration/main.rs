@@ -12,7 +12,7 @@ use libtest_mimic::{Arguments, /* Failed, */ Trial};
 }; */
 use hermes::wasm::module::Module;
 
-use std::{env, error::Error, ffi::OsStr, fs, path::Path};
+use std::{env::{self, split_paths}, error::Error, ffi::OsStr, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::from_args();
@@ -39,18 +39,19 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             .collect();
 
         // process `.wasm` files
-        for path in wasm_file_paths.into_iter() {
-            // let name = path
-            //     .strip_prefix(&current_dir)?
-            //     .display()
-            //     .to_string();
+        for file_path in wasm_file_paths.into_iter() {
+            let name = file_path
+                .strip_prefix(path)?
+                .display()
+                .to_string();
 
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             {
-                let wasm_buf = fs::read(path)?;
+                
+                let wasm_buf = fs::read(file_path)?;
 
-                let module = Module::new("testing".to_string(), &wasm_buf)?;
+                let module = Module::new(name, &wasm_buf)?;
                 
                 drop(module)
             };
