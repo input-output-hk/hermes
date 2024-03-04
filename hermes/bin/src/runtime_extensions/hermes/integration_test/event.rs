@@ -16,11 +16,12 @@ impl HermesEventPayload for OnTestEvent {
   }
 
   fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-      module.instance.hermes_integration_test_event().call_test(
+      let a: Option<TestResult> = module.instance.hermes_integration_test_event().call_test(
           &mut module.store,
           self.test,
           self.run,
       )?;
+      dbg!(a);
       Ok(())
   }
 }

@@ -50,47 +50,16 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             let wasm_buf = fs::read(file_path)?;
             let mut module = Module::new(name, &wasm_buf)?;
 
+            // Run the tests in a loop until no more tests.
+            // let mut no_more_tests = false;
+            // let mut test_case = 0;
             for i in 0..32 {
                 let on_test_event = hermes::runtime_extensions::hermes::integration_test::event::OnTestEvent {
                     test: i,
                     run: false
                 };
 
-                module.execute_event(&on_test_event)?
-            }
-            
-            drop(module);
-
-            /* let (_, _, _) = {
-                let wasm_buf = fs::read(path)?;
-                let mut config = Config::new();
-                config.wasm_component_model(true);
-                let engine = Engine::new(&config)?;
-                let component = Component::from_binary(&engine, &wasm_buf)?;
-
-                let linker = Linker::new(&engine);
-                let mut store = Store::new(&engine, ());
-                let instance = linker.instantiate(&mut store, &component)?;
-
-                // let mut a = instance.exports(store.as_context_mut());
-                // let aa = a.root();
-                // let a = aa.instance("hermes:integration-test/event");
-                // let a = aa.;
-
-                // if a.is_some() {
-                //     println!("some")
-                // } else {
-                //     println!("none")
-                // }
-
-                (component, store, instance)
-            }; */
-
-            // Run the tests in a loop until no more tests.
-            // let mut no_more_tests = false;
-            // let mut test_case = 0;
-            loop {
-                // execute result = test(test_case,false)
+                module.execute_event(&on_test_event)?;
 
                 // if result is not None {
                 //   let test = Trial::test(result.name, move || execute_text(test_case, &path)).with_kind(name);
@@ -99,16 +68,15 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 // } else {
                 //   no_more_tests = true;
                 // }
-
-                if /* no_more_tests */ true {
-                    break;
-                }
             }
 
-            // let mut no_more_tests = false;
-            // let mut test_case = 0;
-            loop {
-                // execute result = bench(test_case,false)
+            for i in 0..32 {
+                let on_test_event = hermes::runtime_extensions::hermes::integration_test::event::OnBenchEvent {
+                    test: i,
+                    run: false
+                };
+
+                module.execute_event(&on_test_event)?;
 
                 // if result is not None {
                 //   let test = Trial::test(result.name, move || execute_bench(test_case, &path)).with_kind(name);
@@ -117,10 +85,6 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 // } else {
                 //   no_more_tests = true;
                 // }
-
-                if /* no_more_tests */ true {
-                    break;
-                }
             }
         }
 
