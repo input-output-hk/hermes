@@ -72,8 +72,8 @@ world cron-api {
 
 ## Host implementation structure
 
-Hermes host runtime implementation based on the [wasmtime] Rust library.
-It auto-generates a code based on the [WIT] files:
+The Hermes host runtime is implemented using the [wasmtime](https://github.com/bytecodealliance/wasmtime). 
+It automatically generates code based on the WIT files:
 
 ```Rust
 use wasmtime::component::bindgen;
