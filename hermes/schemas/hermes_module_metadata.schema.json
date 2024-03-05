@@ -1,0 +1,115 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_module_metadata.schema.json",
+    "title": "Module Metadata Schema",
+    "description": "Metadata which defines a Hermes WASM Component Module and is carried inside the Hermes Module itself.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "title": "Hermes WASM Component Module Metadata Schema Reference",
+            "default": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_module_metadata.schema.json",
+            "pattern": "^(https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/)|(.*/)hermes_module_metadata.schema.json$",
+            "description": "Reference to the Module Metadata Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
+        },
+        "name": {
+            "type": "string",
+            "title": "WASM Component default name",
+            "description": "Default Name of the WASM Component Module."
+        },
+        "version": {
+            "type": "string",
+            "title": "Application Version",
+            "description": "Version of the Application",
+            "pattern": "^V[0-9]+\\.[0-9]+\\.[0-9]+( .*$)?"
+        },
+        "description": {
+            "type": "string",
+            "title": "Application Description",
+            "description": "Short Description of the Application"
+        },
+        "src": {
+            "type": "array",
+            "title": "Links to the source of this application.",
+            "description": "Can be links to code repositories or the Authors website.\nSpecifying any `src` is Optional, however if defined, then these URLs must be reachable when the Application is packaged.",
+            "items": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://[^\\s/?#]+.[^\\s/?#]+(/[^\\s?#]*)?$"
+            },
+            "uniqueItems": true,
+            "minItems": 1
+        },
+        "copyright": {
+            "type": "array",
+            "title": "Application Copyright",
+            "description": "List of Copyright Notices/Claims over the Application.\nIf no copyright is claimed then there should be an explicit statement about the Application being in the public domain.",
+            "items": {
+                "type": "string"
+            },
+            "uniqueItems": true,
+            "minItems": 1
+        },
+        "license": {
+            "type": "array",
+            "title": "Application License",
+            "description": "List of Licenses/Claims over the Application.\nMust declare at least `spdx` or `file`, `note` is Optional.\nIf `file` is specified it must exist within the Package for the Application to be valid.",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "$comment": "Validation Should be one or both of `spdx` and `file` and `note` is optional.",
+                "properties": {
+                    "spdx": {
+                        "type": "string",
+                        "title": "License SPDX ID",
+                        "description": "SPDX ID of the License.\nIn the case of proprietary or non SPDX licenses, do not specify a SPDX ID and just include a license file."
+                    },
+                    "file": {
+                        "type": "string",
+                        "title": "License File",
+                        "description": "Path to the License File inside the Package.\nMust be a `.txt` file and it must exist at Package creation time.\nFile MUST be text, displayable using monospaced fonts and no line exceeds 80 characters.",
+                        "pattern": "^/.*\\.txt$"
+                    },
+                    "note": {
+                        "type": "string",
+                        "title": "License Note",
+                        "description": "Note about the License.\nFor Example: Could limit the license to a particular aspect of the Application or part of the code."
+                    }
+                }
+            }
+        },
+        "build_date": {
+            "type": "integer",
+            "title": "Application Build Date",
+            "description": "Unix Epoch Timestamp of when the Application was packaged or built."
+        },
+        "developer": {
+            "type": "object",
+            "title": "Application Developer",
+            "additionalProperties": true,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "title": "Application Developer Name",
+                    "description": "Name of the Developer"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        }
+    },
+    "required": [
+        "$schema",
+        "name",
+        "version",
+        "description",
+        "copyright",
+        "license",
+        "build_date"
+    ]
+}

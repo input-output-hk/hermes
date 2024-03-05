@@ -1,0 +1,94 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_app_manifest.schema.json",
+    "title": "hermes Application Package Manifest Schema",
+    "description": "Defines the src packages which are used to build a Hermes Application.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "title": "Application Package Manifest Schema Reference",
+            "default": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_app_manifest.schema.json",
+            "pattern": "^(https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/)|(.*/)hermes_app_manifest.schema.json$",
+            "description": "Reference to the Application Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
+        },
+        "metadata": {
+            "type": "string",
+            "title": "Application Metadata File",
+            "description": "Link to the Application Metadata json file.\nWill be renamed to `metadata.json` inside the package.",
+            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
+            "format": "uri",
+            "default": "file://metadata.json"
+        },
+        "modules": {
+            "type": "array",
+            "title": "Application Module Files",
+            "description": "List of WASM Component Library Module Files.",
+            "items": {
+                "type": "object",
+                "title": "Application Module File",
+                "description": "Prepackaged Hermes WASM Component Module.",
+                "additionalProperties": false,
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "title": "Application Module File",
+                        "description": "Path to the WASM Component Library Module File.",
+                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.hmod$",
+                        "format": "uri"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Application Module Name",
+                        "description": "Name of the WASM Component Library Module.\nMust be unique within the Application.\nIf not defined is extracted from the WASM Module itself."
+                    },
+                    "config": {
+                        "type": "string",
+                        "title": "Application Module Config",
+                        "description": "Path to the WASM Component Library Module Config File.\nThis will replace any `config.json` inside the module.\nIf defined it must be valid according to the modules `config.schema.json` file.",
+                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
+                        "format": "uri"
+                    },
+                    "share": {
+                        "type": "string",
+                        "title": "Application Module Share Dataset.",
+                        "description": "Path to the WASM Component Library Module Shareable Data.\nWill replace or augment any data defined within the module itself.",
+                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "file"
+                ]
+            },
+            "uniqueItems": true
+        },
+        "srv": {
+            "type": "object",
+            "title": "Application Data",
+            "description": "Data bundled with the application.",
+            "additionalProperties": false,
+            "properties": {
+                "www": {
+                    "type": "string",
+                    "title": "Data to be served to a browser at the applications URL from /",
+                    "description": "A Directory or archive of data to be served to a browser for the App.",
+                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
+                    "format": "uri"
+                },
+                "share": {
+                    "type": "string",
+                    "title": "Data to be shared amongst all modules within the application.",
+                    "description": "A Directory or archive of data to be shared with all Modules in the application.",
+                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
+                    "format": "uri"
+                }
+            }
+        }
+    },
+    "required": [
+        "$schema",
+        "metadata"
+    ]
+}
