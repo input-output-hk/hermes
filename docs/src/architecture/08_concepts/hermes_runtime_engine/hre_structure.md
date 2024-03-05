@@ -1,6 +1,10 @@
-# HRE interface
+# HRE structure
 
-[Hermes Runtime Extension (*HRE*)][*HRE*] - a set of [*Hermes events*] and *HRE api* defined in the [WIT] files.
+[Hermes Runtime Extension (*HRE*)][*HRE*] - stands as logically separate module (like a library) of the [*Hermes engine*]
+and provides an additional functionality to the Hermes runtime, therefore to [*Hermes application*].
+[WIT] files represent a source of truth of the [*Hermes events*] and *HRE api* definitions for a specific [*HRE*],
+and describe a standantize communication interface between [*Hermes application*]
+and [*Hermes engine's*][*Hermes engine*] runtime itself.
 
 Each [*HRE*] implementation take place inside `hermes/bin/srs/runtime_extensions` directory,
 for both Hermes related and WASI specific.
@@ -140,8 +144,17 @@ impl HermesEventPayload for OnCronEvent {
 }
 ```
 
+***NOTE*** that this [*Hermes event*][*Hermes events*] host definition
+it is not an implementation of the [*Hermes event*][*Hermes events*] itself.
+It is a way how to execute [*Hermes event*][*Hermes events*]
+and pass corresponding data for the [*Hermes event*][*Hermes events*] handler,
+implemented by the [*Hermes application*],
+inside [*Hermes engine*] runtime.
+
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [hermes-cron]: https://github.com/input-output-hk/hermes/tree/main/wasm/wasi/wit/deps/hermes-cron
+[*Hermes engine*]: ./../../05_building_block_view/hermes_core.md#hermes-engine
+[*Hermes application*]: ./../../05_building_block_view/hermes_core.md#hermes-application
 [*Hermes events*]: ../../05_building_block_view/hermes_core.md#hermes-event
 [*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
 [wasmtime]: https://docs.wasmtime.dev/introduction.html

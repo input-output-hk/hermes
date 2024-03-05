@@ -2,9 +2,9 @@
 icon: material/engine
 ---
 
-# Hermes core
+# Hermes engine
 
-*Hermes core* represents an event-driven system running on top of the WASM runtime utilizing
+*Hermes engine* represents an event-driven system running on top of the WASM runtime utilizing
 [WASM component model](https://component-model.bytecodealliance.org/design/why-component-model.html) approach.
 Every user's application is expected to be compiled as a WASM module,
 which means that it could be developed on any language with the WASM support e.g. Java, C, Rust, Go etc.
