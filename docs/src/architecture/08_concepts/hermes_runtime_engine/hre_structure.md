@@ -84,12 +84,13 @@ bindgen!({
 });
 ```
 
-Under the hood it generates a set of different traits, structs, functions etc.
-which are based on the [WIT] files and provides a type safe interface for interaction
-with WASM modules and for implementation host functionality.
+Internally, it generates a diverse set of traits, structs, functions, and more derived from the WIT files. 
+This process results in a type-safe interface for interacting with WASM modules and implementing host functionalities.
 
-All host implementations for a specific [*HRE*]
-are defined inside corresponded `../hermes/cron/host.rs` and looks like this:
+All host implementations specific to a particular [*HRE*] are defined within the corresponding
+`host.rs` files.
+
+For example, here is an example for `../hermes/cron/host.rs `:
 
 ```Rust
 use crate::{
