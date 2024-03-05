@@ -3,7 +3,7 @@
 [Hermes Runtime Extension (*HRE*)][*HRE*] - stands as logically separate module (like a library) of the [*Hermes engine*]
 and provides an additional functionality to the Hermes runtime, therefore to [*Hermes application*].
 [WIT] files represent a source of truth of the [*Hermes events*] and *HRE api* definitions for a specific [*HRE*],
-and describe a standantize communication interface between [*Hermes application*]
+and describe a standardize communication interface between [*Hermes application*]
 and [*Hermes engine's*][*Hermes engine*] runtime itself.
 
 Each [*HRE*] implementation take place inside `hermes/bin/srs/runtime_extensions` directory,
