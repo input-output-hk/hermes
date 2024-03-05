@@ -153,8 +153,8 @@ inside [*Hermes engine*] runtime.
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [hermes-cron]: https://github.com/input-output-hk/hermes/tree/main/wasm/wasi/wit/deps/hermes-cron
-[*Hermes engine*]: ./../../05_building_block_view/hermes_core.md#hermes-engine
-[*Hermes application*]: ./../../05_building_block_view/hermes_core.md#hermes-application
-[*Hermes events*]: ../../05_building_block_view/hermes_core.md#hermes-event
-[*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
+[*Hermes engine*]: ./../../05_building_block_view/hermes_engine.md#hermes-engine
+[*Hermes application*]: ./../../05_building_block_view/hermes_engine.md#hermes-application
+[*Hermes events*]: ../../05_building_block_view/hermes_engine.md#hermes-event
+[*HRE*]: ../../05_building_block_view/hermes_engine.md#hermes-runtime-extension-hre
 [wasmtime]: https://docs.wasmtime.dev/introduction.html

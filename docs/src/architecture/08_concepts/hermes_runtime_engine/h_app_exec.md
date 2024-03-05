@@ -18,6 +18,6 @@ it is made a copy of the initial application's state,
 this copy used during the execution and removed after it.
 So the overall application state remains the same.
 
-[*Hermes event*]: ./../../05_building_block_view/hermes_core.md#hermes-event
-[*Hermes runtime extensions*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
-[*Hermes application*]: ./../../05_building_block_view/hermes_core.md#hermes-application
+[*Hermes event*]: ./../../05_building_block_view/hermes_engine.md#hermes-event
+[*Hermes runtime extensions*]: ./../../05_building_block_view/hermes_engine.md#hermes-runtime-extension-hre
+[*Hermes application*]: ./../../05_building_block_view/hermes_engine.md#hermes-application

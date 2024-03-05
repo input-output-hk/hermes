@@ -27,5 +27,5 @@ For example for some kind of networking [*HRE*] module a json schema could look 
 }
 ```
 
-[*Hermes application*]: ./../../05_building_block_view/hermes_core.md#hermes-application
-[*HRE*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
+[*Hermes application*]: ./../../05_building_block_view/hermes_engine.md#hermes-application
+[*HRE*]: ./../../05_building_block_view/hermes_engine.md#hermes-runtime-extension-hre
