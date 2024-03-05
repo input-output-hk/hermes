@@ -10,13 +10,14 @@ Every user's application is expected to be compiled as a WASM module,
 which means that it could be developed on any language with the WASM support e.g. Java, C, Rust, Go etc.
 
 ```kroki-excalidraw
-@from_file:architecture/05_building_block_view/images/hermes_core.excalidraw
+@from_file:architecture/05_building_block_view/images/hermes_engine.excalidraw
 ```
 
 ## Hermes runtime extension (HRE)
 
 *Hermes runtime extension (HRE)* - a Hermes module
-which will provides an additional functionality, besides the  to the [*Hermes application*] and stands as a library.
+which will provides an additional functionality, besides the to the [*Hermes application*] and stands as a library.
+It is a singleton object, which serves all [*Hermes applications*][*Hermes application*] at a time.
 It defines the following parts:
 
 * [*Hermes events*].
