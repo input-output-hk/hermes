@@ -4,13 +4,12 @@
 
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
 
-use libtest_mimic::{Arguments, /* Failed, */ Trial};
+use libtest_mimic::{Arguments, Failed, Trial};
 
-/* use wasmtime::{
-    component::{Component, Linker},
-    Config, Engine, Store,
-}; */
-use hermes::wasm::module::Module;
+use hermes::{
+    wasm::module::Module,
+    runtime_extensions::hermes::integration_test::event::*
+};
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
@@ -48,26 +47,31 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             let wasm_buf = fs::read(file_path)?;
-            let mut module = Module::new(name, &wasm_buf)?;
+            let mut module = Module::new(name.clone(), &wasm_buf)?;
 
             // Run the tests in a loop until no more tests.
             // let mut no_more_tests = false;
             // let mut test_case = 0;
             for i in 0..32 {
-                let on_test_event = hermes::runtime_extensions::hermes::integration_test::event::OnTestEvent {
+                let on_test_event = OnTestEvent {
                     test: i,
                     run: false
                 };
 
                 module.execute_event(&on_test_event)?;
 
-                // if result is not None {
-                //   let test = Trial::test(result.name, move || execute_text(test_case, &path)).with_kind(name);
-                //   tests.push(test);
-                //   test_case += 1;
-                // } else {
-                //   no_more_tests = true;
-                // }
+                let result;
+                unsafe { result = TEST_RESULT_QUEUE.pop(); }
+
+                assert!(result.is_some());
+
+                dbg!(&result);
+
+                if let Some(Some(result)) = result {
+                    let path_string = path.to_string_lossy().to_string();
+                    let test = Trial::test(result.name, move || execute_test(i, path_string)).with_kind(name.clone());
+                    tests.push(test);
+                }
             }
 
             for i in 0..32 {
@@ -77,6 +81,12 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 };
 
                 module.execute_event(&on_test_event)?;
+
+                /* unsafe {
+                    let result = BENCH_RESULT_QUEUE.pop();
+                    assert!(result.is_some());
+                    dbg!(result);
+                } */
 
                 // if result is not None {
                 //   let test = Trial::test(result.name, move || execute_bench(test_case, &path)).with_kind(name);
@@ -110,16 +120,20 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     Ok(tests)
 }
 
-// /// Test a wasm modules numbered integration test.
-// fn execute_test(test_case: u32, path: &Path) -> Result<(), Failed> {
-//     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
+/// Test a wasm modules numbered integration test.
+fn execute_test(test_case: u32, path: String) -> Result<(), Failed> {
+    let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-//     // Load the module into the executor
-//     // Execute the test_case
-//     // Check the result
+    let _module = Module::new(test_case.to_string(), &content)?;
 
-//     Ok(())
-// }
+    dbg!(test_case, content);
+
+    // Load the module into the executor
+    // Execute the test_case
+    // Check the result
+
+    Ok(())
+}
 
 // /// Test a wasm modules numbered integration test.
 // fn execute_bench(test_case: u32, path: &Path) -> Result<(), Failed> {

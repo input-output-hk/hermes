@@ -2,6 +2,13 @@
 
 use crate::{event_queue::event::HermesEventPayload, runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult};
 
+use crossbeam_queue::SegQueue;
+
+/// Storing results from call test.
+pub static mut TEST_RESULT_QUEUE: SegQueue<Option<TestResult>> = SegQueue::new();
+/// Storing results from call bench.
+pub static mut BENCH_RESULT_QUEUE: SegQueue<Option<TestResult>> = SegQueue::new();
+
 /// On test event
 pub struct OnTestEvent {
   /// The bench number to run/list.
@@ -16,12 +23,12 @@ impl HermesEventPayload for OnTestEvent {
   }
 
   fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-      let a: Option<TestResult> = module.instance.hermes_integration_test_event().call_test(
+      let result: Option<TestResult> = module.instance.hermes_integration_test_event().call_test(
           &mut module.store,
           self.test,
           self.run,
       )?;
-      dbg!(a);
+      unsafe { TEST_RESULT_QUEUE.push(result) }
       Ok(())
   }
 }
@@ -40,12 +47,12 @@ impl HermesEventPayload for OnBenchEvent {
   }
 
   fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-      let a: Option<TestResult> = module.instance.hermes_integration_test_event().call_bench(
+      let result: Option<TestResult> = module.instance.hermes_integration_test_event().call_bench(
           &mut module.store,
           self.test,
           self.run,
       )?;
-      dbg!(a);
+      unsafe { BENCH_RESULT_QUEUE.push(result) }
       Ok(())
   }
 }

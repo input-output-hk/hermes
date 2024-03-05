@@ -21,6 +21,7 @@ hex-literal = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 libtest-mimic = { workspace = true }
+crossbeam-queue = { workspace = true }
 
 [[test]]
 name = "wasm-component-integration-tests"
