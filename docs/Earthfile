@@ -6,7 +6,7 @@ VERSION 0.7
 # Copy all the source we need to build the docs
 src:
     # Common src setup
-    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.7.0+SRC
+    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.9.4+SRC
 
     # Now copy into that any artifacts we pull from the builds.
     COPY --dir ../+repo-docs/repo /docs/includes
@@ -14,17 +14,20 @@ src:
     COPY ./../hermes+build/doc /docs/src/api/rust-docs
     # Copy the WASM Component model API Docs
     COPY --dir ./../wasm/wasi+build/wasi-hermes-docs /docs/src/api/wasi-hermes
+    # Copy the Hermes JSON Schemas and Examples
+    COPY --dir ./../hermes+json-schemas/schemas /docs/includes/
+
 
 # Build the docs here.
 docs:
     FROM +src
 
-    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.7.0+BUILD
+    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.9.4+BUILD
 
 # Make a locally runable container that can serve the docs.
 local:
     # Build a self contained service to show built docs locally.
-    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.7.0+PACKAGE
+    DO github.com/input-output-hk/catalyst-ci/earthly/docs:v2.9.4+PACKAGE
 
     # Copy the static pages into the container
     COPY +docs/ /usr/share/nginx/html

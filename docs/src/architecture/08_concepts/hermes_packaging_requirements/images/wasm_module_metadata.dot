@@ -1,0 +1,12 @@
+wasm_metadata: {
+  label: WebAssembly Module Metadata (HDF5 Attributes)
+  shape: class
+
+  name: String
+  app_author: String
+  version: String
+  repository: String
+  license: String
+  description: String
+  config_schema: String
+}
