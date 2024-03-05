@@ -53,7 +53,7 @@ missing_docs_in_private_items = "deny"
 pallas = { version = "0.22.0" }
 pallas-hardano = { version = "0.23.0" }
 
-wasmtime = "17.0.0"
+wasmtime = "18.0.2"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
 blake2b_simd = "1.0.2"
