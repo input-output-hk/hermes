@@ -8,6 +8,7 @@ for both Hermes related and WASI specific.
 Here is an example of the [WIT] files for the some [hermes-cron] [*HRE*]:
 
 `world.wit`
+
 ```wit
 package hermes:cron;
 
@@ -15,10 +16,10 @@ world all {
     import api;
     export event;
 }
-
 ```
 
 `event.wit`
+
 ```wit
 interface event {
     use api.{cron-event-tag, cron-tagged};
@@ -32,6 +33,7 @@ world cron-event {
 ```
 
 `api.wit`
+
 ```wit
 interface api {    
     type cron-event-tag = string;
@@ -53,7 +55,6 @@ interface api {
 world cron-api {
     import api;
 }
-  
 ```
 
 *Hermes events*:
@@ -65,8 +66,8 @@ world cron-api {
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool;`
 * `rm: func(entry: cron-tagged) -> bool;`
 
-## Host implementation
- 
+## Host implementation structure
+
 Hermes host runtime implementation based on the [`wasmtime`] Rust library.
 It auto-generates a code based on the [WIT] files:
 
@@ -87,7 +88,6 @@ All host implementations for a specific [*HRE*]
 are defined inside corresponded `../hermes/cron/host.rs` and could look like this:
 
 ```Rust
-
 use crate::{
     runtime_extensions::{
         bindings::{
@@ -139,7 +139,6 @@ impl HermesEventPayload for OnCronEvent {
     }
 }
 ```
-
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
 [hermes-cron]: https://github.com/input-output-hk/hermes/tree/main/wasm/wasi/wit/deps/hermes-cron
