@@ -72,7 +72,7 @@ world cron-api {
 
 ## Host implementation structure
 
-The Hermes host runtime is implemented using the [wasmtime]. 
+The Hermes host runtime is implemented using the [wasmtime].
 It automatically generates code based on the WIT files:
 
 ```Rust
@@ -84,7 +84,7 @@ bindgen!({
 });
 ```
 
-Internally, it generates a diverse set of traits, structs, functions, and more derived from the WIT files. 
+Internally, it generates a diverse set of traits, structs, functions, and more derived from the WIT files.
 This process results in a type-safe interface for interacting with WASM modules and implementing host functionalities.
 
 All host implementations specific to a particular [*HRE*] are defined within the corresponding
@@ -119,7 +119,6 @@ impl Host for HermesState {
 
 All [*Hermes events*] implementations specific to a particular [*HRE*] are defined within the corresponding
 `event.rs` files.
-
 
 For example `../hermes/cron/event.rs`:
 
