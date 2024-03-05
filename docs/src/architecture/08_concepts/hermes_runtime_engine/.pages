@@ -1,6 +1,6 @@
 title: Hermes Runtime Engine
 arrange:
-  - hre_design.md
+  - hre_interface.md
   - hre_init_setup.md
   - h_app_struct.md
   - h_app_exec.md
