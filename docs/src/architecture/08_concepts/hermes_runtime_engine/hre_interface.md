@@ -68,7 +68,7 @@ world cron-api {
 
 ## Host implementation structure
 
-Hermes host runtime implementation based on the [`wasmtime`] Rust library.
+Hermes host runtime implementation based on the [wasmtime] Rust library.
 It auto-generates a code based on the [WIT] files:
 
 ```Rust
@@ -85,7 +85,7 @@ which are based on the [WIT] files and provides a type safe interface for intera
 with WASM modules and for implementation host functionality.
 
 All host implementations for a specific [*HRE*]
-are defined inside corresponded `../hermes/cron/host.rs` and could look like this:
+are defined inside corresponded `../hermes/cron/host.rs` and looks like this:
 
 ```Rust
 use crate::{
@@ -113,7 +113,7 @@ impl Host for HermesState {
 ```
 
 All [*Hermes events*] implementations for a specific [*HRE*]
-are defined inside corresponded `../hermes/cron/event.rs` and could look like this:
+are defined inside corresponded `../hermes/cron/event.rs` and looks like this:
 
 ```Rust
 /// On cron event
@@ -144,4 +144,4 @@ impl HermesEventPayload for OnCronEvent {
 [hermes-cron]: https://github.com/input-output-hk/hermes/tree/main/wasm/wasi/wit/deps/hermes-cron
 [*Hermes events*]: ../../05_building_block_view/hermes_core.md#hermes-event
 [*HRE*]: ../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
-[`wasmtime`]: https://docs.wasmtime.dev/introduction.html
+[wasmtime]: https://docs.wasmtime.dev/introduction.html
