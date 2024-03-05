@@ -1,0 +1,38 @@
+{
+    "$schema": "../hermes_module_metadata.schema.json",
+    "name": "counter",
+    "version": "V2.7.3",
+    "description": "An example Counter module",
+    "src": [
+        "https://github.com/input-output-hk/hermes",
+        "https://github.com/input-output-hk/catalyst-voices"
+    ],
+    "copyright": [
+        "Copyright Ⓒ 2024, IOG Singapore."
+    ],
+    "license": [
+        {
+            "spdx": "Apache-2.0",
+            "file": "/srv/data/apache2.txt",
+            "note": "Both SPDX and File can be specified together.\nThis allows the text of the License to be shown in any admin UI."
+        },
+        {
+            "spdx": "MIT",
+            "file": "/srv/data/mit.txt"
+        },
+        {
+            "spdx": "Apache-2.0",
+            "note": "Just defines the license by the SPDX ID."
+        },
+        {
+            "file": "/srv/data/apache2.txt",
+            "note": "Just defines the license by the file path."
+        }
+    ],
+    "build_date": 1709041814,
+    "developer": {
+        "name": "IOG Singapore.",
+        "contact": "Contact details.",
+        "payment": "wallet address"
+    }
+}
