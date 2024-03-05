@@ -67,3 +67,12 @@ local-ci-run:
     #BUILD +package
     #BUILD +integrate
     #BUILD +publish
+
+# json-schemas - Artifact so we can use the Hermes json schemas in other parts of the build.
+json-schemas:
+    FROM scratch
+
+    WORKDIR /
+    COPY --dir schemas .
+
+    SAVE ARTIFACT schemas schemas

@@ -1,0 +1,128 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+
+    # Terminal theme code
+
+    theme-id: 4
+    dark-theme-id: 4
+  }
+}
+
+lib module1 group: {
+  label: WASM Component Module
+  grid-rows: 2
+  grid-columns: 1
+  grid-gap: 10
+  shape: package
+  style: {
+    stroke: "#ffc0cb"
+    fill: "#ffebeb"
+    font: mono
+  }
+
+  tooltip: |md
+    WASM Components are individually packaged and signed
+    before inclusion into an application.
+  |
+
+  component files: {
+    grid-rows: 4
+    grid-columns: 2
+    grid-gap: 10
+    style.opacity: 0
+
+    component metadata object: {
+      shape: page
+      label: metadata.json
+      style: {
+        font: mono
+      }
+      tooltip: |md
+        Defines the module.
+
+        + Module Name
+        + Version
+        + Description
+        ? Source Repo
+        + License/s
+      |
+    }
+    component wasm module object: {
+      shape: page
+      label: module.wasm
+      style: {
+        font: mono
+      }
+      tooltip: |md
+        Compiled WASM Component Module.
+      |
+    }
+    component config json schema object: {
+      shape: page
+      label: config.schema.json
+      style: {
+        opacity: 0.6
+        font: mono
+      }
+      tooltip: |md
+        OPTIONAL:
+
+        Schema for the config.json file.
+      |
+    }
+    component config json object: {
+      shape: page
+      label: config.json
+      style: {
+        opacity: 0.6
+        font: mono
+      }
+      tooltip: |md
+        Conditionally Optional:
+
+        Modules runtime config file.
+
+        MUST Exist if `config.schema.json` exists.
+      |
+    }
+    component settings json schema object: {
+      shape: page
+      label: settings.schema.json
+      style: {
+        opacity: 0.6
+        font: mono
+      }
+      tooltip: |md
+        OPTIONAL:
+
+        Schema for the user option settings.json file.
+      |
+    }
+    component author signature object: {
+      shape: document
+      label: author.cose
+      style: {
+        font: mono
+      }
+      tooltip: |md
+        Authors signature over the wasm module.
+      |
+    }
+  }
+  lib module share group: {
+    label: /share
+    shape: package
+    style: {
+      stroke: "#98FB98"
+      fill: "#E6FFED"
+      font: mono
+      opacity: 0.6
+    }
+    tooltip: |md
+      OPTIONAL: 
+
+      Data files specific to this Module.
+    |
+  }
+}
