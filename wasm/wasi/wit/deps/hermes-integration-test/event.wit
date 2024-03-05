@@ -44,5 +44,4 @@ interface event {
     ///                   status is True.  Otherwise the test is executed, and the result is 
     ///                   the result of the test run.
     bench: func(test: u32, run: bool) -> option<test-result>;
-
 }
