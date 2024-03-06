@@ -2,7 +2,8 @@
 
 use crate::{
     app::HermesAppName,
-    event::{queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule},
+    event as hermes_event,
+    event::{HermesEvent, TargetApp, TargetModule},
 };
 
 mod event;
@@ -15,7 +16,7 @@ pub(crate) fn emit_init_event(target_apps: Vec<HermesAppName>) -> anyhow::Result
             TargetApp::List(target_apps),
             TargetModule::All,
         );
-        HermesEventQueue::get_instance()?.add_into_queue(init_event)?;
+        hermes_event::queue::send(init_event)?;
     }
     Ok(())
 }
