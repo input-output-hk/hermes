@@ -17,6 +17,7 @@ use crate::runtime_extensions::{
 
 mod event;
 mod host;
+mod queue;
 mod state;
 
 /// State
