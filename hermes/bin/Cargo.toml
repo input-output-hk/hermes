@@ -24,3 +24,4 @@ dashmap = { workspace = true }
 once_cell = { workspace = true }
 time = { workspace = true }
 bip39 = { workspace = true }
+cryptoxide = { workspace = true }
