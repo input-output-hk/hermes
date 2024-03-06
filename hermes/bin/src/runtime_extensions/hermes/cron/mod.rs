@@ -240,22 +240,26 @@ impl CronComponent {
     fn merge(self, other: CronComponent) -> Option<Self> {
         match self {
             Self::All => Some(self),
-            Self::At(when) => match other {
-                Self::All => Some(Self::All),
-                Self::At(w) if w == when => Some(self),
-                Self::Range((a, b)) if (a..=b).contains(&when) => Some(other),
-                _ => None,
+            Self::At(when) => {
+                match other {
+                    Self::All => Some(Self::All),
+                    Self::At(w) if w == when => Some(self),
+                    Self::Range((a, b)) if (a..=b).contains(&when) => Some(other),
+                    _ => None,
+                }
             },
-            Self::Range((first, last)) => match other {
-                Self::All => Some(Self::All),
-                Self::At(w) if (first..=last).contains(&w) => Some(self),
-                Self::Range((a, b))
-                    if ((first..=last).contains(&a) || (first..=last).contains(&b))
-                        || ((a..=b).contains(&first) || (a..=b).contains(&last)) =>
-                {
-                    Some(Self::Range((min(first, a), max(last, b))))
-                },
-                _ => None,
+            Self::Range((first, last)) => {
+                match other {
+                    Self::All => Some(Self::All),
+                    Self::At(w) if (first..=last).contains(&w) => Some(self),
+                    Self::Range((a, b))
+                        if ((first..=last).contains(&a) || (first..=last).contains(&b))
+                            || ((a..=b).contains(&first) || (a..=b).contains(&last)) =>
+                    {
+                        Some(Self::Range((min(first, a), max(last, b))))
+                    },
+                    _ => None,
+                }
             },
         }
     }
@@ -275,15 +279,19 @@ impl PartialEq for CronComponent {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Self::All => matches!(other, Self::All),
-            Self::At(when) => match other {
-                Self::At(w) if w == when => true,
-                Self::Range((a, b)) if (a..=b).contains(&when) => true,
-                _ => false,
+            Self::At(when) => {
+                match other {
+                    Self::At(w) if w == when => true,
+                    Self::Range((a, b)) if (a..=b).contains(&when) => true,
+                    _ => false,
+                }
             },
-            Self::Range((first, last)) => match other {
-                Self::At(w) if first == w && last == w => true,
-                Self::Range((a, b)) if first == a && last == b => true,
-                _ => false,
+            Self::Range((first, last)) => {
+                match other {
+                    Self::At(w) if first == w && last == w => true,
+                    Self::Range((a, b)) if first == a && last == b => true,
+                    _ => false,
+                }
             },
         }
     }
@@ -299,18 +307,24 @@ impl PartialEq for CronComponent {
 impl PartialOrd for CronComponent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match self {
-            Self::All => match other {
-                Self::All => Some(std::cmp::Ordering::Equal),
-                _ => Some(std::cmp::Ordering::Greater),
+            Self::All => {
+                match other {
+                    Self::All => Some(std::cmp::Ordering::Equal),
+                    _ => Some(std::cmp::Ordering::Greater),
+                }
             },
-            Self::At(when) => match other {
-                Self::At(w) => Some(when.cmp(w)),
-                _ => Some(std::cmp::Ordering::Less),
+            Self::At(when) => {
+                match other {
+                    Self::At(w) => Some(when.cmp(w)),
+                    _ => Some(std::cmp::Ordering::Less),
+                }
             },
-            Self::Range((first, last)) => match other {
-                Self::All => Some(std::cmp::Ordering::Less),
-                Self::At(_) => Some(std::cmp::Ordering::Greater),
-                Self::Range((start, end)) => Some(first.cmp(start).then(last.cmp(end))),
+            Self::Range((first, last)) => {
+                match other {
+                    Self::All => Some(std::cmp::Ordering::Less),
+                    Self::At(_) => Some(std::cmp::Ordering::Greater),
+                    Self::Range((start, end)) => Some(first.cmp(start).then(last.cmp(end))),
+                }
             },
         }
     }
