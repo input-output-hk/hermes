@@ -23,10 +23,10 @@ interface api {
     type ed25519-bip32-signature = b512;
 
     // mnemonic
-    type mnemonic-phrase = string;
+    type mnemonic-phrase = list<string>;
 
     // passphrase
-    type passphrase = string;
+    type passphrase = list<string>;
 
     resource ed25519-bip32 {
         /// Create a new ED25519-BIP32 Crypto resource
