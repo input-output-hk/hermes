@@ -181,7 +181,7 @@ impl CronComponent {
     /// Minimum value for `Day`.
     const MIN_DAY: u8 = 1;
     /// Minimum value for `DayOfWeek`. Monday.
-    const MIN_DOW: u8 = 0;
+    const MIN_DOW: u8 = 1;
     /// Minimum value for `Hour`.
     const MIN_HOUR: u8 = 0;
     /// Minimum value for `Minute`.
