@@ -16,7 +16,7 @@ which means that it could be developed on any language with the WASM support e.g
 ## Hermes runtime extension (HRE)
 
 *Hermes runtime extension (HRE)* - a Hermes module
-which will provides an additional functionality, besides the to the [*Hermes application*] and stands as a library.
+which will provides an additional functionality, besides to the [*Hermes application*] and stands as a library.
 It is a singleton object, which serves all [*Hermes applications*][*Hermes application*] at a time.
 It defines the following parts:
 
@@ -41,7 +41,7 @@ The queue preserves the order of event execution based on how they were added in
 ## Hermes application
 
 *Hermes application* - a collection of WASM components, which are packed together and executes a specific business logic.
-It mainly serves as an event handler for the of the [*Hermes Events*].
+It mainly serves as an event handler for the [*Hermes Events*].
 Each *Hermes application* can interact with the [*HRE*] through the defined *HRE api* based on corresponding
 [WIT] definitions.
 
