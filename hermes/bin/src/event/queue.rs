@@ -14,6 +14,7 @@ use super::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
 use crate::{
     app::{HermesAppName, IndexedApps},
     runtime_context::HermesRuntimeContext,
+    runtime_extensions::new_context,
     wasm::module::{Module, ModuleId},
 };
 
@@ -108,6 +109,9 @@ fn event_dispatch(
         event.event_name().to_string(),
         module.exec_counter(),
     );
+
+    // Advise Runtime Extensions of a new context
+    new_context(&runtime_context);
 
     module.execute_event(event, runtime_context)?;
     Ok(())
