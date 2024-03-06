@@ -49,9 +49,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             let wasm_buf = fs::read(file_path)?;
             let mut module = Module::new(name.clone(), &wasm_buf)?;
 
-            // Run the tests in a loop until no more tests.
-            // let mut no_more_tests = false;
-            // let mut test_case = 0;
+            // Run the tests in a loop until no more tests.            
             for i in 0..32 {
                 let on_test_event = OnTestEvent {
                     test: i,
@@ -75,7 +73,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 }
             }
 
-            for i in 0..32 {
+            /* for i in 0..32 {
                 let on_test_event = hermes::runtime_extensions::hermes::integration_test::event::OnBenchEvent {
                     test: i,
                     run: false
@@ -96,7 +94,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 // } else {
                 //   no_more_tests = true;
                 // }
-            }
+            } */
         }
 
         // process items inside directories
