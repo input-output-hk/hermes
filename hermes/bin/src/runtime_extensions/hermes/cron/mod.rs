@@ -5,8 +5,9 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use time::{Duration, OffsetDateTime};
+use chrono::{Datelike, Duration, Timelike, Utc};
 
+use self::{event::OnCronEvent, queue::CronJobDelay};
 use crate::runtime_extensions::{
     bindings::{
         hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
@@ -29,22 +30,41 @@ impl Stateful for State {
     }
 }
 
+///
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    ///
+    #[error("invalid timestamp")]
+    InvalidTimestamp,
+}
+
 /// Create a delayed crontab entry.
 pub(crate) fn mkdelay_crontab(
     duration: Instant, tag: CronEventTag,
-) -> wasmtime::Result<CronTagged> {
+) -> wasmtime::Result<CronJobDelay> {
     // Add the delay to the current time.
-    let delayed = OffsetDateTime::now_utc() + Duration::nanoseconds(duration.try_into()?);
-    let (month, day) = (delayed.month() as u8, delayed.day());
-    let (hour, minute, _secs) = delayed.to_hms();
+    let delayed = Utc::now() + Duration::nanoseconds(duration.try_into()?);
+    let timestamp = delayed
+        .timestamp_nanos_opt()
+        .ok_or(Error::InvalidTimestamp)?
+        .try_into()?;
+    let (month, day): (u8, u8) = (delayed.month().try_into()?, delayed.day().try_into()?);
+    let (hour, minute): (u8, u8) = (delayed.hour().try_into()?, delayed.minute().try_into()?);
+    let day_of_week = delayed.weekday().number_from_monday().try_into()?;
     let when = mkcron_impl(
-        &vec![],
+        &vec![CronComponent::At(day_of_week)],
         &vec![CronComponent::At(month)],
         &vec![CronComponent::At(day)],
         &vec![CronComponent::At(hour)],
         &vec![CronComponent::At(minute)],
     );
-    Ok(CronTagged { when, tag })
+    Ok(CronJobDelay {
+        timestamp,
+        event: OnCronEvent {
+            tag: CronTagged { when, tag },
+            last: false,
+        },
+    })
 }
 
 /// Convert `CronTime` arguments to a `CronSched`.
@@ -338,11 +358,19 @@ mod tests {
     fn test_mkdelay_crontab() {
         // Get the cron schedule from the current time.
         let test_tag: CronEventTag = "test".into();
-        let now = OffsetDateTime::now_utc();
-        let (month, day) = (now.month() as u8, now.day());
-        let (hour, minute, _secs) = now.to_hms();
+        let now = Utc::now();
+        let (month, day) = (
+            now.month().try_into().unwrap(),
+            now.day().try_into().unwrap(),
+        );
+        let time = now.time();
+        let (hour, minute): (u8, u8) = (
+            time.hour().try_into().unwrap(),
+            time.minute().try_into().unwrap(),
+        );
+        let day_of_week = now.weekday().number_from_monday().try_into().unwrap();
         let now_schedule = mkcron_impl(
-            &vec![],
+            &vec![CronComponent::At(day_of_week)],
             &vec![CronComponent::At(month)],
             &vec![CronComponent::At(day)],
             &vec![CronComponent::At(hour)],
@@ -350,7 +378,8 @@ mod tests {
         );
         // Test the case with 0 duration
         let duration = 0u64;
-        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag.clone()).unwrap();
+        let cron_job_delay = mkdelay_crontab(duration, test_tag.clone()).unwrap();
+        let CronTagged { when, tag } = cron_job_delay.event.tag;
         assert_eq!(when, now_schedule);
         assert_eq!(tag, "test");
         // Test the case with 5 minutes duration
@@ -359,16 +388,24 @@ mod tests {
         let nanos = 1_000_000_000u64;
         let duration = minute_duration * secs_per_minute * nanos;
         let then = now + Duration::minutes(minute_duration.try_into().unwrap());
-        let (month, day) = (then.month() as u8, then.day());
-        let (hour, minute, _secs) = then.to_hms();
+        let (month, day) = (
+            then.month().try_into().unwrap(),
+            then.day().try_into().unwrap(),
+        );
+        let (hour, minute) = (
+            then.hour().try_into().unwrap(),
+            then.minute().try_into().unwrap(),
+        );
+        let day_of_week = then.weekday().number_from_monday().try_into().unwrap();
         let then_schedule = mkcron_impl(
-            &vec![],
+            &vec![CronComponent::At(day_of_week)],
             &vec![CronComponent::At(month)],
             &vec![CronComponent::At(day)],
             &vec![CronComponent::At(hour)],
             &vec![CronComponent::At(minute)],
         );
-        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag).unwrap();
+        let cron_job_delay = mkdelay_crontab(duration, test_tag).unwrap();
+        let CronTagged { when, tag } = cron_job_delay.event.tag;
         assert_eq!(when, then_schedule);
         assert_eq!(tag, "test");
     }
