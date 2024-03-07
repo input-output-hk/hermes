@@ -149,7 +149,7 @@ impl HermesEventPayload for OnCronEvent {
 
 ***NOTE*** that these [*Hermes event*][*Hermes events*] host definitions
 are not an implementation of the [*Hermes event*][*Hermes events*] itself.
-It is a way how to execute [*Hermes event*][*Hermes events*]
+It is the method that allows the hermes runtime to execute [*Hermes event*][*Hermes events*]
 and pass corresponding data for the [*Hermes event*][*Hermes events*] handler,
 implemented by the [*Hermes application*],
 inside [*Hermes engine*] runtime.
