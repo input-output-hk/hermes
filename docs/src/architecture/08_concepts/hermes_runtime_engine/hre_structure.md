@@ -9,7 +9,7 @@ and [*Hermes engine's*][*Hermes engine*] runtime itself.
 Each [*HRE*] implementation take place inside `hermes/bin/srs/runtime_extensions` directory,
 for both Hermes related and WASI specific.
 
-Here is an example of the [WIT] files for the [hermes-cron] [*HRE*]:
+## Example [WIT] files for the [hermes-cron] [*HRE*]
 
 ### `world.wit`
 
