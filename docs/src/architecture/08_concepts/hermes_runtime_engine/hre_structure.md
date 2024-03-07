@@ -90,7 +90,7 @@ This process results in a type-safe interface for interacting with WASM modules 
 All host implementations specific to a particular [*HRE*] are defined within the corresponding
 `host.rs` files.
 
-For example `../hermes/cron/host.rs`:
+### Example `../hermes/cron/host.rs`
 
 ```Rust
 use crate::{
