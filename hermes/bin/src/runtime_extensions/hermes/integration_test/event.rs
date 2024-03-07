@@ -67,7 +67,6 @@ impl HermesEventPayload for OnBenchEvent {
 /// # Errors
 ///
 /// Fails to execute an event.
-///
 #[allow(dead_code)]
 pub fn execute_event(
     module: &mut Module, test: u32, run: bool,

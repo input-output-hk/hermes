@@ -20,6 +20,5 @@ pub trait HermesEventPayload: Send {
     /// # Errors
     ///
     /// Fails to execute an event.
-    ///
     fn execute(&self, module: &mut ModuleInstance) -> anyhow::Result<()>;
 }

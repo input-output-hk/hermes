@@ -2,14 +2,17 @@
 
 // SEE: https://docs.rs/libtest-mimic/latest/libtest_mimic/index.html
 
-/// A parameter identifier specifying the directory for placing test WebAssembly components.
+/// A parameter identifier specifying the directory for placing test WebAssembly
+/// components.
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
 /// A standard value assigned to `ENV_MODULE_DIR` when it's not specified.
 const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components bash";
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
-use hermes::{runtime_extensions::hermes::integration_test::event::execute_event, wasm::module::Module};
+use hermes::{
+    runtime_extensions::hermes::integration_test::event::execute_event, wasm::module::Module,
+};
 use libtest_mimic::{Arguments, Failed, Trial};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -31,7 +34,8 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
         let wasm_file_paths: Vec<_> = entries
             .iter()
             .filter_map(|(file_type, path)| {
-                (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then_some(path)
+                (file_type.is_file() && path.extension() == Some(OsStr::new("wasm")))
+                    .then_some(path)
             })
             .collect();
         let dir_paths: Vec<_> = entries
