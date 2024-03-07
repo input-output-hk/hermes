@@ -65,7 +65,7 @@ world cron-api {
 
 * `on-cron: func(event: cron-tagged, last: bool) -> bool;`
   
-*HRE api*:
+### HRE api
 
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool;`
 * `rm: func(entry: cron-tagged) -> bool;`
