@@ -4,6 +4,7 @@
 
 use anyhow::Ok;
 use crossbeam_queue::SegQueue;
+use once_cell::sync::OnceCell;
 
 use crate::{
     event_queue::event::HermesEventPayload,
@@ -12,9 +13,9 @@ use crate::{
 };
 
 /// Storing results from call test.
-pub static mut TEST_RESULT_QUEUE: SegQueue<Option<TestResult>> = SegQueue::new();
+pub static TEST_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
 /// Storing results from call bench.
-pub static mut BENCH_RESULT_QUEUE: SegQueue<Option<TestResult>> = SegQueue::new();
+pub static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
 
 /// On test event
 pub struct OnTestEvent {
@@ -34,7 +35,7 @@ impl HermesEventPayload for OnTestEvent {
             .instance
             .hermes_integration_test_event()
             .call_test(&mut module.store, self.test, self.run)?;
-        unsafe { TEST_RESULT_QUEUE.push(result) }
+        TEST_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
 }
@@ -57,7 +58,7 @@ impl HermesEventPayload for OnBenchEvent {
             .instance
             .hermes_integration_test_event()
             .call_bench(&mut module.store, self.test, self.run)?;
-        unsafe { BENCH_RESULT_QUEUE.push(result) }
+        BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
 }
@@ -75,10 +76,7 @@ pub fn execute_event(
 
     module.execute_event(&on_test_event)?;
 
-    let result;
-    unsafe {
-        result = TEST_RESULT_QUEUE.pop();
-    }
+    let result = TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop();
 
     Ok(result.flatten())
 }
