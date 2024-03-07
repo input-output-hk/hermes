@@ -11,7 +11,7 @@ for both Hermes related and WASI specific.
 
 Here is an example of the [WIT] files for the [hermes-cron] [*HRE*]:
 
-`world.wit`
+### `world.wit`
 
 ```wit
 package hermes:cron;
