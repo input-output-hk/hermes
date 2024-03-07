@@ -14,51 +14,19 @@ for both Hermes related and WASI specific.
 ### `world.wit`
 
 ```wit
-package hermes:cron;
-
-world all {
-    import api;
-    export event;
-}
+{{ include_file('includes/wasi/wit/deps/hermes-cron/world.wit') }}
 ```
 
 `event.wit`
 
 ```wit
-interface event {
-    use api.{cron-event-tag, cron-tagged};
-
-    on-cron: func(event: cron-tagged, last: bool) -> bool;
-}
-
-world cron-event {
-    export event;
-}
+{{ include_file('includes/wasi/wit/deps/hermes-cron/event.wit') }}
 ```
 
 `api.wit`
 
 ```wit
-interface api {    
-    type cron-event-tag = string;
-
-    type cron-sched = string;
-
-    record cron-tagged {
-        when: cron-sched,
-
-        tag: cron-event-tag
-    }
-
-    add: func(entry: cron-tagged, retrigger: bool) -> bool;
-    rm: func(entry: cron-tagged) -> bool;
-    
-    ...
-}
-
-world cron-api {
-    import api;
-}
+{{ include_file('includes/wasi/wit/deps/hermes-cron/api.wit') }}
 ```
 
 ### Hermes events
