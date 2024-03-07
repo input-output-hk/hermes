@@ -106,13 +106,9 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
         Ok(())
     }
 
-    // We recursively look for `.rs` files, starting from the current
-    // directory.
+    // Read wasm components to be test in a directory.
     let mut tests = Vec::new();
-
-    // Maybe we point this to an env_var or something so its easier in CI/CD.
     let test_module_dir = env::var(ENV_MODULE_DIR).unwrap_or_else(|_| panic!("{} is required", ENV_MODULE_DIR));
-
     let path = Path::new(&test_module_dir);
 
     visit_dir(&path, &mut tests)?;
