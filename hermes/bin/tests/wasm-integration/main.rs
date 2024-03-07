@@ -61,15 +61,15 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 let result;
                 unsafe { result = TEST_RESULT_QUEUE.pop(); }
 
-                dbg!(&result);
-
-                if let Some(None) = result {
-                    break;
-                }
-                if let Some(Some(result)) = result {
-                    let path_string = path.to_string_lossy().to_string();
-                    let test = Trial::test(result.name, move || execute_test(i, path_string)).with_kind(name.clone());
-                    tests.push(test);
+                match result {
+                    Some(Some(result)) => {
+                        let path_string = path.to_string_lossy().to_string();
+                        let test = Trial::test(result.name, move || execute_test(i, path_string)).with_kind(name.clone());
+                        tests.push(test);
+                    },
+                    _ => {
+                        break;
+                    }
                 }
             }
 
