@@ -1,0 +1,14 @@
+Validate App Package: {
+  Validate WASM Component Modules: {
+    grid-rows: 1
+    style.multiple: true
+    Check for Extra Files -> Generate Module Hash
+    Generate Module Hash -> Validate Module Signature
+  }
+  Check for extra contents -> Validate WASM Component Modules
+  Validate WASM Component Modules -> Generate Application Hash
+  Generate Application Hash -> Validate Signatures
+}
+
+Validate App Package -> Load or Create App RW HDF5 Filesystem
+Load or Create App RW HDF5 Filesystem -> Create RO Links to App Package

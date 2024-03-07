@@ -12,3 +12,10 @@ build:
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="component.wasm"
 
     SAVE ARTIFACT component.wasm
+
+# Build and locally save an output artifact
+save-local:
+    FROM scratch
+
+    COPY +build/component.wasm .
+    SAVE ARTIFACT component.wasm AS LOCAL bench_component.wasm

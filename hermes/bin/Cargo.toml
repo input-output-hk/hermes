@@ -9,8 +9,16 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+bench = ["dep:criterion"]
+
 [lints]
 workspace = true
+
+[[bench]]
+name = "module"
+harness = false
+required-features = ["bench"]
 
 [dependencies]
 wasmtime = { workspace = true, features = ["component-model"] }
@@ -19,6 +27,7 @@ anyhow = { workspace = true }
 blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
+criterion = { workspace = true, optional = true }
 time = { workspace = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }

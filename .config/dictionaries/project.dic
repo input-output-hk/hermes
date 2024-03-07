@@ -5,6 +5,7 @@ asyncio
 auditability
 backpressure
 bindgen
+blockdiag
 blockfetch
 bmac
 BROTLI
@@ -20,6 +21,7 @@ coti
 crontabs
 cryptoxide
 dbsync
+dcbor
 delegators
 dockerhub
 dotenv
@@ -36,6 +38,7 @@ fdatasync
 fdstat
 Filesize
 filestat
+filestorage
 filesystems
 fmtchk
 fmtfix
@@ -47,8 +50,10 @@ futimens
 genhtml
 GETFL
 gmtime
+happ
 hardano
 hasher
+hmod
 ideascale
 idents
 IFMT
@@ -84,11 +89,13 @@ openat
 opentelemetry
 outlen
 Outparam
+parameterises
 permissioned
 permissionless
 pg_isready
 plpgsql
 pollable
+Pozhylenkov
 pread
 preopened
 preopens
@@ -108,6 +115,7 @@ rustdoc
 rustdocflags
 rustflags
 saibatizoku
+sandboxed
 Sched
 seckey
 slotno
