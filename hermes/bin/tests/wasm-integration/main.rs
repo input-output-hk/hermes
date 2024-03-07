@@ -6,7 +6,7 @@
 /// components.
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
 /// A standard value assigned to `ENV_MODULE_DIR` when it's not specified.
-const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components bash";
+const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components";
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
