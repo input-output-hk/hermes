@@ -109,7 +109,7 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
-mod bench {
+pub mod bench {
     use super::*;
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
