@@ -27,6 +27,7 @@ struct BadWASMModuleError(String);
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
+#[allow(clippy::module_name_repetitions)]
 pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesState>,
@@ -108,7 +109,7 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
-pub mod bench {
+mod bench {
     use super::*;
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.

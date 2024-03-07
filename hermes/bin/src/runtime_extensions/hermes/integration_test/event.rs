@@ -1,10 +1,14 @@
 //! Integration test runtime extension event handler implementation for test purpose only.
 
+#![allow(clippy::module_name_repetitions)]
+
+use anyhow::Ok;
 use crossbeam_queue::SegQueue;
 
 use crate::{
     event_queue::event::HermesEventPayload,
     runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
+    wasm::module::Module,
 };
 
 /// Storing results from call test.
@@ -56,4 +60,26 @@ impl HermesEventPayload for OnBenchEvent {
         unsafe { BENCH_RESULT_QUEUE.push(result) }
         Ok(())
     }
+}
+
+/// Executes an event from a module and returns a testing result.
+///
+/// # Errors
+///
+/// Fails to execute an event.
+///
+#[allow(dead_code)]
+pub fn execute_event(
+    module: &mut Module, test: u32, run: bool,
+) -> anyhow::Result<Option<TestResult>> {
+    let on_test_event = OnTestEvent { test, run };
+
+    module.execute_event(&on_test_event)?;
+
+    let result;
+    unsafe {
+        result = TEST_RESULT_QUEUE.pop();
+    }
+
+    Ok(result.flatten())
 }

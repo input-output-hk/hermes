@@ -2,11 +2,14 @@
 
 // SEE: https://docs.rs/libtest-mimic/latest/libtest_mimic/index.html
 
+/// A parameter identifier specifying the directory for placing test WebAssembly components.
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
+/// A standard value assigned to `ENV_MODULE_DIR` when it's not specified.
+const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components bash";
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
-use hermes::{runtime_extensions::hermes::integration_test::event::*, wasm::module::Module};
+use hermes::{runtime_extensions::hermes::integration_test::event::execute_event, wasm::module::Module};
 use libtest_mimic::{Arguments, Failed, Trial};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -18,6 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Creates as many tests as required for each `.wasm` file in the current directory or
 /// sub-directories of the current directory.
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
         let entries: Vec<_> = fs::read_dir(path)?
             .collect::<Result<Vec<_>, _>>()?
@@ -27,16 +31,16 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
         let wasm_file_paths: Vec<_> = entries
             .iter()
             .filter_map(|(file_type, path)| {
-                (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then(|| path)
+                (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then_some(path)
             })
             .collect();
         let dir_paths: Vec<_> = entries
             .iter()
-            .filter_map(|(file_type, path)| file_type.is_dir().then(|| path))
+            .filter_map(|(file_type, path)| file_type.is_dir().then_some(path))
             .collect();
 
         // process `.wasm` files
-        for file_path in wasm_file_paths.into_iter() {
+        for file_path in wasm_file_paths {
             let name = file_path.strip_prefix(path)?.display().to_string();
 
             // Execute the wasm tests to get their name
@@ -46,20 +50,8 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the tests in a loop until no more tests.
             for i in 0..32 {
-                let on_test_event = OnTestEvent {
-                    test: i,
-                    run: false,
-                };
-
-                module.execute_event(&on_test_event)?;
-
-                let result;
-                unsafe {
-                    result = TEST_RESULT_QUEUE.pop();
-                }
-
-                match result {
-                    Some(Some(result)) => {
+                match execute_event(&mut module, i, false)? {
+                    Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
                         let test = Trial::test(result.name, move || execute_test(i, path_string))
                             .with_kind(name.clone());
@@ -73,20 +65,8 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the benches in a loop until no more benches.
             for i in 0..32 {
-                let on_test_event = OnBenchEvent {
-                    test: i,
-                    run: false,
-                };
-
-                module.execute_event(&on_test_event)?;
-
-                let result;
-                unsafe {
-                    result = BENCH_RESULT_QUEUE.pop();
-                }
-
-                match result {
-                    Some(Some(result)) => {
+                match execute_event(&mut module, i, false)? {
+                    Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
                         let test = Trial::test(result.name, move || execute_bench(i, path_string))
                             .with_kind(name.clone());
@@ -100,7 +80,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
         }
 
         // process items inside directories
-        for path in dir_paths.into_iter() {
+        for path in dir_paths {
             visit_dir(path, tests)?;
         }
 
@@ -110,10 +90,10 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     // Read wasm components to be test in a directory.
     let mut tests = Vec::new();
     let test_module_dir =
-        env::var(ENV_MODULE_DIR).unwrap_or_else(|_| panic!("{} is required", ENV_MODULE_DIR));
+        env::var(ENV_MODULE_DIR).unwrap_or_else(|_| String::from(DEFAULT_TEST_COMPONENT_DIR));
     let path = Path::new(&test_module_dir);
 
-    visit_dir(&path, &mut tests)?;
+    visit_dir(path, &mut tests)?;
 
     Ok(tests)
 }
@@ -124,23 +104,8 @@ fn execute(test_case: u32, path: String) -> Result<(), Failed> {
 
     let mut module = Module::new(test_case.to_string(), &content)?;
 
-    // Load the module into the executor
-    let on_test_event = OnTestEvent {
-        test: test_case,
-        run: true,
-    };
-
-    // Execute the test_case
-    module.execute_event(&on_test_event)?;
-
-    // Check the result
-    let result;
-    unsafe {
-        result = TEST_RESULT_QUEUE.pop();
-    }
-
-    match result {
-        Some(Some(result)) => {
+    match execute_event(&mut module, test_case, true)? {
+        Some(result) => {
             assert!(result.status);
             Ok(())
         },
