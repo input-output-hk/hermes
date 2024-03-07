@@ -109,6 +109,7 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
+#[allow(missing_docs)]
 pub mod bench {
     use super::*;
 
