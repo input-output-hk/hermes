@@ -61,7 +61,7 @@ world cron-api {
 }
 ```
 
-*Hermes events*:
+### Hermes events
 
 * `on-cron: func(event: cron-tagged, last: bool) -> bool;`
   
