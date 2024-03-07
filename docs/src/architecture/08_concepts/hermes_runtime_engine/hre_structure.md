@@ -120,7 +120,7 @@ impl Host for HermesState {
 All [*Hermes events*] implementations specific to a particular [*HRE*] are defined within the corresponding
 `event.rs` files.
 
-For example `../hermes/cron/event.rs`:
+### Example `../hermes/cron/event.rs`:
 
 ```Rust
 /// On cron event
