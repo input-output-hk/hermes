@@ -14,7 +14,7 @@ const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
       .ptr = (uint8_t *)"Test Case 2",
       .len = strlen("Test Case 2")
     },
-    .status = false
+    .status = true
   },
   {
     .name = {
@@ -25,8 +25,8 @@ const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
   },
   {
     .name = {
-      .ptr = (uint8_t *)"Test Case 4: Long Test Case Name for Testing Purposes",
-      .len = strlen("Test Case 4: Long Test Case Name for Testing Purposes")
+      .ptr = (uint8_t *)"Test Case 4",
+      .len = strlen("Test Case 4")
     },
     .status = true
   },
@@ -34,6 +34,31 @@ const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
     .name = {
       .ptr = (uint8_t *)"Test Case 5",
       .len = strlen("Test Case 5")
+    },
+    .status = true
+  }
+};
+
+const uint32_t N_BENCH = 3;
+const exports_hermes_integration_test_event_test_result_t BENCHES[N_BENCH] = {
+  {
+    .name = {
+      .ptr = (uint8_t *)"Bench 1",
+      .len = strlen("Bench 1")
+    },
+    .status = true
+  },
+  {
+    .name = {
+      .ptr = (uint8_t *)"Bench 2",
+      .len = strlen("Bench 2")
+    },
+    .status = true
+  },
+  {
+    .name = {
+      .ptr = (uint8_t *)"Bench 3",
+      .len = strlen("Bench 3")
     },
     .status = true
   }
@@ -87,9 +112,9 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
 }
 
 bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret) {
-  if (test < N_TEST) {
-    hermes_string_dup(&ret->name, TESTS[test].name.ptr);
-    ret->status = TESTS[test].status;
+  if (test < N_BENCH) {
+    hermes_string_dup(&ret->name, BENCHES[test].name.ptr);
+    ret->status = BENCHES[test].status;
 
     return true;
   }
