@@ -3,13 +3,5 @@
 mod event;
 mod host;
 
-/// State
-pub(crate) struct State {}
-
-impl State {
-    ///
-    #[allow(dead_code)]
-    fn new() -> Self {
-        State {}
-    }
-}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}

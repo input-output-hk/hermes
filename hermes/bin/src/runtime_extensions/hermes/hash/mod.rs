@@ -3,13 +3,8 @@
 mod blake2b;
 mod host;
 
-/// State
-pub(crate) struct State {}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-impl State {
-    ///
-    #[allow(dead_code)]
-    fn new() -> Self {
-        State {}
-    }
-}
+// `State` is obsolete, needs to be removed.
+// If needed, it can be replaced with `new_context`

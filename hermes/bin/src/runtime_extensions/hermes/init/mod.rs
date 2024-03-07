@@ -2,10 +2,14 @@
 
 use crate::{
     app::HermesAppName,
-    event::{queue::HermesEventQueue, HermesEvent, TargetApp, TargetModule},
+    event as hermes_event,
+    event::{HermesEvent, TargetApp, TargetModule},
 };
 
 mod event;
+
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 /// Emit Init event for a provided Hermes app target
 pub(crate) fn emit_init_event(target_apps: Vec<HermesAppName>) -> anyhow::Result<()> {
@@ -15,7 +19,7 @@ pub(crate) fn emit_init_event(target_apps: Vec<HermesAppName>) -> anyhow::Result
             TargetApp::List(target_apps),
             TargetModule::All,
         );
-        HermesEventQueue::get_instance()?.add_into_queue(init_event)?;
+        hermes_event::queue::send(init_event)?;
     }
     Ok(())
 }

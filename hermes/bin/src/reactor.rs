@@ -4,14 +4,9 @@ use std::sync::Arc;
 
 use crate::{
     app::{HermesApp, IndexedApps},
-    event::queue::{HermesEventLoopHandler, HermesEventQueue},
+    event,
     runtime_extensions::hermes::init,
 };
-
-/// Hermes event queue execution loop handler panics error.
-#[derive(thiserror::Error, Debug)]
-#[error("Hermes event queue execution loop handler panics!")]
-struct EventLoopPanics;
 
 /// Hermes Reactor struct
 #[allow(dead_code)]
@@ -19,7 +14,7 @@ pub(crate) struct HermesReactor {
     /// Hermes apps
     indexed_apps: Arc<IndexedApps>,
     /// Hermes event queue loop thread handler.
-    event_loop: HermesEventLoopHandler,
+    event_loop: event::queue::HermesEventLoopHandler,
 }
 
 impl HermesReactor {
@@ -36,7 +31,7 @@ impl HermesReactor {
                 .collect(),
         );
 
-        let event_loop = HermesEventQueue::init(indexed_apps.clone())?;
+        let event_loop = event::queue::init(indexed_apps.clone())?;
 
         // Emit Init event for loaded apps
         init::emit_init_event(target_apps)?;
@@ -51,9 +46,8 @@ impl HermesReactor {
     /// # Note:
     /// This is a blocking call.
     #[allow(dead_code)]
-    pub(crate) fn wait(self) -> anyhow::Result<()> {
-        self.event_loop.join().map_err(|_| EventLoopPanics)??;
-        Ok(())
+    pub(crate) fn wait(&mut self) -> anyhow::Result<()> {
+        self.event_loop.join()
     }
 }
 
