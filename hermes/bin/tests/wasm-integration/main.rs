@@ -4,14 +4,10 @@
 
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
 
-use libtest_mimic::{Arguments, Failed, Trial};
-
-use hermes::{
-    wasm::module::Module,
-    runtime_extensions::hermes::integration_test::event::*
-};
-
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
+
+use hermes::{runtime_extensions::hermes::integration_test::event::*, wasm::module::Module};
+use libtest_mimic::{Arguments, Failed, Trial};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::from_args();
@@ -30,7 +26,9 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             .collect::<Result<_, _>>()?;
         let wasm_file_paths: Vec<_> = entries
             .iter()
-            .filter_map(|(file_type, path)| (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then(|| path))
+            .filter_map(|(file_type, path)| {
+                (file_type.is_file() && path.extension() == Some(OsStr::new("wasm"))).then(|| path)
+            })
             .collect();
         let dir_paths: Vec<_> = entries
             .iter()
@@ -39,37 +37,37 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
         // process `.wasm` files
         for file_path in wasm_file_paths.into_iter() {
-            let name = file_path
-                .strip_prefix(path)?
-                .display()
-                .to_string();
+            let name = file_path.strip_prefix(path)?.display().to_string();
 
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             let wasm_buf = fs::read(file_path)?;
             let mut module = Module::new(name.clone(), &wasm_buf)?;
 
-            // Run the tests in a loop until no more tests.            
+            // Run the tests in a loop until no more tests.
             for i in 0..32 {
                 let on_test_event = OnTestEvent {
                     test: i,
-                    run: false
+                    run: false,
                 };
 
                 module.execute_event(&on_test_event)?;
 
                 let result;
-                unsafe { result = TEST_RESULT_QUEUE.pop(); }
+                unsafe {
+                    result = TEST_RESULT_QUEUE.pop();
+                }
 
                 match result {
                     Some(Some(result)) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute_test(i, path_string)).with_kind(name.clone());
+                        let test = Trial::test(result.name, move || execute_test(i, path_string))
+                            .with_kind(name.clone());
                         tests.push(test);
                     },
                     _ => {
                         break;
-                    }
+                    },
                 }
             }
 
@@ -77,23 +75,26 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             for i in 0..32 {
                 let on_test_event = OnBenchEvent {
                     test: i,
-                    run: false
+                    run: false,
                 };
 
                 module.execute_event(&on_test_event)?;
 
                 let result;
-                unsafe { result = BENCH_RESULT_QUEUE.pop(); }
+                unsafe {
+                    result = BENCH_RESULT_QUEUE.pop();
+                }
 
                 match result {
                     Some(Some(result)) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute_bench(i, path_string)).with_kind(name.clone());
+                        let test = Trial::test(result.name, move || execute_bench(i, path_string))
+                            .with_kind(name.clone());
                         tests.push(test);
                     },
                     _ => {
                         break;
-                    }
+                    },
                 }
             }
         }
@@ -108,7 +109,8 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
     // Read wasm components to be test in a directory.
     let mut tests = Vec::new();
-    let test_module_dir = env::var(ENV_MODULE_DIR).unwrap_or_else(|_| panic!("{} is required", ENV_MODULE_DIR));
+    let test_module_dir =
+        env::var(ENV_MODULE_DIR).unwrap_or_else(|_| panic!("{} is required", ENV_MODULE_DIR));
     let path = Path::new(&test_module_dir);
 
     visit_dir(&path, &mut tests)?;
@@ -125,7 +127,7 @@ fn execute(test_case: u32, path: String) -> Result<(), Failed> {
     // Load the module into the executor
     let on_test_event = OnTestEvent {
         test: test_case,
-        run: true
+        run: true,
     };
 
     // Execute the test_case
@@ -133,16 +135,16 @@ fn execute(test_case: u32, path: String) -> Result<(), Failed> {
 
     // Check the result
     let result;
-    unsafe { result = TEST_RESULT_QUEUE.pop(); }
+    unsafe {
+        result = TEST_RESULT_QUEUE.pop();
+    }
 
     match result {
         Some(Some(result)) => {
             assert!(result.status);
             Ok(())
         },
-        _ => {
-            Err(Failed::from("result unexpected"))
-        }
+        _ => Err(Failed::from("result unexpected")),
     }
 }
 

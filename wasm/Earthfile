@@ -18,5 +18,5 @@ save-local:
     ARG c_files="my-component.c"
     ARG out="c_component.wasm"
 
-    COPY (./event-stubs+build/component.wasm --c_files=$c_files) .
+    COPY (./c+build/component.wasm --c_files=$c_files) .
     SAVE ARTIFACT component.wasm AS LOCAL $out
