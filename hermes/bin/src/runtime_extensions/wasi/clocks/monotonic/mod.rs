@@ -3,6 +3,7 @@
 use crate::runtime_extensions::state::{Context, Stateful};
 
 mod host;
+mod state;
 
 /// WASI State
 pub(crate) struct State {}
