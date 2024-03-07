@@ -1,44 +1,5 @@
 #include "bindings_src/hermes.h"
 
-const uint32_t N_TEST = 5;
-const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
-  {
-    .name = {
-      .ptr = (uint8_t *)"Test Case 1",
-      .len = strlen("Test Case 1")
-    },
-    .status = true
-  },
-  {
-    .name = {
-      .ptr = (uint8_t *)"Test Case 2",
-      .len = strlen("Test Case 2")
-    },
-    .status = false
-  },
-  {
-    .name = {
-      .ptr = (uint8_t *)"",
-      .len = strlen("")
-    },
-    .status = true
-  },
-  {
-    .name = {
-      .ptr = (uint8_t *)"Long Test Case Name for Testing Purposes",
-      .len = strlen("Long Test Case Name for Testing Purposes")
-    },
-    .status = true
-  },
-  {
-    .name = {
-      .ptr = (uint8_t *)"Test Case 5",
-      .len = strlen("Test Case 5")
-    },
-    .status = true
-  }
-};
-
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out) {
 
@@ -76,19 +37,9 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 
 // Exported Functions from `hermes:integration-test/event`
 bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret) {
-  if (test < N_TEST) {
-    *ret = TESTS[test];
-    return true;
-  }
-
   return false;
 }
 
 bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret) {
-  if (test < N_TEST) {
-    *ret = TESTS[test];
-    return true;
-  }
-
   return false;
 }

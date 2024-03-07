@@ -16,4 +16,4 @@ save-local:
     FROM scratch
 
     COPY ./event-stubs+build/component.wasm .
-    SAVE ARTIFACT component.wasm AS LOCAL bench_component.wasm
+    SAVE ARTIFACT component.wasm AS LOCAL c_test_component.wasm
