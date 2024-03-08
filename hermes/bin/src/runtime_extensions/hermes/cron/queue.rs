@@ -149,7 +149,6 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
 }
 
 /// Handle the `CronJob::Add` command.
-#[allow(clippy::expect_used)]
 fn handle_add_cron_job(
     app_name: AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
 ) {
@@ -161,13 +160,12 @@ fn handle_add_cron_job(
     } else {
         false
     };
-    response_tx
-        .send(response)
-        .expect("tokio channel should work.");
+    if let Err(_err) = response_tx.send(response) {
+        // TODO(saibatizoku): log error
+    }
 }
 
 /// Handle the `CronJob::List` command.
-#[allow(clippy::expect_used)]
 fn handle_ls_cron_job(
     app_name: &AppName, cron_tagged: &Option<CronEventTag>,
     response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
@@ -175,13 +173,12 @@ fn handle_ls_cron_job(
     let response = CRON_INTERNAL_STATE
         .cron_queue
         .ls_events(app_name, cron_tagged);
-    response_tx
-        .send(response)
-        .expect("tokio channel should work.");
+    if let Err(_err) = response_tx.send(response) {
+        // TODO(saibatizoku): log error
+    }
 }
 
 /// Handle the `CronJob::Delay` command.
-#[allow(clippy::expect_used)]
 fn handle_delay_cron_job(
     app_name: AppName, CronJobDelay { timestamp, event }: CronJobDelay,
     response_tx: oneshot::Sender<bool>,
@@ -190,20 +187,19 @@ fn handle_delay_cron_job(
         .cron_queue
         .add_event(app_name, timestamp, event);
     let response = true;
-    response_tx
-        .send(response)
-        .expect("tokio channel should work.");
+    if let Err(_err) = response_tx.send(response) {
+        // TODO(saibatizoku): log error
+    }
 }
 
 /// Handle the `CronJob::Remove` command.
-#[allow(clippy::expect_used)]
 fn handle_rm_cron_job(
     app_name: &AppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
 ) {
     let response = CRON_INTERNAL_STATE
         .cron_queue
         .rm_event(app_name, cron_tagged);
-    response_tx
-        .send(response)
-        .expect("tokio channel should work.");
+    if let Err(_err) = response_tx.send(response) {
+        // TODO(saibatizoku): log error
+    }
 }
