@@ -104,9 +104,9 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
 /// Executes a test for a wasm component.
 fn execute(test_case: u32, path: String, bench: bool) -> Result<(), Failed> {
-    let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
+    let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    let mut module = Module::new(test_case.to_string(), &content)?;
+    let mut module = Module::new(test_case.to_string(), &wasm_buf)?;
 
     match execute_event(&mut module, test_case, true, bench)? {
         Some(result) => {

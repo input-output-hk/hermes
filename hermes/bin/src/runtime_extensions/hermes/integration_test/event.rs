@@ -72,15 +72,15 @@ impl HermesEventPayload for OnBenchEvent {
 pub fn execute_event(
     module: &mut Module, test: u32, run: bool, bench: bool,
 ) -> anyhow::Result<Option<TestResult>> {
-    if bench {
+    let result = if bench {
         let on_bench_event = OnBenchEvent { test, run };
         module.execute_event(&on_bench_event)?;
+        BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
     } else {
         let on_test_event = OnTestEvent { test, run };
         module.execute_event(&on_test_event)?;
-    }
-
-    let result = TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop();
+        TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
+    };
 
     Ok(result.flatten())
 }
