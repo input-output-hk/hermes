@@ -18,23 +18,24 @@ use crate::runtime_extensions::{
 };
 
 /// Cron Internal State
-#[allow(clippy::expect_used)]
 pub(crate) static CRON_INTERNAL_STATE: Lazy<InternalState> = Lazy::new(|| {
-    //
-    let (sender, receiver) = mpsc::channel(1);
+    let sender = if let Ok(runtime) = Builder::new_current_thread().enable_all().build() {
+        let (sender, receiver) = mpsc::channel(1);
 
-    let runtime = Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("tokio runtime should work.");
-
-    let _handle = std::thread::spawn(move || {
-        runtime.block_on(async move {
-            let h = tokio::spawn(cron_queue_task(receiver));
-            drop(tokio::join!(h));
+        let _handle = std::thread::spawn(move || {
+            runtime.block_on(async move {
+                let h = tokio::spawn(cron_queue_task(receiver));
+                drop(tokio::join!(h));
+            });
+            std::process::exit(0);
         });
-        std::process::exit(0);
-    });
+        Some(sender)
+    } else {
+        // TODO(saibatizoku): log error
+        // Failed to start the queue task
+        None
+    };
+
     InternalState::new(sender)
 });
 
@@ -49,7 +50,7 @@ pub(crate) struct InternalState {
 
 impl InternalState {
     /// Create a new `InternalState`.
-    pub(crate) fn new(sender: mpsc::Sender<CronJob>) -> Self {
+    pub(crate) fn new(sender: Option<mpsc::Sender<CronJob>>) -> Self {
         Self {
             cron_queue: CronEventQueue::new(sender),
         }
@@ -234,6 +235,27 @@ mod tests {
     }
     const RETRIGGER_YES: bool = true;
     const RETRIGGER_NO: bool = false;
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_internal_state_with_no_tokio_task() {
+        // start the state without a cron queue task thread
+        let state = InternalState::new(None);
+
+        // Add returns false
+        assert!(!state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_YES));
+        // List returns empyt vec.
+        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
+        // Delay returns false
+        assert!(!state
+            .delay_crontab(APP_NAME, 0, "test".to_string())
+            .unwrap());
+        // Remove returns false
+        assert!(!state.rm_crontab(APP_NAME, CronTagged {
+            when: "*".to_string(),
+            tag: "test".to_string()
+        }));
+    }
 
     #[test]
     fn test_cron_state() {

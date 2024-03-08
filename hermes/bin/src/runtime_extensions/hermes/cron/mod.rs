@@ -33,7 +33,10 @@ impl Stateful for State {
 ///
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    ///
+    /// The Cron Queue Task failed to start.
+    #[error("cron queue task failed to start")]
+    CronQueueTaskFailed,
+    /// Invalid timestamp.
     #[error("invalid timestamp")]
     InvalidTimestamp,
 }

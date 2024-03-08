@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, oneshot};
 use super::{
     event::{CronTimestamp, OnCronEvent},
     state::{AppName, CRON_INTERNAL_STATE},
+    Error,
 };
 use crate::runtime_extensions::bindings::hermes::cron::api::{CronEventTag, CronTagged};
 
@@ -42,12 +43,12 @@ pub(crate) struct CronEventQueue {
     /// The crontab events.
     events: DashMap<AppName, BTreeMap<CronTimestamp, Vec<OnCronEvent>>>,
     /// Send events to the crontab queue.
-    sender: mpsc::Sender<CronJob>,
+    sender: Option<mpsc::Sender<CronJob>>,
 }
 
 impl CronEventQueue {
     /// Create a new `CronQueueTask`.
-    pub(crate) fn new(sender: mpsc::Sender<CronJob>) -> Self {
+    pub(crate) fn new(sender: Option<mpsc::Sender<CronJob>>) -> Self {
         Self {
             events: DashMap::default(),
             sender,
@@ -56,7 +57,11 @@ impl CronEventQueue {
 
     /// Spawn a new cron job.
     pub(crate) fn spawn_cron_job(&self, cron_job: CronJob) -> anyhow::Result<()> {
-        Ok(self.sender.blocking_send(cron_job)?)
+        Ok(self
+            .sender
+            .as_ref()
+            .ok_or(Error::CronQueueTaskFailed)?
+            .blocking_send(cron_job)?)
     }
 
     /// Add a new crontab entry.
