@@ -30,7 +30,7 @@ impl Stateful for State {
     }
 }
 
-///
+/// Cron Error.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     /// The Cron Queue Task failed to start.

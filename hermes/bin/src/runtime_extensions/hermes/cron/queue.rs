@@ -7,12 +7,14 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::{
     event::{CronTimestamp, OnCronEvent},
-    state::{AppName, CRON_INTERNAL_STATE},
+    state::{
+        handle_add_cron_job, handle_delay_cron_job, handle_ls_cron_job, handle_rm_cron_job, AppName,
+    },
     Error,
 };
 use crate::runtime_extensions::bindings::hermes::cron::api::{CronEventTag, CronTagged};
 
-///
+/// Cron Job Delay.
 #[derive(Debug)]
 pub(crate) struct CronJobDelay {
     /// Scheduled time for running the event.
@@ -65,7 +67,9 @@ impl CronEventQueue {
     }
 
     /// Add a new crontab entry.
-    fn add_event(&self, app_name: AppName, timestamp: CronTimestamp, on_cron_event: OnCronEvent) {
+    pub(crate) fn add_event(
+        &self, app_name: AppName, timestamp: CronTimestamp, on_cron_event: OnCronEvent,
+    ) {
         self.events
             .entry(app_name)
             .and_modify(|e| {
@@ -79,7 +83,7 @@ impl CronEventQueue {
     }
 
     /// List all the crontab entries for the given app.
-    fn ls_events(
+    pub(crate) fn ls_events(
         &self, app_name: &AppName, cron_tagged: &Option<CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
@@ -105,7 +109,7 @@ impl CronEventQueue {
     }
 
     /// Remove a crontab entry for the given app.
-    fn rm_event(&self, app_name: &AppName, cron_tagged: &CronTagged) -> bool {
+    pub(crate) fn rm_event(&self, app_name: &AppName, cron_tagged: &CronTagged) -> bool {
         let mut response = false;
         if let Some(mut app) = self.events.get_mut(app_name) {
             app.retain(|_ts, events| {
@@ -145,61 +149,5 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
                 handle_rm_cron_job(&app_name, &cron_tagged, response_tx);
             },
         }
-    }
-}
-
-/// Handle the `CronJob::Add` command.
-fn handle_add_cron_job(
-    app_name: AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
-) {
-    let response = if let Some(timestamp) = on_cron_event.next_tick(None) {
-        CRON_INTERNAL_STATE
-            .cron_queue
-            .add_event(app_name, timestamp, on_cron_event);
-        true
-    } else {
-        false
-    };
-    if let Err(_err) = response_tx.send(response) {
-        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-    }
-}
-
-/// Handle the `CronJob::List` command.
-fn handle_ls_cron_job(
-    app_name: &AppName, cron_tagged: &Option<CronEventTag>,
-    response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
-) {
-    let response = CRON_INTERNAL_STATE
-        .cron_queue
-        .ls_events(app_name, cron_tagged);
-    if let Err(_err) = response_tx.send(response) {
-        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-    }
-}
-
-/// Handle the `CronJob::Delay` command.
-fn handle_delay_cron_job(
-    app_name: AppName, CronJobDelay { timestamp, event }: CronJobDelay,
-    response_tx: oneshot::Sender<bool>,
-) {
-    CRON_INTERNAL_STATE
-        .cron_queue
-        .add_event(app_name, timestamp, event);
-    let response = true;
-    if let Err(_err) = response_tx.send(response) {
-        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-    }
-}
-
-/// Handle the `CronJob::Remove` command.
-fn handle_rm_cron_job(
-    app_name: &AppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
-) {
-    let response = CRON_INTERNAL_STATE
-        .cron_queue
-        .rm_event(app_name, cron_tagged);
-    if let Err(_err) = response_tx.send(response) {
-        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
 }
