@@ -301,46 +301,43 @@ impl PartialEq for CronComponent {
     }
 }
 
-#[allow(clippy::non_canonical_partial_ord_impl)]
+impl PartialOrd for CronComponent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for CronComponent {}
+
 /// Compare two `CronComponent`s.
 ///
 /// `CronComponent`s are ordered in the following order, from greater to lesser:
 /// - `All`
 /// - `Range`
 /// - `At`
-impl PartialOrd for CronComponent {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+impl Ord for CronComponent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self {
             Self::All => {
                 match other {
-                    Self::All => Some(std::cmp::Ordering::Equal),
-                    _ => Some(std::cmp::Ordering::Greater),
+                    Self::All => std::cmp::Ordering::Equal,
+                    _ => std::cmp::Ordering::Greater,
                 }
             },
             Self::At(when) => {
                 match other {
-                    Self::At(w) => Some(when.cmp(w)),
-                    _ => Some(std::cmp::Ordering::Less),
+                    Self::At(w) => when.cmp(w),
+                    _ => std::cmp::Ordering::Less,
                 }
             },
             Self::Range((first, last)) => {
                 match other {
-                    Self::All => Some(std::cmp::Ordering::Less),
-                    Self::At(_) => Some(std::cmp::Ordering::Greater),
-                    Self::Range((start, end)) => Some(first.cmp(start).then(last.cmp(end))),
+                    Self::All => std::cmp::Ordering::Less,
+                    Self::At(_) => std::cmp::Ordering::Greater,
+                    Self::Range((start, end)) => first.cmp(start).then(last.cmp(end)),
                 }
             },
         }
-    }
-}
-
-impl Eq for CronComponent {}
-
-#[allow(clippy::expect_used)]
-impl Ord for CronComponent {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other)
-            .expect("CronComponent should always be comparable")
     }
 }
 
@@ -500,6 +497,8 @@ mod tests {
             CronComponent::Range((10, 15)),
             CronComponent::Range((14, 25)),
             CronComponent::Range((5, 15)),
+            CronComponent::At(7),
+            CronComponent::Range((12, 15)),
         ]);
         assert_eq!(cron_schedule, vec![CronComponent::Range((5, 25))]);
     }
