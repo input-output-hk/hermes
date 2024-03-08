@@ -13,9 +13,9 @@ use crate::{
 };
 
 /// Storing results from call test.
-pub static TEST_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
+static TEST_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
 /// Storing results from call bench.
-pub static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
+static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
 
 /// On test event
 pub struct OnTestEvent {
@@ -70,11 +70,15 @@ impl HermesEventPayload for OnBenchEvent {
 /// Fails to execute an event.
 #[allow(dead_code)]
 pub fn execute_event(
-    module: &mut Module, test: u32, run: bool,
+    module: &mut Module, test: u32, run: bool, bench: bool,
 ) -> anyhow::Result<Option<TestResult>> {
-    let on_test_event = OnTestEvent { test, run };
-
-    module.execute_event(&on_test_event)?;
+    if bench {
+        let on_bench_event = OnBenchEvent { test, run };
+        module.execute_event(&on_bench_event)?;
+    } else {
+        let on_test_event = OnTestEvent { test, run };
+        module.execute_event(&on_test_event)?;
+    }
 
     let result = TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop();
 

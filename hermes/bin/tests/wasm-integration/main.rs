@@ -54,7 +54,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the tests in a loop until no more tests.
             for i in 0..32 {
-                match execute_event(&mut module, i, false)? {
+                match execute_event(&mut module, i, false, false)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
                         let test = Trial::test(result.name, move || execute_test(i, path_string))
@@ -69,7 +69,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the benches in a loop until no more benches.
             for i in 0..32 {
-                match execute_event(&mut module, i, false)? {
+                match execute_event(&mut module, i, false, true)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
                         let test = Trial::test(result.name, move || execute_bench(i, path_string))
@@ -103,12 +103,12 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 }
 
 /// Executes a test from a wasm component.
-fn execute(test_case: u32, path: String) -> Result<(), Failed> {
+fn execute(test_case: u32, path: String, bench: bool) -> Result<(), Failed> {
     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
     let mut module = Module::new(test_case.to_string(), &content)?;
 
-    match execute_event(&mut module, test_case, true)? {
+    match execute_event(&mut module, test_case, true, bench)? {
         Some(result) => {
             assert!(result.status);
             Ok(())
@@ -119,10 +119,10 @@ fn execute(test_case: u32, path: String) -> Result<(), Failed> {
 
 /// Tests a wasm component numbered integration test in test.
 fn execute_test(test_case: u32, path: String) -> Result<(), Failed> {
-    execute(test_case, path)
+    execute(test_case, path, false)
 }
 
 /// Tests a wasm component numbered integration test in bench.
 fn execute_bench(test_case: u32, path: String) -> Result<(), Failed> {
-    execute(test_case, path)
+    execute(test_case, path, true)
 }
