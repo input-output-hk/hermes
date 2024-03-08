@@ -244,7 +244,7 @@ mod tests {
 
         // Add returns false
         assert!(!state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_YES));
-        // List returns empyt vec.
+        // List returns empty vec.
         assert!(state.ls_crontabs(APP_NAME, None).is_empty());
         // Delay returns false
         assert!(!state
