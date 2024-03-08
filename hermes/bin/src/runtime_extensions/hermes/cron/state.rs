@@ -31,7 +31,7 @@ pub(crate) static CRON_INTERNAL_STATE: Lazy<InternalState> = Lazy::new(|| {
         });
         Some(sender)
     } else {
-        // TODO(saibatizoku): log error
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
         // Failed to start the queue task
         None
     };
@@ -83,10 +83,10 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::Add(app_name.into(), crontab, cmd_tx)),
         );
-        // TODO(saibatizoku): deal with errors
         if let Ok(resp) = cmd_rx.blocking_recv() {
             resp
         } else {
+            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
             false
         }
     }
@@ -117,10 +117,10 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::Delay(app_name.into(), cron_delay, cmd_tx)),
         );
-        // TODO(saibatizoku): deal with errors
         if let Ok(resp) = cmd_rx.blocking_recv() {
             Ok(resp)
         } else {
+            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
             Ok(false)
         }
     }
@@ -150,7 +150,7 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::List(app_name.into(), tag, cmd_tx)),
         );
-        // TODO(saibatizoku): deal with errors
+        // TODO (@@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
         if let Ok(resp) = cmd_rx.blocking_recv() {
             resp
         } else {
@@ -177,10 +177,10 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::Remove(app_name.into(), entry, cmd_tx)),
         );
-        // TODO(saibatizoku): deal with errors
         if let Ok(resp) = cmd_rx.blocking_recv() {
             resp
         } else {
+            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
             false
         }
     }

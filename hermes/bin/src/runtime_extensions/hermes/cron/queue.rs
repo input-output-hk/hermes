@@ -161,7 +161,7 @@ fn handle_add_cron_job(
         false
     };
     if let Err(_err) = response_tx.send(response) {
-        // TODO(saibatizoku): log error
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
 }
 
@@ -174,7 +174,7 @@ fn handle_ls_cron_job(
         .cron_queue
         .ls_events(app_name, cron_tagged);
     if let Err(_err) = response_tx.send(response) {
-        // TODO(saibatizoku): log error
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
 }
 
@@ -188,7 +188,7 @@ fn handle_delay_cron_job(
         .add_event(app_name, timestamp, event);
     let response = true;
     if let Err(_err) = response_tx.send(response) {
-        // TODO(saibatizoku): log error
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
 }
 
@@ -200,6 +200,6 @@ fn handle_rm_cron_job(
         .cron_queue
         .rm_event(app_name, cron_tagged);
     if let Err(_err) = response_tx.send(response) {
-        // TODO(saibatizoku): log error
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
 }
