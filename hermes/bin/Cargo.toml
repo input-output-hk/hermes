@@ -23,7 +23,7 @@ ed25519-bip32 = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
 time = { workspace = true }
-bip39 = { workspace = true }
+bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
 cryptoxide = { workspace = true }
 rand = { workspace = true }
 rand_core = { workspace = true }
