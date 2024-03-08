@@ -5,7 +5,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use chrono::{Datelike, Duration, Timelike, Utc};
+use chrono::{Datelike, TimeDelta, Timelike, Utc};
 
 use self::{event::OnCronEvent, queue::CronJobDelay};
 use crate::runtime_extensions::{
@@ -46,7 +46,7 @@ pub(crate) fn mkdelay_crontab(
     duration: Instant, tag: CronEventTag,
 ) -> wasmtime::Result<CronJobDelay> {
     // Add the delay to the current time.
-    let delayed = Utc::now() + Duration::nanoseconds(duration.try_into()?);
+    let delayed = Utc::now() + TimeDelta::nanoseconds(duration.try_into()?);
     let timestamp = delayed
         .timestamp_nanos_opt()
         .ok_or(Error::InvalidTimestamp)?
@@ -387,7 +387,7 @@ mod tests {
         let secs_per_minute = 60u64;
         let nanos = 1_000_000_000u64;
         let duration = minute_duration * secs_per_minute * nanos;
-        let then = now + Duration::minutes(minute_duration.try_into().unwrap());
+        let then = now + TimeDelta::try_minutes(minute_duration.try_into().unwrap()).unwrap();
         let (month, day) = (
             then.month().try_into().unwrap(),
             then.day().try_into().unwrap(),

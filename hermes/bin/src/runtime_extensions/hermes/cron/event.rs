@@ -75,10 +75,7 @@ impl OnCronEvent {
     fn start_datetime(start: Option<CronTimestamp>) -> Option<chrono::DateTime<Utc>> {
         let datetime = match start {
             None => Utc::now(),
-            Some(dt) => {
-                let dt = chrono::NaiveDateTime::from_timestamp_nanos(dt.try_into().ok()?)?;
-                chrono::DateTime::from_naive_utc_and_offset(dt, Utc)
-            },
+            Some(dt) => chrono::DateTime::from_timestamp_nanos(dt.try_into().ok()?),
         };
         Some(datetime)
     }
