@@ -8,6 +8,7 @@ use crate::runtime_extensions::{
 };
 
 mod host;
+mod state;
 
 /// WASI State
 pub(crate) struct State {}

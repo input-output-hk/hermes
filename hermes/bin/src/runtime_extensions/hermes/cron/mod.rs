@@ -337,8 +337,6 @@ impl Ord for CronComponent {
 
 #[cfg(test)]
 mod tests {
-    use time::Duration;
-
     use super::*;
 
     // Define lower limit for the schedule component values.

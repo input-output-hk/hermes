@@ -31,3 +31,5 @@ criterion = { workspace = true, optional = true }
 time = { workspace = true, features = ["local-offset", "macros", "parsing"] }
 time-tz = { workspace = true, features = ["system"] }
 libc = { workspace = true }
+chrono = { workspace = true }
+once_cell = { workspace = true }
