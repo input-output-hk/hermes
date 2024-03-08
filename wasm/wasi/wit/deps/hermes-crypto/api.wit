@@ -10,6 +10,13 @@
 interface api {
     use hermes:binary/api.{bstr, b256, b512};
 
+    //  Errors that can occurs.
+    enum errno {
+        prefix-too-long,  // The prefix is longer than the maximum allowed length, max is 3.
+        invalid-mnemonic-length,  // The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.
+        word-not-found,  // A word in the mnemonic is not found in the word list.
+    }
+
     // ed25519-bip32 Private Key
     type ed25519-bip32-private-key = b256;
 
