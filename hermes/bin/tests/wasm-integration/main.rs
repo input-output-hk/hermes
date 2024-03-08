@@ -57,7 +57,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 match execute_event(&mut module, i, false, false)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute_test(i, path_string))
+                        let test = Trial::test(result.name, move || execute(i, path_string, false))
                             .with_kind(name.clone());
                         tests.push(test);
                     },
@@ -72,7 +72,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 match execute_event(&mut module, i, false, true)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute_bench(i, path_string))
+                        let test = Trial::test(result.name, move || execute(i, path_string, true))
                             .with_kind(name.clone());
                         tests.push(test);
                     },
@@ -102,7 +102,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     Ok(tests)
 }
 
-/// Executes a test from a wasm component.
+/// Executes a test for a wasm component.
 fn execute(test_case: u32, path: String, bench: bool) -> Result<(), Failed> {
     let content = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
@@ -115,14 +115,4 @@ fn execute(test_case: u32, path: String, bench: bool) -> Result<(), Failed> {
         },
         _ => Err(Failed::from("result unexpected")),
     }
-}
-
-/// Tests a wasm component numbered integration test in test.
-fn execute_test(test_case: u32, path: String) -> Result<(), Failed> {
-    execute(test_case, path, false)
-}
-
-/// Tests a wasm component numbered integration test in bench.
-fn execute_bench(test_case: u32, path: String) -> Result<(), Failed> {
-    execute(test_case, path, true)
 }
