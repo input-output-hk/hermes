@@ -12,10 +12,19 @@ use crate::{
     wasm::module::Module,
 };
 
-/// Storing results from call test.
+/// Storing results from calling a test event.
 static TEST_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
-/// Storing results from call bench.
+/// Storing results from calling a bench event.
 static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
+
+/// Represents different types of events.
+#[allow(dead_code)]
+pub enum EventType {
+    /// Represents a test event.
+    Test,
+    /// Represents a benchmark event.
+    Bench,
+}
 
 /// On test event
 pub struct OnTestEvent {
@@ -70,16 +79,19 @@ impl HermesEventPayload for OnBenchEvent {
 /// Fails to execute an event.
 #[allow(dead_code)]
 pub fn execute_event(
-    module: &mut Module, test: u32, run: bool, bench: bool,
+    module: &mut Module, test: u32, run: bool, event_type: &EventType,
 ) -> anyhow::Result<Option<TestResult>> {
-    let result = if bench {
-        let on_bench_event = OnBenchEvent { test, run };
-        module.execute_event(&on_bench_event)?;
-        BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
-    } else {
-        let on_test_event = OnTestEvent { test, run };
-        module.execute_event(&on_test_event)?;
-        TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
+    let result = match event_type {
+        EventType::Bench => {
+            let on_bench_event = OnBenchEvent { test, run };
+            module.execute_event(&on_bench_event)?;
+            BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
+        },
+        EventType::Test => {
+            let on_test_event = OnTestEvent { test, run };
+            module.execute_event(&on_test_event)?;
+            TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
+        },
     };
 
     Ok(result.flatten())

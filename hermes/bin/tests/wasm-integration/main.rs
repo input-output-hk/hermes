@@ -11,7 +11,8 @@ const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components";
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
 use hermes::{
-    runtime_extensions::hermes::integration_test::event::execute_event, wasm::module::Module,
+    runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
+    wasm::module::Module,
 };
 use libtest_mimic::{Arguments, Failed, Trial};
 
@@ -54,11 +55,13 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the tests in a loop until no more tests.
             for i in 0..32 {
-                match execute_event(&mut module, i, false, false)? {
+                match execute_event(&mut module, i, false, &EventType::Test)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute(i, path_string, false))
-                            .with_kind(name.clone());
+                        let test = Trial::test(result.name, move || {
+                            execute(i, path_string, &EventType::Test)
+                        })
+                        .with_kind(name.clone());
                         tests.push(test);
                     },
                     _ => {
@@ -69,11 +72,13 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 
             // Run the benches in a loop until no more benches.
             for i in 0..32 {
-                match execute_event(&mut module, i, false, true)? {
+                match execute_event(&mut module, i, false, &EventType::Bench)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || execute(i, path_string, true))
-                            .with_kind(name.clone());
+                        let test = Trial::test(result.name, move || {
+                            execute(i, path_string, &EventType::Bench)
+                        })
+                        .with_kind(name.clone());
                         tests.push(test);
                     },
                     _ => {
@@ -103,12 +108,12 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 }
 
 /// Executes a test for a wasm component.
-fn execute(test_case: u32, path: String, bench: bool) -> Result<(), Failed> {
+fn execute(test_case: u32, path: String, event_type: &EventType) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
     let mut module = Module::new(test_case.to_string(), &wasm_buf)?;
 
-    match execute_event(&mut module, test_case, true, bench)? {
+    match execute_event(&mut module, test_case, true, event_type)? {
         Some(result) => {
             assert!(result.status);
             Ok(())
