@@ -88,7 +88,6 @@ impl CronEventQueue {
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
             app.iter().fold(vec![], |mut v, (_, cron_events)| {
-                //
                 if let Some(tag) = cron_tagged {
                     for OnCronEvent { tag, last } in cron_events
                         .iter()
@@ -134,18 +133,15 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
     while let Some(cron_job) = queue_rx.recv().await {
         match cron_job {
             CronJob::Add(app_name, on_cron_event, response_tx) => {
-                //
                 handle_add_cron_job(app_name, on_cron_event, response_tx);
             },
             CronJob::List(app_name, tag, response_tx) => {
-                //
                 handle_ls_cron_job(&app_name, &tag, response_tx);
             },
             CronJob::Delay(app_name, cron_job_delay, response_tx) => {
                 handle_delay_cron_job(app_name, cron_job_delay, response_tx);
             },
             CronJob::Remove(app_name, cron_tagged, response_tx) => {
-                //
                 handle_rm_cron_job(&app_name, &cron_tagged, response_tx);
             },
         }
