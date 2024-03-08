@@ -14,8 +14,8 @@ use self::bindings::{
 };
 use crate::state::HermesState;
 
-pub mod hermes;
 pub(crate) mod bindings;
+pub mod hermes;
 pub(crate) mod state;
 pub(crate) mod wasi;
 
