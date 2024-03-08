@@ -94,15 +94,13 @@ impl Eq for CronTagged {}
 
 impl PartialOrd for CronTagged {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(std::cmp::Ord::cmp(self, other))
+        Some(self.cmp(other))
     }
 }
 
-#[allow(clippy::expect_used)]
 impl Ord for CronTagged {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other)
-            .expect("CronTagged should always be comparable")
+        self.when.cmp(&other.when).then(self.tag.cmp(&other.tag))
     }
 }
 
