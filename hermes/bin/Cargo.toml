@@ -21,12 +21,21 @@ harness = false
 required-features = ["bench"]
 
 [dependencies]
+cardano-chain-follower = { workspace = true }
+
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2b_simd = { workspace = true }  
-hex-literal = { workspace = true }  
+blake2b_simd = { workspace = true }
+hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
 time = { workspace = true }
 once_cell = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+tracing = { workspace = true }
+tracing-futures = { workspace = true }
+dashmap = { workspace = true }
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }

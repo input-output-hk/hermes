@@ -46,7 +46,7 @@ impl Host for HermesRuntimeContext {
     ///
     /// **Parameters**
     ///
-    /// - `events` : The events to unsubscribe from (and optionally stop the blockchain
+    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain
     ///   follower).
     ///
     /// **Notes**
@@ -62,7 +62,9 @@ impl Host for HermesRuntimeContext {
     /// the last block received.  This would result in the last block being sent as an
     /// event twice,
     /// once before the `stop` and once after the `continue`.
-    fn unsubscribe(&mut self, _events: UnsubscribeOptions) -> wasmtime::Result<()> {
+    fn unsubscribe(
+        &mut self, _net: CardanoBlockchainId, _opts: UnsubscribeOptions,
+    ) -> wasmtime::Result<()> {
         todo!()
     }
 
