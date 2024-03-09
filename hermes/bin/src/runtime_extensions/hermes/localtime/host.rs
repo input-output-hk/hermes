@@ -1,13 +1,12 @@
 //! Localtime host implementation for WASM runtime.
 
-use super::get_datetime_impl;
 use crate::{
     runtime_extensions::{
         bindings::{
             hermes::localtime::api::{Errno, Host, Localtime, Timezone},
             wasi::clocks::wall_clock::Datetime,
         },
-        hermes::localtime::{alt_localtime_impl, get_localtime_impl},
+        hermes::localtime::{alt_localtime_impl, get_datetime_impl, get_localtime_impl},
     },
     state::HermesState,
 };
