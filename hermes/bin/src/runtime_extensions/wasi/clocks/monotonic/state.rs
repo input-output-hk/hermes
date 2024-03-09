@@ -11,11 +11,11 @@ static MONOTONIC_CLOCK_STATE: Lazy<MonotonicClockState> = Lazy::new(MonotonicClo
 
 /// Monotonic clock state.
 struct MonotonicClockState {
-    /// Monotonic clock start instant.
+    /// Monotonic clock base instant.
     ///
-    /// Every time `now` is called, the duration since `start` is added to the
+    /// Every time `now` is called, the duration since `base` is added to the
     /// monotonic clock's `now` value.
-    start: std::time::Instant,
+    base: std::time::Instant,
     /// Monotonic clock `now` value in nanoseconds.
     now: AtomicU64,
 }
@@ -25,17 +25,16 @@ impl MonotonicClockState {
     /// Creates a new instance of the `MonotonicClockState`.
     fn new() -> Self {
         Self {
-            start: std::time::Instant::now(),
+            base: std::time::Instant::now(),
             now: AtomicU64::new(0),
         }
     }
 
     /// Returns the current value of the monotonic clock.
     fn now(&self) -> wasmtime::Result<Instant> {
-        let elapsed = self.start.elapsed();
-        let instant = u64::try_from(elapsed.as_nanos())?;
-        self.now.store(instant, Ordering::Relaxed);
-        Ok(self.now.load(Ordering::Relaxed))
+        let instant = u64::try_from(self.base.elapsed().as_nanos())?;
+        self.now.store(instant, Ordering::SeqCst);
+        Ok(self.now.load(Ordering::SeqCst))
     }
 }
 
@@ -78,9 +77,9 @@ mod tests {
             )
         });
         let (one, two) = handle_one.join().unwrap();
-        println!("one: {}, two: {}", one, two);
+        println!("one: {one}, two: {two}");
         let (three, four) = handle_two.join().unwrap();
-        println!("three: {}, four: {}", three, four);
+        println!("three: {three}, four: {four}");
         assert!(one < two);
         assert!(three < four);
     }
