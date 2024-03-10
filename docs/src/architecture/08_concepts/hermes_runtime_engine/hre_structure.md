@@ -17,13 +17,13 @@ for both Hermes related and WASI specific.
 {{ include_file('includes/wasi/wit/deps/hermes-cron/world.wit') }}
 ```
 
-`event.wit`
+### `event.wit`
 
 ```wit
 {{ include_file('includes/wasi/wit/deps/hermes-cron/event.wit') }}
 ```
 
-`api.wit`
+### `api.wit`
 
 ```wit
 {{ include_file('includes/wasi/wit/deps/hermes-cron/api.wit') }}
