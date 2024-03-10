@@ -62,6 +62,16 @@ pub(crate) struct HermesEventLoopHandler {
     handle: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
+impl HermesEventLoopHandler {
+    /// Join the event loop thread
+    pub(crate) fn join(&mut self) -> anyhow::Result<()> {
+        match self.handle.take() {
+            Some(handle) => handle.join().map_err(|_| Error::EventLoopPanics)?,
+            None => Ok(()),
+        }
+    }
+}
+
 /// Creates a new instance of the `HermesEventQueue`.
 /// Runs an event loop thread.
 ///
@@ -85,7 +95,7 @@ pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEvent
 ///
 /// # Errors:
 /// - `Error::CannotAddEvent`
-/// - `Error::AlreadyInitialized`
+/// - `Error::NotInitialized`
 pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
     let queue = EVENT_QUEUE_INSTANCE.get().ok_or(Error::NotInitialized)?;
 
@@ -184,14 +194,4 @@ fn event_execution_loop(
         targeted_event_execution(indexed_apps, &event)?;
     }
     Ok(())
-}
-
-impl HermesEventLoopHandler {
-    /// Join the event loop thread
-    pub(crate) fn join(&mut self) -> anyhow::Result<()> {
-        match self.handle.take() {
-            Some(handle) => handle.join().map_err(|_| Error::EventLoopPanics)?,
-            None => Ok(()),
-        }
-    }
 }
