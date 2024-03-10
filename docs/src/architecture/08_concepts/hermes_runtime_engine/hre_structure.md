@@ -36,6 +36,9 @@ for both Hermes related and WASI specific.
 ### HRE api
 
 * `add: func(entry: cron-tagged, retrigger: bool) -> bool;`
+* `delay: func(duration: instant, tag: cron-event-tag) -> bool;`
+* `ls: func(tag: option<cron-event-tag>) -> list<tuple<cron-tagged, bool>>;`
+* `mkcron: func(dow: cron-time, month: cron-time, day: cron-time, hour: cron-time, minute: cron-time ) -> cron-sched;`
 * `rm: func(entry: cron-tagged) -> bool;`
 
 ## Host implementation structure
