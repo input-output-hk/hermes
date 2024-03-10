@@ -1,3 +1,4 @@
 title: Cardano Chain Follower
 arrange:
-    - 01_overview.md
+    - overview.md
+    - follower_instances.md

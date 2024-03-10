@@ -9,9 +9,7 @@ icon: material/engine
 Every user's application is expected to be compiled as a WASM module,
 which means that it could be developed on any language with the WASM support e.g. Java, C, Rust, Go etc.
 
-```kroki-excalidraw
-@from_file:architecture/05_building_block_view/images/hermes_engine.excalidraw
-```
+![Hermes Engine](images/hermes_engine.svg)
 
 ## Hermes runtime extension (HRE)
 

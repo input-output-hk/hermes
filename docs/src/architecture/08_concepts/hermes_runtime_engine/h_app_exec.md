@@ -1,8 +1,6 @@
 # Hermes application execution
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/hermes_runtime_engine/images/hermes_application.excalidraw
-```
+![Hermes Application](images/hermes_application.svg)
 
 Basically, the [*Hermes application*] is a set of [*Hermes event*] handler functions and nothing more.
 The source code could be split into different WASM components,

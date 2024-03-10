@@ -1,8 +1,6 @@
 # Hermes events queue implementation
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/hermes_runtime_engine/images/event_queue.excalidraw
-```
+![Event Queue](images/event_queue.svg)
 
 [*Hermes events queue*] it is a simple multi-producers
 single-consumer (MPSC) [queue](https://en.wikipedia.org/wiki/Queue_(abstract_data_type)) data structure.
