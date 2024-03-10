@@ -13,20 +13,20 @@ icon: material/api
 
 ## Workspace Dependency Graph
 
-```kroki-graphviz
-@from_file:./api/rust-docs/workspace.dot
+```graphviz dot workspace_deps.png
+{{ include_file('src/api/rust-docs/workspace.dot') }}
 ```
 
 ## External Dependencies Graph
 
-```kroki-graphviz
-@from_file:./api/rust-docs/full.dot
+```graphviz dot full_deps.png
+{{ include_file('src/api/rust-docs/full.dot') }}
 ```
 
 ## Build and Development Dependencies Graph
 
-```kroki-graphviz
-@from_file:./api/rust-docs/all.dot
+```graphviz dot all_deps.png
+{{ include_file('src/api/rust-docs/all.dot') }}
 ```
 
 ## Module trees
@@ -34,25 +34,25 @@ icon: material/api
 ### hermes crate
 
 ```rust
-    {{ include_file('src/api/rust-docs/hermes.hermes.bin.modules.tree') }}
+{{ include_file('src/api/rust-docs/hermes.hermes.bin.modules.tree') }}
 ```
 
 ### cardano-chain-follower crate
 
 ```rust
-    {{ include_file('src/api/rust-docs/cardano-chain-follower.lib.modules.tree') }}
+{{ include_file('src/api/rust-docs/cardano-chain-follower.lib.modules.tree') }}
 ```
 
 ## Module graphs
 
 ### hermes crate
 
-```kroki-graphviz
-@from_file:./api/rust-docs/hermes.hermes.bin.modules.dot
+```graphviz dot hermes_modules.png
+{{ include_file('src/api/rust-docs/hermes.hermes.bin.modules.dot') }}
 ```
 
 ### cardano-chain-follower crate
 
-```kroki-graphviz
-@from_file:./api/rust-docs/cardano-chain-follower.lib.modules.dot
+```graphviz dot chain_follower_modules.png
+{{ include_file('src/api/rust-docs/cardano-chain-follower.lib.modules.dot') }}
 ```
