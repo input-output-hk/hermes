@@ -32,3 +32,4 @@ time = { workspace = true, features = ["local-offset", "macros", "parsing"] }
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
 once_cell = { workspace = true }
+iana-time-zone = { workspace = true }
