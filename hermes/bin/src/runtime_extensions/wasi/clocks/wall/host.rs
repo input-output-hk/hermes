@@ -3,11 +3,11 @@
 use std::time::SystemTime;
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
-    state::HermesState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// Read the current value of the clock.
     ///
     /// This clock is not monotonic, therefore calling this function repeatedly

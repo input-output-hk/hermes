@@ -7,27 +7,32 @@ use std::{
 
 use time::{Duration, OffsetDateTime};
 
-use crate::runtime_extensions::{
-    bindings::{
-        hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
-        wasi::clocks::monotonic_clock::Instant,
-    },
-    state::{Context, Stateful},
+use crate::runtime_extensions::bindings::{
+    hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
+    wasi::clocks::monotonic_clock::Instant,
 };
 
 mod event;
 mod host;
 
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
+
+// `State` is obsolete, needs to be removed.
+// If needed, it can be replaced with `new_context`
+
 /// State
 pub(crate) struct State {
     /// The crontabs hash map.
-    crontabs: HashMap<CronEventTag, CronTab>,
+    _crontabs: HashMap<CronEventTag, CronTab>,
 }
 
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
+impl State {
+    ///
+    #[allow(dead_code)]
+    fn new() -> Self {
         State {
-            crontabs: HashMap::new(),
+            _crontabs: HashMap::new(),
         }
     }
 }
@@ -35,9 +40,9 @@ impl Stateful for State {
 /// A crontab entry.
 struct CronTab {
     /// The crontab entry.
-    entry: CronTagged,
+    _entry: CronTagged,
     /// When the event triggers.
-    retrigger: bool,
+    _retrigger: bool,
 }
 
 /// Create a delayed crontab entry.

@@ -2,14 +2,14 @@
 
 use super::blake2b;
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
         binary::api::Bstr,
         hash::api::{Errno, Host},
     },
-    state::HermesState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// Hash a binary buffer with BLAKE2s
     fn blake2s(
         &mut self, _buf: Bstr, _outlen: Option<u8>,

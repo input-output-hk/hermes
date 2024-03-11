@@ -4,6 +4,7 @@ use chrono::{Local, TimeZone};
 use chrono_tz::Tz;
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::{
             hermes::localtime::api::{Errno, Host, Localtime, Timezone},
@@ -11,10 +12,9 @@ use crate::{
         },
         hermes::localtime::get_tz,
     },
-    state::HermesState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// Get localtime from a datetime or now.
     ///
     /// **Parameters**

@@ -3,24 +3,15 @@
 use chrono::{Datelike, NaiveDate, TimeZone, Timelike};
 use chrono_tz::{OffsetName, Tz};
 
-use crate::runtime_extensions::{
-    bindings::{
-        hermes::localtime::api::{Errno, Localtime, Timezone},
-        wasi::clocks::wall_clock::Datetime,
-    },
-    state::{Context, Stateful},
+use crate::runtime_extensions::bindings::{
+    hermes::localtime::api::{Errno, Localtime, Timezone},
+    wasi::clocks::wall_clock::Datetime,
 };
 
 mod host;
 
-/// State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        State {}
-    }
-}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 /// Get `Tz` from an optional `Timezone`.
 ///
