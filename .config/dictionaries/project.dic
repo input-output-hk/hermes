@@ -20,6 +20,7 @@ codepoints
 coti
 crontabs
 cryptoxide
+Datelike
 dbsync
 dcbor
 delegators
@@ -122,6 +123,7 @@ seckey
 slotno
 smac
 stevenj
+subsec
 symlinkat
 syscall
 tacho
