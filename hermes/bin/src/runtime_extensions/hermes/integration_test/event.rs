@@ -87,7 +87,7 @@ pub fn execute_event(
 
     let result = match event_type {
         EventType::Bench => {
-            let on_bench_event: Box<dyn HermesEventPayload> = Box::new(OnBenchEvent { test, run });
+            let on_bench_event = Box::new(OnBenchEvent { test, run });
             event_dispatch(
                 app_name,
                 module.id().clone(),
@@ -98,7 +98,7 @@ pub fn execute_event(
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
         EventType::Test => {
-            let on_test_event: Box<dyn HermesEventPayload> = Box::new(OnTestEvent { test, run });
+            let on_test_event = Box::new(OnTestEvent { test, run });
             event_dispatch(
                 app_name,
                 module.id().clone(),
