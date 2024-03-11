@@ -1,15 +1,10 @@
 //! Hash runtime extension implementation.
 
-use crate::runtime_extensions::state::{Context, Stateful};
-
 mod blake2b;
 mod host;
 
-/// State
-pub(crate) struct State {}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        State {}
-    }
-}
+// `State` is obsolete, needs to be removed.
+// If needed, it can be replaced with `new_context`

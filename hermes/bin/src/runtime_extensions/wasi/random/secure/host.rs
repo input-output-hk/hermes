@@ -1,8 +1,10 @@
 //! Random RNG host implementation for WASM runtime.
 
-use crate::{runtime_extensions::bindings::wasi::random::random::Host, state::HermesState};
+use crate::{
+    runtime_context::HermesRuntimeContext, runtime_extensions::bindings::wasi::random::random::Host,
+};
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// Return `len` cryptographically-secure random or pseudo-random bytes.
     ///
     /// This function must produce data at least as cryptographically secure and

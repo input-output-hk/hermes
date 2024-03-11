@@ -8,12 +8,9 @@ use std::{
 use chrono::{Datelike, TimeDelta, Timelike, Utc};
 
 use self::{event::OnCronEvent, queue::CronJobDelay};
-use crate::runtime_extensions::{
-    bindings::{
-        hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
-        wasi::clocks::monotonic_clock::Instant,
-    },
-    state::{Context, Stateful},
+use crate::runtime_extensions::bindings::{
+    hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
+    wasi::clocks::monotonic_clock::Instant,
 };
 
 mod event;
@@ -21,14 +18,8 @@ mod host;
 mod queue;
 mod state;
 
-/// State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        State {}
-    }
-}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 /// Cron Error.
 #[derive(thiserror::Error, Debug)]

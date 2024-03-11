@@ -4,8 +4,7 @@ use chrono::Utc;
 use saffron::Cron;
 
 use crate::{
-    event_queue::event::HermesEventPayload,
-    runtime_extensions::bindings::hermes::cron::api::CronTagged,
+    event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
 /// Timestamp for when to run the cron.
