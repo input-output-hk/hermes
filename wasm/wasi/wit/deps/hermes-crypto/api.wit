@@ -17,26 +17,29 @@ interface api {
         word-not-found,  // A word in the mnemonic is not found in the word list.
     }
 
-    // ed25519-bip32 Private Key
-    type ed25519-bip32-private-key = b256;
+    // bip32-ed25519 Private Key
+    type bip32-ed25519-private-key = b256;
 
-    // ed25519-bip32 Extended Private Key
-    type ed25519-bip32-extended-private-key = b512;
+    // bip32-ed25519 Extended Private Key
+    type bip32-ed25519-extended-private-key = b512;
 
-    // ed25519-bip32 Public Key
-    type ed25519-bip32-public-key = b256;
+    // bip32-ed25519 Public Key
+    type bip32-ed25519-public-key = b256;
 
-    // ed25519-bip32 Signature
-    type ed25519-bip32-signature = b512;
+    // bip32-ed25519 Signature
+    type bip32-ed25519-signature = b512;
 
-    // mnemonic
+    // Mnemonic
     type mnemonic-phrase = list<string>;
 
-    // passphrase
+    // Passphrase
     type passphrase = list<string>;
 
-    resource ed25519-bip32 {
-        /// Create a new ED25519-BIP32 Crypto resource
+    // Derivation path
+    type path = string;
+
+    resource bip32-ed25519 {
+        /// Create a new BIP32-Ed25519 Crypto resource
         /// 
         /// **Parameters**
         ///
@@ -46,7 +49,7 @@ interface api {
         constructor(mnemonic: option<mnemonic-phrase>, passphrase: option<passphrase>);
 
         /// Get the public key for this private key.
-        public-key: func() -> ed25519-bip32-public-key;
+        public-key: func() -> bip32-ed25519-public-key;
 
         /// Sign data with the Private key, and return it.
         /// 
@@ -54,7 +57,7 @@ interface api {
         ///
         /// - `data` : The data to sign.
         /// 
-        sign-data: func(data: bstr) -> ed25519-bip32-signature;
+        sign-data: func(data: bstr) -> bip32-ed25519-signature;
 
 
         /// Check a signature on a set of data.
@@ -69,19 +72,23 @@ interface api {
         /// - `true` : Signature checked OK.
         /// - `false` : Signature check failed.
         ///
-        check-sig: func(data: bstr, sig: ed25519-bip32-signature) -> bool;
+        check-sig: func(data: bstr, sig: bip32-ed25519-signature) -> bool;
 
         /// Derive a new private key from the current private key.
         /// 
+        /// **Parameters**
+        ///
+        /// - `path` : Derivation path.
+        /// 
         /// Note: uses BIP32 HD key derivation.
         /// 
-        derive: func() -> ed25519-bip32;
+        derive: func(path: path) -> bip32-ed25519;
 
         /// Create a new RANDOM private key.
         /// 
         /// Note, this does not need to be used, as the constructor will do this automatically.
         /// 
-        gen-private-key: static func() -> ed25519-bip32-private-key;
+        gen-private-key: static func() -> bip32-ed25519-private-key;
     }
 }
 
