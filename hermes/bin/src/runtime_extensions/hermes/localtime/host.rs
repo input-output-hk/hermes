@@ -1,12 +1,15 @@
 //! Localtime host implementation for WASM runtime.
 
+use chrono::{Local, TimeZone};
+use chrono_tz::Tz;
+
 use crate::{
     runtime_extensions::{
         bindings::{
             hermes::localtime::api::{Errno, Host, Localtime, Timezone},
             wasi::clocks::wall_clock::Datetime,
         },
-        hermes::localtime::{alt_localtime_impl, get_datetime_impl, get_localtime_impl},
+        hermes::localtime::get_tz,
     },
     state::HermesState,
 };
@@ -28,7 +31,21 @@ impl Host for HermesState {
     fn get_localtime(
         &mut self, when: Option<Datetime>, tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
-        get_localtime_impl(when, tz)
+        let timezone = get_tz(tz)?;
+        let local_naive = match when {
+            Some(Datetime {
+                seconds,
+                nanoseconds,
+            }) => {
+                let seconds = seconds.try_into().map_err(|_| Errno::InvalidLocaltime)?;
+                let utc_dt = chrono::DateTime::from_timestamp(seconds, nanoseconds)
+                    .ok_or(Errno::InvalidLocaltime)?;
+                utc_dt.naive_utc()
+            },
+            None => Local::now().naive_utc(),
+        };
+        let local_date_time = timezone.from_utc_datetime(&local_naive);
+        Ok(local_date_time.try_into())
     }
 
     /// Get a new localtime from a localtime, by recalculating time for a new timezone.
@@ -46,7 +63,15 @@ impl Host for HermesState {
     fn alt_localtime(
         &mut self, time: Localtime, tz: Option<Timezone>,
     ) -> wasmtime::Result<Result<Localtime, Errno>> {
-        alt_localtime_impl(time, tz)
+        let local_date_time: chrono::DateTime<Tz> = time.try_into()?;
+        let alt_local_date_time = match tz {
+            Some(alt_tz) => {
+                let tz = get_tz(Some(alt_tz))?;
+                tz.from_utc_datetime(&local_date_time.naive_utc())
+            },
+            None => local_date_time,
+        };
+        Ok(alt_local_date_time.try_into())
     }
 
     /// Get a datetime from a localtime.
@@ -60,6 +85,6 @@ impl Host for HermesState {
     /// `datetime`  : the converted time.
     /// `errno`     : An error indicating why conversion failed.
     fn get_datetime(&mut self, time: Localtime) -> wasmtime::Result<Result<Datetime, Errno>> {
-        get_datetime_impl(time)
+        Ok(time.try_into())
     }
 }
