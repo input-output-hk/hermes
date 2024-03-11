@@ -274,11 +274,12 @@ fn bits_to_bytes(bits: &[u8]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-mod tests_bip32_ed25519 {
+mod tests_bip39 {
     use super::*;
 
     // Entropy of this mnemonic
     // 7f0d0a588ae5e726aa3eca44199108db720970be7232c37c2f6cd167ec041104
+    // XPRV: c0d134418b95a91faf199d0461bbcdad619e3826e19b96788ce07c3a9081e74669d512f28cbcba089720d0f4cfcb9506c5737f4a8ab5273419939d5f8831af908587c1c1cbd816261bb1476b4637e6ecf7920882b62e5587854dfc4848b308ae
     const MNEMONIC_ENG: &str = "lecture hair normal beyond fury nation pottery sun dune smart drama report calm reunion what edge sell thumb swamp people learn acoustic dune noise";
     const MNEMONIC_JAPANESE: &str = "こころ いどう きあつ そうがんきょう へいあん せつりつ ごうせい はいち  いびき きこく あんい おちつく きこえる けんとう たいこ すすめる はっけん ていど はんおん いんさつ うなぎ しねま れいぼう みつかる";
 
