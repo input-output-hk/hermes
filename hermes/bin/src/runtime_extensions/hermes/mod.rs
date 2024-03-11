@@ -1,6 +1,6 @@
 //! Hermes runtime extensions implementations - HERMES custom extensions
 
-use crate::runtime_extensions::state::{Context, Stateful};
+use crate::runtime_context::HermesRuntimeContext;
 
 pub(crate) mod binary;
 pub(crate) mod cardano;
@@ -15,46 +15,17 @@ pub(crate) mod kv_store;
 pub(crate) mod localtime;
 pub(crate) mod logging;
 
-/// Hermes extensions state
-pub(crate) struct State {
-    /// Binary extensions state
-    _binary: binary::State,
-    /// Cardano extensions state
-    _cardano: cardano::State,
-    /// CBOR extensions state
-    _cbor: cbor::State,
-    /// Cron extensions state
-    cron: cron::State,
-    /// Crypto extensions state
-    _crypto: crypto::State,
-    /// Hash extensions state
-    _hash: hash::State,
-    /// Init extensions state
-    _init: init::State,
-    /// JSON extensions state
-    _json: json::State,
-    /// KV store extensions state
-    _kv_store: kv_store::State,
-    /// Localtime extensions state
-    _localtime: localtime::State,
-    /// Logging extensions state
-    _logging: logging::State,
-}
-
-impl Stateful for State {
-    fn new(ctx: &Context) -> Self {
-        Self {
-            _binary: binary::State::new(ctx),
-            _cardano: cardano::State::new(ctx),
-            _cbor: cbor::State::new(ctx),
-            cron: cron::State::new(ctx),
-            _crypto: crypto::State::new(ctx),
-            _hash: hash::State::new(ctx),
-            _init: init::State::new(ctx),
-            _json: json::State::new(ctx),
-            _kv_store: kv_store::State::new(ctx),
-            _localtime: localtime::State::new(ctx),
-            _logging: logging::State::new(ctx),
-        }
-    }
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
+    binary::new_context(ctx);
+    cardano::new_context(ctx);
+    cbor::new_context(ctx);
+    cron::new_context(ctx);
+    crypto::new_context(ctx);
+    hash::new_context(ctx);
+    init::new_context(ctx);
+    json::new_context(ctx);
+    kv_store::new_context(ctx);
+    localtime::new_context(ctx);
+    logging::new_context(ctx);
 }

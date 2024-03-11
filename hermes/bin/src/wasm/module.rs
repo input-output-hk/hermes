@@ -4,18 +4,16 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
+use rusty_ulid::Ulid;
 use wasmtime::{
     component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
     Store as WasmStore,
 };
 
 use crate::{
-    event_queue::event::HermesEventPayload,
-    runtime_extensions::{
-        bindings,
-        state::{Context, Stateful},
-    },
-    state::HermesState,
+    event::HermesEventPayload, runtime_context::HermesRuntimeContext, runtime_extensions::bindings,
     wasm::engine::Engine,
 };
 
@@ -30,10 +28,14 @@ struct BadWASMModuleError(String);
 #[allow(clippy::module_name_repetitions)]
 pub struct ModuleInstance {
     /// `wasmtime::Store` entity
-    pub(crate) store: WasmStore<HermesState>,
+    pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
     pub(crate) instance: bindings::Hermes,
 }
+
+/// Module id type
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct ModuleId(pub(crate) Ulid);
 
 /// Structure defines an abstraction over the WASM module
 /// It instantiates the module with the provided context data,
@@ -50,29 +52,32 @@ pub struct Module {
     /// partially described in this [RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/shared-host-functions.md).
     /// It separates and optimizes the linkage of the imports to the WASM runtime from the
     /// module actual initialization process.
-    pre_instance: WasmInstancePre<HermesState>,
+    pre_instance: WasmInstancePre<HermesRuntimeContext>,
 
     /// `Engine` entity
     engine: Engine,
 
-    /// `Context` entity
-    context: Context,
+    /// Module id
+    id: ModuleId,
+
+    /// Module's execution counter
+    exc_counter: AtomicU32,
 }
 
 impl Module {
     /// Instantiate WASM module
     ///
     /// # Errors
-    ///  - `BadModuleError`
+    ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
     #[allow(dead_code)]
-    pub fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
-        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesState| state)
+        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeContext| state)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
@@ -81,8 +86,23 @@ impl Module {
         Ok(Self {
             pre_instance,
             engine,
-            context: Context::new(app_name),
+            id: ModuleId(Ulid::generate()),
+            exc_counter: AtomicU32::new(0),
         })
+    }
+
+    /// Get the module id
+    pub(crate) fn id(&self) -> &ModuleId {
+        &self.id
+    }
+
+    /// Get the module's execution counter
+    pub(crate) fn exec_counter(&self) -> u32 {
+        // Using the highest memory ordering constraint.
+        // It provides a highest consistency guarantee and in some cases could decrease
+        // performance.
+        // We could revise ordering approach for this case in future.
+        self.exc_counter.load(Ordering::SeqCst)
     }
 
     /// Executes a Hermes event by calling some WASM function.
@@ -95,7 +115,7 @@ impl Module {
     /// # Errors
     /// - `BadModuleError`
     #[allow(dead_code)]
-    pub fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
+    pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
         self.context.use_for(event.event_name().to_string());
         let state = HermesState::new(&self.context);
 
@@ -104,6 +124,12 @@ impl Module {
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
+
+        // Using the highest memory ordering constraint.
+        // It provides a highest consistency guarantee and in some cases could decrease
+        // performance.
+        // We could revise ordering approach for this case in future.
+        self.exc_counter.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 }
@@ -112,6 +138,7 @@ impl Module {
 #[allow(missing_docs)]
 pub mod bench {
     use super::*;
+    use crate::{app::HermesAppName, runtime_context::HermesRuntimeContext};
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization
@@ -132,14 +159,21 @@ pub mod bench {
             }
         }
 
-        let mut module = Module::new(
-            "app".to_string(),
-            include_bytes!("../../../../wasm/c/bench_component.wasm"),
-        )
-        .unwrap();
+        let module =
+            Module::new(include_bytes!("../../../../wasm/c/bench_component.wasm")).unwrap();
 
         b.iter(|| {
-            module.execute_event(&Event).unwrap();
+            module
+                .execute_event(
+                    &Event,
+                    HermesRuntimeContext::new(
+                        HermesAppName("app 1".to_string()),
+                        module.id().clone(),
+                        "init".to_string(),
+                        0,
+                    ),
+                )
+                .unwrap();
         });
     }
 
@@ -209,67 +243,4 @@ pub mod bench {
             func.post_return(&mut store).unwrap();
         });
     }
-}
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
-
-    // struct TestHost;
-    // impl Host for TestHost {
-    //     fn link_imports(_linker: &mut WasmLinker<Context>) -> anyhow::Result<()> {
-    //         Ok(())
-    //     }
-    // }
-
-    // struct TestEvent;
-    // impl HermesEventPayload<ModuleInstance<WasmInstance>> for TestEvent {
-    //     fn event_name(&self) -> &str {
-    //         "inc-global"
-    //     }
-
-    //     fn execute(&self, instance: &mut ModuleInstance<WasmInstance>) ->
-    // anyhow::Result<()> {         let func = instance
-    //             .instance
-    //             .get_typed_func::<(), (i32,)>(&mut instance.store, "inc-global")?;
-    //         let (res,) = func.call(&mut instance.store, ())?;
-    //         assert_eq!(res, 1);
-    //         Ok(())
-    //     }
-    // }
-
-    // #[test]
-    // /// Tests that after instantiation of `Module` its state does not change after each
-    // /// `Module::call_func` execution
-    // fn preserve_module_state_test() {
-    //     let wat = r#"
-    //     (component
-    //         (core module $Module
-    //             (export "inc-global" (func $inc_global))
-
-    //             (func $inc_global (result i32)
-    //                 global.get $global_val
-    //                 i32.const 1
-    //                 i32.add
-    //                 global.set $global_val
-    //                 global.get $global_val
-    //             )
-
-    //             (global $global_val (mut i32) (i32.const 0))
-    //         )
-    //         (core instance $module (instantiate (module $Module)))
-    //         (func $inc_global (result s32) (canon lift (core func $module
-    // "inc-global")))         (export "inc-global" (func $inc_global))
-    //     )"#;
-
-    //     let mut module =
-    //         Module::new("app".to_string(), wat.as_bytes()).expect("cannot load a WASM
-    // module");
-
-    //     for _ in 0..10 {
-    //         module
-    //             .execute_event(&TestEvent)
-    //             .expect("cannot execute `TestEvent` event");
-    //     }
-    // }
 }
