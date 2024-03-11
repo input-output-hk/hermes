@@ -1,14 +1,6 @@
 //! JSON runtime extension implementation.
 
-use crate::runtime_extensions::state::{Context, Stateful};
-
 mod host;
 
-/// State
-pub(crate) struct State {}
-
-impl Stateful for State {
-    fn new(_ctx: &Context) -> Self {
-        State {}
-    }
-}
+/// Advise Runtime Extensions of a new context
+pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
