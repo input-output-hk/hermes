@@ -44,7 +44,7 @@ impl TryFrom<chrono::DateTime<Tz>> for Localtime {
                 .weekday()
                 .number_from_monday()
                 .try_into()
-                .map_err(|_| Errno::YearOutOfRange)?,
+                .map_err(|_| Errno::InvalidLocaltime)?,
             day: dt.day().try_into().map_err(|_| Errno::InvalidLocaltime)?,
             hh: dt.hour().try_into().map_err(|_| Errno::InvalidLocaltime)?,
             mm: dt
