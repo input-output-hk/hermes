@@ -7,7 +7,8 @@ use crossbeam_queue::SegQueue;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    event_queue::event::HermesEventPayload,
+    app::HermesAppName,
+    event::{queue::event_dispatch, HermesEventPayload},
     runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
     wasm::module::Module,
 };
@@ -80,17 +81,30 @@ impl HermesEventPayload for OnBenchEvent {
 /// Fails to execute an event.
 #[allow(dead_code)]
 pub fn execute_event(
-    module: &mut Module, test: u32, run: bool, event_type: &EventType,
+    module: &mut Module, test: u32, run: bool, event_type: EventType,
 ) -> anyhow::Result<Option<TestResult>> {
+    let app_name = HermesAppName("integration-test".to_owned());
+
     let result = match event_type {
         EventType::Bench => {
-            let on_bench_event = OnBenchEvent { test, run };
-            module.execute_event(&on_bench_event)?;
+            let on_bench_event: Box<dyn HermesEventPayload> = Box::new(OnBenchEvent { test, run });
+            event_dispatch(
+                app_name,
+                module.id().clone(),
+                on_bench_event.as_ref(),
+                module,
+            )?;
+            // module.execute_event(&on_bench_event)?;
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
         EventType::Test => {
-            let on_test_event = OnTestEvent { test, run };
-            module.execute_event(&on_test_event)?;
+            let on_test_event: Box<dyn HermesEventPayload> = Box::new(OnTestEvent { test, run });
+            event_dispatch(
+                app_name,
+                module.id().clone(),
+                on_test_event.as_ref(),
+                module,
+            )?;
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
     };

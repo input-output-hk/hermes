@@ -70,8 +70,7 @@ impl Module {
     /// # Errors
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
-    #[allow(dead_code)]
-    pub(crate) fn new(app_name: String, module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
@@ -112,13 +111,11 @@ impl Module {
     /// For each call creates a brand new `wasmtime::Store` instance, which means that
     /// is has an initial state, based on the provided context for each call.
     ///
-    /// # Errors
-    /// - `BadModuleError`
-    #[allow(dead_code)]
-    pub(crate) fn execute_event(&mut self, event: &dyn HermesEventPayload) -> anyhow::Result<()> {
-        self.context.use_for(event.event_name().to_string());
-        let state = HermesState::new(&self.context);
-
+    /// # Errors:
+    /// - `BadWASMModuleError`
+    pub(crate) fn execute_event(
+        &self, event: &dyn HermesEventPayload, state: HermesRuntimeContext,
+    ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;

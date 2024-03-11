@@ -66,15 +66,15 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             // Execute the wasm tests to get their name
             // Load WASM module in the executor.
             let wasm_buf = fs::read(file_path)?;
-            let mut module = Module::new(name.clone(), &wasm_buf)?;
+            let mut module = Module::new(&wasm_buf)?;
 
             let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
                 for i in 0..n {
-                    match execute_event(&mut module, i, false, &event_type)? {
+                    match execute_event(&mut module, i, false, event_type)? {
                         Some(result) => {
                             let path_string = file_path.to_string_lossy().to_string();
                             let test = Trial::test(result.name, move || {
-                                execute(i, path_string, &event_type)
+                                execute(i, path_string, event_type)
                             })
                             .with_kind(name.clone());
                             tests.push(test);
@@ -114,10 +114,10 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 }
 
 /// Executes a test for a wasm component.
-fn execute(test_case: u32, path: String, event_type: &EventType) -> Result<(), Failed> {
+fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    let mut module = Module::new(test_case.to_string(), &wasm_buf)?;
+    let mut module = Module::new(&wasm_buf)?;
 
     match execute_event(&mut module, test_case, true, event_type)? {
         Some(result) => {
