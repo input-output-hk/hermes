@@ -15,9 +15,7 @@ node communication, block parsing and other Cardano chain features.
 
 The chain follower is capable of receiving chain updates from a Cardano node using the ChainSync miniprotocol.
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/cardano_chain_follower/images/overview.excalidraw
-```
+![Overview](images/chain_follower_overview.svg)
 
 ### Read pointer
 
@@ -45,9 +43,7 @@ Below is a simplified flow diagram of the background task's process for producin
 
 #### A. Chain update flow diagram
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/cardano_chain_follower/images/simplified-get-update-flow.excalidraw
-```
+![Get Update Flow](images/simplified-get-update-flow.svg)
 
 ## 1.2 Chain Read
 
@@ -67,12 +63,8 @@ Below is a simplified flow diagram of the block reading logic.
 
 ### A. Single block flow diagram
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/cardano_chain_follower/images/simplified-reader-single-block-flow.excalidraw
-```
+![Reader Single Block Flow](images/simplified-reader-single-block-flow.svg)
 
 ### B. Block range flow diagram
 
-```kroki-excalidraw
-@from_file:architecture/08_concepts/cardano_chain_follower/images/simplified-reader-block-range-flow.excalidraw
-```
+![Reader Block Range Flow](images/simplified-reader-block-range-flow.svg)

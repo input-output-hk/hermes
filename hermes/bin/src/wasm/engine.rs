@@ -33,7 +33,6 @@ impl Engine {
     ///
     /// # Errors
     ///  - `BadEngineConfigError`
-    #[allow(dead_code)]
     pub(crate) fn new() -> anyhow::Result<Self> {
         let mut config = WasmConfig::new();
         config.wasm_component_model(true);

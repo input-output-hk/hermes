@@ -1,9 +1,11 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
 
-mod event_queue;
+mod app;
+mod event;
+mod reactor;
+mod runtime_context;
 mod runtime_extensions;
-mod state;
 mod wasm;
 
 #[cfg(feature = "bench")]
