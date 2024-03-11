@@ -12,11 +12,11 @@ wasi-src:
     SAVE ARTIFACT /wasi wasi
 
 # Build and locally save an output artifact
-save-local:
+save-c-integration-test-local:
     FROM scratch
 
-    ARG c_files="my-component.c"
-    ARG out="c_component.wasm"
+    ARG c_files="integration-test.c"
+    ARG out="c_test_component.wasm"
 
     COPY (./c+build/component.wasm --c_files=$c_files) .
-    SAVE ARTIFACT component.wasm AS LOCAL $out
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
