@@ -68,39 +68,30 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             let wasm_buf = fs::read(file_path)?;
             let mut module = Module::new(name.clone(), &wasm_buf)?;
 
-            // Run the tests in a loop until no more tests.
-            for i in 0..n_test {
-                match execute_event(&mut module, i, false, &EventType::Test)? {
-                    Some(result) => {
-                        let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || {
-                            execute(i, path_string, &EventType::Test)
-                        })
-                        .with_kind(name.clone());
-                        tests.push(test);
-                    },
-                    _ => {
-                        break;
-                    },
+            let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
+                for i in 0..n {
+                    match execute_event(&mut module, i, false, &event_type)? {
+                        Some(result) => {
+                            let path_string = file_path.to_string_lossy().to_string();
+                            let test = Trial::test(result.name, move || {
+                                execute(i, path_string, &event_type)
+                            })
+                            .with_kind(name.clone());
+                            tests.push(test);
+                        },
+                        _ => {
+                            break;
+                        },
+                    }
                 }
-            }
 
+                Ok(())
+            };
+
+            // Run the tests in a loop until no more tests.
+            collect(EventType::Test, n_test)?;
             // Run the benches in a loop until no more benches.
-            for i in 0..n_bench {
-                match execute_event(&mut module, i, false, &EventType::Bench)? {
-                    Some(result) => {
-                        let path_string = file_path.to_string_lossy().to_string();
-                        let test = Trial::test(result.name, move || {
-                            execute(i, path_string, &EventType::Bench)
-                        })
-                        .with_kind(name.clone());
-                        tests.push(test);
-                    },
-                    _ => {
-                        break;
-                    },
-                }
-            }
+            collect(EventType::Bench, n_bench)?;
         }
 
         // process items inside directories
