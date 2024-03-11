@@ -5,8 +5,16 @@
 /// A parameter identifier specifying the directory for placing test WebAssembly
 /// components.
 const ENV_MODULE_DIR: &str = "TEST_WASM_MODULE_DIR";
+/// A parameter identifier specifying the number of tests to run.
+const ENV_N_TEST: &str = "N_TEST";
+/// A parameter identifier specifying the number of benchmarks to run.
+const ENV_N_BENCH: &str = "N_BENCH";
 /// A standard value assigned to `ENV_MODULE_DIR` when it's not specified.
-const DEFAULT_TEST_COMPONENT_DIR: &str = "tests/test-components";
+const DEFAULT_ENV_MODULE_DIR: &str = "tests/test-components";
+/// The default value for the number of tests to run when not specified.
+const DEFAULT_ENV_N_TEST: &str = "32";
+/// The default value for the number of benchmarks to run when not specified.
+const DEFAULT_ENV_N_BENCH: &str = "32";
 
 use std::{env, error::Error, ffi::OsStr, fs, path::Path};
 
@@ -27,6 +35,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     #[allow(clippy::missing_docs_in_private_items)]
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
+        let n_test: u32 = env::var(ENV_N_TEST)
+            .unwrap_or_else(|_| DEFAULT_ENV_N_TEST.to_owned())
+            .parse()?;
+        let n_bench: u32 = env::var(ENV_N_BENCH)
+            .unwrap_or_else(|_| DEFAULT_ENV_N_BENCH.to_owned())
+            .parse()?;
+
         let entries: Vec<_> = fs::read_dir(path)?
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
@@ -54,7 +69,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             let mut module = Module::new(name.clone(), &wasm_buf)?;
 
             // Run the tests in a loop until no more tests.
-            for i in 0..32 {
+            for i in 0..n_test {
                 match execute_event(&mut module, i, false, &EventType::Test)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
@@ -71,7 +86,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             }
 
             // Run the benches in a loop until no more benches.
-            for i in 0..32 {
+            for i in 0..n_bench {
                 match execute_event(&mut module, i, false, &EventType::Bench)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
@@ -99,7 +114,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     // Read wasm components to be test in a directory.
     let mut tests = Vec::new();
     let test_module_dir =
-        env::var(ENV_MODULE_DIR).unwrap_or_else(|_| String::from(DEFAULT_TEST_COMPONENT_DIR));
+        env::var(ENV_MODULE_DIR).unwrap_or_else(|_| DEFAULT_ENV_MODULE_DIR.to_owned());
     let path = Path::new(&test_module_dir);
 
     visit_dir(path, &mut tests)?;
