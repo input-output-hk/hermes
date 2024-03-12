@@ -37,9 +37,16 @@ impl Host for HermesRuntimeContext {
     /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
     /// unsubscribed.
     fn subscribe_blocks(
-        &mut self, _net: CardanoBlockchainId, _whence: Slot,
+        &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<u64, FetchError>> {
-        todo!()
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            whence,
+        );
+
+        Ok(Ok(0))
     }
 
     /// Unsubscribe from the blockchain events listed.

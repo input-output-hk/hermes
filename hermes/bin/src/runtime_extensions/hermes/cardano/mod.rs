@@ -1,7 +1,13 @@
 //! Cardano Blockchain runtime extension implementation.
 #![allow(unused)]
 
-use std::{error::Error, sync::atomic::AtomicU32};
+use std::{
+    error::Error,
+    sync::{
+        atomic::{AtomicBool, AtomicU32},
+        Arc,
+    },
+};
 
 use dashmap::DashMap;
 use tracing::{instrument, trace, warn, Instrument};
@@ -9,7 +15,7 @@ use tracing::{instrument, trace, warn, Instrument};
 use crate::{
     app::HermesAppName,
     event::{HermesEvent, TargetApp, TargetModule},
-    runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId},
+    runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId, Slot},
     wasm::module::ModuleId,
 };
 
@@ -20,7 +26,7 @@ pub(super) type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 struct TokioRuntimeSpawnFollowerCommand {
     follower_id: FollowerId,
-    chain_id: CardanoBlockchainId,
+    network: cardano_chain_follower::Network,
     follow_from: cardano_chain_follower::PointOrTip,
 }
 
@@ -39,14 +45,14 @@ struct TokioRuntimeHandle {
 
 impl TokioRuntimeHandle {
     fn spawn_follower_sync(
-        &self, follower_id: FollowerId, chain_id: CardanoBlockchainId,
+        &self, follower_id: FollowerId, network: cardano_chain_follower::Network,
         follow_from: cardano_chain_follower::PointOrTip,
     ) -> Result<ChainFollowerHandle> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
         let cmd = TokioRuntimeSpawnFollowerCommand {
             follower_id,
             follow_from,
-            chain_id,
+            network,
         };
 
         self.cmd_tx.blocking_send((cmd, res_tx)).map_err(Box::new)?;
@@ -74,6 +80,27 @@ struct ChainFollowerHandle {
     cmd_tx: ChainFollowerHandleCommandSender,
 }
 
+impl ChainFollowerHandle {
+    fn set_read_pointer_sync(
+        &self, at: cardano_chain_follower::PointOrTip,
+    ) -> cardano_chain_follower::Result<Option<cardano_chain_follower::Point>> {
+        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+
+        // TODO(FelipeRosa): This should be mapped into an error. It's a serious bug
+        // if the follower's executor was stopped and the handle was not dropped.
+        self.cmd_tx
+            .blocking_send((at, res_tx))
+            .expect("Follower executor is not running");
+
+        // TODO(FelipeRosa): Same as above.
+        let result = res_rx
+            .blocking_recv()
+            .expect("Follower executor is not running");
+
+        result
+    }
+}
+
 struct ActiveFollower {
     handle: ChainFollowerHandle,
     at: Option<u64>,
@@ -89,10 +116,22 @@ type ChainUpdateReceiver = tokio::sync::mpsc::Receiver<(
     cardano_chain_follower::Result<cardano_chain_follower::ChainUpdate>,
 )>;
 
+struct SubscriptionState {
+    stopped: AtomicBool,
+    // NOTE(FelipeRosa): For now, each subscription has its own follower.
+    // The intention is that, in the future, this is changed in order to maximize
+    // the utilization of the active followers.
+    follower_id: AtomicU32,
+}
+
 struct State {
     tokio_rt_handle: TokioRuntimeHandle,
     follower_id_counter: AtomicU32,
     active_followers: DashMap<FollowerId, ActiveFollower>,
+    subscriptions: DashMap<
+        HermesAppName,
+        DashMap<ModuleId, DashMap<cardano_chain_follower::Network, Arc<SubscriptionState>>>,
+    >,
 }
 
 impl State {
@@ -102,6 +141,26 @@ impl State {
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         prev + 1
+    }
+
+    fn insert_module_subscription_state(
+        &self, app_name: HermesAppName, module_id: ModuleId,
+        network: cardano_chain_follower::Network, sub_state: SubscriptionState,
+    ) {
+        let modules_index = self.subscriptions.entry(app_name).or_default();
+        let network_index = modules_index.entry(module_id).or_default();
+        network_index.insert(network, Arc::new(sub_state));
+    }
+
+    fn module_subscription_state(
+        &self, app_name: &HermesAppName, module_id: &ModuleId,
+        network: cardano_chain_follower::Network,
+    ) -> Option<Arc<SubscriptionState>> {
+        let modules_index = self.subscriptions.get(app_name)?;
+        let network_index = modules_index.get(module_id)?;
+        let st = network_index.get(&network)?;
+
+        Some(st.clone())
     }
 }
 
@@ -119,6 +178,7 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
         },
         follower_id_counter: AtomicU32::new(0),
         active_followers: DashMap::new(),
+        subscriptions: DashMap::new(),
     }
 });
 
@@ -126,24 +186,77 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 pub(super) fn subscribe(
-    chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
-    at: cardano_chain_follower::PointOrTip,
+    chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId, opt: Slot,
 ) -> Result<()> {
-    let follower_id = STATE.next_follower_id();
-
-    let follower_handle = STATE
-        .tokio_rt_handle
-        .spawn_follower_sync(follower_id, chain_id, at)?;
-
-    let mut active_follower = ActiveFollower {
-        handle: follower_handle,
-        // Wait for the follower to start following. Only then we'll know
-        // at which point in the chain it is at exactly (in the case of following from genesis or
-        // the tip).
-        at: None,
+    // TODO(FelipeRosa): This should handle each case for the subscription.
+    // follow_from should be Some(PointOrTip) if we need to follow from some specified point
+    // or None if we should continue following from the last point.
+    let follow_from = match opt {
+        Slot::Continue => None,
+        Slot::Genesis => Some(cardano_chain_follower::PointOrTip::Point(
+            cardano_chain_follower::Point::Origin,
+        )),
+        _ => Some(cardano_chain_follower::PointOrTip::Tip),
     };
 
-    STATE.active_followers.insert(follower_id, active_follower);
+    let network = network_from_chain_id(chain_id);
+
+    let sub_state = STATE.module_subscription_state(&app_name, &module_id, network);
+
+    let follow_from = match follow_from {
+        Some(p) => p,
+        None => {
+            // TODO(FelipeRosa): Implement the logic for when this is a new
+            // subscription but "continue" was requested.
+            cardano_chain_follower::PointOrTip::Tip
+        },
+    };
+
+    match sub_state {
+        Some(sub_state) => {
+            // NOTE(FelipeRosa): In the case the subscription is already active,
+            // we simply ask the follower to set its read pointer to the correct
+            // position on the chain.
+
+            sub_state
+                .stopped
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+
+            let follower_id = sub_state
+                .follower_id
+                .load(std::sync::atomic::Ordering::SeqCst);
+
+            if let Some(follower) = STATE.active_followers.get(&follower_id) {
+                // TODO(FelipeRosa): Handle error.
+                // Maybe this should cause subscribe to fail and the module could retry?
+                follower.handle.set_read_pointer_sync(follow_from).unwrap();
+            }
+        },
+        None => {
+            let follower_id = STATE.next_follower_id();
+
+            // TODO(FelipeRosa): Handle error
+            let follower_handle = STATE
+                .tokio_rt_handle
+                .spawn_follower_sync(follower_id, network, follow_from)
+                .unwrap();
+
+            STATE.active_followers.insert(
+                follower_id,
+                ActiveFollower {
+                    handle: follower_handle,
+                    at: None,
+                },
+            );
+
+            let initial_state = SubscriptionState {
+                stopped: AtomicBool::new(false),
+                follower_id: AtomicU32::new(follower_id),
+            };
+
+            STATE.insert_module_subscription_state(app_name, module_id, network, initial_state);
+        },
+    }
 
     Ok(())
 }
@@ -170,7 +283,7 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                 follower_cmd_rx,
                 chain_update_tx.clone(),
                 cmd.follower_id,
-                cmd.chain_id,
+                cmd.network,
             ));
 
             // If the receiver side is closed, just drop the handle so the
@@ -255,19 +368,12 @@ async fn chain_update_processor(mut chain_update_rx: ChainUpdateReceiver) {
 #[instrument(skip(cmd_rx, chain_update_tx))]
 async fn chain_follower_executor(
     mut cmd_rx: ChainFollowerHandleCommandReceiver, chain_update_tx: ChainUpdateSender,
-    follower_id: FollowerId, chain_id: CardanoBlockchainId,
+    follower_id: FollowerId, network: cardano_chain_follower::Network,
 ) {
-    let network = match chain_id {
-        CardanoBlockchainId::Mainnet => cardano_chain_follower::Network::Mainnet,
-        CardanoBlockchainId::Preprod => cardano_chain_follower::Network::Preprod,
-        CardanoBlockchainId::Preview => cardano_chain_follower::Network::Preview,
-        CardanoBlockchainId::LocalTestBlockchain => todo!(),
-    };
-
     let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
 
     let mut follower = cardano_chain_follower::Follower::connect(
-        follower_connect_address(chain_id),
+        follower_connect_address(network),
         network,
         config,
     )
@@ -303,11 +409,20 @@ async fn chain_follower_executor(
     drop(follower.close().await);
 }
 
-const fn follower_connect_address(network: CardanoBlockchainId) -> &'static str {
+const fn follower_connect_address(network: cardano_chain_follower::Network) -> &'static str {
     match network {
-        CardanoBlockchainId::Mainnet => "backbone.cardano-mainnet.iohk.io:3001",
-        CardanoBlockchainId::Preprod => "preprod-node.play.dev.cardano.org:3001",
-        CardanoBlockchainId::Preview => "preview-node.play.dev.cardano.org:3001",
+        cardano_chain_follower::Network::Mainnet => "backbone.cardano-mainnet.iohk.io:3001",
+        cardano_chain_follower::Network::Preprod => "preprod-node.play.dev.cardano.org:3001",
+        cardano_chain_follower::Network::Preview => "preview-node.play.dev.cardano.org:3001",
+        cardano_chain_follower::Network::Testnet => todo!(),
+    }
+}
+
+const fn network_from_chain_id(chain_id: CardanoBlockchainId) -> cardano_chain_follower::Network {
+    match chain_id {
+        CardanoBlockchainId::Mainnet => cardano_chain_follower::Network::Mainnet,
+        CardanoBlockchainId::Preprod => cardano_chain_follower::Network::Preprod,
+        CardanoBlockchainId::Preview => cardano_chain_follower::Network::Preview,
         CardanoBlockchainId::LocalTestBlockchain => todo!(),
     }
 }
@@ -318,7 +433,7 @@ mod test {
 
     use crate::{
         app::HermesAppName,
-        runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
+        runtime_extensions::bindings::hermes::cardano::api::{CardanoBlockchainId, Slot},
         wasm::module::ModuleId,
     };
 
@@ -331,11 +446,24 @@ mod test {
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
             .init();
 
+        let app_name = HermesAppName("test_app_it_works".to_string());
+        let module_id = ModuleId(Ulid::generate());
+
         subscribe(
             CardanoBlockchainId::Preprod,
-            HermesAppName("test_app_it_works".to_string()),
-            ModuleId(Ulid::generate()),
-            cardano_chain_follower::PointOrTip::Tip,
+            app_name.clone(),
+            module_id.clone(),
+            Slot::Tip,
+        )
+        .expect("subscribed");
+
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
+        subscribe(
+            CardanoBlockchainId::Preprod,
+            app_name,
+            module_id,
+            Slot::Genesis,
         )
         .expect("subscribed");
 
