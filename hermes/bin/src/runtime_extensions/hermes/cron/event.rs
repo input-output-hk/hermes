@@ -1,8 +1,7 @@
 //! Cron runtime extension event handler implementation.
 
 use crate::{
-    event_queue::event::HermesEventPayload,
-    runtime_extensions::bindings::hermes::cron::api::CronTagged,
+    event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
 /// On cron event

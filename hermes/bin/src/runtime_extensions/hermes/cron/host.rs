@@ -1,17 +1,17 @@
 //! Cron host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::{
             hermes::cron::api::{CronEventTag, CronSched, CronTagged, CronTime, Host},
             wasi::clocks::monotonic_clock::Instant,
         },
-        hermes::cron::{mkcron_impl, mkdelay_crontab, CronTab},
+        hermes::cron::{mkcron_impl, mkdelay_crontab},
     },
-    state::HermesState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// # Schedule Recurrent CRON event
     ///
     /// Cron events will be delivered to the `on-cron` event handler.
@@ -36,11 +36,13 @@ impl Host for HermesState {
     /// If the crontab entry already exists, the retrigger flag can be changed by calling
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
-    fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
-        self.hermes
-            .cron
-            .crontabs
-            .insert(entry.tag.clone(), CronTab { entry, retrigger });
+    fn add(&mut self, _entry: CronTagged, _retrigger: bool) -> wasmtime::Result<bool> {
+        // TODO(@saibatizoku): https://github.com/input-output-hk/hermes/pull/145
+        // self.state
+        //     .hermes
+        //     .cron
+        //     .crontabs
+        //     .insert(entry.tag.clone(), CronTab { entry, retrigger });
         Ok(true)
     }
 
@@ -90,21 +92,25 @@ impl Host for HermesState {
     /// may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
-    fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
-        if let Some(tag) = tag {
-            match self.hermes.cron.crontabs.get(&tag) {
-                Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
-                None => Ok(vec![]),
-            }
-        } else {
-            Ok(self
-                .hermes
-                .cron
-                .crontabs
-                .values()
-                .map(|cron| (cron.entry.clone(), cron.retrigger))
-                .collect())
-        }
+    fn ls(&mut self, _tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
+        // TODO(@saibatizoku): https://github.com/input-output-hk/hermes/pull/145
+
+        // if let Some(tag) = tag {
+        //     match self.state.hermes.cron.crontabs.get(&tag) {
+        //         Some(cron) => Ok(vec![(cron.entry.clone(), cron.retrigger)]),
+        //         None => Ok(vec![]),
+        //     }
+        // } else {
+        //     Ok(self
+        //         .state
+        //         .hermes
+        //         .cron
+        //         .crontabs
+        //         .values()
+        //         .map(|cron| (cron.entry.clone(), cron.retrigger))
+        //         .collect())
+        // }
+        Ok(vec![])
     }
 
     /// # Remove the requested crontab.
@@ -120,11 +126,14 @@ impl Host for HermesState {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
-        match self.hermes.cron.crontabs.remove(&entry.tag) {
-            Some(_) => Ok(true),
-            None => Ok(false),
-        }
+    fn rm(&mut self, _entry: CronTagged) -> wasmtime::Result<bool> {
+        // TODO(@saibatizoku): https://github.com/input-output-hk/hermes/pull/145
+
+        // match self.state.hermes.cron.crontabs.remove(&entry.tag) {
+        //     Some(_) => Ok(true),
+        //     None => Ok(false),
+        // }
+        Ok(false)
     }
 
     /// # Make a crontab entry from individual time values.

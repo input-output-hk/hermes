@@ -1,7 +1,7 @@
 //! Cardano Blockchain runtime extension event handler implementation.
 
 use crate::{
-    event_queue::event::HermesEventPayload,
+    event::HermesEventPayload,
     runtime_extensions::bindings::hermes::cardano::api::{
         BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn,
     },
