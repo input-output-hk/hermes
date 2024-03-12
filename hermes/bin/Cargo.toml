@@ -27,3 +27,4 @@ bip39 = { workspace = true, features = ["chinese-simplified", "chinese-tradition
 cryptoxide = { workspace = true }
 rand = { workspace = true }
 rand_core = { workspace = true }
+bip32 = { workspace = true }
