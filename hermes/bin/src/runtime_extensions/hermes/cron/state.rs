@@ -43,9 +43,9 @@ static CRON_INTERNAL_STATE: Lazy<InternalState> = Lazy::new(|| {
 pub type AppName = String;
 
 /// Internal State.
-pub(crate) struct InternalState {
+struct InternalState {
     /// The send events to the crontab queue.
-    pub(crate) cron_queue: CronEventQueue,
+    cron_queue: CronEventQueue,
 }
 
 impl InternalState {
