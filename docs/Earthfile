@@ -16,6 +16,7 @@ src:
     COPY --dir ./../wasm/wasi+build/wasi-hermes-docs /docs/src/api/wasi-hermes
     # Copy the Hermes JSON Schemas and Examples
     COPY --dir ./../hermes+json-schemas/schemas /docs/includes/
+    COPY --dir ./../wasm+wasi-src/wasi /docs/includes/
 
 
 # Build the docs here.
