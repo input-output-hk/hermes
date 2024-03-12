@@ -1,7 +1,5 @@
 //! Monotonic Clock State.
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use once_cell::sync::Lazy;
 
 use crate::runtime_extensions::bindings::wasi::clocks::monotonic_clock::Instant;
@@ -16,31 +14,43 @@ struct MonotonicClockState {
     /// Every time `now` is called, the duration since `base` is added to the
     /// monotonic clock's `now` value.
     base: std::time::Instant,
-    /// Monotonic clock `now` value in nanoseconds.
-    now: AtomicU64,
+    /// Monotonic clock resolution.
+    resolution: Instant,
 }
 
 /// Monotonic clock state implementation.
 impl MonotonicClockState {
     /// Creates a new instance of the `MonotonicClockState`.
     fn new() -> Self {
+        // This should not fail, in case it does, log error and return the value of 1
+        // nanosecond.
+        let resolution = match std::time::Duration::from_nanos(1).as_nanos().try_into() {
+            Ok(res) => res,
+            Err(_res_err) => {
+                // TODO(@saibatizoku): Log errors https://github.com/input-output-hk/hermes/issues/15
+                1
+            },
+        };
         Self {
             base: std::time::Instant::now(),
-            now: AtomicU64::new(0),
+            resolution,
         }
     }
 
     /// Returns the current value of the monotonic clock.
     fn now(&self) -> wasmtime::Result<Instant> {
-        let instant = u64::try_from(self.base.elapsed().as_nanos())?;
-        self.now.store(instant, Ordering::SeqCst);
-        Ok(self.now.load(Ordering::SeqCst))
+        Ok(u64::try_from(self.base.elapsed().as_nanos())?)
     }
 }
 
 /// Monotonic clock state now.
 pub(crate) fn monotonic_clock_now() -> wasmtime::Result<Instant> {
     MONOTONIC_CLOCK_STATE.now()
+}
+
+/// Monotonic clock state resolution.
+pub(crate) fn monotonic_clock_res() -> Instant {
+    MONOTONIC_CLOCK_STATE.resolution
 }
 
 #[cfg(test)]
