@@ -35,6 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
     #[allow(clippy::missing_docs_in_private_items)]
     fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
+        let args = Arguments::from_args();
+
         let n_test: u32 = env::var(ENV_N_TEST)
             .unwrap_or_else(|_| DEFAULT_ENV_N_TEST.to_owned())
             .parse()?;
@@ -69,6 +71,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
             let mut module = Module::new(&wasm_buf)?;
 
             let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
+                // Collect the cases in a loop until no more cases.
                 for i in 0..n {
                     match execute_event(&mut module, i, false, event_type)? {
                         Some(result) => {
@@ -99,10 +102,12 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                 Ok(())
             };
 
-            // Run the tests in a loop until no more tests.
-            collect(EventType::Test, n_test)?;
-            // Run the benches in a loop until no more benches.
-            collect(EventType::Bench, n_bench)?;
+            if args.bench {
+                collect(EventType::Bench, n_bench)?;
+            }
+            if args.test {
+                collect(EventType::Test, n_test)?;
+            }
         }
 
         // process items inside directories
