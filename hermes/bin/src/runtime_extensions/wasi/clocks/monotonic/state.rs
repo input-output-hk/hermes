@@ -62,14 +62,14 @@ mod tests {
     fn test_monotonic_clock_now() {
         let one = monotonic_clock_now().unwrap();
         let two = monotonic_clock_now().unwrap();
-        assert!(one < two);
+        assert!(one <= two);
     }
 
     #[test]
     fn test_monotonic_clock_state() {
         let one = MONOTONIC_CLOCK_STATE.now().unwrap();
         let two = MONOTONIC_CLOCK_STATE.now().unwrap();
-        assert!(one < two);
+        assert!(one <= two);
     }
 
     #[test]
@@ -88,7 +88,7 @@ mod tests {
         });
         let (one, two) = handle_one.join().unwrap();
         let (three, four) = handle_two.join().unwrap();
-        assert!(one < two);
-        assert!(three < four);
+        assert!(one <= two);
+        assert!(three <= four);
     }
 }
