@@ -87,9 +87,7 @@ mod tests {
             )
         });
         let (one, two) = handle_one.join().unwrap();
-        println!("one: {one}, two: {two}");
         let (three, four) = handle_two.join().unwrap();
-        println!("three: {three}, four: {four}");
         assert!(one < two);
         assert!(three < four);
     }
