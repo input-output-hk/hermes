@@ -11,6 +11,6 @@ specified by the [*Hermes runtime extension*].
 For more details, see [Hermes Application Package](../hermes_packaging_requirements/overview.md)
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
-[*Hermes runtime extension*]: ./../../05_building_block_view/hermes_core.md#hermes-runtime-extension-hre
-[*Hermes application*]: ./../../05_building_block_view//hermes_core.md#hermes-application
+[*Hermes runtime extension*]: ./../../05_building_block_view/hermes_engine.md#hermes-runtime-extension-hre
+[*Hermes application*]: ./../../05_building_block_view//hermes_engine.md#hermes-application
 [HDF5]: https://www.hdfgroup.org/solutions/hdf5/
