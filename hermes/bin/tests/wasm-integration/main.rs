@@ -158,7 +158,7 @@ fn execute_bench(
         let elapsed_time = start_time.elapsed().as_nanos();
 
         Ok(Some(Measurement {
-            avg: elapsed_time as u64,
+            avg: u64::try_from(elapsed_time)?,
             variance: 0,
         }))
     }
