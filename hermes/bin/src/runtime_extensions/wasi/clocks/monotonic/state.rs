@@ -10,9 +10,6 @@ static MONOTONIC_CLOCK_STATE: Lazy<MonotonicClockState> = Lazy::new(MonotonicClo
 /// Monotonic clock state.
 struct MonotonicClockState {
     /// Monotonic clock base instant.
-    ///
-    /// Every time `now` is called, the duration since `base` is added to the
-    /// monotonic clock's `now` value.
     base: std::time::Instant,
     /// Monotonic clock resolution.
     resolution: Instant,
