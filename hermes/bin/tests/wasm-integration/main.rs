@@ -16,13 +16,13 @@ const DEFAULT_ENV_N_TEST: &str = "32";
 /// The default value for the number of benchmarks to run when not specified.
 const DEFAULT_ENV_N_BENCH: &str = "32";
 
-use std::{env, error::Error, ffi::OsStr, fs, path::Path};
+use std::{env, error::Error, ffi::OsStr, fs, path::Path, time::Instant};
 
 use hermes::{
     runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
     wasm::module::Module,
 };
-use libtest_mimic::{Arguments, Failed, Trial};
+use libtest_mimic::{Arguments, Failed, Measurement, Trial};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::from_args();
@@ -73,10 +73,21 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
                     match execute_event(&mut module, i, false, event_type)? {
                         Some(result) => {
                             let path_string = file_path.to_string_lossy().to_string();
-                            let test = Trial::test(result.name, move || {
-                                execute(i, path_string, event_type)
-                            })
+
+                            let test = match event_type {
+                                EventType::Test => {
+                                    Trial::test(result.name, move || {
+                                        execute_test(i, path_string, event_type)
+                                    })
+                                },
+                                EventType::Bench => {
+                                    Trial::bench(result.name, move |test_mode| {
+                                        execute_bench(test_mode, i, path_string, event_type)
+                                    })
+                                },
+                            }
                             .with_kind(name.clone());
+
                             tests.push(test);
                         },
                         _ => {
@@ -125,5 +136,30 @@ fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Fa
             Ok(())
         },
         _ => Err(Failed::from("result unexpected")),
+    }
+}
+
+/// Executes a test for a wasm component.
+fn execute_test(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
+    execute(test_case, path, event_type)
+}
+
+/// Executes a test for a wasm component.
+fn execute_bench(
+    test_mode: bool, test_case: u32, path: String, event_type: EventType,
+) -> Result<Option<Measurement>, Failed> {
+    if test_mode {
+        Ok(None)
+    } else {
+        let start_time = Instant::now();
+
+        execute(test_case, path, event_type)?;
+
+        let elapsed_time = start_time.elapsed().as_nanos();
+
+        Ok(Some(Measurement {
+            avg: elapsed_time as u64,
+            variance: 0,
+        }))
     }
 }
