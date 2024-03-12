@@ -1,14 +1,14 @@
 //! CLI host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::{
         cli,
         io::streams::{InputStream, OutputStream},
     },
-    state::HermesState,
 };
 
-impl cli::environment::Host for HermesState {
+impl cli::environment::Host for HermesRuntimeContext {
     /// Get the POSIX-style environment variables.
     ///
     /// Each environment variable is provided as a pair of string variable names
@@ -33,19 +33,19 @@ impl cli::environment::Host for HermesState {
     }
 }
 
-impl cli::stdin::Host for HermesState {
+impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         todo!()
     }
 }
 
-impl cli::stdout::Host for HermesState {
+impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         todo!()
     }
 }
 
-impl cli::stderr::Host for HermesState {
+impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         todo!()
     }

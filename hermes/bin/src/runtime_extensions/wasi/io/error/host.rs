@@ -1,11 +1,11 @@
 //! IO Error host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::io::error::{Error, Host, HostError},
-    state::HermesState,
 };
 
-impl HostError for HermesState {
+impl HostError for HermesRuntimeContext {
     /// Returns a string that is suitable to assist humans in debugging
     /// this error.
     ///
@@ -24,4 +24,4 @@ impl HostError for HermesState {
     }
 }
 
-impl Host for HermesState {}
+impl Host for HermesRuntimeContext {}

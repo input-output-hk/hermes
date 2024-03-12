@@ -5,7 +5,9 @@ asyncio
 auditability
 backpressure
 bindgen
+blockdiag
 blockfetch
+bmac
 BROTLI
 cardano
 cbor
@@ -19,6 +21,7 @@ coti
 crontabs
 cryptoxide
 dbsync
+dcbor
 delegators
 dockerhub
 dotenv
@@ -35,6 +38,7 @@ fdatasync
 fdstat
 Filesize
 filestat
+filestorage
 filesystems
 fmtchk
 fmtfix
@@ -46,7 +50,10 @@ futimens
 genhtml
 GETFL
 gmtime
+happ
 hardano
+hasher
+hmod
 ideascale
 idents
 IFMT
@@ -56,7 +63,6 @@ jetbrains
 jorm
 jormungandr
 Jörmungandr
-kroki
 lcov
 Leshiy
 linkat
@@ -81,11 +87,13 @@ openat
 opentelemetry
 outlen
 Outparam
+parameterises
 permissioned
 permissionless
 pg_isready
 plpgsql
 pollable
+Pozhylenkov
 pread
 preopened
 preopens
@@ -105,9 +113,11 @@ rustdoc
 rustdocflags
 rustflags
 saibatizoku
+sandboxed
 Sched
 seckey
 slotno
+smac
 stevenj
 symlinkat
 tacho
@@ -119,6 +129,7 @@ timelike
 toolsets
 Traceback
 txns
+typenum
 unlinkat
 utimensat
 vitss
@@ -131,7 +142,3 @@ webasm
 webassembly
 WORKDIR
 yoroi
-smac
-bmac
-typenum
-hasher

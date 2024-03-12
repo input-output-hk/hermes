@@ -1,14 +1,14 @@
 //!  Cardano Blockchain host implementation for WASM runtime.
 
 use crate::{
+    runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::cardano::api::{
         CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
         UnsubscribeOptions,
     },
-    state::HermesState,
 };
 
-impl Host for HermesState {
+impl Host for HermesRuntimeContext {
     /// Subscribe to the Blockchain block data.
     ///
     /// **Parameters**

@@ -1,0 +1,24 @@
+{
+    "$schema": "../hermes_app_manifest.schema.json",
+    "metadata": "file://metadata.json",
+    "modules": [
+        {
+            "file": "file://modules/counter.hmod"
+        },
+        {
+            "file": "file://modules/counter.hmod",
+            "name": "counter1",
+            "config": "file://modules/counter1/config.json"
+        },
+        {
+            "file": "file://modules/counter.hmod",
+            "name": "counter2",
+            "config": "file://modules/counter2/config.json",
+            "share": "file://modules/counter2/share"
+        }
+    ],
+    "srv": {
+        "www": "file://srv/flutter_app.zst",
+        "share": "file://srv/share"
+    }
+}
