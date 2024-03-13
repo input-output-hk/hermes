@@ -24,11 +24,13 @@ struct WrappedXPrv(XPrv);
 
 /// Implemnt Hash for WrappedXPrv
 impl Hash for WrappedXPrv {
+    /// Hasher for WrappedXPrv
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.as_ref().hash(state);
     }
 }
 
+/// Implement From for XPrv to WrappedXPrv
 impl From<XPrv> for WrappedXPrv {
     /// Turn XPrv into WrappedXPrv
     fn from(xprv: XPrv) -> Self {
@@ -50,6 +52,7 @@ pub(crate) struct ResourceHolder {
 // TODO - Remove dead code, once everthing is done
 #[allow(dead_code)]
 impl ResourceHolder {
+    /// Generate new resource holder.
     fn new() -> Self {
         Self {
             id_to_resource_map: DashMap::new(),
@@ -58,18 +61,20 @@ impl ResourceHolder {
         }
     }
 
+    /// Get the next id and increment the current id.
     fn get_and_increment_next_id(&mut self) -> u32 {
-        let next_id = self.current_id + 1;
-        self.current_id = next_id;
-        next_id
+        self.current_id += 1;
+        self.current_id
     }
 
+    /// Get the resource from id if possible.
     fn get_resource_from_id(&self, id: &u32) -> Option<XPrv> {
         self.id_to_resource_map
             .get(id)
             .map(|entry| entry.value().clone())
     }
 
+    /// Get the id from resource if possible.
     fn get_id_from_resource(&self, resource: &XPrv) -> Option<u32> {
         self.resource_to_id_map
             .get(&WrappedXPrv::from(resource.clone()))
@@ -97,6 +102,7 @@ impl ResourceHolder {
     }
 }
 
+/// Global state to hold the resources.
 static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::new()));
 
 /// Check the state whether the context exists and return the resources if possible.
@@ -216,20 +222,20 @@ mod tests_crypto_state {
         );
 
         // Add the resource.
-        let id1 = add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+        let id1 = add_resource(&app_name, &module_id, event_name, &counter, prv.clone());
         // Should return id 1.
         assert_eq!(id1, Some(1));
         // Get the resource from id 1.
-        let resource = get_resource(&app_name, &module_id, &event_name, &counter, &1);
+        let resource = get_resource(&app_name, &module_id, event_name, &counter, &1);
         // The resource should be the same
         assert_eq!(resource, Some(prv.clone()));
 
         // Add another resource, with the same key.
-        let id2 = add_resource(&app_name, &module_id, &event_name, &counter, prv.clone());
+        let id2 = add_resource(&app_name, &module_id, event_name, &counter, prv.clone());
         // Resource already exist, so it should return None.
         assert_eq!(id2, None);
         // Get the resource from id.
-        let k2 = get_resource(&app_name, &module_id, &event_name, &counter, &2);
+        let k2 = get_resource(&app_name, &module_id, event_name, &counter, &2);
         // Resource already exist, so it should return None.
         assert_eq!(k2, None);
 
@@ -243,8 +249,8 @@ mod tests_crypto_state {
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
 
         // Dropping the resource with id 2 which doesn't exist.
-        let drop_id_1 = res_holder.drop(2);
-        assert_eq!(drop_id_1, None);
+        let drop_id_2 = res_holder.drop(2);
+        assert_eq!(drop_id_2, None);
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
     }
@@ -276,14 +282,14 @@ mod tests_crypto_state {
                 let counter = 10;
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
-                add_resource(&app_name, &module_id, &event_name, &counter, prv1.clone());
+                add_resource(&app_name, &module_id, event_name, &counter, prv1.clone());
                 let app_name: HermesAppName = HermesAppName("App name".to_string());
                 let module_id: ModuleId = ModuleId(1.into());
                 let event_name = "test_event";
                 let counter = 10;
                 let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
                 // Adding resource.
-                add_resource(&app_name, &module_id, &event_name, &counter, prv2.clone());
+                add_resource(&app_name, &module_id, event_name, &counter, prv2.clone());
             });
             handles.push(handle);
         }
