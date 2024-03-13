@@ -277,10 +277,10 @@ fn bits_to_bytes(bits: &[u8]) -> Vec<u8> {
 mod tests_bip39 {
     use super::*;
 
-    // Entropy of this mnemonic
-    // 7f0d0a588ae5e726aa3eca44199108db720970be7232c37c2f6cd167ec041104
-    // XPRV: c0d134418b95a91faf199d0461bbcdad619e3826e19b96788ce07c3a9081e74669d512f28cbcba089720d0f4cfcb9506c5737f4a8ab5273419939d5f8831af908587c1c1cbd816261bb1476b4637e6ecf7920882b62e5587854dfc4848b308ae
-    const MNEMONIC_ENG: &str = "lecture hair normal beyond fury nation pottery sun dune smart drama report calm reunion what edge sell thumb swamp people learn acoustic dune noise";
+    // English test vector is from https://cips.cardano.org/cip/CIP-0011
+    // Entropy can be checked from https://iancoleman.io/bip39
+    const MNEMONIC_ENG: &str = "prevent company field green slot measure chief hero apple task eagle sunset endorse dress seed";
+    // Japanese test is from https://github.com/rust-bitcoin/rust-bip39/blob/master/src/lib.rs
     const MNEMONIC_JAPANESE: &str = "こころ いどう きあつ そうがんきょう へいあん せつりつ ごうせい はいち  いびき きこく あんい おちつく きこえる けんとう たいこ すすめる はっけん ていど はんおん いんさつ うなぎ しねま れいぼう みつかる";
 
     #[test]
@@ -333,7 +333,7 @@ mod tests_bip39 {
     #[test]
     fn test_generate_mnemonic_prefix_japanese() {
         let mnemonic =
-            generate_new_mnemonic(12, vec!["たいみんぐ" ,"うけたまわる"], Language::Japanese)
+            generate_new_mnemonic(12, vec!["たいみんぐ", "うけたまわる"], Language::Japanese)
                 .expect("Failed to generate mnemonic");
         println!("{}", mnemonic);
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
@@ -353,22 +353,18 @@ mod tests_bip39 {
     #[test]
     fn test_generate_mnemonic_with_prefix_too_long() {
         let prefix = vec!["project", "cat", "test", "long"];
-        // FIXME - should be a better way to get the error message
         generate_new_mnemonic(12, prefix, Language::English)
-            .expect_err("The prefix is longer than the maximum allowed length, max is 3.");
+            .expect_err(&format!("{:?}", Errno::PrefixTooLong));
     }
 
     #[test]
     fn test_generate_mnemonic_invalid_length() {
-        // FIXME - should be a better way to get the error message
-        generate_new_mnemonic(3, vec![], Language::English).expect_err(
-            "The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.",
-        );
+        generate_new_mnemonic(3, vec![], Language::English)
+            .expect_err(&format!("{:?}", Errno::InvalidMnemonicLength));
     }
     #[test]
     fn test_generate_mnemonic_prefix_word_not_found() {
-        // FIXME - should be a better way to get the error message
         generate_new_mnemonic(12, vec!["abc"], Language::English)
-            .expect_err("A word in the mnemonic is not found in the word list.");
+            .expect_err(&format!("{:?}", Errno::WordNotFound));
     }
 }
