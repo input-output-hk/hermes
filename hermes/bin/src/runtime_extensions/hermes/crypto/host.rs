@@ -1,6 +1,5 @@
 //! Crypto host implementation for WASM runtime.
 
-use anyhow::Error;
 use bip39::Language;
 use wasmtime::component::Resource;
 
@@ -13,13 +12,13 @@ use crate::{
         bindings::hermes::{
             binary::api::Bstr,
             crypto::api::{
-                Bip32Ed25519, Bip32Ed25519PrivateKey, Bip32Ed25519PublicKey, Bip32Ed25519Signature,
+                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature,
                 Host, HostBip32Ed25519, MnemonicPhrase, Passphrase, Path,
             },
         },
         hermes::crypto::{
             bip32_ed25519::get_public_key,
-            state::{add_resource, get_resource, set_state},
+            state::{add_resource, get_resource},
         },
     },
 };
@@ -40,14 +39,17 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, mnemonic: Option<MnemonicPhrase>, passphrase: Option<Passphrase>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
         // FIXME - Currently not working because of mismatch type
-        Ok(generate_resource(
+        match generate_resource(
             self.app_name(),
             self.module_id(),
             self.event_name(),
             self.exc_counter(),
             mnemonic,
             passphrase,
-        ))
+        ) {
+            Ok(resource) => Ok(resource),
+            Err(_) => todo!()// return some error,
+        }
     }
 
     /// Get the public key for this private key.
@@ -157,15 +159,15 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         todo!()
     }
 
-    /// Create a new RANDOM private key.
+    /// Create a new RANDOM mnemonic.
     ///
     /// Note, this does not need to be used, as the constructor will do this
     /// automatically.
-    fn gen_private_key(&mut self) -> wasmtime::Result<Bip32Ed25519PrivateKey> {
-        todo!()
+    fn gen_mnemonic(&mut self) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
+        self.new(Some(Vec::new()), Some(Vec::new()))
     }
 
-    fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
+    fn drop(&mut self, _res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
         // self.hermes.crypto.private_key.drop(rep.rep()).unwrap_or(());
 
         Ok(())
@@ -185,8 +187,10 @@ fn generate_resource(
         None => {
             // If mnemonic is not supplied, generate a new one
             // then generate xprv.
-            let mnemonic = generate_new_mnemonic(12, Vec::new(), Language::English)
-                .expect("Failed to generate mnemonic"); // FIXME - Should be a proper error
+            let mnemonic = match generate_new_mnemonic(12, Vec::new(), Language::English) {
+                Ok(mnemonic) => mnemonic,
+                Err(e) => return Err(e)
+            };
             mnemonic_to_xprv(&mnemonic, "")
         },
     };
