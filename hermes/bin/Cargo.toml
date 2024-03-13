@@ -24,12 +24,21 @@ required-features = ["bench"]
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2b_simd = { workspace = true }  
-hex-literal = { workspace = true }  
+blake2b_simd = { workspace = true }
+hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
-chrono = { workspace = true, features = ["now"] }
-dashmap = { workspace = true }
+libtest-mimic = { workspace = true }
+crossbeam-queue = { workspace = true }
 once_cell = { workspace = true }
-saffron = { workspace = true }
+chrono = { workspace = true, features = ["now"] }
+chrono-tz = { workspace = true }
+dashmap = { workspace = true }
+iana-time-zone = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt","sync",  "time"] }
+saffron = { workspace = true }
+
+[[test]]
+name = "wasm-component-integration-tests"
+path = "tests/wasm-integration/main.rs"
+harness = false

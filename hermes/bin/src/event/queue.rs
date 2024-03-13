@@ -110,7 +110,7 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 ///
 /// # Errors:
 /// - `wasm::module::BadWASMModuleError`
-fn event_dispatch(
+pub(crate) fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, event: &dyn HermesEventPayload, module: &Module,
 ) -> anyhow::Result<()> {
     let runtime_context = HermesRuntimeContext::new(

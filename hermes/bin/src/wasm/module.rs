@@ -25,7 +25,8 @@ struct BadWASMModuleError(String);
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
-pub(crate) struct ModuleInstance {
+#[allow(clippy::module_name_repetitions)]
+pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
@@ -44,7 +45,7 @@ pub(crate) struct ModuleId(pub(crate) Ulid);
 /// The primary goal for it is to make a WASM state *immutable* along WASM module
 /// execution. It means that `Module::call_func` execution does not have as side effect
 /// for the WASM module's state, it becomes unchanged.
-pub(crate) struct Module {
+pub struct Module {
     /// `wasmtime::InstancePre` entity
     ///
     /// A reason why it is used a `wasmtime::InstancePre` instead of `wasmtime::Instance`
@@ -69,7 +70,7 @@ impl Module {
     /// # Errors
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
-    pub(crate) fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
@@ -131,6 +132,7 @@ impl Module {
 }
 
 #[cfg(feature = "bench")]
+#[allow(missing_docs)]
 pub mod bench {
     use super::*;
     use crate::{app::HermesAppName, runtime_context::HermesRuntimeContext};

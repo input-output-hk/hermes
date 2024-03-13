@@ -9,6 +9,7 @@ pub(crate) mod cron;
 pub(crate) mod crypto;
 pub(crate) mod hash;
 pub(crate) mod init;
+pub mod integration_test;
 pub(crate) mod json;
 pub(crate) mod kv_store;
 pub(crate) mod localtime;

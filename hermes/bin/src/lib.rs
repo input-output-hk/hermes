@@ -1,12 +1,12 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
 
-mod app;
-mod event;
-mod reactor;
-mod runtime_context;
-mod runtime_extensions;
-mod wasm;
+pub mod app;
+pub mod event;
+pub mod reactor;
+pub mod runtime_context;
+pub mod runtime_extensions;
+pub mod wasm;
 
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{
