@@ -147,7 +147,7 @@ pub(crate) fn get_resource(
 ) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
-        return resource.get_resource_from_id(&id);
+        return resource.get_resource_from_id(id);
     }
     None
 }
@@ -180,6 +180,25 @@ pub(crate) fn add_resource(
     }
     None
 }
+
+#[allow(dead_code)]
+/// Delete the resource from the state using id if possible.
+pub(crate) fn delete_resource(
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, id: u32,
+) -> Option<u32> {
+    let binding = CRYPTO_INTERNAL_STATE.clone();
+    if let Some(app_map) = binding.get(app_name) {
+        if let Some(module_map) = app_map.get(module_id) {
+            if let Some(event_map) = module_map.get(event_name) {
+                if let Some(mut counter_map) = event_map.get_mut(counter) {
+                    return counter_map.drop(id);
+                }
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests_crypto_state {
     use std::thread;
@@ -239,25 +258,23 @@ mod tests_crypto_state {
         // Resource already exist, so it should return None.
         assert_eq!(k2, None);
 
-        let mut res_holder =
-            check_context_and_return_resources(&app_name, &module_id, &event_name, &counter)
-                .expect("Resource holder not found");
         // Dropping the resource with id 1.
-        let drop_id_1 = res_holder.drop(1);
+        let drop_id_1 = delete_resource(&app_name, &module_id, event_name, &counter, 1);
         assert_eq!(drop_id_1, Some(1));
-        assert_eq!(res_holder.id_to_resource_map.len(), 0);
-        assert_eq!(res_holder.resource_to_id_map.len(), 0);
-
         // Dropping the resource with id 2 which doesn't exist.
-        let drop_id_2 = res_holder.drop(2);
+        let drop_id_2 = delete_resource(&app_name, &module_id, event_name, &counter, 2);
         assert_eq!(drop_id_2, None);
+        
+        let res_holder =
+        check_context_and_return_resources(&app_name, &module_id, &event_name, &counter)
+        .expect("Resource holder not found");
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
     }
 
     #[test]
     fn test_thread_safe_insert_resources() {
-        let app_name: HermesAppName = HermesAppName("App name".to_string());
+        let app_name: HermesAppName = HermesAppName("App name 2".to_string());
         let module_id: ModuleId = ModuleId(1.into());
         let event_name = "test_event";
         let counter = 10;
@@ -276,14 +293,14 @@ mod tests_crypto_state {
         // Spawning 20 threads.
         for _ in 0..20 {
             let handle = thread::spawn(|| {
-                let app_name: HermesAppName = HermesAppName("App name".to_string());
+                let app_name: HermesAppName = HermesAppName("App name 2".to_string());
                 let module_id: ModuleId = ModuleId(1.into());
                 let event_name = "test_event";
                 let counter = 10;
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
                 add_resource(&app_name, &module_id, event_name, &counter, prv1.clone());
-                let app_name: HermesAppName = HermesAppName("App name".to_string());
+                let app_name: HermesAppName = HermesAppName("App name 2".to_string());
                 let module_id: ModuleId = ModuleId(1.into());
                 let event_name = "test_event";
                 let counter = 10;
