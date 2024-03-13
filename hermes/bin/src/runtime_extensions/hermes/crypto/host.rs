@@ -12,8 +12,8 @@ use crate::{
         bindings::hermes::{
             binary::api::Bstr,
             crypto::api::{
-                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature,
-                Host, HostBip32Ed25519, MnemonicPhrase, Passphrase, Path,
+                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature, Host, HostBip32Ed25519,
+                MnemonicPhrase, Passphrase, Path,
             },
         },
         hermes::crypto::{
@@ -38,18 +38,14 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn new(
         &mut self, mnemonic: Option<MnemonicPhrase>, passphrase: Option<Passphrase>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        // FIXME - Currently not working because of mismatch type
-        match generate_resource(
+        generate_resource(
             self.app_name(),
             self.module_id(),
             self.event_name(),
             self.exc_counter(),
             mnemonic,
             passphrase,
-        ) {
-            Ok(resource) => Ok(resource),
-            Err(_) => todo!()// return some error,
-        }
+        ).map_err(|_e| wasmtime::Error::msg("Error creating new resource"))
     }
 
     /// Get the public key for this private key.
@@ -156,7 +152,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 }
             }
         }
-        todo!()
+        return Err(wasmtime::Error::msg("Error deriving new private key"));
     }
 
     /// Create a new RANDOM mnemonic.
@@ -189,7 +185,7 @@ fn generate_resource(
             // then generate xprv.
             let mnemonic = match generate_new_mnemonic(12, Vec::new(), Language::English) {
                 Ok(mnemonic) => mnemonic,
-                Err(e) => return Err(e)
+                Err(e) => return Err(e),
             };
             mnemonic_to_xprv(&mnemonic, "")
         },
