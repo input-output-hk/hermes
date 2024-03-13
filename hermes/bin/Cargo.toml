@@ -29,6 +29,9 @@ hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
 time = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+iana-time-zone = { workspace = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }
 once_cell = { workspace = true }

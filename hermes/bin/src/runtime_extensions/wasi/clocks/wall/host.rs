@@ -2,7 +2,10 @@
 
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::wasi::clocks::wall_clock::{Datetime, Host},
+    runtime_extensions::{
+        bindings::wasi::clocks::wall_clock::{Datetime, Host},
+        wasi::clocks::state::{wall_clock_now, wall_clock_res},
+    },
 };
 
 impl Host for HermesRuntimeContext {
@@ -20,13 +23,13 @@ impl Host for HermesRuntimeContext {
     /// [POSIX\'s Seconds Since the Epoch]: https://pubs.opengroup.org/onlinepubs/9699919799/xrat/V4_xbd_chap04.html#tag_21_04_16
     /// [Unix Time]: https://en.wikipedia.org/wiki/Unix_time
     fn now(&mut self) -> wasmtime::Result<Datetime> {
-        todo!()
+        wall_clock_now()
     }
 
     /// Query the resolution of the clock.
     ///
     /// The nanoseconds field of the output is always less than 1000000000.
     fn resolution(&mut self) -> wasmtime::Result<Datetime> {
-        todo!()
+        Ok(wall_clock_res())
     }
 }
