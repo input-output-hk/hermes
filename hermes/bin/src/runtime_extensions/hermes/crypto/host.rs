@@ -17,15 +17,11 @@ use crate::{
             },
         },
         hermes::crypto::{
-            bip32_ed25519::get_public_key,
-            state::{add_resource, get_resource},
+            bip32_ed25519::{check_signature, derive_new_private_key, sign_data, get_public_key},
+            state::{add_resource, get_resource, delete_resource},
+            bip39::{generate_new_mnemonic, mnemonic_to_xprv},
         },
     },
-};
-
-use super::{
-    bip32_ed25519::{check_signature, derive_new_private_key, sign_data},
-    bip39::{generate_new_mnemonic, mnemonic_to_xprv},
 };
 
 impl HostBip32Ed25519 for HermesRuntimeContext {
