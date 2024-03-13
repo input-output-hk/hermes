@@ -33,8 +33,8 @@ pub(crate) fn get_public_key(xprivate_key: XPrv) -> Bip32Ed25519PublicKey {
 /// # Returns
 /// Returns a tuple of u64 values with length 8 representing the signature.
 #[allow(dead_code)]
-pub(crate) fn sign_data(xprivate_key: XPrv, data: &[u8]) -> Bip32Ed25519Signature {
-    let sig: Signature<Bstr> = xprivate_key.sign(data);
+pub(crate) fn sign_data(xprivate_key: XPrv, data: Bstr) -> Bip32Ed25519Signature {
+    let sig: Signature<Bstr> = xprivate_key.sign(&data);
     let sig_bytes = sig.to_bytes();
     array_u8_64_to_tuple(sig_bytes)
 }
@@ -52,7 +52,7 @@ pub(crate) fn sign_data(xprivate_key: XPrv, data: &[u8]) -> Bip32Ed25519Signatur
 /// True if the signature is valid, false otherwise.
 #[allow(dead_code)]
 pub(crate) fn check_signature(
-    xprivate_key: XPrv, data: &[u8], signature: Bip32Ed25519Signature,
+    xprivate_key: XPrv, data: Bstr, signature: Bip32Ed25519Signature,
 ) -> bool {
     let sig_array = b512_u64_tuple_to_u8_array(&signature);
     // Verify the signature.
@@ -60,7 +60,7 @@ pub(crate) fn check_signature(
         Ok(sig) => sig,
         Err(_) => return false,
     };
-    xprivate_key.verify(data, &signature)
+    xprivate_key.verify(&data, &signature)
 }
 
 /// Derive a new extended private key from the given extended private key.
@@ -212,8 +212,8 @@ mod tests_bip32_ed25519 {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
         println!("{:?}", xprv);
 
-        let sign_data = sign_data(xprv.clone(), DATA);
-        let check_signature = check_signature(xprv, DATA, sign_data);
+        let sign_data = sign_data(xprv.clone(), DATA.to_vec());
+        let check_signature = check_signature(xprv, DATA.to_vec(), sign_data);
         assert_eq!(check_signature, true);
     }
 
