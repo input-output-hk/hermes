@@ -15,6 +15,7 @@ interface api {
         prefix-too-long,  // The prefix is longer than the maximum allowed length, max is 3.
         invalid-mnemonic-length,  // The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.
         word-not-found,  // A word in the mnemonic is not found in the word list.
+        invalid-mnemonic, // The mnemonic is invalid.
     }
 
     // bip32-ed25519 Private Key
@@ -84,11 +85,11 @@ interface api {
         /// 
         derive: func(path: path) -> bip32-ed25519;
 
-        /// Create a new RANDOM private key.
+        /// Create a new RANDOM mnemonic.
         /// 
         /// Note, this does not need to be used, as the constructor will do this automatically.
         /// 
-        gen-private-key: static func() -> bip32-ed25519-private-key;
+        gen-mnemonic: static func() -> bip32-ed25519;
     }
 }
 
