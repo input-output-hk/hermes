@@ -8,13 +8,15 @@ use std::{
 
 use dashmap::DashMap;
 use ed25519_bip32::XPrv;
-//  std::sync::LazyLock is still unstable
 use once_cell::sync::Lazy;
-use rusty_ulid::Ulid;
+
+use crate::app::HermesAppName;
+use crate::wasm::module::ModuleId;
 
 /// Map of app name, module ULID, event name, and module execution counter to resource
 /// holder
-type State = DashMap<String, DashMap<Ulid, DashMap<String, DashMap<u64, ResourceHolder>>>>;
+type State =
+    DashMap<HermesAppName, DashMap<ModuleId, DashMap<String, DashMap<u32, ResourceHolder>>>>;
 
 /// Wrapper for XPrv to implement Hash used in DashMap
 #[derive(Eq, Clone, PartialEq)]
@@ -99,7 +101,7 @@ static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::
 
 /// Check the state whether the context exists and return the resources if possible.
 fn check_context_and_return_resources(
-    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32,
 ) -> Option<ResourceHolder> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
@@ -116,13 +118,15 @@ fn check_context_and_return_resources(
 
 #[allow(dead_code)]
 /// Set the state according to the app context.
-pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, counter: u64) {
+pub(crate) fn set_state(
+    app_name: HermesAppName, module_id: ModuleId, event_name: &str, counter: u32,
+) {
     // Counter -> ResourceHolder
     let counter_map = DashMap::new();
     counter_map.insert(counter, ResourceHolder::new());
     // Event -> Counter
     let event_map = DashMap::new();
-    event_map.insert(event_name, counter_map);
+    event_map.insert(event_name.to_string(), counter_map);
     // Module -> Event
     let module_map = DashMap::new();
     module_map.insert(module_id, event_map);
@@ -133,7 +137,7 @@ pub(crate) fn set_state(app_name: String, module_id: Ulid, event_name: String, c
 #[allow(dead_code)]
 /// Get the resource from the state using id if possible.
 pub(crate) fn get_resource(
-    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, id: &u32,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, id: &u32,
 ) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
@@ -146,7 +150,7 @@ pub(crate) fn get_resource(
 /// Add the resource of XPrv to the state if possible.
 /// Return the id if successful.
 pub(crate) fn add_resource(
-    app_name: &String, module_id: &Ulid, event_name: &String, counter: &u64, xprv: XPrv,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, xprv: XPrv,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
@@ -198,16 +202,16 @@ mod tests_crypto_state {
     #[test]
     fn test_basic_func_resource() {
         let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
-        let app_name = "App name".to_string();
-        let module_id: Ulid = 1.into();
-        let event_name = "test_event".to_string();
+        let app_name: HermesAppName = HermesAppName("App name".to_string());
+        let module_id: ModuleId = ModuleId(1.into());
+        let event_name = "test_event";
         let counter = 10;
 
         // Set the global state.
         set_state(
             app_name.clone(),
             module_id.clone(),
-            event_name.clone(),
+            event_name,
             counter.clone(),
         );
 
@@ -247,16 +251,16 @@ mod tests_crypto_state {
 
     #[test]
     fn test_thread_safe_insert_resources() {
-        let app_name = "App name".to_string();
-        let module_id: Ulid = 1.into();
-        let event_name = "test_event".to_string();
+        let app_name: HermesAppName = HermesAppName("App name".to_string());
+        let module_id: ModuleId = ModuleId(1.into());
+        let event_name = "test_event";
         let counter = 10;
 
         // Setup initial state.
         set_state(
             app_name.clone(),
             module_id.clone(),
-            event_name.clone(),
+            event_name,
             counter,
         );
 
@@ -266,16 +270,16 @@ mod tests_crypto_state {
         // Spawning 20 threads.
         for _ in 0..20 {
             let handle = thread::spawn(|| {
-                let app_name = "App name".to_string();
-                let module_id: Ulid = 1.into();
-                let event_name = "test_event".to_string();
+                let app_name: HermesAppName = HermesAppName("App name".to_string());
+                let module_id: ModuleId = ModuleId(1.into());
+                let event_name = "test_event";
                 let counter = 10;
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
                 add_resource(&app_name, &module_id, &event_name, &counter, prv1.clone());
-                let app_name = "App name".to_string();
-                let module_id: Ulid = 1.into();
-                let event_name = "test_event".to_string();
+                let app_name: HermesAppName = HermesAppName("App name".to_string());
+                let module_id: ModuleId = ModuleId(1.into());
+                let event_name = "test_event";
                 let counter = 10;
                 let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
                 // Adding resource.
