@@ -2,7 +2,6 @@
 
 use std::vec;
 
-use anyhow::Error;
 use bip39::{Language, Mnemonic};
 use cryptoxide::{
     digest::Digest,
@@ -33,13 +32,13 @@ use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 ///
 /// - `bip39::Error`: If the mnemonic is invalid.
 #[allow(dead_code)]
-pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: Option<&str>) -> Result<XPrv, Error> {
+pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv, Errno> {
     // Parse will detect language and check mnemonic valid length
     // 12, 15, 18, 21, 24 are valid mnemonic length
     let mnemonic = match Mnemonic::parse(mnemonic) {
         Ok(mnemonic) => mnemonic,
-        Err(e) => {
-            return Err(Error::new(e));
+        Err(_) => {
+            return Err(Errno::InvalidMnemonic);
         },
     };
 
@@ -52,7 +51,6 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: Option<&str>) -> Resu
     // https://github.com/satoshilabs/slips/blob/master/slip-0023.md
     let mut pbkdf2_result = [0; 96];
     const ITER: u32 = 4096;
-    let passphrase = passphrase.unwrap_or_default();
     let passphrase_byte: &[u8] = passphrase.as_bytes();
     let mut mac = Hmac::new(Sha512::new(), passphrase_byte);
     pbkdf2(&mut mac, &entropy, ITER, &mut pbkdf2_result);
@@ -85,7 +83,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: Option<&str>) -> Resu
 /// - `PrefixTooLong`: If the prefix is longer than the maximum allowed length, max is 3.
 /// - `WordNotFound`: If a word in the mnemonic is not found in the word list.
 #[allow(dead_code)]
-pub fn generate_new_mnemonic(
+pub(crate) fn generate_new_mnemonic(
     word_count: usize, prefix: Vec<&str>, language: Language,
 ) -> Result<String, Errno> {
     // Check word count
@@ -286,13 +284,13 @@ mod tests_bip39 {
     #[test]
     fn test_eng_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
-        mnemonic_to_xprv(&MNEMONIC_ENG, None).expect("Failed to convert English mnemonic to xprv");
+        mnemonic_to_xprv(&MNEMONIC_ENG, "").expect("Failed to convert English mnemonic to xprv");
     }
 
     #[test]
     fn test_jap_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
-        mnemonic_to_xprv(&MNEMONIC_JAPANESE, None)
+        mnemonic_to_xprv(&MNEMONIC_JAPANESE, "")
             .expect("Failed to convert Japanses mnemonic to xprv");
     }
 
@@ -300,14 +298,14 @@ mod tests_bip39 {
     fn test_mnemonic_with_passphrase_to_xprv() {
         let passphrase = "test cat";
         // Valid mnemonic with passphrase, shouldn't fail.
-        mnemonic_to_xprv(&MNEMONIC_ENG, Some(passphrase))
+        mnemonic_to_xprv(&MNEMONIC_ENG, passphrase)
             .expect("Failed to convert English mnemonic with passphrase to xprv");
     }
 
     #[test]
     fn test_mnemonic_to_xprv_invalid_length() {
         let mnemonic = "project cat test";
-        mnemonic_to_xprv(&mnemonic, None).expect_err(&bip39::Error::BadWordCount(2).to_string());
+        mnemonic_to_xprv(&mnemonic, "").expect_err(&bip39::Error::BadWordCount(2).to_string());
     }
 
     #[test]
