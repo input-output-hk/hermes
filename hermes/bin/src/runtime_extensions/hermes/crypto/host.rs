@@ -1,5 +1,6 @@
 //! Crypto host implementation for WASM runtime.
 
+use anyhow::Error;
 use bip39::Language;
 use wasmtime::component::Resource;
 
@@ -18,7 +19,7 @@ use crate::{
         },
         hermes::crypto::{
             bip32_ed25519::get_public_key,
-            state::{add_resource, get_resource},
+            state::{add_resource, get_resource, set_state},
         },
     },
 };
@@ -53,7 +54,20 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
-       todo!()
+        let private_key = get_resource(
+            self.app_name(),
+            self.module_id(),
+            self.event_name(),
+            &self.exc_counter(),
+            &resource.rep(),
+        );
+        match private_key {
+            Some(private_key) => {
+                let public_key = get_public_key(private_key);
+                return Ok(public_key);
+            },
+            None => Ok((0, 0, 0, 0)),
+        }
     }
 
     /// Sign data with the Private key, and return it.
@@ -64,7 +78,20 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
-        todo!()
+        let private_key = get_resource(
+            self.app_name(),
+            self.module_id(),
+            self.event_name(),
+            &self.exc_counter(),
+            &resource.rep(),
+        );
+        match private_key {
+            Some(private_key) => {
+                let sig = sign_data(private_key, data);
+                return Ok(sig);
+            },
+            None => Ok((0, 0, 0, 0, 0, 0, 0, 0)),
+        }
     }
 
     /// Check a signature on a set of data.
@@ -82,7 +109,20 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
-        todo!()
+        let private_key = get_resource(
+            self.app_name(),
+            self.module_id(),
+            self.event_name(),
+            &self.exc_counter(),
+            &resource.rep(),
+        );
+        match private_key {
+            Some(private_key) => {
+                let check_sig = check_signature(private_key, data, sig);
+                return Ok(check_sig);
+            },
+            None => Ok(false),
+        }
     }
 
     /// Derive a new private key from the current private key.
@@ -95,6 +135,25 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
+        if let Some(private_key) = get_resource(
+            self.app_name(),
+            self.module_id(),
+            self.event_name(),
+            &self.exc_counter(),
+            &resource.rep(),
+        ) {
+            if let Ok(derived_private_key) = derive_new_private_key(private_key, &path) {
+                if let Some(id) = add_resource(
+                    self.app_name(),
+                    self.module_id(),
+                    self.event_name(),
+                    &self.exc_counter(),
+                    derived_private_key,
+                ) {
+                    return Ok(Resource::new_own(id));
+                }
+            }
+        }
         todo!()
     }
 
@@ -137,10 +196,10 @@ fn generate_resource(
         Ok(xprv) => {
             match add_resource(app_name, module_id, event_name, &counter, xprv) {
                 Some(id) => Ok(Resource::new_own(id)),
-                None => todo!() // FIXME - Should be a proper error
+                None => todo!(), // FIXME - Should be a proper error
             }
         },
-        Err(e) => Err(e), 
+        Err(e) => Err(e),
     };
 
     resource
