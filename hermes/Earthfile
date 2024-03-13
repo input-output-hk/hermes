@@ -45,6 +45,9 @@ all-hosts-check:
 build:
     FROM +builder
 
+    # build wasm artifacts for testing
+    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
+
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
                                 --bins="hermes/hermes"
