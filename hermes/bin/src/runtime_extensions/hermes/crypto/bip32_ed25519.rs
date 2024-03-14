@@ -2,9 +2,8 @@
 
 use crate::runtime_extensions::bindings::hermes::{
     binary::api::Bstr,
-    crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature},
+    crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno},
 };
-use anyhow::Error;
 use bip32::DerivationPath;
 use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 
@@ -17,7 +16,6 @@ use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 /// # Returns
 ///
 /// Returns a tuple of u64 values with length 4 representing the public key.
-#[allow(dead_code)]
 pub(crate) fn get_public_key(xprivate_key: XPrv) -> Bip32Ed25519PublicKey {
     let xpub = xprivate_key.public().public_key();
     array_u8_32_to_tuple(&xpub)
@@ -32,7 +30,6 @@ pub(crate) fn get_public_key(xprivate_key: XPrv) -> Bip32Ed25519PublicKey {
 ///
 /// # Returns
 /// Returns a tuple of u64 values with length 8 representing the signature.
-#[allow(dead_code)]
 pub(crate) fn sign_data(xprivate_key: XPrv, data: Bstr) -> Bip32Ed25519Signature {
     let sig: Signature<Bstr> = xprivate_key.sign(&data);
     let sig_bytes = sig.to_bytes();
@@ -48,9 +45,9 @@ pub(crate) fn sign_data(xprivate_key: XPrv, data: Bstr) -> Bip32Ed25519Signature
 /// - `signature`: The signature to check.
 ///
 /// # Returns
-/// Returns a boolean value indicating if the signature is valid or not.
-/// True if the signature is valid, false otherwise.
-#[allow(dead_code)]
+/// Returns a boolean value indicating if the signature match the sign data
+/// from xprivate_key and data.
+/// True if the signature is valid and match the sign data, false otherwise.
 pub(crate) fn check_signature(
     xprivate_key: XPrv, data: Bstr, signature: Bip32Ed25519Signature,
 ) -> bool {
@@ -58,6 +55,7 @@ pub(crate) fn check_signature(
     // Verify the signature.
     let signature: Signature<Bstr> = match Signature::from_slice(&sig_array) {
         Ok(sig) => sig,
+        // Invalid signature
         Err(_) => return false,
     };
     xprivate_key.verify(&data, &signature)
@@ -81,12 +79,11 @@ pub(crate) fn check_signature(
 ///
 /// # Errors
 ///
-/// Returns an `Error` if the derivation path is invalid.
-#[allow(dead_code)]
-pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<XPrv, Error> {
+/// Returns an `InvalidDerivationalPath` if the derivation path is invalid.
+pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<XPrv, Errno> {
     let derivation_path = match path.parse::<DerivationPath>() {
         Ok(path) => path,
-        Err(e) => return Err(Error::new(e)),
+        Err(_) => return Err(Errno::InvalidDerivationalPath),
     };
     let key = derivation_path
         .iter()
@@ -99,7 +96,7 @@ pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<X
     Ok(key)
 }
 
-/// Convert a 32 byte array to a tuple of u64 values.
+/// Convert a 32 bytes array to a tuple of u64 values.
 fn array_u8_32_to_tuple(array: &[u8; 32]) -> (u64, u64, u64, u64) {
     let mut tuple = (0u64, 0u64, 0u64, 0u64);
     let mut arr = [0u8; 8];
@@ -122,9 +119,8 @@ fn array_u8_32_to_tuple(array: &[u8; 32]) -> (u64, u64, u64, u64) {
     tuple
 }
 
-/// Convert a 64 byte array to a tuple of u64 values.
+/// Convert a 64 bytes array to a tuple of u64 values.
 fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64, u64, u64, u64) {
-    // Extract eight u64 values from the [u8; 32] array
     let mut tuple = (0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64);
     let mut arr = [0u8; 8];
     let slice1 = &array[0..8];
@@ -162,7 +158,7 @@ fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64, u64, u64,
     tuple
 }
 
-/// Convert a tuple of u64 values to a 64 byte array.
+/// Convert a tuple of u64 values to a 64 bytes array.
 fn b512_u64_tuple_to_u8_array(tuple: &(u64, u64, u64, u64, u64, u64, u64, u64)) -> [u8; 64] {
     let mut bytes = [0u8; 64];
     let (a, b, c, d, e, f, g, h) = tuple;
@@ -207,11 +203,10 @@ mod tests_bip32_ed25519 {
         );
         assert_eq!(pubk_hex, PUBKEY1);
     }
+
     #[test]
     fn test_sign_data_and_check_signature() {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
-        println!("{:?}", xprv);
-
         let sign_data = sign_data(xprv.clone(), DATA.to_vec());
         let check_signature = check_signature(xprv, DATA.to_vec(), sign_data);
         assert_eq!(check_signature, true);
