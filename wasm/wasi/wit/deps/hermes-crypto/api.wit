@@ -16,6 +16,7 @@ interface api {
         invalid-mnemonic-length,  // The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.
         word-not-found,  // A word in the mnemonic is not found in the word list.
         invalid-mnemonic, // The mnemonic is invalid.
+        invalid-derivational-path, // The derivational path is invalid.
     }
 
     // bip32-ed25519 Private Key
