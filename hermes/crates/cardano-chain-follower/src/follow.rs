@@ -344,7 +344,7 @@ impl Follower {
     ///
     /// Returns Err if some error occurred in the background task.
     pub async fn close(self) -> std::result::Result<(), tokio::task::JoinError> {
-        // NOTE(FelipeRosa): For now just abort all tasks since they need no cancelation
+        // NOTE(FelipeRosa): For now just abort all tasks since they need no cancellation
 
         self.task_join_handle.abort();
         self.read_task_join_handle.abort();
@@ -644,7 +644,7 @@ mod task {
             }
         }
 
-        /// Sends the next chain update throgh the follower's chain update channel.
+        /// Sends the next chain update through the follower's chain update channel.
         async fn send_next_chain_update(
             client: &mut PeerClient, chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
         ) -> bool {

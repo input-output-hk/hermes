@@ -31,7 +31,7 @@ pub enum Error {
     #[error("Chainsync error: {0:?}")]
     Chainsync(chainsync::ClientError),
     /// Follower failed to set its read pointer.
-    #[error("Faield to set follower read pointer")]
+    #[error("Failed to set follower read pointer")]
     SetReadPointer,
     /// Follower background follow task has stopped.
     #[error("Follower follow task is not running")]
