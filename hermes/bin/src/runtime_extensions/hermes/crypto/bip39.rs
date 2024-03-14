@@ -301,7 +301,7 @@ mod tests_bip39 {
     fn test_jap_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
         mnemonic_to_xprv(MNEMONIC_JAPANESE, "")
-            .expect("Failed to convert Japanses mnemonic to xprv");
+            .expect("Failed to convert Japanese mnemonic to xprv");
     }
 
     #[test]

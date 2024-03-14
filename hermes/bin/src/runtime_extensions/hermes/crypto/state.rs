@@ -22,7 +22,7 @@ type State =
 #[derive(Eq, Clone, PartialEq)]
 struct WrappedXPrv(XPrv);
 
-/// Implemnt Hash for `WrappedXPrv`
+/// Implement Hash for `WrappedXPrv`
 impl Hash for WrappedXPrv {
     /// Hasher for `WrappedXPrv`
     fn hash<H: Hasher>(&self, state: &mut H) {

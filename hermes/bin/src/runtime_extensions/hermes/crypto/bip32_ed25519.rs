@@ -75,7 +75,7 @@ pub(crate) fn check_signature(
 /// # Returns
 ///
 /// Returns the `XPrv` extended private key as a `Result`.
-/// If the derivation path is successful, it reutrns `Ok` with the extended private key (`XPrv`).
+/// If the derivation path is successful, it returns `Ok` with the extended private key (`XPrv`).
 ///
 /// # Errors
 ///
