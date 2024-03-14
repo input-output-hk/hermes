@@ -17,6 +17,8 @@ interface api {
         word-not-found,  // A word in the mnemonic is not found in the word list.
         invalid-mnemonic, // The mnemonic is invalid.
         invalid-derivational-path, // The derivational path is invalid.
+        generate-entropy-failed, // Failed to generate entropy. 
+        add-resource-failed, // Failed to add the resource to the state.
     }
 
     // bip32-ed25519 Private Key
