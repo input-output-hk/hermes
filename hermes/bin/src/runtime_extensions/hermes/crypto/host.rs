@@ -53,13 +53,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             self.app_name(),
             self.module_id(),
             self.event_name(),
-            &self.exc_counter(),
-            &resource.rep(),
+            self.exc_counter(),
+            resource.rep(),
         );
         match private_key {
             Some(private_key) => {
-                let public_key = get_public_key(private_key);
-                return Ok(public_key);
+                let public_key = get_public_key(&private_key);
+                Ok(public_key)
             },
             None => Ok((0, 0, 0, 0)),
         }
@@ -77,13 +77,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             self.app_name(),
             self.module_id(),
             self.event_name(),
-            &self.exc_counter(),
-            &resource.rep(),
+            self.exc_counter(),
+            resource.rep(),
         );
         match private_key {
             Some(private_key) => {
-                let sig = sign_data(private_key, data);
-                return Ok(sig);
+                let sig = sign_data(&private_key, &data);
+                Ok(sig)
             },
             None => Ok((0, 0, 0, 0, 0, 0, 0, 0)),
         }
@@ -108,13 +108,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             self.app_name(),
             self.module_id(),
             self.event_name(),
-            &self.exc_counter(),
-            &resource.rep(),
+            self.exc_counter(),
+            resource.rep(),
         );
         match private_key {
             Some(private_key) => {
-                let check_sig = check_signature(private_key, data, sig);
-                return Ok(check_sig);
+                let check_sig = check_signature(&private_key, &data, sig);
+                Ok(check_sig)
             },
             None => Ok(false),
         }
@@ -134,22 +134,22 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             self.app_name(),
             self.module_id(),
             self.event_name(),
-            &self.exc_counter(),
-            &resource.rep(),
+            self.exc_counter(),
+            resource.rep(),
         ) {
             if let Ok(derived_private_key) = derive_new_private_key(private_key, &path) {
                 if let Some(id) = add_resource(
                     self.app_name(),
                     self.module_id(),
                     self.event_name(),
-                    &self.exc_counter(),
+                    self.exc_counter(),
                     derived_private_key,
                 ) {
                     return Ok(Resource::new_own(id));
                 }
             }
         }
-        return Err(wasmtime::Error::msg("Error deriving new private key"));
+        Err(wasmtime::Error::msg("Error deriving new private key"))
     }
 
     /// Create a new RANDOM mnemonic.
@@ -162,52 +162,49 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
         // If the state deletion is successful, drop the resource.
-        if let Some(_) = delete_resource(
+        if delete_resource(
             self.app_name(),
             self.module_id(),
             self.event_name(),
-            &self.exc_counter(),
+            self.exc_counter(),
             res.rep(),
-        ) {
+        )
+        .is_some()
+        {
             let _unused = self.drop(res);
         }
         Ok(())
     }
 }
 
+/// Generate new resource.
 fn generate_resource(
     app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32,
     mnemonic: Option<MnemonicPhrase>, passphrase: Option<Passphrase>,
 ) -> Result<wasmtime::component::Resource<Bip32Ed25519>, Errno> {
-    let xprv = match mnemonic {
-        // If mnemonic is supplied, use it to generate xprv.
-        Some(mnemonic) => {
-            let passphrase = passphrase.unwrap_or_default();
-            mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
-        },
-        None => {
-            // If mnemonic is not supplied, generate a new one
-            // then generate xprv.
-            let mnemonic = match generate_new_mnemonic(12, Vec::new(), Language::English) {
-                Ok(mnemonic) => mnemonic,
-                Err(e) => return Err(e),
-            };
-            mnemonic_to_xprv(&mnemonic, "")
-        },
+    let xprv = if let Some(mnemonic) = mnemonic {
+        let passphrase = passphrase.unwrap_or_default();
+        mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
+    } else {
+        // If mnemonic is not supplied, generate a new one
+        // then generate xprv.
+        let mnemonic = match generate_new_mnemonic(12, Vec::new(), Language::English) {
+            Ok(mnemonic) => mnemonic,
+            Err(e) => return Err(e),
+        };
+        mnemonic_to_xprv(&mnemonic, "")
     };
 
-    let resource = match xprv {
+    match xprv {
         // If xprv is generated, add it to the state and return the resource.
         Ok(xprv) => {
-            match add_resource(app_name, module_id, event_name, &counter, xprv) {
+            match add_resource(app_name, module_id, event_name, counter, xprv) {
                 Some(id) => Ok(Resource::new_own(id)),
-                None => todo!(), // FIXME - Should be a proper error
+                None => Err(Errno::AddResourceFailed),
             }
         },
         Err(e) => Err(e),
-    };
-
-    resource
+    }
 }
 
 impl Host for HermesRuntimeContext {}
