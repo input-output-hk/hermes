@@ -11,12 +11,12 @@ use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 ///
 /// # Arguments
 ///
-/// - `xprivate_key`: An extended private key of type XPrv.
+/// - `xprivate_key`: An extended private key of type `XPrv`.
 ///
 /// # Returns
 ///
 /// Returns a tuple of u64 values with length 4 representing the public key.
-pub(crate) fn get_public_key(xprivate_key: XPrv) -> Bip32Ed25519PublicKey {
+pub(crate) fn get_public_key(xprivate_key: &XPrv) -> Bip32Ed25519PublicKey {
     let xpub = xprivate_key.public().public_key();
     array_u8_32_to_tuple(&xpub)
 }
@@ -25,13 +25,13 @@ pub(crate) fn get_public_key(xprivate_key: XPrv) -> Bip32Ed25519PublicKey {
 ///
 /// # Arguments
 ///
-/// - `xprivate_key`: An extended private key of type XPrv.
+/// - `xprivate_key`: An extended private key of type `XPrv`.
 /// - `data`: The data to sign.
 ///
 /// # Returns
 /// Returns a tuple of u64 values with length 8 representing the signature.
-pub(crate) fn sign_data(xprivate_key: XPrv, data: Bstr) -> Bip32Ed25519Signature {
-    let sig: Signature<Bstr> = xprivate_key.sign(&data);
+pub(crate) fn sign_data(xprivate_key: &XPrv, data: &Bstr) -> Bip32Ed25519Signature {
+    let sig: Signature<Bstr> = xprivate_key.sign(data);
     let sig_bytes = sig.to_bytes();
     array_u8_64_to_tuple(sig_bytes)
 }
@@ -40,16 +40,16 @@ pub(crate) fn sign_data(xprivate_key: XPrv, data: Bstr) -> Bip32Ed25519Signature
 ///
 /// # Arguments
 ///
-/// - `xprivate_key`: An extended private key of type XPrv.
+/// - `xprivate_key`: An extended private key of type `XPrv`.
 /// - `data`: The data to sign.
 /// - `signature`: The signature to check.
 ///
 /// # Returns
 /// Returns a boolean value indicating if the signature match the sign data
-/// from xprivate_key and data.
+/// from `xprivate_key` and data.
 /// True if the signature is valid and match the sign data, false otherwise.
 pub(crate) fn check_signature(
-    xprivate_key: XPrv, data: Bstr, signature: Bip32Ed25519Signature,
+    xprivate_key: &XPrv, data: &Bstr, signature: Bip32Ed25519Signature,
 ) -> bool {
     let sig_array = b512_u64_tuple_to_u8_array(&signature);
     // Verify the signature.
@@ -58,7 +58,7 @@ pub(crate) fn check_signature(
         // Invalid signature
         Err(_) => return false,
     };
-    xprivate_key.verify(&data, &signature)
+    xprivate_key.verify(data, &signature)
 }
 
 /// Derive a new extended private key from the given extended private key.
@@ -69,28 +69,28 @@ pub(crate) fn check_signature(
 ///  
 /// # Arguments
 ///
-/// - `xprivate_key`: An extended private key of type XPrv.
+/// - `xprivate_key`: An extended private key of type `XPrv`.
 /// - `path`: Derivation path. eg. m/0/2'/3 where ' represents hardened derivation.
 ///
 /// # Returns
 ///
 /// Returns the `XPrv` extended private key as a `Result`.
-/// If the derivation path is successful, it reutrns `Ok` with the extended private key (XPrv).
+/// If the derivation path is successful, it reutrns `Ok` with the extended private key (`XPrv`).
 ///
 /// # Errors
 ///
 /// Returns an `InvalidDerivationalPath` if the derivation path is invalid.
 pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<XPrv, Errno> {
-    let derivation_path = match path.parse::<DerivationPath>() {
-        Ok(path) => path,
-        Err(_) => return Err(Errno::InvalidDerivationalPath),
+    let Ok(derivation_path) = path.parse::<DerivationPath>() else {
+        return Err(Errno::InvalidDerivationalPath);
     };
     let key = derivation_path
         .iter()
         .fold(xprivate_key, |xprv, child_num| {
-            match child_num.is_hardened() {
-                true => xprv.derive(DerivationScheme::V2, child_num.index() | 0x80_00_00_00),
-                false => xprv.derive(DerivationScheme::V2, child_num.index()),
+            if child_num.is_hardened() {
+                xprv.derive(DerivationScheme::V2, child_num.index() | 0x80_00_00_00)
+            } else {
+                xprv.derive(DerivationScheme::V2, child_num.index())
             }
         });
     Ok(key)
@@ -101,19 +101,19 @@ fn array_u8_32_to_tuple(array: &[u8; 32]) -> (u64, u64, u64, u64) {
     let mut tuple = (0u64, 0u64, 0u64, 0u64);
     let mut arr = [0u8; 8];
     let slice1 = &array[0..8];
-    arr.copy_from_slice(&slice1);
+    arr.copy_from_slice(slice1);
     tuple.0 = u64::from_be_bytes(arr);
 
     let slice2 = &array[8..16];
-    arr.copy_from_slice(&slice2);
+    arr.copy_from_slice(slice2);
     tuple.1 = u64::from_be_bytes(arr);
 
     let slice3 = &array[16..24];
-    arr.copy_from_slice(&slice3);
+    arr.copy_from_slice(slice3);
     tuple.2 = u64::from_be_bytes(arr);
 
     let slice4 = &array[24..32];
-    arr.copy_from_slice(&slice4);
+    arr.copy_from_slice(slice4);
     tuple.3 = u64::from_be_bytes(arr);
 
     tuple
@@ -124,35 +124,35 @@ fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64, u64, u64,
     let mut tuple = (0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64);
     let mut arr = [0u8; 8];
     let slice1 = &array[0..8];
-    arr.copy_from_slice(&slice1);
+    arr.copy_from_slice(slice1);
     tuple.0 = u64::from_be_bytes(arr);
 
     let slice2 = &array[8..16];
-    arr.copy_from_slice(&slice2);
+    arr.copy_from_slice(slice2);
     tuple.1 = u64::from_be_bytes(arr);
 
     let slice3 = &array[16..24];
-    arr.copy_from_slice(&slice3);
+    arr.copy_from_slice(slice3);
     tuple.2 = u64::from_be_bytes(arr);
 
     let slice4 = &array[24..32];
-    arr.copy_from_slice(&slice4);
+    arr.copy_from_slice(slice4);
     tuple.3 = u64::from_be_bytes(arr);
 
     let slice5 = &array[32..40];
-    arr.copy_from_slice(&slice5);
+    arr.copy_from_slice(slice5);
     tuple.4 = u64::from_be_bytes(arr);
 
     let slice6 = &array[40..48];
-    arr.copy_from_slice(&slice6);
+    arr.copy_from_slice(slice6);
     tuple.5 = u64::from_be_bytes(arr);
 
     let slice7 = &array[48..56];
-    arr.copy_from_slice(&slice7);
+    arr.copy_from_slice(slice7);
     tuple.6 = u64::from_be_bytes(arr);
 
     let slice8 = &array[56..64];
-    arr.copy_from_slice(&slice8);
+    arr.copy_from_slice(slice8);
     tuple.7 = u64::from_be_bytes(arr);
 
     tuple
@@ -161,15 +161,15 @@ fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64, u64, u64,
 /// Convert a tuple of u64 values to a 64 bytes array.
 fn b512_u64_tuple_to_u8_array(tuple: &(u64, u64, u64, u64, u64, u64, u64, u64)) -> [u8; 64] {
     let mut bytes = [0u8; 64];
-    let (a, b, c, d, e, f, g, h) = tuple;
-    bytes[0..8].copy_from_slice(&a.to_be_bytes());
-    bytes[8..16].copy_from_slice(&b.to_be_bytes());
-    bytes[16..24].copy_from_slice(&c.to_be_bytes());
-    bytes[24..32].copy_from_slice(&d.to_be_bytes());
-    bytes[32..40].copy_from_slice(&e.to_be_bytes());
-    bytes[40..48].copy_from_slice(&f.to_be_bytes());
-    bytes[48..56].copy_from_slice(&g.to_be_bytes());
-    bytes[56..64].copy_from_slice(&h.to_be_bytes());
+    let (t1, t2, t3, t4, t5, t6, t7, t8) = tuple;
+    bytes[0..8].copy_from_slice(&t1.to_be_bytes());
+    bytes[8..16].copy_from_slice(&t2.to_be_bytes());
+    bytes[16..24].copy_from_slice(&t3.to_be_bytes());
+    bytes[24..32].copy_from_slice(&t4.to_be_bytes());
+    bytes[32..40].copy_from_slice(&t5.to_be_bytes());
+    bytes[40..48].copy_from_slice(&t6.to_be_bytes());
+    bytes[48..56].copy_from_slice(&t7.to_be_bytes());
+    bytes[56..64].copy_from_slice(&t8.to_be_bytes());
     bytes
 }
 
@@ -196,7 +196,7 @@ mod tests_bip32_ed25519 {
     #[test]
     fn test_get_public_key() {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
-        let pubk_tuple = get_public_key(xprv);
+        let pubk_tuple = get_public_key(&xprv);
         let pubk_hex = format!(
             "{:x}{:x}{:x}{:x}",
             pubk_tuple.0, pubk_tuple.1, pubk_tuple.2, pubk_tuple.3
@@ -207,9 +207,9 @@ mod tests_bip32_ed25519 {
     #[test]
     fn test_sign_data_and_check_signature() {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
-        let sign_data = sign_data(xprv.clone(), DATA.to_vec());
-        let check_signature = check_signature(xprv, DATA.to_vec(), sign_data);
-        assert_eq!(check_signature, true);
+        let sign_data = sign_data(&xprv, &DATA.to_vec());
+        let check_signature = check_signature(&xprv, &DATA.to_vec(), sign_data);
+        assert!(check_signature);
     }
 
     #[test]
