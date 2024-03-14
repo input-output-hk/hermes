@@ -10,8 +10,7 @@ use dashmap::DashMap;
 use ed25519_bip32::XPrv;
 use once_cell::sync::Lazy;
 
-use crate::app::HermesAppName;
-use crate::wasm::module::ModuleId;
+use crate::{app::HermesAppName, wasm::module::ModuleId};
 
 /// Map of app name, module ULID, event name, and module execution counter to resource
 /// holder
@@ -209,13 +208,13 @@ mod tests_crypto_state {
     ];
 
     const KEY2: [u8; 96] = [
-        0x60, 0xd3, 0x99, 0xda, 0x83, 0xef, 0x80, 0xd8, 0xd4, 0xf8, 0xd2, 0x23, 0x23, 0x9e, 0xfd,
-        0xc2, 0xb8, 0xfe, 0xf3, 0x87, 0xe1, 0xb5, 0x21, 0x91, 0x37, 0xff, 0xb4, 0xe8, 0xfb, 0xde,
-        0xa1, 0x5a, 0xdc, 0x93, 0x66, 0xb7, 0xd0, 0x03, 0xaf, 0x37, 0xc1, 0x13, 0x96, 0xde, 0x9a,
-        0x83, 0x73, 0x4e, 0x30, 0xe0, 0x5e, 0x85, 0x1e, 0xfa, 0x32, 0x74, 0x5c, 0x9c, 0xd7, 0xb4,
-        0x27, 0x12, 0xc8, 0x90, 0x60, 0x87, 0x63, 0x77, 0x0e, 0xdd, 0xf7, 0x72, 0x48, 0xab, 0x65,
-        0x29, 0x84, 0xb2, 0x1b, 0x84, 0x97, 0x60, 0xd1, 0xda, 0x74, 0xa6, 0xf5, 0xbd, 0x63, 0x3c,
-        0xe4, 0x1a, 0xdc, 0xee, 0xf0, 0x7a,
+        0x60, 0xD3, 0x99, 0xDA, 0x83, 0xEF, 0x80, 0xD8, 0xD4, 0xF8, 0xD2, 0x23, 0x23, 0x9E, 0xFD,
+        0xC2, 0xB8, 0xFE, 0xF3, 0x87, 0xE1, 0xB5, 0x21, 0x91, 0x37, 0xFF, 0xB4, 0xE8, 0xFB, 0xDE,
+        0xA1, 0x5A, 0xDC, 0x93, 0x66, 0xB7, 0xD0, 0x03, 0xAF, 0x37, 0xC1, 0x13, 0x96, 0xDE, 0x9A,
+        0x83, 0x73, 0x4E, 0x30, 0xE0, 0x5E, 0x85, 0x1E, 0xFA, 0x32, 0x74, 0x5C, 0x9C, 0xD7, 0xB4,
+        0x27, 0x12, 0xC8, 0x90, 0x60, 0x87, 0x63, 0x77, 0x0E, 0xDD, 0xF7, 0x72, 0x48, 0xAB, 0x65,
+        0x29, 0x84, 0xB2, 0x1B, 0x84, 0x97, 0x60, 0xD1, 0xDA, 0x74, 0xA6, 0xF5, 0xBD, 0x63, 0x3C,
+        0xE4, 0x1A, 0xDC, 0xEE, 0xF0, 0x7A,
     ];
 
     #[test]
@@ -227,12 +226,7 @@ mod tests_crypto_state {
         let counter = 10;
 
         // Set the global state.
-        set_state(
-            app_name.clone(),
-            module_id.clone(),
-            event_name,
-            counter,
-        );
+        set_state(app_name.clone(), module_id.clone(), event_name, counter);
 
         // Add the resource.
         let id1 = add_resource(&app_name, &module_id, event_name, counter, prv.clone());
@@ -258,10 +252,10 @@ mod tests_crypto_state {
         // Dropping the resource with id 2 which doesn't exist.
         let drop_id_2 = delete_resource(&app_name, &module_id, event_name, counter, 2);
         assert_eq!(drop_id_2, None);
-        
+
         let res_holder =
-        check_context_and_return_resources(&app_name, &module_id, event_name, counter)
-        .expect("Resource holder not found");
+            check_context_and_return_resources(&app_name, &module_id, event_name, counter)
+                .expect("Resource holder not found");
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
     }
@@ -274,12 +268,7 @@ mod tests_crypto_state {
         let counter = 10;
 
         // Setup initial state.
-        set_state(
-            app_name.clone(),
-            module_id.clone(),
-            event_name,
-            counter,
-        );
+        set_state(app_name.clone(), module_id.clone(), event_name, counter);
 
         // Run the test with multiple threads.
         let mut handles = vec![];
@@ -322,14 +311,12 @@ mod tests_crypto_state {
             assert_eq!(res.resource_to_id_map.len(), 2);
             assert_eq!(res.current_id, 2);
             // Maps should contains prv1 and prv2.
-            assert!(
-                res.resource_to_id_map
-                    .contains_key(&WrappedXPrv::from(prv1.clone()))
-            );
-            assert!(
-                res.resource_to_id_map
-                    .contains_key(&WrappedXPrv::from(prv2.clone()))
-            );
+            assert!(res
+                .resource_to_id_map
+                .contains_key(&WrappedXPrv::from(prv1.clone())));
+            assert!(res
+                .resource_to_id_map
+                .contains_key(&WrappedXPrv::from(prv2.clone())));
             // Map should contains id 1 and 2.
             assert!(res.id_to_resource_map.contains_key(&1));
             assert!(res.id_to_resource_map.contains_key(&2));

@@ -26,7 +26,8 @@ use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 /// # Returns
 ///
 /// Returns the `XPrv` extended private key as a `Result`.
-/// If the conversion is successful, it returns `Ok` with the extended private key (`XPrv`).
+/// If the conversion is successful, it returns `Ok` with the extended private key
+/// (`XPrv`).
 ///
 /// # Errors
 ///
@@ -75,7 +76,8 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 ///
 /// # Errors
 ///
-/// - `InvalidMnemonicLength`: If the word count is not a multiple of 3 or not in the range of 12 - 24.
+/// - `InvalidMnemonicLength`: If the word count is not a multiple of 3 or not in the
+///   range of 12 - 24.
 /// - `PrefixTooLong`: If the prefix is longer than the maximum allowed length, max is 3.
 /// - `WordNotFound`: If a word in the mnemonic is not found in the word list.
 pub(crate) fn generate_new_mnemonic(
@@ -176,7 +178,7 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Fill the random number into entropy_num.
     if let Some(slice) = entropy_num_max.get_mut(0..entropy_num) {
         rng.fill_bytes(slice);
-    } 
+    }
 
     if let Some(slice) = entropy_num_max.get(0..entropy_num) {
         Ok(slice.to_vec())
@@ -230,9 +232,7 @@ fn get_word_indices(bits_entropy: &[u8], word_count: usize) -> Vec<u16> {
 }
 
 /// Get the mnemonic from the BIP39 dictionary using word indices.
-fn get_mnemonic_from_indices(
-    word_index_vec: Vec<u16>, language: Language,
-) -> Vec<&'static str> {
+fn get_mnemonic_from_indices(word_index_vec: Vec<u16>, language: Language) -> Vec<&'static str> {
     let word_list = language.word_list();
     let mut mnemonic: Vec<&str> = vec![];
     for word in word_index_vec {
@@ -255,7 +255,7 @@ fn decimal_to_binary_array(decimal: u16) -> [u8; 11] {
             index += 1;
             *value = bit as u8;
             n /= 2;
-        } 
+        }
     }
 
     // If the number of bits is less than 11, fill the remaining bits with 0.

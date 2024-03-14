@@ -3,8 +3,6 @@
 use bip39::Language;
 use wasmtime::component::Resource;
 
-use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
-use crate::wasm::module::ModuleId;
 use crate::{
     app::HermesAppName,
     runtime_context::HermesRuntimeContext,
@@ -12,8 +10,8 @@ use crate::{
         bindings::hermes::{
             binary::api::Bstr,
             crypto::api::{
-                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature, Host, HostBip32Ed25519,
-                MnemonicPhrase, Passphrase, Path,
+                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno, Host,
+                HostBip32Ed25519, MnemonicPhrase, Passphrase, Path,
             },
         },
         hermes::crypto::{
@@ -22,6 +20,7 @@ use crate::{
             state::{add_resource, delete_resource, get_resource},
         },
     },
+    wasm::module::ModuleId,
 };
 
 impl HostBip32Ed25519 for HermesRuntimeContext {

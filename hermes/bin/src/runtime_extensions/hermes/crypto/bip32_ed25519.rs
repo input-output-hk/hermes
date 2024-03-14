@@ -1,11 +1,12 @@
 //! Implementation of Bip32-Ed25519.
 
+use bip32::DerivationPath;
+use ed25519_bip32::{DerivationScheme, Signature, XPrv};
+
 use crate::runtime_extensions::bindings::hermes::{
     binary::api::Bstr,
     crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno},
 };
-use bip32::DerivationPath;
-use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 
 /// Get public key from the given extended private key.
 ///
@@ -75,7 +76,8 @@ pub(crate) fn check_signature(
 /// # Returns
 ///
 /// Returns the `XPrv` extended private key as a `Result`.
-/// If the derivation path is successful, it returns `Ok` with the extended private key (`XPrv`).
+/// If the derivation path is successful, it returns `Ok` with the extended private key
+/// (`XPrv`).
 ///
 /// # Errors
 ///
