@@ -35,5 +35,4 @@ time = { workspace = true }
 bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
 cryptoxide = { workspace = true }
 rand = { workspace = true }
-rand_core = { workspace = true }
 bip32 = { workspace = true }
