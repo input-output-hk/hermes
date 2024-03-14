@@ -17,9 +17,9 @@ use crate::{
             },
         },
         hermes::crypto::{
-            bip32_ed25519::{check_signature, derive_new_private_key, sign_data, get_public_key},
-            state::{add_resource, get_resource, delete_resource},
+            bip32_ed25519::{check_signature, derive_new_private_key, get_public_key, sign_data},
             bip39::{generate_new_mnemonic, mnemonic_to_xprv},
+            state::{add_resource, delete_resource, get_resource},
         },
     },
 };
@@ -41,7 +41,8 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             self.exc_counter(),
             mnemonic,
             passphrase,
-        ).map_err(|_e| wasmtime::Error::msg("Error creating new resource"))
+        )
+        .map_err(|_e| wasmtime::Error::msg("Error creating new resource"))
     }
 
     /// Get the public key for this private key.
@@ -159,9 +160,17 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         self.new(Some(Vec::new()), Some(Vec::new()))
     }
 
-    fn drop(&mut self, _res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
-        // self.hermes.crypto.private_key.drop(rep.rep()).unwrap_or(());
-
+    fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
+        // If the state deletion is successful, drop the resource.
+        if let Some(_) = delete_resource(
+            self.app_name(),
+            self.module_id(),
+            self.event_name(),
+            &self.exc_counter(),
+            res.rep(),
+        ) {
+            let _unused = self.drop(res);
+        }
         Ok(())
     }
 }
