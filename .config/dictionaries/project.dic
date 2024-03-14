@@ -20,6 +20,7 @@ codepoints
 coti
 crontabs
 cryptoxide
+Datelike
 dbsync
 dcbor
 delegators
@@ -48,6 +49,7 @@ fstat
 fstatat
 futimens
 genhtml
+getres
 GETFL
 gmtime
 happ
@@ -65,6 +67,7 @@ jormungandr
 Jörmungandr
 lcov
 Leshiy
+libtest
 linkat
 lintfix
 localizable
@@ -81,6 +84,7 @@ multiera
 nanos
 netkey
 nextest
+nsec
 oneshot
 openapi
 openat
@@ -119,13 +123,16 @@ seckey
 slotno
 smac
 stevenj
+subsec
 symlinkat
+syscall
 tacho
 testcov
 testdocs
 testunit
 thiserror
 timelike
+timespec
 toolsets
 Traceback
 txns
