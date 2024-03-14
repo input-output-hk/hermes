@@ -215,7 +215,7 @@ fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
 fn get_word_indices(bits_entropy: &[u8], word_count: usize) -> Vec<u16> {
     let mut word_index_vec = Vec::new();
 
-    // Seperate entropy bits into 11 bits and convert to decimal.
+    // Separate entropy bits into 11 bits and convert to decimal.
     // This decimal will be used to get the word index.
     for i in 0..word_count {
         let mut idx = 0;
