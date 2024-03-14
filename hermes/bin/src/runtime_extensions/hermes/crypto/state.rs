@@ -18,27 +18,27 @@ use crate::wasm::module::ModuleId;
 type State =
     DashMap<HermesAppName, DashMap<ModuleId, DashMap<String, DashMap<u32, ResourceHolder>>>>;
 
-/// Wrapper for XPrv to implement Hash used in DashMap
+/// Wrapper for `XPrv` to implement Hash used in `DashMap`
 #[derive(Eq, Clone, PartialEq)]
 struct WrappedXPrv(XPrv);
 
-/// Implemnt Hash for WrappedXPrv
+/// Implemnt Hash for `WrappedXPrv`
 impl Hash for WrappedXPrv {
-    /// Hasher for WrappedXPrv
+    /// Hasher for `WrappedXPrv`
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.as_ref().hash(state);
     }
 }
 
-/// Implement From for XPrv to WrappedXPrv
+/// Implement From for `XPrv` to `WrappedXPrv`
 impl From<XPrv> for WrappedXPrv {
-    /// Turn XPrv into WrappedXPrv
+    /// Turn `XPrv` into `WrappedXPrv`
     fn from(xprv: XPrv) -> Self {
         WrappedXPrv(xprv)
     }
 }
 
-/// Resource holder to hold the resources for XPrv.
+/// Resource holder to hold the resources for `XPrv`.
 #[derive(Clone)]
 pub(crate) struct ResourceHolder {
     /// Map of resource to id.
@@ -49,8 +49,6 @@ pub(crate) struct ResourceHolder {
     current_id: u32,
 }
 
-// TODO - Remove dead code, once everthing is done
-#[allow(dead_code)]
 impl ResourceHolder {
     /// Generate new resource holder.
     fn new() -> Self {
@@ -68,9 +66,9 @@ impl ResourceHolder {
     }
 
     /// Get the resource from id if possible.
-    fn get_resource_from_id(&self, id: &u32) -> Option<XPrv> {
+    fn get_resource_from_id(&self, id: u32) -> Option<XPrv> {
         self.id_to_resource_map
-            .get(id)
+            .get(&id)
             .map(|entry| entry.value().clone())
     }
 
@@ -78,14 +76,14 @@ impl ResourceHolder {
     fn get_id_from_resource(&self, resource: &XPrv) -> Option<u32> {
         self.resource_to_id_map
             .get(&WrappedXPrv::from(resource.clone()))
-            .map(|entry| entry.value().clone())
+            .map(|entry| *entry.value())
     }
 
     /// Drop the item from resources using id if possible.
     /// Return the id of the resource if successful remove from maps
     fn drop(&mut self, id: u32) -> Option<u32> {
         // Check if the resource exists in id_to_resource_map.
-        if let Some(resource) = self.get_resource_from_id(&id) {
+        if let Some(resource) = self.get_resource_from_id(id) {
             // Check if the id exists in resource_to_id_map.
             if let Some(associated_id) = self.get_id_from_resource(&resource) {
                 // The id should be the same.
@@ -107,22 +105,21 @@ static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::
 
 /// Check the state whether the context exists and return the resources if possible.
 fn check_context_and_return_resources(
-    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32,
 ) -> Option<ResourceHolder> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
         if let Some(module_map) = app_map.get(module_id) {
             if let Some(event_map) = module_map.get(event_name) {
-                if let Some(counter_map) = event_map.get(counter) {
+                if let Some(counter_map) = event_map.get(&counter) {
                     return Some(counter_map.clone());
                 }
             }
         }
     }
-    return None;
+    None
 }
 
-#[allow(dead_code)]
 /// Set the state according to the app context.
 pub(crate) fn set_state(
     app_name: HermesAppName, module_id: ModuleId, event_name: &str, counter: u32,
@@ -140,10 +137,9 @@ pub(crate) fn set_state(
     CRYPTO_INTERNAL_STATE.insert(app_name, module_map);
 }
 
-#[allow(dead_code)]
 /// Get the resource from the state using id if possible.
 pub(crate) fn get_resource(
-    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, id: &u32,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32, id: u32,
 ) -> Option<XPrv> {
     let res_holder = check_context_and_return_resources(app_name, module_id, event_name, counter);
     if let Some(resource) = res_holder {
@@ -152,17 +148,16 @@ pub(crate) fn get_resource(
     None
 }
 
-#[allow(dead_code)]
-/// Add the resource of XPrv to the state if possible.
+/// Add the resource of `XPrv` to the state if possible.
 /// Return the id if successful.
 pub(crate) fn add_resource(
-    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, xprv: XPrv,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32, xprv: XPrv,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
         if let Some(module_map) = app_map.get(module_id) {
             if let Some(event_map) = module_map.get(event_name) {
-                if let Some(mut counter_map) = event_map.get_mut(counter) {
+                if let Some(mut counter_map) = event_map.get_mut(&counter) {
                     let wrapped_xprv = WrappedXPrv::from(xprv.clone());
                     // Check whether the resource already exists.
                     if !counter_map.resource_to_id_map.contains_key(&wrapped_xprv) {
@@ -171,7 +166,7 @@ pub(crate) fn add_resource(
                         counter_map.id_to_resource_map.insert(id, xprv);
                         counter_map.resource_to_id_map.insert(wrapped_xprv, id);
                         // FIXME - Remove log
-                        println!("Resource added with id: {}", id);
+                        println!("Resource added with id: {id}");
                         return Some(id);
                     }
                 }
@@ -181,16 +176,15 @@ pub(crate) fn add_resource(
     None
 }
 
-#[allow(dead_code)]
 /// Delete the resource from the state using id if possible.
 pub(crate) fn delete_resource(
-    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: &u32, id: u32,
+    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32, id: u32,
 ) -> Option<u32> {
     let binding = CRYPTO_INTERNAL_STATE.clone();
     if let Some(app_map) = binding.get(app_name) {
         if let Some(module_map) = app_map.get(module_id) {
             if let Some(event_map) = module_map.get(event_name) {
-                if let Some(mut counter_map) = event_map.get_mut(counter) {
+                if let Some(mut counter_map) = event_map.get_mut(&counter) {
                     return counter_map.drop(id);
                 }
             }
@@ -237,36 +231,36 @@ mod tests_crypto_state {
             app_name.clone(),
             module_id.clone(),
             event_name,
-            counter.clone(),
+            counter,
         );
 
         // Add the resource.
-        let id1 = add_resource(&app_name, &module_id, event_name, &counter, prv.clone());
+        let id1 = add_resource(&app_name, &module_id, event_name, counter, prv.clone());
         // Should return id 1.
         assert_eq!(id1, Some(1));
         // Get the resource from id 1.
-        let resource = get_resource(&app_name, &module_id, event_name, &counter, &1);
+        let resource = get_resource(&app_name, &module_id, event_name, counter, 1);
         // The resource should be the same
         assert_eq!(resource, Some(prv.clone()));
 
         // Add another resource, with the same key.
-        let id2 = add_resource(&app_name, &module_id, event_name, &counter, prv.clone());
+        let id2 = add_resource(&app_name, &module_id, event_name, counter, prv.clone());
         // Resource already exist, so it should return None.
         assert_eq!(id2, None);
         // Get the resource from id.
-        let k2 = get_resource(&app_name, &module_id, event_name, &counter, &2);
+        let k2 = get_resource(&app_name, &module_id, event_name, counter, 2);
         // Resource already exist, so it should return None.
         assert_eq!(k2, None);
 
         // Dropping the resource with id 1.
-        let drop_id_1 = delete_resource(&app_name, &module_id, event_name, &counter, 1);
+        let drop_id_1 = delete_resource(&app_name, &module_id, event_name, counter, 1);
         assert_eq!(drop_id_1, Some(1));
         // Dropping the resource with id 2 which doesn't exist.
-        let drop_id_2 = delete_resource(&app_name, &module_id, event_name, &counter, 2);
+        let drop_id_2 = delete_resource(&app_name, &module_id, event_name, counter, 2);
         assert_eq!(drop_id_2, None);
         
         let res_holder =
-        check_context_and_return_resources(&app_name, &module_id, &event_name, &counter)
+        check_context_and_return_resources(&app_name, &module_id, event_name, counter)
         .expect("Resource holder not found");
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
@@ -299,14 +293,14 @@ mod tests_crypto_state {
                 let counter = 10;
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
-                add_resource(&app_name, &module_id, event_name, &counter, prv1.clone());
+                add_resource(&app_name, &module_id, event_name, counter, prv1.clone());
                 let app_name: HermesAppName = HermesAppName("App name 2".to_string());
                 let module_id: ModuleId = ModuleId(1.into());
                 let event_name = "test_event";
                 let counter = 10;
                 let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
                 // Adding resource.
-                add_resource(&app_name, &module_id, event_name, &counter, prv2.clone());
+                add_resource(&app_name, &module_id, event_name, counter, prv2.clone());
             });
             handles.push(handle);
         }
@@ -321,26 +315,24 @@ mod tests_crypto_state {
         let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
 
         let res_holder =
-            check_context_and_return_resources(&app_name, &module_id, &event_name, &counter);
-        res_holder.map(|res| {
+            check_context_and_return_resources(&app_name, &module_id, event_name, counter);
+        if let Some(res) = res_holder {
             // Maps should contains 2 resources.
             assert_eq!(res.id_to_resource_map.len(), 2);
             assert_eq!(res.resource_to_id_map.len(), 2);
             assert_eq!(res.current_id, 2);
             // Maps should contains prv1 and prv2.
-            assert_eq!(
+            assert!(
                 res.resource_to_id_map
-                    .contains_key(&WrappedXPrv::from(prv1.clone())),
-                true
+                    .contains_key(&WrappedXPrv::from(prv1.clone()))
             );
-            assert_eq!(
+            assert!(
                 res.resource_to_id_map
-                    .contains_key(&WrappedXPrv::from(prv2.clone())),
-                true
+                    .contains_key(&WrappedXPrv::from(prv2.clone()))
             );
             // Map should contains id 1 and 2.
-            assert_eq!(res.id_to_resource_map.contains_key(&1), true);
-            assert_eq!(res.id_to_resource_map.contains_key(&2), true);
-        });
+            assert!(res.id_to_resource_map.contains_key(&1));
+            assert!(res.id_to_resource_map.contains_key(&2));
+        };
     }
 }
