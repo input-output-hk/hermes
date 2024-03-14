@@ -72,9 +72,7 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         self.follow_from = from.into();
         self
     }
@@ -255,9 +253,7 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let (response_tx, response_rx) = oneshot::channel();
 
         let req = task::SetReadPointerRequest {
