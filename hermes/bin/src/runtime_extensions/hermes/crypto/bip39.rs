@@ -30,8 +30,7 @@ use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 ///
 /// # Errors
 ///
-/// - `bip39::Error`: If the mnemonic is invalid.
-#[allow(dead_code)]
+/// - `InvalidMnemonic`: If the mnemonic should be either 12, 15, 18, 21, or 24.
 pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv, Errno> {
     // Parse will detect language and check mnemonic valid length
     // 12, 15, 18, 21, 24 are valid mnemonic length
@@ -73,7 +72,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 ///
 /// # Returns
 ///
-/// Returns the mnemonic iof type `String` as a `Result`.
+/// Returns the mnemonic of type `String` as a `Result`.
 /// If the conversion is successful, it returns `Ok` with the mnemonic.
 /// If there is an error during the computation, it returns `Err` with an `Errno`.
 ///
@@ -82,7 +81,6 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 /// - `InvalidMnemonicLength`: If the word count is not a multiple of 3 or not in the range of 12 - 24.
 /// - `PrefixTooLong`: If the prefix is longer than the maximum allowed length, max is 3.
 /// - `WordNotFound`: If a word in the mnemonic is not found in the word list.
-#[allow(dead_code)]
 pub(crate) fn generate_new_mnemonic(
     word_count: usize, prefix: Vec<&str>, language: Language,
 ) -> Result<String, Errno> {
@@ -139,7 +137,6 @@ pub(crate) fn generate_new_mnemonic(
 
     println!("bits_entropy after adding checksum bits {:?}", bits_entropy);
 
-    //
     let word_indices = get_word_indices(&bits_entropy, word_count);
     println!("word index {:?}", word_indices);
 
@@ -151,6 +148,7 @@ pub(crate) fn generate_new_mnemonic(
 
 /// Check if the word count is valid.
 /// Valid word count is a multiple of 3 and in the range of 12 - 24.
+/// Returns true if the word count is invalid, otherwise false.
 fn is_invalid_word_count(word_count: usize) -> bool {
     word_count < 12 || word_count % 3 != 0 || word_count > 24
 }
@@ -236,7 +234,7 @@ fn get_mnemonic_from_indices(word_index_vec: Vec<u16>, language: Language) -> Ve
     mnemonic
 }
 
-// Turns decimal into binary array of length 11
+/// Turns decimal into binary array of length 11
 fn decimal_to_binary_array(decimal: u16) -> [u8; 11] {
     let mut binary = [0u8; 11];
     let mut n = decimal;
