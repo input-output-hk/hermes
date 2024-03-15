@@ -81,7 +81,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 /// - `PrefixTooLong`: If the prefix is longer than the maximum allowed length, max is 3.
 /// - `WordNotFound`: If a word in the mnemonic is not found in the word list.
 pub(crate) fn generate_new_mnemonic(
-    word_count: usize, prefix: Vec<&str>, language: Language,
+    word_count: usize, prefix: Vec<&str>, language: Option<Language>,
 ) -> Result<String, Errno> {
     // Check word count
     if is_invalid_word_count(word_count) {
@@ -92,6 +92,8 @@ pub(crate) fn generate_new_mnemonic(
     if prefix.len() > 3 {
         return Err(Errno::PrefixTooLong);
     }
+
+    let language = language.unwrap_or(Language::English);
 
     let prefix_index_bits = match get_prefix_index_bits(prefix, language) {
         Ok(prefix_index_bits) => prefix_index_bits,
@@ -320,29 +322,35 @@ mod tests_bip39 {
 
     #[test]
     fn test_generate_mnemonic_prefix() {
-        let mnemonic = generate_new_mnemonic(12, vec![], Language::English)
+        let mnemonic = generate_new_mnemonic(12, vec![], Some(Language::English))
             .expect("Failed to generate mnemonic");
         println!("{mnemonic}");
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project"], Language::English)
+        let mnemonic = generate_new_mnemonic(12, vec!["project"], Some(Language::English))
             .expect("Failed to generate mnemonic");
         println!("{mnemonic}");
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project", "cat"], Language::English)
+        let mnemonic = generate_new_mnemonic(12, vec!["project", "cat"], Some(Language::English))
             .expect("Failed to generate mnemonic");
         println!("{mnemonic}");
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project", "cat", "test"], Language::English)
+        let mnemonic =
+            generate_new_mnemonic(12, vec!["project", "cat", "test"], Some(Language::English))
+                .expect("Failed to generate mnemonic");
+        Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
+        let mnemonic = generate_new_mnemonic(12, vec!["project", "cat", "test"], None)
             .expect("Failed to generate mnemonic");
         println!("{mnemonic}");
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
     }
-
     #[test]
     fn test_generate_mnemonic_prefix_japanese() {
-        let mnemonic =
-            generate_new_mnemonic(12, vec!["たいみんぐ", "うけたまわる"], Language::Japanese)
-                .expect("Failed to generate mnemonic");
+        let mnemonic = generate_new_mnemonic(
+            12,
+            vec!["たいみんぐ", "うけたまわる"],
+            Some(Language::Japanese),
+        )
+        .expect("Failed to generate mnemonic");
         println!("{mnemonic}");
         Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
     }
@@ -351,7 +359,7 @@ mod tests_bip39 {
     fn test_generate_mnemonic_validity() {
         for _ in 0..20 {
             let prefix = vec!["project", "cat"];
-            let mnemonic = generate_new_mnemonic(12, prefix, Language::English)
+            let mnemonic = generate_new_mnemonic(12, prefix, Some(Language::English))
                 .expect("Failed to generate mnemonic");
             println!("{mnemonic}");
             Mnemonic::parse(mnemonic).expect("Fail to parse mnemonic");
@@ -361,18 +369,18 @@ mod tests_bip39 {
     #[test]
     fn test_generate_mnemonic_with_prefix_too_long() {
         let prefix = vec!["project", "cat", "test", "long"];
-        generate_new_mnemonic(12, prefix, Language::English)
+        generate_new_mnemonic(12, prefix, Some(Language::English))
             .expect_err(&format!("{:?}", Errno::PrefixTooLong));
     }
 
     #[test]
     fn test_generate_mnemonic_invalid_length() {
-        generate_new_mnemonic(3, vec![], Language::English)
+        generate_new_mnemonic(3, vec![], Some(Language::English))
             .expect_err(&format!("{:?}", Errno::InvalidMnemonicLength));
     }
     #[test]
     fn test_generate_mnemonic_prefix_word_not_found() {
-        generate_new_mnemonic(12, vec!["abc"], Language::English)
+        generate_new_mnemonic(12, vec!["abc"], Some(Language::English))
             .expect_err(&format!("{:?}", Errno::WordNotFound));
     }
 }
