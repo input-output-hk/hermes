@@ -53,6 +53,8 @@ missing_docs_in_private_items = "deny"
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 
+cardano-chain-follower = { path = "crates/cardano-chain-follower" }
+
 wasmtime = "19.0.0"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
@@ -61,6 +63,7 @@ hex-literal = "0.4.1"
 thiserror = "1.0.56"
 hex = "0.4.3"
 tracing = "0.1.40"
+tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.18"
 criterion = "0.5.1"
 libtest-mimic = "0.7.0"

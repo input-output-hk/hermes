@@ -20,7 +20,14 @@ name = "module"
 harness = false
 required-features = ["bench"]
 
+[[test]]
+name = "wasm-component-integration-tests"
+path = "tests/wasm-integration/main.rs"
+harness = false
+
 [dependencies]
+cardano-chain-follower = { workspace = true }
+
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
@@ -45,14 +52,12 @@ derive_more = { workspace = true, features = ["display"], default-features = fal
 chrono = { workspace = true, features = ["now"] }
 chrono-tz = { workspace = true }
 iana-time-zone = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt","sync",  "time"] }
+tokio = { workspace = true, features = ["rt", "sync",  "time"] }
 saffron = { workspace = true }
 
-[[test]]
-name = "wasm-component-integration-tests"
-path = "tests/wasm-integration/main.rs"
-harness = false
-
 [build-dependencies]
-
 build-info-build = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+tracing-subscriber = { workspace = true }

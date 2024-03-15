@@ -37,16 +37,23 @@ impl Host for HermesRuntimeContext {
     /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
     /// unsubscribed.
     fn subscribe_blocks(
-        &mut self, _net: CardanoBlockchainId, _whence: Slot,
+        &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<u64, FetchError>> {
-        todo!()
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            super::SubscriptionType::Blocks(whence),
+        );
+
+        Ok(Ok(0))
     }
 
     /// Unsubscribe from the blockchain events listed.
     ///
     /// **Parameters**
     ///
-    /// - `events` : The events to unsubscribe from (and optionally stop the blockchain
+    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain
     ///   follower).
     ///
     /// **Notes**
@@ -62,8 +69,12 @@ impl Host for HermesRuntimeContext {
     /// the last block received.  This would result in the last block being sent as an
     /// event twice,
     /// once before the `stop` and once after the `continue`.
-    fn unsubscribe(&mut self, _events: UnsubscribeOptions) -> wasmtime::Result<()> {
-        todo!()
+    fn unsubscribe(
+        &mut self, net: CardanoBlockchainId, opts: UnsubscribeOptions,
+    ) -> wasmtime::Result<()> {
+        super::unsubscribe(net, self.app_name().clone(), self.module_id().clone(), opts);
+
+        Ok(())
     }
 
     /// Subscribe to transaction data events, does not alter the blockchain sync in
@@ -72,8 +83,15 @@ impl Host for HermesRuntimeContext {
     /// **Parameters**
     ///
     /// - `net` : The blockchain network to subscribe to txn events from.
-    fn subscribe_txn(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        todo!()
+    fn subscribe_txn(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            super::SubscriptionType::Transactions,
+        );
+
+        Ok(())
     }
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in
@@ -89,8 +107,15 @@ impl Host for HermesRuntimeContext {
     /// data from the rollback point.  No action is required to actually follow the
     /// rollback, unless the
     /// default behavior is not desired.
-    fn subscribe_rollback(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        todo!()
+    fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            super::SubscriptionType::Rollbacks,
+        );
+
+        Ok(())
     }
 
     /// Fetch a block from the requested blockchain at the requested slot.
