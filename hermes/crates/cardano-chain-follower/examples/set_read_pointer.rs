@@ -1,5 +1,4 @@
-//! This example shows how to use the chain follower to follow chain updates on
-//! a Cardano network chain.
+//! This example shows how set the follower's read pointer without stopping it.
 
 use std::error::Error;
 
@@ -27,47 +26,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )
     .await?;
 
-    let mut starting_point = Point::Origin;
+    let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
+    let mut pointer_set = false;
+    tokio::spawn(async move {
+        let _tx = tx;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    });
 
-    for _ in 0..2 {
-        for _ in 0..3 {
-            let chain_update = follower.next().await?;
+    loop {
+        tokio::select! {
+            _ = &mut rx, if !pointer_set => {
+                follower.set_read_pointer(Point::Specific(
+                    110_908_236,
+                    hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
+                )).await?;
+                println!("set read pointer");
 
-            match chain_update {
-                ChainUpdate::Block(data) => {
-                    let block = data.decode()?;
+                pointer_set = true;
+            }
 
-                    println!(
-                        "New block NUMBER={} SLOT={} HASH={}",
-                        block.number(),
-                        block.slot(),
-                        hex::encode(block.hash()),
-                    );
+            chain_update = follower.next() => {
+                match chain_update? {
+                    ChainUpdate::Block(data) => {
+                        let block = data.decode()?;
 
-                    if starting_point == Point::Origin {
-                        starting_point = Point::Specific(block.slot(), block.hash().to_vec());
-                    }
-                },
-                ChainUpdate::Rollback(data) => {
-                    let block = data.decode()?;
+                        println!(
+                            "New block NUMBER={} SLOT={} HASH={}",
+                            block.number(),
+                            block.slot(),
+                            hex::encode(block.hash()),
+                        );
+                    },
+                    ChainUpdate::Rollback(data) => {
+                        let block = data.decode()?;
 
-                    println!(
-                        "Rollback block NUMBER={} SLOT={} HASH={}",
-                        block.number(),
-                        block.slot(),
-                        hex::encode(block.hash()),
-                    );
-                },
+                        println!(
+                            "Rollback block NUMBER={} SLOT={} HASH={}",
+                            block.number(),
+                            block.slot(),
+                            hex::encode(block.hash()),
+                        );
+                    },
+                }
             }
         }
-
-        // Set the read pointer back to the first point we received.
-        // This means the next chain update will be the block right after the starting point.
-        follower.set_read_pointer(starting_point.clone()).await?;
     }
-
-    // Waits for the follower background task to exit.
-    follower.close().await?;
-
-    Ok(())
 }
