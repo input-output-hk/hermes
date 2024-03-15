@@ -42,15 +42,40 @@ interface api {
     // Derivation path
     type path = string;
 
+    type prefix = list<string>;
+
+    /// # Generate BIP39 Mnemonic Function
+    ///
+    /// Generate a new BIP39 mnemonic phrase with the given
+    /// size, prefix and language.
+    /// 
+    /// ## Parameters
+    /// 
+    /// `size` : The size of the mnemonic. Must be a multiple of 3 and in the range of 12 - 24. 
+    /// `prefix` : The prefix for the mnemonic. Must be a list of 1 - 3 words.
+    /// `language` : Optional. The language to use for the mnemonic. 
+    ///              If not provided, the default language is used.
+    /// 
+    /// ## Retunrs
+    /// 
+    /// - Either a list of mnemonic words.
+    /// - Or an error if the mnemonic could not be generated:
+    ///     - `prefix-too-long` : The prefix is longer than the maximum allowed length, max is 3.
+    ///     - `invalid-mnemonic-length` : The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.     
+    ///     - `word-not-found` : A word in the mnemonic is not found in the word list.
+    ///     - `generate-entropy-failed` : Failed to generate entropy.
+    /// 
+    generate-mnemonic: func(size: u8, prefix: prefix, language: option<string>) -> result<mnemonic-phrase, errno>;
+
     resource bip32-ed25519 {
         /// Create a new BIP32-Ed25519 Crypto resource
         /// 
         /// **Parameters**
         ///
-        /// - `mnemonic-phrase` : BIP39 mnemonic, if not supplied one is RANDOMLY generated.
+        /// - `mnemonic-phrase` : BIP39 mnemonic.
         /// - `passphrase` : Optional BIP39 passphrase.
         /// 
-        constructor(mnemonic: option<mnemonic-phrase>, passphrase: option<passphrase>);
+        constructor(mnemonic: mnemonic-phrase, passphrase: option<passphrase>);
 
         /// Get the public key for this private key.
         public-key: func() -> bip32-ed25519-public-key;
@@ -87,12 +112,6 @@ interface api {
         /// Note: uses BIP32 HD key derivation.
         /// 
         derive: func(path: path) -> bip32-ed25519;
-
-        /// Create a new RANDOM mnemonic.
-        /// 
-        /// Note, this does not need to be used, as the constructor will do this automatically.
-        /// 
-        gen-mnemonic: static func() -> bip32-ed25519;
     }
 }
 
