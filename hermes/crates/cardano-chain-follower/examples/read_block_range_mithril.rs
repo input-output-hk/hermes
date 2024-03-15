@@ -48,7 +48,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")?,
             ),
         )
-        .read()
         .await?;
 
     for data in data_vec {

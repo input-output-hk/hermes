@@ -36,15 +36,15 @@ pub enum Error {
     /// Follower background follow task has stopped.
     #[error("Follower follow task is not running")]
     FollowTaskNotRunning,
-    /// Follower background read task has stopped.
-    #[error("Follower read task is not running")]
-    ReadTaskNotRunning,
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshot,
     /// Failed to parse
     #[error("Failed to parse network")]
     ParseNetwork,
+    /// Internal Error
+    #[error("Internal error")]
+    InternalError,
 }
 
 /// Crate result type.
