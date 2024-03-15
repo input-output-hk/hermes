@@ -198,15 +198,15 @@ pub struct Follower {
     ///
     /// This is used to open more connections when needed.
     client_connect_info: ClientConnectInfo,
-    /// Task request sender.
-    task_request_tx: mpsc::Sender<task::SetReadPointerRequest>,
     /// Chain update receiver.
     chain_update_rx: mpsc::Receiver<Result<ChainUpdate>>,
-    /// Task thread join handle.
-    task_join_handle: JoinHandle<()>,
-    ///
+    /// Follow task request sender.
+    follow_task_request_tx: mpsc::Sender<task::SetReadPointerRequest>,
+    /// Follow task thread join handle.
+    follow_task_join_handle: JoinHandle<()>,
+    /// Read task request sender.
     read_request_tx: mpsc::Sender<task::ReadRequest>,
-    ///
+    /// Read task thread join handle.
     read_task_join_handle: JoinHandle<()>,
 }
 
@@ -259,9 +259,9 @@ impl Follower {
 
         Ok(Self {
             client_connect_info,
-            task_request_tx,
+            follow_task_request_tx: task_request_tx,
             chain_update_rx,
-            task_join_handle,
+            follow_task_join_handle: task_join_handle,
             read_request_tx,
             read_task_join_handle,
         })
@@ -286,7 +286,7 @@ impl Follower {
             response_tx,
         };
 
-        self.task_request_tx
+        self.follow_task_request_tx
             .send(req)
             .await
             .map_err(|_| Error::FollowTaskNotRunning)?;
@@ -346,11 +346,11 @@ impl Follower {
     pub async fn close(self) -> std::result::Result<(), tokio::task::JoinError> {
         // NOTE(FelipeRosa): For now just abort all tasks since they need no cancellation
 
-        self.task_join_handle.abort();
+        self.follow_task_join_handle.abort();
         self.read_task_join_handle.abort();
 
         drop(tokio::join!(
-            self.task_join_handle,
+            self.follow_task_join_handle,
             self.read_task_join_handle
         ));
 
