@@ -20,9 +20,6 @@ The chain follower is capable of receiving chain updates from a Cardano node usi
 ### Read pointer
 
 The read pointer points at the location the chain is being read by a client connection.
-Although the Cardano node maintains a read pointer for each client, the chain follower manages
-its own copy of the read pointer in order to follow the chain even when it's reading data from a Mithril snapshot.
-The follower's read pointer gets updated every time it receives a chain update.
 
 ### Chain Updates
 
