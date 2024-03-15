@@ -1,4 +1,4 @@
-//! This example shows how to use the chain reader to read arbitrary blocks
+//! This example shows how to use the chain follower to read arbitrary blocks
 //! from Mithril snapshot files.
 
 // Allowing since this is example code.

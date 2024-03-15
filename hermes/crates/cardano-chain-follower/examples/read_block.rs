@@ -1,4 +1,4 @@
-//! This example shows how to use the chain reader to download arbitrary blocks
+//! This example shows how to use the chain follower to download arbitrary blocks
 //! from the chain.
 
 use std::error::Error;
