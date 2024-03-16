@@ -100,6 +100,11 @@ impl ResourceHolder {
 /// Global state to hold the resources.
 static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::new()));
 
+/// Get the state.
+pub(crate) fn get_state() -> Arc<State> {
+    CRYPTO_INTERNAL_STATE.clone()
+}
+
 /// Set the state according to the app context.
 pub(crate) fn set_state(app_name: HermesAppName) {
     CRYPTO_INTERNAL_STATE.insert(app_name, ResourceHolder::new());
