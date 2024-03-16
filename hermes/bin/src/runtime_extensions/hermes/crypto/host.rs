@@ -1,10 +1,8 @@
 //! Crypto host implementation for WASM runtime.
 
-use bip39::Language;
 use wasmtime::component::Resource;
 
 use crate::{
-    app::HermesAppName,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -15,52 +13,53 @@ use crate::{
             },
         },
         hermes::crypto::{
-            bip32_ed25519::{check_signature, derive_new_private_key, get_public_key, sign_data},
+            bip32_ed25519::{derive_new_private_key, get_public_key, sign_data},
             bip39::{generate_new_mnemonic, mnemonic_to_xprv},
             state::{add_resource, delete_resource, get_resource},
         },
     },
-    wasm::module::ModuleId,
 };
+
+use super::bip32_ed25519::check_signature;
 
 impl HostBip32Ed25519 for HermesRuntimeContext {
     /// Create a new ED25519-BIP32 Crypto resource
     ///
     /// **Parameters**
     ///
-    /// - `mnemonic-phrase` : BIP39 mnemonic, if not supplied one is RANDOMLY generated.
+    /// - `mnemonic-phrase` : BIP39 mnemonic.
     /// - `passphrase` : Optional BIP39 passphrase.
     fn new(
-        &mut self, mnemonic: Option<MnemonicPhrase>, passphrase: Option<Passphrase>,
+        &mut self, mnemonic: MnemonicPhrase, passphrase: Option<Passphrase>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        generate_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            mnemonic,
-            passphrase,
-        )
-        .map_err(|_e| wasmtime::Error::msg("Error creating new resource"))
+        let passphrase = passphrase.unwrap_or_default();
+        let xprv = mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "));
+        match xprv {
+            Ok(xprv) => {
+                if let Some(id) = add_resource(self.app_name(), xprv) {
+                    return Ok(Resource::new_own(id));
+                }
+            },
+            Err(e) => return Err(wasmtime::Error::msg(e.to_string())),
+        };
+        // TODO(bkioshn): log invalid resource access
+        Err(wasmtime::Error::msg("Error creating new resource"))
     }
 
     /// Get the public key for this private key.
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
-        let private_key = get_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            resource.rep(),
-        );
+        let private_key = get_resource(self.app_name(), resource.rep());
         match private_key {
             Some(private_key) => {
                 let public_key = get_public_key(&private_key);
                 Ok(public_key)
             },
-            None => Ok((0, 0, 0, 0)),
+            None => {
+                // TODO(bkioshn): log invalid resource access
+                Ok((0, 0, 0, 0))
+            },
         }
     }
 
@@ -72,18 +71,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
-        let private_key = get_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            resource.rep(),
-        );
+        let private_key = get_resource(self.app_name(), resource.rep());
         match private_key {
             Some(private_key) => {
                 let sig = sign_data(&private_key, &data);
                 Ok(sig)
             },
+            // TODO(bkioshn): log invalid resource access
             None => Ok((0, 0, 0, 0, 0, 0, 0, 0)),
         }
     }
@@ -103,18 +97,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
-        let private_key = get_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            resource.rep(),
-        );
+        let private_key = get_resource(self.app_name(), resource.rep());
         match private_key {
             Some(private_key) => {
                 let check_sig = check_signature(&private_key, &data, sig);
                 Ok(check_sig)
             },
+            // TODO (bkioshn): log invalid resource access
             None => Ok(false),
         }
     }
@@ -129,81 +118,51 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        if let Some(private_key) = get_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            resource.rep(),
-        ) {
+        if let Some(private_key) = get_resource(self.app_name(), resource.rep()) {
             if let Ok(derived_private_key) = derive_new_private_key(private_key, &path) {
-                if let Some(id) = add_resource(
-                    self.app_name(),
-                    self.module_id(),
-                    self.event_name(),
-                    self.exc_counter(),
-                    derived_private_key,
-                ) {
+                if let Some(id) = add_resource(self.app_name(), derived_private_key) {
                     return Ok(Resource::new_own(id));
                 }
             }
         }
+        // TODO (bkioshn): log invalid resource access
         Err(wasmtime::Error::msg("Error deriving new private key"))
-    }
-
-    /// Create a new RANDOM mnemonic.
-    ///
-    /// Note, this does not need to be used, as the constructor will do this
-    /// automatically.
-    fn gen_mnemonic(&mut self) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        self.new(Some(Vec::new()), Some(Vec::new()))
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
         // If the state deletion is successful, drop the resource.
-        if delete_resource(
-            self.app_name(),
-            self.module_id(),
-            self.event_name(),
-            self.exc_counter(),
-            res.rep(),
-        )
-        .is_some()
-        {
+        if delete_resource(self.app_name(), res.rep()).is_some() {
             let _unused = self.drop(res);
         }
         Ok(())
     }
 }
 
-/// Generate new resource.
-fn generate_resource(
-    app_name: &HermesAppName, module_id: &ModuleId, event_name: &str, counter: u32,
-    mnemonic: Option<MnemonicPhrase>, passphrase: Option<Passphrase>,
-) -> Result<wasmtime::component::Resource<Bip32Ed25519>, Errno> {
-    let xprv = if let Some(mnemonic) = mnemonic {
-        let passphrase = passphrase.unwrap_or_default();
-        mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
-    } else {
-        // If mnemonic is not supplied, generate a new one
-        // then generate xprv.
-        let mnemonic = match generate_new_mnemonic(12, Vec::new(), Language::English) {
-            Ok(mnemonic) => mnemonic,
-            Err(e) => return Err(e),
-        };
-        mnemonic_to_xprv(&mnemonic, "")
-    };
-
-    match xprv {
-        // If xprv is generated, add it to the state and return the resource.
-        Ok(xprv) => {
-            match add_resource(app_name, module_id, event_name, counter, xprv) {
-                Some(id) => Ok(Resource::new_own(id)),
-                None => Err(Errno::AddResourceFailed),
-            }
-        },
-        Err(e) => Err(e),
+impl Host for HermesRuntimeContext {
+    /// # Generate BIP39 Mnemonic Function
+    ///
+    /// Generate a new BIP39 mnemonic phrase with the given
+    /// size, prefix and language.
+    ///
+    /// ## Parameters
+    ///
+    /// `size` : The size of the mnemonic. Must be a multiple of 3 and in the range of 12 - 24.
+    /// `prefix` : The prefix for the mnemonic. Must be a list of 1 - 3 words.
+    /// `language` : Optional. The language to use for the mnemonic.
+    ///              If not provided, the default language is used.
+    ///
+    /// ## Retunrs
+    ///
+    /// - Either a list of mnemonic words.
+    /// - Or an error if the mnemonic could not be generated:
+    ///     - `prefix-too-long` : The prefix is longer than the maximum allowed length, max is 3.
+    ///     - `invalid-mnemonic-length` : The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.     
+    ///     - `word-not-found` : A word in the mnemonic is not found in the word list.
+    ///     - `generate-entropy-failed` : Failed to generate entropy.
+    ///
+    fn generate_mnemonic(
+        &mut self, size: u8, prefix: Vec<String>, language: Option<String>,
+    ) -> wasmtime::Result<Result<Vec<String>, Errno>> {
+        Ok(generate_new_mnemonic(size.into(), prefix, language))
     }
 }
-
-impl Host for HermesRuntimeContext {}
