@@ -30,9 +30,9 @@ bindings-expand:
 # Run check using the most efficient host tooling
 # CI Automated Entry point.
 check:
-    FROM +builder --no-cache
+    FROM +builder
 
-    RUN /scripts/std_checks.py
+    RUN /scripts/std_checks.py  --no-cache
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
