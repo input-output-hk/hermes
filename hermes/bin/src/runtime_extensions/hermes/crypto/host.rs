@@ -42,7 +42,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             },
             Err(e) => return Err(wasmtime::Error::msg(e.to_string())),
         };
-        // TODO(bkioshn): log invalid resource access
+        // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         Err(wasmtime::Error::msg("Error creating new resource"))
     }
 
@@ -57,7 +57,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 Ok(public_key)
             },
             None => {
-                // TODO(bkioshn): log invalid resource access
+                // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
                 Ok((0, 0, 0, 0))
             },
         }
@@ -77,7 +77,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 let sig = sign_data(&private_key, &data);
                 Ok(sig)
             },
-            // TODO(bkioshn): log invalid resource access
+            // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
             None => Ok((0, 0, 0, 0, 0, 0, 0, 0)),
         }
     }
@@ -103,7 +103,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 let check_sig = check_signature(&private_key, &data, sig);
                 Ok(check_sig)
             },
-            // TODO (bkioshn): log invalid resource access
+            // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
             None => Ok(false),
         }
     }
@@ -125,7 +125,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 }
             }
         }
-        // TODO (bkioshn): log invalid resource access
+        // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         Err(wasmtime::Error::msg("Error deriving new private key"))
     }
 
