@@ -27,9 +27,6 @@ anyhow = { workspace = true }
 blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
-ed25519-bip32 = { workspace = true }
-dashmap = { workspace = true }
-once_cell = { workspace = true }
 criterion = { workspace = true, optional = true }
 time = { workspace = true }
 chrono = { workspace = true }
@@ -41,6 +38,9 @@ bip39 = { workspace = true, features = ["chinese-simplified", "chinese-tradition
 cryptoxide = { workspace = true }
 rand = { workspace = true }
 bip32 = { workspace = true }
+ed25519-bip32 = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
 
 [[test]]
 name = "wasm-component-integration-tests"
