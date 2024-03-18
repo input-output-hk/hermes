@@ -5,7 +5,6 @@ VERSION 0.7
 # Set up our target toolchains, and copy our files.
 builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.9.6+SETUP
-
     COPY --dir .cargo .config crates bin .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
@@ -31,7 +30,7 @@ bindings-expand:
 # Run check using the most efficient host tooling
 # CI Automated Entry point.
 check:
-    FROM +builder
+    FROM +builder --no-cache
 
     RUN /scripts/std_checks.py
 

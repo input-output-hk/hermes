@@ -13,7 +13,7 @@ builder:
 
 # Run quality checks.
 check:
-    FROM +builder
+    FROM +builder --no-cache
 
     RUN /scripts/std_checks.py
 
