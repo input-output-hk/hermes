@@ -1,4 +1,4 @@
-// cspell: words apskhem ABNF abnf Naur
+// cspell: words Naur
 
 #![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
 

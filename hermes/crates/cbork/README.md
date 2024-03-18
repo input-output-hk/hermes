@@ -1,5 +1,3 @@
-<!-- cspell: words cbork CBOR -->
-
 # cbork
 
 CBOR Kit
