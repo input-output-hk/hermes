@@ -5,6 +5,7 @@ asyncio
 auditability
 backpressure
 bindgen
+bkioshn
 blockdiag
 blockfetch
 bmac
