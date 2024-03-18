@@ -151,7 +151,7 @@ impl Host for HermesRuntimeContext {
     /// `language` : Optional. The language to use for the mnemonic.
     ///              If not provided, the default language is used.
     ///
-    /// ## Retunrs
+    /// ## Returns
     ///
     /// - Either a list of mnemonic words.
     /// - Or an error if the mnemonic could not be generated:
