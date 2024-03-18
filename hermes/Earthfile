@@ -32,7 +32,7 @@ bindings-expand:
 check:
     FROM +builder
 
-    RUN /scripts/std_checks.py  --no-cache
+    RUN /scripts/std_checks.py
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
