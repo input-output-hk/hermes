@@ -1,4 +1,4 @@
-//! This example shows how set the follower's read pointer without stopping it.
+//! This example shows how to set the follower's read pointer without stopping it.
 
 use std::error::Error;
 
