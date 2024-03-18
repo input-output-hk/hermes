@@ -117,6 +117,9 @@ redoc
 REMOVEDIR
 renameat
 retriggering
+rulelist
+rulename
+RULENAME
 rustc
 rustdoc
 rustdocflags

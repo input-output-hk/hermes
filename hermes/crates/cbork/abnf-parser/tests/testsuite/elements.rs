@@ -1,5 +1,3 @@
-// cspell: words RULENAME
-
 use abnf_parser::{self, abnf_test::Rule};
 
 use crate::{common::*, groups::*, identifiers::*, values::*};

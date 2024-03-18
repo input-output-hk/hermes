@@ -1,4 +1,4 @@
-; cspell: words rulelist rulename VCHAR DQUOTE VCHAR ONEOF HEXDIG
+; cspell: words VCHAR DQUOTE VCHAR ONEOF HEXDIG
 
 rulelist       =  1*( rule / (*c-wsp c-nl) )
 
