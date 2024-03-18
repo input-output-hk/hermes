@@ -345,6 +345,7 @@ mod tests_bip39 {
         Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
     }
     #[test]
+    #[allow(clippy::unicode_not_nfc)]
     fn test_generate_mnemonic_prefix_japanese() {
         let mnemonic = generate_new_mnemonic(
             12,
