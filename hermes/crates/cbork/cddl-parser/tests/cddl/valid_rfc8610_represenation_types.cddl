@@ -1,0 +1,12 @@
+; 2.2.3.  Representation Types
+
+; cspell: words cbor tstr
+
+my_breakfast = #6.55799(breakfast)   ; cbor-any is too general!
+breakfast = cereal / porridge
+cereal = #6.998(tstr)
+porridge = #6.999([liquid, solid])
+liquid = milk / water
+milk = 0
+water = 1
+solid = tstr

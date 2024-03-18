@@ -1,0 +1,9 @@
+; Figure 1: Using a Group Directly in a Map
+
+; cspell: words tstr
+
+person = {
+  age: int,
+  name: tstr,
+  employer: tstr,
+}

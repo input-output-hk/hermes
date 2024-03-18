@@ -1,0 +1,9 @@
+; 3.8.5.  Control Operators .within and .and
+
+message = $message .within message-structure
+message-structure = [message_type, *message_option]
+message_type = 0..255
+message_option = any
+
+$message /= [3, dough: text, topping: [* text]]
+$message /= [4, noodles: text, sauce: text, parmesan: bool]

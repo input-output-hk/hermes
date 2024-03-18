@@ -1,6 +1,9 @@
 aarch
+abnf
+ABNF
 addrr
 adminer
+apskhem
 asyncio
 auditability
 backpressure
@@ -11,6 +14,8 @@ bmac
 BROTLI
 cardano
 cbor
+CBOR
+cbork
 CEST
 chainsync
 chrono
@@ -112,10 +117,14 @@ redoc
 REMOVEDIR
 renameat
 retriggering
+rulelist
+rulename
+RULENAME
 rustc
 rustdoc
 rustdocflags
 rustflags
+rustfmt
 saibatizoku
 sandboxed
 Sched
@@ -127,6 +136,7 @@ subsec
 symlinkat
 syscall
 tacho
+testcase
 testcov
 testdocs
 testunit

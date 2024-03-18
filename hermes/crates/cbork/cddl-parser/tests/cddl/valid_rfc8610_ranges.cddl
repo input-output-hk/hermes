@@ -1,0 +1,16 @@
+; 2.2.2.1.  Ranges
+
+device-address = byte
+max-byte = 255
+byte = 0..max-byte ; inclusive range
+first-non-byte = 256
+byte1 = 0...first-non-byte ; byte1 is equivalent to byte
+
+int-range = 0..10 ; only integers match
+float-range = 0.0..10.0 ; only floats match
+BAD-range1 = 0..10.0 ; NOT DEFINED
+BAD-range2 = 0.0..10 ; NOT DEFINED
+numeric-range = int-range / float-range
+
+non-range-expression = min..max
+range-expression = min .. max
