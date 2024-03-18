@@ -22,6 +22,7 @@ impl Iterator for MithrilSnapshotIterator {
 }
 
 /// Holds information about a Mithril snapshot.
+#[derive(Clone)]
 pub(crate) struct MithrilSnapshot {
     /// Path to the Mithril snapshot.
     pub path: PathBuf,
