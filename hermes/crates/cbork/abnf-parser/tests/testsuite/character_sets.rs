@@ -1,4 +1,4 @@
-// cspell: words abnf VCHAR vchar
+// cspell: words VCHAR vchar
 
 use abnf_parser::{self, abnf_test::Rule};
 

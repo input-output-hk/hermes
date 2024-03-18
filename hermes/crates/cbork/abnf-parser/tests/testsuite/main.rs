@@ -1,5 +1,3 @@
-// cspell: words abnf
-
 mod abnf;
 mod alternations;
 mod character_sets;

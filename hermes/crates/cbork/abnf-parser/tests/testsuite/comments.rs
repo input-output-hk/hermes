@@ -1,5 +1,3 @@
-// cspell: words abnf
-
 use std::ops::Deref;
 
 use abnf_parser::{self, abnf_test::Rule};

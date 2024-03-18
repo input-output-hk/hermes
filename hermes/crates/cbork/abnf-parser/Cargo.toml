@@ -1,4 +1,4 @@
-#cspell: words memchr abnf
+#cspell: words memchr
 
 [package]
 name = "abnf-parser"

@@ -1,4 +1,4 @@
-// cspell: words abnf rulename rulelist
+// cspell: words rulename rulelist
 
 use abnf_parser::{self, abnf_test::Rule};
 

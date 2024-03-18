@@ -1,5 +1,3 @@
-# cspell: words abnf
-
 [workspace]
 package.edition = "2021"
 resolver = "2"

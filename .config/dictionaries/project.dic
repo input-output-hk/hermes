@@ -1,4 +1,6 @@
 aarch
+abnf
+ABNF
 addrr
 adminer
 asyncio
@@ -11,6 +13,8 @@ bmac
 BROTLI
 cardano
 cbor
+CBOR
+cbork
 CEST
 chainsync
 chrono
@@ -116,6 +120,7 @@ rustc
 rustdoc
 rustdocflags
 rustflags
+rustfmt
 saibatizoku
 sandboxed
 Sched
