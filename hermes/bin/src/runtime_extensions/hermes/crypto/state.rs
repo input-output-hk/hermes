@@ -131,8 +131,6 @@ pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> 
             let id = res_holder.get_and_increment_next_id();
             res_holder.id_to_resource_map.insert(id, xprv);
             res_holder.resource_to_id_map.insert(wrapped_xprv, id);
-            // FIXME - Remove log
-            println!("Resource added with id: {id}");
             return Some(id);
         }
     }

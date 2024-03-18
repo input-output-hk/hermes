@@ -2,6 +2,7 @@
 
 use wasmtime::component::Resource;
 
+use super::bip32_ed25519::check_signature;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
@@ -19,8 +20,6 @@ use crate::{
         },
     },
 };
-
-use super::bip32_ed25519::check_signature;
 
 impl HostBip32Ed25519 for HermesRuntimeContext {
     /// Create a new ED25519-BIP32 Crypto resource
@@ -146,7 +145,8 @@ impl Host for HermesRuntimeContext {
     ///
     /// ## Parameters
     ///
-    /// `size` : The size of the mnemonic. Must be a multiple of 3 and in the range of 12 - 24.
+    /// `size` : The size of the mnemonic. Must be a multiple of 3 and in the range of 12
+    /// - 24.
     /// `prefix` : The prefix for the mnemonic. Must be a list of 1 - 3 words.
     /// `language` : Optional. The language to use for the mnemonic.
     ///              If not provided, the default language is used.
@@ -155,11 +155,12 @@ impl Host for HermesRuntimeContext {
     ///
     /// - Either a list of mnemonic words.
     /// - Or an error if the mnemonic could not be generated:
-    ///     - `prefix-too-long` : The prefix is longer than the maximum allowed length, max is 3.
-    ///     - `invalid-mnemonic-length` : The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.     
+    ///     - `prefix-too-long` : The prefix is longer than the maximum allowed length,
+    ///       max is 3.
+    ///     - `invalid-mnemonic-length` : The mnemonic length is not a multiple of 3 or
+    ///       not in the range of 12 - 24.
     ///     - `word-not-found` : A word in the mnemonic is not found in the word list.
     ///     - `generate-entropy-failed` : Failed to generate entropy.
-    ///
     fn generate_mnemonic(
         &mut self, size: u8, prefix: Vec<String>, language: Option<String>,
     ) -> wasmtime::Result<Result<Vec<String>, Errno>> {

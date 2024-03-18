@@ -14,8 +14,6 @@ use rand::RngCore;
 
 use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 
-// FIXME - Remove all println!() before merging and remove the allow(dead_code) attribute
-
 /// Generate a new extended private key (`XPrv`) from a mnemonic and passphrase.
 ///
 /// # Arguments
@@ -40,8 +38,6 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
     };
 
     let entropy = mnemonic.to_entropy();
-
-    println!("entropy {entropy:?}");
 
     // This implementation follows SLIP-0023 - Cardano HD master node derivation
     // from a master seed.
@@ -100,8 +96,6 @@ pub(crate) fn generate_new_mnemonic(
         Err(e) => return Err(e),
     };
 
-    println!("prefix_index {:?}", &prefix_index_bits);
-
     // Create an vec that will hold binary conversion of entropy.
     let mut bits_entropy = Vec::new();
     // Add the prefix index bit to the bit entropy.
@@ -111,7 +105,6 @@ pub(crate) fn generate_new_mnemonic(
         Ok(entropy) => entropy,
         Err(e) => return Err(e),
     };
-    println!("prefix_index_bits after add to bit entropy{bits_entropy:?}");
 
     // Convert bytes entropy to bits.
     for byte in entropy {
@@ -124,24 +117,13 @@ pub(crate) fn generate_new_mnemonic(
             bits_entropy.push((byte >> j) & 1);
         }
     }
-    println!(
-        "bits_entropy length {}, bits_entropy {:?}",
-        bits_entropy.len(),
-        bits_entropy
-    );
 
     let check_sum_bits = get_check_sum_bits(&bits_entropy, word_count);
     // Add the checksum bits to the end of bit entropy.
     bits_entropy.extend_from_slice(&check_sum_bits);
 
-    println!("bits_entropy after adding checksum bits {bits_entropy:?}");
-
     let word_indices = get_word_indices(&bits_entropy, word_count);
-    println!("word index {word_indices:?}");
-
     let mnemonic_list = get_mnemonic_from_indices(word_indices, language);
-
-    println!("mnemonic {mnemonic_list:?}");
 
     Ok(mnemonic_list)
 }
@@ -156,7 +138,6 @@ fn is_invalid_word_count(word_count: usize) -> bool {
 /// Get the index bits of the prefix words from a BIP39 dictionary.
 fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result<Vec<u8>, Errno> {
     let mut prefix_index: Vec<u8> = Vec::new();
-    println!("{prefix_list:?}");
     for word in prefix_list {
         match language.find_word(&word) {
             Some(index) => {
@@ -198,19 +179,15 @@ fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
     let mut hasher = Sha256::new();
     // Convert bits_entropy to bytes, so it works with SHA256 hasher.
     let bytes_entropy = bits_to_bytes(entropy_bits);
-    println!("bytes_entropy {bytes_entropy:?}");
     hasher.input(&bytes_entropy);
 
-    println!("hex str {}", hasher.clone().result_str());
     hasher.result(&mut hash_result);
 
-    println!("SHA256 of entropy, hash_result {hash_result:?}");
     // Retrieve the first `check_sum_num` check sum bits from the hash result.
     let mut check_sum_bits = Vec::new();
     for i in 0..check_sum_num {
         check_sum_bits.push(hash_result[0] >> (7 - i) & 1);
     }
-    println!("check_sum_bits {check_sum_bits:?}");
     check_sum_bits
 }
 
@@ -240,7 +217,7 @@ fn get_mnemonic_from_indices(word_index_vec: Vec<u16>, language: Language) -> Ve
     let mut mnemonic: Vec<String> = vec![];
     for word in word_index_vec {
         if let Some(word) = word_list.get(word as usize) {
-            mnemonic.push((word).to_string());
+            mnemonic.push((*(word)).to_string());
         }
     }
     mnemonic
@@ -287,7 +264,6 @@ fn bits_to_bytes(bits: &[u8]) -> Vec<u8> {
 /// Convert string to BIP39 language.
 fn string_to_language(s: &str) -> Language {
     match s {
-        "English" => Language::English,
         "SimplifiedChinese" => Language::SimplifiedChinese,
         "TraditionalChinese" => Language::TraditionalChinese,
         "Czech" => Language::Czech,
@@ -342,25 +318,37 @@ mod tests_bip39 {
         let mnemonic = generate_new_mnemonic(12, vec![], Some("English".to_string()))
             .expect("Failed to generate mnemonic");
         Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project".to_string()], Some("English".to_string()))
-            .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project".to_string(), "cat".to_string()], Some("English".to_string()))
-            .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
         let mnemonic =
-            generate_new_mnemonic(12, vec!["project".to_string(), "cat".to_string(), "test".to_string()], Some("English".to_string()))
+            generate_new_mnemonic(12, vec!["project".to_string()], Some("English".to_string()))
                 .expect("Failed to generate mnemonic");
         Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
-        let mnemonic = generate_new_mnemonic(12, vec!["project".to_string(), "cat".to_string(), "test".to_string()], None)
-            .expect("Failed to generate mnemonic");
+        let mnemonic = generate_new_mnemonic(
+            12,
+            vec!["project".to_string(), "cat".to_string()],
+            Some("English".to_string()),
+        )
+        .expect("Failed to generate mnemonic");
+        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        let mnemonic = generate_new_mnemonic(
+            12,
+            vec!["project".to_string(), "cat".to_string(), "test".to_string()],
+            Some("English".to_string()),
+        )
+        .expect("Failed to generate mnemonic");
+        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        let mnemonic = generate_new_mnemonic(
+            12,
+            vec!["project".to_string(), "cat".to_string(), "test".to_string()],
+            None,
+        )
+        .expect("Failed to generate mnemonic");
         Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
     }
     #[test]
     fn test_generate_mnemonic_prefix_japanese() {
         let mnemonic = generate_new_mnemonic(
             12,
-            vec!["たいみんぐ".to_string(), "うけたまわる".to_string()],
+            vec!["たいみんぐ".to_string(), "うけたまわる".to_string()],
             Some("Japanese".to_string()),
         )
         .expect("Failed to generate mnemonic");
@@ -379,7 +367,12 @@ mod tests_bip39 {
 
     #[test]
     fn test_generate_mnemonic_with_prefix_too_long() {
-        let prefix = vec!["project".to_string(), "cat".to_string(), "test".to_string(), "long".to_string()];
+        let prefix = vec![
+            "project".to_string(),
+            "cat".to_string(),
+            "test".to_string(),
+            "long".to_string(),
+        ];
         generate_new_mnemonic(12, prefix, Some("English".to_string()))
             .expect_err(&format!("{:?}", Errno::PrefixTooLong));
     }
