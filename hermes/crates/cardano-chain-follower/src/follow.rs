@@ -461,7 +461,7 @@ mod task {
 
         /// Runs the follow task.
         ///
-        /// It keeps asking the connected node new chain updates. Every update and
+        /// It keeps asking the connected node for new chain updates. Every update and
         /// communication errors are sent through the channel to the follower.
         ///
         /// Backpressure is achieved with the chain update channel's limited size.
