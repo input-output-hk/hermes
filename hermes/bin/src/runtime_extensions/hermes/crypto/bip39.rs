@@ -348,7 +348,7 @@ mod tests_bip39 {
     fn test_generate_mnemonic_prefix_japanese() {
         let mnemonic = generate_new_mnemonic(
             12,
-            vec!["たいみんぐ".to_string(), "うけたまわる".to_string()],
+            vec!["たいみんぐ".to_string(), "うけたまわる".to_string()],
             Some("Japanese".to_string()),
         )
         .expect("Failed to generate mnemonic");
