@@ -81,6 +81,18 @@ impl MultiEraBlockData {
 
         Ok(block)
     }
+
+    /// Consumes the [`MultiEraBlockData`] returning the block data raw bytes.
+    #[must_use]
+    pub fn into_raw_data(self) -> Vec<u8> {
+        self.0
+    }
+}
+
+impl AsRef<[u8]> for MultiEraBlockData {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
 }
 
 /// Enum of possible Cardano networks.
