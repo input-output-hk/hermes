@@ -18,6 +18,7 @@ interface api {
         invalid-mnemonic, // The mnemonic is invalid.
         invalid-derivational-path, // The derivational path is invalid.
         generate-entropy-failed, // Failed to generate entropy. 
+        unsupport-language, // The language is not supported.
     }
 
     // bip32-ed25519 Private Key

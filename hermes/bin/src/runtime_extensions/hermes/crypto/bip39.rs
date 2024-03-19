@@ -31,6 +31,9 @@ use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 ///
 /// - `InvalidMnemonic`: If the mnemonic should be either 12, 15, 18, 21, or 24.
 pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv, Errno> {
+    /// 4096 is the number of iterations for PBKDF2.
+    const ITER: u32 = 4096;
+
     // Parse will detect language and check mnemonic valid length
     // 12, 15, 18, 21, 24 are valid mnemonic length
     let Ok(mnemonic) = Mnemonic::parse(mnemonic) else {
@@ -43,10 +46,9 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
     // from a master seed.
     // https://github.com/satoshilabs/slips/blob/master/slip-0023.md
     let mut pbkdf2_result = [0; 96];
-    // 4096 is the number of iterations for PBKDF2.
     let passphrase_byte: &[u8] = passphrase.as_bytes();
     let mut mac = Hmac::new(Sha512::new(), passphrase_byte);
-    pbkdf2(&mut mac, &entropy, 4096, &mut pbkdf2_result);
+    pbkdf2(&mut mac, &entropy, ITER, &mut pbkdf2_result);
 
     Ok(XPrv::normalize_bytes_force3rd(pbkdf2_result))
 }
@@ -89,7 +91,10 @@ pub(crate) fn generate_new_mnemonic(
         return Err(Errno::PrefixTooLong);
     }
 
-    let language = string_to_language(&language.unwrap_or("English".to_string()));
+    let language = language.map_or_else(
+        || string_to_language("English"),
+        |lang| string_to_language(&lang),
+    )?;
 
     let prefix_index_bits = match get_prefix_index_bits(prefix, language) {
         Ok(prefix_index_bits) => prefix_index_bits,
@@ -107,16 +112,7 @@ pub(crate) fn generate_new_mnemonic(
     };
 
     // Convert bytes entropy to bits.
-    for byte in entropy {
-        for j in (0..8).rev() {
-            // Should not exceed the word_count / 3 * 4 * 8
-            // which is number of entropy bits for the mnemonic word count.
-            if bits_entropy.len() >= word_count / 3 * 4 * 8 {
-                break;
-            }
-            bits_entropy.push((byte >> j) & 1);
-        }
-    }
+    byte_to_bit(entropy, &mut bits_entropy, word_count);
 
     let check_sum_bits = get_check_sum_bits(&bits_entropy, word_count);
     // Add the checksum bits to the end of bit entropy.
@@ -128,7 +124,7 @@ pub(crate) fn generate_new_mnemonic(
     Ok(mnemonic_list)
 }
 
-/// Check if the word count is valid.
+/// Check if the word count is invalid.
 /// Valid word count is a multiple of 3 and in the range of 12 - 24.
 /// Returns true if the word count is invalid, otherwise false.
 fn is_invalid_word_count(word_count: usize) -> bool {
@@ -262,17 +258,32 @@ fn bits_to_bytes(bits: &[u8]) -> Vec<u8> {
 }
 
 /// Convert string to BIP39 language.
-fn string_to_language(s: &str) -> Language {
+fn string_to_language(s: &str) -> Result<Language, Errno> {
     match s {
-        "SimplifiedChinese" => Language::SimplifiedChinese,
-        "TraditionalChinese" => Language::TraditionalChinese,
-        "Czech" => Language::Czech,
-        "French" => Language::French,
-        "Italian" => Language::Italian,
-        "Japanese" => Language::Japanese,
-        "Korean" => Language::Korean,
-        "Spanish" => Language::Spanish,
-        _ => Language::English,
+        "English" => Ok(Language::English),
+        "SimplifiedChinese" => Ok(Language::SimplifiedChinese),
+        "TraditionalChinese" => Ok(Language::TraditionalChinese),
+        "Czech" => Ok(Language::Czech),
+        "French" => Ok(Language::French),
+        "Italian" => Ok(Language::Italian),
+        "Japanese" => Ok(Language::Japanese),
+        "Korean" => Ok(Language::Korean),
+        "Spanish" => Ok(Language::Spanish),
+        _ => Err(Errno::UnsupportedLanguage),
+    }
+}
+
+/// Convert bytes entropy to bits.
+fn byte_to_bit(entropy: Vec<u8>, bits_entropy: &mut Vec<u8>, word_count: usize) {
+    for byte in entropy {
+        for j in (0..8).rev() {
+            // Should not exceed the word_count / 3 * 4 * 8
+            // which is number of entropy bits for the mnemonic word count.
+            if bits_entropy.len() >= word_count / 3 * 4 * 8 {
+                break;
+            }
+            bits_entropy.push((byte >> j) & 1);
+        }
     }
 }
 

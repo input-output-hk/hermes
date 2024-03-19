@@ -3,7 +3,6 @@
 use std::{
     cmp::Eq,
     hash::{Hash, Hasher},
-    sync::Arc,
 };
 
 use dashmap::DashMap;
@@ -98,11 +97,11 @@ impl ResourceHolder {
 }
 
 /// Global state to hold the resources.
-static CRYPTO_INTERNAL_STATE: Lazy<Arc<State>> = Lazy::new(|| Arc::new(DashMap::new()));
+static CRYPTO_INTERNAL_STATE: Lazy<State> = Lazy::new(DashMap::new);
 
 /// Get the state.
-pub(crate) fn get_state() -> Arc<State> {
-    CRYPTO_INTERNAL_STATE.clone()
+pub(super) fn get_state() -> &'static State {
+    &CRYPTO_INTERNAL_STATE
 }
 
 /// Set the state according to the app context.
@@ -112,8 +111,7 @@ pub(crate) fn set_state(app_name: HermesAppName) {
 
 /// Get the resource from the state using id if possible.
 pub(crate) fn get_resource(app_name: &HermesAppName, id: u32) -> Option<XPrv> {
-    let binding = CRYPTO_INTERNAL_STATE.clone();
-    if let Some(res_holder) = binding.get(app_name) {
+    if let Some(res_holder) = CRYPTO_INTERNAL_STATE.get(app_name) {
         return res_holder.get_resource_from_id(id);
     }
     None
@@ -122,8 +120,7 @@ pub(crate) fn get_resource(app_name: &HermesAppName, id: u32) -> Option<XPrv> {
 /// Add the resource of `XPrv` to the state if possible.
 /// Return the id if successful.
 pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> {
-    let binding = CRYPTO_INTERNAL_STATE.clone();
-    if let Some(mut res_holder) = binding.get_mut(app_name) {
+    if let Some(mut res_holder) = CRYPTO_INTERNAL_STATE.get_mut(app_name) {
         let wrapped_xprv = WrappedXPrv::from(xprv.clone());
         // Check whether the resource already exists.
         if !res_holder.resource_to_id_map.contains_key(&wrapped_xprv) {
@@ -139,8 +136,7 @@ pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> 
 
 /// Delete the resource from the state using id if possible.
 pub(crate) fn delete_resource(app_name: &HermesAppName, id: u32) -> Option<u32> {
-    let binding = CRYPTO_INTERNAL_STATE.clone();
-    if let Some(mut res_holder) = binding.get_mut(app_name) {
+    if let Some(mut res_holder) = CRYPTO_INTERNAL_STATE.get_mut(app_name) {
         return res_holder.drop(id);
     }
     None

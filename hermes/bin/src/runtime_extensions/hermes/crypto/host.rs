@@ -117,15 +117,12 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        if let Some(private_key) = get_resource(self.app_name(), resource.rep()) {
-            if let Ok(derived_private_key) = derive_new_private_key(private_key, &path) {
-                if let Some(id) = add_resource(self.app_name(), derived_private_key) {
-                    return Ok(Resource::new_own(id));
-                }
-            }
-        }
-        // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
-        Err(wasmtime::Error::msg("Error deriving new private key"))
+        get_resource(self.app_name(), resource.rep())
+            .and_then(|private_key| derive_new_private_key(private_key, &path).ok())
+            .and_then(|derived_private_key| add_resource(self.app_name(), derived_private_key))
+            .map(Resource::new_own)
+            // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
+            .ok_or_else(|| wasmtime::Error::msg("Error deriving new private key"))
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
