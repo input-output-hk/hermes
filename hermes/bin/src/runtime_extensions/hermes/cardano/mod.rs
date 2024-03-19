@@ -363,24 +363,6 @@ async fn chain_follower_executor(
                         let block_number = decoded_block_data.number();
                         let slot = decoded_block_data.slot();
 
-                        if subscribed_to_blocks {
-                            let on_block_event = event::OnCardanoBlockEvent {
-                                blockchain: chain_id,
-                                // TODO(FelipeRosa): Waiting for
-                                // https://github.com/input-output-hk/hermes/pull/185 to be merged.
-                                block: Vec::new(),
-                                source: BlockSrc::NODE,
-                            };
-                            trace!(block_number, "Generated Cardano block event");
-
-                            // TODO(FelipeRosa): Handle error?
-                            drop(crate::event::queue::send(HermesEvent::new(
-                                on_block_event,
-                                TargetApp::List(vec![module_state_key.0.clone()]),
-                                TargetModule::_List(vec![module_state_key.1.clone()]),
-                            )));
-                        }
-
                         if subscribed_to_txns {
                             let txs = decoded_block_data.txs();
 
@@ -401,6 +383,23 @@ async fn chain_follower_executor(
 
                             trace!(block_number, tx_count = txs.len(), "Generated Cardano block transactions events");
                         }
+
+                        if subscribed_to_blocks {
+                            let on_block_event = event::OnCardanoBlockEvent {
+                                blockchain: chain_id,
+                                block: block_data.into_raw_data(),
+                                source: BlockSrc::NODE,
+                            };
+                            trace!(block_number, "Generated Cardano block event");
+
+                            // TODO(FelipeRosa): Handle error?
+                            drop(crate::event::queue::send(HermesEvent::new(
+                                on_block_event,
+                                TargetApp::List(vec![module_state_key.0.clone()]),
+                                TargetModule::_List(vec![module_state_key.1.clone()]),
+                            )));
+                        }
+
 
                         slot
                     },
