@@ -1,0 +1,32 @@
+; 3.5.1.  Structs
+
+; cspell: words tstr
+
+Geography = [
+    city           : tstr,
+    gpsCoordinates : GpsCoordinates,
+]
+
+GpsCoordinates = {
+    longitude      : uint,            ; degrees, scaled by 10^7
+    latitude       : uint,            ; degrees, scaled by 10^7
+}
+
+located-samples = {
+    sample-point: int,
+    samples: [+ float],
+    * equipment-type => equipment-tolerances,
+}
+equipment-type = [name: tstr, manufacturer: tstr]
+equipment-tolerances = [+ [float, float]]
+
+PersonalData = {
+    ? displayName: tstr,
+    NameComponents,
+    ? age: uint,
+}
+
+NameComponents = (
+    ? firstName: tstr,
+    ? familyName: tstr,
+)

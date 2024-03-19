@@ -1,0 +1,15 @@
+; 3.9.  Socket/Plug
+
+tcp-header = {seq: uint, ack: uint, * $$tcp-option}
+
+; later, in a different file
+
+$$tcp-option //= (
+sack: [+(left: uint, right: uint)]
+)
+
+; and, maybe in another file
+
+$$tcp-option //= (
+  sack-permitted: true
+)

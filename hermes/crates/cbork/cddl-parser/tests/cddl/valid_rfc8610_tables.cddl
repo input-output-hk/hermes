@@ -1,0 +1,10 @@
+; 3.5.2.  Tables
+
+; cspell: words tstr tostring mynumber
+
+square-roots = {* x => y}
+x = int
+y = float
+
+tostring = {* mynumber => tstr}
+mynumber = int / float

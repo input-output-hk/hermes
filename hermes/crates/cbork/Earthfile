@@ -1,0 +1,42 @@
+VERSION 0.7
+
+# Set up our target toolchains, and copy our files.
+builder:
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.8.0+SETUP
+
+    COPY --dir .cargo .config cddl-parser abnf-parser .
+    COPY Cargo.toml clippy.toml deny.toml rustfmt.toml .
+
+    RUN cargo generate-lockfile
+
+## -----------------------------------------------------------------------------
+##
+## Standard CI targets.
+##
+## These targets are discovered and executed automatically by CI.
+
+# Run check using the most efficient host tooling
+# CI Automated Entry point.
+check:
+    FROM +builder
+
+    RUN /scripts/std_checks.py
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+all-hosts-check:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +check
+
+# Run build using the most efficient host tooling
+# CI Automated Entry point.
+build:
+    FROM +builder
+
+    RUN /scripts/std_build.py   --libs="cddl-parser, abnf-parser"
+
+    SAVE ARTIFACT target/$TARGETARCH/doc doc
+
+# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# Only used to validate tooling is working across host toolsets.
+build-all-hosts:    
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build-hosted

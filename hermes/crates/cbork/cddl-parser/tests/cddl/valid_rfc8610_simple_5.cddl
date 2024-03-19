@@ -1,0 +1,15 @@
+; Figure 5: Maps with Copy/Paste
+
+; cspell: words tstr
+
+person = {
+  age: int,
+  name: tstr,
+  employer: tstr,
+}
+
+dog = {
+  age: int,
+  name: tstr,
+  leash-length: float,
+}

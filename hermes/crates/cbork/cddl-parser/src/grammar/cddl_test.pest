@@ -1,0 +1,101 @@
+
+// -----------------------------------------------------------------------------
+// Test Expressions ONLY TO Be USED by Unit Tests.
+// Extends `cddl.pest` with rules needed to properly check sub-rules.
+
+// cspell: words intfloat hexfloat groupname assignt
+// cspell: words assigng genericparm genericarg rangeop ctlop
+// cspell: words grpchoice grpent memberkey bareword optcom
+
+/// Test Expression for the `rule` Rule.
+rule_TEST  = ${ SOI ~ rule ~ EOI }
+
+/// Test Expression for the `typename` Rule.
+typename_TEST  = ${ SOI ~ typename ~ EOI }
+
+/// Test Expression for the `groupname` Rule.
+groupname_TEST  = ${ SOI ~ groupname ~ EOI }
+
+/// Test Expression for the `assignt` Rule.
+assignt_TEST  = ${ SOI ~ assignt ~ EOI }
+
+/// Test Expression for the `assigng` Rule.
+assigng_TEST  = ${ SOI ~ assigng ~ EOI }
+
+/// Test Expression for the `genericparm` Rule.
+genericparm_TEST  = ${ SOI ~ genericparm ~ EOI }
+
+/// Test Expression for the `genericarg` Rule.
+genericarg_TEST  = ${ SOI ~ genericarg ~ EOI }
+
+/// Test Expression for the `type` Rule.
+type_TEST  = ${ SOI ~ type ~ EOI }
+
+/// Test Expression for the `type1` Rule.
+type1_TEST  = ${ SOI ~ type1 ~ EOI }
+
+/// Test Expression for the `type2` Rule.
+type2_TEST  = ${ SOI ~ type2 ~ EOI }
+
+/// Test Expression for the `rangeop` Rule.
+rangeop_TEST  = ${ SOI ~ rangeop ~ EOI }
+
+/// Test Expression for the `ctlop` Rule.
+ctlop_TEST  = ${ SOI ~ ctlop ~ EOI }
+
+/// Test Expression for the `group` Rule.
+group_TEST  = ${ SOI ~ group ~ EOI }
+
+/// Test Expression for the `grpchoice` Rule.
+grpchoice_TEST  = ${ SOI ~ grpchoice ~ EOI }
+
+/// Test Expression for the `grpent` Rule.
+grpent_TEST  = ${ SOI ~ grpent ~ EOI }
+
+/// Test Expression for the `memberkey` Rule.
+memberkey_TEST  = ${ SOI ~ memberkey ~ EOI }
+
+/// Test Expression for the `bareword` Rule.
+bareword_TEST  = ${ SOI ~ bareword ~ EOI }
+
+/// Test Expression for the `optcom` Rule.
+optcom_TEST  = ${ SOI ~ optcom ~ EOI }
+
+/// Test Expression for the `occur` Rule.
+occur_TEST  = ${ SOI ~ occur ~ EOI }
+
+/// Test Expression for the `S` Rule.
+S_TEST = ${ SOI ~ S ~ EOI }
+
+/// Test Expression for the `COMMENT` Rule.
+COMMENT_TEST = { SOI ~ COMMENT* ~ EOI }
+
+/// Test expression for the URL_BASE64 Rule.
+URL_BASE64_TEST = { SOI ~ URL_BASE64 ~ EOI }
+
+/// Test expression to the `id` Rule.
+id_TEST = ${ SOI ~ id ~ EOI}
+
+/// Test expression to the `bytes` Rule.
+bytes_TEST = ${ SOI ~ bytes ~ EOI}
+
+/// Test expression to the `text` Rule.
+text_TEST = ${ SOI ~ text ~ EOI}
+
+/// Test expression to the `uint` Rule.
+uint_TEST = ${ SOI ~ uint ~ EOI}
+
+/// Test expression to the `int` Rule.
+int_TEST = ${ SOI ~ int ~ EOI}
+
+/// Test expression to the `intfloat` Rule.
+intfloat_TEST = ${ SOI ~ intfloat ~ EOI}
+
+/// Test expression to the `hexfloat` Rule.
+hexfloat_TEST = ${ SOI ~ hexfloat ~ EOI}
+
+/// Test expression to the `number` Rule.
+number_TEST = ${ SOI ~ number ~ EOI}
+
+/// Test expression to the `value` Rule.
+value_TEST = ${ SOI ~ value ~ EOI}
