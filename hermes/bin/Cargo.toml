@@ -34,6 +34,12 @@ chrono-tz = { workspace = true }
 iana-time-zone = { workspace = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }
+bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
+cryptoxide = { workspace = true }
+rand = { workspace = true }
+bip32 = { workspace = true }
+ed25519-bip32 = { workspace = true }
+dashmap = { workspace = true }
 once_cell = { workspace = true }
 
 [[test]]

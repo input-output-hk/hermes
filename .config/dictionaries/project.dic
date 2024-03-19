@@ -8,11 +8,14 @@ asyncio
 auditability
 backpressure
 bindgen
+bkioshn
 blockdiag
 blockfetch
 bmac
 BROTLI
+CHAINCODE
 cardano
+chaincode
 cbor
 CBOR
 cbork
@@ -26,6 +29,7 @@ coti
 crontabs
 cryptoxide
 Datelike
+dashmap
 dbsync
 dcbor
 delegators
@@ -109,6 +113,7 @@ preopens
 preprod
 psql
 pubkey
+pubk
 pubspec
 pwrite
 rapidoc
@@ -158,4 +163,8 @@ wasmtime
 webasm
 webassembly
 WORKDIR
+XPRV
+xprivate
+xprv
+xpub
 yoroi
