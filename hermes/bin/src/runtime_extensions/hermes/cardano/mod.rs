@@ -66,18 +66,19 @@ impl TokioRuntimeHandle {
     }
 }
 
-type ChainFollowerHandleCommandSender = tokio::sync::mpsc::Sender<(
-    cardano_chain_follower::PointOrTip,
-    tokio::sync::oneshot::Sender<
-        cardano_chain_follower::Result<Option<cardano_chain_follower::Point>>,
-    >,
-)>;
-type ChainFollowerHandleCommandReceiver = tokio::sync::mpsc::Receiver<(
-    cardano_chain_follower::PointOrTip,
-    tokio::sync::oneshot::Sender<
-        cardano_chain_follower::Result<Option<cardano_chain_follower::Point>>,
-    >,
-)>;
+enum ChainFollowerCommand {
+    SetReadPointer(
+        cardano_chain_follower::PointOrTip,
+        tokio::sync::oneshot::Sender<
+            cardano_chain_follower::Result<Option<cardano_chain_follower::Point>>,
+        >,
+    ),
+    Stop(tokio::sync::oneshot::Sender<()>),
+    Continue(tokio::sync::oneshot::Sender<()>),
+}
+
+type ChainFollowerHandleCommandSender = tokio::sync::mpsc::Sender<ChainFollowerCommand>;
+type ChainFollowerHandleCommandReceiver = tokio::sync::mpsc::Receiver<ChainFollowerCommand>;
 
 struct ChainFollowerHandle {
     cmd_tx: ChainFollowerHandleCommandSender,
@@ -92,7 +93,7 @@ impl ChainFollowerHandle {
         // TODO(FelipeRosa): This should be mapped into an error. It's a serious bug
         // if the follower's executor was stopped and the handle was not dropped.
         self.cmd_tx
-            .blocking_send((at, res_tx))
+            .blocking_send(ChainFollowerCommand::SetReadPointer(at, res_tx))
             .expect("Follower executor is not running");
 
         // TODO(FelipeRosa): Same as above.
@@ -116,7 +117,6 @@ type ChainUpdateReceiver = tokio::sync::mpsc::Receiver<(
 
 #[derive(Default)]
 struct SubscriptionState {
-    stopped: AtomicBool,
     subscribed_to_blocks: AtomicBool,
     subscribed_to_txns: AtomicBool,
     subscribed_to_rollbacks: AtomicBool,
@@ -149,9 +149,10 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 pub(super) enum SubscriptionType {
-    Blocks(Slot),
+    Blocks(cardano_chain_follower::PointOrTip),
     Rollbacks,
     Transactions,
+    Continue,
 }
 
 pub(super) fn subscribe(
@@ -166,57 +167,21 @@ pub(super) fn subscribe(
         .or_default();
 
     match sub_type {
-        SubscriptionType::Blocks(opt) => {
-            // TODO(FelipeRosa): This should handle each case for the subscription.
-            // follow_from should be Some(PointOrTip) if we need to follow from some specified point
-            // or None if we should continue following from the last point.
-            let follow_from = match opt {
-                Slot::Continue => None,
-                Slot::Genesis => {
-                    Some(cardano_chain_follower::PointOrTip::Point(
-                        cardano_chain_follower::Point::Origin,
-                    ))
-                },
-                Slot::Point((slot_no, hash)) => {
-                    Some(cardano_chain_follower::PointOrTip::Point(
-                        cardano_chain_follower::Point::Specific(slot_no, hash),
-                    ))
-                },
-                Slot::Tip => Some(cardano_chain_follower::PointOrTip::Tip),
-            };
-
-            let follow_from = match follow_from {
-                Some(p) => p,
-                None => {
-                    // TODO(FelipeRosa): Implement the logic for when this is a new
-                    // subscription but "continue" was requested.
-                    cardano_chain_follower::PointOrTip::Tip
-                },
-            };
-
+        SubscriptionType::Blocks(follow_from) => {
             let follower_handle_lock = sub_state.follower_handle.write();
 
             match follower_handle_lock {
                 Ok(mut lock) => {
-                    // NOTE(FelipeRosa): In the case the subscription is already active,
-                    // we simply ask the follower to set its read pointer to the correct
-                    // position on the chain.
+                    if let Some(handle) = lock.as_mut() {
+                        handle.set_read_pointer_sync(follow_from).unwrap();
+                    } else {
+                        // TODO(FelipeRosa): Handle error
+                        let follower_handle = STATE
+                            .tokio_rt_handle
+                            .spawn_follower_sync(chain_id, sub_state.clone(), follow_from)
+                            .unwrap();
 
-                    match lock.as_mut() {
-                        Some(handle) => {
-                            // TODO(FelipeRosa): Handle error.
-                            // Maybe this should cause subscribe to fail and the module could retry?
-                            handle.set_read_pointer_sync(follow_from).unwrap();
-                        },
-                        None => {
-                            // TODO(FelipeRosa): Handle error
-                            let follower_handle = STATE
-                                .tokio_rt_handle
-                                .spawn_follower_sync(chain_id, sub_state.clone(), follow_from)
-                                .unwrap();
-
-                            *lock = Some(follower_handle);
-                        },
+                        *lock = Some(follower_handle);
                     }
                 },
                 Err(_) => {
@@ -237,6 +202,28 @@ pub(super) fn subscribe(
             sub_state
                 .subscribed_to_txns
                 .store(true, std::sync::atomic::Ordering::SeqCst);
+        },
+        SubscriptionType::Continue => {
+            let follower_handle_lock = sub_state.follower_handle.write();
+
+            match follower_handle_lock {
+                Ok(mut lock) => {
+                    if let Some(handle) = lock.as_mut() {
+                        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+
+                        // TODO(FelipeRosa): Handle
+                        handle
+                            .cmd_tx
+                            .blocking_send(ChainFollowerCommand::Continue(res_tx))
+                            .unwrap();
+
+                        drop(res_rx.blocking_recv());
+                    }
+                },
+                Err(_) => {
+                    // TODO(FelipeRosa): Handle error
+                },
+            }
         },
     }
     Ok(())
@@ -270,7 +257,26 @@ pub(super) fn unsubscribe(
                 .store(false, std::sync::atomic::Ordering::SeqCst);
         }
 
-        // TODO(FelipeRosa): Implement STOP
+        if opts & UnsubscribeOptions::STOP == UnsubscribeOptions::STOP {
+            let follower_handle_lock = sub_state.follower_handle.read();
+
+            match follower_handle_lock {
+                Ok(lock) => {
+                    if let Some(handle) = lock.as_ref() {
+                        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+
+                        // TODO(FelipeRosa): Handle
+                        handle
+                            .cmd_tx
+                            .blocking_send(ChainFollowerCommand::Stop(res_tx))
+                            .unwrap();
+
+                        drop(res_rx.blocking_recv());
+                    }
+                },
+                Err(_) => {},
+            }
+        }
     }
 
     Ok(())
@@ -320,11 +326,17 @@ async fn chain_follower_executor(
     .unwrap();
     trace!("Started chain follower");
 
+    let mut stopped = false;
+
     'exec_loop: loop {
         tokio::select! {
             res = cmd_rx.recv() => {
-                match res {
-                    Some((follow_from, res_tx)) => {
+                let Some(cmd) = res else {
+                    break 'exec_loop;
+                };
+
+                match cmd {
+                    ChainFollowerCommand::SetReadPointer(follow_from, res_tx) => {
                         let result = follower.set_read_pointer(follow_from).await;
 
                         // TODO(FelipeRosa): Decide what to do with this
@@ -336,11 +348,18 @@ async fn chain_follower_executor(
                         // Ignore if the receiver is closed.
                         drop(res_tx.send(result));
                     }
-                    None => break 'exec_loop,
+                    ChainFollowerCommand::Stop(res_tx) => {
+                        stopped = true;
+                        res_tx.send(());
+                    }
+                    ChainFollowerCommand::Continue(res_tx) => {
+                        stopped = false;
+                        res_tx.send(());
+                    }
                 }
             }
 
-            result = follower.next() => {
+            result = follower.next(), if !stopped => {
                 let chain_update = match result {
                     Ok(chain_update) => chain_update,
                     Err(e) => {
@@ -359,13 +378,13 @@ async fn chain_follower_executor(
                             subscription_state.subscribed_to_txns.load(std::sync::atomic::Ordering::SeqCst);
 
                         if !subscribed_to_blocks && !subscribed_to_txns {
-                            // Ignore this update
                             continue;
                         }
 
                         // TODO(FelipeRosa):
                         // 1. Handle error
                         let decoded_block_data = block_data.decode().unwrap();
+                        let block_number = decoded_block_data.number();
                         let slot = decoded_block_data.slot();
 
                         if subscribed_to_blocks {
@@ -374,7 +393,7 @@ async fn chain_follower_executor(
                                 block: Vec::new(),
                                 source: BlockSrc::TIP,
                             };
-                            trace!("Generated Cardano block event");
+                            trace!(block_number, "Generated Cardano block event");
 
                             // TODO(FelipeRosa): Handle error?
                             drop(crate::event::queue::send(HermesEvent::new(
@@ -402,7 +421,7 @@ async fn chain_follower_executor(
                                 )));
                             }
 
-                            trace!(tx_count = txs.len(), "Generated Cardano block transactions events");
+                            trace!(block_number, tx_count = txs.len(), "Generated Cardano block transactions events");
                         }
 
                         slot
@@ -418,13 +437,14 @@ async fn chain_follower_executor(
                         // TODO(FelipeRosa):
                         // 1. Handle error
                         let decoded_block_data = block_data.decode().unwrap();
+                        let block_number = decoded_block_data.number();
                         let slot = decoded_block_data.slot();
 
                         let on_rollback_event = event::OnCardanoRollback {
                             blockchain: CardanoBlockchainId::Preprod,
                             slot: 0,
                         };
-                        trace!("Generated Cardano rollback event");
+                        trace!(block_number, "Generated Cardano rollback event");
 
                         // TODO(FelipeRosa): Handle error?
                         let res = crate::event::queue::send(HermesEvent::new(
@@ -497,7 +517,7 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Blocks(Slot::Tip),
+            SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
         )
         .expect("subscribed");
 
@@ -515,15 +535,13 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            // NOTE(FelipeRosa):
-            // For some reason this does not work:
-            // Slot::Genesis
-            // So I'm using some other point.
-            SubscriptionType::Blocks(Slot::Point((
-                49_075_522,
-                hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                    .unwrap(),
-            ))),
+            SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Point(
+                cardano_chain_follower::Point::Specific(
+                    49_075_522,
+                    hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
+                        .unwrap(),
+                ),
+            )),
         )
         .expect("subscribed");
 
@@ -531,9 +549,27 @@ mod test {
 
         unsubscribe(
             CardanoBlockchainId::Preprod,
+            app_name.clone(),
+            module_id.clone(),
+            UnsubscribeOptions::BLOCK,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+
+        unsubscribe(
+            CardanoBlockchainId::Preprod,
+            app_name.clone(),
+            module_id.clone(),
+            UnsubscribeOptions::STOP,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+
+        subscribe(
+            CardanoBlockchainId::Preprod,
             app_name,
             module_id,
-            UnsubscribeOptions::BLOCK,
+            SubscriptionType::Continue,
         );
 
         std::thread::sleep(std::time::Duration::from_secs(100));
