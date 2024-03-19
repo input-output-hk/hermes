@@ -485,19 +485,25 @@ mod task {
                             continue;
                         };
 
-                        let Ok(Some(from)) = set_client_read_pointer(&mut client, at).await else {
-                            drop(response_tx.send(Err(crate::Error::SetReadPointer)));
-                            continue;
-                        };
+                        match set_client_read_pointer(&mut client, at).await {
+                            Ok(Some(from)) => {
+                                fetch_chain_updates_fut.set(Self::fetch_chain_updates(
+                                    client,
+                                    self.mithril_snapshot.as_ref(),
+                                    self.chain_update_tx.clone(),
+                                    from.clone(),
+                                ));
 
-                        fetch_chain_updates_fut.set(Self::fetch_chain_updates(
-                            client,
-                            self.mithril_snapshot.as_ref(),
-                            self.chain_update_tx.clone(),
-                            from,
-                        ));
-
-                        drop(response_tx.send(Ok(None)));
+                                drop(response_tx.send(Ok(Some(from))));
+                            }
+                            Ok(None) => {
+                                drop(response_tx.send(Ok(None)));
+                            }
+                            Err(_) => {
+                                drop(response_tx.send(Err(crate::Error::SetReadPointer)));
+                                continue;
+                            }
+                        }
                     }
 
                     () = &mut fetch_chain_updates_fut  => {}
