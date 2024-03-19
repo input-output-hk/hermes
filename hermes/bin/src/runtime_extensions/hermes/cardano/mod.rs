@@ -1,32 +1,31 @@
 //! Cardano Blockchain runtime extension implementation.
-#![allow(unused)]
 
-use std::{
-    error::Error,
-    sync::{
-        atomic::{AtomicBool, AtomicU32},
-        Arc,
-    },
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
 use dashmap::DashMap;
-use tracing::{instrument, trace, warn, Instrument};
+use tracing::{instrument, trace, warn};
 
 use crate::{
     app::HermesAppName,
     event::{HermesEvent, TargetApp, TargetModule},
-    runtime_extensions::bindings::{
-        exports::hermes::cardano::event_on_txn::CardanoTxn,
-        hermes::cardano::api::{BlockSrc, CardanoBlockchainId, Slot},
-    },
+    runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId},
     wasm::module::ModuleId,
 };
 
 mod event;
 mod host;
 
-pub(super) type Result<T> = std::result::Result<T, Box<dyn Error>>;
+#[derive(Debug, thiserror::Error)]
+pub(super) enum Error {
+    #[error("Internal Cardano Runtime Extension Error")]
+    InternalError,
+}
 
+pub(super) type Result<T> = std::result::Result<T, Error>;
+
+/// Command data that can be send to the Tokio runtime background thread.
+///
+/// For now it just spawns new chain followers.
 struct TokioRuntimeSpawnFollowerCommand {
     chain_id: CardanoBlockchainId,
     subscription_state: Arc<SubscriptionState>,
@@ -58,7 +57,9 @@ impl TokioRuntimeHandle {
             follow_from,
         };
 
-        self.cmd_tx.blocking_send((cmd, res_tx)).map_err(Box::new)?;
+        self.cmd_tx
+            .blocking_send((cmd, res_tx))
+            .map_err(|_| Error::InternalError)?;
 
         // TODO(FelipeRosa): Handle errors
         let handle = res_rx.blocking_recv().expect("Tokio runtime not running");
@@ -104,16 +105,6 @@ impl ChainFollowerHandle {
         result
     }
 }
-
-type FollowerId = u32;
-type ChainUpdateSender = tokio::sync::mpsc::Sender<(
-    FollowerId,
-    cardano_chain_follower::Result<cardano_chain_follower::ChainUpdate>,
-)>;
-type ChainUpdateReceiver = tokio::sync::mpsc::Receiver<(
-    FollowerId,
-    cardano_chain_follower::Result<cardano_chain_follower::ChainUpdate>,
-)>;
 
 #[derive(Default)]
 struct SubscriptionState {
@@ -300,6 +291,7 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                 follower_cmd_rx,
                 cmd.chain_id,
                 cmd.subscription_state,
+                cmd.follow_from,
             ));
 
             drop(res_tx.send(ChainFollowerHandle {
@@ -309,10 +301,10 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     });
 }
 
-#[instrument(skip(cmd_rx, subscription_state))]
+#[instrument(skip(cmd_rx, subscription_state, follow_from))]
 async fn chain_follower_executor(
     mut cmd_rx: ChainFollowerHandleCommandReceiver, chain_id: CardanoBlockchainId,
-    subscription_state: Arc<SubscriptionState>,
+    subscription_state: Arc<SubscriptionState>, follow_from: cardano_chain_follower::PointOrTip,
 ) {
     let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
     let network = network_from_chain_id(chain_id);
@@ -325,6 +317,9 @@ async fn chain_follower_executor(
     .await
     .unwrap();
     trace!("Started chain follower");
+
+    follower.set_read_pointer(follow_from).await.unwrap();
+    trace!("Set chain follower starting point");
 
     let mut stopped = false;
 
@@ -350,11 +345,11 @@ async fn chain_follower_executor(
                     }
                     ChainFollowerCommand::Stop(res_tx) => {
                         stopped = true;
-                        res_tx.send(());
+                        let _ = res_tx.send(());
                     }
                     ChainFollowerCommand::Continue(res_tx) => {
                         stopped = false;
-                        res_tx.send(());
+                        let _ = res_tx.send(());
                     }
                 }
             }
@@ -369,7 +364,7 @@ async fn chain_follower_executor(
                     },
                 };
 
-                let current_follower_slot = match chain_update {
+                match chain_update {
                     cardano_chain_follower::ChainUpdate::Block(block_data) => {
                         let subscribed_to_blocks =
                             subscription_state.subscribed_to_blocks.load(std::sync::atomic::Ordering::SeqCst);
@@ -447,11 +442,11 @@ async fn chain_follower_executor(
                         trace!(block_number, "Generated Cardano rollback event");
 
                         // TODO(FelipeRosa): Handle error?
-                        let res = crate::event::queue::send(HermesEvent::new(
+                        drop(crate::event::queue::send(HermesEvent::new(
                             on_rollback_event,
                             TargetApp::List(Vec::new()),
                             TargetModule::All,
-                        ));
+                        )));
 
                         slot
                     },
@@ -490,7 +485,7 @@ mod test {
     use crate::{
         app::HermesAppName,
         runtime_extensions::bindings::hermes::cardano::api::{
-            CardanoBlockchainId, Slot, UnsubscribeOptions,
+            CardanoBlockchainId, UnsubscribeOptions,
         },
         wasm::module::ModuleId,
     };
@@ -552,7 +547,8 @@ mod test {
             app_name.clone(),
             module_id.clone(),
             UnsubscribeOptions::BLOCK,
-        );
+        )
+        .expect("subscribed");
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -561,7 +557,8 @@ mod test {
             app_name.clone(),
             module_id.clone(),
             UnsubscribeOptions::STOP,
-        );
+        )
+        .expect("subscribed");
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -570,7 +567,8 @@ mod test {
             app_name,
             module_id,
             SubscriptionType::Continue,
-        );
+        )
+        .expect("subscribed");
 
         std::thread::sleep(std::time::Duration::from_secs(100));
     }
