@@ -62,7 +62,7 @@ impl Host for HermesRuntimeContext {
         );
 
         match res {
-            Ok(_) => todo!(),
+            Ok(_) => Ok(Ok(0)),
             Err(_) => Ok(Err(FetchError::InvalidSlot)),
         }
     }
@@ -107,7 +107,9 @@ impl Host for HermesRuntimeContext {
             self.module_id().clone(),
             super::SubscriptionType::Transactions,
         )
-        .map_err(wasmtime::Error::new)
+        .map_err(wasmtime::Error::new)?;
+
+        Ok(())
     }
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in
@@ -124,12 +126,13 @@ impl Host for HermesRuntimeContext {
     /// rollback, unless the
     /// default behavior is not desired.
     fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        let _ = super::subscribe(
+        super::subscribe(
             net,
             self.app_name().clone(),
             self.module_id().clone(),
             super::SubscriptionType::Rollbacks,
-        );
+        )
+        .map_err(wasmtime::Error::new)?;
 
         Ok(())
     }

@@ -332,13 +332,27 @@ async fn chain_follower_executor(
 
                 match cmd {
                     ChainFollowerCommand::SetReadPointer(follow_from, res_tx) => {
+                        // Set the follower as stopped in case we fail set the
+                        // read pointer or the point can't be found.
+                        stopped = true;
+
                         let result = follower.set_read_pointer(follow_from).await;
 
-                        // TODO(FelipeRosa): Decide what to do with this
-                        if let Err(e) = result {
-                            warn!(error = ?e, "Failed to set read pointer");
-                            break 'exec_loop;
+                        match &result {
+                            Ok(Some(point)) => {
+                                stopped = false;
+                                trace!(slot = point.slot_or_default(), "Follower read pointer set");
+                            }
+                            // TODO(FelipeRosa): Decide what to do with these. For now we just
+                            // will not resume the follower.
+                            Ok(None) => {
+                                warn!("Couldn't set follower read pointer: point not found");
+                            }
+                            Err(e) => {
+                                warn!(error = ?e, "Failed to set read pointer");
+                            }
                         }
+
 
                         // Ignore if the receiver is closed.
                         drop(res_tx.send(result));
