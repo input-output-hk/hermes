@@ -1,7 +1,5 @@
 //! Cardano Blockchain runtime extension implementation.
 
-use std::sync::{atomic::AtomicBool, Arc};
-
 use dashmap::DashMap;
 use tracing::{instrument, trace, warn};
 
@@ -27,8 +25,9 @@ pub(super) type Result<T> = std::result::Result<T, Error>;
 ///
 /// For now it just spawns new chain followers.
 struct TokioRuntimeSpawnFollowerCommand {
+    app_name: HermesAppName,
+    module_id: ModuleId,
     chain_id: CardanoBlockchainId,
-    subscription_state: Arc<SubscriptionState>,
     follow_from: cardano_chain_follower::PointOrTip,
 }
 
@@ -47,13 +46,14 @@ struct TokioRuntimeHandle {
 
 impl TokioRuntimeHandle {
     fn spawn_follower_sync(
-        &self, chain_id: CardanoBlockchainId, subscription_state: Arc<SubscriptionState>,
+        &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
     ) -> Result<ChainFollowerHandle> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
         let cmd = TokioRuntimeSpawnFollowerCommand {
+            app_name,
+            module_id,
             chain_id,
-            subscription_state,
             follow_from,
         };
 
@@ -108,16 +108,16 @@ impl ChainFollowerHandle {
 
 #[derive(Default)]
 struct SubscriptionState {
-    subscribed_to_blocks: AtomicBool,
-    subscribed_to_txns: AtomicBool,
-    subscribed_to_rollbacks: AtomicBool,
-    follower_handle: std::sync::RwLock<Option<ChainFollowerHandle>>,
+    subscribed_to_blocks: bool,
+    subscribed_to_txns: bool,
+    subscribed_to_rollbacks: bool,
+    follower_handle: Option<ChainFollowerHandle>,
 }
 
 struct State {
     tokio_rt_handle: TokioRuntimeHandle,
     subscriptions:
-        DashMap<(HermesAppName, ModuleId, cardano_chain_follower::Network), Arc<SubscriptionState>>,
+        DashMap<(HermesAppName, ModuleId, cardano_chain_follower::Network), SubscriptionState>,
 }
 
 static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
@@ -152,68 +152,44 @@ pub(super) fn subscribe(
 ) -> Result<()> {
     let network = network_from_chain_id(chain_id);
 
-    let sub_state = STATE
+    let mut sub_state = STATE
         .subscriptions
         .entry((app_name.clone(), module_id.clone(), network))
         .or_default();
 
     match sub_type {
         SubscriptionType::Blocks(follow_from) => {
-            let follower_handle_lock = sub_state.follower_handle.write();
+            if let Some(handle) = sub_state.follower_handle.as_ref() {
+                handle.set_read_pointer_sync(follow_from).unwrap();
+            } else {
+                // TODO(FelipeRosa): Handle error
+                let follower_handle = STATE
+                    .tokio_rt_handle
+                    .spawn_follower_sync(app_name, module_id, chain_id, follow_from)
+                    .unwrap();
 
-            match follower_handle_lock {
-                Ok(mut lock) => {
-                    if let Some(handle) = lock.as_mut() {
-                        handle.set_read_pointer_sync(follow_from).unwrap();
-                    } else {
-                        // TODO(FelipeRosa): Handle error
-                        let follower_handle = STATE
-                            .tokio_rt_handle
-                            .spawn_follower_sync(chain_id, sub_state.clone(), follow_from)
-                            .unwrap();
-
-                        *lock = Some(follower_handle);
-                    }
-                },
-                Err(_) => {
-                    // TODO(FelipeRosa): Handle error
-                },
+                sub_state.follower_handle = Some(follower_handle);
             }
 
-            sub_state
-                .subscribed_to_blocks
-                .store(true, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_blocks = true;
         },
         SubscriptionType::Rollbacks => {
-            sub_state
-                .subscribed_to_rollbacks
-                .store(true, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_rollbacks = true;
         },
         SubscriptionType::Transactions => {
-            sub_state
-                .subscribed_to_txns
-                .store(true, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_txns = true;
         },
         SubscriptionType::Continue => {
-            let follower_handle_lock = sub_state.follower_handle.write();
+            if let Some(handle) = sub_state.follower_handle.as_ref() {
+                let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-            match follower_handle_lock {
-                Ok(mut lock) => {
-                    if let Some(handle) = lock.as_mut() {
-                        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+                // TODO(FelipeRosa): Handle
+                handle
+                    .cmd_tx
+                    .blocking_send(ChainFollowerCommand::Continue(res_tx))
+                    .unwrap();
 
-                        // TODO(FelipeRosa): Handle
-                        handle
-                            .cmd_tx
-                            .blocking_send(ChainFollowerCommand::Continue(res_tx))
-                            .unwrap();
-
-                        drop(res_rx.blocking_recv());
-                    }
-                },
-                Err(_) => {
-                    // TODO(FelipeRosa): Handle error
-                },
+                drop(res_rx.blocking_recv());
             }
         },
     }
@@ -227,45 +203,32 @@ pub(super) fn unsubscribe(
     use crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions;
 
     let network = network_from_chain_id(chain_id);
-    let sub_state = STATE.subscriptions.get(&(app_name, module_id, network));
+    let sub_state = STATE.subscriptions.get_mut(&(app_name, module_id, network));
 
-    if let Some(sub_state) = sub_state {
+    if let Some(mut sub_state) = sub_state {
         if opts & UnsubscribeOptions::BLOCK == UnsubscribeOptions::BLOCK {
-            sub_state
-                .subscribed_to_blocks
-                .store(false, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_blocks = false;
         }
 
         if opts & UnsubscribeOptions::TRANSACTION == UnsubscribeOptions::TRANSACTION {
-            sub_state
-                .subscribed_to_txns
-                .store(false, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_txns = false;
         }
 
         if opts & UnsubscribeOptions::ROLLBACK == UnsubscribeOptions::ROLLBACK {
-            sub_state
-                .subscribed_to_rollbacks
-                .store(false, std::sync::atomic::Ordering::SeqCst);
+            sub_state.subscribed_to_rollbacks = false;
         }
 
         if opts & UnsubscribeOptions::STOP == UnsubscribeOptions::STOP {
-            let follower_handle_lock = sub_state.follower_handle.read();
+            if let Some(handle) = sub_state.follower_handle.as_ref() {
+                let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-            match follower_handle_lock {
-                Ok(lock) => {
-                    if let Some(handle) = lock.as_ref() {
-                        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+                // TODO(FelipeRosa): Handle
+                handle
+                    .cmd_tx
+                    .blocking_send(ChainFollowerCommand::Stop(res_tx))
+                    .unwrap();
 
-                        // TODO(FelipeRosa): Handle
-                        handle
-                            .cmd_tx
-                            .blocking_send(ChainFollowerCommand::Stop(res_tx))
-                            .unwrap();
-
-                        drop(res_rx.blocking_recv());
-                    }
-                },
-                Err(_) => {},
+                drop(res_rx.blocking_recv());
             }
         }
     }
@@ -289,8 +252,9 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
             trace!("Spawning chain follower executor");
             tokio::spawn(chain_follower_executor(
                 follower_cmd_rx,
+                cmd.app_name,
+                cmd.module_id,
                 cmd.chain_id,
-                cmd.subscription_state,
                 cmd.follow_from,
             ));
 
@@ -301,13 +265,14 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     });
 }
 
-#[instrument(skip(cmd_rx, subscription_state, follow_from))]
+#[instrument(skip(cmd_rx, follow_from), fields(app_name = %app_name, module_id = %module_id))]
 async fn chain_follower_executor(
-    mut cmd_rx: ChainFollowerHandleCommandReceiver, chain_id: CardanoBlockchainId,
-    subscription_state: Arc<SubscriptionState>, follow_from: cardano_chain_follower::PointOrTip,
+    mut cmd_rx: ChainFollowerHandleCommandReceiver, app_name: HermesAppName, module_id: ModuleId,
+    chain_id: CardanoBlockchainId, follow_from: cardano_chain_follower::PointOrTip,
 ) {
     let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
     let network = network_from_chain_id(chain_id);
+    let module_state_key = (app_name, module_id, network);
 
     let mut follower = cardano_chain_follower::Follower::connect(
         follower_connect_address(network),
@@ -378,14 +343,16 @@ async fn chain_follower_executor(
                     },
                 };
 
+                let (subscribed_to_blocks, subscribed_to_txns, subscribed_to_rollbacks) = {
+                    let Some(sub_state) = STATE.subscriptions.get(&module_state_key) else {
+                        break 'exec_loop;
+                    };
+
+                    (sub_state.subscribed_to_blocks, sub_state.subscribed_to_txns, sub_state.subscribed_to_rollbacks)
+                };
+
                 match chain_update {
                     cardano_chain_follower::ChainUpdate::Block(block_data) => {
-                        let subscribed_to_blocks =
-                            subscription_state.subscribed_to_blocks.load(std::sync::atomic::Ordering::SeqCst);
-
-                        let subscribed_to_txns =
-                            subscription_state.subscribed_to_txns.load(std::sync::atomic::Ordering::SeqCst);
-
                         if !subscribed_to_blocks && !subscribed_to_txns {
                             continue;
                         }
@@ -399,16 +366,18 @@ async fn chain_follower_executor(
                         if subscribed_to_blocks {
                             let on_block_event = event::OnCardanoBlockEvent {
                                 blockchain: chain_id,
+                                // TODO(FelipeRosa): Waiting for
+                                // https://github.com/input-output-hk/hermes/pull/185 to be merged.
                                 block: Vec::new(),
-                                source: BlockSrc::TIP,
+                                source: BlockSrc::NODE,
                             };
                             trace!(block_number, "Generated Cardano block event");
 
                             // TODO(FelipeRosa): Handle error?
                             drop(crate::event::queue::send(HermesEvent::new(
                                 on_block_event,
-                                TargetApp::List(Vec::new()),
-                                TargetModule::All,
+                                TargetApp::List(vec![module_state_key.0.clone()]),
+                                TargetModule::_List(vec![module_state_key.1.clone()]),
                             )));
                         }
 
@@ -425,8 +394,8 @@ async fn chain_follower_executor(
 
                                 drop(crate::event::queue::send(HermesEvent::new(
                                     on_txn_event,
-                                    TargetApp::List(Vec::new()),
-                                    TargetModule::All,
+                                    TargetApp::List(vec![module_state_key.0.clone()]),
+                                    TargetModule::_List(vec![module_state_key.1.clone()]),
                                 )));
                             }
 
@@ -436,9 +405,6 @@ async fn chain_follower_executor(
                         slot
                     },
                     cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
-                        let subscribed_to_rollbacks =
-                            subscription_state.subscribed_to_rollbacks.load(std::sync::atomic::Ordering::SeqCst);
-
                         if !subscribed_to_rollbacks {
                             continue;
                         }
