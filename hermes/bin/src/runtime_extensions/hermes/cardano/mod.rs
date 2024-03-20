@@ -84,7 +84,8 @@ impl TokioRuntimeHandle {
 
 /// Chain follower executor commands.
 enum ChainFollowerCommand {
-    /// Instructs the chain follower executor to set the read pointer to the specified position.
+    /// Instructs the chain follower executor to set the read pointer to the specified
+    /// position.
     SetReadPointer(
         cardano_chain_follower::PointOrTip,
         tokio::sync::oneshot::Sender<
@@ -300,8 +301,8 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     });
 }
 
-/// Runs a Cardano chain follower that generates events for the given application module and is
-/// connected to the given chain.
+/// Runs a Cardano chain follower that generates events for the given application module
+/// and is connected to the given chain.
 #[instrument(skip(cmd_rx, follow_from), fields(app_name = %app_name, module_id = %module_id))]
 async fn chain_follower_executor(
     mut cmd_rx: ChainFollowerHandleCommandReceiver, app_name: HermesAppName, module_id: ModuleId,
@@ -509,6 +510,7 @@ mod test {
     };
 
     #[test]
+    #[ignore = "Just for testing locally"]
     fn it_works() {
         tracing_subscriber::fmt()
             .with_thread_ids(true)
