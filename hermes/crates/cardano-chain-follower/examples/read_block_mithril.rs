@@ -1,4 +1,4 @@
-//! This example shows how to use the chain reader to read arbitrary blocks
+//! This example shows how to use the chain follower to read arbitrary blocks
 //! from Mithril snapshot files.
 
 // Allowing since this is example code.
@@ -40,7 +40,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             49_075_418,
             hex::decode("bdb5ce7788850c30342794f252b1d955086862e8f7cb90a32a8f560b693ca78a")?,
         ))
-        .read()
         .await?;
 
     let block = data.decode()?;

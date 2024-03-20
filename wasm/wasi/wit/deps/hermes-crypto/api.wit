@@ -10,29 +10,75 @@
 interface api {
     use hermes:binary/api.{bstr, b256, b512};
 
-    // ed25519-bip32 Private Key
-    type ed25519-bip32-private-key = b256;
+    //  Errors that can occurs.
+    enum errno {
+        prefix-too-long,  // The prefix is longer than the maximum allowed length, max is 3.
+        invalid-mnemonic-length,  // The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.
+        word-not-found,  // A word in the mnemonic is not found in the word list.
+        invalid-mnemonic, // The mnemonic is invalid.
+        invalid-derivational-path, // The derivational path is invalid.
+        generate-entropy-failed, // Failed to generate entropy. 
+        unsupported-language, // The language is not supported.
+    }
 
-    // ed25519-bip32 Extended Private Key
-    type ed25519-bip32-extended-private-key = b512;
+    // bip32-ed25519 Private Key
+    type bip32-ed25519-private-key = b256;
 
-    // ed25519-bip32 Public Key
-    type ed25519-bip32-public-key = b256;
+    // bip32-ed25519 Extended Private Key
+    type bip32-ed25519-extended-private-key = b512;
 
-    // ed25519-bip32 Signature
-    type ed25519-bip32-signature = b256;
+    // bip32-ed25519 Public Key
+    type bip32-ed25519-public-key = b256;
 
-    resource ed25519-bip32 {
-        /// Create a new ED25519-BIP32 Crypto resource
+    // bip32-ed25519 Signature
+    type bip32-ed25519-signature = b512;
+
+    // Mnemonic
+    type mnemonic-phrase = list<string>;
+
+    // Passphrase
+    type passphrase = list<string>;
+
+    // Derivation path
+    type path = string;
+
+    type prefix = list<string>;
+
+    /// # Generate BIP39 Mnemonic Function
+    ///
+    /// Generate a new BIP39 mnemonic phrase with the given
+    /// size, prefix and language.
+    /// 
+    /// ## Parameters
+    /// 
+    /// `size` : The size of the mnemonic. Must be a multiple of 3 and in the range of 12 - 24. 
+    /// `prefix` : The prefix for the mnemonic. Must be a list of 1 - 3 words.
+    /// `language` : Optional. The language to use for the mnemonic. 
+    ///              If not provided, the default language is used.
+    /// 
+    /// ## Returns
+    /// 
+    /// - Either a list of mnemonic words.
+    /// - Or an error if the mnemonic could not be generated:
+    ///     - `prefix-too-long` : The prefix is longer than the maximum allowed length, max is 3.
+    ///     - `invalid-mnemonic-length` : The mnemonic length is not a multiple of 3 or not in the range of 12 - 24.     
+    ///     - `word-not-found` : A word in the mnemonic is not found in the word list.
+    ///     - `generate-entropy-failed` : Failed to generate entropy.
+    /// 
+    generate-mnemonic: func(size: u8, prefix: prefix, language: option<string>) -> result<mnemonic-phrase, errno>;
+
+    resource bip32-ed25519 {
+        /// Create a new BIP32-Ed25519 Crypto resource
         /// 
         /// **Parameters**
         ///
-        /// - `private_key` : The key to use, if not supplied one is RANDOMLY generated.
+        /// - `mnemonic-phrase` : BIP39 mnemonic.
+        /// - `passphrase` : Optional BIP39 passphrase.
         /// 
-        constructor(private-key: option<ed25519-bip32-private-key>);
+        constructor(mnemonic: mnemonic-phrase, passphrase: option<passphrase>);
 
         /// Get the public key for this private key.
-        public-key: func() -> ed25519-bip32-public-key;
+        public-key: func() -> bip32-ed25519-public-key;
 
         /// Sign data with the Private key, and return it.
         /// 
@@ -40,7 +86,7 @@ interface api {
         ///
         /// - `data` : The data to sign.
         /// 
-        sign-data: func(data: bstr) -> ed25519-bip32-signature;
+        sign-data: func(data: bstr) -> bip32-ed25519-signature;
 
 
         /// Check a signature on a set of data.
@@ -55,19 +101,17 @@ interface api {
         /// - `true` : Signature checked OK.
         /// - `false` : Signature check failed.
         ///
-        check-sig: func(data: bstr, sig: ed25519-bip32-signature) -> bool;
+        check-sig: func(data: bstr, sig: bip32-ed25519-signature) -> bool;
 
         /// Derive a new private key from the current private key.
         /// 
+        /// **Parameters**
+        ///
+        /// - `path` : Derivation path.
+        /// 
         /// Note: uses BIP32 HD key derivation.
         /// 
-        derive: func() -> ed25519-bip32;
-
-        /// Create a new RANDOM private key.
-        /// 
-        /// Note, this does not need to be used, as the constructor will do this automatically.
-        /// 
-        gen-private-key: static func() -> ed25519-bip32-private-key;
+        derive: func(path: path) -> bip32-ed25519;
     }
 }
 

@@ -1,0 +1,2 @@
+outer = { inner: int }
+incorrectly_nested = outer inner: int

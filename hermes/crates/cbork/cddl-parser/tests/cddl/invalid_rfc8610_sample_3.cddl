@@ -1,0 +1,5 @@
+; cspell: words tstr
+
+sample = ; comment here {
+  tstr => tstr
+}

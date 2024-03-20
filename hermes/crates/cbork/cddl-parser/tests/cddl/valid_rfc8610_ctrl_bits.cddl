@@ -1,0 +1,19 @@
+; 3.8.2.  Control Operator .bits
+
+; cspell: words tcpflagbytes rwxbits
+
+tcpflagbytes = bstr .bits flags
+flags = &(
+  fin: 8,
+  syn: 9,
+  rst: 10,
+  psh: 11,
+  ack: 12,
+  urg: 13,
+  ece: 14,
+  cwr: 15,
+  ns: 0,
+) / (4..7) ; data offset bits
+
+rwxbits = uint .bits rwx
+rwx = &(r: 2, w: 1, x: 0)

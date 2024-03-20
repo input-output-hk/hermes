@@ -1,4 +1,4 @@
-//! This example shows how to use the chain reader to download arbitrary blocks
+//! This example shows how to use the chain follower to download arbitrary blocks
 //! from the chain.
 
 use std::error::Error;
@@ -31,7 +31,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             110_908_236,
             hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
         ))
-        .read()
         .await?;
 
     let block = data.decode()?;

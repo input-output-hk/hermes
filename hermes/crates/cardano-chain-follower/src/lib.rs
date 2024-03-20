@@ -30,18 +30,21 @@ pub enum Error {
     /// Chainsync protocol error.
     #[error("Chainsync error: {0:?}")]
     Chainsync(chainsync::ClientError),
-    /// Follower start point was not found.
-    #[error("Follower start point was not found")]
-    FollowerStartPointNotFound,
-    /// Follower background task has stopped.
-    #[error("Follower background task is not running")]
-    FollowerBackgroundTaskNotRunning,
+    /// Follower failed to set its read pointer.
+    #[error("Failed to set follower read pointer")]
+    SetReadPointer,
+    /// Follower background follow task has stopped.
+    #[error("Follower follow task is not running")]
+    FollowTaskNotRunning,
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshot,
     /// Failed to parse
     #[error("Failed to parse network")]
     ParseNetwork,
+    /// Internal Error
+    #[error("Internal error")]
+    InternalError,
 }
 
 /// Crate result type.
@@ -77,6 +80,18 @@ impl MultiEraBlockData {
         let block = MultiEraBlock::decode(&self.0).map_err(Error::Codec)?;
 
         Ok(block)
+    }
+
+    /// Consumes the [`MultiEraBlockData`] returning the block data raw bytes.
+    #[must_use]
+    pub fn into_raw_data(self) -> Vec<u8> {
+        self.0
+    }
+}
+
+impl AsRef<[u8]> for MultiEraBlockData {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 
