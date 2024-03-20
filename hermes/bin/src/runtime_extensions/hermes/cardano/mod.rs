@@ -25,30 +25,34 @@ pub(super) enum Error {
 pub(super) type Result<T> = std::result::Result<T, Error>;
 
 /// Command data that can be send to the Tokio runtime background thread.
-///
-/// For now it just spawns new chain followers.
-struct TokioRuntimeSpawnFollowerCommand {
-    /// Name of the app that the follower will be tied to.
-    app_name: HermesAppName,
-    /// Id of the module that the follower will be tied to.
-    module_id: ModuleId,
-    /// Cardano blockchain that the follower will connect to.
-    chain_id: CardanoBlockchainId,
-    /// Follower's starting point.
-    follow_from: cardano_chain_follower::PointOrTip,
+enum TokioRuntimeCommand {
+    /// Instructs the Tokio runtime background thread to spawn a new chain follower.
+    SpawnFollower {
+        /// Name of the app that the follower will be tied to.
+        app_name: HermesAppName,
+        /// Id of the module that the follower will be tied to.
+        module_id: ModuleId,
+        /// Cardano blockchain that the follower will connect to.
+        chain_id: CardanoBlockchainId,
+        /// Follower's starting point.
+        follow_from: cardano_chain_follower::PointOrTip,
+        /// Response channel sender.
+        response_tx: tokio::sync::oneshot::Sender<ChainFollowerHandle>,
+    },
+    /// Instructs the Tokio runtime background thread to read a block using some follower.
+    ReadBlock {
+        chain_id: CardanoBlockchainId,
+        at: cardano_chain_follower::PointOrTip,
+        response_tx:
+            tokio::sync::oneshot::Sender<Result<cardano_chain_follower::MultiEraBlockData>>,
+    },
 }
 
 /// Tokio runtime handle command channel sender type.
-type TokioRuntimeHandleCommandSender = tokio::sync::mpsc::Sender<(
-    TokioRuntimeSpawnFollowerCommand,
-    tokio::sync::oneshot::Sender<ChainFollowerHandle>,
-)>;
+type TokioRuntimeHandleCommandSender = tokio::sync::mpsc::Sender<TokioRuntimeCommand>;
 
 /// Tokio runtime handle command channel receiver type.
-type TokioRuntimeHandleCommandReceiver = tokio::sync::mpsc::Receiver<(
-    TokioRuntimeSpawnFollowerCommand,
-    tokio::sync::oneshot::Sender<ChainFollowerHandle>,
-)>;
+type TokioRuntimeHandleCommandReceiver = tokio::sync::mpsc::Receiver<TokioRuntimeCommand>;
 
 /// Handle used for communicating with the Tokio runtime background thread.
 struct TokioRuntimeHandle {
@@ -66,19 +70,22 @@ impl TokioRuntimeHandle {
         &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
     ) -> Result<ChainFollowerHandle> {
-        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
-        let cmd = TokioRuntimeSpawnFollowerCommand {
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+        let cmd = TokioRuntimeCommand::SpawnFollower {
             app_name,
             module_id,
             chain_id,
             follow_from,
+            response_tx,
         };
 
         self.cmd_tx
-            .blocking_send((cmd, res_tx))
+            .blocking_send(cmd)
             .map_err(|_| Error::InternalError)?;
 
-        res_rx.blocking_recv().map_err(|_| Error::InternalError)
+        response_rx
+            .blocking_recv()
+            .map_err(|_| Error::InternalError)
     }
 }
 
@@ -150,6 +157,8 @@ struct State {
     /// Mapping of application module subscription states.
     subscriptions:
         DashMap<(HermesAppName, ModuleId, cardano_chain_follower::Network), SubscriptionState>,
+    /// Chain followers configured only for reading blocks.
+    readers: DashMap<cardano_chain_follower::Network, cardano_chain_follower::Follower>,
 }
 
 /// Cardano Runtime Extension internal state.
@@ -166,6 +175,7 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
             cmd_tx: tokio_cmd_tx,
         },
         subscriptions: DashMap::new(),
+        readers: DashMap::new(),
     }
 });
 
@@ -271,6 +281,25 @@ pub(super) fn unsubscribe(
     Ok(())
 }
 
+/// Reads a block from a Cardano network.
+pub(super) fn read_block(
+    chain_id: CardanoBlockchainId, at: cardano_chain_follower::PointOrTip,
+) -> Result<cardano_chain_follower::MultiEraBlockData> {
+    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+
+    let cmd = TokioRuntimeCommand::ReadBlock {
+        chain_id,
+        at,
+        response_tx,
+    };
+
+    STATE.tokio_rt_handle.cmd_tx.blocking_send(cmd).unwrap();
+
+    response_rx
+        .blocking_recv()
+        .map_err(|_| Error::InternalError)?
+}
+
 /// Runs the Cardano Runtime Extension Tokio runtime.
 #[instrument(skip(cmd_rx))]
 fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
@@ -282,21 +311,65 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     trace!("Created Tokio runtime");
 
     rt.block_on(async move {
-        while let Some((cmd, res_tx)) = cmd_rx.recv().await {
-            let (follower_cmd_tx, follower_cmd_rx) = tokio::sync::mpsc::channel(1);
+        while let Some(cmd) = cmd_rx.recv().await {
+            match cmd {
+                TokioRuntimeCommand::SpawnFollower {
+                    app_name,
+                    module_id,
+                    chain_id,
+                    follow_from,
+                    response_tx,
+                } => {
+                    trace!("Spawning chain follower executor");
 
-            trace!("Spawning chain follower executor");
-            tokio::spawn(chain_follower_executor(
-                follower_cmd_rx,
-                cmd.app_name,
-                cmd.module_id,
-                cmd.chain_id,
-                cmd.follow_from,
-            ));
+                    let (follower_cmd_tx, follower_cmd_rx) = tokio::sync::mpsc::channel(1);
 
-            drop(res_tx.send(ChainFollowerHandle {
-                cmd_tx: follower_cmd_tx,
-            }));
+                    tokio::spawn(chain_follower_executor(
+                        follower_cmd_rx,
+                        app_name,
+                        module_id,
+                        chain_id,
+                        follow_from,
+                    ));
+
+                    drop(response_tx.send(ChainFollowerHandle {
+                        cmd_tx: follower_cmd_tx,
+                    }));
+                },
+                TokioRuntimeCommand::ReadBlock {
+                    chain_id,
+                    at,
+                    response_tx,
+                } => {
+                    trace!("Reading block");
+
+                    let network = chain_id.into();
+
+                    let block_data = match STATE.readers.get(&network) {
+                        Some(reader) => reader.read_block(at).await.unwrap(),
+                        None => {
+                            // Limit the follower's buffer size. This does not really matter since
+                            // we'll not poll the follower's future so the following process will
+                            // not be executed.
+                            let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
+                                .chain_update_buffer_size(1)
+                                .build();
+
+                            let reader = cardano_chain_follower::Follower::connect(
+                                follower_connect_address(network),
+                                network,
+                                cfg,
+                            )
+                            .await
+                            .unwrap();
+
+                            reader.read_block(at).await.unwrap()
+                        },
+                    };
+
+                    drop(response_tx.send(Ok(block_data)));
+                },
+            }
         }
     });
 }
@@ -453,7 +526,7 @@ async fn chain_follower_executor(
 
                         let on_rollback_event = event::OnCardanoRollback {
                             blockchain: CardanoBlockchainId::Preprod,
-                            slot: 0,
+                            slot,
                         };
                         trace!(block_number, "Generated Cardano rollback event");
 
@@ -500,7 +573,7 @@ impl From<CardanoBlockchainId> for cardano_chain_follower::Network {
 mod test {
     use rusty_ulid::Ulid;
 
-    use super::{subscribe, unsubscribe, SubscriptionType};
+    use super::{read_block, subscribe, unsubscribe, SubscriptionType};
     use crate::{
         app::HermesAppName,
         runtime_extensions::bindings::hermes::cardano::api::{
@@ -511,7 +584,7 @@ mod test {
 
     #[test]
     #[ignore = "Just for testing locally"]
-    fn it_works() {
+    fn subscription_works() {
         tracing_subscriber::fmt()
             .with_thread_ids(true)
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -550,13 +623,14 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Point(
+            SubscriptionType::Blocks(
                 cardano_chain_follower::Point::Specific(
                     49_075_522,
                     hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
                         .unwrap(),
-                ),
-            )),
+                )
+                .into(),
+            ),
         )
         .expect("subscribed");
 
@@ -591,5 +665,27 @@ mod test {
         .expect("subscribed");
 
         std::thread::sleep(std::time::Duration::from_secs(100));
+    }
+
+    #[test]
+    #[ignore = "Just for local testing"]
+    fn reading_works() {
+        tracing_subscriber::fmt()
+            .with_thread_ids(true)
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+
+        let block_data = read_block(
+            CardanoBlockchainId::Preprod,
+            cardano_chain_follower::Point::Specific(
+                49_075_522,
+                hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
+                    .unwrap(),
+            )
+            .into(),
+        )
+        .expect("read");
+
+        assert_eq!(block_data.decode().expect("valid block").slot(), 49_075_522);
     }
 }

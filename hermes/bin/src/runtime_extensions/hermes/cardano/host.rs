@@ -158,9 +158,24 @@ impl Host for HermesRuntimeContext {
     /// parallel
     /// to automated block fetch.
     fn fetch_block(
-        &mut self, _net: CardanoBlockchainId, _whence: Slot,
+        &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
-        todo!()
+        let at = match whence {
+            Slot::Genesis => {
+                cardano_chain_follower::PointOrTip::Point(cardano_chain_follower::Point::Origin)
+            },
+            Slot::Point((slot, hash)) => {
+                cardano_chain_follower::PointOrTip::Point(cardano_chain_follower::Point::Specific(
+                    slot, hash,
+                ))
+            },
+            Slot::Tip => cardano_chain_follower::PointOrTip::Tip,
+            Slot::Continue => todo!(),
+        };
+
+        let block_data = super::read_block(net, at).unwrap();
+
+        Ok(Ok(block_data.into_raw_data()))
     }
 
     /// Get transactions from a block.
