@@ -13,38 +13,55 @@ use crate::{
 mod event;
 mod host;
 
+/// Cardano Runtime Extension internal error type.
 #[derive(Debug, thiserror::Error)]
 pub(super) enum Error {
+    /// General internal error.
     #[error("Internal Cardano Runtime Extension Error")]
     InternalError,
 }
 
+/// Cardano Runtime Extension internal result type.
 pub(super) type Result<T> = std::result::Result<T, Error>;
 
 /// Command data that can be send to the Tokio runtime background thread.
 ///
 /// For now it just spawns new chain followers.
 struct TokioRuntimeSpawnFollowerCommand {
+    /// Name of the app that the follower will be tied to.
     app_name: HermesAppName,
+    /// Id of the module that the follower will be tied to.
     module_id: ModuleId,
+    /// Cardano blockchain that the follower will connect to.
     chain_id: CardanoBlockchainId,
+    /// Follower's starting point.
     follow_from: cardano_chain_follower::PointOrTip,
 }
 
+/// Tokio runtime handle command channel sender type.
 type TokioRuntimeHandleCommandSender = tokio::sync::mpsc::Sender<(
     TokioRuntimeSpawnFollowerCommand,
     tokio::sync::oneshot::Sender<ChainFollowerHandle>,
 )>;
+
+/// Tokio runtime handle command channel receiver type.
 type TokioRuntimeHandleCommandReceiver = tokio::sync::mpsc::Receiver<(
     TokioRuntimeSpawnFollowerCommand,
     tokio::sync::oneshot::Sender<ChainFollowerHandle>,
 )>;
 
+/// Handle used for communicating with the Tokio runtime background thread.
 struct TokioRuntimeHandle {
+    /// Commands channel sender.
     cmd_tx: TokioRuntimeHandleCommandSender,
 }
 
 impl TokioRuntimeHandle {
+    /// Spawns a new chain follower in the background Tokio runtime.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the chain follower executor Tokio task could not be spawned.
     fn spawn_follower_sync(
         &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
@@ -61,38 +78,43 @@ impl TokioRuntimeHandle {
             .blocking_send((cmd, res_tx))
             .map_err(|_| Error::InternalError)?;
 
-        // TODO(FelipeRosa): Handle errors
-        let handle = res_rx.blocking_recv().expect("Tokio runtime not running");
-        Ok(handle)
+        res_rx.blocking_recv().map_err(|_| Error::InternalError)
     }
 }
 
+/// Chain follower executor commands.
 enum ChainFollowerCommand {
+    /// Instructs the chain follower executor to set the read pointer to the specified position.
     SetReadPointer(
         cardano_chain_follower::PointOrTip,
         tokio::sync::oneshot::Sender<
             cardano_chain_follower::Result<Option<cardano_chain_follower::Point>>,
         >,
     ),
+    /// Instructs the chain follower to stop generating events.
     Stop(tokio::sync::oneshot::Sender<()>),
+    /// Instructs the chain follower to resume generating events.
     Continue(tokio::sync::oneshot::Sender<()>),
 }
 
+/// Chain follower handle command channel sender.
 type ChainFollowerHandleCommandSender = tokio::sync::mpsc::Sender<ChainFollowerCommand>;
+/// Chain follower handle command channel receiver.
 type ChainFollowerHandleCommandReceiver = tokio::sync::mpsc::Receiver<ChainFollowerCommand>;
 
+/// Handle used to communicate with a chain follower executor Tokio task.
 struct ChainFollowerHandle {
+    /// Commands channel sender.
     cmd_tx: ChainFollowerHandleCommandSender,
 }
 
 impl ChainFollowerHandle {
+    /// Sends a command to the chain follower executor Tokio task
     fn set_read_pointer_sync(
         &self, at: cardano_chain_follower::PointOrTip,
     ) -> cardano_chain_follower::Result<Option<cardano_chain_follower::Point>> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-        // TODO(FelipeRosa): This should be mapped into an error. It's a serious bug
-        // if the follower's executor was stopped and the handle was not dropped.
         self.cmd_tx
             .blocking_send(ChainFollowerCommand::SetReadPointer(at, res_tx))
             .expect("Follower executor is not running");
@@ -106,20 +128,30 @@ impl ChainFollowerHandle {
     }
 }
 
+/// Hermes application module subscription state.
 #[derive(Default)]
 struct SubscriptionState {
+    /// Whether the module is subscribed to receive block events.
     subscribed_to_blocks: bool,
+    /// Whether the module is subscribed to receive transaction events.
     subscribed_to_txns: bool,
+    /// Whether the module is subscribed to receive rollback events.
     subscribed_to_rollbacks: bool,
+    /// Handle to the cardano chain follower from which the module is receiving
+    /// events.
     follower_handle: Option<ChainFollowerHandle>,
 }
 
+/// Cardano Runtime Extension state.
 struct State {
+    /// Handle to the Tokio runtime background thread.
     tokio_rt_handle: TokioRuntimeHandle,
+    /// Mapping of application module subscription states.
     subscriptions:
         DashMap<(HermesAppName, ModuleId, cardano_chain_follower::Network), SubscriptionState>,
 }
 
+/// Cardano Runtime Extension internal state.
 static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
     // Spawn a thread for running a Tokio runtime if we haven't yet.
     // This is done so we can run async functions.
@@ -146,11 +178,12 @@ pub(super) enum SubscriptionType {
     Continue,
 }
 
+/// Subscribes a module or resumes the generation of subscribed events for a module.
 pub(super) fn subscribe(
     chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
     sub_type: SubscriptionType,
 ) -> Result<()> {
-    let network = network_from_chain_id(chain_id);
+    let network = chain_id.into();
 
     let mut sub_state = STATE
         .subscriptions
@@ -196,13 +229,14 @@ pub(super) fn subscribe(
     Ok(())
 }
 
+/// Unsubscribes a module or stops the generation of subscribed events for a module.
 pub(super) fn unsubscribe(
     chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
     opts: crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions,
 ) -> Result<()> {
     use crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions;
 
-    let network = network_from_chain_id(chain_id);
+    let network = chain_id.into();
     let sub_state = STATE.subscriptions.get_mut(&(app_name, module_id, network));
 
     if let Some(mut sub_state) = sub_state {
@@ -236,6 +270,7 @@ pub(super) fn unsubscribe(
     Ok(())
 }
 
+/// Runs the Cardano Runtime Extension Tokio runtime.
 #[instrument(skip(cmd_rx))]
 fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     // TODO(FelipeRosa): Handle error
@@ -265,13 +300,15 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
     });
 }
 
+/// Runs a Cardano chain follower that generates events for the given application module and is
+/// connected to the given chain.
 #[instrument(skip(cmd_rx, follow_from), fields(app_name = %app_name, module_id = %module_id))]
 async fn chain_follower_executor(
     mut cmd_rx: ChainFollowerHandleCommandReceiver, app_name: HermesAppName, module_id: ModuleId,
     chain_id: CardanoBlockchainId, follow_from: cardano_chain_follower::PointOrTip,
 ) {
     let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
-    let network = network_from_chain_id(chain_id);
+    let network = chain_id.into();
     let module_state_key = (app_name, module_id, network);
 
     let mut follower = cardano_chain_follower::Follower::connect(
@@ -400,7 +437,6 @@ async fn chain_follower_executor(
                             )));
                         }
 
-
                         slot
                     },
                     cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
@@ -438,6 +474,7 @@ async fn chain_follower_executor(
     drop(follower.close().await);
 }
 
+/// Returns the peer address used to connect to each Cardano network.
 const fn follower_connect_address(network: cardano_chain_follower::Network) -> &'static str {
     match network {
         cardano_chain_follower::Network::Mainnet => "backbone.cardano-mainnet.iohk.io:3001",
@@ -447,12 +484,14 @@ const fn follower_connect_address(network: cardano_chain_follower::Network) -> &
     }
 }
 
-const fn network_from_chain_id(chain_id: CardanoBlockchainId) -> cardano_chain_follower::Network {
-    match chain_id {
-        CardanoBlockchainId::Mainnet => cardano_chain_follower::Network::Mainnet,
-        CardanoBlockchainId::Preprod => cardano_chain_follower::Network::Preprod,
-        CardanoBlockchainId::Preview => cardano_chain_follower::Network::Preview,
-        CardanoBlockchainId::LocalTestBlockchain => todo!(),
+impl From<CardanoBlockchainId> for cardano_chain_follower::Network {
+    fn from(chain_id: CardanoBlockchainId) -> Self {
+        match chain_id {
+            CardanoBlockchainId::Mainnet => cardano_chain_follower::Network::Mainnet,
+            CardanoBlockchainId::Preprod => cardano_chain_follower::Network::Preprod,
+            CardanoBlockchainId::Preview => cardano_chain_follower::Network::Preview,
+            CardanoBlockchainId::LocalTestBlockchain => todo!(),
+        }
     }
 }
 
