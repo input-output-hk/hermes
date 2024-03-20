@@ -53,6 +53,7 @@ chrono = { workspace = true, features = ["now"] }
 chrono-tz = { workspace = true }
 iana-time-zone = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync",  "time"] }
+pallas = { workspace = true }
 saffron = { workspace = true }
 
 [build-dependencies]

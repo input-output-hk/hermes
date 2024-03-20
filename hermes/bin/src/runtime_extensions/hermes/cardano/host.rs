@@ -195,8 +195,10 @@ impl Host for HermesRuntimeContext {
     /// This function exists to support `fetch-block`.
     /// Transactions from subscribed block events, should be processed as transaction
     /// events.
-    fn get_txns(&mut self, _block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
-        todo!()
+    fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
+        let block_data = pallas::ledger::traverse::MultiEraBlock::decode(&block).unwrap();
+
+        Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect())
     }
 
     /// Post a transactions to the blockchain.
