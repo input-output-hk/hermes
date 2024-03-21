@@ -7,20 +7,6 @@ use tracing_subscriber::{
     FmtSubscriber,
 };
 
-#[derive(ValueEnum, Clone)]
-
-/// Log formats
-pub enum LogFormat {
-    /// JSON format
-    Json,
-    /// Pretty format
-    Pretty,
-    /// Compact format
-    Compact,
-    /// Full format
-    Full,
-}
-
 /// All valid logging levels
 #[derive(ValueEnum, Clone, Copy)]
 pub(crate) enum LogLevel {
@@ -45,8 +31,9 @@ impl From<LogLevel> for tracing::Level {
     }
 }
 
-fn init_subscriber(format: LogFormat, log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
+fn init_subscriber(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
+        .json()
         .with_level(true)
         .with_thread_names(true)
         .with_thread_ids(true)
@@ -54,20 +41,12 @@ fn init_subscriber(format: LogFormat, log_level: LogLevel) -> Result<(), SetGlob
         .with_line_number(true)
         .with_timer(time::UtcTime::rfc_3339())
         .with_span_events(FmtSpan::CLOSE)
-        .with_max_level(LevelFilter::from_level(log_level.into()));
+        .with_max_level(LevelFilter::from_level(log_level.into()))
+        .finish();
 
-    match format {
-        LogFormat::Json => tracing::subscriber::set_global_default(subscriber.json().finish()),
-        LogFormat::Pretty => {
-            tracing::subscriber::set_global_default(subscriber.with_ansi(true).pretty().finish())
-        },
-        LogFormat::Compact => {
-            tracing::subscriber::set_global_default(subscriber.compact().finish())
-        },
-        LogFormat::Full => tracing::subscriber::set_global_default(subscriber.finish()),
-    }
+    tracing::subscriber::set_global_default(subscriber)
 }
 
-pub fn init(log_format: LogFormat, log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
-    init_subscriber(log_format, log_level)
+pub fn init(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
+    init_subscriber(log_level)
 }
