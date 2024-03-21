@@ -20,7 +20,7 @@ pub(crate) enum LogLevel {
     Debug,
 }
 
-/// Implements a conversion from LogLevel enum to the tracing::Level.
+/// Implements a conversion from `LogLevel` enum to the `tracing::Level`.
 impl From<LogLevel> for tracing::Level {
     fn from(val: LogLevel) -> Self {
         match val {
