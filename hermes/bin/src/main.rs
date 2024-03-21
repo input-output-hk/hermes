@@ -19,10 +19,8 @@ build_info::build_info!(fn build_info);
 
 fn main() {
     let mut reactor = reactor::HermesReactor::new(Vec::new()).unwrap();
-    println!("Hello, world!");
-    logger::init(logger::LogFormat::Json, logger::LogLevel::Info).unwrap();
-    span!(Level::INFO, "my_span");
-    println!("{:#?}", build_info());
-
+    logger::init(logger::LogLevel::Info).unwrap();
+    let build_info_str = format!("{:?}", build_info());
+    span!(Level::INFO, "Start Application", build_info_str);
     reactor.wait().unwrap();
 }
