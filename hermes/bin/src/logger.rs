@@ -43,23 +43,20 @@ impl From<LogLevel> for tracing::Level {
 /// - Display time in RFC 3339 format
 /// - Events emit when the span close
 /// - Maximum verbosity level
-fn init_subscriber(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
+pub(crate) fn init(
+    log_level: LogLevel, with_thread: bool, with_file: bool, with_line_num: bool,
+) -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
         .json()
         .with_level(true)
-        .with_thread_names(true)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
+        .with_thread_names(with_thread)
+        .with_thread_ids(with_thread)
+        .with_file(with_file)
+        .with_line_number(with_line_num)
         .with_timer(time::UtcTime::rfc_3339())
         .with_span_events(FmtSpan::CLOSE)
         .with_max_level(LevelFilter::from_level(log_level.into()))
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
-}
-
-/// Initializes the subscriber with the given log level.
-pub(crate) fn init(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
-    init_subscriber(log_level)
 }
