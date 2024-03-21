@@ -30,8 +30,8 @@ impl ClockState {
         let res_duration = std::time::Duration::from_nanos(1);
         let mono_resolution = match res_duration.as_nanos().try_into() {
             Ok(res) => res,
-            Err(_res_err) => {
-                // TODO(@saibatizoku): Log errors https://github.com/input-output-hk/hermes/issues/15
+            Err(res_err) => {
+                tracing::error!("Error converting duration to nanoseconds: {}", res_err);
                 1
             },
         };
@@ -66,11 +66,9 @@ pub(crate) fn monotonic_clock_res() -> Instant {
 pub(crate) fn wall_clock_now() -> wasmtime::Result<Datetime> {
     Ok(SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| {
-            Datetime {
-                seconds: d.as_secs(),
-                nanoseconds: d.subsec_nanos(),
-            }
+        .map(|d| Datetime {
+            seconds: d.as_secs(),
+            nanoseconds: d.subsec_nanos(),
         })?)
 }
 
