@@ -7,30 +7,39 @@ use tracing_subscriber::{
     FmtSubscriber,
 };
 
-/// All valid logging levels
+/// All valid logging levels.
 #[derive(ValueEnum, Clone, Copy)]
 pub(crate) enum LogLevel {
-    /// Debug messages
-    Debug,
-    /// Informational Messages
-    Info,
-    /// Warnings
-    Warn,
     /// Errors
     Error,
+    /// Warnings
+    Warn,
+    /// Informational Messages
+    Info,
+    /// Debug messages
+    Debug,
 }
 
+/// Implements a conversion from LogLevel enum to the tracing::Level.
 impl From<LogLevel> for tracing::Level {
     fn from(val: LogLevel) -> Self {
         match val {
-            LogLevel::Debug => Self::DEBUG,
-            LogLevel::Info => Self::INFO,
-            LogLevel::Warn => Self::WARN,
             LogLevel::Error => Self::ERROR,
+            LogLevel::Warn => Self::WARN,
+            LogLevel::Info => Self::INFO,
+            LogLevel::Debug => Self::DEBUG,
         }
     }
 }
 
+/// Initializes the subscriber for the logger with the following features.
+/// - JSON format
+/// - Display event level
+/// - Display thread names and ids
+/// - Display event's source code file path and line number
+/// - Display time in RFC 3339 format
+/// - Events emit when the span close
+/// - Maximum verbosity level
 fn init_subscriber(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
         .json()
@@ -47,6 +56,7 @@ fn init_subscriber(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
     tracing::subscriber::set_global_default(subscriber)
 }
 
-pub fn init(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
+/// Initializes the subscriber with the given log level.
+pub(crate) fn init(log_level: LogLevel) -> Result<(), SetGlobalDefaultError> {
     init_subscriber(log_level)
 }
