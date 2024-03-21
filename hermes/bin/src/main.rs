@@ -19,6 +19,8 @@ pub use wasm::module::bench::{
 
 build_info::build_info!(fn build_info);
 
+// Disable process exit for clippy.
+#[allow(clippy::exit)]
 fn main() {
     // Initialize logger.
     if let Err(err) = logger::init(logger::LogLevel::Info) {
