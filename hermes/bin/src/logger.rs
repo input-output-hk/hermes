@@ -18,6 +18,8 @@ pub(crate) enum LogLevel {
     Info,
     /// Debug messages
     Debug,
+    /// Tracing
+    Trace,
 }
 
 /// Implements a conversion from `LogLevel` enum to the `tracing::Level`.
@@ -28,6 +30,7 @@ impl From<LogLevel> for tracing::Level {
             LogLevel::Warn => Self::WARN,
             LogLevel::Info => Self::INFO,
             LogLevel::Debug => Self::DEBUG,
+            LogLevel::Trace => Self::TRACE,
         }
     }
 }
