@@ -41,15 +41,11 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<u64, FetchError>> {
         let sub_type = match whence {
             Slot::Genesis => {
-                super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Point(
-                    cardano_chain_follower::Point::Origin,
-                ))
+                super::SubscriptionType::Blocks(cardano_chain_follower::Point::Origin.into())
             },
-            Slot::Point((slot, hash)) => {
-                super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Point(
-                    cardano_chain_follower::Point::Specific(slot, hash),
-                ))
-            },
+            Slot::Point((slot, hash)) => super::SubscriptionType::Blocks(
+                cardano_chain_follower::Point::Specific(slot, hash).into(),
+            ),
             Slot::Tip => super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
             Slot::Continue => super::SubscriptionType::Continue,
         };
@@ -161,14 +157,8 @@ impl Host for HermesRuntimeContext {
         &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
         let at = match whence {
-            Slot::Genesis => {
-                cardano_chain_follower::PointOrTip::Point(cardano_chain_follower::Point::Origin)
-            },
-            Slot::Point((slot, hash)) => {
-                cardano_chain_follower::PointOrTip::Point(cardano_chain_follower::Point::Specific(
-                    slot, hash,
-                ))
-            },
+            Slot::Genesis => cardano_chain_follower::Point::Origin.into(),
+            Slot::Point((slot, hash)) => cardano_chain_follower::Point::Specific(slot, hash).into(),
             Slot::Tip => cardano_chain_follower::PointOrTip::Tip,
             Slot::Continue => todo!(),
         };

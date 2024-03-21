@@ -1,7 +1,7 @@
 //! Cardano Blockchain runtime extension implementation.
 
 use dashmap::DashMap;
-use tracing::{instrument, trace, warn};
+use tracing::{error, instrument, trace, warn};
 
 use crate::{
     app::HermesAppName,
@@ -117,22 +117,21 @@ struct ChainFollowerHandle {
 }
 
 impl ChainFollowerHandle {
-    /// Sends a command to the chain follower executor Tokio task
+    /// Sends a command to the chain follower executor Tokio task to set its
+    /// read pointer to the given point.
     fn set_read_pointer_sync(
         &self, at: cardano_chain_follower::PointOrTip,
-    ) -> cardano_chain_follower::Result<Option<cardano_chain_follower::Point>> {
+    ) -> Result<Option<cardano_chain_follower::Point>> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
         self.cmd_tx
             .blocking_send(ChainFollowerCommand::SetReadPointer(at, res_tx))
-            .expect("Follower executor is not running");
+            .map_err(|_| Error::InternalError)?;
 
-        // TODO(FelipeRosa): Same as above.
-        let result = res_rx
+        res_rx
             .blocking_recv()
-            .expect("Follower executor is not running");
-
-        result
+            .map_err(|_| Error::InternalError)?
+            .map_err(|_| Error::InternalError)
     }
 }
 
@@ -204,13 +203,12 @@ pub(super) fn subscribe(
     match sub_type {
         SubscriptionType::Blocks(follow_from) => {
             if let Some(handle) = sub_state.follower_handle.as_ref() {
-                handle.set_read_pointer_sync(follow_from).unwrap();
+                handle.set_read_pointer_sync(follow_from)?;
             } else {
-                // TODO(FelipeRosa): Handle error
                 let follower_handle = STATE
                     .tokio_rt_handle
                     .spawn_follower_sync(app_name, module_id, chain_id, follow_from)
-                    .unwrap();
+                    .map_err(|_| Error::InternalError)?;
 
                 sub_state.follower_handle = Some(follower_handle);
             }
@@ -227,16 +225,16 @@ pub(super) fn subscribe(
             if let Some(handle) = sub_state.follower_handle.as_ref() {
                 let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-                // TODO(FelipeRosa): Handle
                 handle
                     .cmd_tx
                     .blocking_send(ChainFollowerCommand::Continue(res_tx))
-                    .unwrap();
+                    .map_err(|_| Error::InternalError)?;
 
                 drop(res_rx.blocking_recv());
             }
         },
     }
+
     Ok(())
 }
 
@@ -267,11 +265,10 @@ pub(super) fn unsubscribe(
             if let Some(handle) = sub_state.follower_handle.as_ref() {
                 let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-                // TODO(FelipeRosa): Handle
                 handle
                     .cmd_tx
                     .blocking_send(ChainFollowerCommand::Stop(res_tx))
-                    .unwrap();
+                    .map_err(|_| Error::InternalError)?;
 
                 drop(res_rx.blocking_recv());
             }
@@ -293,7 +290,11 @@ pub(super) fn read_block(
         response_tx,
     };
 
-    STATE.tokio_rt_handle.cmd_tx.blocking_send(cmd).unwrap();
+    STATE
+        .tokio_rt_handle
+        .cmd_tx
+        .blocking_send(cmd)
+        .map_err(|_| Error::InternalError)?;
 
     response_rx
         .blocking_recv()
@@ -303,11 +304,18 @@ pub(super) fn read_block(
 /// Runs the Cardano Runtime Extension Tokio runtime.
 #[instrument(skip(cmd_rx))]
 fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
-    // TODO(FelipeRosa): Handle error
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let res = tokio::runtime::Builder::new_current_thread()
         .enable_io()
-        .build()
-        .unwrap();
+        .build();
+
+    let rt = match res {
+        Ok(rt) => rt,
+        Err(err) => {
+            error!(error = ?err, "Failed to start Cardano Runtime Extension background thread");
+            return;
+        },
+    };
+
     trace!("Created Tokio runtime");
 
     rt.block_on(async move {
@@ -468,9 +476,14 @@ async fn chain_follower_executor(
                             continue;
                         }
 
-                        // TODO(FelipeRosa):
-                        // 1. Handle error
-                        let decoded_block_data = block_data.decode().unwrap();
+                        let decoded_block_data = match block_data.decode() {
+                            Ok(b) => b,
+                            Err(err) => {
+                                error!(error = ?err, "Failed to decode block");
+                                continue;
+                            }
+                        };
+
                         let block_number = decoded_block_data.number();
                         let slot = decoded_block_data.slot();
 
@@ -499,28 +512,37 @@ async fn chain_follower_executor(
                             let on_block_event = event::OnCardanoBlockEvent {
                                 blockchain: chain_id,
                                 block: block_data.into_raw_data(),
+                                // TODO(FelipeRosa): In order to implement this we need the
+                                // cardano-chain-follower crate to give this information along
+                                // with the chain update.
                                 source: BlockSrc::NODE,
                             };
                             trace!(block_number, "Generated Cardano block event");
 
-                            // TODO(FelipeRosa): Handle error?
-                            drop(crate::event::queue::send(HermesEvent::new(
+                            let res = crate::event::queue::send(HermesEvent::new(
                                 on_block_event,
                                 TargetApp::List(vec![module_state_key.0.clone()]),
                                 TargetModule::_List(vec![module_state_key.1.clone()]),
-                            )));
-                        }
+                            ));
 
-                        slot
+                            if let Err(err) = res {
+                                error!(error = ?err, "Failed to send Cardano block event to the Event queue");
+                            }
+                        }
                     },
                     cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
                         if !subscribed_to_rollbacks {
                             continue;
                         }
 
-                        // TODO(FelipeRosa):
-                        // 1. Handle error
-                        let decoded_block_data = block_data.decode().unwrap();
+                        let decoded_block_data = match block_data.decode() {
+                            Ok(b) => b,
+                            Err(err) => {
+                                error!(error = ?err, "Failed to decode block");
+                                continue;
+                            }
+                        };
+
                         let block_number = decoded_block_data.number();
                         let slot = decoded_block_data.slot();
 
@@ -530,14 +552,15 @@ async fn chain_follower_executor(
                         };
                         trace!(block_number, "Generated Cardano rollback event");
 
-                        // TODO(FelipeRosa): Handle error?
-                        drop(crate::event::queue::send(HermesEvent::new(
+                        let res = crate::event::queue::send(HermesEvent::new(
                             on_rollback_event,
-                            TargetApp::List(Vec::new()),
-                            TargetModule::All,
-                        )));
+                            TargetApp::List(vec![module_state_key.0.clone()]),
+                            TargetModule::_List(vec![module_state_key.1.clone()]),
+                        ));
 
-                        slot
+                        if let Err(err) = res {
+                            error!(error = ?err, "Failed to send Cardano block event to the Event queue");
+                        }
                     },
                 };
             }
