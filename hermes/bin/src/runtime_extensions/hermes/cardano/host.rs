@@ -60,7 +60,7 @@ impl Host for HermesRuntimeContext {
         );
 
         match res {
-            Ok(_) => Ok(Ok(0)),
+            Ok(()) => Ok(Ok(0)),
             Err(_) => Ok(Err(FetchError::InvalidSlot)),
         }
     }
@@ -165,9 +165,10 @@ impl Host for HermesRuntimeContext {
             Slot::Continue => todo!(),
         };
 
-        let block_data = super::read_block(net, at).unwrap();
-
-        Ok(Ok(block_data.into_raw_data()))
+        match super::read_block(net, at) {
+            Ok(block_data) => Ok(Ok(block_data.into_raw_data())),
+            Err(_) => Ok(Err(FetchError::InvalidSlot)),
+        }
     }
 
     /// Get transactions from a block.
@@ -188,9 +189,10 @@ impl Host for HermesRuntimeContext {
     /// Transactions from subscribed block events, should be processed as transaction
     /// events.
     fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
-        let block_data = pallas::ledger::traverse::MultiEraBlock::decode(&block).unwrap();
-
-        Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect())
+        match pallas::ledger::traverse::MultiEraBlock::decode(&block) {
+            Ok(block_data) => Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect()),
+            Err(_) => Err(wasmtime::Error::new(super::Error::InternalError)),
+        }
     }
 
     /// Post a transactions to the blockchain.

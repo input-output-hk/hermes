@@ -30,7 +30,7 @@ enum TokioRuntimeCommand {
     SpawnFollower {
         /// Name of the app that the follower will be tied to.
         app_name: HermesAppName,
-        /// Id of the module that the follower will be tied to.
+        /// ID of the module that the follower will be tied to.
         module_id: ModuleId,
         /// Cardano blockchain that the follower will connect to.
         chain_id: CardanoBlockchainId,
@@ -41,8 +41,11 @@ enum TokioRuntimeCommand {
     },
     /// Instructs the Tokio runtime background thread to read a block using some follower.
     ReadBlock {
+        /// Cardano blockchain from which the block will be fetched.
         chain_id: CardanoBlockchainId,
+        /// Chain point at which the block is to be fetched.
         at: cardano_chain_follower::PointOrTip,
+        /// Response channel sender.
         response_tx:
             tokio::sync::oneshot::Sender<Result<cardano_chain_follower::MultiEraBlockData>>,
     },
@@ -104,9 +107,7 @@ impl TokioRuntimeHandle {
             response_tx,
         };
 
-        STATE
-            .tokio_rt_handle
-            .cmd_tx
+        self.cmd_tx
             .blocking_send(cmd)
             .map_err(|_| Error::InternalError)?;
 
@@ -208,10 +209,15 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
+/// Available subscription types.
 pub(super) enum SubscriptionType {
+    /// Subscribe to block events from a given point.
     Blocks(cardano_chain_follower::PointOrTip),
+    /// Subscribe to rollback events.
     Rollbacks,
+    /// Subscribe to transaction events.
     Transactions,
+    /// Continue previously stopped subscription event generation.
     Continue,
 }
 
@@ -350,19 +356,16 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                         config,
                     );
 
-                    let follower = match connect_fut.await {
-                        Ok(f) => f,
-                        Err(_) => {
-                            drop(response_tx.send(Err(Error::InternalError)));
-                            continue;
-                        },
+                    let Ok(follower) = connect_fut.await else {
+                        drop(response_tx.send(Err(Error::InternalError)));
+                        continue;
                     };
 
                     trace!("Started chain follower");
 
                     let set_read_pointer_fut = follower.set_read_pointer(follow_from);
 
-                    if let Err(_) = set_read_pointer_fut.await {
+                    if set_read_pointer_fut.await.is_err() {
                         drop(response_tx.send(Err(Error::InternalError)));
                         continue;
                     }
@@ -393,26 +396,25 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                     let network = chain_id.into();
 
                     let res = async {
-                        match STATE.readers.get(&network) {
-                            Some(reader) => reader.read_block(at).await,
-                            None => {
-                                // Limit the follower's buffer size. This does not really matter
-                                // since we'll not poll the
-                                // follower's future so the following process will
-                                // not be executed.
-                                let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
-                                    .chain_update_buffer_size(1)
-                                    .build();
+                        if let Some(reader) = STATE.readers.get(&network) {
+                            reader.read_block(at).await
+                        } else {
+                            // Limit the follower's buffer size. This does not really matter
+                            // since we'll not poll the
+                            // follower's future so the following process will
+                            // not be executed.
+                            let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
+                                .chain_update_buffer_size(1)
+                                .build();
 
-                                let reader = cardano_chain_follower::Follower::connect(
-                                    follower_connect_address(network),
-                                    network,
-                                    cfg,
-                                )
-                                .await?;
+                            let reader = cardano_chain_follower::Follower::connect(
+                                follower_connect_address(network),
+                                network,
+                                cfg,
+                            )
+                            .await?;
 
-                                reader.read_block(at).await
-                            },
+                            reader.read_block(at).await
                         }
                     }
                     .await;
@@ -519,11 +521,11 @@ async fn chain_follower_executor(
                         if subscribed_to_txns {
                             let txs = decoded_block_data.txs();
 
-                            for (index, tx) in txs.iter().enumerate() {
+                            for (tx, index) in txs.iter().zip(0u32..) {
                                 let on_txn_event = event::OnCardanoTxnEvent {
                                     blockchain: chain_id,
                                     slot,
-                                    txn_index: index as u32,
+                                    txn_index: index,
                                     txn: tx.encode(),
                                 };
 
