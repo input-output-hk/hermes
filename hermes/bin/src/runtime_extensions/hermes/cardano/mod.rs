@@ -37,7 +37,7 @@ enum TokioRuntimeCommand {
         /// Follower's starting point.
         follow_from: cardano_chain_follower::PointOrTip,
         /// Response channel sender.
-        response_tx: tokio::sync::oneshot::Sender<ChainFollowerHandle>,
+        response_tx: tokio::sync::oneshot::Sender<Result<ChainFollowerHandle>>,
     },
     /// Instructs the Tokio runtime background thread to read a block using some follower.
     ReadBlock {
@@ -85,7 +85,34 @@ impl TokioRuntimeHandle {
 
         response_rx
             .blocking_recv()
-            .map_err(|_| Error::InternalError)
+            .map_err(|_| Error::InternalError)?
+    }
+
+    /// Reads a block from a Cardano network.
+    ///
+    /// # Errors
+    ///
+    /// Return Err if there were any errors while fetching the block.
+    fn read_block(
+        &self, chain_id: CardanoBlockchainId, at: cardano_chain_follower::PointOrTip,
+    ) -> Result<cardano_chain_follower::MultiEraBlockData> {
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+
+        let cmd = TokioRuntimeCommand::ReadBlock {
+            chain_id,
+            at,
+            response_tx,
+        };
+
+        STATE
+            .tokio_rt_handle
+            .cmd_tx
+            .blocking_send(cmd)
+            .map_err(|_| Error::InternalError)?;
+
+        response_rx
+            .blocking_recv()
+            .map_err(|_| Error::InternalError)?
     }
 }
 
@@ -282,23 +309,7 @@ pub(super) fn unsubscribe(
 pub(super) fn read_block(
     chain_id: CardanoBlockchainId, at: cardano_chain_follower::PointOrTip,
 ) -> Result<cardano_chain_follower::MultiEraBlockData> {
-    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-
-    let cmd = TokioRuntimeCommand::ReadBlock {
-        chain_id,
-        at,
-        response_tx,
-    };
-
-    STATE
-        .tokio_rt_handle
-        .cmd_tx
-        .blocking_send(cmd)
-        .map_err(|_| Error::InternalError)?;
-
-    response_rx
-        .blocking_recv()
-        .map_err(|_| Error::InternalError)?
+    STATE.tokio_rt_handle.read_block(chain_id, at)
 }
 
 /// Runs the Cardano Runtime Extension Tokio runtime.
@@ -330,19 +341,47 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                 } => {
                     trace!("Spawning chain follower executor");
 
+                    let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
+                    let network = chain_id.into();
+
+                    let connect_fut = cardano_chain_follower::Follower::connect(
+                        follower_connect_address(network),
+                        network,
+                        config,
+                    );
+
+                    let follower = match connect_fut.await {
+                        Ok(f) => f,
+                        Err(_) => {
+                            drop(response_tx.send(Err(Error::InternalError)));
+                            continue;
+                        },
+                    };
+
+                    trace!("Started chain follower");
+
+                    let set_read_pointer_fut = follower.set_read_pointer(follow_from);
+
+                    if let Err(_) = set_read_pointer_fut.await {
+                        drop(response_tx.send(Err(Error::InternalError)));
+                        continue;
+                    }
+
+                    trace!("Set chain follower starting point");
+
                     let (follower_cmd_tx, follower_cmd_rx) = tokio::sync::mpsc::channel(1);
 
                     tokio::spawn(chain_follower_executor(
                         follower_cmd_rx,
+                        follower,
                         app_name,
                         module_id,
                         chain_id,
-                        follow_from,
                     ));
 
-                    drop(response_tx.send(ChainFollowerHandle {
+                    drop(response_tx.send(Ok(ChainFollowerHandle {
                         cmd_tx: follower_cmd_tx,
-                    }));
+                    })));
                 },
                 TokioRuntimeCommand::ReadBlock {
                     chain_id,
@@ -353,29 +392,31 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
 
                     let network = chain_id.into();
 
-                    let block_data = match STATE.readers.get(&network) {
-                        Some(reader) => reader.read_block(at).await.unwrap(),
-                        None => {
-                            // Limit the follower's buffer size. This does not really matter since
-                            // we'll not poll the follower's future so the following process will
-                            // not be executed.
-                            let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
-                                .chain_update_buffer_size(1)
-                                .build();
+                    let res = async {
+                        match STATE.readers.get(&network) {
+                            Some(reader) => reader.read_block(at).await,
+                            None => {
+                                // Limit the follower's buffer size. This does not really matter since
+                                // we'll not poll the follower's future so the following process will
+                                // not be executed.
+                                let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
+                                    .chain_update_buffer_size(1)
+                                    .build();
 
-                            let reader = cardano_chain_follower::Follower::connect(
-                                follower_connect_address(network),
-                                network,
-                                cfg,
-                            )
-                            .await
-                            .unwrap();
+                                let reader = cardano_chain_follower::Follower::connect(
+                                    follower_connect_address(network),
+                                    network,
+                                    cfg,
+                                )
+                                .await?;
 
-                            reader.read_block(at).await.unwrap()
-                        },
-                    };
+                                reader.read_block(at).await
+                            },
+                        }
+                    }
+                    .await;
 
-                    drop(response_tx.send(Ok(block_data)));
+                    drop(response_tx.send(res.map_err(|_| Error::InternalError)));
                 },
             }
         }
@@ -384,26 +425,13 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
 
 /// Runs a Cardano chain follower that generates events for the given application module
 /// and is connected to the given chain.
-#[instrument(skip(cmd_rx, follow_from), fields(app_name = %app_name, module_id = %module_id))]
+#[instrument(skip(cmd_rx, follower), fields(app_name = %app_name, module_id = %module_id))]
 async fn chain_follower_executor(
-    mut cmd_rx: ChainFollowerHandleCommandReceiver, app_name: HermesAppName, module_id: ModuleId,
-    chain_id: CardanoBlockchainId, follow_from: cardano_chain_follower::PointOrTip,
+    mut cmd_rx: ChainFollowerHandleCommandReceiver, mut follower: cardano_chain_follower::Follower,
+    app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
 ) {
-    let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
     let network = chain_id.into();
     let module_state_key = (app_name, module_id, network);
-
-    let mut follower = cardano_chain_follower::Follower::connect(
-        follower_connect_address(network),
-        network,
-        config,
-    )
-    .await
-    .unwrap();
-    trace!("Started chain follower");
-
-    follower.set_read_pointer(follow_from).await.unwrap();
-    trace!("Set chain follower starting point");
 
     let mut stopped = false;
 
