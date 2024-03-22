@@ -396,8 +396,9 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                         match STATE.readers.get(&network) {
                             Some(reader) => reader.read_block(at).await,
                             None => {
-                                // Limit the follower's buffer size. This does not really matter since
-                                // we'll not poll the follower's future so the following process will
+                                // Limit the follower's buffer size. This does not really matter
+                                // since we'll not poll the
+                                // follower's future so the following process will
                                 // not be executed.
                                 let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
                                     .chain_update_buffer_size(1)
