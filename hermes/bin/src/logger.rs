@@ -22,6 +22,20 @@ pub(crate) enum LogLevel {
     Trace,
 }
 
+/// Implements a conversion from a string to the `LogLevel` enum.
+impl LogLevel {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "error" => Self::Error,
+            "warn" => Self::Warn,
+            "info" => Self::Info,
+            "debug" => Self::Debug,
+            "trace" => Self::Trace,
+            _ => Self::Info,
+        }
+    }
+}
+
 /// Implements a conversion from `LogLevel` enum to the `tracing::Level`.
 impl From<LogLevel> for tracing::Level {
     fn from(val: LogLevel) -> Self {
