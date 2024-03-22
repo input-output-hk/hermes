@@ -687,7 +687,7 @@ mod test {
                 cardano_chain_follower::Point::Specific(
                     49_075_522,
                     hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                        .unwrap(),
+                        .expect("decode hex value"),
                 )
                 .into(),
             ),
@@ -740,7 +740,7 @@ mod test {
             cardano_chain_follower::Point::Specific(
                 49_075_522,
                 hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                    .unwrap(),
+                    .expect("decode hex value"),
             )
             .into(),
         )
