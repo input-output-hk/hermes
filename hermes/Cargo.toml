@@ -53,7 +53,7 @@ missing_docs_in_private_items = "deny"
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 
-cardano-chain-follower = { path = "crates/cardano-chain-follower" }
+cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
 
 wasmtime = "19.0.0"
 rusty_ulid = "2.0.0"
