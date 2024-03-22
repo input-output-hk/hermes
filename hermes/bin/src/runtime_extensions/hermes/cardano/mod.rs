@@ -526,14 +526,18 @@ async fn chain_follower_executor(
                                     txn: tx.encode(),
                                 };
 
-                                drop(crate::event::queue::send(HermesEvent::new(
+                                let res = crate::event::queue::send(HermesEvent::new(
                                     on_txn_event,
                                     TargetApp::List(vec![module_state_key.0.clone()]),
                                     TargetModule::_List(vec![module_state_key.1.clone()]),
-                                )));
-                            }
+                                ));
 
-                            trace!(block_number, tx_count = txs.len(), "Generated Cardano block transactions events");
+                                if let Err(err) = res {
+                                    error!(error = ?err, "Failed to send Cardano transaction event to the Event queue");
+                                } else {
+                                    trace!(block_number, tx_count = txs.len(), "Generated Cardano block transactions events");
+                                }
+                            }
                         }
 
                         if subscribed_to_blocks {
@@ -545,7 +549,6 @@ async fn chain_follower_executor(
                                 // with the chain update.
                                 source: BlockSrc::NODE,
                             };
-                            trace!(block_number, "Generated Cardano block event");
 
                             let res = crate::event::queue::send(HermesEvent::new(
                                 on_block_event,
@@ -555,6 +558,8 @@ async fn chain_follower_executor(
 
                             if let Err(err) = res {
                                 error!(error = ?err, "Failed to send Cardano block event to the Event queue");
+                            } else {
+                                trace!(block_number, "Generated Cardano block event");
                             }
                         }
                     },
@@ -578,7 +583,6 @@ async fn chain_follower_executor(
                             blockchain: CardanoBlockchainId::Preprod,
                             slot,
                         };
-                        trace!(block_number, "Generated Cardano rollback event");
 
                         let res = crate::event::queue::send(HermesEvent::new(
                             on_rollback_event,
@@ -588,6 +592,8 @@ async fn chain_follower_executor(
 
                         if let Err(err) = res {
                             error!(error = ?err, "Failed to send Cardano block event to the Event queue");
+                        } else {
+                            trace!(block_number, "Generated Cardano rollback event");
                         }
                     },
                 };
