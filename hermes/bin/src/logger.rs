@@ -22,16 +22,15 @@ pub(crate) enum LogLevel {
     Trace,
 }
 
-/// Implements a conversion from a string to the `LogLevel` enum.
-impl LogLevel {
-    pub(crate) fn from_str(s: &str) -> Self {
+impl From<&str> for LogLevel {
+    fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "error" => Self::Error,
-            "warn" => Self::Warn,
-            "info" => Self::Info,
-            "debug" => Self::Debug,
-            "trace" => Self::Trace,
-            _ => Self::Info,
+            "error" => LogLevel::Error,
+            "warn" => LogLevel::Warn,
+            "info" => LogLevel::Info,
+            "debug" => LogLevel::Debug,
+            "trace" => LogLevel::Trace,
+            _ => LogLevel::Info,
         }
     }
 }
@@ -61,7 +60,7 @@ pub(crate) fn init(
     log_level: LogLevel, with_thread: bool, with_file: bool, with_line_num: bool,
 ) -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
-        // .json()
+        .json()
         .with_level(true)
         .with_thread_names(with_thread)
         .with_thread_ids(with_thread)

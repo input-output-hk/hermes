@@ -12,72 +12,83 @@ pub(crate) fn log_message(
         .and_then(|data| from_str(&data).ok())
         .unwrap_or_default();
 
-    let log_level = match LogLevel::from_str(level) {
-        LogLevel::Error => Level::ERROR,
-        LogLevel::Warn => Level::WARN,
-        LogLevel::Info => Level::INFO,
-        LogLevel::Debug => Level::DEBUG,
-        LogLevel::Trace => Level::TRACE,
-    };
-
     if let Value::Object(obj) = parsed_data {
-        for (_key, value) in obj {
+        for (key, value) in obj {
             // FIXME - Fix level and span name
-            let span = span!(Level::INFO, "log_span");
+            let span = span!(Level::INFO, "log_span", %key);
             span.in_scope(|| {
-                if let Some(backtrace) = value.as_array() {
-                    for entry in backtrace {
+                if let Some(data) = value.as_array() {
+                    for entry in data {
                         if let Some(entry) = entry.as_str() {
-                            match log_level {
-                                Level::TRACE => trace!(
-                                    ctx = ctx,
-                                    message = msg,
-                                    file = file,
-                                    function = function,
-                                    line = line,
-                                    column = col
-                                ),
-                                Level::DEBUG => debug!(
-                                    ctx = ctx,
-                                    message = msg,
-                                    file = file,
-                                    function = function,
-                                    line = line,
-                                    column = col
-                                ),
-                                Level::INFO => info!(
-                                    ctx = ctx,
-                                    message = msg,
-                                    file = file,
-                                    function = function,
-                                    line = line,
-                                    column = col,
-                                    entry = entry
-                                ),
-                                Level::WARN => warn!(
-                                    ctx = ctx,
-                                    message = msg,
-                                    file = file,
-                                    function = function,
-                                    line = line,
-                                    column = col
-                                ),
-                                Level::ERROR => error!(
-                                    ctx = ctx,
-                                    message = msg,
-                                    file = file,
-                                    function = function,
-                                    line = line,
-                                    column = col
-                                ),
-                            }
+                            log_with_context(
+                                LogLevel::from(level),
+                                ctx,
+                                msg,
+                                file,
+                                function,
+                                line,
+                                col,
+                                entry,
+                            )
                         }
                     }
                 }
             });
         }
-    } else {
-        println!("Invalid backtrace format: {:?}", parsed_data);
+    }
+}
+
+/// Log the message with the information and its level.
+fn log_with_context(
+    level: LogLevel, ctx: Option<&str>, msg: &str, file: Option<&str>, function: Option<&str>,
+    line: Option<u32>, col: Option<u32>, entry: &str,
+) {
+    match level {
+        LogLevel::Trace => trace!(
+            ctx = ctx,
+            message = msg,
+            file = file,
+            function = function,
+            line = line,
+            column = col,
+            entry = entry
+        ),
+        LogLevel::Debug => debug!(
+            ctx = ctx,
+            message = msg,
+            file = file,
+            function = function,
+            line = line,
+            column = col,
+            entry = entry
+        ),
+        LogLevel::Info => info!(
+            ctx = ctx,
+            message = msg,
+            file = file,
+            function = function,
+            line = line,
+            column = col,
+            entry = entry
+        ),
+        LogLevel::Warn => warn!(
+            ctx = ctx,
+            message = msg,
+            file = file,
+            function = function,
+            line = line,
+            column = col,
+            entry = entry
+        ),
+        LogLevel::Error => error!(
+            ctx = ctx,
+            message = msg,
+            file = file,
+            function = function,
+            line = line,
+            column = col,
+            entry = entry
+        ),
     }
 }
 
@@ -89,7 +100,7 @@ mod tests_log_msg {
     use super::*;
     #[test]
     fn test_log_message() {
-        if let Err(err) = logger::init(LogLevel::from_str("info"), true, true, true) {
+        if let Err(err) = logger::init(LogLevel::Info, true, true, true) {
             println!("Error initializing logger: {err}");
         }
 
@@ -104,6 +115,5 @@ mod tests_log_msg {
         let data = Some("{\"bt\": [\"Array:1\", \"Array:2\", \"Array:3\"]}");
 
         log_message(level, ctx, msg, file, function, line, col, data);
-
     }
 }
