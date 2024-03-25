@@ -387,12 +387,9 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
 
                     let set_read_pointer_fut = follower.set_read_pointer(follow_from);
 
-                    let point = match set_read_pointer_fut.await {
-                        Ok(Some(point)) => point,
-                        Ok(None) | Err(_) => {
-                            drop(response_tx.send(Err(Error::InternalError)));
-                            continue;
-                        },
+                    let Ok(Some(point)) = set_read_pointer_fut.await else {
+                        drop(response_tx.send(Err(Error::InternalError)));
+                        continue;
                     };
 
                     trace!("Set chain follower starting point");
