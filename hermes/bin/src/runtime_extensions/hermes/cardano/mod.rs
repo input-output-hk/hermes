@@ -70,7 +70,7 @@ impl TokioRuntimeHandle {
     ///
     /// # Errors
     ///
-    /// Returns Err if the chain follower executor Tokio task could not be spawned.
+    /// Returns Err if the chain follower executor task could not be spawned.
     fn spawn_follower_sync(
         &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
@@ -140,14 +140,14 @@ type ChainFollowerHandleCommandSender = tokio::sync::mpsc::Sender<ChainFollowerC
 /// Chain follower handle command channel receiver.
 type ChainFollowerHandleCommandReceiver = tokio::sync::mpsc::Receiver<ChainFollowerCommand>;
 
-/// Handle used to communicate with a chain follower executor Tokio task.
+/// Handle used to communicate with a chain follower executor task.
 struct ChainFollowerHandle {
     /// Commands channel sender.
     cmd_tx: ChainFollowerHandleCommandSender,
 }
 
 impl ChainFollowerHandle {
-    /// Sends a command to the chain follower executor Tokio task to set its
+    /// Sends a command to the chain follower executor task to set its
     /// read pointer to the given point.
     fn set_read_pointer_sync(
         &self, at: cardano_chain_follower::PointOrTip,
@@ -162,6 +162,37 @@ impl ChainFollowerHandle {
             .blocking_recv()
             .map_err(|_| Error::InternalError)?
             .map_err(|_| Error::InternalError)
+    }
+
+    /// Sends a command to the chain follower executor task to stop following.
+    /// The follower continues active and following can be resumed by calling
+    /// [`Self::resume`].
+    fn stop(&self) -> Result<()> {
+        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+
+        self.cmd_tx
+            .blocking_send(ChainFollowerCommand::Stop(res_tx))
+            .map_err(|_| Error::InternalError)?;
+
+        drop(res_rx.blocking_recv());
+
+        Ok(())
+    }
+
+    /// Sends a command to the chain follower executor task to resume following
+    /// from the point it was previously stopped.
+    ///
+    /// This has no effect if the follower is not stopped.
+    fn resume(&self) -> Result<()> {
+        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
+
+        self.cmd_tx
+            .blocking_send(ChainFollowerCommand::Continue(res_tx))
+            .map_err(|_| Error::InternalError)?;
+
+        drop(res_rx.blocking_recv());
+
+        Ok(())
     }
 }
 
@@ -261,14 +292,7 @@ pub(super) fn subscribe(
         },
         SubscriptionType::Continue => {
             if let Some(handle) = sub_state.follower_handle.as_ref() {
-                let (res_tx, res_rx) = tokio::sync::oneshot::channel();
-
-                handle
-                    .cmd_tx
-                    .blocking_send(ChainFollowerCommand::Continue(res_tx))
-                    .map_err(|_| Error::InternalError)?;
-
-                drop(res_rx.blocking_recv());
+                handle.resume()?;
             }
         },
     }
@@ -301,14 +325,7 @@ pub(super) fn unsubscribe(
 
         if opts & UnsubscribeOptions::STOP == UnsubscribeOptions::STOP {
             if let Some(handle) = sub_state.follower_handle.as_ref() {
-                let (res_tx, res_rx) = tokio::sync::oneshot::channel();
-
-                handle
-                    .cmd_tx
-                    .blocking_send(ChainFollowerCommand::Stop(res_tx))
-                    .map_err(|_| Error::InternalError)?;
-
-                drop(res_rx.blocking_recv());
+                handle.stop()?;
             }
         }
     }
