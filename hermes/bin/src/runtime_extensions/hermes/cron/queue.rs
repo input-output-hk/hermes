@@ -147,3 +147,120 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const APP_NAME: &str = "test";
+    const EVERY_MINUTE_WHEN: &str = "* * * * *";
+    const EVERY_DAY_WHEN: &str = "0 0 * * *";
+    const EVERY_MONTH_WHEN: &str = "0 0 1 * *";
+    const EXAMPLE_TAG: &str = "ExampleTag";
+    const OTHER_TAG: &str = "OtherTag";
+    const IS_LAST: bool = true;
+    const IS_NOT_LAST: bool = false;
+
+    // triggers every minute
+    fn cron_entry_1() -> OnCronEvent {
+        OnCronEvent {
+            tag: CronTagged {
+                when: EVERY_MINUTE_WHEN.into(),
+                tag: EXAMPLE_TAG.into(),
+            },
+            last: IS_LAST,
+        }
+    }
+    // triggers every minute
+    fn cron_entry_2() -> OnCronEvent {
+        OnCronEvent {
+            tag: CronTagged {
+                when: EVERY_MONTH_WHEN.into(),
+                tag: EXAMPLE_TAG.into(),
+            },
+            last: IS_NOT_LAST,
+        }
+    }
+    // triggers every minute
+    fn cron_entry_3() -> OnCronEvent {
+        OnCronEvent {
+            tag: CronTagged {
+                when: EVERY_DAY_WHEN.into(),
+                tag: EXAMPLE_TAG.into(),
+            },
+            last: IS_LAST,
+        }
+    }
+    // triggers every minute
+    fn cron_entry_other() -> OnCronEvent {
+        OnCronEvent {
+            tag: CronTagged {
+                when: EVERY_MINUTE_WHEN.into(),
+                tag: OTHER_TAG.into(),
+            },
+            last: IS_LAST,
+        }
+    }
+
+    #[test]
+    fn test_cron_queue_add_and_list_and_remove_events() {
+        // Start a queue with no sender channel.
+        let queue = CronEventQueue::new(None);
+
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+
+        // insert at `CronTimestamp=0`
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_2());
+
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![
+            (cron_entry_1().tag, IS_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+        ]);
+
+        // insert new entry after
+        queue.add_event(APP_NAME.to_string(), 180_000_000_000, cron_entry_2());
+        // insert other entry after that
+        queue.add_event(APP_NAME.to_string(), 360_000_000_000, cron_entry_3());
+
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![
+            (cron_entry_1().tag, IS_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_3().tag, IS_LAST),
+        ]);
+
+        // Insert other entry before the previous two
+        queue.add_event(APP_NAME.to_string(), 60_000_000_000, cron_entry_other());
+
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![
+            (cron_entry_1().tag, IS_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_other().tag, IS_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_3().tag, IS_LAST),
+        ]);
+
+        // Now remove the events by `CronTagged`
+        assert!(queue.rm_event(&APP_NAME.to_string(), &cron_entry_1().tag));
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_other().tag, IS_LAST),
+            (cron_entry_2().tag, IS_NOT_LAST),
+            (cron_entry_3().tag, IS_LAST),
+        ]);
+        assert!(queue.rm_event(&APP_NAME.to_string(), &cron_entry_2().tag));
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![
+            (cron_entry_other().tag, IS_LAST),
+            (cron_entry_3().tag, IS_LAST),
+        ]);
+        assert!(queue.rm_event(&APP_NAME.to_string(), &cron_entry_3().tag));
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![(
+            cron_entry_other().tag,
+            IS_LAST
+        ),]);
+        assert!(queue.rm_event(&APP_NAME.to_string(), &cron_entry_other().tag));
+        // The queue should be empty
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+    }
+}
