@@ -37,7 +37,9 @@ enum TokioRuntimeCommand {
         /// Follower's starting point.
         follow_from: cardano_chain_follower::PointOrTip,
         /// Response channel sender.
-        response_tx: tokio::sync::oneshot::Sender<Result<ChainFollowerHandle>>,
+        response_tx: tokio::sync::oneshot::Sender<
+            Result<(ChainFollowerHandle, cardano_chain_follower::Point)>,
+        >,
     },
     /// Instructs the Tokio runtime background thread to read a block using some follower.
     ReadBlock {
@@ -72,7 +74,7 @@ impl TokioRuntimeHandle {
     fn spawn_follower_sync(
         &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
-    ) -> Result<ChainFollowerHandle> {
+    ) -> Result<(ChainFollowerHandle, cardano_chain_follower::Point)> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
         let cmd = TokioRuntimeCommand::SpawnFollower {
             app_name,
@@ -175,6 +177,8 @@ struct SubscriptionState {
     /// Handle to the cardano chain follower from which the module is receiving
     /// events.
     follower_handle: Option<ChainFollowerHandle>,
+    ///
+    current_slot: u64,
 }
 
 /// Cardano Runtime Extension state.
@@ -225,7 +229,7 @@ pub(super) enum SubscriptionType {
 pub(super) fn subscribe(
     chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
     sub_type: SubscriptionType,
-) -> Result<()> {
+) -> Result<u64> {
     let network = chain_id.into();
 
     let mut sub_state = STATE
@@ -238,12 +242,13 @@ pub(super) fn subscribe(
             if let Some(handle) = sub_state.follower_handle.as_ref() {
                 handle.set_read_pointer_sync(follow_from)?;
             } else {
-                let follower_handle = STATE
+                let (follower_handle, starting_point) = STATE
                     .tokio_rt_handle
                     .spawn_follower_sync(app_name, module_id, chain_id, follow_from)
                     .map_err(|_| Error::InternalError)?;
 
                 sub_state.follower_handle = Some(follower_handle);
+                sub_state.current_slot = starting_point.slot_or_default();
             }
 
             sub_state.subscribed_to_blocks = true;
@@ -268,7 +273,7 @@ pub(super) fn subscribe(
         },
     }
 
-    Ok(())
+    Ok(sub_state.current_slot)
 }
 
 /// Unsubscribes a module or stops the generation of subscribed events for a module.
@@ -365,10 +370,13 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
 
                     let set_read_pointer_fut = follower.set_read_pointer(follow_from);
 
-                    if set_read_pointer_fut.await.is_err() {
-                        drop(response_tx.send(Err(Error::InternalError)));
-                        continue;
-                    }
+                    let point = match set_read_pointer_fut.await {
+                        Ok(Some(point)) => point,
+                        Ok(None) | Err(_) => {
+                            drop(response_tx.send(Err(Error::InternalError)));
+                            continue;
+                        },
+                    };
 
                     trace!("Set chain follower starting point");
 
@@ -382,9 +390,14 @@ fn tokio_runtime_executor(mut cmd_rx: TokioRuntimeHandleCommandReceiver) {
                         chain_id,
                     ));
 
-                    drop(response_tx.send(Ok(ChainFollowerHandle {
-                        cmd_tx: follower_cmd_tx,
-                    })));
+                    let res = (
+                        ChainFollowerHandle {
+                            cmd_tx: follower_cmd_tx,
+                        },
+                        point,
+                    );
+
+                    drop(response_tx.send(Ok(res)));
                 },
                 TokioRuntimeCommand::ReadBlock {
                     chain_id,
@@ -501,7 +514,7 @@ async fn chain_follower_executor(
                     (sub_state.subscribed_to_blocks, sub_state.subscribed_to_txns, sub_state.subscribed_to_rollbacks)
                 };
 
-                match chain_update {
+                let current_slot = match chain_update {
                     cardano_chain_follower::ChainUpdate::Block(block_data) => {
                         if !subscribed_to_blocks && !subscribed_to_txns {
                             continue;
@@ -565,6 +578,8 @@ async fn chain_follower_executor(
                                 trace!(block_number, "Generated Cardano block event");
                             }
                         }
+
+                        slot
                     },
                     cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
                         if !subscribed_to_rollbacks {
@@ -598,7 +613,15 @@ async fn chain_follower_executor(
                         } else {
                             trace!(block_number, "Generated Cardano rollback event");
                         }
+
+                        slot
                     },
+                };
+
+                if let Some(mut sub_state) = STATE.subscriptions.get_mut(&module_state_key) {
+                    sub_state.current_slot = current_slot;
+                } else {
+                    break 'exec_loop;
                 };
             }
         }

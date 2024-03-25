@@ -60,7 +60,7 @@ impl Host for HermesRuntimeContext {
         );
 
         match res {
-            Ok(()) => Ok(Ok(0)),
+            Ok(slot) => Ok(Ok(slot)),
             Err(_) => Ok(Err(FetchError::InvalidSlot)),
         }
     }
