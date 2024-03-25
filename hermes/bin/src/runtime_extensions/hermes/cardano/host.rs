@@ -37,16 +37,39 @@ impl Host for HermesRuntimeContext {
     /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
     /// unsubscribed.
     fn subscribe_blocks(
-        &mut self, _net: CardanoBlockchainId, _whence: Slot,
+        &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<u64, FetchError>> {
-        todo!()
+        let sub_type = match whence {
+            Slot::Genesis => {
+                super::SubscriptionType::Blocks(cardano_chain_follower::Point::Origin.into())
+            },
+            Slot::Point((slot, hash)) => {
+                super::SubscriptionType::Blocks(
+                    cardano_chain_follower::Point::Specific(slot, hash).into(),
+                )
+            },
+            Slot::Tip => super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
+            Slot::Continue => super::SubscriptionType::Continue,
+        };
+
+        let res = super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            sub_type,
+        );
+
+        match res {
+            Ok(slot) => Ok(Ok(slot)),
+            Err(_) => Ok(Err(FetchError::InvalidSlot)),
+        }
     }
 
     /// Unsubscribe from the blockchain events listed.
     ///
     /// **Parameters**
     ///
-    /// - `events` : The events to unsubscribe from (and optionally stop the blockchain
+    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain
     ///   follower).
     ///
     /// **Notes**
@@ -62,8 +85,11 @@ impl Host for HermesRuntimeContext {
     /// the last block received.  This would result in the last block being sent as an
     /// event twice,
     /// once before the `stop` and once after the `continue`.
-    fn unsubscribe(&mut self, _events: UnsubscribeOptions) -> wasmtime::Result<()> {
-        todo!()
+    fn unsubscribe(
+        &mut self, net: CardanoBlockchainId, opts: UnsubscribeOptions,
+    ) -> wasmtime::Result<()> {
+        super::unsubscribe(net, self.app_name().clone(), self.module_id().clone(), opts)
+            .map_err(wasmtime::Error::new)
     }
 
     /// Subscribe to transaction data events, does not alter the blockchain sync in
@@ -72,8 +98,16 @@ impl Host for HermesRuntimeContext {
     /// **Parameters**
     ///
     /// - `net` : The blockchain network to subscribe to txn events from.
-    fn subscribe_txn(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        todo!()
+    fn subscribe_txn(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            super::SubscriptionType::Transactions,
+        )
+        .map_err(wasmtime::Error::new)?;
+
+        Ok(())
     }
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in
@@ -89,8 +123,16 @@ impl Host for HermesRuntimeContext {
     /// data from the rollback point.  No action is required to actually follow the
     /// rollback, unless the
     /// default behavior is not desired.
-    fn subscribe_rollback(&mut self, _net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        todo!()
+    fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
+        super::subscribe(
+            net,
+            self.app_name().clone(),
+            self.module_id().clone(),
+            super::SubscriptionType::Rollbacks,
+        )
+        .map_err(wasmtime::Error::new)?;
+
+        Ok(())
     }
 
     /// Fetch a block from the requested blockchain at the requested slot.
@@ -114,9 +156,19 @@ impl Host for HermesRuntimeContext {
     /// parallel
     /// to automated block fetch.
     fn fetch_block(
-        &mut self, _net: CardanoBlockchainId, _whence: Slot,
+        &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
-        todo!()
+        let at = match whence {
+            Slot::Genesis => cardano_chain_follower::Point::Origin.into(),
+            Slot::Point((slot, hash)) => cardano_chain_follower::Point::Specific(slot, hash).into(),
+            Slot::Tip => cardano_chain_follower::PointOrTip::Tip,
+            Slot::Continue => todo!(),
+        };
+
+        match super::read_block(net, at) {
+            Ok(block_data) => Ok(Ok(block_data.into_raw_data())),
+            Err(_) => Ok(Err(FetchError::InvalidSlot)),
+        }
     }
 
     /// Get transactions from a block.
@@ -136,8 +188,11 @@ impl Host for HermesRuntimeContext {
     /// This function exists to support `fetch-block`.
     /// Transactions from subscribed block events, should be processed as transaction
     /// events.
-    fn get_txns(&mut self, _block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
-        todo!()
+    fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
+        match pallas::ledger::traverse::MultiEraBlock::decode(&block) {
+            Ok(block_data) => Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect()),
+            Err(_) => Err(wasmtime::Error::new(super::Error::InternalError)),
+        }
     }
 
     /// Post a transactions to the blockchain.

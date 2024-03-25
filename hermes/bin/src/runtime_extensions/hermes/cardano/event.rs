@@ -8,13 +8,13 @@ use crate::{
 };
 
 /// On Cardano block event
-struct OnCardanoBlockEvent {
+pub(super) struct OnCardanoBlockEvent {
     /// The blockchain id the block originated from.
-    blockchain: CardanoBlockchainId,
+    pub(super) blockchain: CardanoBlockchainId,
     /// This raw CBOR block data.
-    block: CardanoBlock,
+    pub(super) block: CardanoBlock,
     /// Source information about where the block came from, and if we are at tip or not.
-    source: BlockSrc,
+    pub(super) source: BlockSrc,
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
@@ -32,15 +32,15 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 }
 
 /// On Cardano txn event
-struct OnCardanoTxnEvent {
+pub(super) struct OnCardanoTxnEvent {
     /// The blockchain id the block originated from.
-    blockchain: CardanoBlockchainId,
+    pub(super) blockchain: CardanoBlockchainId,
     /// The slot the transaction is in.
-    slot: u64,
+    pub(super) slot: u64,
     /// The offset in the block this transaction is at.
-    txn_index: u32,
+    pub(super) txn_index: u32,
     /// The raw transaction data itself.
-    txn: CardanoTxn,
+    pub(super) txn: CardanoTxn,
 }
 
 impl HermesEventPayload for OnCardanoTxnEvent {
@@ -65,11 +65,11 @@ impl HermesEventPayload for OnCardanoTxnEvent {
 }
 
 /// On Cardano rollback event
-struct OnCardanoRollback {
+pub(super) struct OnCardanoRollback {
     /// The blockchain id the block originated from.
-    blockchain: CardanoBlockchainId,
+    pub(super) blockchain: CardanoBlockchainId,
     /// The slot the transaction is in.
-    slot: u64,
+    pub(super) slot: u64,
 }
 
 impl HermesEventPayload for OnCardanoRollback {

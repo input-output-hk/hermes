@@ -20,7 +20,14 @@ name = "module"
 harness = false
 required-features = ["bench"]
 
+[[test]]
+name = "wasm-component-integration-tests"
+path = "tests/wasm-integration/main.rs"
+harness = false
+
 [dependencies]
+cardano-chain-follower = { workspace = true }
+
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
@@ -41,8 +48,10 @@ bip32 = { workspace = true }
 ed25519-bip32 = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+tracing = { workspace = true }
+pallas = { workspace = true }
 
-[[test]]
-name = "wasm-component-integration-tests"
-path = "tests/wasm-integration/main.rs"
-harness = false
+[dev-dependencies]
+hex = { workspace = true }
+tracing-subscriber = { workspace = true }

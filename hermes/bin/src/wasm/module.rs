@@ -37,6 +37,12 @@ pub struct ModuleInstance {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ModuleId(pub(crate) Ulid);
 
+impl std::fmt::Display for ModuleId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Structure defines an abstraction over the WASM module
 /// It instantiates the module with the provided context data,
 /// links all provided imports to the module instance,
