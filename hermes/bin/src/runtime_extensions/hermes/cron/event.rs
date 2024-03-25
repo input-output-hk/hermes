@@ -3,6 +3,7 @@
 use chrono::Utc;
 use saffron::Cron;
 
+use super::state::cron_queue_rm;
 use crate::{
     event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
@@ -25,12 +26,17 @@ impl HermesEventPayload for OnCronEvent {
     }
 
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-        // TODO (@stevenj): https://github.com/input-output-hk/hermes/issues/93
-        let _res: bool = module.instance.hermes_cron_event().call_on_cron(
+        let res: bool = module.instance.hermes_cron_event().call_on_cron(
             &mut module.store,
             &self.tag,
             self.last,
         )?;
+        // if the response is `false`, check if the event would
+        // re-trigger, if so, remove it.
+        if !res && !self.last {
+            let app_name = module.store.data().app_name();
+            cron_queue_rm(&app_name.0, self.tag.clone());
+        }
         Ok(())
     }
 }
