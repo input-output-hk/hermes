@@ -42,6 +42,30 @@ impl HermesEventPayload for OnCronEvent {
 }
 
 impl OnCronEvent {
+    /// Get the next scheduled cron event after the optional start timestamp, or after the
+    /// current timestamp.
+    ///
+    /// # Parameters
+    ///
+    /// * `start: Option<CronTimestamp>` - The optional start timestamp. If `None`, the
+    ///   current time is used.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
+    /// * `None` if the timestamp could not be calculated.
+    pub(crate) fn tick_after(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+        let cron = self.cron()?;
+        if cron.any() {
+            let datetime = Self::start_datetime(start)?;
+            let cdt = cron.iter_after(datetime).next()?;
+            let timestamp = cdt.timestamp_nanos_opt()?;
+            timestamp.try_into().ok()
+        } else {
+            None
+        }
+    }
+
     /// Get the next scheduled cron event from the optional start timestamp, or from the
     /// current timestamp.
     ///
@@ -54,7 +78,7 @@ impl OnCronEvent {
     ///
     /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
     /// * `None` if the timestamp could not be calculated.
-    pub(crate) fn next_tick(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+    pub(crate) fn tick_from(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
         let cron = self.cron()?;
         if cron.any() {
             let datetime = Self::start_datetime(start)?;

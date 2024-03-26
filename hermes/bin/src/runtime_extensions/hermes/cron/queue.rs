@@ -1,15 +1,13 @@
 //! Cron Event Queue implementation.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use dashmap::DashMap;
 use tokio::sync::{mpsc, oneshot};
 
 use super::{
     event::{CronTimestamp, OnCronEvent},
-    state::{
-        handle_add_cron_job, handle_delay_cron_job, handle_ls_cron_job, handle_rm_cron_job, AppName,
-    },
+    state::{cron_queue_delay, cron_queue_trigger, send_hermes_on_cron_event, AppName},
     Error,
 };
 use crate::runtime_extensions::bindings::hermes::cron::api::{CronEventTag, CronTagged};
@@ -43,9 +41,11 @@ pub(crate) enum CronJob {
 /// The crontab queue task runs in the background.
 pub(crate) struct CronEventQueue {
     /// The crontab events.
-    events: DashMap<AppName, BTreeMap<CronTimestamp, Vec<OnCronEvent>>>,
+    events: DashMap<AppName, BTreeMap<CronTimestamp, BTreeSet<OnCronEvent>>>,
     /// Send events to the crontab queue.
     sender: Option<mpsc::Sender<CronJob>>,
+    /// Next scheduled Cron Task.
+    waiting_event: DashMap<usize, (CronTimestamp, std::thread::JoinHandle<()>)>,
 }
 
 impl CronEventQueue {
@@ -54,6 +54,7 @@ impl CronEventQueue {
         Self {
             events: DashMap::default(),
             sender,
+            waiting_event: DashMap::default(),
         }
     }
 
@@ -75,11 +76,11 @@ impl CronEventQueue {
             .and_modify(|e| {
                 e.entry(timestamp)
                     .and_modify(|e| {
-                        e.push(on_cron_event.clone());
+                        e.insert(on_cron_event.clone());
                     })
-                    .or_insert_with(|| vec![on_cron_event.clone()]);
+                    .or_insert_with(|| BTreeSet::from([on_cron_event.clone()]));
             })
-            .or_insert_with(|| BTreeMap::from([(timestamp, vec![on_cron_event])]));
+            .or_insert_with(|| BTreeMap::from([(timestamp, BTreeSet::from([on_cron_event]))]));
     }
 
     /// List all the crontab entries for the given app.
@@ -126,26 +127,120 @@ impl CronEventQueue {
         }
         response
     }
+
+    /// Trigger the queue.
+    ///
+    /// This will run until the queue is empty or until the next timestamp in the queue is
+    /// in the future, in which case it will update the waiting task, which sleeps until
+    /// the next timestamp and calls this function, and return.
+    pub(crate) fn trigger(&self) -> anyhow::Result<()> {
+        let trigger_time: CronTimestamp = chrono::Utc::now()
+            .timestamp_nanos_opt()
+            .ok_or(Error::InvalidTimestamp)?
+            .try_into()?;
+        while let Some((ts, app_names)) = self.next_in_queue() {
+            if trigger_time >= ts {
+                // If the timestamp is in the past:
+                // * send the events immediately
+                self.pop_app_queues_and_send(trigger_time, ts, &app_names)?;
+            } else {
+                // If the timestamp is in the future:
+                // * update the waiting task
+                self.update_waiting_task(trigger_time, ts);
+                // Since `ts` is in the future, we can break
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Update the waiting task.
+    fn update_waiting_task(&self, trigger_time: CronTimestamp, timestamp: CronTimestamp) {
+        // Create a new waiting task.
+        let duration = timestamp - trigger_time;
+        self.waiting_event
+            .entry(0)
+            .and_modify(|(waiting_for, handle)| {
+                // `timestamp` is before the task that is waiting,
+                // so we need to update the waiting task, and cancel
+                // the old one, if it exists.
+                if *waiting_for > timestamp {
+                    (*waiting_for, *handle) = new_waiting_task(timestamp, duration);
+                }
+            })
+            .or_insert_with(|| new_waiting_task(timestamp, duration));
+    }
+
+    /// Pop the first item from all the `BTreeMap`s belonging
+    /// to each `AppName` in the queue. Then send the `OnCronEvent`s
+    /// to the Hermes Event Queue.
+    ///
+    /// This method will also re-schedule the events that have `last = false`.
+    fn pop_app_queues_and_send(
+        &self, trigger_time: CronTimestamp, ts: CronTimestamp, app_names: &BTreeSet<AppName>,
+    ) -> anyhow::Result<()> {
+        for app_name in app_names {
+            if let Some(events) = self.pop_from_app_queue(app_name, ts) {
+                for on_cron_event in events {
+                    send_hermes_on_cron_event(app_name.clone(), on_cron_event.clone())?;
+                    if !on_cron_event.last {
+                        // Re-schedule the event by calculating the next timestamp after now.
+                        if let Some(next_timestamp) = on_cron_event.tick_after(None) {
+                            let duration = next_timestamp - trigger_time;
+                            cron_queue_delay(app_name, duration, on_cron_event.tag.tag)?;
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Pop the first item from the `BTreeMap`.
+    ///
+    /// Because the `BTreeMap` is sorted, the first item is the smallest timestamp..
+    fn pop_from_app_queue(
+        &self, app_name: &AppName, timestamp: CronTimestamp,
+    ) -> Option<BTreeSet<OnCronEvent>> {
+        self.events
+            .get_mut(app_name)
+            .and_then(|mut app| app.remove(&timestamp))
+    }
+
+    /// Get the next timestamp to schedule, collected from all the `BTreeMap`s belonging
+    /// to each `AppName` in the queue.
+    fn next_in_queue(&self) -> Option<(CronTimestamp, BTreeSet<AppName>)> {
+        // Start by fetching the first entry of every app, and putting it into a `BtreeMap`.
+        let mut next_events: BTreeMap<CronTimestamp, BTreeSet<AppName>> =
+            self.events
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, mut_ref| {
+                    let (app_name, events) = mut_ref.pair();
+                    if let Some((ts, _)) = events.first_key_value() {
+                        acc.entry(*ts)
+                            .and_modify(|e| {
+                                e.insert(app_name.clone());
+                            })
+                            .or_insert_with(|| BTreeSet::from([app_name.clone()]));
+                    }
+                    acc
+                });
+        next_events.pop_first()
+    }
 }
 
-/// The crontab queue task runs in the background.
-pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
-    while let Some(cron_job) = queue_rx.recv().await {
-        match cron_job {
-            CronJob::Add(app_name, on_cron_event, response_tx) => {
-                handle_add_cron_job(app_name, on_cron_event, response_tx);
-            },
-            CronJob::List(app_name, tag, response_tx) => {
-                handle_ls_cron_job(&app_name, &tag, response_tx);
-            },
-            CronJob::Delay(app_name, cron_job_delay, response_tx) => {
-                handle_delay_cron_job(app_name, cron_job_delay, response_tx);
-            },
-            CronJob::Remove(app_name, cron_tagged, response_tx) => {
-                handle_rm_cron_job(&app_name, &cron_tagged, response_tx);
-            },
+/// Create a new thread that will sleep for `duration` nanoseconds
+fn new_waiting_task(
+    timestamp: CronTimestamp, duration: u64,
+) -> (CronTimestamp, std::thread::JoinHandle<()>) {
+    let handle = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_nanos(duration));
+        if let Err(_err) = cron_queue_trigger() {
+            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
         }
-    }
+    });
+    (timestamp, handle)
 }
 
 #[cfg(test)]

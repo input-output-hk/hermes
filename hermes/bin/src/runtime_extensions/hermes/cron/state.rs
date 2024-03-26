@@ -10,11 +10,15 @@ use tokio::{
 
 use super::{
     event::OnCronEvent,
-    queue::{cron_queue_task, CronEventQueue, CronJob, CronJobDelay},
+    queue::{CronEventQueue, CronJob, CronJobDelay},
 };
-use crate::runtime_extensions::{
-    bindings::hermes::cron::api::{CronEventTag, CronTagged, Instant},
-    hermes::cron::mkdelay_crontab,
+use crate::{
+    app::HermesAppName,
+    event::{queue::send, HermesEvent, TargetApp, TargetModule},
+    runtime_extensions::{
+        bindings::hermes::cron::api::{CronEventTag, CronTagged, Instant},
+        hermes::cron::mkdelay_crontab,
+    },
 };
 
 /// Cron Internal State
@@ -76,7 +80,7 @@ impl InternalState {
     fn add_crontab(&self, app_name: &str, entry: CronTagged, retrigger: bool) -> bool {
         let crontab = OnCronEvent {
             tag: entry,
-            last: retrigger,
+            last: !retrigger,
         };
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
@@ -213,6 +217,39 @@ pub(crate) fn cron_queue_rm(app_name: &str, entry: CronTagged) -> bool {
     CRON_INTERNAL_STATE.rm_crontab(app_name, entry)
 }
 
+/// The crontab queue task runs in the background.
+pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
+    while let Some(cron_job) = queue_rx.recv().await {
+        match cron_job {
+            CronJob::Add(app_name, on_cron_event, response_tx) => {
+                handle_add_cron_job(&app_name, on_cron_event, response_tx);
+                // Trigger the cron queue
+                if let Err(_err) = cron_queue_trigger() {
+                    // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+                }
+            },
+            CronJob::List(app_name, tag, response_tx) => {
+                handle_ls_cron_job(&app_name, &tag, response_tx);
+            },
+            CronJob::Delay(app_name, cron_job_delay, response_tx) => {
+                handle_delay_cron_job(&app_name, cron_job_delay, response_tx);
+                // Trigger the cron queue
+                if let Err(_err) = cron_queue_trigger() {
+                    // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+                }
+            },
+            CronJob::Remove(app_name, cron_tagged, response_tx) => {
+                handle_rm_cron_job(&app_name, &cron_tagged, response_tx);
+            },
+        }
+    }
+}
+
+/// Trigger the cron queue events dispatch.
+pub(crate) fn cron_queue_trigger() -> anyhow::Result<()> {
+    CRON_INTERNAL_STATE.cron_queue.trigger()
+}
+
 /// Handle the `CronJob::Remove` command.
 pub(crate) fn handle_rm_cron_job(
     app_name: &AppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
@@ -227,18 +264,41 @@ pub(crate) fn handle_rm_cron_job(
 
 /// Handle the `CronJob::Add` command.
 pub(crate) fn handle_add_cron_job(
-    app_name: AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
+    app_name: &AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
 ) {
-    let response = if let Some(timestamp) = on_cron_event.next_tick(None) {
+    // Check if the event will trigger by getting the next immediate timestamp.
+    let response = if let Some(timestamp) = on_cron_event.tick_from(None) {
+        // Now check that the timestamp has passed or is now, if so, send it to the
+        // Hermes Event Queue immediately.
+        // let triggers_now = true;
+        // if triggers_now {
+        //     // Dispatch to the Hermes Event Queue now
+        //     if let Err(_err) =
+        //         send_hermes_on_cron_event(app_name.to_string(), on_cron_event.clone())
+        //     {
+        //         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+        //     }
+        //     if on_cron_event.last {
+        //         return;
+        //     }
+        // }
+        // add the event to the queue
         CRON_INTERNAL_STATE
             .cron_queue
-            .add_event(app_name, timestamp, on_cron_event);
+            .add_event(app_name.to_string(), timestamp, on_cron_event);
         true
     } else {
+        // The event will not trigger any timestamp. This can happen when setting
+        // impossible combinations such as `day = 31` and `month = 2`, since it is not possible
+        // for February to have 31 days.
+
+        // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+        // debug!("Event will not trigger: {on_cron_event:?}");
         false
     };
     if let Err(_err) = response_tx.send(response) {
         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+        // error!("Error sending response to `handle_add_cron_job`: {_err:?}");
     }
 }
 
@@ -257,16 +317,29 @@ pub(crate) fn handle_ls_cron_job(
 
 /// Handle the `CronJob::Delay` command.
 pub(crate) fn handle_delay_cron_job(
-    app_name: AppName, CronJobDelay { timestamp, event }: CronJobDelay,
+    app_name: &AppName, CronJobDelay { timestamp, event }: CronJobDelay,
     response_tx: oneshot::Sender<bool>,
 ) {
     CRON_INTERNAL_STATE
         .cron_queue
-        .add_event(app_name, timestamp, event);
+        .add_event(app_name.to_string(), timestamp, event);
     let response = true;
     if let Err(_err) = response_tx.send(response) {
         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
+}
+
+/// Send event to the Hermes Event Queue.
+pub(crate) fn send_hermes_on_cron_event(
+    app_name: AppName, on_cron_event: OnCronEvent,
+) -> anyhow::Result<()> {
+    //
+    let event = HermesEvent::new(
+        on_cron_event,
+        TargetApp::List(vec![HermesAppName(app_name)]),
+        TargetModule::All,
+    );
+    send(event)
 }
 
 #[cfg(test)]
