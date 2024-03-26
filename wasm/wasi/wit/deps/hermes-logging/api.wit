@@ -36,7 +36,7 @@ interface api {
     /// 
     /// **Parameters**
     ///
-    /// - `level` : The log level of the message.
+    /// - `level` : The log level this message is for.
     /// - `file`  : The name of the src file being logged from. (Optional)
     /// - `function`    : The function within the file being logged from. (Optional)
     /// - `line`  : The line of code the log was generated from. (Optional)
