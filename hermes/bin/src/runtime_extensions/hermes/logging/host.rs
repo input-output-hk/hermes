@@ -3,10 +3,7 @@
 use super::log_msg::log_message;
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::{
-        json::api::Json,
-        logging::api::{Host, Level},
-    },
+    runtime_extensions::bindings::hermes::{json::api::Json, logging::api::Host},
 };
 
 impl Host for HermesRuntimeContext {
@@ -56,7 +53,7 @@ impl Host for HermesRuntimeContext {
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be
     /// considered independent logs.
     fn log(
-        &mut self, level: Level, file: Option<String>, function: Option<String>, line: Option<u32>,
+        &mut self, file: Option<String>, function: Option<String>, line: Option<u32>,
         col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
     ) -> wasmtime::Result<()> {
         Ok(log_message(ctx, msg, file, function, line, col, data))
