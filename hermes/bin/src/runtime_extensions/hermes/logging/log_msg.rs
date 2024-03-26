@@ -1,13 +1,16 @@
 //! Implementation of logging API
 use tracing::info;
 
+use crate::logger::LogLevel;
+
 /// Log a message
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn log_message(
-    ctx: Option<String>, msg: &str, file: Option<String>, function: Option<String>,
-    line: Option<u32>, col: Option<u32>, data: Option<String>,
+    level: LogLevel, ctx: Option<String>, msg: &str, file: Option<String>,
+    function: Option<String>, line: Option<u32>, col: Option<u32>, data: Option<String>,
 ) {
-    // Force the log level to be info
     info!(
+        level = level.to_string(),
         ctx = ctx.unwrap_or_default(),
         message = msg,
         file = file.unwrap_or_default(),
@@ -21,7 +24,10 @@ pub(crate) fn log_message(
 #[cfg(test)]
 mod tests_log_msg {
     use super::*;
-    use crate::logger::{init, LogLevel};
+    use crate::{
+        logger::{init, LogLevel},
+        runtime_extensions::bindings::hermes::logging::api::Level,
+    };
 
     #[test]
     fn test_log_message() {
@@ -30,6 +36,7 @@ mod tests_log_msg {
         }
 
         // Test with valid data
+        let level = Level::Warn;
         let ctx = Some("Context".to_string());
         let msg = "Test message";
         let file = Some("test.rs".to_string());
@@ -39,6 +46,7 @@ mod tests_log_msg {
         let data = Some("{\"bt\": [\"Array:1\", \"Array:2\", \"Array:3\"]}".to_string());
 
         log_message(
+            LogLevel::from(level),
             ctx.clone(),
             msg,
             file.clone(),
@@ -48,6 +56,15 @@ mod tests_log_msg {
             data.clone(),
         );
 
-        log_message(ctx, msg, file, function, line, col, None);
+        log_message(
+            LogLevel::from(level),
+            ctx,
+            msg,
+            file,
+            function,
+            line,
+            col,
+            None,
+        );
     }
 }

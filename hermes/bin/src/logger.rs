@@ -1,11 +1,15 @@
 //! Setup for logging for the service.
 
+use std::fmt;
+
 use clap::ValueEnum;
 use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time},
     FmtSubscriber,
 };
+
+use crate::runtime_extensions::bindings::hermes::logging::api::Level;
 
 /// All valid logging levels.
 #[derive(ValueEnum, Clone, Copy)]
@@ -22,14 +26,38 @@ pub(crate) enum LogLevel {
     Trace,
 }
 
+impl fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LogLevel::Error => write!(f, "Error"),
+            LogLevel::Warn => write!(f, "Warn"),
+            LogLevel::Info => write!(f, "Info"),
+            LogLevel::Debug => write!(f, "Debug"),
+            LogLevel::Trace => write!(f, "Trace"),
+        }
+    }
+}
+
 impl From<&str> for LogLevel {
-    fn from(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "error" => LogLevel::Error,
-            "warn" => LogLevel::Warn,
+    fn from(val: &str) -> Self {
+        // Error and Warn levels are force to Info level
+        // as Info is the highest log level one can choose.
+        match val {
             "debug" => LogLevel::Debug,
             "trace" => LogLevel::Trace,
             _ => LogLevel::Info,
+        }
+    }
+}
+
+impl From<Level> for LogLevel {
+    fn from(level: Level) -> Self {
+        // Error and Warn levels are force to Info level
+        // as Info is the highest log level one can choose.
+        match level {
+            Level::Info | Level::Warn | Level::Error => LogLevel::Info,
+            Level::Debug => LogLevel::Debug,
+            Level::Trace => LogLevel::Trace,
         }
     }
 }

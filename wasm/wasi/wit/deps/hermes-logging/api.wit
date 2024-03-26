@@ -36,6 +36,7 @@ interface api {
     /// 
     /// **Parameters**
     ///
+    /// - `level` : The log level of the message.
     /// - `file`  : The name of the src file being logged from. (Optional)
     /// - `function`    : The function within the file being logged from. (Optional)
     /// - `line`  : The line of code the log was generated from. (Optional)
@@ -61,7 +62,7 @@ interface api {
     /// This format is designed to keep the broadest flexibility for multiple languages capabilities.
     /// The backtrace must be sorted with most recent lines of the backtrace occurring first in the array.
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be considered independent logs.
-    log: func(file: option<string>, fn: option<string>, line: option<u32>, col:option<u32>, 
+    log: func(level: level, file: option<string>, function: option<string>, line: option<u32>, col:option<u32>, 
             ctx: option<string>, 
                 msg: string, 
                 data: option<json>);

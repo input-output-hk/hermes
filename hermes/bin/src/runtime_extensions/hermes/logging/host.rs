@@ -2,8 +2,12 @@
 
 use super::log_msg::log_message;
 use crate::{
+    logger::LogLevel,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::{json::api::Json, logging::api::Host},
+    runtime_extensions::bindings::hermes::{
+        json::api::Json,
+        logging::api::{Host, Level},
+    },
 };
 
 impl Host for HermesRuntimeContext {
@@ -17,10 +21,10 @@ impl Host for HermesRuntimeContext {
     /// log as if it is the only instance.
     /// It also should not log any webasm shared context, except where it is relevant to
     /// the log message itself.
-    /// The log level will be forced to INFO level.
     ///
     /// **Parameters**
     ///
+    /// - `level` : The log level this message is for.
     /// - `file`  : The name of the src file being logged from. (Optional)
     /// - `function`    : The function within the file being logged from. (Optional)
     /// - `line`  : The line of code the log was generated from. (Optional)
@@ -53,10 +57,19 @@ impl Host for HermesRuntimeContext {
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be
     /// considered independent logs.
     fn log(
-        &mut self, file: Option<String>, function: Option<String>, line: Option<u32>,
+        &mut self, level: Level, file: Option<String>, function: Option<String>, line: Option<u32>,
         col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
     ) -> wasmtime::Result<()> {
-        log_message(ctx, &msg, file, function, line, col, data);
+        log_message(
+            LogLevel::from(level),
+            ctx,
+            &msg,
+            file,
+            function,
+            line,
+            col,
+            data,
+        );
         Ok(())
     }
 }

@@ -31,7 +31,7 @@ impl ClockState {
         let mono_resolution = match res_duration.as_nanos().try_into() {
             Ok(res) => res,
             Err(res_err) => {
-                tracing::error!("Error converting duration to nanoseconds: {}", res_err);
+                tracing::error!(message = "Error converting duration to nanoseconds!", error = %res_err);
                 1
             },
         };
