@@ -45,7 +45,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "json", "time"] }
 build-info = { workspace = true }
-derive_more = { workspace = true }
+derive_more = { workspace = true, features = ["display"], default-features = false }
 
 [[test]]
 name = "wasm-component-integration-tests"
