@@ -8,7 +8,7 @@ mod runtime_context;
 mod runtime_extensions;
 mod wasm;
 
-use std::{env, process};
+use std::{env, process, str::FromStr};
 
 use tracing::{error, info};
 #[cfg(feature = "bench")]
@@ -32,7 +32,12 @@ fn main() {
     let log_level = env::var(ENV_LOG_LEVEL).unwrap_or_else(|_| DEFAULT_ENV_LOG_LEVEL.to_owned());
 
     // Initialize logger.
-    if let Err(err) = logger::init(LogLevel::from(log_level.as_str()), true, true, true) {
+    if let Err(err) = logger::init(
+        LogLevel::from_str(&log_level).unwrap_or(LogLevel::Info),
+        true,
+        true,
+        true,
+    ) {
         println!("Error initializing logger: {err}");
     }
     // Get build info string.
