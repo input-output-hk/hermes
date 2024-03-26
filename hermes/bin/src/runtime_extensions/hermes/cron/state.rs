@@ -270,47 +270,44 @@ pub(crate) fn handle_delay_cron_job(
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
 mod tests {
+    use chrono::Datelike;
+
     use super::*;
 
     const APP_NAME: &str = "test";
-    const EVERY_MINUTE_WHEN: &str = "* * * * *";
-    const EVERY_DAY_WHEN: &str = "0 0 * * *";
-    const EVERY_MONTH_WHEN: &str = "0 0 1 * *";
-    const EXAMPLE_TAG: &str = "ExampleTag";
-    const OTHER_TAG: &str = "OtherTag";
 
-    // triggers every minute
+    // triggers every minute, three days from now
+    #[allow(clippy::unwrap_used)]
+    fn crontab_future_dow(tag: &str, days_from_now: i64) -> CronTagged {
+        let dow = (chrono::Utc::now() + chrono::TimeDelta::try_days(days_from_now).unwrap())
+            .weekday()
+            .number_from_monday();
+        CronTagged {
+            when: format!("* * * * {dow}"),
+            tag: tag.into(),
+        }
+    }
+    // triggers every minute, three days from now
     fn crontab_example_1() -> CronTagged {
-        CronTagged {
-            when: EVERY_MINUTE_WHEN.into(),
-            tag: EXAMPLE_TAG.into(),
-        }
+        crontab_future_dow("Example1", 3)
     }
-    // triggers every minute
+    // triggers every minute, four days from now
     fn crontab_example_2() -> CronTagged {
-        CronTagged {
-            when: EVERY_MONTH_WHEN.into(),
-            tag: EXAMPLE_TAG.into(),
-        }
+        crontab_future_dow("Example2", 4)
     }
-    // triggers every minute
+    // triggers every minute, two days from now
     fn crontab_example_3() -> CronTagged {
-        CronTagged {
-            when: EVERY_DAY_WHEN.into(),
-            tag: EXAMPLE_TAG.into(),
-        }
+        crontab_future_dow("Example3", 2)
     }
-    // triggers every minute
+    // triggers every minute, two days from now
     fn crontab_other_1() -> CronTagged {
-        CronTagged {
-            when: EVERY_MINUTE_WHEN.into(),
-            tag: OTHER_TAG.into(),
-        }
+        crontab_future_dow("Other1", 2)
     }
     const RETRIGGER_YES: bool = true;
     const RETRIGGER_NO: bool = false;
+    const IS_LAST: bool = true;
+    const IS_NOT_LAST: bool = false;
 
     #[test]
     #[allow(clippy::unwrap_used)]
@@ -341,11 +338,13 @@ mod tests {
     }
 
     #[test]
-    /// WIP
-    #[ignore]
-    fn test_cron_state_add_and_list_crontabs() {
+    #[allow(clippy::unwrap_used)]
+    // **NOTE**: in order to test the `add_crontab` and `ls_crontabs` functions,
+    // custom `CronTagged`s are used, by setting the `dow` to be at least 2 days from now
+    // and never more than 6 days ahead. This way, the events won't be dispatched for the
+    // duration of the test.
+    fn test_cron_state_add_and_list_and_delay_and_remove_crontabs() {
         // Initial state for any AppName is always empty
-
         let state = &CRON_INTERNAL_STATE;
         assert!(state.ls_crontabs(APP_NAME, None).is_empty());
 
@@ -355,8 +354,8 @@ mod tests {
         assert!(state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_NO));
 
         assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
-            (crontab_example_1(), RETRIGGER_YES),
-            (crontab_example_1(), RETRIGGER_NO),
+            (crontab_example_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_LAST),
         ]);
 
         assert!(state.add_crontab(APP_NAME, crontab_example_2(), RETRIGGER_YES));
@@ -364,20 +363,43 @@ mod tests {
         assert!(state.add_crontab(APP_NAME, crontab_example_2(), RETRIGGER_YES));
 
         assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
-            (crontab_example_1(), RETRIGGER_YES),
-            (crontab_example_1(), RETRIGGER_NO),
-            (crontab_example_2(), RETRIGGER_YES),
-            (crontab_example_2(), RETRIGGER_YES),
+            (crontab_example_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_LAST),
+            (crontab_example_2(), IS_NOT_LAST),
         ]);
 
+        assert!(state.add_crontab(APP_NAME, crontab_example_3(), RETRIGGER_YES));
         assert!(state.add_crontab(APP_NAME, crontab_other_1(), RETRIGGER_YES));
 
         assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
-            (crontab_example_1(), RETRIGGER_YES),
-            (crontab_example_1(), RETRIGGER_NO),
-            (crontab_other_1(), RETRIGGER_YES),
-            (crontab_example_2(), RETRIGGER_YES),
-            (crontab_example_2(), RETRIGGER_YES),
+            (crontab_example_3(), IS_NOT_LAST),
+            (crontab_other_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_LAST),
+            (crontab_example_2(), IS_NOT_LAST),
+        ]);
+
+        let duration = 3_600_000_000_000;
+        let delayed_tag = "Delayed1".to_string();
+        let CronJobDelay {
+            timestamp: _,
+            event,
+        } = mkdelay_crontab(duration, delayed_tag.clone()).unwrap();
+        assert!(state
+            .delay_crontab(APP_NAME, duration, delayed_tag.clone())
+            .unwrap());
+
+        let expected_crontagged = CronTagged {
+            when: event.tag.when.clone(),
+            tag: delayed_tag,
+        };
+        assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
+            (expected_crontagged, IS_LAST),
+            (crontab_example_3(), IS_NOT_LAST),
+            (crontab_other_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_NOT_LAST),
+            (crontab_example_1(), IS_LAST),
+            (crontab_example_2(), IS_NOT_LAST),
         ]);
     }
 }

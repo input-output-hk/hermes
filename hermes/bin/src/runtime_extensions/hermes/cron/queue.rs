@@ -263,4 +263,32 @@ mod tests {
         // The queue should be empty
         assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
     }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_queue_pop_from_app_queue() {
+        // Start a queue with no sender channel.
+        let queue = CronEventQueue::new(None);
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_2());
+        let events = queue.pop_from_app_queue(&APP_NAME.to_string(), 0).unwrap();
+        assert_eq!(events, BTreeSet::from([cron_entry_1(), cron_entry_2()]));
+        // The queue should be empty
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+
+        queue.add_event(APP_NAME.to_string(), 360_000_000_000, cron_entry_3());
+        queue.add_event(APP_NAME.to_string(), 180_000_000_000, cron_entry_2());
+
+        let events = queue
+            .pop_from_app_queue(&APP_NAME.to_string(), 180_000_000_000)
+            .unwrap();
+        assert_eq!(events, BTreeSet::from([cron_entry_2()]));
+
+        let events = queue
+            .pop_from_app_queue(&APP_NAME.to_string(), 360_000_000_000)
+            .unwrap();
+        assert_eq!(events, BTreeSet::from([cron_entry_3()]));
+        // The queue should be empty
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+    }
 }
