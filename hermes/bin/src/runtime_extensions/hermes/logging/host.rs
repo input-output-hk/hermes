@@ -56,6 +56,7 @@ impl Host for HermesRuntimeContext {
         &mut self, file: Option<String>, function: Option<String>, line: Option<u32>,
         col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
     ) -> wasmtime::Result<()> {
-        Ok(log_message(ctx, msg, file, function, line, col, data))
+        log_message(ctx, &msg, file, function, line, col, data);
+        Ok(())
     }
 }

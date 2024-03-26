@@ -55,6 +55,7 @@ impl From<LogLevel> for tracing::Level {
 /// - Display time in RFC 3339 format
 /// - Events emit when the span close
 /// - Maximum verbosity level
+#[allow(dead_code)]
 pub(crate) fn init(
     log_level: LogLevel, with_thread: bool, with_file: bool, with_line_num: bool,
 ) -> Result<(), SetGlobalDefaultError> {
