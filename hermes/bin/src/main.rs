@@ -10,7 +10,7 @@ mod wasm;
 
 use std::{env, process};
 
-use tracing::{error, info, instrument};
+use tracing::{error, info};
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{
     module_hermes_component_bench, module_small_component_bench,
@@ -28,12 +28,11 @@ const DEFAULT_ENV_LOG_LEVEL: &str = "info";
 
 // Disable process exit for clippy.
 #[allow(clippy::exit)]
-#[instrument]
 fn main() {
     let log_level = env::var(ENV_LOG_LEVEL).unwrap_or_else(|_| DEFAULT_ENV_LOG_LEVEL.to_owned());
 
     // Initialize logger.
-    if let Err(err) = logger::init(LogLevel::from_str(&log_level), true, true, true) {
+    if let Err(err) = logger::init(LogLevel::from(log_level.as_str()), true, true, true) {
         println!("Error initializing logger: {err}");
     }
     // Get build info string.

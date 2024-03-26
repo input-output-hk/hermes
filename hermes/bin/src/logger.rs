@@ -27,7 +27,6 @@ impl From<&str> for LogLevel {
         match s.to_lowercase().as_str() {
             "error" => LogLevel::Error,
             "warn" => LogLevel::Warn,
-            "info" => LogLevel::Info,
             "debug" => LogLevel::Debug,
             "trace" => LogLevel::Trace,
             _ => LogLevel::Info,
