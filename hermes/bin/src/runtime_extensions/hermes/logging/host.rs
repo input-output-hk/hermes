@@ -1,5 +1,6 @@
 //! Logging host implementation for WASM runtime.
 
+use super::log_msg::log_message;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
@@ -7,8 +8,6 @@ use crate::{
         logging::api::{Host, Level},
     },
 };
-
-use super::log_msg::log_message;
 
 impl Host for HermesRuntimeContext {
     /// Generate a Log

@@ -2,8 +2,8 @@ use tracing::info;
 
 /// Log a message
 pub(crate) fn log_message(
-    ctx: Option<String>, msg: String, file: Option<String>, function: Option<String>, line: Option<u32>,
-    col: Option<u32>, data: Option<String>,
+    ctx: Option<String>, msg: String, file: Option<String>, function: Option<String>,
+    line: Option<u32>, col: Option<u32>, data: Option<String>,
 ) {
     // Force the log level to be info
     info!(
@@ -19,9 +19,9 @@ pub(crate) fn log_message(
 
 #[cfg(test)]
 mod tests_log_msg {
+    use super::*;
     use crate::logger::{init, LogLevel};
 
-    use super::*;
     #[test]
     fn test_log_message() {
         if let Err(err) = init(LogLevel::Info, false, false, false) {
