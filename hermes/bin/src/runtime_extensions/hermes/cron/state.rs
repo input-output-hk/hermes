@@ -412,39 +412,47 @@ mod tests {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    // **NOTE**: in order to test the `add_crontab` and `ls_crontabs` functions,
+    // **NOTE**: in order to test the `cron_queue_*` functions,
     // custom `CronTagged`s are used, by setting the `dow` to be at least 2 days from now
     // and never more than 6 days ahead. This way, the events won't be dispatched for the
     // duration of the test.
-    fn test_cron_state_add_and_list_and_delay_and_remove_crontabs() {
+    fn test_cron_state_multi_thread_add_and_list_and_delay_and_remove_crontabs_without_triggering()
+    {
         // Initial state for any AppName is always empty
-        let state = &CRON_INTERNAL_STATE;
-        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
+        assert!(cron_queue_ls(APP_NAME, None).is_empty());
 
         // inserting returns true
-        assert!(state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_YES));
-        // re-inserting returns true
-        assert!(state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_NO));
+        assert!(cron_queue_add(APP_NAME, crontab_example_1(), RETRIGGER_YES));
 
-        assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
+        // inserting separate thread
+        let h =
+            std::thread::spawn(move || cron_queue_add(APP_NAME, crontab_example_1(), RETRIGGER_NO));
+        assert!(h.join().unwrap());
+
+        assert_eq!(cron_queue_ls(APP_NAME, None), vec![
             (crontab_example_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_LAST),
         ]);
 
-        assert!(state.add_crontab(APP_NAME, crontab_example_2(), RETRIGGER_YES));
+        assert!(cron_queue_add(APP_NAME, crontab_example_2(), RETRIGGER_YES));
 
-        assert!(state.add_crontab(APP_NAME, crontab_example_2(), RETRIGGER_YES));
+        let h = std::thread::spawn(move || {
+            cron_queue_add(APP_NAME, crontab_example_2(), RETRIGGER_YES)
+        });
+        assert!(h.join().unwrap());
 
-        assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
+        let h = std::thread::spawn(move || cron_queue_ls(APP_NAME, None));
+        assert_eq!(h.join().unwrap(), vec![
             (crontab_example_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_LAST),
             (crontab_example_2(), IS_NOT_LAST),
         ]);
 
-        assert!(state.add_crontab(APP_NAME, crontab_example_3(), RETRIGGER_YES));
-        assert!(state.add_crontab(APP_NAME, crontab_other_1(), RETRIGGER_YES));
+        assert!(cron_queue_add(APP_NAME, crontab_example_3(), RETRIGGER_YES));
+        assert!(cron_queue_add(APP_NAME, crontab_other_1(), RETRIGGER_YES));
 
-        assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
+        // List
+        assert_eq!(cron_queue_ls(APP_NAME, None), vec![
             (crontab_example_3(), IS_NOT_LAST),
             (crontab_other_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_NOT_LAST),
@@ -452,30 +460,41 @@ mod tests {
             (crontab_example_2(), IS_NOT_LAST),
         ]);
 
-        let duration = 3_600_000_000_000;
-        let delayed_tag = "Delayed1".to_string();
-        let CronJobDelay {
-            timestamp: _,
-            event,
-        } = mkdelay_crontab(duration, delayed_tag.clone()).unwrap();
-        assert!(state
-            .delay_crontab(APP_NAME, duration, delayed_tag.clone())
-            .unwrap());
+        // Adding a delayed crontab from another thread
+        let h = std::thread::spawn(move || {
+            let duration = 3_600_000_000_000;
+            let delayed_tag = "Delayed1".to_string();
+            let CronJobDelay {
+                timestamp: _,
+                event,
+            } = mkdelay_crontab(duration, delayed_tag.clone()).unwrap();
+            assert!(cron_queue_delay(APP_NAME, duration, delayed_tag.clone()).unwrap());
 
-        let expected_crontagged = CronTagged {
-            when: event.tag.when.clone(),
-            tag: delayed_tag,
-        };
-        assert!(state
-            .ls_crontabs(APP_NAME, None)
-            .contains(&(expected_crontagged.clone(), IS_LAST)));
+            CronTagged {
+                when: event.tag.when.clone(),
+                tag: delayed_tag,
+            }
+        });
+        let expected_crontagged = h.join().unwrap();
 
-        assert!(state.rm_crontab(APP_NAME, expected_crontagged));
-        assert!(state.rm_crontab(APP_NAME, crontab_example_1()));
-        assert!(state.rm_crontab(APP_NAME, crontab_example_2()));
-        assert!(state.rm_crontab(APP_NAME, crontab_example_3()));
-        assert!(state.rm_crontab(APP_NAME, crontab_other_1()));
+        assert!(cron_queue_ls(APP_NAME, None).contains(&(expected_crontagged.clone(), IS_LAST)));
 
-        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
+        // Start clearing the queue in current thread
+        assert!(cron_queue_rm(APP_NAME, expected_crontagged));
+
+        // Remove everything else from another thread
+        let h = std::thread::spawn(move || {
+            assert!(cron_queue_rm(APP_NAME, crontab_example_1()));
+            assert!(cron_queue_rm(APP_NAME, crontab_example_2()));
+            assert!(cron_queue_rm(APP_NAME, crontab_example_3()));
+            assert!(cron_queue_rm(APP_NAME, crontab_other_1()));
+        });
+        h.join().unwrap();
+
+        // Run final test in another thread
+        let h = std::thread::spawn(move || {
+            assert!(cron_queue_ls(APP_NAME, None).is_empty());
+        });
+        h.join().unwrap();
     }
 }
