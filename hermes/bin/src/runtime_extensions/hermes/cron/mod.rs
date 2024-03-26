@@ -56,7 +56,7 @@ pub(crate) fn mkdelay_crontab(
         timestamp,
         event: OnCronEvent {
             tag: CronTagged { when, tag },
-            last: false,
+            last: true,
         },
     })
 }
