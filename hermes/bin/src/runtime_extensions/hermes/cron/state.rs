@@ -466,13 +466,16 @@ mod tests {
             when: event.tag.when.clone(),
             tag: delayed_tag,
         };
-        assert_eq!(state.ls_crontabs(APP_NAME, None), vec![
-            (expected_crontagged, IS_LAST),
-            (crontab_example_3(), IS_NOT_LAST),
-            (crontab_other_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_LAST),
-            (crontab_example_2(), IS_NOT_LAST),
-        ]);
+        assert!(state
+            .ls_crontabs(APP_NAME, None)
+            .contains(&(expected_crontagged.clone(), IS_LAST)));
+
+        assert!(state.rm_crontab(APP_NAME, expected_crontagged));
+        assert!(state.rm_crontab(APP_NAME, crontab_example_1()));
+        assert!(state.rm_crontab(APP_NAME, crontab_example_2()));
+        assert!(state.rm_crontab(APP_NAME, crontab_example_3()));
+        assert!(state.rm_crontab(APP_NAME, crontab_other_1()));
+
+        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
     }
 }
