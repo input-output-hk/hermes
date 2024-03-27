@@ -244,6 +244,8 @@ fn new_waiting_task(
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::HashMap, sync::Arc};
+
     use super::*;
 
     const APP_NAME: &str = "test";
@@ -384,5 +386,23 @@ mod tests {
         assert_eq!(events, BTreeSet::from([cron_entry_3()]));
         // The queue should be empty
         assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_queue_trigger() {
+        let queue = CronEventQueue::new(None);
+
+        // To trigger on-cron events, an instance of the `HermesEventQueue` needs to be
+        // initialized. Triggering the queue without it, will return error.
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
+        assert!(queue.trigger().is_err());
+
+        // Initialize the `HermesEventQueue`
+        let _hermes_event_queue = crate::event::queue::init(Arc::new(HashMap::new())).unwrap();
+        // Event dispatch is triggered.
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
+        // Triggering to `HermesEventQueue` works.
+        assert!(queue.trigger().is_ok());
     }
 }
