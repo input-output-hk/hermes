@@ -240,6 +240,10 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
             },
             CronJob::Remove(app_name, cron_tagged, response_tx) => {
                 handle_rm_cron_job(&app_name, &cron_tagged, response_tx);
+                // Trigger the cron queue
+                if let Err(_err) = cron_queue_trigger() {
+                    // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
+                }
             },
         }
     }
@@ -268,20 +272,6 @@ pub(crate) fn handle_add_cron_job(
 ) {
     // Check if the event will trigger by getting the next immediate timestamp.
     let response = if let Some(timestamp) = on_cron_event.tick_from(None) {
-        // Now check that the timestamp has passed or is now, if so, send it to the
-        // Hermes Event Queue immediately.
-        // let triggers_now = true;
-        // if triggers_now {
-        //     // Dispatch to the Hermes Event Queue now
-        //     if let Err(_err) =
-        //         send_hermes_on_cron_event(app_name.to_string(), on_cron_event.clone())
-        //     {
-        //         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-        //     }
-        //     if on_cron_event.last {
-        //         return;
-        //     }
-        // }
         // add the event to the queue
         CRON_INTERNAL_STATE
             .cron_queue
