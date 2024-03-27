@@ -189,7 +189,6 @@ impl CronEventQueue {
                             let duration = next_timestamp - trigger_time;
                             cron_queue_delay(app_name, duration, on_cron_event.tag.tag)?;
                         }
-                        return Ok(());
                     }
                 }
             }
