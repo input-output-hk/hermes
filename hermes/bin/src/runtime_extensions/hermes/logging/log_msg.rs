@@ -25,13 +25,15 @@ pub(crate) fn log_message(
 mod tests_log_msg {
     use super::*;
     use crate::{
-        logger::{init, LogLevel},
+        logger::{init, LogLevel, LoggerConfig},
         runtime_extensions::bindings::hermes::logging::api::Level,
     };
 
     #[test]
     fn test_log_message() {
-        if let Err(err) = init(LogLevel::Info, false, false, false) {
+        let config = LoggerConfig::default();
+
+        if let Err(err) = init(&config) {
             println!("Error initializing logger: {err}");
         }
 

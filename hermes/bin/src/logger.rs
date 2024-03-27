@@ -14,7 +14,7 @@ use tracing_subscriber::{
 use crate::runtime_extensions::bindings::hermes::logging::api::Level;
 
 /// All valid logging levels.
-#[derive(ValueEnum, Clone, Copy, Display)]
+#[derive(ValueEnum, Clone, Copy, Display, Default)]
 pub(crate) enum LogLevel {
     /// Errors
     #[display(fmt = "Error")]
@@ -24,6 +24,7 @@ pub(crate) enum LogLevel {
     Warn,
     /// Informational Messages
     #[display(fmt = "Info")]
+    #[default]
     Info,
     /// Debug messages
     #[display(fmt = "Debug")]
@@ -73,6 +74,51 @@ impl From<LogLevel> for tracing::Level {
     }
 }
 
+/// Logger configuration.
+#[derive(Default)]
+pub(crate) struct LoggerConfig {
+    /// Log level
+    log_level: LogLevel,
+    /// Enable/disable thread logging
+    with_thread: bool,
+    /// Enable/disable file logging
+    with_file: bool,
+    /// Enable/disable line number logging
+    with_line_num: bool,
+}
+
+#[allow(dead_code)]
+impl LoggerConfig {
+    /// Build the logger configuration
+    pub(crate) fn build(self) -> LoggerConfig {
+        self
+    }
+
+    /// Set log level
+    pub(crate) fn log_level(mut self, level: LogLevel) -> Self {
+        self.log_level = level;
+        self
+    }
+
+    /// Enable/disable thread logging
+    pub(crate) fn with_thread(mut self, enable: bool) -> Self {
+        self.with_thread = enable;
+        self
+    }
+
+    /// Enable/disable file logging
+    pub(crate) fn with_file(mut self, enable: bool) -> Self {
+        self.with_file = enable;
+        self
+    }
+
+    /// Enable/disable line number logging
+    pub(crate) fn with_line_num(mut self, enable: bool) -> Self {
+        self.with_line_num = enable;
+        self
+    }
+}
+
 /// Initializes the subscriber for the logger with the following features.
 /// - JSON format
 /// - Display event level
@@ -82,19 +128,17 @@ impl From<LogLevel> for tracing::Level {
 /// - Events emit when the span close
 /// - Maximum verbosity level
 #[allow(dead_code)]
-pub(crate) fn init(
-    log_level: LogLevel, with_thread: bool, with_file: bool, with_line_num: bool,
-) -> Result<(), SetGlobalDefaultError> {
+pub(crate) fn init(logger_config: &LoggerConfig) -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
         .json()
         .with_level(true)
-        .with_thread_names(with_thread)
-        .with_thread_ids(with_thread)
-        .with_file(with_file)
-        .with_line_number(with_line_num)
+        .with_thread_names(logger_config.with_thread)
+        .with_thread_ids(logger_config.with_thread)
+        .with_file(logger_config.with_file)
+        .with_line_number(logger_config.with_line_num)
         .with_timer(time::UtcTime::rfc_3339())
         .with_span_events(FmtSpan::CLOSE)
-        .with_max_level(LevelFilter::from_level(log_level.into()))
+        .with_max_level(LevelFilter::from_level(logger_config.log_level.into()))
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
