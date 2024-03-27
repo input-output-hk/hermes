@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use clap::ValueEnum;
+extern crate derive_more;
 use derive_more::Display;
 use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{

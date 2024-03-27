@@ -45,7 +45,7 @@ fn main() {
 
     // Create a new reactor instance.
     let reactor_result = reactor::HermesReactor::new(Vec::new());
-    let mut reactor = match reactor_result {
+    let mut _reactor = match reactor_result {
         Ok(reactor) => reactor,
         Err(err) => {
             error!("Error creating reactor: {}", err);
