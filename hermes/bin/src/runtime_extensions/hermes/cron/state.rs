@@ -54,7 +54,7 @@ struct InternalState {
 
 impl InternalState {
     /// Create a new `InternalState`.
-    pub(crate) fn new(sender: Option<mpsc::Sender<CronJob>>) -> Self {
+    fn new(sender: Option<mpsc::Sender<CronJob>>) -> Self {
         Self {
             cron_queue: CronEventQueue::new(sender),
         }
@@ -217,8 +217,26 @@ pub(crate) fn cron_queue_rm(app_name: &str, entry: CronTagged) -> bool {
     CRON_INTERNAL_STATE.rm_crontab(app_name, entry)
 }
 
+/// Trigger the cron queue events dispatch.
+pub(crate) fn cron_queue_trigger() -> anyhow::Result<()> {
+    CRON_INTERNAL_STATE.cron_queue.trigger()
+}
+
+/// Send event to the Hermes Event Queue.
+pub(crate) fn send_hermes_on_cron_event(
+    app_name: AppName, on_cron_event: OnCronEvent,
+) -> anyhow::Result<()> {
+    //
+    let event = HermesEvent::new(
+        on_cron_event,
+        TargetApp::List(vec![HermesAppName(app_name)]),
+        TargetModule::All,
+    );
+    send(event)
+}
+
 /// The crontab queue task runs in the background.
-pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
+async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
     while let Some(cron_job) = queue_rx.recv().await {
         match cron_job {
             CronJob::Add(app_name, on_cron_event, response_tx) => {
@@ -249,13 +267,8 @@ pub(crate) async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
     }
 }
 
-/// Trigger the cron queue events dispatch.
-pub(crate) fn cron_queue_trigger() -> anyhow::Result<()> {
-    CRON_INTERNAL_STATE.cron_queue.trigger()
-}
-
 /// Handle the `CronJob::Remove` command.
-pub(crate) fn handle_rm_cron_job(
+fn handle_rm_cron_job(
     app_name: &AppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
 ) {
     let response = CRON_INTERNAL_STATE
@@ -267,7 +280,7 @@ pub(crate) fn handle_rm_cron_job(
 }
 
 /// Handle the `CronJob::Add` command.
-pub(crate) fn handle_add_cron_job(
+fn handle_add_cron_job(
     app_name: &AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
 ) {
     // Check if the event will trigger by getting the next immediate timestamp.
@@ -293,7 +306,7 @@ pub(crate) fn handle_add_cron_job(
 }
 
 /// Handle the `CronJob::List` command.
-pub(crate) fn handle_ls_cron_job(
+fn handle_ls_cron_job(
     app_name: &AppName, cron_tagged: &Option<CronEventTag>,
     response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
 ) {
@@ -306,7 +319,7 @@ pub(crate) fn handle_ls_cron_job(
 }
 
 /// Handle the `CronJob::Delay` command.
-pub(crate) fn handle_delay_cron_job(
+fn handle_delay_cron_job(
     app_name: &AppName, CronJobDelay { timestamp, event }: CronJobDelay,
     response_tx: oneshot::Sender<bool>,
 ) {
@@ -317,19 +330,6 @@ pub(crate) fn handle_delay_cron_job(
     if let Err(_err) = response_tx.send(response) {
         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
     }
-}
-
-/// Send event to the Hermes Event Queue.
-pub(crate) fn send_hermes_on_cron_event(
-    app_name: AppName, on_cron_event: OnCronEvent,
-) -> anyhow::Result<()> {
-    //
-    let event = HermesEvent::new(
-        on_cron_event,
-        TargetApp::List(vec![HermesAppName(app_name)]),
-        TargetModule::All,
-    );
-    send(event)
 }
 
 #[cfg(test)]
