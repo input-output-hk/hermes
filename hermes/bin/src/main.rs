@@ -55,8 +55,8 @@ fn main() {
 
     info!("{}", build_info_str);
 
-    if let Err(err) = reactor.wait() {
-        error!("Error in reactor: {}", err);
-        process::exit(1);
-    }
+    // if let Err(err) = reactor.wait() {
+    //     error!("Error in reactor: {}", err);
+    //     process::exit(1);
+    // }
 }
