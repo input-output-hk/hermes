@@ -49,12 +49,15 @@ pub(crate) struct CronEventQueue {
 }
 
 impl CronEventQueue {
+    /// The waiting event task id.
+    const WAITING_EVENT_TASK_ID: usize = 0;
+
     /// Create a new `CronQueueTask`.
     pub(crate) fn new(sender: Option<mpsc::Sender<CronJob>>) -> Self {
         Self {
             events: DashMap::default(),
             sender,
-            waiting_event: DashMap::default(),
+            waiting_event: DashMap::with_capacity(1),
         }
     }
 
@@ -138,6 +141,10 @@ impl CronEventQueue {
             .timestamp_nanos_opt()
             .ok_or(Error::InvalidTimestamp)?
             .try_into()?;
+        // drop the old waiting task if it has passed, retain if it hasn't.
+        self.waiting_event
+            .retain(|_, (waiting_for, _)| *waiting_for > trigger_time);
+        // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
             if trigger_time >= ts {
                 // If the timestamp is in the past:
@@ -159,7 +166,7 @@ impl CronEventQueue {
         // Create a new waiting task.
         let duration = timestamp - trigger_time;
         self.waiting_event
-            .entry(0)
+            .entry(Self::WAITING_EVENT_TASK_ID)
             .and_modify(|(waiting_for, handle)| {
                 // `timestamp` is before the task that is waiting,
                 // so we need to update the waiting task, and cancel
@@ -390,7 +397,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    fn test_cron_queue_trigger() {
+    fn test_cron_queue_trigger_needs_hermes_event_queue() {
         let queue = CronEventQueue::new(None);
 
         // To trigger on-cron events, an instance of the `HermesEventQueue` needs to be
