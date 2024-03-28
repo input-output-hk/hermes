@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["EventOnBlock"],"type":["BlockSrc","CardanoBlock","CardanoBlockchainId"]};
