@@ -27,7 +27,9 @@ codegen
 codepoints
 coti
 crontabs
+crontagged
 cryptoxide
+dashmap
 Datelike
 dashmap
 dbsync
@@ -38,6 +40,7 @@ dotenv
 dotenvy
 dotglob
 drep
+Datelike
 dreps
 encryptor
 Errno
