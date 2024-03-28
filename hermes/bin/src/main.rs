@@ -45,6 +45,8 @@ fn main() {
     // Get build info string.
     let build_info_str = format!("{:?}", build_info());
 
+    info!("{}", build_info_str);
+
     // Create a new reactor instance.
     let reactor_result = reactor::HermesReactor::new(Vec::new());
     let mut _reactor = match reactor_result {
@@ -54,9 +56,7 @@ fn main() {
             process::exit(1);
         },
     };
-
-    info!("{}", build_info_str);
-
+    
     // Comment out, since it causes CI to run forever.
     // if let Err(err) = reactor.wait() {
     //     error!("Error in reactor: {}", err);
