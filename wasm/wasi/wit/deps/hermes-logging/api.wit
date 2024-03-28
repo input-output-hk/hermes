@@ -32,12 +32,13 @@ interface api {
     /// The Webasm module does not need to concern itself with this kind of information, and should
     /// log as if it is the only instance.
     /// It also should not log any webasm shared context, except where it is relevant to the log message itself.
-    ///
+    /// The log level will be forced to INFO level.
+    /// 
     /// **Parameters**
     ///
-    /// - `level` : The log level this message is for. 
+    /// - `level` : The log level this message is for.
     /// - `file`  : The name of the src file being logged from. (Optional)
-    /// - `fn`    : The function within the file being logged from. (Optional)
+    /// - `function`    : The function within the file being logged from. (Optional)
     /// - `line`  : The line of code the log was generated from. (Optional)
     /// - `col`   : The column of code the log was generated from. (Optional)
     /// - `ctx`   : The logging context.  (Should have no newlines or formatting).
@@ -61,9 +62,8 @@ interface api {
     /// This format is designed to keep the broadest flexibility for multiple languages capabilities.
     /// The backtrace must be sorted with most recent lines of the backtrace occurring first in the array.
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be considered independent logs.
-    log: func(level: level, 
-                file: option<string>, fn: option<string>, line: option<u32>, col:option<u32>, 
-                ctx: option<string>, 
+    log: func(level: level, file: option<string>, function: option<string>, line: option<u32>, col:option<u32>, 
+            ctx: option<string>, 
                 msg: string, 
                 data: option<json>);
 }

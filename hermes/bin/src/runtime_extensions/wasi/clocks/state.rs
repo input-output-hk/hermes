@@ -30,8 +30,8 @@ impl ClockState {
         let res_duration = std::time::Duration::from_nanos(1);
         let mono_resolution = match res_duration.as_nanos().try_into() {
             Ok(res) => res,
-            Err(_res_err) => {
-                // TODO(@saibatizoku): Log errors https://github.com/input-output-hk/hermes/issues/15
+            Err(res_err) => {
+                tracing::error!(message = "Error converting duration to nanoseconds!", error = %res_err);
                 1
             },
         };
