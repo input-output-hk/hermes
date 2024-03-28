@@ -19,8 +19,6 @@ pub use wasm::module::bench::{
 
 use crate::logger::{LogLevel, LoggerConfig};
 
-// use crate::logger::{LogLevel, LoggerConfigBuilder};
-
 build_info::build_info!(fn build_info);
 
 /// A parameter identifier specifying the log level.
@@ -33,7 +31,7 @@ const DEFAULT_ENV_LOG_LEVEL: &str = "info";
 fn main() {
     let log_level = env::var(ENV_LOG_LEVEL).unwrap_or_else(|_| DEFAULT_ENV_LOG_LEVEL.to_owned());
 
-    let config = LoggerConfig::default()
+    let config = LoggerConfig::builder()
         .log_level(LogLevel::from_str(&log_level).unwrap_or_default())
         .with_thread(true)
         .with_file(true)
@@ -59,6 +57,7 @@ fn main() {
 
     info!("{}", build_info_str);
 
+    // Comment out, since it causes CI to run forever.
     // if let Err(err) = reactor.wait() {
     //     error!("Error in reactor: {}", err);
     //     process::exit(1);
