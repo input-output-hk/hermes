@@ -54,4 +54,4 @@ harness = false
 
 [build-dependencies]
 
-build-info-build = "0.0.36"
+build-info-build = { workspace = true }
