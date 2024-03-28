@@ -56,7 +56,6 @@ fn main() {
             process::exit(1);
         },
     };
-    
     // Comment out, since it causes CI to run forever.
     // if let Err(err) = reactor.wait() {
     //     error!("Error in reactor: {}", err);
