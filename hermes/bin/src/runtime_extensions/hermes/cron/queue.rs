@@ -251,9 +251,13 @@ fn new_waiting_task(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
+    use std::{collections::HashMap, sync::Arc, thread::sleep};
 
     use super::*;
+    use crate::{
+        app::{HermesApp, HermesAppName},
+        event::queue::HermesEventLoopHandler,
+    };
 
     const APP_NAME: &str = "test";
     const EVERY_MINUTE_WHEN: &str = "* * * * *";
@@ -303,6 +307,30 @@ mod tests {
             },
             last: IS_LAST,
         }
+    }
+
+    /// Initialize the CronEventQueue and the HermesEventQueue with
+    /// the `HermesApp` named `HermesAppName(APP_NAME.to_string())`.
+    #[allow(clippy::unwrap_used)]
+    fn initialize_queue() -> (CronEventQueue, HermesEventLoopHandler) {
+        let queue = CronEventQueue::new(None);
+        let hermes_app_name = HermesAppName(APP_NAME.to_string());
+        let hermes_app = HermesApp::new(hermes_app_name.clone(), vec![]).unwrap();
+        let handler =
+            crate::event::queue::init(Arc::new(HashMap::from([(hermes_app_name, hermes_app)])))
+                .unwrap();
+        (queue, handler)
+    }
+
+    /// Convert now plus `chrono::TimeDelta` to a `CronTimestamp`.
+    #[allow(clippy::unwrap_used)]
+    fn get_triggering_timestamp(delta: chrono::TimeDelta) -> CronTimestamp {
+        let trigger_date = chrono::Utc::now() + delta;
+        trigger_date
+            .timestamp_nanos_opt()
+            .unwrap()
+            .try_into()
+            .unwrap()
     }
 
     #[test]
@@ -411,5 +439,68 @@ mod tests {
         queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
         // Triggering to `HermesEventQueue` works.
         assert!(queue.trigger().is_ok());
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_queue_triggers_immediately() {
+        let (queue, _handler) = initialize_queue();
+        // With a timestamp in the past, triggering the queue will not create a waiting_event,
+        // it will pop the app queues and send the `HermesEvent`s.
+        queue.add_event(APP_NAME.to_string(), 0, cron_entry_1());
+        assert!(queue.trigger().is_ok());
+        assert!(queue.waiting_event.is_empty());
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_queue_triggers_waiting_task() {
+        let (queue, _handler) = initialize_queue();
+
+        // With a timestamp in the future, triggering the queue will create a waiting task that
+        // will trigger the queue after sleeping for the duration that is the difference between
+        // the timestamp and now.
+        // This event would trigger in 2 days.
+        let trigger_time = get_triggering_timestamp(chrono::TimeDelta::try_days(2).unwrap());
+        queue.add_event(APP_NAME.to_string(), trigger_time, cron_entry_1());
+        // triggers the queue
+        assert!(queue.trigger().is_ok());
+        // sets the waiting_event
+        assert!(!queue.waiting_event.is_empty());
+        // lists the event in the app queue
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![(
+            cron_entry_1().tag,
+            IS_LAST
+        )]);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_cron_queue_triggers_waiting_task_cleans_up_after_dispatch() {
+        let (queue, _handler) = initialize_queue();
+
+        // Adding a new event with a timestamp that is sooner, will replace the waiting_event.
+        // Set the timestamp to be 500 millis from now.
+        let trigger_time =
+            get_triggering_timestamp(chrono::TimeDelta::try_milliseconds(500).unwrap());
+        queue.add_event(APP_NAME.to_string(), trigger_time, cron_entry_2());
+        // triggering will update the waiting_event, but **for this test** it will not
+        // send the `HermesEvent`s because the spawned thread will call `cron_queue_trigger`,
+        // which communicates with the static `CRON_INTERNAL_STATE`.
+        assert!(queue.trigger().is_ok());
+        assert!(!queue.waiting_event.is_empty());
+        assert_eq!(queue.ls_events(&APP_NAME.to_string(), &None), vec![(
+            cron_entry_2().tag,
+            IS_NOT_LAST
+        ),]);
+        // wait for the waiting task to finish
+        sleep(std::time::Duration::from_millis(500));
+        // Trigger manually
+        assert!(queue.trigger().is_ok());
+        // THe waiting event should be empty
+        assert!(queue.waiting_event.is_empty());
+        // The queue should be empty
+        assert!(queue.ls_events(&APP_NAME.to_string(), &None).is_empty());
     }
 }
