@@ -142,8 +142,14 @@ impl CronEventQueue {
             .ok_or(Error::InvalidTimestamp)?
             .try_into()?;
         // drop the old waiting task if it has passed, retain if it hasn't.
-        self.waiting_event
-            .retain(|_, (waiting_for, _)| *waiting_for > trigger_time);
+        if let Some((_key, (_, handle))) = self
+            .waiting_event
+            .remove_if(&Self::WAITING_EVENT_TASK_ID, |_, (waiting_for, _)| {
+                *waiting_for <= trigger_time
+            })
+        {
+            handle.join().map_err(|_| Error::CronQueueTaskFailed)?;
+        }
         // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
             if trigger_time >= ts {
@@ -153,7 +159,8 @@ impl CronEventQueue {
             } else {
                 // If the timestamp is in the future:
                 // * update the waiting task
-                self.update_waiting_task(trigger_time, ts);
+                let sleep_duration = ts - trigger_time;
+                self.update_waiting_task(ts, sleep_duration);
                 // Since `ts` is in the future, we can break
                 break;
             }
@@ -162,9 +169,8 @@ impl CronEventQueue {
     }
 
     /// Update the waiting task.
-    fn update_waiting_task(&self, trigger_time: CronTimestamp, timestamp: CronTimestamp) {
+    fn update_waiting_task(&self, timestamp: CronTimestamp, sleep_duration: CronTimestamp) {
         // Create a new waiting task.
-        let duration = timestamp - trigger_time;
         self.waiting_event
             .entry(Self::WAITING_EVENT_TASK_ID)
             .and_modify(|(waiting_for, handle)| {
@@ -172,10 +178,10 @@ impl CronEventQueue {
                 // so we need to update the waiting task, and cancel
                 // the old one, if it exists.
                 if *waiting_for > timestamp {
-                    (*waiting_for, *handle) = new_waiting_task(timestamp, duration);
+                    (*waiting_for, *handle) = new_waiting_task(timestamp, sleep_duration);
                 }
             })
-            .or_insert_with(|| new_waiting_task(timestamp, duration));
+            .or_insert_with(|| new_waiting_task(timestamp, sleep_duration));
     }
 
     /// Pop the first item from all the `BTreeMap`s belonging
@@ -309,7 +315,7 @@ mod tests {
         }
     }
 
-    /// Initialize the CronEventQueue and the HermesEventQueue with
+    /// Initialize the `CronEventQueue` and the `HermesEventQueue` with
     /// the `HermesApp` named `HermesAppName(APP_NAME.to_string())`.
     #[allow(clippy::unwrap_used)]
     fn initialize_queue() -> (CronEventQueue, HermesEventLoopHandler) {
