@@ -22,7 +22,7 @@ use crate::logger::{LogLevel, LoggerConfig};
 build_info::build_info!(fn build_info);
 
 /// A parameter identifier specifying the log level.
-const ENV_LOG_LEVEL: &str = "LOG_LEVEL";
+const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
 /// The default value for the log level when not specified.
 const DEFAULT_ENV_LOG_LEVEL: &str = "info";
 
