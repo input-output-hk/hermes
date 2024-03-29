@@ -77,44 +77,70 @@ impl From<LogLevel> for tracing::Level {
 /// Logger configuration.
 #[derive(Default)]
 pub(crate) struct LoggerConfig {
-    /// Log level
+    /// Log level.
     log_level: LogLevel,
-    /// Enable/disable thread logging
+    /// Enable/disable thread logging.
     with_thread: bool,
-    /// Enable/disable file logging
+    /// Enable/disable file logging.
     with_file: bool,
-    /// Enable/disable line number logging
+    /// Enable/disable line number logging.
     with_line_num: bool,
 }
 
 #[allow(dead_code)]
 impl LoggerConfig {
-    /// Build the logger configuration
+    /// Entry point to logger building.
+    pub(crate) fn builder() -> LoggerConfigBuilder {
+        LoggerConfigBuilder::default()
+    }
+}
+
+/// Logger configuration builder.
+#[derive(Default)]
+pub(crate) struct LoggerConfigBuilder {
+    /// Builder log level.
+    log_level: Option<LogLevel>,
+    /// Builder enable/disable thread logging.
+    with_thread: Option<bool>,
+    /// Builder enable/disable file logging.
+    with_file: Option<bool>,
+    /// Builder enable/disable line number logging.
+    with_line_num: Option<bool>,
+}
+
+#[allow(dead_code)]
+impl LoggerConfigBuilder {
+    /// Build the logger configuration.
     pub(crate) fn build(self) -> LoggerConfig {
-        self
+        LoggerConfig {
+            log_level: self.log_level.unwrap_or(LogLevel::Info),
+            with_thread: self.with_thread.unwrap_or(false),
+            with_file: self.with_file.unwrap_or(false),
+            with_line_num: self.with_line_num.unwrap_or(false),
+        }
     }
 
-    /// Set log level
+    /// Set log level.
     pub(crate) fn log_level(mut self, level: LogLevel) -> Self {
-        self.log_level = level;
+        self.log_level = Some(level);
         self
     }
 
-    /// Enable/disable thread logging
+    /// Enable/disable thread logging.
     pub(crate) fn with_thread(mut self, enable: bool) -> Self {
-        self.with_thread = enable;
+        self.with_thread = Some(enable);
         self
     }
 
-    /// Enable/disable file logging
+    /// Enable/disable file logging.
     pub(crate) fn with_file(mut self, enable: bool) -> Self {
-        self.with_file = enable;
+        self.with_file = Some(enable);
         self
     }
 
-    /// Enable/disable line number logging
+    /// Enable/disable line number logging.
     pub(crate) fn with_line_num(mut self, enable: bool) -> Self {
-        self.with_line_num = enable;
+        self.with_line_num = Some(enable);
         self
     }
 }
