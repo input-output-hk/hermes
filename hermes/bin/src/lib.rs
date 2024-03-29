@@ -3,6 +3,7 @@
 
 pub mod app;
 pub mod event;
+pub mod logger;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;

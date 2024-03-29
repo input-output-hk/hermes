@@ -41,8 +41,17 @@ bip32 = { workspace = true }
 ed25519-bip32 = { workspace = true }
 dashmap = { workspace = true }
 once_cell = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "json", "time"] }
+build-info = { workspace = true }
+derive_more = { workspace = true, features = ["display"], default-features = false }
 
 [[test]]
 name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
+
+[build-dependencies]
+
+build-info-build = { workspace = true }
