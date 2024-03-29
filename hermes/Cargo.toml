@@ -50,8 +50,8 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-pallas = { version = "0.23.0" }
-pallas-hardano = { version = "0.23.0" }
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 
 wasmtime = "18.0.2"
 rusty_ulid = "2.0.0"
