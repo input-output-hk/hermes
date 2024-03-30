@@ -50,8 +50,8 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-pallas = { version = "0.23.0" }
-pallas-hardano = { version = "0.23.0" }
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
 
 wasmtime = "18.0.2"
 rusty_ulid = "2.0.0"
@@ -73,6 +73,10 @@ bip32 = "0.5.1"
 ed25519-bip32 = "0.4.1"
 dashmap = "5.5.3"
 once_cell = "1.19.0"
+clap = "4.5.3"
+build-info = "0.0.36"
+derive_more = { version= "0.99.17", default-features= false }
+build-info-build = "0.0.36"
 chrono = "0.4.35"
 chrono-tz = "0.8.6"
 saffron = "0.1.0"
