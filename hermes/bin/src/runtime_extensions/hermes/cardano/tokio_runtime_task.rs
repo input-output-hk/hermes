@@ -147,78 +147,92 @@ fn executor(mut cmd_rx: CommandReceiver) {
                     follow_from,
                     response_tx,
                 } => {
-                    trace!("Spawning chain follower executor");
-
-                    let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
-                    let network = chain_id.into();
-
-                    let connect_fut = cardano_chain_follower::Follower::connect(
-                        follower_connect_address(network),
-                        network,
-                        config,
-                    );
-
-                    let Ok(follower) = connect_fut.await else {
-                        drop(response_tx.send(Err(Error::InternalError)));
-                        continue;
-                    };
-
-                    trace!("Started chain follower");
-
-                    let set_read_pointer_fut = follower.set_read_pointer(follow_from);
-
-                    let Ok(Some(point)) = set_read_pointer_fut.await else {
-                        drop(response_tx.send(Err(Error::InternalError)));
-                        continue;
-                    };
-
-                    trace!("Set chain follower starting point");
-
-                    let handle =
-                        super::chain_follower_task::spawn(follower, app_name, module_id, chain_id);
-
-                    let res = (handle, point);
-
-                    drop(response_tx.send(Ok(res)));
+                    let res = spawn_follower(app_name, module_id, chain_id, follow_from).await;
+                    drop(response_tx.send(res));
                 },
                 Command::ReadBlock {
                     chain_id,
                     at,
                     response_tx,
                 } => {
-                    trace!("Reading block");
-
-                    let network = chain_id.into();
-
-                    let res = async {
-                        if let Some(reader) = STATE.readers.get(&network) {
-                            reader.read_block(at).await
-                        } else {
-                            // Limit the follower's buffer size. This does not really matter
-                            // since we'll not poll the
-                            // follower's future so the following process will
-                            // not be executed.
-                            let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
-                                .chain_update_buffer_size(1)
-                                .build();
-
-                            let reader = cardano_chain_follower::Follower::connect(
-                                follower_connect_address(network),
-                                network,
-                                cfg,
-                            )
-                            .await?;
-
-                            reader.read_block(at).await
-                        }
-                    }
-                    .await;
-
-                    drop(response_tx.send(res.map_err(|_| Error::InternalError)));
+                    let res = read_block(chain_id, at).await;
+                    drop(response_tx.send(res));
                 },
             }
         }
     });
+}
+
+/// Spawns a follower which will follow the given chain and sets its starting point to the
+/// given point.
+async fn spawn_follower(
+    app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
+    follow_from: cardano_chain_follower::PointOrTip,
+) -> Result<(
+    super::chain_follower_task::Handle,
+    cardano_chain_follower::Point,
+)> {
+    trace!("Spawning chain follower executor");
+
+    let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
+    let network = chain_id.into();
+
+    let follower = cardano_chain_follower::Follower::connect(
+        follower_connect_address(network),
+        network,
+        config,
+    )
+    .await
+    .map_err(|_| Error::InternalError)?;
+
+    trace!("Started chain follower");
+
+    let Ok(Some(point)) = follower.set_read_pointer(follow_from).await else {
+        return Err(Error::InternalError);
+    };
+
+    trace!("Set chain follower starting point");
+
+    let handle = super::chain_follower_task::spawn(follower, app_name, module_id, chain_id);
+
+    Ok((handle, point))
+}
+
+/// Reads a block from the given chain at the given point.
+async fn read_block(
+    chain_id: CardanoBlockchainId, at: cardano_chain_follower::PointOrTip,
+) -> Result<cardano_chain_follower::MultiEraBlockData> {
+    trace!("Reading block");
+
+    let network = chain_id.into();
+
+    if let Some(reader) = STATE.readers.get(&network) {
+        reader
+            .read_block(at)
+            .await
+            .map_err(|_| Error::InternalError)
+    } else {
+        // Limit the follower's buffer size. This does not really matter
+        // since we'll not poll the
+        // follower's future so the following process will
+        // not be executed.
+        let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
+            .chain_update_buffer_size(1)
+            .build();
+
+        let reader = cardano_chain_follower::Follower::connect(
+            follower_connect_address(network),
+            network,
+            cfg,
+        )
+        .await
+        .map_err(|_| Error::InternalError)?;
+
+        reader
+            .read_block(at)
+            .await
+            .map_err(|_| Error::InternalError)
+    }
 }
 
 /// Returns the peer address used to connect to each Cardano network.
