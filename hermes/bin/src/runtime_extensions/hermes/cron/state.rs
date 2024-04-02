@@ -43,9 +43,6 @@ static CRON_INTERNAL_STATE: Lazy<InternalState> = Lazy::new(|| {
     InternalState::new(sender)
 });
 
-/// Name of the Application that owns the `OnCronEvent`s.
-pub type AppName = String;
-
 /// Internal State.
 struct InternalState {
     /// The send events to the crontab queue.
@@ -68,7 +65,7 @@ impl InternalState {
     ///
     /// ## Parameters
     ///
-    /// - `app_name`:  `AppName`. The name of the application that owns the crontab.
+    /// - `app_name`:  `HermesAppName`. The name of the application that owns the crontab.
     /// - `entry`:  `CronTagged`. The crontab entry to add.
     /// - `retrigger`:  `bool`. If `true`, the event will re-trigger every time the
     ///   crontab entry matches until cancelled.
@@ -77,7 +74,7 @@ impl InternalState {
     ///
     /// - `true`: Crontab added successfully.
     /// - `false`: Crontab failed to be added.
-    fn add_crontab(&self, app_name: &str, entry: CronTagged, retrigger: bool) -> bool {
+    fn add_crontab(&self, app_name: &HermesAppName, entry: CronTagged, retrigger: bool) -> bool {
         let crontab = OnCronEvent {
             tag: entry,
             last: !retrigger,
@@ -85,7 +82,7 @@ impl InternalState {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
             self.cron_queue
-                .spawn_cron_job(CronJob::Add(app_name.into(), crontab, cmd_tx)),
+                .spawn_cron_job(CronJob::Add(app_name.clone(), crontab, cmd_tx)),
         );
         if let Ok(resp) = cmd_rx.blocking_recv() {
             resp
@@ -102,7 +99,7 @@ impl InternalState {
     ///
     /// ## Parameters
     ///
-    /// - `app_name`:  `AppName`. The name of the application that owns the crontab.
+    /// - `app_name`:  `HermesAppName`. The name of the application that owns the crontab.
     /// - `duration`: `Instant`. How many nanoseconds to delay.  The delay will be AT
     ///   LEAST this long.
     /// - `tag`:  `CronEventTag`. A tag which will accompany the triggered event.
@@ -113,13 +110,13 @@ impl InternalState {
     /// - `Ok(false)`: Crontab failed to be added.
     /// - `Err`: Returns error if the duration is invalid for generating a crontab entry.
     fn delay_crontab(
-        &self, app_name: &str, duration: Instant, tag: CronEventTag,
+        &self, app_name: &HermesAppName, duration: Instant, tag: CronEventTag,
     ) -> wasmtime::Result<bool> {
         let cron_delay = mkdelay_crontab(duration, tag)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
             self.cron_queue
-                .spawn_cron_job(CronJob::Delay(app_name.into(), cron_delay, cmd_tx)),
+                .spawn_cron_job(CronJob::Delay(app_name.clone(), cron_delay, cmd_tx)),
         );
         if let Ok(resp) = cmd_rx.blocking_recv() {
             Ok(resp)
@@ -146,11 +143,13 @@ impl InternalState {
     /// The list is sorted from most crontab that will trigger soonest to latest.
     /// Crontabs are only listed once, in the case where a crontab may be scheduled
     /// may times before a later one.
-    fn ls_crontabs(&self, app_name: &str, tag: Option<CronEventTag>) -> Vec<(CronTagged, bool)> {
+    fn ls_crontabs(
+        &self, app_name: &HermesAppName, tag: Option<CronEventTag>,
+    ) -> Vec<(CronTagged, bool)> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
             self.cron_queue
-                .spawn_cron_job(CronJob::List(app_name.into(), tag, cmd_tx)),
+                .spawn_cron_job(CronJob::List(app_name.clone(), tag, cmd_tx)),
         );
         // TODO (@@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
         if let Ok(resp) = cmd_rx.blocking_recv() {
@@ -173,11 +172,11 @@ impl InternalState {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm_crontab(&self, app_name: &str, entry: CronTagged) -> bool {
+    fn rm_crontab(&self, app_name: &HermesAppName, entry: CronTagged) -> bool {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
             self.cron_queue
-                .spawn_cron_job(CronJob::Remove(app_name.into(), entry, cmd_tx)),
+                .spawn_cron_job(CronJob::Remove(app_name.clone(), entry, cmd_tx)),
         );
         if let Ok(resp) = cmd_rx.blocking_recv() {
             resp
@@ -196,24 +195,26 @@ impl Hash for CronTagged {
 }
 
 /// Add a crontab to the cron queue.
-pub(crate) fn cron_queue_add(app_name: &str, entry: CronTagged, retrigger: bool) -> bool {
+pub(crate) fn cron_queue_add(app_name: &HermesAppName, entry: CronTagged, retrigger: bool) -> bool {
     CRON_INTERNAL_STATE.add_crontab(app_name, entry, retrigger)
 }
 
 /// List crontabs from the cron queue.
-pub(crate) fn cron_queue_ls(app_name: &str, tag: Option<CronEventTag>) -> Vec<(CronTagged, bool)> {
+pub(crate) fn cron_queue_ls(
+    app_name: &HermesAppName, tag: Option<CronEventTag>,
+) -> Vec<(CronTagged, bool)> {
     CRON_INTERNAL_STATE.ls_crontabs(app_name, tag)
 }
 
 /// Delay a crontab in the cron queue.
 pub(crate) fn cron_queue_delay(
-    app_name: &str, duration: Instant, tag: CronEventTag,
+    app_name: &HermesAppName, duration: Instant, tag: CronEventTag,
 ) -> wasmtime::Result<bool> {
     CRON_INTERNAL_STATE.delay_crontab(app_name, duration, tag)
 }
 
 /// Remove a crontab from the cron queue.
-pub(crate) fn cron_queue_rm(app_name: &str, entry: CronTagged) -> bool {
+pub(crate) fn cron_queue_rm(app_name: &HermesAppName, entry: CronTagged) -> bool {
     CRON_INTERNAL_STATE.rm_crontab(app_name, entry)
 }
 
@@ -224,12 +225,12 @@ pub(crate) fn cron_queue_trigger() -> anyhow::Result<()> {
 
 /// Send event to the Hermes Event Queue.
 pub(crate) fn send_hermes_on_cron_event(
-    app_name: AppName, on_cron_event: OnCronEvent,
+    app_name: &HermesAppName, on_cron_event: OnCronEvent,
 ) -> anyhow::Result<()> {
     //
     let event = HermesEvent::new(
         on_cron_event,
-        TargetApp::List(vec![HermesAppName(app_name)]),
+        TargetApp::List(vec![app_name.clone()]),
         TargetModule::All,
     );
     send(event)
@@ -240,7 +241,7 @@ async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
     while let Some(cron_job) = queue_rx.recv().await {
         match cron_job {
             CronJob::Add(app_name, on_cron_event, response_tx) => {
-                handle_add_cron_job(&app_name, on_cron_event, response_tx);
+                handle_add_cron_job(app_name, on_cron_event, response_tx);
                 // Trigger the cron queue
                 if let Err(_err) = cron_queue_trigger() {
                     // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
@@ -250,7 +251,7 @@ async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
                 handle_ls_cron_job(&app_name, &tag, response_tx);
             },
             CronJob::Delay(app_name, cron_job_delay, response_tx) => {
-                handle_delay_cron_job(&app_name, cron_job_delay, response_tx);
+                handle_delay_cron_job(app_name, cron_job_delay, response_tx);
                 // Trigger the cron queue
                 if let Err(_err) = cron_queue_trigger() {
                     // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
@@ -269,7 +270,7 @@ async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
 
 /// Handle the `CronJob::Remove` command.
 fn handle_rm_cron_job(
-    app_name: &AppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
+    app_name: &HermesAppName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
 ) {
     let response = CRON_INTERNAL_STATE
         .cron_queue
@@ -281,14 +282,14 @@ fn handle_rm_cron_job(
 
 /// Handle the `CronJob::Add` command.
 fn handle_add_cron_job(
-    app_name: &AppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
+    app_name: HermesAppName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
 ) {
     // Check if the event will trigger by getting the next immediate timestamp.
     let response = if let Some(timestamp) = on_cron_event.tick_from(None) {
         // add the event to the queue
         CRON_INTERNAL_STATE
             .cron_queue
-            .add_event(app_name.to_string(), timestamp, on_cron_event);
+            .add_event(app_name, timestamp, on_cron_event);
         true
     } else {
         // The event will not trigger any timestamp. This can happen when setting
@@ -307,7 +308,7 @@ fn handle_add_cron_job(
 
 /// Handle the `CronJob::List` command.
 fn handle_ls_cron_job(
-    app_name: &AppName, cron_tagged: &Option<CronEventTag>,
+    app_name: &HermesAppName, cron_tagged: &Option<CronEventTag>,
     response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
 ) {
     let response = CRON_INTERNAL_STATE
@@ -320,12 +321,12 @@ fn handle_ls_cron_job(
 
 /// Handle the `CronJob::Delay` command.
 fn handle_delay_cron_job(
-    app_name: &AppName, CronJobDelay { timestamp, event }: CronJobDelay,
+    app_name: HermesAppName, CronJobDelay { timestamp, event }: CronJobDelay,
     response_tx: oneshot::Sender<bool>,
 ) {
     CRON_INTERNAL_STATE
         .cron_queue
-        .add_event(app_name.to_string(), timestamp, event);
+        .add_event(app_name, timestamp, event);
     let response = true;
     if let Err(_err) = response_tx.send(response) {
         // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
@@ -337,6 +338,7 @@ mod tests {
     use chrono::Datelike;
 
     use super::*;
+    use crate::runtime_extensions::hermes::cron::tests::hermes_app_name;
 
     const APP_NAME: &str = "test";
 
@@ -377,17 +379,18 @@ mod tests {
     fn test_internal_state_with_no_tokio_task() {
         // start the state without a cron queue task thread
         let state = InternalState::new(None);
+        let hermes_app = hermes_app_name(APP_NAME);
 
         // Add returns false
-        assert!(!state.add_crontab(APP_NAME, crontab_example_1(), RETRIGGER_YES));
+        assert!(!state.add_crontab(&hermes_app, crontab_example_1(), RETRIGGER_YES));
         // List returns empty vec.
-        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
+        assert!(state.ls_crontabs(&hermes_app, None).is_empty());
         // Delay returns false
         assert!(!state
-            .delay_crontab(APP_NAME, 0, "test".to_string())
+            .delay_crontab(&hermes_app, 0, "test".to_string())
             .unwrap());
         // Remove returns false
-        assert!(!state.rm_crontab(APP_NAME, CronTagged {
+        assert!(!state.rm_crontab(&hermes_app, CronTagged {
             when: "*".to_string(),
             tag: "test".to_string()
         }));
@@ -396,8 +399,9 @@ mod tests {
     #[test]
     fn test_cron_state() {
         let state = &CRON_INTERNAL_STATE;
-        // Initial state for any AppName is always empty
-        assert!(state.ls_crontabs(APP_NAME, None).is_empty());
+        let hermes_app = hermes_app_name(APP_NAME);
+        // Initial state for any `HermesAppName` is always empty
+        assert!(state.ls_crontabs(&hermes_app, None).is_empty());
     }
 
     #[test]
@@ -408,41 +412,60 @@ mod tests {
     // duration of the test.
     fn test_cron_state_multi_thread_add_and_list_and_delay_and_remove_crontabs_without_triggering()
     {
-        // Initial state for any AppName is always empty
-        assert!(cron_queue_ls(APP_NAME, None).is_empty());
+        let app_name = hermes_app_name(APP_NAME);
+        // Initial state for any `HermesAppName` is always empty
+        assert!(cron_queue_ls(&app_name, None).is_empty());
 
         // inserting returns true
-        assert!(cron_queue_add(APP_NAME, crontab_example_1(), RETRIGGER_YES));
+        assert!(cron_queue_add(
+            &hermes_app_name(APP_NAME),
+            crontab_example_1(),
+            RETRIGGER_YES
+        ));
 
         // inserting separate thread
-        let h =
-            std::thread::spawn(move || cron_queue_add(APP_NAME, crontab_example_1(), RETRIGGER_NO));
+        let h = std::thread::spawn(move || {
+            let app_name = hermes_app_name(APP_NAME);
+            cron_queue_add(&app_name, crontab_example_1(), RETRIGGER_NO)
+        });
         assert!(h.join().unwrap());
 
-        assert_eq!(cron_queue_ls(APP_NAME, None), vec![
+        assert_eq!(cron_queue_ls(&app_name, None), vec![
             (crontab_example_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_LAST),
         ]);
 
-        assert!(cron_queue_add(APP_NAME, crontab_example_2(), RETRIGGER_YES));
+        assert!(cron_queue_add(
+            &app_name,
+            crontab_example_2(),
+            RETRIGGER_YES
+        ));
 
         let h = std::thread::spawn(move || {
-            cron_queue_add(APP_NAME, crontab_example_2(), RETRIGGER_YES)
+            let app_name = hermes_app_name(APP_NAME);
+            cron_queue_add(&app_name.clone(), crontab_example_2(), RETRIGGER_YES)
         });
         assert!(h.join().unwrap());
 
-        let h = std::thread::spawn(move || cron_queue_ls(APP_NAME, None));
+        let h = std::thread::spawn(move || {
+            let app_name = hermes_app_name(APP_NAME);
+            cron_queue_ls(&app_name.clone(), None)
+        });
         assert_eq!(h.join().unwrap(), vec![
             (crontab_example_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_LAST),
             (crontab_example_2(), IS_NOT_LAST),
         ]);
 
-        assert!(cron_queue_add(APP_NAME, crontab_example_3(), RETRIGGER_YES));
-        assert!(cron_queue_add(APP_NAME, crontab_other_1(), RETRIGGER_YES));
+        assert!(cron_queue_add(
+            &app_name,
+            crontab_example_3(),
+            RETRIGGER_YES
+        ));
+        assert!(cron_queue_add(&app_name, crontab_other_1(), RETRIGGER_YES));
 
         // List
-        assert_eq!(cron_queue_ls(APP_NAME, None), vec![
+        assert_eq!(cron_queue_ls(&app_name, None), vec![
             (crontab_example_3(), IS_NOT_LAST),
             (crontab_other_1(), IS_NOT_LAST),
             (crontab_example_1(), IS_NOT_LAST),
@@ -458,7 +481,10 @@ mod tests {
                 timestamp: _,
                 event,
             } = mkdelay_crontab(duration, delayed_tag.clone()).unwrap();
-            assert!(cron_queue_delay(APP_NAME, duration, delayed_tag.clone()).unwrap());
+            assert!(
+                cron_queue_delay(&hermes_app_name(APP_NAME), duration, delayed_tag.clone())
+                    .unwrap()
+            );
 
             CronTagged {
                 when: event.tag.when.clone(),
@@ -467,23 +493,25 @@ mod tests {
         });
         let expected_crontagged = h.join().unwrap();
 
-        assert!(cron_queue_ls(APP_NAME, None).contains(&(expected_crontagged.clone(), IS_LAST)));
+        assert!(cron_queue_ls(&app_name, None).contains(&(expected_crontagged.clone(), IS_LAST)));
 
         // Start clearing the queue in current thread
-        assert!(cron_queue_rm(APP_NAME, expected_crontagged));
+        assert!(cron_queue_rm(&app_name, expected_crontagged));
 
         // Remove everything else from another thread
         let h = std::thread::spawn(move || {
-            assert!(cron_queue_rm(APP_NAME, crontab_example_1()));
-            assert!(cron_queue_rm(APP_NAME, crontab_example_2()));
-            assert!(cron_queue_rm(APP_NAME, crontab_example_3()));
-            assert!(cron_queue_rm(APP_NAME, crontab_other_1()));
+            let app_name = hermes_app_name(APP_NAME);
+            assert!(cron_queue_rm(&app_name, crontab_example_1()));
+            assert!(cron_queue_rm(&app_name, crontab_example_2()));
+            assert!(cron_queue_rm(&app_name, crontab_example_3()));
+            assert!(cron_queue_rm(&app_name, crontab_other_1()));
         });
         h.join().unwrap();
 
         // Run final test in another thread
         let h = std::thread::spawn(move || {
-            assert!(cron_queue_ls(APP_NAME, None).is_empty());
+            let app_name = hermes_app_name(APP_NAME);
+            assert!(cron_queue_ls(&app_name, None).is_empty());
         });
         h.join().unwrap();
     }

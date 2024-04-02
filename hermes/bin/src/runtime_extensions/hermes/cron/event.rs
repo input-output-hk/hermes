@@ -1,15 +1,47 @@
 //! Cron runtime extension event handler implementation.
 
+use std::ops::Sub;
+
 use chrono::Utc;
 use saffron::Cron;
 
-use super::state::cron_queue_rm;
+use super::{state::cron_queue_rm, Error};
 use crate::{
     event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
-/// Timestamp for when to run the cron.
-pub(crate) type CronTimestamp = u64;
+/// Duration in nanoseconds used for the Cron Service.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
+pub(crate) struct CronDuration(u64);
+
+impl Sub for CronDuration {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl TryFrom<i64> for CronDuration {
+    type Error = Error;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        let duration: u64 = value.try_into().map_err(|_| Error::InvalidTimestamp)?;
+        Ok(CronDuration(duration))
+    }
+}
+
+impl From<CronDuration> for u64 {
+    fn from(value: CronDuration) -> Self {
+        value.0
+    }
+}
+
+impl From<u64> for CronDuration {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 /// On cron event
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
@@ -35,7 +67,7 @@ impl HermesEventPayload for OnCronEvent {
         // re-trigger, if so, remove it.
         if !res && !self.last {
             let app_name = module.store.data().app_name();
-            cron_queue_rm(&app_name.0, self.tag.clone());
+            cron_queue_rm(app_name, self.tag.clone());
         }
         Ok(())
     }
@@ -47,20 +79,20 @@ impl OnCronEvent {
     ///
     /// # Parameters
     ///
-    /// * `start: Option<CronTimestamp>` - The optional start timestamp. If `None`, the
+    /// * `start: Option<CronDuration>` - The optional start timestamp. If `None`, the
     ///   current time is used.
     ///
     /// # Returns
     ///
-    /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
+    /// * `Some(CronDuration)` - The next timestamp for the `OnCronEvent`.
     /// * `None` if the timestamp could not be calculated.
-    pub(crate) fn tick_after(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+    pub(crate) fn tick_after(&self, start: Option<CronDuration>) -> Option<CronDuration> {
         let cron = self.cron()?;
         if cron.any() {
             let datetime = Self::start_datetime(start)?;
             let cdt = cron.iter_after(datetime).next()?;
             let timestamp = cdt.timestamp_nanos_opt()?;
-            timestamp.try_into().ok()
+            timestamp.try_into().ok().map(CronDuration)
         } else {
             None
         }
@@ -71,20 +103,20 @@ impl OnCronEvent {
     ///
     /// # Parameters
     ///
-    /// * `start: Option<CronTimestamp>` - The optional start timestamp. If `None`, the
+    /// * `start: Option<CronDuration>` - The optional start timestamp. If `None`, the
     ///   current time is used.
     ///
     /// # Returns
     ///
-    /// * `Some(CronTimestamp)` - The next timestamp for the `OnCronEvent`.
+    /// * `Some(CronDuration)` - The next timestamp for the `OnCronEvent`.
     /// * `None` if the timestamp could not be calculated.
-    pub(crate) fn tick_from(&self, start: Option<CronTimestamp>) -> Option<CronTimestamp> {
+    pub(crate) fn tick_from(&self, start: Option<CronDuration>) -> Option<CronDuration> {
         let cron = self.cron()?;
         if cron.any() {
             let datetime = Self::start_datetime(start)?;
             let cdt = cron.iter_from(datetime).next()?;
             let timestamp = cdt.timestamp_nanos_opt()?;
-            timestamp.try_into().ok()
+            timestamp.try_into().ok().map(CronDuration)
         } else {
             None
         }
@@ -101,10 +133,10 @@ impl OnCronEvent {
     /// Use the `start` timestamp if provided, otherwise use the current time.
     ///
     /// Returns `None` if the datetime could not be calculated.:w
-    fn start_datetime(start: Option<CronTimestamp>) -> Option<chrono::DateTime<Utc>> {
+    fn start_datetime(start: Option<CronDuration>) -> Option<chrono::DateTime<Utc>> {
         let datetime = match start {
             None => Utc::now(),
-            Some(dt) => chrono::DateTime::from_timestamp_nanos(dt.try_into().ok()?),
+            Some(dt) => chrono::DateTime::from_timestamp_nanos(dt.0.try_into().ok()?),
         };
         Some(datetime)
     }

@@ -338,11 +338,16 @@ impl Ord for CronComponent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::HermesAppName;
 
     // Define lower limit for the schedule component values.
     const FIRST: u8 = 1;
     // Define upper limit for the schedule component values.
     const LAST: u8 = 59;
+
+    pub(crate) fn hermes_app_name(name: &str) -> HermesAppName {
+        HermesAppName(name.into())
+    }
 
     #[test]
     #[allow(clippy::unwrap_used)]
