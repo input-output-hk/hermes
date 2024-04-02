@@ -92,7 +92,7 @@ impl OnCronEvent {
             let datetime = Self::start_datetime(start)?;
             let cdt = cron.iter_after(datetime).next()?;
             let timestamp = cdt.timestamp_nanos_opt()?;
-            timestamp.try_into().ok().map(CronDuration)
+            timestamp.try_into().ok()
         } else {
             None
         }
@@ -116,7 +116,7 @@ impl OnCronEvent {
             let datetime = Self::start_datetime(start)?;
             let cdt = cron.iter_from(datetime).next()?;
             let timestamp = cdt.timestamp_nanos_opt()?;
-            timestamp.try_into().ok().map(CronDuration)
+            timestamp.try_into().ok()
         } else {
             None
         }
