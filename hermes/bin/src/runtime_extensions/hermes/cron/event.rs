@@ -122,7 +122,7 @@ impl OnCronEvent {
         }
     }
 
-    /// Get the w`Cron` from the inner `CronSchedule`.
+    /// Get the `Cron` from the inner `CronSchedule`.
     fn cron(&self) -> Option<Cron> {
         let when = &self.tag.when;
         when.parse::<Cron>().ok()
@@ -132,7 +132,7 @@ impl OnCronEvent {
     ///
     /// Use the `start` timestamp if provided, otherwise use the current time.
     ///
-    /// Returns `None` if the datetime could not be calculated.:w
+    /// Returns `None` if the datetime could not be calculated.
     fn start_datetime(start: Option<CronDuration>) -> Option<chrono::DateTime<Utc>> {
         let datetime = match start {
             None => Utc::now(),
