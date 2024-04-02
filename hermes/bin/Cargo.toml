@@ -28,10 +28,6 @@ blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
-time = { workspace = true }
-chrono = { workspace = true }
-chrono-tz = { workspace = true }
-iana-time-zone = { workspace = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }
 bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
@@ -46,6 +42,11 @@ tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "json", "time"] }
 build-info = { workspace = true }
 derive_more = { workspace = true, features = ["display"], default-features = false }
+chrono = { workspace = true, features = ["now"] }
+chrono-tz = { workspace = true }
+iana-time-zone = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt","sync",  "time"] }
+saffron = { workspace = true }
 
 [[test]]
 name = "wasm-component-integration-tests"
