@@ -44,7 +44,7 @@ impl From<u64> for CronDuration {
 }
 
 /// On cron event
-#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct OnCronEvent {
     /// The tagged cron event that was triggered.
     pub(crate) tag: CronTagged,

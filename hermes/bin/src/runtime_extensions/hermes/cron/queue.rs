@@ -1,6 +1,6 @@
 //! Cron Event Queue implementation.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use dashmap::DashMap;
 use tokio::sync::{mpsc, oneshot};
@@ -44,7 +44,7 @@ pub(crate) enum CronJob {
 /// The crontab queue task runs in the background.
 pub(crate) struct CronEventQueue {
     /// The crontab events.
-    events: DashMap<HermesAppName, BTreeMap<CronDuration, BTreeSet<OnCronEvent>>>,
+    events: DashMap<HermesAppName, BTreeMap<CronDuration, HashSet<OnCronEvent>>>,
     /// Send events to the crontab queue.
     sender: Option<mpsc::Sender<CronJob>>,
     /// Next scheduled Cron Task.
@@ -84,9 +84,9 @@ impl CronEventQueue {
                     .and_modify(|e| {
                         e.insert(on_cron_event.clone());
                     })
-                    .or_insert_with(|| BTreeSet::from([on_cron_event.clone()]));
+                    .or_insert_with(|| HashSet::from([on_cron_event.clone()]));
             })
-            .or_insert_with(|| BTreeMap::from([(timestamp, BTreeSet::from([on_cron_event]))]));
+            .or_insert_with(|| BTreeMap::from([(timestamp, HashSet::from([on_cron_event]))]));
     }
 
     /// List all the crontab entries for the given app.
@@ -144,7 +144,7 @@ impl CronEventQueue {
             .timestamp_nanos_opt()
             .ok_or(Error::InvalidTimestamp)?
             .try_into()?;
-        // drop the old waiting task if it has passed, retain if it hasn't.
+        // drop the old waiting task if it has passed.
         if let Some((_key, (_, handle))) = self
             .waiting_event
             .remove_if(&Self::WAITING_EVENT_TASK_ID, |_, (waiting_for, _)| {
@@ -156,12 +156,12 @@ impl CronEventQueue {
         // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
             if trigger_time >= ts {
-                // If the timestamp is in the past:
-                // * send the events immediately
+                // If the timestamp is in the past or now,
+                // send the events immediately.
                 self.pop_app_queues_and_send(trigger_time, ts, &app_names)?;
             } else {
-                // If the timestamp is in the future:
-                // * update the waiting task
+                // If the timestamp is in the future,
+                // update the waiting task.
                 let sleep_duration = ts - trigger_time;
                 self.update_waiting_task(ts, sleep_duration);
                 // Since `ts` is in the future, we can break
@@ -217,7 +217,7 @@ impl CronEventQueue {
     /// Because the `BTreeMap` is sorted, the first item is the smallest timestamp..
     fn pop_from_app_queue(
         &self, app_name: &HermesAppName, timestamp: CronDuration,
-    ) -> Option<BTreeSet<OnCronEvent>> {
+    ) -> Option<HashSet<OnCronEvent>> {
         self.events
             .get_mut(app_name)
             .and_then(|mut app| app.remove(&timestamp))
@@ -429,7 +429,7 @@ mod tests {
         let events = queue
             .pop_from_app_queue(&hermes_app_name, 0.into())
             .unwrap();
-        assert_eq!(events, BTreeSet::from([cron_entry_1(), cron_entry_2()]));
+        assert_eq!(events, HashSet::from([cron_entry_1(), cron_entry_2()]));
         // The queue should be empty
         assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
 
@@ -447,12 +447,12 @@ mod tests {
         let events = queue
             .pop_from_app_queue(&hermes_app_name, 180_000_000_000.into())
             .unwrap();
-        assert_eq!(events, BTreeSet::from([cron_entry_2()]));
+        assert_eq!(events, HashSet::from([cron_entry_2()]));
 
         let events = queue
             .pop_from_app_queue(&hermes_app_name, 360_000_000_000.into())
             .unwrap();
-        assert_eq!(events, BTreeSet::from([cron_entry_3()]));
+        assert_eq!(events, HashSet::from([cron_entry_3()]));
         // The queue should be empty
         assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
     }

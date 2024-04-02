@@ -345,6 +345,7 @@ mod tests {
     // Define upper limit for the schedule component values.
     const LAST: u8 = 59;
 
+    // Create `HermesAppName` from `&str`.
     pub(crate) fn hermes_app_name(name: &str) -> HermesAppName {
         HermesAppName(name.into())
     }

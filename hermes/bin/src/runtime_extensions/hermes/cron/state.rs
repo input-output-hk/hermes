@@ -430,10 +430,9 @@ mod tests {
         });
         assert!(h.join().unwrap());
 
-        assert_eq!(cron_queue_ls(&app_name, None), vec![
-            (crontab_example_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_LAST),
-        ]);
+        let queue_ls = cron_queue_ls(&app_name, None);
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_LAST)));
 
         assert!(cron_queue_add(
             &app_name,
@@ -451,11 +450,10 @@ mod tests {
             let app_name = hermes_app_name(APP_NAME);
             cron_queue_ls(&app_name.clone(), None)
         });
-        assert_eq!(h.join().unwrap(), vec![
-            (crontab_example_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_LAST),
-            (crontab_example_2(), IS_NOT_LAST),
-        ]);
+        let queue_ls = h.join().unwrap();
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_2(), IS_NOT_LAST)));
 
         assert!(cron_queue_add(
             &app_name,
@@ -465,13 +463,13 @@ mod tests {
         assert!(cron_queue_add(&app_name, crontab_other_1(), RETRIGGER_YES));
 
         // List
-        assert_eq!(cron_queue_ls(&app_name, None), vec![
-            (crontab_example_3(), IS_NOT_LAST),
-            (crontab_other_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_NOT_LAST),
-            (crontab_example_1(), IS_LAST),
-            (crontab_example_2(), IS_NOT_LAST),
-        ]);
+        let queue_ls = cron_queue_ls(&app_name, None);
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_3(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_other_1(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_NOT_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_1(), IS_LAST)));
+        assert!(queue_ls.contains(&(crontab_example_2(), IS_NOT_LAST)));
 
         // Adding a delayed crontab from another thread
         let h = std::thread::spawn(move || {
