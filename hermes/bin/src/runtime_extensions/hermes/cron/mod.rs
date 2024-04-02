@@ -1,12 +1,13 @@
 //! Cron runtime extension implementation.
 use std::{
     cmp::{max, min},
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     fmt::{Display, Formatter},
 };
 
-use time::{Duration, OffsetDateTime};
+use chrono::{Datelike, TimeDelta, Timelike, Utc};
 
+use self::{event::OnCronEvent, queue::CronJobDelay};
 use crate::runtime_extensions::bindings::{
     hermes::cron::api::{CronComponent, CronEventTag, CronSched, CronTagged, CronTime},
     wasi::clocks::monotonic_clock::Instant,
@@ -14,53 +15,50 @@ use crate::runtime_extensions::bindings::{
 
 mod event;
 mod host;
+mod queue;
+mod state;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-// `State` is obsolete, needs to be removed.
-// If needed, it can be replaced with `new_context`
-
-/// State
-pub(crate) struct State {
-    /// The crontabs hash map.
-    _crontabs: HashMap<CronEventTag, CronTab>,
-}
-
-impl State {
-    ///
-    #[allow(dead_code)]
-    fn new() -> Self {
-        State {
-            _crontabs: HashMap::new(),
-        }
-    }
-}
-
-/// A crontab entry.
-struct CronTab {
-    /// The crontab entry.
-    _entry: CronTagged,
-    /// When the event triggers.
-    _retrigger: bool,
+/// Cron Error.
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    /// The Cron Queue Task failed to start.
+    #[error("cron queue task failed to start")]
+    CronQueueTaskFailed,
+    /// Invalid timestamp.
+    #[error("invalid timestamp")]
+    InvalidTimestamp,
 }
 
 /// Create a delayed crontab entry.
 pub(crate) fn mkdelay_crontab(
     duration: Instant, tag: CronEventTag,
-) -> wasmtime::Result<CronTagged> {
+) -> wasmtime::Result<CronJobDelay> {
     // Add the delay to the current time.
-    let delayed = OffsetDateTime::now_utc() + Duration::nanoseconds(duration.try_into()?);
-    let (month, day) = (delayed.month() as u8, delayed.day());
-    let (hour, minute, _secs) = delayed.to_hms();
+    let delayed = Utc::now() + TimeDelta::nanoseconds(duration.try_into()?);
+    let timestamp = delayed
+        .timestamp_nanos_opt()
+        .ok_or(Error::InvalidTimestamp)?
+        .try_into()?;
+    let (month, day): (u8, u8) = (delayed.month().try_into()?, delayed.day().try_into()?);
+    let (hour, minute): (u8, u8) = (delayed.hour().try_into()?, delayed.minute().try_into()?);
+    let day_of_week = delayed.weekday().number_from_monday().try_into()?;
     let when = mkcron_impl(
-        &vec![],
+        &vec![CronComponent::At(day_of_week)],
         &vec![CronComponent::At(month)],
         &vec![CronComponent::At(day)],
         &vec![CronComponent::At(hour)],
         &vec![CronComponent::At(minute)],
     );
-    Ok(CronTagged { when, tag })
+    Ok(CronJobDelay {
+        timestamp,
+        event: OnCronEvent {
+            tag: CronTagged { when, tag },
+            last: true,
+        },
+    })
 }
 
 /// Convert `CronTime` arguments to a `CronSched`.
@@ -197,7 +195,7 @@ impl CronComponent {
     /// Minimum value for `Day`.
     const MIN_DAY: u8 = 1;
     /// Minimum value for `DayOfWeek`. Monday.
-    const MIN_DOW: u8 = 0;
+    const MIN_DOW: u8 = 1;
     /// Minimum value for `Hour`.
     const MIN_HOUR: u8 = 0;
     /// Minimum value for `Minute`.
@@ -297,68 +295,79 @@ impl PartialEq for CronComponent {
     }
 }
 
-#[allow(clippy::non_canonical_partial_ord_impl)]
+impl PartialOrd for CronComponent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for CronComponent {}
+
 /// Compare two `CronComponent`s.
 ///
 /// `CronComponent`s are ordered in the following order, from greater to lesser:
 /// - `All`
 /// - `Range`
 /// - `At`
-impl PartialOrd for CronComponent {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+impl Ord for CronComponent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self {
             Self::All => {
                 match other {
-                    Self::All => Some(std::cmp::Ordering::Equal),
-                    _ => Some(std::cmp::Ordering::Greater),
+                    Self::All => std::cmp::Ordering::Equal,
+                    _ => std::cmp::Ordering::Greater,
                 }
             },
             Self::At(when) => {
                 match other {
-                    Self::At(w) => Some(when.cmp(w)),
-                    _ => Some(std::cmp::Ordering::Less),
+                    Self::At(w) => when.cmp(w),
+                    _ => std::cmp::Ordering::Less,
                 }
             },
             Self::Range((first, last)) => {
                 match other {
-                    Self::All => Some(std::cmp::Ordering::Less),
-                    Self::At(_) => Some(std::cmp::Ordering::Greater),
-                    Self::Range((start, end)) => Some(first.cmp(start).then(last.cmp(end))),
+                    Self::All => std::cmp::Ordering::Less,
+                    Self::At(_) => std::cmp::Ordering::Greater,
+                    Self::Range((start, end)) => first.cmp(start).then(last.cmp(end)),
                 }
             },
         }
     }
 }
 
-impl Eq for CronComponent {}
-
-#[allow(clippy::expect_used)]
-impl Ord for CronComponent {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other)
-            .expect("CronComponent should always be comparable")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::HermesAppName;
 
     // Define lower limit for the schedule component values.
     const FIRST: u8 = 1;
     // Define upper limit for the schedule component values.
     const LAST: u8 = 59;
 
+    // Create `HermesAppName` from `&str`.
+    pub(crate) fn hermes_app_name(name: &str) -> HermesAppName {
+        HermesAppName(name.into())
+    }
+
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_mkdelay_crontab() {
         // Get the cron schedule from the current time.
-        let test_tag = "test".to_string();
-        let now = OffsetDateTime::now_utc();
-        let (month, day) = (now.month() as u8, now.day());
-        let (hour, minute, _secs) = now.to_hms();
+        let test_tag: CronEventTag = "test".into();
+        let now = Utc::now();
+        let (month, day) = (
+            now.month().try_into().unwrap(),
+            now.day().try_into().unwrap(),
+        );
+        let time = now.time();
+        let (hour, minute): (u8, u8) = (
+            time.hour().try_into().unwrap(),
+            time.minute().try_into().unwrap(),
+        );
+        let day_of_week = now.weekday().number_from_monday().try_into().unwrap();
         let now_schedule = mkcron_impl(
-            &vec![],
+            &vec![CronComponent::At(day_of_week)],
             &vec![CronComponent::At(month)],
             &vec![CronComponent::At(day)],
             &vec![CronComponent::At(hour)],
@@ -366,7 +375,8 @@ mod tests {
         );
         // Test the case with 0 duration
         let duration = 0u64;
-        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag.clone()).unwrap();
+        let cron_job_delay = mkdelay_crontab(duration, test_tag.clone()).unwrap();
+        let CronTagged { when, tag } = cron_job_delay.event.tag;
         assert_eq!(when, now_schedule);
         assert_eq!(tag, "test");
         // Test the case with 5 minutes duration
@@ -374,17 +384,25 @@ mod tests {
         let secs_per_minute = 60u64;
         let nanos = 1_000_000_000u64;
         let duration = minute_duration * secs_per_minute * nanos;
-        let then = now + Duration::minutes(minute_duration.try_into().unwrap());
-        let (month, day) = (then.month() as u8, then.day());
-        let (hour, minute, _secs) = then.to_hms();
+        let then = now + TimeDelta::try_minutes(minute_duration.try_into().unwrap()).unwrap();
+        let (month, day) = (
+            then.month().try_into().unwrap(),
+            then.day().try_into().unwrap(),
+        );
+        let (hour, minute) = (
+            then.hour().try_into().unwrap(),
+            then.minute().try_into().unwrap(),
+        );
+        let day_of_week = then.weekday().number_from_monday().try_into().unwrap();
         let then_schedule = mkcron_impl(
-            &vec![],
+            &vec![CronComponent::At(day_of_week)],
             &vec![CronComponent::At(month)],
             &vec![CronComponent::At(day)],
             &vec![CronComponent::At(hour)],
             &vec![CronComponent::At(minute)],
         );
-        let CronTagged { when, tag } = mkdelay_crontab(duration, test_tag).unwrap();
+        let cron_job_delay = mkdelay_crontab(duration, test_tag).unwrap();
+        let CronTagged { when, tag } = cron_job_delay.event.tag;
         assert_eq!(when, then_schedule);
         assert_eq!(tag, "test");
     }
@@ -479,6 +497,8 @@ mod tests {
             CronComponent::Range((10, 15)),
             CronComponent::Range((14, 25)),
             CronComponent::Range((5, 15)),
+            CronComponent::At(7),
+            CronComponent::Range((12, 15)),
         ]);
         assert_eq!(cron_schedule, vec![CronComponent::Range((5, 25))]);
     }
