@@ -136,7 +136,7 @@ impl OnCronEvent {
     fn start_datetime(start: Option<CronDuration>) -> Option<chrono::DateTime<Utc>> {
         let datetime = match start {
             None => Utc::now(),
-            Some(dt) => chrono::DateTime::from_timestamp_nanos(dt.0.try_into().ok()?),
+            Some(ts) => chrono::DateTime::from_timestamp_nanos(u64::from(ts).try_into().ok()?),
         };
         Some(datetime)
     }
