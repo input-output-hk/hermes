@@ -3,18 +3,18 @@ VERSION 0.7
 TINY_GO:
     COMMAND 
 
-    FROM tinygo/tinygo:0.31.2
     ARG src
 
+    FROM tinygo/tinygo:0.31.2
+    WORKDIR /work
     COPY $src .
-    RUN ls
-    RUN tinygo build -o main.wasm -target=wasi ./hermes/hermes.go
+    COPY ../../wasi+go-binding/bind-gen-go bind-gen-go
+
+   
+    RUN tinygo build -o main.wasm -target=wasi ./bind-gen-go/main.go
 
 test:
     FROM golang:1.21-alpine3.19
     WORKDIR /bind-gen-go
     COPY . .
-    COPY ../../wasi+go-binding/bind-gen-go ./hermes
-
     DO +TINY_GO --src=.
-    
