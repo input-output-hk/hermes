@@ -102,10 +102,3 @@ test-csharp-bindings:
 
     # java bindings are currently broken because `lots of stuff is not yet implemented.
     RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true
-
-go-binding: 
-    FROM ../wasi-hermes-component-adapter+builder
-
-    RUN wit-bindgen tiny-go --out-dir  ../wasi/wit/bind-gen/go ../wasi/wit
-
-    SAVE ARTIFACT ../wasi/wit/bind-gen/go bind-gen-go
