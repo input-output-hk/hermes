@@ -1,5 +1,7 @@
 VERSION 0.7
 
+#cspell: words rustfmt wasi
+
 # Make am Artifact which consists of the WASI SRC.
 wasi-src:
     FROM scratch
@@ -8,3 +10,22 @@ wasi-src:
     COPY --dir wasi .
 
     SAVE ARTIFACT /wasi wasi
+
+# Build and locally save an output artifact
+save-c-integration-test-local:
+    FROM scratch
+
+    ARG c_files="integration-test.c"
+    ARG out="c_test_component.wasm"
+
+    COPY (./c+build/component.wasm --c_files=$c_files) .
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
+
+save-c-logger-integration-test-local:
+    FROM scratch
+
+    ARG c_files="./logger/test-logger.c"
+    ARG out="c_logger_test_component.wasm"
+    
+    COPY (./integration-tests/+build/component.wasm --c_files=$c_files) .
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out

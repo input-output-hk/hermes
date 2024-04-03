@@ -1,4 +1,4 @@
-#include "./bindings_src/hermes.h"
+#include "bindings_src/hermes.h"
 
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out) {
