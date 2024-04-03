@@ -1,4 +1,4 @@
-#include "bindings_src/hermes.h"
+#include "../bindings_src/hermes.h"
 #include <string.h>
 
 const uint32_t N_TEST = 5;
