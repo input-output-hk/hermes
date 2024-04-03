@@ -46,6 +46,7 @@ build:
 
     # build wasm artifacts for testing
     COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
+    COPY (../wasm/integration-tests/c+build/component.wasm --c_files="./logger/test-logger.c") ../wasm/test-components/
 
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
