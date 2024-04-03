@@ -79,3 +79,8 @@ json-schemas:
     COPY --dir schemas .
 
     SAVE ARTIFACT schemas schemas
+
+# test-integration-tests - Test the integration tests
+test-integration-tests:
+    FROM +build
+    RUN cargo test --test wasm-component-integration-tests -- --test
