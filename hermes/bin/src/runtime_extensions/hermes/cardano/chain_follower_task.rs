@@ -1,15 +1,28 @@
 //! A Chain Follower task is responsible for managing a Cardano Chain Follower
 //! that is controlled by the Cardano Runtime Extension.
 
+use std::time::Duration;
+
+use anyhow::Context;
 use tracing::{error, instrument, trace, warn};
 
-use super::{Error, Result, STATE};
+use super::{Error, ModuleStateKey, Result, STATE};
 use crate::{
     app::HermesAppName,
     event::{HermesEvent, TargetApp, TargetModule},
     runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId},
     wasm::module::ModuleId,
 };
+
+/// Holds flags specifying which event subscriptions are active.
+struct EventSubscriptions {
+    /// Whether the module is subscribed to block events.
+    blocks: bool,
+    /// Whether the module is subscribed to rollback events.
+    rollbacks: bool,
+    /// Whether the module is subscribed to transaction events.
+    txns: bool,
+}
 
 /// Chain follower executor commands.
 enum Command {
@@ -121,175 +134,257 @@ async fn executor(
                     break 'exec_loop;
                 };
 
-                match cmd {
-                    Command::SetReadPointer(follow_from, res_tx) => {
-                        // Set the follower as stopped in case we fail set the
-                        // read pointer or the point can't be found.
-                        stopped = true;
-
-                        let result = follower.set_read_pointer(follow_from).await;
-
-                        match &result {
-                            Ok(Some(point)) => {
-                                stopped = false;
-                                trace!(slot = point.slot_or_default(), "Follower read pointer set");
-                            }
-                            // TODO(FelipeRosa): Decide what to do with these. For now we just
-                            // will not resume the follower.
-                            Ok(None) => {
-                                warn!("Couldn't set follower read pointer: point not found");
-                            }
-                            Err(e) => {
-                                warn!(error = ?e, "Failed to set read pointer");
-                            }
-                        }
-
-
-                        // Ignore if the receiver is closed.
-                        drop(res_tx.send(result));
-                    }
-                    Command::Stop(res_tx) => {
-                        stopped = true;
-                        let _ = res_tx.send(());
-                    }
-                    Command::Continue(res_tx) => {
-                        stopped = false;
-                        let _ = res_tx.send(());
-                    }
-                }
+                stopped = process_command(cmd, &follower).await;
             }
 
             result = follower.next(), if !stopped => {
-                let chain_update = match result {
-                    Ok(chain_update) => chain_update,
-                    Err(e) => {
-                        // TODO(FelipeRosa): Decide what to do with this
-                        warn!(error = ?e, "Failed to get chain update");
-                        break 'exec_loop;
-                    },
-                };
-
-                let (subscribed_to_blocks, subscribed_to_txns, subscribed_to_rollbacks) = {
-                    let Some(sub_state) = STATE.subscriptions.get(&module_state_key) else {
-                        break 'exec_loop;
-                    };
-
-                    (sub_state.subscribed_to_blocks, sub_state.subscribed_to_txns, sub_state.subscribed_to_rollbacks)
-                };
-
-                let current_slot = match chain_update {
-                    cardano_chain_follower::ChainUpdate::Block(block_data) => {
-                        if !subscribed_to_blocks && !subscribed_to_txns {
-                            continue;
-                        }
-
-                        let decoded_block_data = match block_data.decode() {
-                            Ok(b) => b,
-                            Err(err) => {
-                                error!(error = ?err, "Failed to decode block");
-                                continue;
-                            }
+                match result {
+                    Ok(chain_update) => {
+                        let Ok(event_subscriptions) = get_event_subscriptions(&module_state_key) else {
+                            break 'exec_loop;
                         };
 
-                        let block_number = decoded_block_data.number();
-                        let slot = decoded_block_data.slot();
-
-                        if subscribed_to_txns {
-                            let txs = decoded_block_data.txs();
-
-                            for (tx, index) in txs.iter().zip(0u32..) {
-                                let on_txn_event = super::event::OnCardanoTxnEvent {
-                                    blockchain: chain_id,
-                                    slot,
-                                    txn_index: index,
-                                    txn: tx.encode(),
-                                };
-
-                                let res = crate::event::queue::send(HermesEvent::new(
-                                    on_txn_event,
-                                    TargetApp::List(vec![module_state_key.0.clone()]),
-                                    TargetModule::_List(vec![module_state_key.1.clone()]),
-                                ));
-
-                                if let Err(err) = res {
-                                    error!(error = ?err, "Failed to send Cardano transaction event to the Event queue");
-                                } else {
-                                    trace!(block_number, tx_count = txs.len(), "Generated Cardano block transactions events");
+                        match process_chain_update(chain_update, &module_state_key, chain_id, &event_subscriptions) {
+                            Ok(current_slot) => {
+                                if update_current_slot(&module_state_key, current_slot).is_err() {
+                                    break 'exec_loop;
                                 }
                             }
-                        }
-
-                        if subscribed_to_blocks {
-                            let on_block_event = super::event::OnCardanoBlockEvent {
-                                blockchain: chain_id,
-                                block: block_data.into_raw_data(),
-                                // TODO(FelipeRosa): In order to implement this we need the
-                                // cardano-chain-follower crate to give this information along
-                                // with the chain update.
-                                source: BlockSrc::NODE,
-                            };
-
-                            let res = crate::event::queue::send(HermesEvent::new(
-                                on_block_event,
-                                TargetApp::List(vec![module_state_key.0.clone()]),
-                                TargetModule::_List(vec![module_state_key.1.clone()]),
-                            ));
-
-                            if let Err(err) = res {
-                                error!(error = ?err, "Failed to send Cardano block event to the Event queue");
-                            } else {
-                                trace!(block_number, "Generated Cardano block event");
+                            Err(e) => {
+                                error!(error = ?e, "Failed to process chain update");
+                                break 'exec_loop;
                             }
                         }
 
-                        slot
+                    }
+                    Err(e) => {
+                        // TODO(FelipeRosa): Decide what to do with this
+                        error!(error = ?e, "Failed to get chain update");
+                        break 'exec_loop;
                     },
-                    cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
-                        if !subscribed_to_rollbacks {
-                            continue;
-                        }
-
-                        let decoded_block_data = match block_data.decode() {
-                            Ok(b) => b,
-                            Err(err) => {
-                                error!(error = ?err, "Failed to decode block");
-                                continue;
-                            }
-                        };
-
-                        let block_number = decoded_block_data.number();
-                        let slot = decoded_block_data.slot();
-
-                        let on_rollback_event = super::event::OnCardanoRollback {
-                            blockchain: CardanoBlockchainId::Preprod,
-                            slot,
-                        };
-
-                        let res = crate::event::queue::send(HermesEvent::new(
-                            on_rollback_event,
-                            TargetApp::List(vec![module_state_key.0.clone()]),
-                            TargetModule::_List(vec![module_state_key.1.clone()]),
-                        ));
-
-                        if let Err(err) = res {
-                            error!(error = ?err, "Failed to send Cardano block event to the Event queue");
-                        } else {
-                            trace!(block_number, "Generated Cardano rollback event");
-                        }
-
-                        slot
-                    },
-                };
-
-                if let Some(mut sub_state) = STATE.subscriptions.get_mut(&module_state_key) {
-                    sub_state.current_slot = current_slot;
-                } else {
-                    break 'exec_loop;
-                };
+                }
             }
         }
     }
 
-    // TODO(FelipeRosa): Stop waiting if this times out.
-    drop(follower.close().await);
+    drop(tokio::time::timeout(Duration::from_secs(15), follower.close()).await);
+}
+
+/// Processes a chain follower task command.
+async fn process_command(cmd: Command, follower: &cardano_chain_follower::Follower) -> bool {
+    match cmd {
+        Command::SetReadPointer(follow_from, res_tx) => {
+            // Set the follower as stopped in case we fail set the
+            // read pointer or the point can't be found.
+            let mut should_stop = true;
+
+            let result = follower.set_read_pointer(follow_from).await;
+
+            match &result {
+                Ok(Some(point)) => {
+                    should_stop = false;
+                    trace!(slot = point.slot_or_default(), "Follower read pointer set");
+                },
+                // TODO(FelipeRosa): Decide what to do with these. For now we just
+                // will not resume the follower.
+                Ok(None) => {
+                    warn!("Couldn't set follower read pointer: point not found");
+                },
+                Err(e) => {
+                    error!(error = ?e, "Failed to set read pointer");
+                },
+            }
+
+            // Ignore if the receiver is closed.
+            drop(res_tx.send(result));
+
+            should_stop
+        },
+        Command::Stop(res_tx) => {
+            let _ = res_tx.send(());
+            true
+        },
+        Command::Continue(res_tx) => {
+            let _ = res_tx.send(());
+            false
+        },
+    }
+}
+
+/// Processes a single chain update.
+fn process_chain_update(
+    chain_update: cardano_chain_follower::ChainUpdate, module_state_key: &ModuleStateKey,
+    chain_id: CardanoBlockchainId, event_subscriptions: &EventSubscriptions,
+) -> anyhow::Result<u64> {
+    match chain_update {
+        cardano_chain_follower::ChainUpdate::Block(block_data) => {
+            process_block_chain_update(module_state_key, chain_id, block_data, event_subscriptions)
+                .context("Processing block chain update")
+        },
+        cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
+            process_rollback_chain_update(
+                module_state_key,
+                chain_id,
+                &block_data,
+                event_subscriptions,
+            )
+            .context("Processing rollback chain update")
+        },
+    }
+}
+
+/// Processes a block chain update.
+///
+/// This means decoding the block data, building and sending the event to the
+/// Event Queue.
+fn process_block_chain_update(
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
+    block_data: cardano_chain_follower::MultiEraBlockData,
+    event_subscriptions: &EventSubscriptions,
+) -> anyhow::Result<u64> {
+    let decoded_block_data = block_data.decode().context("Decode block")?;
+
+    let block_number = decoded_block_data.number();
+    let slot = decoded_block_data.slot();
+
+    if event_subscriptions.txns {
+        let txs = decoded_block_data.txs();
+        let tx_count = txs.len();
+
+        build_and_send_txns_event(module_state_key, chain_id, slot, txs)
+            .context("Sending Cardano block transaction events to Event Queue")?;
+
+        trace!(
+            block_number,
+            tx_count,
+            "Generated Cardano block transactions events"
+        );
+    }
+
+    if event_subscriptions.blocks {
+        build_and_send_block_event(module_state_key, chain_id, block_data)
+            .context("Sending Cardano block event to Event Queue")?;
+
+        trace!(block_number, "Generated Cardano block event");
+    }
+
+    Ok(slot)
+}
+
+/// Processes a rollback chain update.
+///
+/// This means decoding the block data, building and sending the event to the
+/// Event Queue.
+fn process_rollback_chain_update(
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
+    block_data: &cardano_chain_follower::MultiEraBlockData,
+    event_subscriptions: &EventSubscriptions,
+) -> anyhow::Result<u64> {
+    let decoded_block_data = block_data.decode().context("Decode rollback block")?;
+
+    let slot = decoded_block_data.slot();
+
+    if event_subscriptions.rollbacks {
+        build_and_send_rollback_event(module_state_key, chain_id, slot)
+            .context("Sending Cardano rollback event to Event Queue")?;
+
+        trace!(
+            block_number = decoded_block_data.number(),
+            "Generated Cardano rollback event"
+        );
+    }
+
+    Ok(slot)
+}
+
+/// Builds a [`super::event::OnCardanoBlockEvent`] from the block data and
+/// sends it to the given module through the Event Queue.
+fn build_and_send_block_event(
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
+    block_data: cardano_chain_follower::MultiEraBlockData,
+) -> anyhow::Result<()> {
+    let on_block_event = super::event::OnCardanoBlockEvent {
+        blockchain: chain_id,
+        block: block_data.into_raw_data(),
+        // TODO(FelipeRosa): In order to implement this we need the
+        // cardano-chain-follower crate to give this information along
+        // with the chain update.
+        source: BlockSrc::NODE,
+    };
+
+    crate::event::queue::send(HermesEvent::new(
+        on_block_event,
+        TargetApp::List(vec![module_state_key.0.clone()]),
+        TargetModule::_List(vec![module_state_key.1.clone()]),
+    ))
+}
+
+/// Builds [`super::event::OnCardanoTxnEvent`] for every transaction on the block data
+/// and sends them to the given module through the Event Queue.
+fn build_and_send_txns_event(
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId, slot: u64,
+    txs: Vec<pallas::ledger::traverse::MultiEraTx>,
+) -> anyhow::Result<()> {
+    for (tx, index) in txs.into_iter().zip(0u32..) {
+        let on_txn_event = super::event::OnCardanoTxnEvent {
+            blockchain: chain_id,
+            slot,
+            txn_index: index,
+            txn: tx.encode(),
+        };
+
+        // Stop at the first error.
+        crate::event::queue::send(HermesEvent::new(
+            on_txn_event,
+            TargetApp::List(vec![module_state_key.0.clone()]),
+            TargetModule::_List(vec![module_state_key.1.clone()]),
+        ))?;
+    }
+
+    Ok(())
+}
+
+/// Builds a [`super::event::OnCardanoRollback`] from the block data and
+/// sends it to the given module through the Event Queue.
+fn build_and_send_rollback_event(
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId, slot: u64,
+) -> anyhow::Result<()> {
+    let on_rollback_event = super::event::OnCardanoRollback {
+        blockchain: chain_id,
+        slot,
+    };
+
+    crate::event::queue::send(HermesEvent::new(
+        on_rollback_event,
+        TargetApp::List(vec![module_state_key.0.clone()]),
+        TargetModule::_List(vec![module_state_key.1.clone()]),
+    ))
+}
+
+/// Gets the event subscription flags for a given module.
+fn get_event_subscriptions(
+    module_state_key: &ModuleStateKey,
+) -> anyhow::Result<EventSubscriptions> {
+    let sub_state = STATE
+        .subscriptions
+        .get(module_state_key)
+        .ok_or(anyhow::anyhow!("Module subscription not found"))?;
+
+    Ok(EventSubscriptions {
+        blocks: sub_state.subscribed_to_blocks,
+        rollbacks: sub_state.subscribed_to_rollbacks,
+        txns: sub_state.subscribed_to_txns,
+    })
+}
+
+/// Updates the module's state with the current slot the follower is at.
+fn update_current_slot(module_state_key: &ModuleStateKey, current_slot: u64) -> anyhow::Result<()> {
+    let mut sub_state = STATE
+        .subscriptions
+        .get_mut(module_state_key)
+        .ok_or(anyhow::anyhow!("Module subscription not found"))?;
+
+    sub_state.current_slot = current_slot;
+
+    Ok(())
 }

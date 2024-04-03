@@ -125,6 +125,7 @@ pub fn spawn() -> Handle {
 fn executor(mut cmd_rx: CommandReceiver) {
     let res = tokio::runtime::Builder::new_current_thread()
         .enable_io()
+        .enable_time()
         .build();
 
     let rt = match res {

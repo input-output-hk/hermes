@@ -40,13 +40,15 @@ struct SubscriptionState {
     current_slot: u64,
 }
 
+/// Triple representing the key of the subscription state map.
+type ModuleStateKey = (HermesAppName, ModuleId, cardano_chain_follower::Network);
+
 /// Cardano Runtime Extension state.
 struct State {
     /// Handle to the Tokio runtime background thread.
     tokio_rt_handle: tokio_runtime_task::Handle,
     /// Mapping of application module subscription states.
-    subscriptions:
-        DashMap<(HermesAppName, ModuleId, cardano_chain_follower::Network), SubscriptionState>,
+    subscriptions: DashMap<ModuleStateKey, SubscriptionState>,
     /// Chain followers configured only for reading blocks.
     readers: DashMap<cardano_chain_follower::Network, cardano_chain_follower::Follower>,
 }
@@ -176,15 +178,12 @@ impl From<CardanoBlockchainId> for cardano_chain_follower::Network {
 
 #[cfg(test)]
 mod test {
-    use rusty_ulid::Ulid;
-
     use super::{read_block, subscribe, unsubscribe, SubscriptionType};
     use crate::{
         app::HermesAppName,
         runtime_extensions::bindings::hermes::cardano::api::{
             CardanoBlockchainId, UnsubscribeOptions,
         },
-        wasm::module::ModuleId,
     };
 
     #[test]
@@ -196,7 +195,18 @@ mod test {
             .init();
 
         let app_name = HermesAppName("test_app_it_works".to_string());
-        let module_id = ModuleId(Ulid::generate());
+        let module_id = crate::wasm::module::ModuleId(rusty_ulid::Ulid::generate());
+
+        // let module_bytes = include_bytes!("REPLACE_WITH_TEST_COMPONENT_PATH");
+        // let app =
+        //     crate::app::HermesApp::new(app_name.clone(),
+        // vec![module_bytes.to_vec()]).expect("app"); let module_id =
+        // app.indexed_modules().keys().next().expect("module").clone();
+        //
+        // let mut indexed_apps = std::collections::HashMap::new();
+        // indexed_apps.insert(app_name.clone(), app);
+        //
+        // crate::event::queue::init(std::sync::Arc::new(indexed_apps)).expect("init");
 
         subscribe(
             CardanoBlockchainId::Preprod,
