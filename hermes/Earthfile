@@ -1,7 +1,5 @@
 VERSION 0.7
 
-#cspell: words rustfmt
-
 # Set up our target toolchains, and copy our files.
 builder:
     DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.10.2+SETUP
@@ -45,8 +43,8 @@ build:
     FROM +builder
 
     # build wasm artifacts for testing
-    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
-    COPY (../wasm/integration-tests/c+build/component.wasm --c_files="./logger/test-logger.c") ../wasm/test-components/
+    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/c_test_component.wasm
+    COPY (../wasm/integration-tests/c+build/component.wasm --c_files="./logger/test-logger.c") ../wasm/test-components/c_logger_test_component.wasm
 
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
