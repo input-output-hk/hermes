@@ -27,5 +27,5 @@ save-c-logger-integration-test-local:
     ARG c_files="./logger/test-logger.c"
     ARG out="c_logger_test_component.wasm"
     
-    COPY (./integration-tests/+build/component.wasm --c_files=$c_files) .
+    COPY (./integration-tests/c+build/component.wasm --c_files=$c_files) .
     SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
