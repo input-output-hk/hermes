@@ -1,9 +1,19 @@
 VERSION 0.7
 
-build:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.10.2+wasm-c-base
-    ARG c_files="hermes-c-component.c"
-    COPY . .
-    COPY ..+wasi-src/wasi .    
-    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="component.wasm"
-    SAVE ARTIFACT component.wasm
+# Build and locally save an output artifact
+save-c-integration-test-local:
+
+    ARG c_files="./test/integration-test.c"
+    ARG out="c_test_component.wasm"
+
+    COPY (./c+build/component.wasm --c_files=$c_files) .
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
+
+save-c-logger-integration-test-local:
+    FROM scratch
+
+    ARG c_files="./logger/test-logger.c"
+    ARG out="c_logger_test_component.wasm"
+    
+    COPY (./c+build/component.wasm --c_files=$c_files) .
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out

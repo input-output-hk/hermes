@@ -10,7 +10,7 @@ const ENV_N_TEST: &str = "N_TEST";
 /// A parameter identifier specifying the number of benchmarks to run.
 const ENV_N_BENCH: &str = "N_BENCH";
 /// A standard value assigned to `ENV_MODULE_DIR` when it's not specified.
-const DEFAULT_ENV_MODULE_DIR: &str = "../../wasm/test-components";
+const DEFAULT_ENV_MODULE_DIR: &str = "../../wasm/integration-tests/test-components";
 /// The default value for the number of tests to run when not specified.
 const DEFAULT_ENV_N_TEST: &str = "32";
 /// The default value for the number of benchmarks to run when not specified.
