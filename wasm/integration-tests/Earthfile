@@ -1,0 +1,9 @@
+VERSION 0.7
+
+build:
+    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.10.2+wasm-c-base
+    ARG --required c_files
+    COPY . .
+    COPY ..+wasi-src/wasi .    
+    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="component.wasm"
+    SAVE ARTIFACT component.wasm
