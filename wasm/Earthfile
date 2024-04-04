@@ -20,3 +20,13 @@ save-c-integration-test-local:
 
     COPY (./c+build/component.wasm --c_files=$c_files) .
     SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
+
+# Build and locally save an crypto test artifact
+save-c-crypto-integration-test-local:
+    FROM scratch
+
+    ARG c_files="./crypto/test-crypto.c"
+    ARG out="c_crypto_test_component.wasm"
+
+    COPY (./integration-tests/c+build/component.wasm --c_files=$c_files) .
+    SAVE ARTIFACT component.wasm AS LOCAL test-components/$out
