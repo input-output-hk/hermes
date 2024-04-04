@@ -44,21 +44,17 @@ all-hosts-check:
 build:
     FROM +builder
 
-    # build wasm artifacts for testing
-    #COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
-    #COPY ../wasm/c+build/component.wasm ../wasm/test-components/smoke-test.wasm
-
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
 
-    #RUN /scripts/std_build.py   --bench_flags="--features bench" \
-    #                            --libs="cardano-chain-follower" \
-    #                            --bins="hermes/hermes" \
-    #                            --verbose
+    RUN /scripts/std_build.py   --bench_flags="--features bench" \
+                                --libs="cardano-chain-follower" \
+                                --bins="hermes/hermes" \
+                                --verbose
 
-    #SAVE ARTIFACT target/$TARGETARCH/doc doc
-    #SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-    #SAVE ARTIFACT target/criterion 
+    SAVE ARTIFACT target/$TARGETARCH/doc doc
+    SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
+    SAVE ARTIFACT target/criterion 
 
 test-wasm-integration:
     FROM +build
@@ -67,9 +63,10 @@ test-wasm-integration:
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
 
     # List all WASM integration testsw/benches and also run them.
-    RUN cargo test --release --test wasm-component-integration-tests -- --help
+    #RUN cargo test --release --test wasm-component-integration-tests -- --help
     RUN cargo test --release --test wasm-component-integration-tests -- --list
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
