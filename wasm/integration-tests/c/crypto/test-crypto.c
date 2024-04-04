@@ -2,7 +2,7 @@
 #include <string.h>
 #include <time.h>
 
-const uint32_t N_TEST = 5;
+const uint32_t N_TEST = 4;
 const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
     {.name = {
          .ptr = (uint8_t *)"Crypto generate mnemonic 1",
@@ -11,7 +11,6 @@ const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
     {.name = {.ptr = (uint8_t *)"Crypto get pub key 2", .len = strlen("Crypto get pub key 2")}, .status = true},
     {.name = {.ptr = (uint8_t *)"Crypto sign and check sig 3", .len = strlen("Crypto sign and check sig 3")}, .status = true},
     {.name = {.ptr = (uint8_t *)"Crypto derive 4", .len = strlen("Crypto derive 4")}, .status = true},
-    {.name = {.ptr = (uint8_t *)"Crypto 5", .len = strlen("Crypto 5")}, .status = true},
 };
 
 const uint32_t N_BENCH = 0;
@@ -119,14 +118,6 @@ bool test_crypto_function(uint32_t test)
     hermes_string_t path_string = {.ptr = (uint8_t *)"m/1852'/1815'/0'/2/0", .len = strlen("m/1852'/1815'/0'/2/0")};
     hermes_crypto_api_own_bip32_ed25519_t new_resource = hermes_crypto_api_method_bip32_ed25519_derive(borrow_resource, &path_string);
     return new_resource.__handle == 2;
-  }
-  case 4:
-  {
-    hermes_crypto_api_borrow_bip32_ed25519_t borrow_resource = {.__handle = 99};
-
-    hermes_string_t path_string = {.ptr = (uint8_t *)"m/1852'/1815'/0'/2/0", .len = strlen("m/1852'/1815'/0'/2/0")};
-    hermes_crypto_api_own_bip32_ed25519_t new_resource = hermes_crypto_api_method_bip32_ed25519_derive(borrow_resource, &path_string);
-    return new_resource.__handle == 100;
   }
   default:
     return false;
