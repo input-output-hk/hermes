@@ -54,7 +54,7 @@ build:
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-    SAVE ARTIFACT target/criterion 
+    SAVE ARTIFACT target/criterion
 
 test-wasm-integration:
     FROM +build
@@ -64,6 +64,7 @@ test-wasm-integration:
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
     #RUN cargo test --release --test wasm-component-integration-tests -- --help
