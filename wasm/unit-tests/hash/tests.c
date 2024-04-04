@@ -40,20 +40,17 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret) {
   switch (test) {
     // blake2smac
-    case 0:
-      hermes_string_t test = {
-        .ptr = (uint8_t *)"blake2b_512",
-        .len = strlen("blake2b_512")
-      };
+    case 0: {
+      const char *test_name_ptr = "blake2b_512";
 
       hermes_hash_api_bstr_t buf = {
         .ptr = (uint8_t *)"test test",
         .len = strlen("test test")
       };
       uint8_t outlen = 64;
+
       hermes_hash_api_bstr_t *local_ret = NULL;
       hermes_hash_api_errno_t *local_err = NULL;
-      
       bool success = hermes_hash_api_blake2b(&buf, &outlen, local_ret, local_err);
 
       // bool hermes_hash_api_blake2b(hermes_hash_api_bstr_t *buf, uint8_t *maybe_outlen, hermes_hash_api_bstr_t *ret, hermes_hash_api_errno_t *err);
@@ -67,18 +64,24 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
         ret->status = (res == 0);
       }
 
-      hermes_string_dup(&ret->name, test.ptr);
+      hermes_string_dup(&ret->name, test_name_ptr);
       break;
-    case 1:
+    }
+    case 1: {
       break;
+    }
     // blake2bmac
-    case 2:
+    case 2: {
       // bool hermes_hash_api_blake2bmac(hermes_hash_api_bstr_t *buf, uint8_t *maybe_outlen, hermes_hash_api_bstr_t *key, hermes_hash_api_bstr_t *maybe_salt, hermes_hash_api_bstr_t *maybe_personal, hermes_hash_api_bstr_t *ret, hermes_hash_api_errno_t *err);
       break;
-    case 3:
+    }
+    case 3: {
+      // bool hermes_hash_api_blake2bmac(hermes_hash_api_bstr_t *buf, uint8_t *maybe_outlen, hermes_hash_api_bstr_t *key, hermes_hash_api_bstr_t *maybe_salt, hermes_hash_api_bstr_t *maybe_personal, hermes_hash_api_bstr_t *ret, hermes_hash_api_errno_t *err);
       break;
-    default:
+    }
+    default: {
       return false;
+    }
   }
 
   return false;

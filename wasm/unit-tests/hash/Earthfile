@@ -1,15 +1,21 @@
 VERSION 0.7
 
-# test - Generates a wasm component for the `hash` module to run on unit tests
-test:
+# build - Generates a wasm component for the `hash` module to run on unit tests
+build:
     FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.9.0+wasm-c-base
 
     ARG c_files="tests.c"
 
     COPY ./$c_files .
-    COPY ..+wasi-src/wasi .
+    COPY ../..+wasi-src/wasi .
 
-    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="component.wasm"
+    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="hash-tests.wasm"
 
-    SAVE ARTIFACT component.wasm
+    SAVE ARTIFACT hash-tests.wasm
 
+test:
+    FROM ../../../hermes+build
+
+    COPY +build/hash-tests.wasm ../../test-components/
+
+    RUN cargo test --test wasm-component-integration-tests -- --test
