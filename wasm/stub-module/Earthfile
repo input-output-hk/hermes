@@ -4,18 +4,18 @@ VERSION 0.7
 build:
     FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.9.0+wasm-c-base
 
-    ARG c_files="my-component.c"
+    ARG c_files="stub-module.c"
 
     COPY ./$c_files .
     COPY ..+wasi-src/wasi .
 
-    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="component.wasm"
+    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="stub.wasm"
 
-    SAVE ARTIFACT component.wasm
+    SAVE ARTIFACT stub.wasm
 
 # Build and locally save an output artifact
 save-local:
     FROM scratch
 
-    COPY +build/component.wasm .
-    SAVE ARTIFACT component.wasm AS LOCAL bench_component.wasm
+    COPY +build/stub.wasm .
+    SAVE ARTIFACT stub.wasm AS LOCAL stub.wasm
