@@ -2,7 +2,7 @@ VERSION 0.7
 
 # build - Generates a wasm component for the `hash` module to run on unit tests
 build:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.10.2+wasm-c-base
+    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.10.3+wasm-c-base
 
     COPY . .
     COPY ../..+wasi-src/wasi .
