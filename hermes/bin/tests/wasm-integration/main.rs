@@ -23,7 +23,7 @@ use hermes::{
     wasm::module::Module,
 };
 use libtest_mimic::{Arguments, Failed, Measurement, Trial};
-use tracing::{info, level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
+use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{fmt::time, FmtSubscriber};
 
 /// Init the logger
