@@ -2,21 +2,18 @@
 #include <string.h>
 #include <time.h>
 
-const uint32_t N_TEST = 4;
+const uint32_t N_TEST = 2;
 const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
     {.name = {
          .ptr = (uint8_t *)"Crypto generate mnemonic 1",
          .len = strlen("Crypto generate mnemonic 1")},
      .status = true},
-    {.name = {.ptr = (uint8_t *)"Crypto get pub key 2", .len = strlen("Crypto get pub key 2")}, .status = true},
-    {.name = {.ptr = (uint8_t *)"Crypto sign and check sig 3", .len = strlen("Crypto sign and check sig 3")}, .status = true},
-    {.name = {.ptr = (uint8_t *)"Crypto derive 4", .len = strlen("Crypto derive 4")}, .status = true},
+    {.name = {.ptr = (uint8_t *)"Crypto pub key, sign, check sig, and derive 2", .len = strlen("Crypto pub key, sign, check sig, and derive 2")}, .status = true},
 };
 
 const uint32_t N_BENCH = 0;
 const exports_hermes_integration_test_event_test_result_t BENCHES[N_BENCH] = {
-    {}
-};
+    {}};
 
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out)
@@ -78,43 +75,46 @@ bool test_crypto_function(uint32_t test)
     hermes_string_t prefix_data = {.ptr = (uint8_t *)"project", .len = 7};
     hermes_crypto_api_prefix_t prefix = {.ptr = &prefix_data, .len = 1};
     hermes_string_t language = {.ptr = (uint8_t *)"English", .len = 7};
-    hermes_crypto_api_mnemonic_phrase_t ret;
+    hermes_crypto_api_mnemonic_phrase_t gen_mnemonic_ret;
     hermes_crypto_api_errno_t err;
 
-    hermes_crypto_api_generate_mnemonic(24, &prefix, &language, &ret, &err);
+    hermes_crypto_api_generate_mnemonic(24, &prefix, &language, &gen_mnemonic_ret, &err);
 
     char *expected_prefix = "project";
     size_t n = strlen(expected_prefix);
 
-    return ret.ptr != NULL && ret.ptr->ptr != NULL && ret.ptr->len >= n &&
-           strncmp(ret.ptr->ptr, expected_prefix, n) == 0;
+    return gen_mnemonic_ret.ptr != NULL && gen_mnemonic_ret.ptr->ptr != NULL && gen_mnemonic_ret.ptr->len >= n &&
+           strncmp(gen_mnemonic_ret.ptr->ptr, expected_prefix, n) == 0;
   }
   case 1:
   {
+    // Test public key.
     hermes_crypto_api_borrow_bip32_ed25519_t borrow_resource = get_or_add_resource();
-    hermes_crypto_api_bip32_ed25519_public_key_t ret;
-    hermes_crypto_api_method_bip32_ed25519_public_key(borrow_resource, &ret);
+    hermes_crypto_api_bip32_ed25519_public_key_t gen_pub_key_ret;
+    hermes_crypto_api_method_bip32_ed25519_public_key(borrow_resource, &gen_pub_key_ret);
 
-    return (ret.f0 == 3986768884739312704) &&
-           (ret.f1 == 9782938079688165927ULL) &&
-           (ret.f2 == 7977656244723921923) &&
-           (ret.f3 == 12587033252467133758ULL);
-  }
-  case 2:
-  {
-    hermes_crypto_api_borrow_bip32_ed25519_t borrow_resource = get_or_add_resource();
-
+    bool public_key_success = (gen_pub_key_ret.f0 == 3986768884739312704) &&
+                              (gen_pub_key_ret.f1 == 9782938079688165927ULL) &&
+                              (gen_pub_key_ret.f2 == 7977656244723921923) &&
+                              (gen_pub_key_ret.f3 == 12587033252467133758ULL);
+    if (!public_key_success)
+    {
+      return false;
+    }
+    
+    // Test sign and check sig.
     hermes_string_t data_string = {.ptr = (uint8_t *)"test", .len = 4};
     hermes_crypto_api_bstr_t sign_data = {.ptr = &data_string, .len = 1};
-    hermes_crypto_api_bip32_ed25519_signature_t ret;
+    hermes_crypto_api_bip32_ed25519_signature_t gen_sig_ret;
 
-    hermes_crypto_api_method_bip32_ed25519_sign_data(borrow_resource, &sign_data, &ret);
-    return hermes_crypto_api_method_bip32_ed25519_check_sig(borrow_resource, &sign_data, &ret);
-  }
-  case 3:
-  {
-    hermes_crypto_api_borrow_bip32_ed25519_t borrow_resource = get_or_add_resource();
+    hermes_crypto_api_method_bip32_ed25519_sign_data(borrow_resource, &sign_data, &gen_sig_ret);
+    bool sign_success = hermes_crypto_api_method_bip32_ed25519_check_sig(borrow_resource, &sign_data, &gen_sig_ret);
+    if (!sign_success)
+    {
+      return false;
+    }
 
+    // Test derive key.
     hermes_string_t path_string = {.ptr = (uint8_t *)"m/1852'/1815'/0'/2/0", .len = strlen("m/1852'/1815'/0'/2/0")};
     hermes_crypto_api_own_bip32_ed25519_t new_resource = hermes_crypto_api_method_bip32_ed25519_derive(borrow_resource, &path_string);
     return new_resource.__handle == 2;
