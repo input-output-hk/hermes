@@ -44,7 +44,8 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // This is necessary otherwise the logging functions inside hermes are silent during the test run.
+    // This is necessary otherwise the logging functions inside hermes are silent during the
+    // test run.
     init_logger()?;
     // This causes issues with normal test runs, so comment out for now.
     // info!("Starting Hermes WASM integration tests");
@@ -105,12 +106,16 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
                         let path_string = file_path.to_string_lossy().to_string();
 
                         let test = match event_type {
-                            EventType::Test => Trial::test(result.name, move || {
-                                execute_test(i, path_string, event_type)
-                            }),
-                            EventType::Bench => Trial::bench(result.name, move |test_mode| {
-                                execute_bench(test_mode, i, path_string, event_type)
-                            }),
+                            EventType::Test => {
+                                Trial::test(result.name, move || {
+                                    execute_test(i, path_string, event_type)
+                                })
+                            },
+                            EventType::Bench => {
+                                Trial::bench(result.name, move |test_mode| {
+                                    execute_bench(test_mode, i, path_string, event_type)
+                                })
+                            },
                         }
                         .with_kind(name.clone());
 
