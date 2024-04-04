@@ -45,8 +45,8 @@ build:
     FROM +builder
 
     # build wasm artifacts for testing
-    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
-
+    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/c_test_component.wasm
+    COPY (../wasm/integration-tests/c+build/component.wasm --c_files="./logger/test-logger.c") ../wasm/test-components/c_crypto_test_component.wasm
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
                                 --bins="hermes/hermes"
@@ -78,3 +78,8 @@ json-schemas:
     COPY --dir schemas .
 
     SAVE ARTIFACT schemas schemas
+
+# test-integration-tests - Test the integration tests.
+test-integration-tests:
+    FROM +build
+    RUN cargo test --test wasm-component-integration-tests -- --test
