@@ -4,7 +4,7 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:feat/rust-unit-test-visibility+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.11.0+SETUP
     COPY --dir .cargo .config crates bin .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
@@ -69,6 +69,7 @@ test-wasm-integration:
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
 
     # List all WASM integration testsw/benches and also run them.
+    RUN cargo test --release --test wasm-component-integration-tests -- --help
     RUN cargo test --release --test wasm-component-integration-tests -- --list
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench

@@ -80,9 +80,9 @@ build-rust-bindings:
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
-    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit
+    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit --out-dir bindings/c
 
-    SAVE ARTIFACT /what/to/save
+    SAVE ARTIFACT bindings
 
 # test-java-bindings - Test we can generate Java bindings without error from the hermes default world
 test-java-bindings:
@@ -104,3 +104,7 @@ test-csharp-bindings:
     # csharp bindings are currently broken because `lots of stuff is not yet implemented.
     RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true
 
+local-c-bindings:
+    FROM +build-c-bindings
+
+    SAVE ARTIFACT bindings AS LOCAL bindings
