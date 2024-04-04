@@ -129,6 +129,9 @@ pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> 
             res_holder.id_to_resource_map.insert(id, xprv);
             res_holder.resource_to_id_map.insert(wrapped_xprv, id);
             return Some(id);
+        } else {
+            // Get the resource if exist.
+            return res_holder.get_id_from_resource(&xprv);
         }
     }
     None
