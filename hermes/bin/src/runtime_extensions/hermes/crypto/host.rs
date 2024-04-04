@@ -36,13 +36,14 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         match xprv {
             Ok(xprv) => {
                 if let Some(id) = add_resource(self.app_name(), xprv) {
-                    return Ok(Resource::new_own(id));
+                    Ok(Resource::new_own(id))
+                } else {
+                    Err(wasmtime::Error::msg("Error creating new resource"))
                 }
             },
-            Err(e) => return Err(wasmtime::Error::msg(e.to_string())),
-        };
+            Err(e) => Err(wasmtime::Error::msg(e.to_string())),
+        }
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
-        Err(wasmtime::Error::msg("Error creating new resource"))
     }
 
     /// Get the public key for this private key.
