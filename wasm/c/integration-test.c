@@ -1,4 +1,5 @@
 #include "bindings_src/hermes.h"
+#include <string.h>
 
 const uint32_t N_TEST = 5;
 const exports_hermes_integration_test_event_test_result_t TESTS[N_TEST] = {
