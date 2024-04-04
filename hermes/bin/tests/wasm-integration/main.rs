@@ -23,8 +23,31 @@ use hermes::{
     wasm::module::Module,
 };
 use libtest_mimic::{Arguments, Failed, Measurement, Trial};
+use tracing::{info, level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
+use tracing_subscriber::{fmt::time, FmtSubscriber};
+
+/// Init the logger
+fn init_logger() -> Result<(), SetGlobalDefaultError> {
+    let subscriber = FmtSubscriber::builder()
+        .json()
+        .with_level(true)
+        .with_thread_names(true)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_timer(time::UtcTime::rfc_3339())
+        //.with_span_events(FmtSpan::CLOSE)
+        .with_max_level(LevelFilter::INFO)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // This is necessary otherwise the logging functions inside hermes are silent during the test run.
+    init_logger()?;
+    info!("Starting Hermes WASM integration tests");
+
     let args = Arguments::from_args();
     let tests = collect_tests()?;
     libtest_mimic::run(&args, tests).exit();
@@ -81,16 +104,12 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
                         let path_string = file_path.to_string_lossy().to_string();
 
                         let test = match event_type {
-                            EventType::Test => {
-                                Trial::test(result.name, move || {
-                                    execute_test(i, path_string, event_type)
-                                })
-                            },
-                            EventType::Bench => {
-                                Trial::bench(result.name, move |test_mode| {
-                                    execute_bench(test_mode, i, path_string, event_type)
-                                })
-                            },
+                            EventType::Test => Trial::test(result.name, move || {
+                                execute_test(i, path_string, event_type)
+                            }),
+                            EventType::Bench => Trial::bench(result.name, move |test_mode| {
+                                execute_bench(test_mode, i, path_string, event_type)
+                            }),
                         }
                         .with_kind(name.clone());
 
