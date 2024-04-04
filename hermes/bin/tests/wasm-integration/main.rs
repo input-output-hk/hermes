@@ -46,7 +46,8 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
 fn main() -> Result<(), Box<dyn Error>> {
     // This is necessary otherwise the logging functions inside hermes are silent during the test run.
     init_logger()?;
-    info!("Starting Hermes WASM integration tests");
+    // This causes issues with normal test runs, so comment out for now.
+    // info!("Starting Hermes WASM integration tests");
 
     let args = Arguments::from_args();
     let tests = collect_tests()?;
