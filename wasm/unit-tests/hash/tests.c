@@ -66,7 +66,7 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
       uint8_t outlen = 64;
 
       hermes_hash_api_bstr_t local_ret = {NULL, 0};
-      hermes_hash_api_errno_t *local_err = NULL;
+      hermes_hash_api_errno_t local_err = -1;
       bool success = hermes_hash_api_blake2b(&buf, &outlen, &local_ret, local_err);
 
       if (success && local_ret.ptr != NULL) {
@@ -85,7 +85,7 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
       uint8_t outlen = 32;
 
       hermes_hash_api_bstr_t local_ret = {NULL, 0};
-      hermes_hash_api_errno_t *local_err = NULL;
+      hermes_hash_api_errno_t local_err = -1;
       bool success = hermes_hash_api_blake2b(&buf, &outlen, &local_ret, local_err);
 
       if (success && local_ret.ptr != NULL) {
@@ -106,7 +106,7 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
       uint8_t outlen = 64;
 
       hermes_hash_api_bstr_t local_ret = {NULL, 0};
-      hermes_hash_api_errno_t *local_err = NULL;
+      hermes_hash_api_errno_t local_err = -1;
       bool success = hermes_hash_api_blake2bmac(&buf, &outlen, &key, NULL, NULL, &local_ret, local_err);
 
       if (success && local_ret.ptr != NULL) {
@@ -117,11 +117,22 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
 
         ret->status = (res == 0);
       }
-      
+
       return true;
     }
     case 3: {
-      ret->status = false;
+      hermes_hash_api_bstr_t buf = bstr_t_from("test test");
+      hermes_hash_api_bstr_t key = bstr_t_from("key");
+      uint8_t outlen = 100;
+
+      hermes_hash_api_bstr_t local_ret = {NULL, 0};
+      hermes_hash_api_errno_t local_err = -1;
+      bool success = hermes_hash_api_blake2bmac(&buf, &outlen, &key, NULL, NULL, &local_ret, &local_err);
+
+      if (!success && local_err != NULL) {
+        ret->status = local_err == HERMES_HASH_API_ERRNO_HASH_TOO_BIG;
+      }
+      
       return true;
     }
     default: {
