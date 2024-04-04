@@ -8,6 +8,12 @@ use crate::wasm::module::{Module, ModuleId};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct HermesAppName(pub(crate) String);
 
+impl std::fmt::Display for HermesAppName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Convenient type alias for indexed apps map (`HermesAppName` -> `HermesApp`)
 pub(crate) type IndexedApps = HashMap<HermesAppName, HermesApp>;
 
