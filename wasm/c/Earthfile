@@ -2,7 +2,7 @@ VERSION 0.7
 
 # build - generate a wasm component from a C stub file
 build:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.9.0+wasm-c-base
+    FROM github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v2.10.2+wasm-c-base
 
     ARG c_files="my-component.c"
 
