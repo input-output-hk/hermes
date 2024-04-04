@@ -119,7 +119,7 @@ pub(crate) fn get_resource(app_name: &HermesAppName, id: u32) -> Option<XPrv> {
 
 /// Add the resource of `XPrv` to the state if possible.
 /// Return the id if successful.
-pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> {
+pub(crate) fn add_or_get_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> {
     if let Some(mut res_holder) = CRYPTO_INTERNAL_STATE.get_mut(app_name) {
         let wrapped_xprv = WrappedXPrv::from(xprv.clone());
         // Check whether the resource already exists.
@@ -178,7 +178,7 @@ mod tests_crypto_state {
         set_state(app_name.clone());
 
         // Add the resource.
-        let id1 = add_resource(&app_name, prv.clone());
+        let id1 = add_or_get_resource(&app_name, prv.clone());
         // Should return id 1.
         assert_eq!(id1, Some(1));
         // Get the resource from id 1.
@@ -187,7 +187,7 @@ mod tests_crypto_state {
         assert_eq!(resource, Some(prv.clone()));
 
         // Add another resource, with the same key.
-        let id2 = add_resource(&app_name, prv.clone());
+        let id2 = add_or_get_resource(&app_name, prv.clone());
         // Resource already exist, so it should return None.
         assert_eq!(id2, None);
         // Get the resource from id.
@@ -225,11 +225,11 @@ mod tests_crypto_state {
                 let app_name: HermesAppName = HermesAppName("App name 2".to_string());
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
-                add_resource(&app_name, prv1.clone());
+                add_or_get_resource(&app_name, prv1.clone());
                 let app_name: HermesAppName = HermesAppName("App name 2".to_string());
                 let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
                 // Adding resource.
-                add_resource(&app_name, prv2.clone());
+                add_or_get_resource(&app_name, prv2.clone());
             });
             handles.push(handle);
         }

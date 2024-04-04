@@ -16,7 +16,7 @@ use crate::{
         hermes::crypto::{
             bip32_ed25519::{derive_new_private_key, get_public_key, sign_data},
             bip39::{generate_new_mnemonic, mnemonic_to_xprv},
-            state::{add_resource, delete_resource, get_resource},
+            state::{add_or_get_resource, delete_resource, get_resource},
         },
     },
 };
@@ -35,7 +35,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         let xprv = mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "));
         match xprv {
             Ok(xprv) => {
-                if let Some(id) = add_resource(self.app_name(), xprv) {
+                if let Some(id) = add_or_get_resource(self.app_name(), xprv) {
                     return Ok(Resource::new_own(id));
                 } else {
                     return Err(wasmtime::Error::msg("Error creating new resource"));
@@ -121,7 +121,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
         get_resource(self.app_name(), resource.rep())
             .and_then(|private_key| derive_new_private_key(private_key, &path).ok())
-            .and_then(|derived_private_key| add_resource(self.app_name(), derived_private_key))
+            .and_then(|derived_private_key| add_or_get_resource(self.app_name(), derived_private_key))
             .map(Resource::new_own)
             // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
             .ok_or_else(|| wasmtime::Error::msg("Error deriving new private key"))
