@@ -39,3 +39,10 @@ uint8_t *hex2bin(const char *hex_str) {
 
   return bytes_arr;
 }
+
+hermes_hash_api_bstr_t bstr_t_from(uint8_t *str) {
+  return (hermes_hash_api_bstr_t){
+    .ptr = str,
+    .len = strlen(str)
+  };
+}

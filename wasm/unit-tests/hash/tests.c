@@ -4,6 +4,13 @@
 
 #define N_TEST 4
 
+const char *TESTS[N_TEST] = {
+  "blake2b_512",
+  "blake2b_256",
+  "blake2bmac_512",
+  "blake2bmac_hash_too_big_err"
+};
+
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out) {
 
@@ -41,15 +48,8 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 
 // Exported Functions from `hermes:integration-test/event`
 bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret) {
-  const char *tests[N_TEST] = {
-    "blake2b_512",
-    "blake2b_256",
-    "blake2bmac_512",
-    "blake2bmac_hash_too_big_err"
-  };
-
   if (test < N_TEST) {
-    hermes_string_dup(&ret->name, tests[test]);
+    hermes_string_dup(&ret->name, TESTS[test]);
     ret->status = false;
 
     if (!run) {
@@ -60,12 +60,9 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
   }
 
   switch (test) {
-    // blake2smac
+    // blake2bm
     case 0: {
-      hermes_hash_api_bstr_t buf = {
-        .ptr = (uint8_t *)"test test",
-        .len = strlen("test test")
-      };
+      hermes_hash_api_bstr_t buf = bstr_t_from("test test");
       uint8_t outlen = 64;
 
       hermes_hash_api_bstr_t local_ret = {NULL, 0};
@@ -84,17 +81,46 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
       return true;
     }
     case 1: {
-      ret->status = false;
+      hermes_hash_api_bstr_t buf = bstr_t_from("test test");
+      uint8_t outlen = 32;
+
+      hermes_hash_api_bstr_t local_ret = {NULL, 0};
+      hermes_hash_api_errno_t *local_err = NULL;
+      bool success = hermes_hash_api_blake2b(&buf, &outlen, &local_ret, local_err);
+
+      if (success && local_ret.ptr != NULL) {
+        int res = strcmp(
+          local_ret.ptr,
+          hex2bin("7f3dc1170e7017a1643d84d102429c4c7aec4ca99c016c32af18af997fed51f1")
+        );
+
+        ret->status = (res == 0);
+      }
+
       return true;
     }
     // blake2bmac
     case 2: {
-      // bool hermes_hash_api_blake2bmac(hermes_hash_api_bstr_t *buf, uint8_t *maybe_outlen, hermes_hash_api_bstr_t *key, hermes_hash_api_bstr_t *maybe_salt, hermes_hash_api_bstr_t *maybe_personal, hermes_hash_api_bstr_t *ret, hermes_hash_api_errno_t *err);
-      ret->status = false;
+      hermes_hash_api_bstr_t buf = bstr_t_from("test test");
+      hermes_hash_api_bstr_t key = bstr_t_from("key");
+      uint8_t outlen = 64;
+
+      hermes_hash_api_bstr_t local_ret = {NULL, 0};
+      hermes_hash_api_errno_t *local_err = NULL;
+      bool success = hermes_hash_api_blake2bmac(&buf, &outlen, &key, NULL, NULL, &local_ret, local_err);
+
+      if (success && local_ret.ptr != NULL) {
+        int res = strcmp(
+          local_ret.ptr,
+          hex2bin("c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115")
+        );
+
+        ret->status = (res == 0);
+      }
+      
       return true;
     }
     case 3: {
-      // bool hermes_hash_api_blake2bmac(hermes_hash_api_bstr_t *buf, uint8_t *maybe_outlen, hermes_hash_api_bstr_t *key, hermes_hash_api_bstr_t *maybe_salt, hermes_hash_api_bstr_t *maybe_personal, hermes_hash_api_bstr_t *ret, hermes_hash_api_errno_t *err);
       ret->status = false;
       return true;
     }
