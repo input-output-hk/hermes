@@ -65,7 +65,7 @@ test-wasm-integration:
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
 
-    # List all WASM integration testsw/benches and also run them.
+    # List all WASM integration tests/benches and also run them.
     #RUN cargo test --release --test wasm-component-integration-tests -- --help
     RUN cargo test --release --test wasm-component-integration-tests -- --list
     RUN cargo test --release --test wasm-component-integration-tests -- --test
