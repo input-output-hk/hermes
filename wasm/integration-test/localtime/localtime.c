@@ -49,7 +49,7 @@ bool test_localtime_function()
     hermes_localtime_api_localtime_t ret;
     hermes_localtime_api_errno_t err;
     
-    if (hermes_localtime_api_get_localtime(NULL, NULL, &ret, &err)) {
+    if (hermes_localtime_api_get_localtime(NULL, &HERMES_STRING("Europe/London"), &ret, &err)) {
         return true;
     }
     

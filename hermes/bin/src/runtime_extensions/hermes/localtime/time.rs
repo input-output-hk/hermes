@@ -53,9 +53,8 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
-    fn test_get_localtime() {
-        let result = get_localtime(None, None);
+    fn test_get_localtime_with_utc_offset() {
+        let result = get_localtime(None, Some(String::from("Europe/London")));
         assert!(result.is_ok()); // Check if the function call was successful
     }
 }
