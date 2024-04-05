@@ -46,7 +46,14 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 // Localtime test function
 bool test_localtime_function()
 {
-    return true;
+    hermes_localtime_api_localtime_t ret;
+    hermes_localtime_api_errno_t err;
+    
+    if (hermes_localtime_api_get_localtime(NULL, NULL, &ret, &err)) {
+        return true;
+    }
+    
+    return false;
 }
 
 // Exported Functions from `hermes:integration-test/event`
