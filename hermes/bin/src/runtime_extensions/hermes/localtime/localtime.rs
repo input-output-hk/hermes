@@ -30,9 +30,7 @@ pub(super) fn get_localtime(
     };
     let local_date_time = timezone.from_utc_datetime(&local_naive);
 
-    local_date_time
-        .try_into()
-        .map_err(|_| Errno::InvalidLocaltime)
+    local_date_time.try_into()
 }
 
 /// (Implementation) Get a new localtime from a localtime, by recalculating time for a new
@@ -47,9 +45,7 @@ pub(super) fn alt_localtime(time: Localtime, tz: Option<Timezone>) -> Result<Loc
         None => local_date_time,
     };
 
-    alt_local_date_time
-        .try_into()
-        .map_err(|_| Errno::InvalidLocaltime)
+    alt_local_date_time.try_into()
 }
 
 #[cfg(test)]
