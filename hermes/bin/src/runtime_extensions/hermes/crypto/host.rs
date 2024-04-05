@@ -44,7 +44,6 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
             },
             Err(e) => Err(wasmtime::Error::msg(e.to_string())),
         }
-        // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
     }
 
     /// Get the public key for this private key.
