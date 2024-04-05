@@ -39,11 +39,11 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 }
 
 const char *tag_str = "Example Tag";
-const char *when_str = "* * * * *";
+const char *schedule_str = "* * * * *";
 
 hermes_cron_api_cron_tagged_t example_cron_tagged()
 {
-    hermes_cron_api_cron_sched_t when = {.ptr = (uint8_t *)when_str, .len = strlen(when_str)};
+    hermes_cron_api_cron_sched_t when = {.ptr = (uint8_t *)schedule_str, .len = strlen(schedule_str)};
     hermes_cron_api_cron_event_tag_t tag = {.ptr = (uint8_t *)tag_str, .len = strlen(tag_str)};
 
     return (hermes_cron_api_cron_tagged_t){ when, tag };
@@ -85,9 +85,8 @@ bool make_cron()
     hermes_cron_api_cron_sched_t ret;
     hermes_cron_api_mkcron(&ctime, &ctime, &ctime, &ctime, &ctime, &ret);
 
-    char *expected_sched = "* * * * *";
-    size_t n = strlen(expected_sched);
-    return ret.ptr != NULL && ret.len == n;
+    size_t n = strlen(schedule_str);
+    return ret.ptr != NULL && ret.len == n && strncmp((const char *)ret.ptr, schedule_str, n) == 0;
 }
 
 // Exported Functions from `hermes:integration-test/event`
