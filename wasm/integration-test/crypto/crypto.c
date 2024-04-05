@@ -97,7 +97,7 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
       ret->status = generate_mnemonic();
     break;
   case 1:
-    hermes_string_dup(&ret->name, "Get PubKey");
+    hermes_string_dup(&ret->name, "BIP32-Ed25519");
     if (run)
       ret->status = get_pubkey();
     break;
