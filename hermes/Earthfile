@@ -60,10 +60,11 @@ test-wasm-integration:
     FROM +build
 
     # Copy all wasm module artifacts for testing
-    COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
     #RUN cargo test --release --test wasm-component-integration-tests -- --help
