@@ -54,7 +54,7 @@ build:
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-    SAVE ARTIFACT target/criterion 
+    SAVE ARTIFACT target/criterion
 
 test-wasm-integration:
     FROM +build
@@ -62,6 +62,7 @@ test-wasm-integration:
     # Copy all wasm module artifacts for testing
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/

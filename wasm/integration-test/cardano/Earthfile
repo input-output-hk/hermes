@@ -1,0 +1,14 @@
+VERSION 0.7
+
+build:
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.10.3+SETUP
+
+    COPY --dir src .
+    COPY Cargo.toml Cargo.lock .
+    RUN cargo build --target wasm32-unknown-unknown --release
+
+    COPY ../../wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
+
+    RUN wasm-tools component new -o cardano.wasm target/wasm32-unknown-unknown/release/cardano_rte_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+
+    SAVE ARTIFACT cardano.wasm
