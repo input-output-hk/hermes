@@ -38,33 +38,56 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 {
 }
 
-#define HERMES_STRING(x) \
-  (hermes_string_t) { (uint8_t *)x, strlen(x) }
+const char *tag_str = "Example Tag";
+const char *when_str = "* * * * *";
 
+hermes_cron_api_cron_tagged_t example_cron_tagged()
+{
+    hermes_cron_api_cron_sched_t when = {.ptr = (uint8_t *)when_str, .len = strlen(when_str)};
+    hermes_cron_api_cron_event_tag_t tag = {.ptr = (uint8_t *)tag_str, .len = strlen(tag_str)};
+
+    return (hermes_cron_api_cron_tagged_t){ when, tag };
+}
 
 bool add_crontab()
 {
-    return true;
+    hermes_cron_api_cron_tagged_t entry = example_cron_tagged();
+    bool retrigger = true;
+
+    return hermes_cron_api_add(&entry, retrigger);
 }
 
 bool delay_crontab()
 {
-    return true;
+    hermes_cron_api_cron_event_tag_t tag = {.ptr = (uint8_t *)tag_str, .len = strlen(tag_str)};
+    hermes_cron_api_instant_t duration = 2000000000;
+    return hermes_cron_api_delay(duration, &tag);
 }
 
 bool list_crontabs()
 {
-    return true;
+    hermes_cron_api_cron_event_tag_t maybe_tag = {.ptr = NULL, .len = 0};
+    hermes_cron_api_list_tuple2_cron_tagged_bool_t ret;
+    hermes_cron_api_ls(&maybe_tag, &ret);
+    return ret.ptr != NULL && ret.len == 0;
 }
 
 bool remove_crontab()
 {
-    return true;
+    hermes_cron_api_cron_tagged_t entry = example_cron_tagged();
+    return !hermes_cron_api_rm(&entry);
 }
 
 bool make_cron()
 {
-    return true;
+    hermes_cron_api_cron_component_t all = { .tag = HERMES_CRON_API_CRON_COMPONENT_ALL };
+    hermes_cron_api_cron_time_t ctime = { .ptr = &all, .len = 1 };
+    hermes_cron_api_cron_sched_t ret;
+    hermes_cron_api_mkcron(&ctime, &ctime, &ctime, &ctime, &ctime, &ret);
+
+    char *expected_sched = "* * * * *";
+    size_t n = strlen(expected_sched);
+    return ret.ptr != NULL && ret.len == n;
 }
 
 // Exported Functions from `hermes:integration-test/event`
