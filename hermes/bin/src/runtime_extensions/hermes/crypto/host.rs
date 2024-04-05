@@ -38,6 +38,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
                 if let Some(id) = add_resource(self.app_name(), xprv) {
                     Ok(Resource::new_own(id))
                 } else {
+                    // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
                     Err(wasmtime::Error::msg("Error creating new resource"))
                 }
             },
