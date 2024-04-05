@@ -8,4 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 hex = "0.4.3"
+pallas-traverse = "0.25.0"
 wit-bindgen = "0.24.0"
