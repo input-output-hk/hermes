@@ -1,6 +1,6 @@
 //! Localtime host implementation for WASM runtime.
 
-use super::localtime::{alt_localtime, get_localtime};
+use super::time::{alt_localtime, get_localtime};
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::{

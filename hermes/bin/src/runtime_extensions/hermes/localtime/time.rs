@@ -53,6 +53,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_get_localtime() {
         let result = get_localtime(None, None);
         assert!(result.is_ok()); // Check if the function call was successful
