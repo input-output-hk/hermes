@@ -122,6 +122,17 @@ impl FromStr for Network {
     }
 }
 
+impl ToString for Network {
+    fn to_string(&self) -> String {
+        match self {
+            Network::Mainnet => "mainnet".to_string(),
+            Network::Preprod => "preprod".to_string(),
+            Network::Preview => "preview".to_string(),
+            Network::Testnet => "testnet".to_string(),
+        }
+    }
+}
+
 impl From<Network> for u64 {
     fn from(network: Network) -> Self {
         match network {
