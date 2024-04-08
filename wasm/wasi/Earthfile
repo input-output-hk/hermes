@@ -76,6 +76,8 @@ build-rust-bindings:
 
     RUN wit-bindgen rust ../wasi/wit --stubs
 
+    SAVE ARTIFACT hermes.rs
+
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
