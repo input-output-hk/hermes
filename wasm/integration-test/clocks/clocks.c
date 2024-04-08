@@ -46,19 +46,22 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 // Wall clock test function
 bool test_wall_now_function()
 {
-    wasi_clocks_wall_clock_datetime_t ret;
+    wasi_clocks_wall_clock_datetime_t one;
+    wasi_clocks_wall_clock_datetime_t two;
 
-    wasi_clocks_wall_clock_now(&ret);
+    wasi_clocks_wall_clock_now(&one);
+    wasi_clocks_wall_clock_now(&two);
 
-    return true;
+    return one.seconds <= two.seconds;
 }
 
 // Monotonic clock test function
 bool test_monotonic_now_function()
 {
-    wasi_clocks_monotonic_clock_instant_t ret = wasi_clocks_monotonic_clock_now();
+    wasi_clocks_monotonic_clock_instant_t one = wasi_clocks_monotonic_clock_now();
+    wasi_clocks_monotonic_clock_instant_t two = wasi_clocks_monotonic_clock_now();
     
-    return true;
+    return one <= two;
 }
 
 // Exported Functions from `hermes:integration-test/event`

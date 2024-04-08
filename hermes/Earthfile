@@ -44,9 +44,6 @@ all-hosts-check:
 build:
     FROM +builder
 
-    # Directory where WASM test components go when we run wasm module integration tests.
-    RUN mkdir ../wasm/test-components
-
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
                                 --bins="hermes/hermes" \
@@ -57,7 +54,10 @@ build:
     SAVE ARTIFACT target/criterion
 
 test-wasm-integration:
-    FROM +build
+    FROM +builder
+
+    # Directory where WASM test components go when we run wasm module integration tests.
+    RUN mkdir ../wasm/test-components
 
     # Copy all wasm module artifacts for testing
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
