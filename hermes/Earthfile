@@ -61,9 +61,11 @@ test-wasm-integration:
 
     # Copy all wasm module artifacts for testing
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
 
