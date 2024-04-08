@@ -57,7 +57,7 @@ build:
     SAVE ARTIFACT target/criterion
 
 test-wasm-integration:
-    FROM +builder
+    FROM +build
 
     # Copy all wasm module artifacts for testing
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
