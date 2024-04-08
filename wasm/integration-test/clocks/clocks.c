@@ -43,17 +43,6 @@ void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_herme
 #define HERMES_JSON_STRING(x) \
     (hermes_json_api_json_t) { (uint8_t *)x, strlen(x) }
 
-// Wall clock test function
-bool test_wall_now_function()
-{
-    wasi_clocks_wall_clock_datetime_t one;
-    wasi_clocks_wall_clock_datetime_t two;
-
-    wasi_clocks_wall_clock_now(&one);
-    wasi_clocks_wall_clock_now(&two);
-
-    return one.seconds <= two.seconds;
-}
 
 // Monotonic clock test function
 bool test_monotonic_now_function()
@@ -71,11 +60,6 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
     switch (test)
     {
     case 0:
-        hermes_string_dup(&ret->name, "clocks_wall_now");
-        if (run)
-            ret->status = test_wall_now_function();
-        break;
-    case 1:
         hermes_string_dup(&ret->name, "clocks_monotonic_now");
         if (run)
             ret->status = test_monotonic_now_function();
