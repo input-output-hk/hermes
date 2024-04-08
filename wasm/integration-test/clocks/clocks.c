@@ -49,12 +49,8 @@ bool test_wall_now_function()
     wasi_clocks_wall_clock_datetime_t ret;
 
     wasi_clocks_wall_clock_now(&ret);
-    
-    if (&ret != NULL) {
-        return true;
-    }
-    
-    return false;
+
+    return true;
 }
 
 // Monotonic clock test function
