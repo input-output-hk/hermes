@@ -1,0 +1,9 @@
+
+interface api {
+
+}
+
+/// World just for the Hermes 'sqlite' API.
+world sqlite-api {
+    import api;
+}
