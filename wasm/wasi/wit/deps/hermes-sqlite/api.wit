@@ -1,6 +1,32 @@
 
 interface api {
+    record conn {
+    
+    }
 
+    record stmt {
+    
+    }
+
+    enum errno {
+    
+    }
+
+    open: func() -> void;
+
+    prepare: func() -> void;
+
+    bind: func() -> void;
+
+    step: func() -> void;
+
+    column: func() -> void;
+
+    finalize: func() -> void;
+
+    close: func() -> void;
+
+    exec: func() -> void;
 }
 
 /// World just for the Hermes 'sqlite' API.
