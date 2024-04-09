@@ -4,7 +4,7 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.10.3+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.11.2+SETUP
     COPY --dir .cargo .config crates bin .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
@@ -12,7 +12,7 @@ builder:
     RUN mkdir /wasm
     COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
     # Compiled WASM component for benchmarks
-    COPY ../wasm/c+build/component.wasm /wasm/c/bench_component.wasm
+    COPY ../wasm/stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
 
 # Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
 bindings-expand:
@@ -44,16 +44,37 @@ all-hosts-check:
 build:
     FROM +builder
 
-    # build wasm artifacts for testing
-    COPY (../wasm/c+build/component.wasm --c_files="integration-test.c") ../wasm/test-components/
+    # Directory where WASM test components go when we run wasm module integration tests.
+    RUN mkdir ../wasm/test-components
 
     RUN /scripts/std_build.py   --bench_flags="--features bench" \
                                 --libs="cardano-chain-follower" \
-                                --bins="hermes/hermes"
+                                --bins="hermes/hermes" \
+                                --verbose
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
-    SAVE ARTIFACT target/criterion 
+    SAVE ARTIFACT target/criterion
+
+test-wasm-integration:
+    FROM +build
+
+    # Copy all wasm module artifacts for testing
+    COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
+
+    # List all WASM integration tests/benches and also run them.
+    #RUN cargo test --release --test wasm-component-integration-tests -- --help
+    RUN cargo test --release --test wasm-component-integration-tests -- --list
+    RUN cargo test --release --test wasm-component-integration-tests -- --test
+    RUN cargo test --release --test wasm-component-integration-tests -- --bench
+
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.

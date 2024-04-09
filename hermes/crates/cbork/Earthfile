@@ -2,7 +2,7 @@ VERSION 0.7
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.10.0+SETUP
+    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.11.2+SETUP
 
     COPY --dir .cargo .config cddl-parser abnf-parser .
     COPY Cargo.toml clippy.toml deny.toml rustfmt.toml .

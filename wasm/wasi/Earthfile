@@ -71,16 +71,20 @@ build:
     SAVE ARTIFACT wasi-hermes-docs wasi-hermes-docs
 
 # test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
-test-rust-bindings:
+build-rust-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
-    RUN wit-bindgen rust ../wasi/wit --stubs
+    RUN wit-bindgen rust ../wasi/wit
+
+    SAVE ARTIFACT hermes.rs
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
-test-c-bindings:
+build-c-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
-    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit
+    RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit --out-dir bindings/c
+
+    SAVE ARTIFACT bindings
 
 # test-java-bindings - Test we can generate Java bindings without error from the hermes default world
 test-java-bindings:
@@ -93,13 +97,16 @@ test-java-bindings:
 test-go-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
-    # java bindings are currently broken because `resource` is not yet implemented.
     RUN wit-bindgen tiny-go ../wasi/wit
 
 # test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
 test-csharp-bindings:
     FROM ../wasi-hermes-component-adapter+builder
 
-    # java bindings are currently broken because `lots of stuff is not yet implemented.
+    # csharp bindings are currently broken because `lots of stuff is not yet implemented.
     RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true
 
+local-c-bindings:
+    FROM +build-c-bindings
+
+    SAVE ARTIFACT bindings AS LOCAL bindings

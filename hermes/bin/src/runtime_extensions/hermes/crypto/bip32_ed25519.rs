@@ -198,6 +198,7 @@ mod tests_bip32_ed25519 {
     #[test]
     fn test_get_public_key() {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
+        // 3986768884739312704, 9782938079688165927, 7977656244723921923, 12587033252467133758
         let pubk_tuple = get_public_key(&xprv);
         let pubk_hex = format!(
             "{:x}{:x}{:x}{:x}",

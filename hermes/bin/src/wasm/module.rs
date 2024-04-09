@@ -162,8 +162,7 @@ pub mod bench {
             }
         }
 
-        let module =
-            Module::new(include_bytes!("../../../../wasm/c/bench_component.wasm")).unwrap();
+        let module = Module::new(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
 
         b.iter(|| {
             module
