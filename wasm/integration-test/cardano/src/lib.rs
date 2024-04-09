@@ -97,4 +97,4 @@ impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
     fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
 }
 
-hermes::export!(TestComponent);
+hermes::export!(TestComponent with_types_in hermes);
