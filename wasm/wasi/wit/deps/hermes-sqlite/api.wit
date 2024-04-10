@@ -1,34 +1,76 @@
 
 interface api {
+    // Errors that indicate that something has gone wrong.
     enum errno {
-    
+        /// A generic error code that is used when no other more specific error code is available.
+        error,
+        /// An internal malfunction.
+        internal,
+        /// The requested access mode for a newly created database could not be provided.
+        perm,
+        /// An operation was aborted prior to completion.
+        abort,
+        /// The database file could not be written (or in some cases read) because of concurrent activity by some other database connection.
+        busy,
+        /// A write operation could not continue because of a conflict within the same database connection or a conflict with a different database connection that uses a shared cache.
+        locked,
+        nomem,
+        readonly,
+        interrupt,
+        ioerr,
+        corrupt,
+        notfound,
+        full,
+        cantopen,
+        protocol,
+        empty,
+        schema,
+        toobig,
+        constraint,
+        mismatched,
+        misuse,
+        nolfs,
+        auth,
+        format,
+        range,
+        notadb,
+        notice,
+        warning,
     }
 
     /// The database connection object.
     resource sqlite {
-        /// Open a connection to a new or existing SQLite database. The constructor for `sqlite3`.
-        constructor();
+        /// Open a connection to a new or existing SQLite database.
+        ///
+        /// ## Parameters
+        ///
+        /// - `readonly`: If set to true, the database is opened in read-only mode. An error is returned if the database doesn't already exist.
+        /// - `memory`: If set to true, the database will be opened as an in-memory database.
+        ///
+        open: func(readonly: bool, memory: bool) -> result<sqlite, errno>;
 
         /// Destructor for sqlite3.
-        close: func() -> void;
+        close: func() -> result<_, errno>;
     }
 
     /// The prepared statement object.
     resource statement {
         /// Compile SQL text into byte-code that will do the work of querying or updating the database.
-        constructor(db: sqlite, sql: string);
+        prepare: func(db: sqlite, sql: string) -> result<statement, errno>;
 
         /// Store application data into parameters of the original SQL.
-        bind: func() -> void;
+        bind: func() -> result<_, errno>;
 
         /// Advance a statement to the next result row or to completion.
-        step: func() -> void;
+        ///
+        /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
+        step: func() -> result<_, errno>;
 
         /// Column values in the current result row for a statement.
-        column: func() -> void;
+        column: func() -> result<_, errno>;
 
         /// Destructor for the statement.
-        finalize: func() -> void;
+        finalize: func() -> result<_, errno>;
     }
 }
 
