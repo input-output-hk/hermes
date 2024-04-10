@@ -103,9 +103,11 @@ json-schemas:
 # load a mithril snapshot from file and report the statistics.
 baseline-snapshot-test-pallas:
     FROM +builder
+    ARG interval_duration=20
+    ENV INTERVAL_DURATION=$interval_duration
 
     COPY --dir github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot/snapshot/immutable crates/cardano-chain-follower/examples/base_snapshot
 
-    RUN cargo build --example="load_snapshot"
+    RUN cargo build --example="load_mithril_snapshot_with_pallas" --release
 
-    RUN --no-cache cargo run --example="load_snapshot"
+    RUN --no-cache cargo run --example="load_mithril_snapshot_with_pallas" --release
