@@ -14,7 +14,7 @@ use pallas_hardano::storage::immutable::Point;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
-/// Default nterval in seconds used to generate statistics.
+/// Default interval in seconds used to generate statistics.
 const DEFAULT_BLOCK_INTERVAL_IN_SECS: u64 = 20;
 
 /// Timer to keep track of block statistics
