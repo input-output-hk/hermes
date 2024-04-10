@@ -38,6 +38,21 @@ interface api {
         warning,
     }
 
+    variant config-options {
+        singlethread,
+        multithread,
+        serialized,
+    }
+
+    variant value {
+        blob(list<u8>),
+        double(float64),
+        int32(s32),
+        int64(s64),
+        null,
+        text(string)
+    }
+
     /// The database connection object.
     resource sqlite {
         /// Open a connection to a new or existing SQLite database.
@@ -51,6 +66,11 @@ interface api {
 
         /// Destructor for sqlite3.
         close: func() -> result<_, errno>;
+
+        /// Use to make global configuration changes to SQLite in order to tune SQLite to the specific needs of the application.
+        config: func(opt: config-options) -> result<_, errno>;
+
+        status: func() -> result<_, errno>;
     }
 
     /// The prepared statement object.
@@ -59,7 +79,7 @@ interface api {
         prepare: func(db: sqlite, sql: string) -> result<statement, errno>;
 
         /// Store application data into parameters of the original SQL.
-        bind: func() -> result<_, errno>;
+        bind: func(index: u32, value: value) -> result<_, errno>;
 
         /// Advance a statement to the next result row or to completion.
         ///
@@ -67,7 +87,7 @@ interface api {
         step: func() -> result<_, errno>;
 
         /// Column values in the current result row for a statement.
-        column: func() -> result<_, errno>;
+        column: func(index: u32) -> result<value, errno>;
 
         /// Destructor for the statement.
         finalize: func() -> result<_, errno>;
