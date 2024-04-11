@@ -60,10 +60,28 @@ interface api {
         warning,
     }
 
+    /// Database connection configuration options.
     variant config-options {
-        singlethread,
-        multithread,
-        serialized
+        maindbname(string),
+        lookaside(u32, s32, s32),
+        enable-fkey(s32, s32),
+        enable-trigger(s32, s32),
+        enable-fts3-tokenizer(s32, s32),
+        enable-load-extension(s32, s32),
+        enable-no-ckpt-on-close(s32, s32),
+        enable-qpsg(s32, s32),
+        tigger-eqp(s32, s32),
+        reset-database(s32, s32),
+        defensive(s32, s32),
+        writable-schema(s32, s32),
+        legacy-alter-table(s32, s32),
+        dqs-dml(s32, s32),
+        dqs-ddl(s32, s32),
+        enable-view(s32, s32),
+        legacy-file-format(s32, s32),
+        trusted-schema(s32, s32),
+        stmt-scanstatus(s32, s32),
+        reverse-scanorder(s32, s32)
     }
 
     /// Status parameters for database connections
