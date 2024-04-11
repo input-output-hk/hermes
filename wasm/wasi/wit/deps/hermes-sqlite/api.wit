@@ -1,3 +1,6 @@
+// cspell: words ioerr cantopen toobig nolfs notadb maindbname lookaside fkey qpsg scanstatus
+// cspell: words highwater DBSTATUS unfinalized scanorder
+
 /// # SQLite API
 ///
 /// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
@@ -79,7 +82,7 @@ interface api {
         enable-load-extension(tuple<s32, s32>),
         enable-no-ckpt-on-close(tuple<s32, s32>),
         enable-qpsg(tuple<s32, s32>),
-        tigger-eqp(tuple<s32, s32>),
+        trigger-eqp(tuple<s32, s32>),
         reset-database(tuple<s32, s32>),
         defensive(tuple<s32, s32>),
         writable-schema(tuple<s32, s32>),
