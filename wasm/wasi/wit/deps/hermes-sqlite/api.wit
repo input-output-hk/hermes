@@ -1,4 +1,13 @@
+/// # SQLite API
+///
+/// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
 
+
+/// SQLite API Interface
 interface api {
     // Errors that indicate that something has gone wrong.
     enum errno {
