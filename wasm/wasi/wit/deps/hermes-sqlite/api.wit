@@ -63,7 +63,7 @@ interface api {
     variant config-options {
         singlethread,
         multithread,
-        serialized,
+        serialized
     }
 
     variant value {
@@ -77,16 +77,13 @@ interface api {
 
     /// The database connection object.
     resource sqlite {
-        /// Open a connection to a new or existing SQLite database.
+        /// Close a database connection, destructor for `sqlite3`.
         ///
-        /// ## Parameters
+        /// Ideally, applications should finalize all prepared statements associated with the `sqlite3` object prior to attempting to close the object.
+        /// If the database connection is associated with unfinalized prepared statements,
+        /// then the function will leave the database connection open and return the `busy` error code.
         ///
-        /// - `readonly`: If set to true, the database is opened in read-only mode. An error is returned if the database doesn't already exist.
-        /// - `memory`: If set to true, the database will be opened as an in-memory database.
-        ///
-        open: func(readonly: bool, memory: bool) -> result<sqlite, errno>;
-
-        /// Destructor for sqlite3.
+        /// If an `sqlite3` object is destroyed while a transaction is open, the transaction is automatically rolled back.
         close: func() -> result<_, errno>;
 
         /// Use to make global configuration changes to SQLite in order to tune SQLite to the specific needs of the application.
@@ -97,15 +94,6 @@ interface api {
 
     /// The prepared statement object.
     resource statement {
-        /// Compile SQL text into byte-code that will do the work of querying or updating the database.
-        ///
-        /// ## Parameters
-        ///
-        /// - `db`: Database handle.
-        /// - `sql`: SQL statement, UTF-8 encoded.
-        ///
-        prepare: func(db: sqlite, sql: string) -> result<statement, errno>;
-
         /// Store application data into parameters of the original SQL.
         ///
         /// ## Parameters
@@ -129,9 +117,38 @@ interface api {
         column: func(index: u32) -> result<value, errno>;
 
         /// Destroy a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
-        /// then the function returns without errors. If the most recent evaluation of statement failed, then the function returns the appropriate error code.
+        /// then the function results without errors. If the most recent evaluation of statement failed, then the function results the appropriate error code.
+        ///
+        /// The application must finalize every prepared statement in order to avoid resource leaks.
+        /// It is a grievous error for the application to try to use a prepared statement after it has been finalized.
+        /// Any use of a prepared statement after it has been finalized can result in undefined and undesirable behavior such as segfaults and heap corruption.
         finalize: func() -> result<_, errno>;
     }
+
+    /// Open a connection to a new or existing SQLite database.
+    ///
+    /// ## Parameters
+    ///
+    /// - `readonly`: If set to true, the database is opened in read-only mode. An error is returned if the database doesn't already exist.
+    /// - `memory`: If set to true, the database will be opened as an in-memory database.
+    ///
+    /// ## Returns
+    ///
+    /// If the database is opened (and/or created) successfully, then the `sqlite3` object is returned. Otherwise an error code is returned.
+    open: func(readonly: bool, memory: bool) -> result<sqlite, errno>;
+
+    /// Compile SQL text into byte-code that will do the work of querying or updating the database.
+    ///
+    /// ## Parameters
+    ///
+    /// - `db`: Database handle.
+    /// - `sql`: SQL statement, UTF-8 encoded.
+    ///
+    /// ## Returns
+    ///
+    /// A compiled prepared statement that can be executed using `sqlite3_step()`.
+    /// If there is an error or the input text contains no SQL (if the input is an empty string or a comment) then an error code is returned.
+    prepare: func(db: sqlite, sql: string) -> result<statement, errno>;
 }
 
 /// World just for the Hermes 'sqlite' API.
