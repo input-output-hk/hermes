@@ -14,27 +14,49 @@ interface api {
         busy,
         /// A write operation could not continue because of a conflict within the same database connection or a conflict with a different database connection that uses a shared cache.
         locked,
+        /// SQLite was unable to allocate all the memory it needed to complete the operation.
         nomem,
+        /// When an attempt is made to alter some data for which the current database connection does not have write permission.
         readonly,
+        /// An operation was interrupted.
         interrupt,
+        /// The operation could not finish because the operating system reported an I/O error.
         ioerr,
+        /// The database file has been corrupted.
         corrupt,
+        /// When a file control operation is not recognized by the VFS.
         notfound,
+        /// A write could not complete because the disk is full.
         full,
+        /// SQLite was unable to open a file.
         cantopen,
+        /// A problem with the file locking protocol used by SQLite.
         protocol,
+        /// Not currently used.
         empty,
+        /// The database schema has changed.
         schema,
+        /// A string or BLOB was too large.
         toobig,
+        /// An SQL constraint violation occurred while trying to process an SQL statement.
         constraint,
+        /// A datatype mismatch.
         mismatched,
+        /// If the application uses any SQLite interface in a way that is undefined or unsupported.
         misuse,
+        /// Can be returned on systems that do not support large files when the database grows to be larger than what the filesystem can handle.
         nolfs,
+        /// An SQL statement being prepared is not authorized.
         auth,
+        /// Not currently used.
         format,
+        /// The parameter number argument to one of the `sqlite3_bind` routines or the column number in one of the `sqlite3_column` routines is out of range.
         range,
+        /// The file being opened does not appear to be an SQLite database file.
         notadb,
+        /// An unusual operation is taking place.
         notice,
+        /// An unusual and possibly ill-advised operation is taking place.
         warning,
     }
 
@@ -76,9 +98,21 @@ interface api {
     /// The prepared statement object.
     resource statement {
         /// Compile SQL text into byte-code that will do the work of querying or updating the database.
+        ///
+        /// ## Parameters
+        ///
+        /// - `db`: Database handle.
+        /// - `sql`: SQL statement, UTF-8 encoded.
+        ///
         prepare: func(db: sqlite, sql: string) -> result<statement, errno>;
 
         /// Store application data into parameters of the original SQL.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the SQL parameter to be set.
+        /// - `value`: The value to bind to the parameter.
+        ///
         bind: func(index: u32, value: value) -> result<_, errno>;
 
         /// Advance a statement to the next result row or to completion.
@@ -86,10 +120,16 @@ interface api {
         /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
         step: func() -> result<_, errno>;
 
-        /// Column values in the current result row for a statement.
+        /// Return information about a single column of the current result row of a query.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the column for which information should be returned. The leftmost column of the result set has the index 0.
+        ///
         column: func(index: u32) -> result<value, errno>;
 
-        /// Destructor for the statement.
+        /// Destroy a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
+        /// then the function returns without errors. If the most recent evaluation of statement failed, then the function returns the appropriate error code.
         finalize: func() -> result<_, errno>;
     }
 }
