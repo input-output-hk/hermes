@@ -83,12 +83,19 @@ interface api {
         max,
     }
 
+    /// The value of a column in a specific data format.
     variant value {
+        /// A blob or a UTF-8 text in bytes.
         blob(list<u8>),
+        /// real number.
         double(float64),
+        /// 32-bit integer.
         int32(s32),
+        /// 64-bit integer.
         int64(s64),
+        /// Null value.
         null,
+        /// UTF-8 text.
         text(string)
     }
 
@@ -137,6 +144,8 @@ interface api {
         step: func() -> result<_, errno>;
 
         /// Returns information about a single column of the current result row of a query.
+        ///
+        /// If the SQL statement does not currently point to a valid row, or if the column index is out of range, the result is undefined.
         ///
         /// ## Parameters
         ///
