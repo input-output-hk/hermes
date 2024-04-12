@@ -74,25 +74,45 @@ interface api {
 
     /// Database connection configuration options.
     variant config-options {
+        /// Changes the name of the "main" database schema.
         maindbname(string),
+        /// Determines the lookaside memory allocator configuration for the database connection.
         lookaside(tuple<u32, s32, s32>),
+        /// Enables or disable the enforcement of foreign key constraints.
         enable-fkey(tuple<s32, s32>),
+        /// Enables or disable triggers.
         enable-trigger(tuple<s32, s32>),
+        /// Enables or disables the `fts3_tokenizer()` function which is part of the FTS3 full-text search engine extension.
         enable-fts3-tokenizer(tuple<s32, s32>),
+        /// Enables or disables the `sqlite3_load_extension()` interface independently of the `load_extension()` SQL function.
         enable-load-extension(tuple<s32, s32>),
+        /// Performs a checkpoint operation before closing the connection.
         enable-no-ckpt-on-close(tuple<s32, s32>),
+        /// Activates or deactivates the query planner stability guarantee (QPSG).
         enable-qpsg(tuple<s32, s32>),
+        /// Sets or clears (the default) a flag that governs this behavior.
         trigger-eqp(tuple<s32, s32>),
+        /// Resets a database back to an empty database with no schema and no content.
         reset-database(tuple<s32, s32>),
+        /// Activates or deactivates the "defensive" flag for a database connection.
         defensive(tuple<s32, s32>),
+        /// Activates or deactivates the "writable_schema" flag.
         writable-schema(tuple<s32, s32>),
+        /// Activates or deactivates the legacy behavior of the `ALTER TABLE RENAME` command.
         legacy-alter-table(tuple<s32, s32>),
+        /// Activates or deactivates the legacy double-quoted string literal misfeature for DML statements only.
         dqs-dml(tuple<s32, s32>),
+        /// Activates or deactivates the legacy double-quoted string literal misfeature for DDL statements.
         dqs-ddl(tuple<s32, s32>),
+        /// Enables or disables views.
         enable-view(tuple<s32, s32>),
+        /// Activates or deactivates the legacy file format flag.
         legacy-file-format(tuple<s32, s32>),
+        /// Tells SQLite to assume that database schemas are untainted by malicious content.
         trusted-schema(tuple<s32, s32>),
+        /// Sets or clears a flag that enables collection of the `sqlite3_stmt_scanstatus_v2()` statistics.
         stmt-scanstatus(tuple<s32, s32>),
+        /// Changes the default order in which tables and indexes are scanned so that the scans start at the end and work toward the beginning rather than starting at the beginning and working toward the end.
         reverse-scanorder(tuple<s32, s32>)
     }
 
