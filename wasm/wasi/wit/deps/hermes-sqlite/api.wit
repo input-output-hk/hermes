@@ -228,6 +228,9 @@ interface api {
         ///
         /// - `index`: The index of the column for which information should be returned. The leftmost column of the result set has the index 0.
         ///
+        /// ## Returns
+        ///
+        /// The value of a result column in a specific data format.
         column: func(index: u32) -> result<value, errno>;
 
         /// Destroys a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
