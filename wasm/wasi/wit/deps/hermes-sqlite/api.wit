@@ -1,6 +1,3 @@
-// cspell: words ioerr cantopen toobig nolfs notadb maindbname lookaside fkey qpsg scanstatus
-// cspell: words highwater DBSTATUS unfinalized scanorder
-
 /// # SQLite API
 ///
 /// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
