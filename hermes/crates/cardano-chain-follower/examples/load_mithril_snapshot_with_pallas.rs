@@ -4,7 +4,6 @@
 //! `examples/base_snapshot` directory.
 use std::{
     cell::RefCell,
-    error::Error,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -82,9 +81,9 @@ fn print_snapshot_header() {
     print_snapshot_separating_line();
     tracing::info!(
         "|{:^16}|{:^16}|{:^16}|{:^16}|{:^16}|{:^20}|",
-        "total time (s)",
-        "total blocks",
-        "synced to slot",
+        "TOTAL TIME (s)",
+        "BLOCK",
+        "SLOT",
         "slots per sec",
         "slots remaining",
         "est. secs remaining"
@@ -99,9 +98,9 @@ fn print_summary_header() {
     print_summary_table_row_line();
     tracing::info!(
         "|{:^16}|{:^16}|{:^16}|{:^16}|",
-        "total time (s)",
-        "total blocks",
-        "synced to slot",
+        "TOTAL TIME (s)",
+        "BLOCK",
+        "SLOT",
         "slots per sec"
     );
     print_summary_table_row_line();
@@ -110,7 +109,9 @@ fn print_summary_header() {
 /// Process block data from path until it is exhausted.
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::cast_precision_loss)]
-fn process_block_data(path: &Path, start_point: Point) -> Result<(), Box<dyn Error>> {
+fn process_block_data(
+    mode: RunMode, path: &Path, start_point: Point,
+) -> Result<(), Box<dyn std::error::Error>> {
     let tip =
         pallas_hardano::storage::immutable::get_tip(path)?.ok_or("No tip found in the snapshot.");
     let tip_slot = tip?.slot_or_default();
@@ -127,63 +128,98 @@ fn process_block_data(path: &Path, start_point: Point) -> Result<(), Box<dyn Err
     let mut last_interval_slot = 0;
     let mut blocks_seen = 0;
 
-    tracing::info!("Processing Mithril Snapshot with Pallas");
+    match mode {
+        RunMode::Hermes => {},
+        RunMode::Pallas => {
+            tracing::info!("Processing Blocks in {mode:?} Mode.");
 
-    while let Some(Ok(block_data)) = block_data_iter.next() {
-        // decode the block
-        let block = MultiEraBlock::decode(&block_data)?;
-        blocks_seen += 1;
-        let current_slot = block.slot();
+            while let Some(Ok(block_data)) = block_data_iter.next() {
+                // decode the block
+                let block = MultiEraBlock::decode(&block_data)?;
+                blocks_seen += 1;
+                let current_slot = block.slot();
 
-        if block_timer.has_interval_elapsed() {
-            if !showing_table {
-                showing_table = true;
-                // print header
-                print_snapshot_header();
+                if block_timer.has_interval_elapsed() {
+                    if !showing_table {
+                        showing_table = true;
+                        // print header
+                        print_snapshot_header();
+                    }
+                    let slots_in_interval = current_slot - last_interval_slot + 1;
+                    let slots_remaining = tip_slot - current_slot;
+                    let number_of_blocks_seen = blocks_seen;
+                    let slots_per_second =
+                        slots_in_interval as f64 / block_timer.stats_interval as f64;
+                    let secs_remaining = slots_remaining as f64 / slots_per_second.max(0.001);
+                    let total_time_str = block_timer.total_time_str();
+
+                    tracing::info!("|{total_time_str:>normal_w$} |{number_of_blocks_seen:>normal_w$} |{last_slot:>normal_w$} |{:>normal_w$} |{slots_remaining:>normal_w$} |{:>wider$} |", format!("{slots_per_second:.1}"), format!("{secs_remaining:.3 }" ), normal_w=15, wider=19);
+
+                    // Reset the interval timer
+                    block_timer.reset_interval();
+                    last_interval_slot = current_slot;
+                }
+                last_slot = current_slot;
             }
-            let slots_in_interval = current_slot - last_interval_slot + 1;
-            let slots_remaining = tip_slot - current_slot;
-            let number_of_blocks_seen = blocks_seen;
-            let slots_per_second = slots_in_interval as f64 / block_timer.stats_interval as f64;
-            let secs_remaining = slots_remaining as f64 / slots_per_second.max(0.001);
-            let total_time_str = block_timer.total_time_str();
 
-            tracing::info!("|{total_time_str:>normal_w$} |{number_of_blocks_seen:>normal_w$} |{last_slot:>normal_w$} |{:>normal_w$} |{slots_remaining:>normal_w$} |{:>wider$} |", format!("{slots_per_second:.1}"), format!("{secs_remaining:.3 }" ), normal_w=15, wider=19);
+            if showing_table {
+                print_snapshot_separating_line();
+            }
 
-            // Reset the interval timer
-            block_timer.reset_interval();
-            last_interval_slot = current_slot;
-        }
-        last_slot = current_slot;
-    }
+            tracing::info!("\nFinished!\n");
 
-    if showing_table {
-        print_snapshot_separating_line();
-    }
-
-    tracing::info!("\nFinished!\n");
-
-    if last_slot == tip_slot {
-        print_summary_header();
-        let slots_per_second =
-            (tip_slot) as f64 / block_timer.start_time.elapsed().as_secs() as f64;
-        tracing::info!(
-            "|{:^16}|{:^16}|{:^16}|{:^16}|",
-            block_timer.total_time_str(),
-            blocks_seen,
-            last_slot,
-            format!("{slots_per_second:.1}"),
-        );
-        print_summary_table_row_line();
-    } else {
-        tracing::error!("Incomplete snapshot. The last slot: {last_slot} does not match the expected slot: {tip_slot}");
+            if last_slot == tip_slot {
+                print_summary_header();
+                let slots_per_second =
+                    (tip_slot) as f64 / block_timer.start_time.elapsed().as_secs() as f64;
+                tracing::info!(
+                    "|{:^16}|{:^16}|{:^16}|{:^16}|",
+                    block_timer.total_time_str(),
+                    blocks_seen,
+                    last_slot,
+                    format!("{slots_per_second:.1}"),
+                );
+                print_summary_table_row_line();
+            } else {
+                tracing::error!("Incomplete snapshot. The last slot: {last_slot} does not match the expected slot: {tip_slot}");
+            }
+        },
     }
 
     Ok(())
 }
 
-/// Main test
-fn main() -> Result<(), Box<dyn Error>> {
+/// Mode to run the test.
+#[derive(Clone, Copy, Debug)]
+enum RunMode {
+    /// Use `hermes`
+    Hermes,
+    /// Use `pallas`
+    Pallas,
+}
+
+/// Error type.
+#[derive(thiserror::Error, Debug)]
+enum Error {
+    /// Invalid mode.
+    #[error("invalid mode: {0}")]
+    InvalidMode(String),
+}
+impl TryFrom<String> for RunMode {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "hermes" => Ok(Self::Hermes),
+            "pallas" => Ok(Self::Pallas),
+            _ => Err(Error::InvalidMode(value)),
+        }
+    }
+}
+
+/// Main test.
+#[allow(clippy::indexing_slicing)]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // set the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -193,12 +229,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
+    // Specify if running in "pallas" or "hermes" mode by reading
+    // the first argument.
+    let args: Vec<String> = std::env::args().collect();
+    let mode: RunMode = args[1].clone().try_into()?;
     // get path to snapshot
     let base_path = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
     let path = PathBuf::from(base_path).join("examples/base_snapshot");
+
     // set the start point to be the genesis block and process data.
     let start_point = Point::Origin;
-    process_block_data(&path, start_point)?;
+    process_block_data(mode, &path, start_point)?;
     // exit
     Ok(())
 }
