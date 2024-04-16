@@ -1,0 +1,24 @@
+VERSION 0.8
+
+IMPORT ../../../.. AS hermes
+
+build:
+    FROM hermes+builder
+
+    WORKDIR crates/cardano-chain-follower/testbed/overhead_benchmark
+    RUN cargo build --release
+
+    SAVE ARTIFACT target/release/overhead_benchmark overhead_benchmark
+
+local-run-preprod:
+    ARG --required BENCH_NAME
+
+    FROM +build
+
+    COPY --dir github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot/snapshot/immutable mithril_snapshot 
+    COPY +build/overhead_benchmark overhead_benchmark
+    RUN ./overhead_benchmark --bench-name $BENCH_NAME --mithril-snapshot-path ./mithril_snapshot
+
+local-save-preprod-snapshot:
+    FROM github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot
+    SAVE ARTIFACT immutable AS LOCAL local_preprod_mithril_snapshot 
