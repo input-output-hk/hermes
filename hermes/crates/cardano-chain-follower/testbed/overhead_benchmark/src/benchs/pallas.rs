@@ -1,15 +1,21 @@
-use pallas::ledger::traverse::MultiEraBlock;
+use pallas_hardano::storage::immutable::Point;
+use pallas_traverse::MultiEraBlock;
 use tracing::info;
 
-use super::{monitor, BenchmarkParams};
+use super::{monitor, snapshot_tip, BenchmarkParams};
 
 pub async fn run(params: &BenchmarkParams) -> anyhow::Result<()> {
-    let monitor_task_handle = monitor::spawn_task();
+    info!("Locating Mithril snapshot tip");
+    let mithril_snapshot_tip_data = snapshot_tip(&params.mithril_snapshot_path)?
+        .ok_or(anyhow::anyhow!("Failed to find snapshot tip"))?;
+    let mithril_snapshot_tip_block = MultiEraBlock::decode(&mithril_snapshot_tip_data)?;
+
+    let monitor_task_handle = monitor::spawn_task(mithril_snapshot_tip_block.number());
 
     info!("Opening Mithril snapshot for reading");
     let iter = pallas_hardano::storage::immutable::read_blocks_from_point(
         &params.mithril_snapshot_path,
-        pallas::network::miniprotocols::Point::Origin,
+        Point::Origin,
     )
     .map_err(|e| anyhow::anyhow!("{:?}", e))?;
 

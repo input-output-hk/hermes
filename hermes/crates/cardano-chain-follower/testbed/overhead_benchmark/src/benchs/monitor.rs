@@ -38,10 +38,10 @@ impl Handle {
     }
 }
 
-pub fn spawn_task() -> Handle {
+pub fn spawn_task(last_block_number: u64) -> Handle {
     let (update_tx, update_rx) = mpsc::unbounded_channel();
 
-    let join_handle = tokio::spawn(monitor_task(update_rx));
+    let join_handle = tokio::spawn(monitor_task(update_rx, last_block_number));
 
     Handle {
         join_handle,
@@ -52,6 +52,7 @@ pub fn spawn_task() -> Handle {
 struct MonitorTaskState {
     stats_buffer: BenchmarkStats,
     overall_stats: BenchmarkStats,
+    last_block_number: u64,
     started_at: Instant,
     last_checkpoint: Instant,
 }
@@ -81,28 +82,33 @@ impl MonitorTaskState {
         );
 
         println!(
-            "{: ^10} | {: ^10} | {: ^10} | {: ^10} | {: ^15} | {: ^20} | {: ^20}",
+            "{: ^10} | {: ^10} | {: ^10} | {: ^10} | {: ^15} | {: ^20} | {: ^20} | {: ^10}",
             "TOTAL TIME",
             "BLOCK",
             "SLOT",
             "BLOCKS/s",
             "BLOCKS MB/s",
             "BLOCKS/s (inter)",
-            "BLOCKS MB/s (inter)"
+            "BLOCKS MB/s (inter)",
+            "PROGRESS",
         );
         println!(
-            "{:-<10} + {:-<10} + {:-<10} + {:-<10} + {:-<15} + {:-<20} + {:-<20}",
-            "", "", "", "", "", "", ""
+            "{:-<10} + {:-<10} + {:-<10} + {:-<10} + {:-<15} + {:-<20} + {:-<20} + {:-<10}",
+            "", "", "", "", "", "", "", ""
         );
         println!(
-            "{: ^10} | {: ^10} | {: ^10} | {: ^10.2} | {: ^15.2} | {: ^20.2} | {: ^20.2}",
+            "{: ^10} | {: ^10} | {: ^10} | {: ^10.2} | {: ^15.2} | {: ^20.2} | {: ^20.2} | {: ^10}",
             elapsed_str,
             self.overall_stats.current_block,
             self.overall_stats.current_slot,
             blocks_per_sec,
             block_mb_per_sec,
             blocks_per_sec_interval,
-            block_mb_per_sec_interval
+            block_mb_per_sec_interval,
+            format!(
+                "{:.2}%",
+                100.0 * self.overall_stats.current_block as f64 / self.last_block_number as f64
+            ),
         );
         println!();
 
@@ -111,13 +117,16 @@ impl MonitorTaskState {
     }
 }
 
-async fn monitor_task(mut update_rx: mpsc::UnboundedReceiver<BenchmarkStats>) {
+async fn monitor_task(
+    mut update_rx: mpsc::UnboundedReceiver<BenchmarkStats>, last_block_number: u64,
+) {
     let mut ticker = tokio::time::interval(Duration::from_secs(1));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     let mut state = MonitorTaskState {
         stats_buffer: BenchmarkStats::default(),
         overall_stats: BenchmarkStats::default(),
+        last_block_number,
         started_at: Instant::now(),
         last_checkpoint: Instant::now(),
     };

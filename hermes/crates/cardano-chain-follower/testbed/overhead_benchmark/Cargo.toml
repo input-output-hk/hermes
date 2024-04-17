@@ -10,7 +10,7 @@ cardano-chain-follower = { path = "../.." }
 
 anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive", "help", "usage", "std"], default-features = false }
-pallas = "0.24.0"
+pallas-traverse = "0.24.0"
 pallas-hardano = "0.24.0"
 tokio = { version = "1.37.0", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
 tracing = "0.1.40"
