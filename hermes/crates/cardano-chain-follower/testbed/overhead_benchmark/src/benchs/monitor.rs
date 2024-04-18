@@ -1,16 +1,29 @@
+//! Monitor task module.
+//!
+//! The monitoring task is responsible for receiving statistics from the benchmarks
+//! and calculating metrics and displaying them.
+#![allow(clippy::cast_precision_loss)]
+
 use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
+/// Statistics measured by benchmarks.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct BenchmarkStats {
+    /// Blocks read by the benchmark.
     pub blocks_read: u64,
+    /// The amount of block data bytes read by the benchmark.
     pub block_bytes_read: u64,
+    /// Current block the benchmark is at.
     pub current_block: u64,
+    /// Current slot the benchmark is at.
     pub current_slot: u64,
 }
 
 impl BenchmarkStats {
+    /// Adds counters from another stats value and sets gauge values to the
+    /// values from the stats update.
     fn apply_partial_update(&mut self, u: &BenchmarkStats) {
         self.blocks_read += u.blocks_read;
         self.block_bytes_read += u.block_bytes_read;
@@ -19,17 +32,24 @@ impl BenchmarkStats {
     }
 }
 
+/// Monitoring task handle.
 pub struct Handle {
+    /// Join handle used to wait the completion of the task when closing.
     join_handle: tokio::task::JoinHandle<()>,
+    /// Stats update channel sender.
     update_tx: mpsc::UnboundedSender<BenchmarkStats>,
 }
 
 impl Handle {
-    pub async fn send_update(&self, b: BenchmarkStats) -> anyhow::Result<()> {
+    /// Sends a stats update to the monitoring task.
+    pub fn send_update(&self, b: BenchmarkStats) -> anyhow::Result<()> {
         self.update_tx.send(b)?;
         Ok(())
     }
 
+    /// Closes the monitor task.
+    ///
+    /// This means waiting for it to print the latest statistics.
     pub async fn close(self) {
         // Drop update sender in order to cancel the task
         drop(self.update_tx);
@@ -38,6 +58,7 @@ impl Handle {
     }
 }
 
+/// Spawns a monitoring task.
 pub fn spawn_task(last_block_number: u64) -> Handle {
     let (update_tx, update_rx) = mpsc::unbounded_channel();
 
@@ -49,15 +70,23 @@ pub fn spawn_task(last_block_number: u64) -> Handle {
     }
 }
 
+/// Monitoring task state.
 struct MonitorTaskState {
+    /// Buffered stats used to calculate metrics between reports.
     stats_buffer: BenchmarkStats,
+    /// Stats accumulated since the start of a benchmark.
     overall_stats: BenchmarkStats,
+    /// Last block that the benchmark will read.
+    /// Used to calculate the benchmark progress.
     last_block_number: u64,
+    /// Instant at which the monitoring task was started.
     started_at: Instant,
+    ///  Instant at which the monitoring task has reported stats the last.
     last_checkpoint: Instant,
 }
 
 impl MonitorTaskState {
+    /// Calculates and reports benchmark stats and update the overall stats.
     fn checkpoint(&mut self) {
         let total_elapsed = self.started_at.elapsed();
         let interval_elapsed = self.last_checkpoint.elapsed().as_secs_f64();
@@ -117,6 +146,7 @@ impl MonitorTaskState {
     }
 }
 
+/// Receives benchmark stats updates and reports them every second.
 async fn monitor_task(
     mut update_rx: mpsc::UnboundedReceiver<BenchmarkStats>, last_block_number: u64,
 ) {

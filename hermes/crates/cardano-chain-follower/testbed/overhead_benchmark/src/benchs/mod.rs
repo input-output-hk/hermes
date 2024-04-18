@@ -1,3 +1,5 @@
+//! Benchmark-specific implementations.
+
 pub mod cardano_chain_follower;
 mod monitor;
 pub mod pallas;
@@ -11,10 +13,20 @@ use std::{
 
 use pallas_traverse::MultiEraBlock;
 
+/// Parameters accepted by the benchmarks.
 pub struct BenchmarkParams {
+    /// Path to the Mithril snapshot that will be read by the benchmark.
     pub mithril_snapshot_path: PathBuf,
 }
 
+/// Locate the tip of a Mithril snapshot.
+///
+/// NOTE(fsgr):
+/// This was needed because the current implementation found in pallas fails if
+/// the Immutable DB indexes are corrupted. This seems to happen often since
+/// Mithril snapshots are taken while the Cardano node is running. For this reason,
+/// this function finds the most recent *valid* block in the snapshot in order to
+/// get the benchmarks working for now.
 fn snapshot_tip(path: &Path) -> anyhow::Result<Option<Vec<u8>>> {
     // First we collect all the .chunk files in an ordered manner.
     let mut chunk_files = BinaryHeap::new();

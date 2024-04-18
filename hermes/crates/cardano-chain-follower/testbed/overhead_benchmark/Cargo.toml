@@ -1,9 +1,10 @@
 [package]
 name = "overhead_benchmark"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 
-[workspace]
+[lints]
+workspace = true
 
 [dependencies]
 cardano-chain-follower = { path = "../.." }
@@ -13,6 +14,3 @@ clap = { version = "4.5.4", features = ["derive", "help", "usage", "std"], defau
 pallas-traverse = "0.24.0"
 pallas-hardano = "0.24.0"
 tokio = { version = "1.37.0", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-hex = "0.4.3"
