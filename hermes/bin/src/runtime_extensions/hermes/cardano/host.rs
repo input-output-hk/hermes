@@ -89,7 +89,7 @@ impl Host for HermesRuntimeContext {
         &mut self, net: CardanoBlockchainId, opts: UnsubscribeOptions,
     ) -> wasmtime::Result<()> {
         super::unsubscribe(net, self.app_name().clone(), self.module_id().clone(), opts)
-            .map_err(wasmtime::Error::new)
+        // .map_err(|e| wasmtime::Error::new(e))
     }
 
     /// Subscribe to transaction data events, does not alter the blockchain sync in
@@ -104,8 +104,7 @@ impl Host for HermesRuntimeContext {
             self.app_name().clone(),
             self.module_id().clone(),
             super::SubscriptionType::Transactions,
-        )
-        .map_err(wasmtime::Error::new)?;
+        )?;
 
         Ok(())
     }
@@ -129,8 +128,7 @@ impl Host for HermesRuntimeContext {
             self.app_name().clone(),
             self.module_id().clone(),
             super::SubscriptionType::Rollbacks,
-        )
-        .map_err(wasmtime::Error::new)?;
+        )?;
 
         Ok(())
     }
@@ -189,10 +187,9 @@ impl Host for HermesRuntimeContext {
     /// Transactions from subscribed block events, should be processed as transaction
     /// events.
     fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
-        match pallas::ledger::traverse::MultiEraBlock::decode(&block) {
-            Ok(block_data) => Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect()),
-            Err(_) => Err(wasmtime::Error::new(super::Error::InternalError)),
-        }
+        let block_data = pallas::ledger::traverse::MultiEraBlock::decode(&block)?;
+
+        Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect())
     }
 
     /// Post a transactions to the blockchain.

@@ -3,7 +3,7 @@
 
 use tracing::{error, instrument, trace};
 
-use super::{Error, Result, STATE};
+use super::{Result, STATE};
 use crate::{
     app::HermesAppName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
     wasm::module::ModuleId,
@@ -75,13 +75,9 @@ impl Handle {
             response_tx,
         };
 
-        self.cmd_tx
-            .blocking_send(cmd)
-            .map_err(|_| Error::InternalError)?;
+        self.cmd_tx.blocking_send(cmd)?;
 
-        response_rx
-            .blocking_recv()
-            .map_err(|_| Error::InternalError)?
+        response_rx.blocking_recv()?
     }
 
     /// Reads a block from a Cardano network.
@@ -100,13 +96,9 @@ impl Handle {
             response_tx,
         };
 
-        self.cmd_tx
-            .blocking_send(cmd)
-            .map_err(|_| Error::InternalError)?;
+        self.cmd_tx.blocking_send(cmd)?;
 
-        response_rx
-            .blocking_recv()
-            .map_err(|_| Error::InternalError)?
+        response_rx.blocking_recv()?
     }
 }
 
@@ -183,14 +175,14 @@ async fn spawn_follower(
         network,
         config,
     )
-    .await
-    .map_err(|_| Error::InternalError)?;
+    .await?;
 
     trace!("Started chain follower");
 
-    let Ok(Some(point)) = follower.set_read_pointer(follow_from).await else {
-        return Err(Error::InternalError);
-    };
+    let point = follower
+        .set_read_pointer(follow_from)
+        .await?
+        .ok_or(anyhow::anyhow!("Failed to locate follower starting point"))?;
 
     trace!("Set chain follower starting point");
 
@@ -208,10 +200,9 @@ async fn read_block(
     let network = chain_id.into();
 
     if let Some(reader) = STATE.readers.get(&network) {
-        reader
-            .read_block(at)
-            .await
-            .map_err(|_| Error::InternalError)
+        let block_data = reader.read_block(at).await?;
+
+        Ok(block_data)
     } else {
         // Limit the follower's buffer size. This does not really matter
         // since we'll not poll the
@@ -226,13 +217,11 @@ async fn read_block(
             network,
             cfg,
         )
-        .await
-        .map_err(|_| Error::InternalError)?;
+        .await?;
 
-        reader
-            .read_block(at)
-            .await
-            .map_err(|_| Error::InternalError)
+        let block_data = reader.read_block(at).await?;
+
+        Ok(block_data)
     }
 }
 
