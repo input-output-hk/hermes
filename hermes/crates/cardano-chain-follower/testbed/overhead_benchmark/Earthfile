@@ -5,8 +5,8 @@ IMPORT ../../../.. AS hermes
 build:
     FROM hermes+builder
 
-    WORKDIR crates/cardano-chain-follower/testbed/overhead_benchmark
-    RUN cargo build --release
+    WORKDIR crates/cardano-chain-follower/testbed
+    RUN cargo build -p overhead_benchmark --release
 
     SAVE ARTIFACT target/release/overhead_benchmark overhead_benchmark
 
@@ -16,8 +16,8 @@ local-run-preprod:
     FROM +build
 
     COPY --dir github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot/snapshot/immutable mithril_snapshot 
-    COPY +build/overhead_benchmark overhead_benchmark
-    RUN ./overhead_benchmark --bench-name $BENCH_NAME --mithril-snapshot-path ./mithril_snapshot
+    COPY +build/overhead_benchmark overhead_benchmark_bin
+    RUN ./overhead_benchmark_bin --bench-name $BENCH_NAME --mithril-snapshot-path ./mithril_snapshot
 
 local-save-preprod-snapshot:
     FROM github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot

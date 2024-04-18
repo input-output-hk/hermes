@@ -1,5 +1,7 @@
 //! This crate is the implementation of a benchmark to measure the overhead imposed
 
+// cspell: words benchs
+
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
