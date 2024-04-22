@@ -1,7 +1,6 @@
 //! Cardano Blockchain runtime extension implementation.
 
 use dashmap::DashMap;
-use tracing::error;
 
 use crate::{
     app::HermesAppName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
@@ -13,16 +12,8 @@ mod event;
 mod host;
 mod tokio_runtime_task;
 
-/// Cardano Runtime Extension internal error type.
-#[derive(Debug, thiserror::Error)]
-pub(super) enum Error {
-    /// General internal error.
-    #[error("Internal Cardano Runtime Extension Error")]
-    InternalError,
-}
-
 /// Cardano Runtime Extension internal result type.
-pub(super) type Result<T> = std::result::Result<T, Error>;
+pub(super) type Result<T> = anyhow::Result<T>;
 
 /// Hermes application module subscription state.
 #[derive(Default)]
@@ -36,7 +27,7 @@ struct SubscriptionState {
     /// Handle to the cardano chain follower from which the module is receiving
     /// events.
     follower_handle: Option<chain_follower_task::Handle>,
-    ///
+    /// Current slot that the subscription is at.
     current_slot: u64,
 }
 
@@ -98,10 +89,12 @@ pub(super) fn subscribe(
             if let Some(handle) = sub_state.follower_handle.as_ref() {
                 handle.set_read_pointer_sync(follow_from)?;
             } else {
-                let (follower_handle, starting_point) = STATE
-                    .tokio_rt_handle
-                    .spawn_follower_sync(app_name, module_id, chain_id, follow_from)
-                    .map_err(|_| Error::InternalError)?;
+                let (follower_handle, starting_point) = STATE.tokio_rt_handle.spawn_follower_sync(
+                    app_name,
+                    module_id,
+                    chain_id,
+                    follow_from,
+                )?;
 
                 sub_state.follower_handle = Some(follower_handle);
                 sub_state.current_slot = starting_point.slot_or_default();

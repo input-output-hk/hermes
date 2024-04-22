@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::Context;
 use tracing::{error, instrument, trace, warn};
 
-use super::{Error, ModuleStateKey, Result, STATE};
+use super::{ModuleStateKey, Result, STATE};
 use crate::{
     app::HermesAppName,
     event::{HermesEvent, TargetApp, TargetModule},
@@ -60,13 +60,11 @@ impl Handle {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
         self.cmd_tx
-            .blocking_send(Command::SetReadPointer(at, res_tx))
-            .map_err(|_| Error::InternalError)?;
+            .blocking_send(Command::SetReadPointer(at, res_tx))?;
 
-        res_rx
-            .blocking_recv()
-            .map_err(|_| Error::InternalError)?
-            .map_err(|_| Error::InternalError)
+        let maybe_point = res_rx.blocking_recv()??;
+
+        Ok(maybe_point)
     }
 
     /// Sends a command to the chain follower executor task to stop following.
@@ -75,9 +73,7 @@ impl Handle {
     pub fn stop(&self) -> Result<()> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-        self.cmd_tx
-            .blocking_send(Command::Stop(res_tx))
-            .map_err(|_| Error::InternalError)?;
+        self.cmd_tx.blocking_send(Command::Stop(res_tx))?;
 
         drop(res_rx.blocking_recv());
 
@@ -91,9 +87,7 @@ impl Handle {
     pub fn resume(&self) -> Result<()> {
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
-        self.cmd_tx
-            .blocking_send(Command::Continue(res_tx))
-            .map_err(|_| Error::InternalError)?;
+        self.cmd_tx.blocking_send(Command::Continue(res_tx))?;
 
         drop(res_rx.blocking_recv());
 
