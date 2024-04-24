@@ -2,6 +2,7 @@
 //! This file exists, so that doc tests can be used inside binary crates.
 
 pub mod app;
+pub mod cli;
 pub mod event;
 pub mod logger;
 pub mod reactor;

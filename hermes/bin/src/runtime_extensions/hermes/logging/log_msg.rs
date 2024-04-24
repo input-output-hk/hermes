@@ -1,6 +1,4 @@
 //! Implementation of logging API
-use tracing::info;
-
 use crate::logger::LogLevel;
 
 /// Log a message
@@ -9,23 +7,70 @@ pub(crate) fn log_message(
     level: LogLevel, ctx: Option<String>, msg: &str, file: Option<String>,
     function: Option<String>, line: Option<u32>, col: Option<u32>, data: Option<String>,
 ) {
-    info!(
-        level = level.to_string(),
-        ctx = ctx.unwrap_or_default(),
-        message = msg,
-        file = file.unwrap_or_default(),
-        function = function.unwrap_or_default(),
-        line = line.unwrap_or_default(),
-        column = col.unwrap_or_default(),
-        data = data.unwrap_or_default(),
-    );
+    match level {
+        LogLevel::Error => {
+            tracing::error!(
+                ctx = ctx.unwrap_or_default(),
+                message = msg,
+                file = file.unwrap_or_default(),
+                function = function.unwrap_or_default(),
+                line = line.unwrap_or_default(),
+                column = col.unwrap_or_default(),
+                data = data.unwrap_or_default(),
+            );
+        },
+        LogLevel::Warn => {
+            tracing::warn!(
+                ctx = ctx.unwrap_or_default(),
+                message = msg,
+                file = file.unwrap_or_default(),
+                function = function.unwrap_or_default(),
+                line = line.unwrap_or_default(),
+                column = col.unwrap_or_default(),
+                data = data.unwrap_or_default(),
+            );
+        },
+        LogLevel::Info => {
+            tracing::info!(
+                ctx = ctx.unwrap_or_default(),
+                message = msg,
+                file = file.unwrap_or_default(),
+                function = function.unwrap_or_default(),
+                line = line.unwrap_or_default(),
+                column = col.unwrap_or_default(),
+                data = data.unwrap_or_default(),
+            );
+        },
+        LogLevel::Debug => {
+            tracing::debug!(
+                ctx = ctx.unwrap_or_default(),
+                message = msg,
+                file = file.unwrap_or_default(),
+                function = function.unwrap_or_default(),
+                line = line.unwrap_or_default(),
+                column = col.unwrap_or_default(),
+                data = data.unwrap_or_default(),
+            );
+        },
+        LogLevel::Trace => {
+            tracing::trace!(
+                ctx = ctx.unwrap_or_default(),
+                message = msg,
+                file = file.unwrap_or_default(),
+                function = function.unwrap_or_default(),
+                line = line.unwrap_or_default(),
+                column = col.unwrap_or_default(),
+                data = data.unwrap_or_default(),
+            );
+        },
+    }
 }
 
 #[cfg(test)]
 mod tests_log_msg {
     use super::*;
     use crate::{
-        logger::{init, LogLevel, LoggerConfig},
+        logger::{init, LoggerConfig},
         runtime_extensions::bindings::hermes::logging::api::Level,
     };
 
@@ -33,9 +78,7 @@ mod tests_log_msg {
     fn test_log_message() {
         let config = LoggerConfig::default();
 
-        if let Err(err) = init(&config) {
-            println!("Error initializing logger: {err}");
-        }
+        init(&config).expect("Error initializing logger");
 
         // Test with valid data
         let level = Level::Warn;
@@ -48,25 +91,16 @@ mod tests_log_msg {
         let data = Some("{\"bt\": [\"Array:1\", \"Array:2\", \"Array:3\"]}".to_string());
 
         log_message(
-            LogLevel::from(level),
+            level.into(),
             ctx.clone(),
             msg,
             file.clone(),
             function.clone(),
             line,
             col,
-            data.clone(),
+            data,
         );
 
-        log_message(
-            LogLevel::from(level),
-            ctx,
-            msg,
-            file,
-            function,
-            line,
-            col,
-            None,
-        );
+        log_message(level.into(), ctx, msg, file, function, line, col, None);
     }
 }
