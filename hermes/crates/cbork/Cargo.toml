@@ -41,6 +41,6 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-derive_more = { version= "0.99.17", default-features = false }
+derive_more = "0.99.17"
 pest = "2.7.2"
 pest_derive = "2.7.2"

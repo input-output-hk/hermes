@@ -12,6 +12,6 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-derive_more =  { workspace = true, features = ["display"] }
+derive_more =  { workspace = true }
 pest = { workspace = true, features = ["std", "pretty-print", "memchr", "const_prec_climber"] }
 pest_derive = { workspace = true, features = ["grammar-extras"] }
