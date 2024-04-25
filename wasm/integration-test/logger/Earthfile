@@ -12,3 +12,7 @@ build:
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="logger.wasm"
 
     SAVE ARTIFACT logger.wasm
+
+build-local:
+    FROM +build
+    SAVE ARTIFACT logger.wasm AS LOCAL logger.wasm

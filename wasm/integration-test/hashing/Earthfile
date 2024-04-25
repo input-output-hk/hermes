@@ -12,3 +12,7 @@ build:
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="hashing.wasm"
 
     SAVE ARTIFACT hashing.wasm
+
+build-local:
+    FROM +build
+    SAVE ARTIFACT hashing.wasm AS LOCAL hashing.wasm

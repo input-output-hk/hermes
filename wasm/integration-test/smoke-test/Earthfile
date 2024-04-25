@@ -12,3 +12,7 @@ build:
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="smoke-test.wasm"
 
     SAVE ARTIFACT smoke-test.wasm
+
+build-local:
+    FROM +build
+    SAVE ARTIFACT smoke-test.wasm AS LOCAL smoke-test.wasm
