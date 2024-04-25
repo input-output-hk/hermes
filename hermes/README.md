@@ -28,7 +28,6 @@ Hermes has a different options how to run, to inspect all of them, run the follo
 hermes --help
 ```
 
-
 ## Running benchmarks
 
 Before running benchmarks need to compile a simple WASM module:
