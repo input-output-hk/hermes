@@ -1,6 +1,6 @@
 //! Hermes app implementation.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use crate::wasm::module::{Module, ModuleId};
 
@@ -28,7 +28,6 @@ pub(crate) struct HermesApp {
 
 impl HermesApp {
     /// Create a new Hermes app
-    #[allow(dead_code)]
     pub(crate) fn new(app_name: HermesAppName, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
         let mut modules = HashMap::with_capacity(module_bytes.len());
         for module_bytes in module_bytes {
@@ -39,6 +38,24 @@ impl HermesApp {
             app_name,
             indexed_modules: modules,
         })
+    }
+
+    /// Loads app from directory
+    pub(crate) fn from_dir(
+        app_name: HermesAppName, path: impl AsRef<Path>,
+    ) -> anyhow::Result<Self> {
+        let entries = std::fs::read_dir(path)?;
+        let mut wasm_modules_bytes = Vec::new();
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension() == Some(std::ffi::OsStr::new("wasm")) {
+                let module_bytes = std::fs::read(path)?;
+                wasm_modules_bytes.push(module_bytes);
+            }
+        }
+
+        Self::new(app_name, wasm_modules_bytes)
     }
 
     /// Get app name
