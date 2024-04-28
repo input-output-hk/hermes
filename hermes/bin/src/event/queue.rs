@@ -24,14 +24,6 @@ static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 /// Hermes event queue error
 #[derive(thiserror::Error, Debug, Clone)]
 pub(crate) enum Error {
-    /// Target app not found.
-    #[error("Target app not found, app name: {0:?}.")]
-    AppNotFound(HermesAppName),
-
-    /// Target module not found.
-    #[error("Target module not found, module id: {0:?}.")]
-    ModuleNotFound(ModuleId),
-
     /// Failed to add event into the event queue. Event queue is closed.
     #[error("Failed to add event into the event queue. Event queue is closed.")]
     CannotAddEvent,
@@ -49,6 +41,9 @@ pub(crate) enum Error {
     EventLoopPanics,
 }
 
+/// Hermes event execution context
+type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module);
+
 /// Hermes event queue.
 /// It is a singleton struct.
 struct HermesEventQueue {
@@ -59,16 +54,16 @@ struct HermesEventQueue {
 /// Hermes event queue execution loop thread handler
 pub(crate) struct HermesEventLoopHandler {
     /// Hermes event queue execution loop thread handler
-    handle: Option<JoinHandle<anyhow::Result<()>>>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl HermesEventLoopHandler {
     /// Join the event loop thread
     pub(crate) fn join(&mut self) -> anyhow::Result<()> {
-        match self.handle.take() {
-            Some(handle) => handle.join().map_err(|_| Error::EventLoopPanics)?,
-            None => Ok(()),
+        if let Some(handle) = self.handle.take() {
+            handle.join().map_err(|_| Error::EventLoopPanics)?;
         }
+        Ok(())
     }
 }
 
@@ -86,14 +81,72 @@ pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEvent
 
     Ok(HermesEventLoopHandler {
         handle: Some(thread::spawn(move || {
-            event_execution_loop(&indexed_apps, receiver)
+            event_execution_loop(&indexed_apps, receiver);
         })),
     })
+}
+
+/// Get execution context
+///
+/// # Errors:
+/// - `Error::AppNotFound`
+/// - `Error::ModuleNotFound`
+fn get_execution_context<'a>(
+    target_app: &'a TargetApp, target_module: &'a TargetModule, indexed_apps: &'a IndexedApps,
+) -> Vec<ExecutionContext<'a>> {
+    // Gather target apps
+    let target_apps = match target_app {
+        TargetApp::All => indexed_apps.iter().collect(),
+        TargetApp::List(target_apps) => {
+            let mut res = Vec::new();
+            for app_name in target_apps {
+                let Some(app) = indexed_apps.get(app_name) else {
+                    tracing::error!("Target app not found, app name: {:?}", app_name);
+                    continue;
+                };
+
+                res.push((app_name, app));
+            }
+            res
+        },
+    };
+    // Gather target modules
+    match target_module {
+        TargetModule::All => {
+            let mut res = Vec::new();
+            for (app_name, app) in target_apps {
+                for (module_id, module) in app.indexed_modules() {
+                    res.push((app_name, module_id, module));
+                }
+            }
+            res
+        },
+        TargetModule::List(target_modules) => {
+            let mut res = Vec::new();
+            for (app_name, app) in target_apps {
+                for module_id in target_modules {
+                    let Some(module) = app.indexed_modules().get(module_id) else {
+                        tracing::error!(
+                            "Target module not found, app name: {:?}, module id: {:?}",
+                            app_name,
+                            module_id
+                        );
+                        continue;
+                    };
+
+                    res.push((app_name, module_id, module));
+                }
+            }
+            res
+        },
+    }
 }
 
 /// Add event into the event queue
 ///
 /// # Errors:
+/// - `Error::AppNotFound`
+/// - `Error::ModuleNotFound`
 /// - `Error::CannotAddEvent`
 /// - `Error::NotInitialized`
 pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
@@ -103,6 +156,7 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
         .sender
         .send(event)
         .map_err(|_| Error::CannotAddEvent)?;
+
     Ok(())
 }
 
@@ -111,8 +165,8 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// # Errors:
 /// - `wasm::module::BadWASMModuleError`
 pub(crate) fn event_dispatch(
-    app_name: HermesAppName, module_id: ModuleId, event: &dyn HermesEventPayload, module: &Module,
-) -> anyhow::Result<()> {
+    app_name: HermesAppName, module_id: ModuleId, module: &Module, event: &dyn HermesEventPayload,
+) {
     let runtime_context = HermesRuntimeContext::new(
         app_name,
         module_id,
@@ -123,75 +177,28 @@ pub(crate) fn event_dispatch(
     // Advise Runtime Extensions of a new context
     new_context(&runtime_context);
 
-    module.execute_event(event, runtime_context)?;
-    Ok(())
+    if let Err(err) = module.execute_event(event, runtime_context) {
+        tracing::error!("Error executing event, err: {err}");
+    }
 }
 
 /// Executes provided Hermes event filtering by target app and target module.
-///
-/// # Errors:
-/// - `Error::ModuleNotFound`
-/// - `Error::AppNotFound`
-/// - `wasm::module::BadWASMModuleError`
-fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) -> anyhow::Result<()> {
-    // Gather target apps
-    let target_apps = match event.target_app() {
-        TargetApp::_All => indexed_apps.iter().collect(),
-        TargetApp::List(target_apps) => {
-            let mut res = Vec::new();
-            for app_name in target_apps {
-                let app = indexed_apps
-                    .get(app_name)
-                    .ok_or(Error::AppNotFound(app_name.to_owned()))?;
-                res.push((app_name, app));
-            }
-            res
-        },
-    };
-    // Gather target modules
-    let target_modules = match event.target_module() {
-        TargetModule::All => {
-            let mut res = Vec::new();
-            for (app_name, app) in target_apps {
-                for (module_id, module) in app.indexed_modules() {
-                    res.push((app_name, module_id, module));
-                }
-            }
-            res
-        },
-        TargetModule::_List(target_modules) => {
-            let mut res = Vec::new();
-            for (app_name, app) in target_apps {
-                for module_id in target_modules {
-                    let module = app
-                        .indexed_modules()
-                        .get(module_id)
-                        .ok_or(Error::ModuleNotFound(module_id.to_owned()))?;
-                    res.push((app_name, module_id, module));
-                }
-            }
-            res
-        },
-    };
+fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
+    let execution_contexts =
+        get_execution_context(event.target_app(), event.target_module(), indexed_apps);
 
     // Event dispatch
-    for (app_name, module_id, module) in target_modules {
-        event_dispatch(app_name.clone(), module_id.clone(), event.payload(), module)?;
+    for (app_name, module_id, module) in execution_contexts {
+        event_dispatch(app_name.clone(), module_id.clone(), module, event.payload());
     }
-    Ok(())
 }
 
 /// Executes Hermes events from the provided receiver .
 ///
 /// # Errors:
-/// - `Error::ModuleNotFound`
-/// - `Error::AppNotFound`
 /// - `wasm::module::BadWASMModuleError`
-fn event_execution_loop(
-    indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>,
-) -> anyhow::Result<()> {
+fn event_execution_loop(indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>) {
     for event in receiver {
-        targeted_event_execution(indexed_apps, &event)?;
+        targeted_event_execution(indexed_apps, &event);
     }
-    Ok(())
 }
