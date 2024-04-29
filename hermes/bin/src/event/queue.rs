@@ -21,25 +21,25 @@ use crate::{
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 
-/// Hermes event queue error
+/// Failed to add event into the event queue. Event queue is closed.
 #[derive(thiserror::Error, Debug, Clone)]
-pub(crate) enum Error {
-    /// Failed to add event into the event queue. Event queue is closed.
-    #[error("Failed to add event into the event queue. Event queue is closed.")]
-    CannotAddEvent,
+#[error("Failed to add event into the event queue. Event queue is closed.")]
+pub(crate) struct CannotAddEventError;
 
-    /// Failed when event queue already been initialized.
-    #[error("Event queue already been initialized.")]
-    AlreadyInitialized,
+/// Failed when event queue already been initialized.
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("Event queue already been initialized.")]
+pub(crate) struct AlreadyInitializedError;
 
-    /// Failed when event queue not been initialized.
-    #[error("Event queue not been initialized. Call `HermesEventQueue::init` first.")]
-    NotInitialized,
+/// Failed when event queue not been initialized.
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("Event queue not been initialized. Call `HermesEventQueue::init` first.")]
+pub(crate) struct NotInitializedError;
 
-    /// Event loop has crashed unexpectedly.
-    #[error("Event loop has crashed unexpectedly.")]
-    EventLoopPanics,
-}
+/// Event loop has crashed unexpectedly.
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("Event loop has crashed unexpectedly.")]
+pub(crate) struct EventLoopPanicsError;
 
 /// Hermes event execution context
 type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module);
@@ -59,9 +59,12 @@ pub(crate) struct HermesEventLoopHandler {
 
 impl HermesEventLoopHandler {
     /// Join the event loop thread
+    ///
+    /// # Errors:
+    /// - `EventLoopPanicsError`
     pub(crate) fn join(&mut self) -> anyhow::Result<()> {
         if let Some(handle) = self.handle.take() {
-            handle.join().map_err(|_| Error::EventLoopPanics)?;
+            handle.join().map_err(|_| EventLoopPanicsError)?;
         }
         Ok(())
     }
@@ -71,13 +74,13 @@ impl HermesEventLoopHandler {
 /// Runs an event loop thread.
 ///
 /// # Errors:
-/// - `Error::AlreadyInitialized`
+/// - `AlreadyInitializedError`
 pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEventLoopHandler> {
     let (sender, receiver) = std::sync::mpsc::channel();
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
-        .map_err(|_| Error::AlreadyInitialized)?;
+        .map_err(|_| AlreadyInitializedError)?;
 
     Ok(HermesEventLoopHandler {
         handle: Some(thread::spawn(move || {
@@ -87,10 +90,6 @@ pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEvent
 }
 
 /// Get execution context
-///
-/// # Errors:
-/// - `Error::AppNotFound`
-/// - `Error::ModuleNotFound`
 fn get_execution_context<'a>(
     target_app: &'a TargetApp, target_module: &'a TargetModule, indexed_apps: &'a IndexedApps,
 ) -> Vec<ExecutionContext<'a>> {
@@ -145,25 +144,17 @@ fn get_execution_context<'a>(
 /// Add event into the event queue
 ///
 /// # Errors:
-/// - `Error::AppNotFound`
-/// - `Error::ModuleNotFound`
-/// - `Error::CannotAddEvent`
-/// - `Error::NotInitialized`
+/// - `CannotAddEventError`
+/// - `NotInitializedError`
 pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
-    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(Error::NotInitialized)?;
+    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(NotInitializedError)?;
 
-    queue
-        .sender
-        .send(event)
-        .map_err(|_| Error::CannotAddEvent)?;
+    queue.sender.send(event).map_err(|_| CannotAddEventError)?;
 
     Ok(())
 }
 
 /// Execute a hermes event on the provided module and all necessary info.
-///
-/// # Errors:
-/// - `wasm::module::BadWASMModuleError`
 pub(crate) fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, module: &Module, event: &dyn HermesEventPayload,
 ) {
@@ -194,9 +185,6 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
 }
 
 /// Executes Hermes events from the provided receiver .
-///
-/// # Errors:
-/// - `wasm::module::BadWASMModuleError`
 fn event_execution_loop(indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>) {
     for event in receiver {
         targeted_event_execution(indexed_apps, &event);
