@@ -165,6 +165,14 @@ interface api {
         /// A compiled prepared statement that can be executed using `sqlite3_step()`.
         /// If there is an error or the input text contains no SQL (if the input is an empty string or a comment) then an error code is returned.
         prepare: func(sql: string) -> result<statement, errno>;
+
+        /// Executes a SQL query directly without preparing it into a statement and returns the result.
+        ///
+        /// ## Parameters
+        ///
+        /// - `db`: Database handle.
+        ///
+        execute: func(sql: string) -> result<_, errno>;
     }
 
     /// The prepared statement object.
