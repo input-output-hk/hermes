@@ -166,7 +166,7 @@ interface api {
         /// If there is an error or the input text contains no SQL (if the input is an empty string or a comment) then an error code is returned.
         prepare: func(sql: string) -> result<statement, errno>;
 
-        /// Executes a SQL query directly without preparing it into a statement and returns the result.
+        /// Executes an SQL query directly without preparing it into a statement and returns the result.
         ///
         /// ## Parameters
         ///
