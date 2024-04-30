@@ -170,7 +170,7 @@ interface api {
         ///
         /// ## Parameters
         ///
-        /// - `db`: Database handle.
+        /// - `sql`: SQL statement, UTF-8 encoded.
         ///
         execute: func(sql: string) -> result<_, errno>;
     }
