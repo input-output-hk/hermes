@@ -55,6 +55,7 @@ iana-time-zone = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync",  "time"] }
 pallas = { workspace = true }
 saffron = { workspace = true }
+libsqlite3-sys = { workspace = true, features = ["bundled"] }
 
 [build-dependencies]
 build-info-build = { workspace = true }
