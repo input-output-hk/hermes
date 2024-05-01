@@ -1,4 +1,4 @@
-//! `SQLite` connnection object runtime extension implementation.
+//! `SQLite` connection object runtime extension implementation.
 
 mod host;
 
