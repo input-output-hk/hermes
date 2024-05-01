@@ -14,6 +14,7 @@ pub(crate) mod json;
 pub(crate) mod kv_store;
 pub(crate) mod localtime;
 pub(crate) mod logging;
+pub(crate) mod sqlite;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
@@ -28,4 +29,5 @@ pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
     kv_store::new_context(ctx);
     localtime::new_context(ctx);
     logging::new_context(ctx);
+    sqlite::new_context(ctx);
 }
