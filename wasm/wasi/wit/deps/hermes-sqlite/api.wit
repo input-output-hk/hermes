@@ -1,0 +1,232 @@
+/// # SQLite API
+///
+/// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+
+/// SQLite API Interface
+interface api {
+    // Errors that indicate that something has gone wrong.
+    enum errno {
+        /// A generic error code that is used when no other more specific error code is available.
+        error,
+        /// An internal malfunction.
+        internal,
+        /// The requested access mode for a newly created database could not be provided.
+        perm,
+        /// An operation was aborted prior to completion.
+        abort,
+        /// The database file could not be written (or in some cases read) because of concurrent activity by some other database connection.
+        busy,
+        /// A write operation could not continue because of a conflict within the same database connection or a conflict with a different database connection that uses a shared cache.
+        locked,
+        /// SQLite was unable to allocate all the memory it needed to complete the operation.
+        nomem,
+        /// When an attempt is made to alter some data for which the current database connection does not have write permission.
+        readonly,
+        /// An operation was interrupted.
+        interrupt,
+        /// The operation could not finish because the operating system reported an I/O error.
+        ioerr,
+        /// The database file has been corrupted.
+        corrupt,
+        /// When a file control operation is not recognized by the VFS.
+        notfound,
+        /// A write could not complete because the disk is full.
+        full,
+        /// SQLite was unable to open a file.
+        cantopen,
+        /// A problem with the file locking protocol used by SQLite.
+        protocol,
+        /// Not currently used.
+        empty,
+        /// The database schema has changed.
+        schema,
+        /// A string or BLOB was too large.
+        toobig,
+        /// An SQL constraint violation occurred while trying to process an SQL statement.
+        constraint,
+        /// A datatype mismatch.
+        mismatched,
+        /// If the application uses any SQLite interface in a way that is undefined or unsupported.
+        misuse,
+        /// Can be returned on systems that do not support large files when the database grows to be larger than what the filesystem can handle.
+        nolfs,
+        /// An SQL statement being prepared is not authorized.
+        auth,
+        /// Not currently used.
+        format,
+        /// The parameter number argument to one of the `sqlite3_bind` routines or the column number in one of the `sqlite3_column` routines is out of range.
+        range,
+        /// The file being opened does not appear to be an SQLite database file.
+        notadb,
+        /// An unusual operation is taking place.
+        notice,
+        /// An unusual and possibly ill-advised operation is taking place.
+        warning,
+    }
+
+    /// Status parameters for database connections
+    flags status-options {
+        /// The number of lookaside memory slots currently checked out.
+        lookaside-used,
+        /// The approximate number of bytes of heap memory used by all pager caches associated with the database connection.
+        cache-used,
+        /// The approximate number of bytes of heap memory used to store the schema for all databases associated with the connection - main, temp, and any ATTACH-ed databases.
+        /// The full amount of memory used by the schemas is reported, even if the schema memory is shared with other database connections due to shared cache mode being enabled.
+        schema-used,
+        /// The approximate number of bytes of heap and lookaside memory used by all prepared statements associated with the database connection.
+        /// The highwater mark is always 0.
+        stmt-used,
+        /// The number of malloc attempts that were satisfied using lookaside memory. Only the high-water value is meaningful; the current value is always zero.
+        lookaside-hit,
+        /// The number malloc attempts that might have been satisfied using lookaside memory but failed due to the amount of memory requested being larger than the lookaside slot size.
+        /// Only the high-water value is meaningful; the current value is always zero.
+        lookaside-miss-size,
+        /// The number malloc attempts that might have been satisfied using lookaside memory but failed due to all lookaside memory already being in use.
+        /// Only the high-water value is meaningful; the current value is always zero.
+        lookaside-miss-full,
+        /// The number of pager cache hits that have occurred.
+        /// The highwater mark is always 0.
+        cache-hit,
+        /// The number of pager cache misses that have occurred.
+        /// The highwater mark is always 0.
+        cache-miss,
+        /// The number of dirty cache entries that have been written to disk.
+        /// Specifically, the number of pages written to the wal file in wal mode databases, or the number of pages written to the database file in rollback mode databases.
+        /// Any pages written as part of transaction rollback or database recovery operations are not included. If an IO or other error occurs while writing a page to disk, the effect requests is undefined.
+        /// The highwater mark is always 0.
+        cache-write,
+        /// Returns zero for the current value if and only if all foreign key constraints (deferred or immediate) have been resolved.
+        /// The highwater mark is always 0.
+        deferred-fks,
+        /// This request returns the same value as `DBSTATUS_CACHE_USED`.
+        /// Or, if one or more or the pager caches are shared, the value returned by this call will be smaller than that returned by `DBSTATUS_CACHE_USED`.
+        /// The highwater mark associated with `SQLITE_DBSTATUS_CACHE_USED_SHARED` is always 0.
+        cache-used-shared,
+        /// The number of dirty cache entries that have been written to disk in the middle of a transaction due to the page cache overflowing.
+        /// Transactions are more efficient if they are written to disk all at once.
+        /// When pages spill mid-transaction, that introduces additional overhead. This parameter can be used help identify inefficiencies that can be resolved by increasing the cache size.
+        cache-spill
+    }
+
+    /// The value of a column in a specific data format.
+    variant value {
+        /// A blob or a UTF-8 text in bytes.
+        blob(list<u8>),
+        /// real number.
+        double(float64),
+        /// 32-bit integer.
+        int32(s32),
+        /// 64-bit integer.
+        int64(s64),
+        /// Null value.
+        null,
+        /// UTF-8 text.
+        text(string)
+    }
+
+    /// The database connection object.
+    resource sqlite {
+        /// Closes a database connection, destructor for `sqlite3`.
+        ///
+        /// Ideally, applications should finalize all prepared statements associated with the `sqlite3` object prior to attempting to close the object.
+        /// If the database connection is associated with unfinalized prepared statements,
+        /// then the function will leave the database connection open and return the `busy` error code.
+        ///
+        /// If an `sqlite3` object is destroyed while a transaction is open, the transaction is automatically rolled back.
+        close: func() -> result<_, errno>;
+
+        /// Retrieves runtime status information about a single database connection.
+        ///
+        /// ## Parameters
+        ///
+        /// - `opt`: An integer constant, taken from the set of `status-options`, that determines the parameter to interrogate.
+        /// - `reset-flag`: If is true, then the highest instantaneous value is reset back down to the current value.
+        ///
+        /// ## Returns
+        ///
+        /// A tuple of the current value of the requested parameter, and the highest instantaneous value on success,
+        /// and an error code on failure.
+        status: func(opt: status-options, reset-flag: bool) -> result<tuple<s32, s32>, errno>;
+
+        /// Compiles SQL text into byte-code that will do the work of querying or updating the database.
+        ///
+        /// ## Parameters
+        ///
+        /// - `db`: Database handle.
+        /// - `sql`: SQL statement, UTF-8 encoded.
+        ///
+        /// ## Returns
+        ///
+        /// A compiled prepared statement that can be executed using `sqlite3_step()`.
+        /// If there is an error or the input text contains no SQL (if the input is an empty string or a comment) then an error code is returned.
+        prepare: func(sql: string) -> result<statement, errno>;
+
+        /// Executes an SQL query directly without preparing it into a statement and returns the result.
+        ///
+        /// ## Parameters
+        ///
+        /// - `sql`: SQL statement, UTF-8 encoded.
+        ///
+        execute: func(sql: string) -> result<_, errno>;
+    }
+
+    /// The prepared statement object.
+    resource statement {
+        /// Stores application data into parameters of the original SQL.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the SQL parameter to be set.
+        /// - `value`: The value to bind to the parameter.
+        ///
+        bind: func(index: u32, value: value) -> result<_, errno>;
+
+        /// Advances a statement to the next result row or to completion.
+        ///
+        /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
+        step: func() -> result<_, errno>;
+
+        /// Returns information about a single column of the current result row of a query.
+        ///
+        /// If the SQL statement does not currently point to a valid row, or if the column index is out of range, the result is undefined.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the column for which information should be returned. The leftmost column of the result set has the index 0.
+        ///
+        /// ## Returns
+        ///
+        /// The value of a result column in a specific data format.
+        column: func(index: u32) -> result<value, errno>;
+
+        /// Destroys a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
+        /// then the function results without errors. If the most recent evaluation of statement failed, then the function results the appropriate error code.
+        ///
+        /// The application must finalize every prepared statement in order to avoid resource leaks.
+        /// It is a grievous error for the application to try to use a prepared statement after it has been finalized.
+        /// Any use of a prepared statement after it has been finalized can result in undefined and undesirable behavior such as segfaults and heap corruption.
+        finalize: func() -> result<_, errno>;
+    }
+
+    /// Opens a connection to a new or existing SQLite database.
+    ///
+    /// ## Parameters
+    ///
+    /// - `readonly`: If set to true, the database is opened in read-only mode. An error is returned if the database doesn't already exist.
+    /// - `memory`: If set to true, the database will be opened as an in-memory database.
+    ///
+    /// ## Returns
+    ///
+    /// If the database is opened (and/or created) successfully, then the `sqlite3` object is returned. Otherwise an error code is returned.
+    open: func(readonly: bool, memory: bool) -> result<sqlite, errno>;
+}
+
+/// World just for the Hermes 'sqlite' API.
+world sqlite-api {
+    import api;
+}
