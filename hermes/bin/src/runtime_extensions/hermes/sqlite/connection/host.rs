@@ -1,5 +1,7 @@
 //! `SQLite` connection object host implementation for WASM runtime.
 
+use libsqlite3_sys::*;
+
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
@@ -58,9 +60,31 @@ impl HostSqlite for HermesRuntimeContext {
     /// If there is an error or the input text contains no SQL (if the input is an empty
     /// string or a comment) then an error code is returned.
     fn prepare(
-        &mut self, _db: wasmtime::component::Resource<Sqlite>, _sql: String,
+        &mut self, db: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = db.rep() as *mut _;
+        let mut stmt: *mut sqlite3_stmt = std::ptr::null_mut();
+
+        let sql_cstring = std::ffi::CString::new(sql).expect("Failed to convert SQL string to CString");
+
+        let result = unsafe {
+            sqlite3_prepare_v3(
+                db_ptr,
+                sql_cstring.as_ptr(),
+                -1,
+                0,
+                &mut stmt,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if result != SQLITE_OK {
+            return Ok(Err(result.into()));
+        } else if stmt.is_null() {
+            return Err(wasmtime::Error::msg("Error opening a connection to the database"));
+        } else {
+            return Ok(Ok(wasmtime::component::Resource::new_own(stmt as u32)))
+        }
     }
 
     /// Executes an SQL query directly without preparing it into a statement and returns
