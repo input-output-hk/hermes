@@ -1,5 +1,7 @@
 //! `SQLite` statement host implementation for WASM runtime.
 
+use libsqlite3_sys::*;
+
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{Errno, HostStatement, Statement, Value},
@@ -58,9 +60,17 @@ impl HostStatement for HermesRuntimeContext {
     /// it has been finalized can result in undefined and undesirable behavior such as
     /// segfaults and heap corruption.
     fn finalize(
-        &mut self, _resource: wasmtime::component::Resource<Statement>,
+        &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        let result = unsafe { sqlite3_finalize(stmt_ptr) };
+
+        if result != SQLITE_OK {
+            Ok(Err(result.into()))
+        } else {
+            Ok(Ok(()))
+        }
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
