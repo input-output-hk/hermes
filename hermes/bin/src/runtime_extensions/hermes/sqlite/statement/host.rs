@@ -15,9 +15,40 @@ impl HostStatement for HermesRuntimeContext {
     /// - `index`: The index of the SQL parameter to be set.
     /// - `value`: The value to bind to the parameter.
     fn bind(
-        &mut self, _resource: wasmtime::component::Resource<Statement>, _index: u32, _value: Value,
+        &mut self, resource: wasmtime::component::Resource<Statement>, index: u32, value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+        let index = index as i32;
+
+        let result = unsafe {
+            match value {
+                Value::Blob(value) => {
+                    sqlite3_bind_blob(
+                        stmt_ptr,
+                        index,
+                        value.as_ptr() as *const std::ffi::c_void,
+                        value.len() as i32,
+                        None,
+                    )
+                },
+                Value::Double(value) => sqlite3_bind_double(stmt_ptr, index, value),
+                Value::Int32(value) => sqlite3_bind_int(stmt_ptr, index, value),
+                Value::Int64(value) => sqlite3_bind_int64(stmt_ptr, index, value),
+                Value::Null => sqlite3_bind_null(stmt_ptr, index),
+                Value::Text(value) => {
+                    let c_value = std::ffi::CString::new(value)
+                        .map_err(|_| wasmtime::Error::msg("Failed to convert string to CString"))?;
+
+                    sqlite3_bind_text(stmt_ptr, index, c_value.as_ptr(), -1, None)
+                },
+            }
+        };
+
+        if result != SQLITE_OK {
+            Ok(Err(result.into()))
+        } else {
+            Ok(Ok(()))
+        }
     }
 
     /// Advances a statement to the next result row or to completion.
