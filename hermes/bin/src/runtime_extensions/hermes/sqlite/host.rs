@@ -47,9 +47,11 @@ impl Host for HermesRuntimeContext {
         if result != SQLITE_OK {
             return Ok(Err(result.into()));
         } else if db.is_null() {
-            return Err(wasmtime::Error::msg("Error opening a connection to the database"));
+            return Err(wasmtime::Error::msg(
+                "Error opening a connection to the database",
+            ));
         } else {
-            return Ok(Ok(wasmtime::component::Resource::new_own(db as u32)))
+            return Ok(Ok(wasmtime::component::Resource::new_own(db as u32)));
         }
     }
 }

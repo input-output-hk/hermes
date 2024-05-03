@@ -13,7 +13,7 @@ impl HostStatement for HermesRuntimeContext {
     /// - `index`: The index of the SQL parameter to be set.
     /// - `value`: The value to bind to the parameter.
     fn bind(
-        &mut self, _self_: wasmtime::component::Resource<Statement>, _index: u32, _value: Value,
+        &mut self, _resource: wasmtime::component::Resource<Statement>, _index: u32, _value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
         todo!()
     }
@@ -23,7 +23,7 @@ impl HostStatement for HermesRuntimeContext {
     /// After a prepared statement has been prepared, this function must be called one or
     /// more times to evaluate the statement.
     fn step(
-        &mut self, _self_: wasmtime::component::Resource<Statement>,
+        &mut self, _resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
         todo!()
     }
@@ -42,7 +42,7 @@ impl HostStatement for HermesRuntimeContext {
     ///
     /// The value of a result column in a specific data format.
     fn column(
-        &mut self, _self_: wasmtime::component::Resource<Statement>, _index: u32,
+        &mut self, _resource: wasmtime::component::Resource<Statement>, _index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
         todo!()
     }
@@ -58,7 +58,7 @@ impl HostStatement for HermesRuntimeContext {
     /// it has been finalized can result in undefined and undesirable behavior such as
     /// segfaults and heap corruption.
     fn finalize(
-        &mut self, _self_: wasmtime::component::Resource<Statement>,
+        &mut self, _resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
         todo!()
     }

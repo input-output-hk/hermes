@@ -21,9 +21,17 @@ impl HostSqlite for HermesRuntimeContext {
     /// If an `sqlite3` object is destroyed while a transaction is open, the transaction
     /// is automatically rolled back.
     fn close(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        let result = unsafe { sqlite3_close_v2(db_ptr) };
+
+        if result != SQLITE_OK {
+            Ok(Err(result.into()))
+        } else {
+            Ok(Ok(()))
+        }
     }
 
     /// Retrieves runtime status information about a single database connection.
@@ -40,7 +48,7 @@ impl HostSqlite for HermesRuntimeContext {
     /// A tuple of the current value of the requested parameter, and the highest
     /// instantaneous value on success, and an error code on failure.
     fn status(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>, _opt: StatusOptions,
+        &mut self, _resource: wasmtime::component::Resource<Sqlite>, _opt: StatusOptions,
         _reset_flag: bool,
     ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
         todo!()
@@ -60,12 +68,13 @@ impl HostSqlite for HermesRuntimeContext {
     /// If there is an error or the input text contains no SQL (if the input is an empty
     /// string or a comment) then an error code is returned.
     fn prepare(
-        &mut self, db: wasmtime::component::Resource<Sqlite>, sql: String,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_ptr: *mut sqlite3 = db.rep() as *mut _;
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
         let mut stmt: *mut sqlite3_stmt = std::ptr::null_mut();
 
-        let sql_cstring = std::ffi::CString::new(sql).expect("Failed to convert SQL string to CString");
+        let sql_cstring = std::ffi::CString::new(sql)
+            .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
 
         let result = unsafe {
             sqlite3_prepare_v3(
@@ -79,11 +88,11 @@ impl HostSqlite for HermesRuntimeContext {
         };
 
         if result != SQLITE_OK {
-            return Ok(Err(result.into()));
+            Ok(Err(result.into()))
         } else if stmt.is_null() {
-            return Err(wasmtime::Error::msg("Error opening a connection to the database"));
+            Err(wasmtime::Error::msg("Error preparing a database statement"))
         } else {
-            return Ok(Ok(wasmtime::component::Resource::new_own(stmt as u32)))
+            Ok(Ok(wasmtime::component::Resource::new_own(stmt as u32)))
         }
     }
 
@@ -94,8 +103,10 @@ impl HostSqlite for HermesRuntimeContext {
     ///
     /// - `sql`: SQL statement, UTF-8 encoded.
     fn execute(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>, _sql: String,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
+        let _stmt = self.prepare(resource, sql)??;
+
         todo!()
     }
 
