@@ -25,9 +25,17 @@ impl HostStatement for HermesRuntimeContext {
     /// After a prepared statement has been prepared, this function must be called one or
     /// more times to evaluate the statement.
     fn step(
-        &mut self, _resource: wasmtime::component::Resource<Statement>,
+        &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        let result = unsafe { sqlite3_step(stmt_ptr) };
+
+        if result != SQLITE_OK {
+            Ok(Err(result.into()))
+        } else {
+            Ok(Ok(()))
+        }
     }
 
     /// Returns information about a single column of the current result row of a query.
