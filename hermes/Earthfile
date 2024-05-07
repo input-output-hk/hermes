@@ -1,24 +1,31 @@
-VERSION 0.7
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/improve-rust-builder-sj AS rust-ci
+
+IMPORT ../wasm AS wasm
+IMPORT ../wasm/stub-module AS stub-module
 
 #cspell: words rustfmt
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.11.2+SETUP
+    DO rust-ci+SETUP
     COPY --dir .cargo .config crates bin .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 
     RUN mkdir /wasm
-    COPY --dir ../wasm+wasi-src/wasi /wasm/wasi
+    COPY --dir wasm+wasi-src/wasi /wasm/wasi
     # Compiled WASM component for benchmarks
-    COPY ../wasm/stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
+    COPY stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
 
 # Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
 bindings-expand:
     FROM +builder
 
-    RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
+    DO rust-ci+CARGO --args "expand -p hermes --lib runtime_extensions::bindings > bindings.rs"
+
+    # RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
     SAVE ARTIFACT bindings.rs AS LOCAL bindings.rs
 
 ## -----------------------------------------------------------------------------
@@ -32,7 +39,7 @@ bindings-expand:
 check:
     FROM +builder
 
-    RUN /scripts/std_checks.py
+    DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
@@ -47,10 +54,12 @@ build:
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
 
-    RUN /scripts/std_build.py   --bench_flags="--features bench" \
-                                --libs="cardano-chain-follower" \
-                                --bins="hermes/hermes" \
-                                --verbose
+    RUN echo cache breaker 1
+
+    DO rust-ci+EXECUTE \
+        --cmd="/scripts/std_build.py --bench_flags=\"--features bench\" --libs=cardano-chain-follower --bins=hermes/hermes --verbose" \
+        --output="target/$TARGETARCH/release/hermes" \
+        --docs="true"
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
