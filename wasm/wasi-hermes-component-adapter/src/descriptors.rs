@@ -209,7 +209,7 @@ impl Descriptors {
             len: 0,
         };
         import_alloc.with_arena(arena, || unsafe {
-            get_preopens_import(&mut list as *mut _)
+            get_preopens_import(std::ptr::from_mut(&mut list))
         });
         let preopens: &'static [Preopen] = unsafe {
             // allocation comes from long lived arena, so it is safe to
