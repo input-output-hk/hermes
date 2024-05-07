@@ -48,10 +48,59 @@ impl HostSqlite for HermesRuntimeContext {
     /// A tuple of the current value of the requested parameter, and the highest
     /// instantaneous value on success, and an error code on failure.
     fn status(
-        &mut self, _resource: wasmtime::component::Resource<Sqlite>, _opt: StatusOptions,
-        _reset_flag: bool,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>, opt: StatusOptions,
+        reset_flag: bool,
     ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        let status_code = if opt.contains(StatusOptions::LOOKASIDE_USED) {
+            SQLITE_DBSTATUS_LOOKASIDE_USED
+        } else if opt.contains(StatusOptions::CACHE_USED) {
+            SQLITE_DBSTATUS_CACHE_USED
+        } else if opt.contains(StatusOptions::SCHEMA_USED) {
+            SQLITE_DBSTATUS_SCHEMA_USED
+        } else if opt.contains(StatusOptions::STMT_USED) {
+            SQLITE_DBSTATUS_STMT_USED
+        } else if opt.contains(StatusOptions::LOOKASIDE_HIT) {
+            SQLITE_DBSTATUS_LOOKASIDE_HIT
+        } else if opt.contains(StatusOptions::LOOKASIDE_MISS_FULL) {
+            SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL
+        } else if opt.contains(StatusOptions::LOOKASIDE_MISS_SIZE) {
+            SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE
+        } else if opt.contains(StatusOptions::CACHE_HIT) {
+            SQLITE_DBSTATUS_CACHE_HIT
+        } else if opt.contains(StatusOptions::CACHE_MISS) {
+            SQLITE_DBSTATUS_CACHE_MISS
+        } else if opt.contains(StatusOptions::CACHE_WRITE) {
+            SQLITE_DBSTATUS_CACHE_WRITE
+        } else if opt.contains(StatusOptions::DEFERRED_FKS) {
+            SQLITE_DBSTATUS_DEFERRED_FKS
+        } else if opt.contains(StatusOptions::CACHE_USED_SHARED) {
+            SQLITE_DBSTATUS_CACHE_USED_SHARED
+        } else if opt.contains(StatusOptions::CACHE_SPILL) {
+            SQLITE_DBSTATUS_CACHE_SPILL
+        } else {
+            return Err(wasmtime::Error::msg("Invalid option"))
+        };
+    
+        let mut current_value = 0;
+        let mut highwater_mark = 0;
+    
+        let result = unsafe {
+            sqlite3_db_status(
+                db_ptr,
+                status_code,
+                &mut current_value,
+                &mut highwater_mark,
+                reset_flag.into(),
+            )
+        };
+    
+        if result != SQLITE_OK {
+            Ok(Err(result.into()))
+        } else {
+            Ok(Ok((current_value, highwater_mark)))
+        }
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
