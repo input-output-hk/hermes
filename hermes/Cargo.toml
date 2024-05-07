@@ -50,8 +50,10 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
-pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
-pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", branch = "fix/immutable-secondary", version = "0.24.0" }
+# specific commit from the `catalyst` branch
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "954e99db9e9c3e4c4b1677614054fbe18f692504", version = "0.25.0" }
+# specific commit from the `catalyst` branch
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "954e99db9e9c3e4c4b1677614054fbe18f692504", version = "0.25.0" }
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
 
