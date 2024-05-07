@@ -57,7 +57,7 @@ pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
 
-wasmtime = "19.0.0"
+wasmtime = "20.0.1"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
 blake2b_simd = "1.0.2"
