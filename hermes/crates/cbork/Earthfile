@@ -36,8 +36,6 @@ all-hosts-check:
 build:
     FROM +builder
 
-    RUN echo cache breaker 1
-
     DO rust-ci+EXECUTE \
         --cmd="/scripts/std_build.py" \
         --args1="--libs=cddl-parser,abnf-parser" \

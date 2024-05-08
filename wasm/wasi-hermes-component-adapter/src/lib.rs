@@ -2277,8 +2277,10 @@ pub unsafe extern "C" fn sock_shutdown(_fd: Fd, _how: Sdflags) -> Errno {
 #[allow(clippy::missing_docs_in_private_items)]
 fn datetime_to_timestamp(datetime: Option<filesystem::Datetime>) -> Timestamp {
     match datetime {
-        Some(datetime) => u64::from(datetime.nanoseconds)
-            .saturating_add(datetime.seconds.saturating_mul(1_000_000_000)),
+        Some(datetime) => {
+            u64::from(datetime.nanoseconds)
+                .saturating_add(datetime.seconds.saturating_mul(1_000_000_000))
+        },
         None => 0,
     }
 }

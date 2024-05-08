@@ -52,8 +52,8 @@ missing_docs_in_private_items = "deny"
 [workspace.dependencies]
 wit-bindgen = { version = "0.19.2", default-features = false } # Anything after 0.19.2 does not work. Do not bump version.
 wasi = { version = "0.11.0", default-features = false } # Needs to be 0.11 or it fails to build. Do not bump version.
-byte-array-literals = { git = "https://github.com/bytecodealliance/wasmtime", tag = "v20.0.1" }
-wasm-encoder = "0.206.0"
+byte-array-literals = { git = "https://github.com/bytecodealliance/wasmtime", tag = "v20.0.1", version = "20.0.1" }
+wasm-encoder = "0.200.0"
 object = { version = "0.35.0", default-features = false }
 
 [package]
