@@ -1,13 +1,15 @@
 VERSION 0.8
 
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/improve-rust-builder-sj AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 IMPORT ../wasm AS wasm
 IMPORT ../wasm/stub-module AS stub-module
 
 #cspell: words rustfmt
 
-# Set up our target toolchains, and copy our files.
+# builder : Set up our target toolchains, and copy our files.
 builder:
     DO rust-ci+SETUP
     COPY --dir .cargo .config crates bin .
@@ -19,13 +21,14 @@ builder:
     # Compiled WASM component for benchmarks
     COPY stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
 
-# Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
+# bindings-expand : Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
 bindings-expand:
     FROM +builder
 
-    DO rust-ci+CARGO --args "expand -p hermes --lib runtime_extensions::bindings > bindings.rs"
+    # Do not use the cahced builder as it can not do re-direction of output to a file.
+    # This command also is only used for local development/debugging and not run in CI.
+    RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
 
-    # RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
     SAVE ARTIFACT bindings.rs AS LOCAL bindings.rs
 
 ## -----------------------------------------------------------------------------
@@ -34,19 +37,20 @@ bindings-expand:
 ##
 ## These targets are discovered and executed automatically by CI.
 
-# Run check using the most efficient host tooling
+# check : Run check using the most efficient host tooling
 # CI Automated Entry point.
 check:
     FROM +builder
 
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
-# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# all-hosts-check : Test which runs check with all supported host tooling.  
+# Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
 all-hosts-check:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +check
 
-# Run build using the most efficient host tooling
+# build : Run build using the most efficient host tooling
 # CI Automated Entry point.
 build:
     FROM +builder
@@ -57,7 +61,11 @@ build:
     RUN echo cache breaker 1
 
     DO rust-ci+EXECUTE \
-        --cmd="/scripts/std_build.py --bench_flags=\"--features bench\" --libs=cardano-chain-follower --bins=hermes/hermes --verbose" \
+        --cmd="/scripts/std_build.py" \
+        --args1="--bench_flags=\"--features bench\"" \
+        --args2="--libs=cardano-chain-follower" \
+        --args3="--bins=hermes/hermes" \
+        --args4="--verbose" \
         --output="target/$TARGETARCH/release/hermes" \
         --docs="true"
 
@@ -65,6 +73,7 @@ build:
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
     SAVE ARTIFACT target/criterion
 
+# test-wasm-integration : Run WASM integration tests on hermes engine.
 test-wasm-integration:
     FROM +build
 
@@ -85,14 +94,15 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
 
-# Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
+# all-hosts-build : Test which runs check with all supported host tooling.  
+# Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
 all-hosts-build:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +build
 
 ## -----------------------------------------------------------------------------
 
-# This step simulates the full CI run for local purposes only.
+# local-ci-run: This step simulates the full CI run for local purposes only.
 local-ci-run:
     BUILD +check
     BUILD +build

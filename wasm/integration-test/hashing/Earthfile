@@ -1,6 +1,8 @@
 VERSION 0.8
 
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:fix/improve-rust-builder-sj AS wasm-c-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../../catalyst-ci/earthly/wasm/c AS wasm-c-ci
 
 IMPORT ../.. AS wasm
 

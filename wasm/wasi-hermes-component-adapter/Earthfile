@@ -1,6 +1,8 @@
 VERSION 0.8
 
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/improve-rust-builder-sj AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 #cspell: words rustfmt wasi
 
@@ -29,7 +31,11 @@ build:
     FROM +builder
 
     DO rust-ci+EXECUTE \
-        --cmd="/scripts/std_build.py --disable_tests --disable_benches --disable_docs --build_flags=\"--target=wasm32-unknown-unknown\" --verbose" \
+        --cmd="/scripts/std_build.py" \
+        --args1="--disable_tests" \
+        --args2="--disable_benches" \
+        --args3="--disable_docs" \
+        --args4="--build_flags=\"--target=wasm32-unknown-unknown\"" \
         --output="wasm32-unknown-unknown/release/wasi_snapshot_hermes.wasm"
 
     SAVE ARTIFACT target/wasm32-unknown-unknown/release/wasi_snapshot_hermes.wasm wasi-hermes-component-adapter.wasm

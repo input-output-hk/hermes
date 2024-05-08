@@ -1,6 +1,9 @@
 VERSION 0.8
 
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/improve-rust-builder-sj AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
+
 IMPORT ../../wasi AS wasi
 IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
