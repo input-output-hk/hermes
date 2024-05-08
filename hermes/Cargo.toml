@@ -51,9 +51,9 @@ missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
 # specific commit from the `catalyst` branch
-pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "954e99db9e9c3e4c4b1677614054fbe18f692504", version = "0.25.0" }
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 # specific commit from the `catalyst` branch
-pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "954e99db9e9c3e4c4b1677614054fbe18f692504", version = "0.25.0" }
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
 
