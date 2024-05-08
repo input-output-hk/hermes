@@ -82,6 +82,6 @@ build-info = "0.0.36"
 derive_more = { version= "0.99.17", default-features= false }
 build-info-build = "0.0.36"
 chrono = "0.4.35"
-chrono-tz = "0.8.6"
+chrono-tz = "0.9.0"
 saffron = "0.1.0"
 tokio = "1.36.0"
