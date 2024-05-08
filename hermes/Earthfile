@@ -25,7 +25,7 @@ builder:
 bindings-expand:
     FROM +builder
 
-    # Do not use the cahced builder as it can not do re-direction of output to a file.
+    # Do not use the cached builder as it can not do re-direction of output to a file.
     # This command also is only used for local development/debugging and not run in CI.
     RUN cargo expand -p hermes --lib runtime_extensions::bindings > bindings.rs
 
