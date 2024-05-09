@@ -1,7 +1,7 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:fix/improve-rust-builder-sj AS mdlint
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:fix/improve-rust-builder-sj AS cspell
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:fix/improve-rust-builder-sj AS mdlint-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:fix/improve-rust-builder-sj AS cspell-ci
 
 FROM debian:stable-slim
 
@@ -9,17 +9,17 @@ FROM debian:stable-slim
 
 # check-markdown : markdown check using catalyst-ci.
 check-markdown:
-    DO mdlint+CHECK
+    DO mdlint-ci+CHECK
 
 # markdown-check-fix : markdown check and fix using catalyst-ci.
 markdown-check-fix:
     LOCALLY
 
-    DO mdlint+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
+    DO mdlint-ci+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
 
 # check-spelling : Check spelling in this repo inside a container.
 check-spelling:
-    DO cspell+CHECK
+    DO cspell-ci+CHECK
 
 # spell-list-words : List words in a dictionary
 spell-list-words:
