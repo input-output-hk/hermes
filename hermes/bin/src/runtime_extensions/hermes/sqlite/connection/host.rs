@@ -124,12 +124,13 @@ impl HostSqlite for HermesRuntimeContext {
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
+        let n_byte = sql_cstring.as_bytes_with_nul().len();
 
         let result = unsafe {
             sqlite3_prepare_v3(
                 db_ptr,
                 sql_cstring.as_ptr(),
-                -1,
+                n_byte as i32,
                 0,
                 &mut stmt_ptr,
                 std::ptr::null_mut(),
@@ -160,12 +161,13 @@ impl HostSqlite for HermesRuntimeContext {
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
+        let n_byte = sql_cstring.as_bytes_with_nul().len();
 
         let result = unsafe {
             sqlite3_prepare_v3(
                 db_ptr,
                 sql_cstring.as_ptr(),
-                -1,
+                n_byte as i32,
                 0,
                 &mut stmt_ptr,
                 std::ptr::null_mut(),
