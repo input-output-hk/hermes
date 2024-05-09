@@ -67,6 +67,8 @@ build:
         --output="target/$TARGETARCH/release/hermes" \
         --docs="true"
 
+    DO rust-ci+COPY_OUTPUT --output="target/criterion/.*"
+
     SAVE ARTIFACT target/$TARGETARCH/doc doc
     SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
     SAVE ARTIFACT target/criterion
