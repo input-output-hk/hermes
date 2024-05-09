@@ -62,7 +62,7 @@ impl HostStatement for HermesRuntimeContext {
 
         let result = unsafe { sqlite3_step(stmt_ptr) };
 
-        if result != SQLITE_OK {
+        if result != SQLITE_DONE {
             Ok(Err(result.into()))
         } else {
             Ok(Ok(()))

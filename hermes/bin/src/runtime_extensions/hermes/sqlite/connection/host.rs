@@ -120,7 +120,7 @@ impl HostSqlite for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
-        let mut stmt: *mut sqlite3_stmt = std::ptr::null_mut();
+        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
@@ -131,17 +131,17 @@ impl HostSqlite for HermesRuntimeContext {
                 sql_cstring.as_ptr(),
                 -1,
                 0,
-                &mut stmt,
+                &mut stmt_ptr,
                 std::ptr::null_mut(),
             )
         };
 
         if result != SQLITE_OK {
             Ok(Err(result.into()))
-        } else if stmt.is_null() {
+        } else if stmt_ptr.is_null() {
             Err(wasmtime::Error::msg("Error preparing a database statement"))
         } else {
-            Ok(Ok(wasmtime::component::Resource::new_own(stmt as u32)))
+            Ok(Ok(wasmtime::component::Resource::new_own(stmt_ptr as u32)))
         }
     }
 
@@ -154,9 +154,36 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let _stmt = self.prepare(resource, sql)??;
+        // prepare stage
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
-        todo!()
+        let sql_cstring = std::ffi::CString::new(sql)
+            .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
+
+        let result = unsafe {
+            sqlite3_prepare_v3(
+                db_ptr,
+                sql_cstring.as_ptr(),
+                -1,
+                0,
+                &mut stmt_ptr,
+                std::ptr::null_mut(),
+            )
+        };
+
+        if result != SQLITE_OK {
+            return Ok(Err(result.into()))
+        }
+
+        // step stage
+        let result = unsafe { sqlite3_step(stmt_ptr) };
+
+        if result != SQLITE_DONE {
+            return Ok(Err(result.into()))
+        }
+        
+        Ok(Ok(()))
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {

@@ -23,7 +23,7 @@ impl Host for HermesRuntimeContext {
     fn open(
         &mut self, readonly: bool, memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
-        let mut db: *mut sqlite3 = std::ptr::null_mut();
+        let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
         let db_path = if memory {
             ":memory:"
         } else {
@@ -38,7 +38,7 @@ impl Host for HermesRuntimeContext {
         let result = unsafe {
             sqlite3_open_v2(
                 db_path.as_ptr() as *const _,
-                &mut db,
+                &mut db_ptr,
                 flags,
                 std::ptr::null(),
             )
@@ -46,12 +46,12 @@ impl Host for HermesRuntimeContext {
 
         if result != SQLITE_OK {
             return Ok(Err(result.into()));
-        } else if db.is_null() {
+        } else if db_ptr.is_null() {
             return Err(wasmtime::Error::msg(
                 "Error opening a connection to the database",
             ));
         } else {
-            return Ok(Ok(wasmtime::component::Resource::new_own(db as u32)));
+            return Ok(Ok(wasmtime::component::Resource::new_own(db_ptr as u32)));
         }
     }
 }
