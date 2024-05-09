@@ -12,7 +12,7 @@ build:
     DO rust-ci+SETUP
 
     COPY --dir src .
-    COPY Cargo.toml Cargo.lock .
+    COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO --args "build --target wasm32-unknown-unknown --release" \
