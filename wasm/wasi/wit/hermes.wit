@@ -22,5 +22,6 @@ world hermes {
   include hermes:kv-store/all;
   include hermes:localtime/all;
   include hermes:logging/all;
+  include hermes:sqlite/all;
   include hermes:integration-test/all;
 }

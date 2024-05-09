@@ -27,7 +27,8 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
 /// Target Hermes app to execute the event
 pub(crate) enum TargetApp {
     /// Execute for all available apps
-    _All,
+    #[allow(dead_code)]
+    All,
     /// Execute for a specific list of apps
     List(Vec<HermesAppName>),
 }
@@ -37,7 +38,7 @@ pub(crate) enum TargetModule {
     /// Execute for all available modules
     All,
     /// Execute for a specific list of modules
-    _List(Vec<ModuleId>),
+    List(Vec<ModuleId>),
 }
 
 /// Hermes event
