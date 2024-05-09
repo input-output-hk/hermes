@@ -91,9 +91,9 @@ pub fn execute_event(
             event_dispatch(
                 app_name,
                 module.id().clone(),
-                on_bench_event.as_ref(),
                 module,
-            )?;
+                on_bench_event.as_ref(),
+            );
             // module.execute_event(&on_bench_event)?;
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
@@ -102,9 +102,9 @@ pub fn execute_event(
             event_dispatch(
                 app_name,
                 module.id().clone(),
-                on_test_event.as_ref(),
                 module,
-            )?;
+                on_test_event.as_ref(),
+            );
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
     };
