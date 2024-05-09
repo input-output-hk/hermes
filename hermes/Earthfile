@@ -64,7 +64,7 @@ build:
         --args2="--libs=cardano-chain-follower" \
         --args3="--bins=hermes/hermes" \
         --args4="--verbose" \
-        --output="target/$TARGETARCH/release/hermes" \
+        --output="$TARGETARCH/release/hermes" \
         --docs="true"
 
     DO rust-ci+COPY_OUTPUT --output="target/criterion/.*"
