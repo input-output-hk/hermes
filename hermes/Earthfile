@@ -67,7 +67,7 @@ build:
         --output="release/hermes" \
         --docs="true"
 
-    DO rust-ci+COPY_OUTPUT --output="target/criterion/.*"
+    DO rust-ci+COPY_OUTPUT --output="criterion/.*"
 
     SAVE ARTIFACT target/doc doc
     SAVE ARTIFACT target/release/hermes hermes
