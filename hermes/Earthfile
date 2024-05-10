@@ -64,13 +64,13 @@ build:
         --args2="--libs=cardano-chain-follower" \
         --args3="--bins=hermes/hermes" \
         --args4="--verbose" \
-        --output="$TARGETARCH/release/hermes" \
+        --output="release/hermes" \
         --docs="true"
 
     DO rust-ci+COPY_OUTPUT --output="target/criterion/.*"
 
-    SAVE ARTIFACT target/$TARGETARCH/doc doc
-    SAVE ARTIFACT target/$TARGETARCH/release/hermes hermes
+    SAVE ARTIFACT target/doc doc
+    SAVE ARTIFACT target/release/hermes hermes
     SAVE ARTIFACT target/criterion
 
 # test-wasm-integration : Run WASM integration tests on hermes engine.
@@ -88,7 +88,6 @@ test-wasm-integration:
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
-    #RUN cargo test --release --test wasm-component-integration-tests -- --help
     RUN cargo test --release --test wasm-component-integration-tests -- --list
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
