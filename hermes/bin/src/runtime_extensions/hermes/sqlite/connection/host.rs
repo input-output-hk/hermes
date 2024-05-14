@@ -120,6 +120,10 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
+        if sql.sz_find("PRAGMA ".as_bytes()).is_some() {
+            return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"))
+        }
+
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
         let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
@@ -156,13 +160,13 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        // prepare stage
-        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
-        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
-
         if sql.sz_find("PRAGMA ".as_bytes()).is_some() {
             return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"))
         }
+        
+        // prepare stage
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
