@@ -4,7 +4,7 @@ use libsqlite3_sys::*;
 
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::{bindings::hermes::sqlite::api::{Errno, Host, Sqlite}},
+    runtime_extensions::{app_config::*, bindings::hermes::sqlite::api::{Errno, Host, Sqlite}},
 };
 
 impl Host for HermesRuntimeContext {
@@ -25,10 +25,13 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
+        // let inmemory_config = get_app_inmemory_sqlite_db_cfg();
+        let persistent_config = get_app_persistent_sqlite_db_cfg();
+
         let db_path = if memory {
             ":memory:"
         } else {
-            "your_database_path.db"
+            "db_name"
         };
         let flags = if readonly {
             SQLITE_OPEN_READONLY
@@ -45,14 +48,37 @@ impl Host for HermesRuntimeContext {
             )
         };
 
+
         if result != SQLITE_OK {
             return Ok(Err(result.into()));
         } else if db_ptr.is_null() {
             return Err(wasmtime::Error::msg(
                 "Error opening a connection to the database",
             ));
-        } else {
-            return Ok(Ok(wasmtime::component::Resource::new_own(db_ptr as u32)));
         }
+
+        // config database size limitation
+        if memory {
+            
+            
+        } else {
+            let db_name = std::ffi::CString::new("main").unwrap();
+            let limit_ptr: *const u32 = &persistent_config.max_db_size;
+
+            let rc = unsafe {
+                sqlite3_file_control(
+                    db_ptr,
+                    db_name.as_ptr(),
+                    SQLITE_FCNTL_SIZE_LIMIT,
+                    limit_ptr as *mut _
+                )
+            };
+
+            if rc != SQLITE_OK {
+                
+            }
+        }
+
+        Ok(Ok(wasmtime::component::Resource::new_own(db_ptr as u32)))
     }
 }
