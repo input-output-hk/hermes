@@ -1290,7 +1290,7 @@ pub unsafe extern "C" fn fd_readdir(
             // Copy a `dirent` describing this entry into the destination `buf`,
             // truncating it if it doesn't fit entirely.
             let bytes = slice::from_raw_parts(
-                (&dirent as *const wasi::Dirent).cast::<u8>(),
+                (std::ptr::from_ref::<wasi::Dirent>(&dirent)).cast::<u8>(),
                 size_of::<Dirent>(),
             );
             let dirent_bytes_to_copy = buf.len().min(bytes.len());
@@ -2493,7 +2493,7 @@ pub struct File {
     /// The handle to the preview2 descriptor that this file is referencing.
     fd: filesystem::Descriptor,
 
-    /// The descriptor type, as supplied by filesystem::get_type at opening
+    /// The descriptor type, as supplied by `filesystem::get_type` at opening
     descriptor_type: filesystem::DescriptorType,
 
     /// The current-position pointer.
@@ -2502,9 +2502,9 @@ pub struct File {
     /// In append mode, all writes append to the file.
     append: bool,
 
-    /// In blocking mode, read and write calls dispatch to blocking_read and
-    /// blocking_check_write on the underlying streams. When false, read and write
-    /// dispatch to stream's plain read and check_write.
+    /// In blocking mode, read and write calls dispatch to `blocking_read` and
+    /// `blocking_check_write` on the underlying streams. When false, read and write
+    /// dispatch to stream's plain read and `check_write`.
     blocking_mode: BlockingMode,
 }
 
@@ -2543,7 +2543,7 @@ struct State {
     /// Storage of mapping from preview1 file descriptors to preview2 file
     /// descriptors.
     ///
-    /// Do not use this member directly - use State::descriptors() to ensure
+    /// Do not use this member directly - use `State::descriptors()` to ensure
     /// lazy initialization happens.
     descriptors: RefCell<Option<Descriptors>>,
 
@@ -2553,7 +2553,7 @@ struct State {
 
     /// Long-lived bump allocated memory arena.
     ///
-    /// This is used for the cabi_export_realloc to allocate data passed to the
+    /// This is used for the `cabi_export_realloc` to allocate data passed to the
     /// `run` entrypoint. Allocations in this arena are safe to use for
     /// the lifetime of the State struct. It may also be used for import allocations
     /// which need to be long-lived, by using `import_alloc.with_arena`.
@@ -2797,7 +2797,7 @@ impl State {
 
     /// Mut accessor for the descriptors member that ensures it is properly initialized
     #[allow(clippy::unreachable)]
-    fn descriptors_mut(&self) -> impl DerefMut + Deref<Target = Descriptors> + '_ {
+    fn descriptors_mut(&self) -> impl DerefMut<Target = Descriptors> + '_ {
         let mut d = self
             .descriptors
             .try_borrow_mut()
@@ -2825,7 +2825,7 @@ impl State {
             };
             self.import_alloc
                 .with_arena(&self.long_lived_arena, || unsafe {
-                    get_environment_import(&mut list as *mut _);
+                    get_environment_import(std::ptr::from_mut(&mut list));
                 });
             self.env_vars.set(Some(unsafe {
                 // allocation comes from long lived arena, so it is safe to
@@ -2853,7 +2853,7 @@ impl State {
             };
             self.import_alloc
                 .with_arena(&self.long_lived_arena, || unsafe {
-                    get_args_import(&mut list as *mut _);
+                    get_args_import(std::ptr::from_mut(&mut list));
                 });
             self.args.set(Some(unsafe {
                 // allocation comes from long lived arena, so it is safe to

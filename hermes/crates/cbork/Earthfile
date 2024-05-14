@@ -1,13 +1,17 @@
-VERSION 0.7
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.00.0 AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 # Set up our target toolchains, and copy our files.
 builder:
-    DO github.com/input-output-hk/catalyst-ci/earthly/rust:v2.11.2+SETUP
+    DO rust-ci+SETUP
 
     COPY --dir .cargo .config cddl-parser abnf-parser .
     COPY Cargo.toml clippy.toml deny.toml rustfmt.toml .
 
-    RUN cargo generate-lockfile
+    # RUN cargo generate-lockfile
 
 ## -----------------------------------------------------------------------------
 ##
@@ -20,7 +24,7 @@ builder:
 check:
     FROM +builder
 
-    RUN /scripts/std_checks.py
+    DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
@@ -32,7 +36,11 @@ all-hosts-check:
 build:
     FROM +builder
 
-    RUN /scripts/std_build.py   --libs="cddl-parser, abnf-parser"
+    DO rust-ci+EXECUTE \
+        --cmd="/scripts/std_build.py" \
+        --args1="--libs=cddl-parser,abnf-parser" \
+        --output="release/[^\./]+" \
+        --docs="true"
 
     SAVE ARTIFACT target/$TARGETARCH/doc doc
 
