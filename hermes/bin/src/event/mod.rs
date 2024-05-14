@@ -43,7 +43,7 @@ pub(crate) enum TargetModule {
 
 /// Hermes event
 pub(crate) struct HermesEvent {
-    /// The payload carried by the HermesEvent.
+    /// The payload carried by the `HermesEvent`.
     payload: Box<dyn HermesEventPayload>,
 
     /// Target app
