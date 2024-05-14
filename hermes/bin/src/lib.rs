@@ -5,6 +5,7 @@ pub mod app;
 pub mod cli;
 pub mod event;
 pub mod logger;
+pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;

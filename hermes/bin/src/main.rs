@@ -4,6 +4,7 @@ mod app;
 mod cli;
 mod event;
 mod logger;
+mod packaging;
 mod reactor;
 mod runtime_context;
 mod runtime_extensions;

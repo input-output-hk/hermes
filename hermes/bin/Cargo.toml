@@ -54,6 +54,7 @@ iana-time-zone = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync",  "time"] }
 pallas = { workspace = true }
 saffron = { workspace = true }
+hdf5 = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
@@ -61,3 +62,4 @@ build-info-build = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 tracing-subscriber = { workspace = true }
+temp-dir = "0.1.13"
