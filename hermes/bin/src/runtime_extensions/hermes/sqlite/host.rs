@@ -4,7 +4,7 @@ use libsqlite3_sys::*;
 
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
+    runtime_extensions::{bindings::hermes::sqlite::api::{Errno, Host, Sqlite}},
 };
 
 impl Host for HermesRuntimeContext {
@@ -24,6 +24,7 @@ impl Host for HermesRuntimeContext {
         &mut self, readonly: bool, memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
+
         let db_path = if memory {
             ":memory:"
         } else {

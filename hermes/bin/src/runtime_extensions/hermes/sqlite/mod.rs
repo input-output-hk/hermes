@@ -2,7 +2,6 @@
 
 mod connection;
 mod host;
-mod state;
 mod statement;
 
 /// Advise Runtime Extensions of a new context
