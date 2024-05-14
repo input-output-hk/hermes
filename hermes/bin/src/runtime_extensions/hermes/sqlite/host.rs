@@ -25,13 +25,31 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
-        // let inmemory_config = get_app_inmemory_sqlite_db_cfg();
-        let persistent_config = get_app_persistent_sqlite_db_cfg();
+        let (db_path, config) = if memory {
+            let inmemory_config = match get_app_inmemory_sqlite_db_cfg() {
+                Some(config) => config,
+                None => return Err(wasmtime::Error::msg(
+                    "In-memory config is not set for a in-memory option",
+                ))
+            };
 
-        let db_path = if memory {
-            ":memory:"
+            (":memory:".into(), inmemory_config)
         } else {
-            "db_name"
+            let persistent_config = match get_app_persistent_sqlite_db_cfg() {
+                Some(config) => config,
+                None => return Err(wasmtime::Error::msg(
+                    "Persistent config is not set for a non-memory option",
+                ))
+            };
+
+            let db_name = match &persistent_config.db_file {
+                Some(db_name) => db_name.clone(),
+                None => return Err(wasmtime::Error::msg(
+                    "Database name is not set for a database file config",
+                ))
+            };
+
+            (db_name, persistent_config)
         };
         let flags = if readonly {
             SQLITE_OPEN_READONLY
@@ -41,7 +59,7 @@ impl Host for HermesRuntimeContext {
 
         let result = unsafe {
             sqlite3_open_v2(
-                db_path.as_ptr() as *const _,
+                db_path.as_str().as_ptr() as *const _,
                 &mut db_ptr,
                 flags,
                 std::ptr::null(),
@@ -62,20 +80,25 @@ impl Host for HermesRuntimeContext {
             
             
         } else {
-            let db_name = std::ffi::CString::new("main").unwrap();
-            let limit_ptr: *const u32 = &persistent_config.max_db_size;
+            // FIXME: convert bytes to page
+            let pragma_stmt = format!("PRAGMA max_page_count = {}", config.max_db_size);
+            let c_pragma_stmt = std::ffi::CString::new(pragma_stmt).map_err(|_| wasmtime::Error::msg("Failed to convert string to CString"))?;
 
+            // TODO: handle size
             let rc = unsafe {
-                sqlite3_file_control(
+                sqlite3_exec(
                     db_ptr,
-                    db_name.as_ptr(),
-                    SQLITE_FCNTL_SIZE_LIMIT,
-                    limit_ptr as *mut _
+                    c_pragma_stmt.as_ptr(),
+                    None,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
                 )
             };
 
             if rc != SQLITE_OK {
-                
+                return Err(wasmtime::Error::msg(
+                    "Error setting database size",
+                ));
             }
         }
 
