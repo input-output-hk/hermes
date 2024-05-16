@@ -88,8 +88,8 @@ impl Host for HermesRuntimeContext {
                 )
             }
         } else {
-            // FIXME: convert bytes to page
-            let pragma_stmt = format!("PRAGMA max_page_count = {}", config.max_db_size);
+            let page_size = config.max_db_size / 4_096;
+            let pragma_stmt = format!("PRAGMA max_page_count = {}", page_size);
             let c_pragma_stmt = std::ffi::CString::new(pragma_stmt).map_err(|_| wasmtime::Error::msg("Failed to convert string to CString"))?;
 
             // TODO: handle size
