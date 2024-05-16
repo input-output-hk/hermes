@@ -1,6 +1,5 @@
 //! Setup for logging for the service.
 
-use clap::{Args, ValueEnum};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time},
@@ -10,7 +9,8 @@ use tracing_subscriber::{
 use crate::runtime_extensions::bindings::hermes::logging;
 
 /// All valid logging levels.
-#[derive(ValueEnum, Clone, Copy, Default)]
+#[derive(Clone, Copy, Default)]
+#[allow(dead_code)]
 pub(crate) enum LogLevel {
     /// Errors
     Error,
@@ -66,19 +66,15 @@ pub(crate) struct LoggerConfig {
 }
 
 /// Logger configuration builder.
-#[derive(Args, Default, Clone)]
+#[derive(Default, Clone)]
 pub(crate) struct LoggerConfigBuilder {
     /// Builder log level.
-    #[clap(long)]
     log_level: Option<LogLevel>,
     /// Builder enable/disable thread logging.
-    #[clap(long)]
     with_thread: Option<bool>,
     /// Builder enable/disable file logging.
-    #[clap(long)]
     with_file: Option<bool>,
     /// Builder enable/disable line number logging.
-    #[clap(long)]
     with_line_num: Option<bool>,
 }
 
@@ -87,7 +83,7 @@ impl LoggerConfigBuilder {
     /// Build the logger configuration.
     pub(crate) fn build(self) -> LoggerConfig {
         LoggerConfig {
-            log_level: self.log_level.unwrap_or(LogLevel::Info),
+            log_level: self.log_level.unwrap_or_default(),
             with_thread: self.with_thread.unwrap_or(false),
             with_file: self.with_file.unwrap_or(false),
             with_line_num: self.with_line_num.unwrap_or(false),
