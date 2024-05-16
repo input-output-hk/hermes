@@ -1,5 +1,6 @@
 //! Setup for logging for the service.
 
+use derive_more::Display;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time},
@@ -9,19 +10,24 @@ use tracing_subscriber::{
 use crate::runtime_extensions::bindings::hermes::logging;
 
 /// All valid logging levels.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Display, Default)]
 #[allow(dead_code)]
 pub(crate) enum LogLevel {
     /// Errors
+    #[display(fmt = "Error")]
     Error,
     /// Warnings
+    #[display(fmt = "Warn")]
     Warn,
     /// Informational Messages
     #[default]
+    #[display(fmt = "Info")]
     Info,
     /// Debug messages
+    #[display(fmt = "Debug")]
     Debug,
     /// Tracing
+    #[display(fmt = "Trace")]
     Trace,
 }
 

@@ -7,63 +7,16 @@ pub(crate) fn log_message(
     level: LogLevel, ctx: Option<String>, msg: &str, file: Option<String>,
     function: Option<String>, line: Option<u32>, col: Option<u32>, data: Option<String>,
 ) {
-    match level {
-        LogLevel::Error => {
-            tracing::error!(
-                ctx = ctx.unwrap_or_default(),
-                message = msg,
-                file = file.unwrap_or_default(),
-                function = function.unwrap_or_default(),
-                line = line.unwrap_or_default(),
-                column = col.unwrap_or_default(),
-                data = data.unwrap_or_default(),
-            );
-        },
-        LogLevel::Warn => {
-            tracing::warn!(
-                ctx = ctx.unwrap_or_default(),
-                message = msg,
-                file = file.unwrap_or_default(),
-                function = function.unwrap_or_default(),
-                line = line.unwrap_or_default(),
-                column = col.unwrap_or_default(),
-                data = data.unwrap_or_default(),
-            );
-        },
-        LogLevel::Info => {
-            tracing::info!(
-                ctx = ctx.unwrap_or_default(),
-                message = msg,
-                file = file.unwrap_or_default(),
-                function = function.unwrap_or_default(),
-                line = line.unwrap_or_default(),
-                column = col.unwrap_or_default(),
-                data = data.unwrap_or_default(),
-            );
-        },
-        LogLevel::Debug => {
-            tracing::debug!(
-                ctx = ctx.unwrap_or_default(),
-                message = msg,
-                file = file.unwrap_or_default(),
-                function = function.unwrap_or_default(),
-                line = line.unwrap_or_default(),
-                column = col.unwrap_or_default(),
-                data = data.unwrap_or_default(),
-            );
-        },
-        LogLevel::Trace => {
-            tracing::trace!(
-                ctx = ctx.unwrap_or_default(),
-                message = msg,
-                file = file.unwrap_or_default(),
-                function = function.unwrap_or_default(),
-                line = line.unwrap_or_default(),
-                column = col.unwrap_or_default(),
-                data = data.unwrap_or_default(),
-            );
-        },
-    }
+    tracing::info!(
+        level = level.to_string(),
+        ctx = ctx.unwrap_or_default(),
+        message = msg,
+        file = file.unwrap_or_default(),
+        function = function.unwrap_or_default(),
+        line = line.unwrap_or_default(),
+        column = col.unwrap_or_default(),
+        data = data.unwrap_or_default(),
+    );
 }
 
 #[cfg(test)]
