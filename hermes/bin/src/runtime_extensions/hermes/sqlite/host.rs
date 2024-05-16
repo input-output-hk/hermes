@@ -92,7 +92,6 @@ impl Host for HermesRuntimeContext {
             let pragma_stmt = format!("PRAGMA max_page_count = {}", page_size);
             let c_pragma_stmt = std::ffi::CString::new(pragma_stmt).map_err(|_| wasmtime::Error::msg("Failed to convert string to CString"))?;
 
-            // TODO: handle size
             unsafe {
                 sqlite3_exec(
                     db_ptr,
