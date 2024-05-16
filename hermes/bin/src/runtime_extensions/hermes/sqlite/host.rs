@@ -77,8 +77,22 @@ impl Host for HermesRuntimeContext {
 
         // config database size limitation
         if memory {
+            let size_limit = config.max_db_size as i64;
+
+            let rc = unsafe {
+                sqlite3_file_control(
+                    db_ptr,
+                    "main\0".as_ptr() as *const i8,
+                    SQLITE_FCNTL_SIZE_LIMIT,
+                    size_limit as *mut std::ffi::c_void
+                )
+            };
             
-            
+            if rc != SQLITE_OK {
+                return Err(wasmtime::Error::msg(
+                    "Error setting database size",
+                ));
+            }
         } else {
             // FIXME: convert bytes to page
             let pragma_stmt = format!("PRAGMA max_page_count = {}", config.max_db_size);
