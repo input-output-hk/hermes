@@ -76,22 +76,16 @@ impl Host for HermesRuntimeContext {
         }
 
         // config database size limitation
-        if memory {
+        let rc = if memory {
             let size_limit = config.max_db_size as i64;
 
-            let rc = unsafe {
+            unsafe {
                 sqlite3_file_control(
                     db_ptr,
                     "main\0".as_ptr() as *const i8,
                     SQLITE_FCNTL_SIZE_LIMIT,
                     size_limit as *mut std::ffi::c_void
                 )
-            };
-            
-            if rc != SQLITE_OK {
-                return Err(wasmtime::Error::msg(
-                    "Error setting database size",
-                ));
             }
         } else {
             // FIXME: convert bytes to page
@@ -99,7 +93,7 @@ impl Host for HermesRuntimeContext {
             let c_pragma_stmt = std::ffi::CString::new(pragma_stmt).map_err(|_| wasmtime::Error::msg("Failed to convert string to CString"))?;
 
             // TODO: handle size
-            let rc = unsafe {
+            unsafe {
                 sqlite3_exec(
                     db_ptr,
                     c_pragma_stmt.as_ptr(),
@@ -107,13 +101,13 @@ impl Host for HermesRuntimeContext {
                     std::ptr::null_mut(),
                     std::ptr::null_mut(),
                 )
-            };
-
-            if rc != SQLITE_OK {
-                return Err(wasmtime::Error::msg(
-                    "Error setting database size",
-                ));
             }
+        };
+
+        if rc != SQLITE_OK {
+            return Err(wasmtime::Error::msg(
+                "Error setting database size",
+            ));
         }
 
         Ok(Ok(wasmtime::component::Resource::new_own(db_ptr as u32)))
