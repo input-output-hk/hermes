@@ -18,7 +18,3 @@ build:
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="cron.wasm"
 
     SAVE ARTIFACT cron.wasm
-
-build-local:
-    FROM +build
-    SAVE ARTIFACT cron.wasm AS LOCAL cron.wasm
