@@ -1,5 +1,7 @@
 //! Setup for logging for the service.
 
+use std::str::FromStr;
+
 use derive_more::Display;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
@@ -29,6 +31,21 @@ pub(crate) enum LogLevel {
     /// Tracing
     #[display(fmt = "Trace")]
     Trace,
+}
+
+impl FromStr for LogLevel {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Error and Warn levels are force to Info level
+        // as Info is the highest log level one can choose.
+        match s {
+            "error" | "warn" | "info" => Ok(LogLevel::Info),
+            "debug" => Ok(LogLevel::Debug),
+            "trace" => Ok(LogLevel::Trace),
+            _ => Err(anyhow::anyhow!("Invalid log level string: {}", s)),
+        }
+    }
 }
 
 impl From<logging::api::Level> for LogLevel {
