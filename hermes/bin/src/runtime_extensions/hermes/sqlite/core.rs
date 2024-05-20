@@ -7,15 +7,23 @@ use crate::{app::HermesAppName, runtime_extensions::{
     bindings::hermes::sqlite::api::Errno,
 }};
 
+/// Represents the various errors that can occur when opening a database.
 pub(super) enum OpenError {
+  /// The in-memory configuration provided is invalid.
   InvalidInMemoryConfig,
+  /// The persistent configuration provided is invalid.
   InvalidPersistentConfig,
+  /// The database name is missing in the persistent configuration.
   MissingDatabaseNameForPersistentConfig,
+  /// Failed to open the database.
   FailedOpeningDatabase,
+  /// Failed to set the database size.
   FailedSettingDatabaseSize,
+  /// An error occurred with SQLite, represented by an `Errno`.
   SQLiteError(Errno)
 }
 
+/// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(readonly: bool, memory: bool, app_name: HermesAppName) -> Result<*mut sqlite3, OpenError> {
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
