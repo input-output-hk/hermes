@@ -55,6 +55,8 @@ tokio = { workspace = true, features = ["rt", "sync",  "time"] }
 pallas = { workspace = true }
 saffron = { workspace = true }
 hdf5 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
