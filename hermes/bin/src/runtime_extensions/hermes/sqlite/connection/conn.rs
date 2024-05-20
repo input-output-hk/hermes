@@ -5,10 +5,13 @@ use stringzilla::StringZilla;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, StatusOptions};
 
+/// Checks if the provided SQL string contains a `PRAGMA` statement.
+/// Generally, `PRAGMA` is intended for internal use only.
 pub(super) fn validate_sql(sql: &String) -> bool {
   sql.sz_find("PRAGMA ".as_bytes()).is_some()
 }
 
+/// Closes a database connection, destructor for `sqlite3`.
 pub(super) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     let result = unsafe { sqlite3_close_v2(db_ptr) };
 
@@ -19,6 +22,7 @@ pub(super) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     }
 }
 
+/// Retrieves runtime status information about a single database connection.
 pub(super) fn status(
     db_ptr: *mut sqlite3, opt: StatusOptions, reset_flag: bool,
 ) -> Result<(i32, i32), Errno> {
@@ -72,6 +76,8 @@ pub(super) fn status(
     }
 }
 
+/// Compiles SQL text into byte-code that will do the work of querying or updating the
+/// database.
 pub(super) fn prepare(
     db_ptr: *mut sqlite3, sql: std::ffi::CString,
 ) -> Result<*mut sqlite3_stmt, Errno> {
@@ -97,6 +103,8 @@ pub(super) fn prepare(
     }
 }
 
+/// Executes an SQL query directly without preparing it into a statement and returns
+/// the result.
 pub(super) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<(), Errno> {
     let stmt_ptr = prepare(db_ptr, sql)?;
 
