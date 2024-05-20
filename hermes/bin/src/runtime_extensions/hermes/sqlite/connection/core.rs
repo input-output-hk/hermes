@@ -8,7 +8,7 @@ use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, StatusOpti
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
 pub(super) fn validate_sql(sql: &String) -> bool {
-  sql.sz_find("PRAGMA ".as_bytes()).is_some()
+    sql.sz_find("PRAGMA ".as_bytes()).is_some()
 }
 
 /// Closes a database connection, destructor for `sqlite3`.

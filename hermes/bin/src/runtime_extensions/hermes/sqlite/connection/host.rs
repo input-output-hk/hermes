@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::conn;
+use super::core;
 
 impl HostSqlite for HermesRuntimeContext {
     /// Closes a database connection, destructor for `sqlite3`.
@@ -27,7 +27,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        Ok(conn::close(db_ptr))
+        Ok(core::close(db_ptr))
     }
 
     /// Retrieves runtime status information about a single database connection.
@@ -49,7 +49,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        Ok(conn::status(db_ptr, opt, reset_flag))
+        Ok(core::status(db_ptr, opt, reset_flag))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -68,7 +68,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        if conn::validate_sql(&sql) {
+        if core::validate_sql(&sql) {
             return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"));
         }
 
@@ -77,9 +77,9 @@ impl HostSqlite for HermesRuntimeContext {
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
 
-        let res = conn::prepare(db_ptr, sql_cstring);
+        let result = core::prepare(db_ptr, sql_cstring);
 
-        match res {
+        match result {
             Ok(stmt_ptr) => {
                 if stmt_ptr.is_null() {
                     Err(wasmtime::Error::msg("Error preparing a database statement"))
@@ -100,7 +100,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        if conn::validate_sql(&sql) {
+        if core::validate_sql(&sql) {
             return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"));
         }
 
@@ -109,7 +109,7 @@ impl HostSqlite for HermesRuntimeContext {
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
 
-        Ok(conn::execute(db_ptr, sql_cstring))
+        Ok(core::execute(db_ptr, sql_cstring))
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
