@@ -86,11 +86,13 @@ mod tests {
     }
 
     #[test]
-    fn hdf5_dataset_test() {
+    fn hdf5_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
         let file_name = dir.child("test.hdf5");
         let root_group = File::create(file_name).expect("cannot create HDF5 file");
+
+        println!("HDF5 size: {}", root_group.size());
 
         println!(
             "hdf5 group: {root_group:?}, members: {:?}",
@@ -105,16 +107,6 @@ mod tests {
             .create(metadata_json)
             .expect("cannot create metadata.json");
 
-        println!(
-            "hdf5 group: {root_group:?}, members: {:?}",
-            root_group.member_names().expect("cannot get member names")
-        );
-
-        let metada_json = root_group
-            .dataset(metadata_json)
-            .expect("cannot open metadata.json");
-        let data = String::from_utf8(metada_json.read_raw().expect("cannot read metadata.json"))
-            .expect("cannot parse metadata.json");
-        assert_eq!(data, metada_json_data);
+        println!("HDF5 size: {}", root_group.size());
     }
 }

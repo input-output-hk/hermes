@@ -2,6 +2,7 @@
 
 mod app;
 mod cli;
+mod errors;
 mod event;
 mod logger;
 mod packaging;

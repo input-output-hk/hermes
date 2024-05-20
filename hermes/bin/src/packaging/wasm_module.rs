@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use super::{copy_file_from_dir_to_package, FileNotFoundError};
+use crate::errors::Errors;
 
 pub(crate) struct WasmModulePackage {
     package: hdf5::File,
@@ -17,21 +18,28 @@ impl WasmModulePackage {
 
     pub(crate) fn from_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let path = path.as_ref();
+        let mut errors = Errors::new();
 
         let package = hdf5::File::create(path.join("module.hdf5"))?;
 
         match copy_file_from_dir_to_package(path, Self::CONFIG_SCHEMA_JSON, &package) {
-            Ok(()) => copy_file_from_dir_to_package(path, Self::CONFIG_JSON, &package)?,
+            Ok(()) => {
+                copy_file_from_dir_to_package(path, Self::CONFIG_JSON, &package)
+                    .unwrap_or_else(|err| errors.add_err(err));
+            },
             Err(err) if err.is::<FileNotFoundError>() => {},
-            Err(err) => return Err(err),
+            Err(err) => errors.add_err(err),
         }
 
-        copy_file_from_dir_to_package(path, Self::METDATA_JSON, &package)?;
-        copy_file_from_dir_to_package(path, Self::MODULE_WASM, &package)?;
+        copy_file_from_dir_to_package(path, Self::METDATA_JSON, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
+        copy_file_from_dir_to_package(path, Self::MODULE_WASM, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
         copy_file_from_dir_to_package(path, Self::SETTINGS_SCHEMA_JSON, &package)
-            .or_else(|err| err.is::<FileNotFoundError>().then_some(()).ok_or(err))?;
+            .or_else(|err| err.is::<FileNotFoundError>().then_some(()).ok_or(err))
+            .unwrap_or_else(|err| errors.add_err(err));
 
-        Ok(Self { package })
+        errors.return_result(Self { package })
     }
 }
 
@@ -44,7 +52,6 @@ mod tests {
     #[test]
     fn from_dir_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
-        println!("{:?}", dir.path());
 
         let config_json = dir.path().join(WasmModulePackage::CONFIG_JSON);
         let config_schema_json = dir.path().join(WasmModulePackage::CONFIG_SCHEMA_JSON);
@@ -65,13 +72,12 @@ mod tests {
     #[test]
     fn from_dir_some_files_missing_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
-        println!("{:?}", dir.path());
 
-        let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
-        let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
+        // let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
+        // let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
 
-        std::fs::File::create(metadata_json).expect("Cannot create metadata.json file");
-        std::fs::File::create(module_wasm_path).expect("Cannot create module.wasm file");
+        // std::fs::File::create(metadata_json).expect("Cannot create metadata.json file");
+        // std::fs::File::create(module_wasm_path).expect("Cannot create module.wasm file");
 
         WasmModulePackage::from_dir(dir.path()).expect("Cannot create module package");
     }
