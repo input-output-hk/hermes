@@ -46,7 +46,12 @@ impl WasmModulePackage {
         let share_dir = path.join(Self::SHARE);
         copy_dir_recursively_to_package(share_dir, &package)
             .or_else(|err| err.is::<DirNotFoundError>().then_some(()).ok_or(err))
-            .unwrap_or_else(|err| errors.add_err(err));
+            .unwrap_or_else(|err| {
+                match err.downcast::<Errors>() {
+                    Ok(errs) => errors.merge(errs),
+                    Err(err) => errors.add_err(err),
+                }
+            });
 
         errors.return_result(Self { package })
     }
