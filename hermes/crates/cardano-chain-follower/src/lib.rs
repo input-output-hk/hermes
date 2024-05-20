@@ -108,27 +108,36 @@ pub enum Network {
     Testnet,
 }
 
+/// The human readable name of the Cardano mainnet network.
+const MAINNET_NAME: &str = "mainnet";
+/// The human readable name of the Cardano pre-production network.
+const PREPROD_NAME: &str = "preprod";
+/// The human readable name of the Cardano preview network.
+const PREVIEW_NAME: &str = "preview";
+/// The human readable name of a Cardano local testnet network.
+const TESTNET_NAME: &str = "testnet";
+
 impl FromStr for Network {
     type Err = Error;
 
     fn from_str(input: &str) -> std::result::Result<Network, Self::Err> {
         match input {
-            "mainnet" => Ok(Network::Mainnet),
-            "preprod" => Ok(Network::Preprod),
-            "preview" => Ok(Network::Preview),
-            "testnet" => Ok(Network::Testnet),
+            MAINNET_NAME => Ok(Network::Mainnet),
+            PREPROD_NAME => Ok(Network::Preprod),
+            PREVIEW_NAME => Ok(Network::Preview),
+            TESTNET_NAME => Ok(Network::Testnet),
             _ => Err(Error::ParseNetwork),
         }
     }
 }
 
-impl ToString for Network {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Network::Mainnet => "mainnet".to_string(),
-            Network::Preprod => "preprod".to_string(),
-            Network::Preview => "preview".to_string(),
-            Network::Testnet => "testnet".to_string(),
+            Network::Mainnet => write!(f, "{MAINNET_NAME}"),
+            Network::Preprod => write!(f, "{PREPROD_NAME}"),
+            Network::Preview => write!(f, "{PREVIEW_NAME}"),
+            Network::Testnet => write!(f, "{TESTNET_NAME}"),
         }
     }
 }

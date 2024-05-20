@@ -307,7 +307,7 @@ fn build_and_send_block_event(
     crate::event::queue::send(HermesEvent::new(
         on_block_event,
         TargetApp::List(vec![module_state_key.0.clone()]),
-        TargetModule::_List(vec![module_state_key.1.clone()]),
+        TargetModule::List(vec![module_state_key.1.clone()]),
     ))
 }
 
@@ -329,7 +329,7 @@ fn build_and_send_txns_event(
         crate::event::queue::send(HermesEvent::new(
             on_txn_event,
             TargetApp::List(vec![module_state_key.0.clone()]),
-            TargetModule::_List(vec![module_state_key.1.clone()]),
+            TargetModule::List(vec![module_state_key.1.clone()]),
         ))?;
     }
 
@@ -349,7 +349,7 @@ fn build_and_send_rollback_event(
     crate::event::queue::send(HermesEvent::new(
         on_rollback_event,
         TargetApp::List(vec![module_state_key.0.clone()]),
-        TargetModule::_List(vec![module_state_key.1.clone()]),
+        TargetModule::List(vec![module_state_key.1.clone()]),
     ))
 }
 
