@@ -1,5 +1,7 @@
 //! Hermes packaging.
 
+use crate::errors::Errors;
+
 #[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 pub(crate) mod wasm_module;
 
@@ -61,18 +63,25 @@ pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
         }
     })?;
 
+    let mut errors = Errors::new();
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            copy_dir_recursively_to_package(&path, &package)?;
+            copy_dir_recursively_to_package(&path, &package).unwrap_or_else(|err| {
+                match err.downcast::<Errors>() {
+                    Ok(errs) => errors.merge(errs),
+                    Err(err) => errors.add_err(err),
+                }
+            });
         }
         if path.is_file() {
             let name = get_path_name(&path)?;
-            copy_file_from_dir_to_package(&dir, &name, &package)?;
+            copy_file_from_dir_to_package(&dir, &name, &package)
+                .unwrap_or_else(|err| errors.add_err(err));
         }
     }
-    Ok(())
+    errors.return_result(())
 }
 
 #[cfg(test)]

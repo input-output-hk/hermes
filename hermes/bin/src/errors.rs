@@ -8,7 +8,6 @@ pub(crate) struct Errors(Vec<anyhow::Error>);
 
 impl Display for Errors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Errors:")?;
         for err in &self.0 {
             writeln!(f, "- {err}")?;
         }
@@ -27,6 +26,11 @@ impl Errors {
         self.0.push(err);
     }
 
+    /// Merge two `Errors`
+    pub(crate) fn merge(&mut self, other: Self) {
+        self.0.extend(other.0);
+    }
+
     /// Return errors if `Errors` is not empty or return `Ok(val)`
     pub(crate) fn return_result<T>(self, val: T) -> anyhow::Result<T> {
         if self.0.is_empty() {
@@ -43,10 +47,21 @@ mod tests {
 
     #[test]
     fn test_errors() {
-        let mut errors = Errors::new();
-        errors.add_err(anyhow::anyhow!("error 1"));
-        errors.add_err(anyhow::anyhow!("error 2"));
+        let mut errors_1 = Errors::new();
+        errors_1.add_err(anyhow::anyhow!("error 1"));
+        errors_1.add_err(anyhow::anyhow!("error 2"));
 
-        assert_eq!(errors.to_string(), "Errors:\n- error 1\n- error 2\n");
+        let mut errors_2 = Errors::new();
+        errors_2.add_err(anyhow::anyhow!("error 3"));
+        errors_2.add_err(anyhow::anyhow!("error 4"));
+
+        let mut combined_errors = Errors::new();
+        combined_errors.merge(errors_1);
+        combined_errors.merge(errors_2);
+
+        assert_eq!(
+            combined_errors.to_string(),
+            "- error 1,\n- error 2\n- error 3\n- error 4\n"
+        );
     }
 }
