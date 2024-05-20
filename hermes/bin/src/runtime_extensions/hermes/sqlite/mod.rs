@@ -1,6 +1,7 @@
 //! `SQLite` runtime extension implementation.
 
 mod connection;
+mod core;
 mod host;
 mod statement;
 

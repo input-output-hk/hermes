@@ -1,4 +1,4 @@
-//! Core functionality implementation fo SQLite connection object.
+///! Core functionality implementation for SQLite connection object.
 
 use libsqlite3_sys::*;
 use stringzilla::StringZilla;

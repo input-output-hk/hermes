@@ -1,3 +1,5 @@
+///! Core functionality implementation for SQLite statement object.
+
 use libsqlite3_sys::*;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
