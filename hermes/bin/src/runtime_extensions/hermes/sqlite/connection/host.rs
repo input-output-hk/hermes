@@ -1,7 +1,6 @@
 //! `SQLite` connection object host implementation for WASM runtime.
 
 use libsqlite3_sys::*;
-use stringzilla::StringZilla;
 
 use crate::{
     runtime_context::HermesRuntimeContext,
@@ -9,6 +8,8 @@ use crate::{
         Errno, HostSqlite, Sqlite, Statement, StatusOptions,
     },
 };
+
+use super::conn;
 
 impl HostSqlite for HermesRuntimeContext {
     /// Closes a database connection, destructor for `sqlite3`.
@@ -26,13 +27,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        let result = unsafe { sqlite3_close_v2(db_ptr) };
-
-        if result != SQLITE_OK {
-            Ok(Err(result.into()))
-        } else {
-            Ok(Ok(()))
-        }
+        Ok(conn::close(db_ptr))
     }
 
     /// Retrieves runtime status information about a single database connection.
@@ -54,54 +49,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        let status_code = if opt.contains(StatusOptions::LOOKASIDE_USED) {
-            SQLITE_DBSTATUS_LOOKASIDE_USED
-        } else if opt.contains(StatusOptions::CACHE_USED) {
-            SQLITE_DBSTATUS_CACHE_USED
-        } else if opt.contains(StatusOptions::SCHEMA_USED) {
-            SQLITE_DBSTATUS_SCHEMA_USED
-        } else if opt.contains(StatusOptions::STMT_USED) {
-            SQLITE_DBSTATUS_STMT_USED
-        } else if opt.contains(StatusOptions::LOOKASIDE_HIT) {
-            SQLITE_DBSTATUS_LOOKASIDE_HIT
-        } else if opt.contains(StatusOptions::LOOKASIDE_MISS_FULL) {
-            SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL
-        } else if opt.contains(StatusOptions::LOOKASIDE_MISS_SIZE) {
-            SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE
-        } else if opt.contains(StatusOptions::CACHE_HIT) {
-            SQLITE_DBSTATUS_CACHE_HIT
-        } else if opt.contains(StatusOptions::CACHE_MISS) {
-            SQLITE_DBSTATUS_CACHE_MISS
-        } else if opt.contains(StatusOptions::CACHE_WRITE) {
-            SQLITE_DBSTATUS_CACHE_WRITE
-        } else if opt.contains(StatusOptions::DEFERRED_FKS) {
-            SQLITE_DBSTATUS_DEFERRED_FKS
-        } else if opt.contains(StatusOptions::CACHE_USED_SHARED) {
-            SQLITE_DBSTATUS_CACHE_USED_SHARED
-        } else if opt.contains(StatusOptions::CACHE_SPILL) {
-            SQLITE_DBSTATUS_CACHE_SPILL
-        } else {
-            return Err(wasmtime::Error::msg("Invalid option"))
-        };
-    
-        let mut current_value = 0;
-        let mut highwater_mark = 0;
-    
-        let result = unsafe {
-            sqlite3_db_status(
-                db_ptr,
-                status_code,
-                &mut current_value,
-                &mut highwater_mark,
-                reset_flag.into(),
-            )
-        };
-    
-        if result != SQLITE_OK {
-            Ok(Err(result.into()))
-        } else {
-            Ok(Ok((current_value, highwater_mark)))
-        }
+        Ok(conn::status(db_ptr, opt, reset_flag))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -120,34 +68,26 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        if sql.sz_find("PRAGMA ".as_bytes()).is_some() {
-            return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"))
+        if conn::validate_sql(&sql) {
+            return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"));
         }
 
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
-        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
-        let n_byte = sql_cstring.as_bytes_with_nul().len();
 
-        let result = unsafe {
-            sqlite3_prepare_v3(
-                db_ptr,
-                sql_cstring.as_ptr(),
-                n_byte as i32,
-                0,
-                &mut stmt_ptr,
-                std::ptr::null_mut(),
-            )
-        };
+        let res = conn::prepare(db_ptr, sql_cstring);
 
-        if result != SQLITE_OK {
-            Ok(Err(result.into()))
-        } else if stmt_ptr.is_null() {
-            Err(wasmtime::Error::msg("Error preparing a database statement"))
-        } else {
-            Ok(Ok(wasmtime::component::Resource::new_own(stmt_ptr as u32)))
+        match res {
+            Ok(stmt_ptr) => {
+                if stmt_ptr.is_null() {
+                    Err(wasmtime::Error::msg("Error preparing a database statement"))
+                } else {
+                    Ok(Ok(wasmtime::component::Resource::new_own(stmt_ptr as u32)))
+                }
+            },
+            Err(errno) => Ok(Err(errno)),
         }
     }
 
@@ -160,41 +100,16 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        if sql.sz_find("PRAGMA ".as_bytes()).is_some() {
-            return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"))
+        if conn::validate_sql(&sql) {
+            return Err(wasmtime::Error::msg("PRAGMA statement is not allowed"));
         }
-        
-        // prepare stage
+
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
-        let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
         let sql_cstring = std::ffi::CString::new(sql)
             .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
-        let n_byte = sql_cstring.as_bytes_with_nul().len();
 
-        let result = unsafe {
-            sqlite3_prepare_v3(
-                db_ptr,
-                sql_cstring.as_ptr(),
-                n_byte as i32,
-                0,
-                &mut stmt_ptr,
-                std::ptr::null_mut(),
-            )
-        };
-
-        if result != SQLITE_OK {
-            return Ok(Err(result.into()))
-        }
-
-        // step stage
-        let result = unsafe { sqlite3_step(stmt_ptr) };
-
-        if result != SQLITE_DONE {
-            return Ok(Err(result.into()))
-        }
-        
-        Ok(Ok(()))
+        Ok(conn::execute(db_ptr, sql_cstring))
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
