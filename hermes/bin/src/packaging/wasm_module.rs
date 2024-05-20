@@ -2,7 +2,10 @@
 
 use std::path::Path;
 
-use super::{copy_file_from_dir_to_package, FileNotFoundError};
+use super::{
+    copy_dir_recursively_to_package, copy_file_from_dir_to_package, DirNotFoundError,
+    FileNotFoundError,
+};
 use crate::errors::Errors;
 
 pub(crate) struct WasmModulePackage {
@@ -15,6 +18,7 @@ impl WasmModulePackage {
     const METDATA_JSON: &'static str = "metadata.json";
     const MODULE_WASM: &'static str = "module.wasm";
     const SETTINGS_SCHEMA_JSON: &'static str = "settings.schema.json";
+    const SHARE: &'static str = "share";
 
     pub(crate) fn from_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let path = path.as_ref();
@@ -37,6 +41,11 @@ impl WasmModulePackage {
             .unwrap_or_else(|err| errors.add_err(err));
         copy_file_from_dir_to_package(path, Self::SETTINGS_SCHEMA_JSON, &package)
             .or_else(|err| err.is::<FileNotFoundError>().then_some(()).ok_or(err))
+            .unwrap_or_else(|err| errors.add_err(err));
+
+        let share_dir = path.join(Self::SHARE);
+        copy_dir_recursively_to_package(share_dir, &package)
+            .or_else(|err| err.is::<DirNotFoundError>().then_some(()).ok_or(err))
             .unwrap_or_else(|err| errors.add_err(err));
 
         errors.return_result(Self { package })
@@ -73,11 +82,11 @@ mod tests {
     fn from_dir_some_files_missing_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        // let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
-        // let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
+        let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
+        let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
 
-        // std::fs::File::create(metadata_json).expect("Cannot create metadata.json file");
-        // std::fs::File::create(module_wasm_path).expect("Cannot create module.wasm file");
+        std::fs::File::create(metadata_json).expect("Cannot create metadata.json file");
+        std::fs::File::create(module_wasm_path).expect("Cannot create module.wasm file");
 
         WasmModulePackage::from_dir(dir.path()).expect("Cannot create module package");
     }

@@ -1,9 +1,18 @@
 //! Hermes packaging.
 
-use std::ops::Deref;
-
 #[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 pub(crate) mod wasm_module;
+
+/// Get path name.
+fn get_path_name<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<String> {
+    Ok(path
+        .as_ref()
+        .file_name()
+        .ok_or(anyhow::anyhow!("cannot get path name"))?
+        .to_str()
+        .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
+        .to_string())
+}
 
 /// File not found error.
 #[derive(thiserror::Error, Debug)]
@@ -11,13 +20,9 @@ pub(crate) mod wasm_module;
 pub(crate) struct FileNotFoundError(String);
 
 /// Copy file to hdf5 package.
-fn copy_file_from_dir_to_package<P, Package>(
-    dir: P, file_name: &str, package: &Package,
-) -> anyhow::Result<()>
-where
-    P: AsRef<std::path::Path>,
-    Package: Deref<Target = hdf5::Group>,
-{
+fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
+    dir: P, file_name: &str, package: &hdf5::Group,
+) -> anyhow::Result<()> {
     let file_path = dir.as_ref().join(file_name);
 
     let file_data = std::fs::read(file_path).map_err(|err| {
@@ -33,6 +38,40 @@ where
         .with_data(&file_data)
         .create(file_name)?;
 
+    Ok(())
+}
+
+/// Dir not found error.
+#[derive(thiserror::Error, Debug)]
+#[error("Dir {0} not found")]
+pub(crate) struct DirNotFoundError(String);
+
+/// Copy dir to hdf5 package recursively.
+pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
+    dir: P, package: &hdf5::Group,
+) -> anyhow::Result<()> {
+    let dir_name = get_path_name(&dir)?;
+    let package = package.create_group(&dir_name)?;
+
+    let entries = std::fs::read_dir(&dir).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            anyhow::Error::new(DirNotFoundError(dir_name))
+        } else {
+            anyhow::Error::new(err)
+        }
+    })?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            copy_dir_recursively_to_package(&path, &package)?;
+        }
+        if path.is_file() {
+            let name = get_path_name(&path)?;
+            copy_file_from_dir_to_package(&dir, &name, &package)?;
+        }
+    }
     Ok(())
 }
 
@@ -86,27 +125,39 @@ mod tests {
     }
 
     #[test]
-    fn hdf5_test() {
+    fn copy_dir_recursively_to_package_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
+        let dir_name = get_path_name(dir.path()).expect("Cannot get root dir name");
 
         let file_name = dir.child("test.hdf5");
-        let root_group = File::create(file_name).expect("cannot create HDF5 file");
+        let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
 
-        println!("HDF5 size: {}", root_group.size());
+        let file_1_name = "file_1";
+        let file_1 = dir.child(file_1_name);
+        std::fs::File::create(file_1).expect("Cannot create file_1 file");
 
-        println!(
-            "hdf5 group: {root_group:?}, members: {:?}",
-            root_group.member_names().expect("cannot get member names")
-        );
+        let file_2_name = "file_2_name";
+        let file_2 = dir.child(file_2_name);
+        std::fs::File::create(file_2).expect("Cannot create file_2 file");
 
-        let metadata_json = "metadata.json";
-        let metada_json_data = r#"{ "name": "Alex", "age": 25"}"#;
-        root_group
-            .new_dataset_builder()
-            .with_data(metada_json_data)
-            .create(metadata_json)
-            .expect("cannot create metadata.json");
+        let child_dir_name = "child_dir";
+        let child_dir = dir.child(child_dir_name);
+        std::fs::create_dir(&child_dir).expect("Cannot create child_dir directory");
 
-        println!("HDF5 size: {}", root_group.size());
+        let file_3_name = "file_3";
+        let file_3 = child_dir.join(file_3_name);
+        std::fs::File::create(file_3).expect("Cannot create file_3 file");
+
+        copy_dir_recursively_to_package(dir.path(), &hdf5_file)
+            .expect("Cannot copy dir to hdf5 package");
+
+        let root_group = hdf5_file.group(&dir_name).expect("Cannot open root group");
+        assert!(root_group.dataset(file_1_name).is_ok());
+        assert!(root_group.dataset(file_2_name).is_ok());
+
+        let child_group = root_group
+            .group(child_dir_name)
+            .expect("Cannot open child group");
+        assert!(child_group.dataset(file_3_name).is_ok());
     }
 }
