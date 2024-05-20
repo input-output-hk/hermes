@@ -390,10 +390,13 @@ mod tests {
             .delay_crontab(&hermes_app, 0, "test".to_string())
             .unwrap());
         // Remove returns false
-        assert!(!state.rm_crontab(&hermes_app, CronTagged {
-            when: "*".to_string(),
-            tag: "test".to_string()
-        }));
+        assert!(!state.rm_crontab(
+            &hermes_app,
+            CronTagged {
+                when: "*".to_string(),
+                tag: "test".to_string()
+            }
+        ));
     }
 
     #[test]

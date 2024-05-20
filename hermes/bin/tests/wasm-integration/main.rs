@@ -105,16 +105,12 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
                         let path_string = file_path.to_string_lossy().to_string();
 
                         let test = match event_type {
-                            EventType::Test => {
-                                Trial::test(result.name, move || {
-                                    execute_test(i, path_string, event_type)
-                                })
-                            },
-                            EventType::Bench => {
-                                Trial::bench(result.name, move |test_mode| {
-                                    execute_bench(test_mode, i, path_string, event_type)
-                                })
-                            },
+                            EventType::Test => Trial::test(result.name, move || {
+                                execute_test(i, path_string, event_type)
+                            }),
+                            EventType::Bench => Trial::bench(result.name, move |test_mode| {
+                                execute_bench(test_mode, i, path_string, event_type)
+                            }),
                         }
                         .with_kind(name.clone());
 

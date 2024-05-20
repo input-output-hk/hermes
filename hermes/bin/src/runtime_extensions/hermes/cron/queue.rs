@@ -506,10 +506,10 @@ mod tests {
         // sets the waiting_event
         assert!(!queue.waiting_event.is_empty());
         // lists the event in the app queue
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
-            cron_entry_1().tag,
-            IS_LAST
-        )]);
+        assert_eq!(
+            queue.ls_events(&hermes_app_name, &None),
+            vec![(cron_entry_1().tag, IS_LAST)]
+        );
     }
 
     #[test]
@@ -528,10 +528,10 @@ mod tests {
         // which communicates with the static `CRON_INTERNAL_STATE`.
         assert!(queue.trigger().is_ok());
         assert!(!queue.waiting_event.is_empty());
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
-            cron_entry_2().tag,
-            IS_NOT_LAST
-        ),]);
+        assert_eq!(
+            queue.ls_events(&hermes_app_name, &None),
+            vec![(cron_entry_2().tag, IS_NOT_LAST),]
+        );
         // wait for the waiting task to finish
         sleep(std::time::Duration::from_millis(500));
         // Trigger manually

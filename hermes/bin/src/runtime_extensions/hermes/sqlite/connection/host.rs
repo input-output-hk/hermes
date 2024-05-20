@@ -1,6 +1,6 @@
 //! `SQLite` connection object host implementation for WASM runtime.
 
-use libsqlite3_sys::*;
+use libsqlite3_sys::sqlite3;
 
 use crate::{
     runtime_context::HermesRuntimeContext,

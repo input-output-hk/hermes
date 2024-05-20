@@ -43,11 +43,9 @@ impl Host for HermesRuntimeContext {
             Slot::Genesis => {
                 super::SubscriptionType::Blocks(cardano_chain_follower::Point::Origin.into())
             },
-            Slot::Point((slot, hash)) => {
-                super::SubscriptionType::Blocks(
-                    cardano_chain_follower::Point::Specific(slot, hash).into(),
-                )
-            },
+            Slot::Point((slot, hash)) => super::SubscriptionType::Blocks(
+                cardano_chain_follower::Point::Specific(slot, hash).into(),
+            ),
             Slot::Tip => super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
             Slot::Continue => super::SubscriptionType::Continue,
         };

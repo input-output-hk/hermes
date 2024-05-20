@@ -1,6 +1,6 @@
 //! `SQLite` statement host implementation for WASM runtime.
 
-use libsqlite3_sys::*;
+use libsqlite3_sys::sqlite3_stmt;
 
 use super::core;
 

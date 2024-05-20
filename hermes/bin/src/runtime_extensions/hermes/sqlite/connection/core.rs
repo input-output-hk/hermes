@@ -1,6 +1,5 @@
-///! Core functionality implementation for SQLite connection object.
-
-use libsqlite3_sys::*;
+///! Core functionality implementation for `SQLite` connection object.
+use libsqlite3_sys::{SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS, SQLITE_DBSTATUS_CACHE_SPILL, SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED, SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, SQLITE_DBSTATUS_LOOKASIDE_USED, SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED, SQLITE_DONE, SQLITE_MISUSE, SQLITE_OK, sqlite3, sqlite3_close_v2, sqlite3_db_status, sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt};
 use stringzilla::StringZilla;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, StatusOptions};
@@ -115,3 +114,6 @@ pub(super) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<()
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {}

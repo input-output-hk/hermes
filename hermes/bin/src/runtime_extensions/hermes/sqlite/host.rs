@@ -46,7 +46,7 @@ impl Host for HermesRuntimeContext {
                     core::OpenError::FailedSettingDatabaseSize => {
                         Err(wasmtime::Error::msg("Error setting database size"))
                     },
-                    core::OpenError::SQLiteError(errno) => Ok(Err(errno.into())),
+                    core::OpenError::SQLiteError(errno) => Ok(Err(errno)),
                 }
             },
         };
