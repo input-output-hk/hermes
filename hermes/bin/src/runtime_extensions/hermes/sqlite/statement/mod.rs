@@ -1,5 +1,6 @@
 //! `SQLite` statement runtime extension implementation.
 
+mod core;
 mod host;
 
 /// Advise Runtime Extensions of a new context
