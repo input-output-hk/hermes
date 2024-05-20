@@ -1,9 +1,16 @@
 ///! Core functionality implementation for the `SQLite` open function.
-use libsqlite3_sys::{SQLITE_ERROR, SQLITE_FCNTL_SIZE_LIMIT, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, sqlite3, sqlite3_exec, sqlite3_file_control, sqlite3_open_v2};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_exec, sqlite3_file_control, sqlite3_open_v2, SQLITE_ERROR,
+    SQLITE_FCNTL_SIZE_LIMIT, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY,
+    SQLITE_OPEN_READWRITE,
+};
 
 use crate::{
     app::HermesAppName,
-    runtime_extensions::{app_config::{get_app_inmemory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg}, bindings::hermes::sqlite::api::Errno},
+    runtime_extensions::{
+        app_config::{get_app_inmemory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg},
+        bindings::hermes::sqlite::api::Errno,
+    },
 };
 
 /// Represents the various errors that can occur when opening a database.
@@ -109,4 +116,11 @@ pub(super) fn open(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::app::HermesAppName;
+
+    #[test]
+    fn test_open_success() {
+        let _app_name = HermesAppName(String::from("tmp"));
+    }
+}
