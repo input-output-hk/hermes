@@ -3,8 +3,7 @@
 use libsqlite3_sys::*;
 
 use crate::{
-    runtime_context::HermesRuntimeContext,
-    runtime_extensions::{app_config::*, bindings::hermes::sqlite::api::{Errno, Host, Sqlite}},
+    app::HermesAppName, runtime_context::HermesRuntimeContext, runtime_extensions::{app_config::*, bindings::hermes::sqlite::api::{Errno, Host, Sqlite}}
 };
 
 impl Host for HermesRuntimeContext {
@@ -25,8 +24,11 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
+        // TODO: use actual app name for this
+        let app_name = HermesAppName(String::from("tmp"));
+
         let (db_path, config) = if memory {
-            let inmemory_config = match get_app_inmemory_sqlite_db_cfg() {
+            let inmemory_config = match get_app_inmemory_sqlite_db_cfg(app_name) {
                 Some(config) => config,
                 None => return Err(wasmtime::Error::msg(
                     "In-memory config is not set for a in-memory option",
@@ -35,7 +37,7 @@ impl Host for HermesRuntimeContext {
 
             (":memory:".into(), inmemory_config)
         } else {
-            let persistent_config = match get_app_persistent_sqlite_db_cfg() {
+            let persistent_config = match get_app_persistent_sqlite_db_cfg(app_name) {
                 Some(config) => config,
                 None => return Err(wasmtime::Error::msg(
                     "Persistent config is not set for a non-memory option",

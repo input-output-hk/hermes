@@ -49,3 +49,8 @@ impl From<i32> for Errno {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    
+}

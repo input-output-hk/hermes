@@ -1,3 +1,5 @@
+use crate::app::HermesAppName;
+
 ///! Hermes application configuration for modules.
 
 /// Configuration struct for SQLite database.
@@ -12,14 +14,14 @@ pub(crate) struct SqliteConfig {
   pub(crate) max_db_size: u32,
 }
 
-pub(crate) fn get_app_persistent_sqlite_db_cfg() -> Option<SqliteConfig> {
+pub(crate) fn get_app_persistent_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
   Some(SqliteConfig {
     db_file: Some(String::from("hermes_datastore.db")),
     max_db_size: 1_048_576
   })
 }
 
-pub(crate) fn get_app_inmemory_sqlite_db_cfg() -> Option<SqliteConfig> {
+pub(crate) fn get_app_inmemory_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
   Some(SqliteConfig {
     db_file: None,
     max_db_size: 1_048_576
