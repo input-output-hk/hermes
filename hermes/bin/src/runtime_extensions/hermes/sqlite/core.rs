@@ -1,5 +1,8 @@
 ///! Core functionality implementation for the `SQLite` open function.
-use libsqlite3_sys::{SQLITE_ERROR, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_ERROR, SQLITE_OK,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
+};
 
 use crate::{
     app::HermesAppName,
@@ -111,7 +114,10 @@ pub(super) fn open(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::{self, File}, path::Path};
+    use std::{
+        fs::{self, File},
+        path::Path,
+    };
 
     use super::*;
     use crate::app::HermesAppName;
