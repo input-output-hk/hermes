@@ -21,7 +21,7 @@ impl WasmModulePackage {
     /// Config schema JSON file name.
     const CONFIG_SCHEMA_JSON: &'static str = "config.schema.json";
     /// Metadata JSON file name.
-    const METDATA_JSON: &'static str = "metadata.json";
+    const METADATA_JSON: &'static str = "metadata.json";
     /// Module wasm file name.
     const MODULE_WASM: &'static str = "module.wasm";
     /// Settings schema JSON file name.
@@ -46,7 +46,7 @@ impl WasmModulePackage {
             Err(err) => errors.add_err(err),
         }
 
-        copy_file_from_dir_to_package(path, Self::METDATA_JSON, &package)
+        copy_file_from_dir_to_package(path, Self::METADATA_JSON, &package)
             .unwrap_or_else(|err| errors.add_err(err));
 
         copy_file_from_dir_to_package(path, Self::MODULE_WASM, &package)
@@ -86,7 +86,7 @@ mod tests {
 
         let config_json = dir.path().join(WasmModulePackage::CONFIG_JSON);
         let config_schema_json = dir.path().join(WasmModulePackage::CONFIG_SCHEMA_JSON);
-        let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
+        let metadata_json = dir.path().join(WasmModulePackage::METADATA_JSON);
         let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
         let settings_schema_json = dir.path().join(WasmModulePackage::SETTINGS_SCHEMA_JSON);
 
@@ -104,7 +104,7 @@ mod tests {
     fn from_dir_some_files_missing_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let metadata_json = dir.path().join(WasmModulePackage::METDATA_JSON);
+        let metadata_json = dir.path().join(WasmModulePackage::METADATA_JSON);
         let module_wasm_path = dir.path().join(WasmModulePackage::MODULE_WASM);
 
         std::fs::File::create(metadata_json).expect("Cannot create metadata.json file");

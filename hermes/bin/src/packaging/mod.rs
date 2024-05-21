@@ -97,16 +97,16 @@ mod tests {
         let file_name = dir.child("test.hdf5");
         let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
 
-        let metada_json = "metadata.json";
-        let metada_json_data = r#"{ "name": "Alex", "age": 25"}"#;
-        std::fs::write(dir.child(metada_json), metada_json_data)
+        let metadata_json = "metadata.json";
+        let metadata_json_data = r#"{ "name": "Alex", "age": 25"}"#;
+        std::fs::write(dir.child(metadata_json), metadata_json_data)
             .expect("Cannot write data to metadata.json");
 
-        copy_file_from_dir_to_package(dir.path(), metada_json, &hdf5_file)
+        copy_file_from_dir_to_package(dir.path(), metadata_json, &hdf5_file)
             .expect("Cannot copy metadata.json to hdf5 package");
 
         let metada_json = hdf5_file
-            .dataset(metada_json)
+            .dataset(metadata_json)
             .expect("cannot open metadata.json dataset");
         let data = String::from_utf8(
             metada_json
@@ -114,7 +114,7 @@ mod tests {
                 .expect("cannot read metadata.json dataset"),
         )
         .expect("cannot parse metadata.json dataset");
-        assert_eq!(data, metada_json_data);
+        assert_eq!(data, metadata_json_data);
     }
 
     #[test]
@@ -124,9 +124,9 @@ mod tests {
         let file_name = dir.child("test.hdf5");
         let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
 
-        let metada_json = "metadata.json";
+        let metadata_json = "metadata.json";
 
-        let err = copy_file_from_dir_to_package(dir.path(), metada_json, &hdf5_file)
+        let err = copy_file_from_dir_to_package(dir.path(), metadata_json, &hdf5_file)
             .expect_err("Should return error");
 
         assert!(err.is::<FileNotFoundError>());
