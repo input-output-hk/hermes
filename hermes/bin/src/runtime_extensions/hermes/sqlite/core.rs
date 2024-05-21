@@ -103,8 +103,6 @@ pub(super) fn open(
         }
     };
 
-    println!("$$$$$$$$: {rc}");
-
     if rc != SQLITE_OK {
         return Err(OpenError::FailedSettingDatabaseSize);
     }
