@@ -1,9 +1,5 @@
 ///! Core functionality implementation for the `SQLite` open function.
-use libsqlite3_sys::{
-    sqlite3, sqlite3_exec, sqlite3_file_control, sqlite3_open_v2, SQLITE_ERROR,
-    SQLITE_FCNTL_SIZE_LIMIT, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY,
-    SQLITE_OPEN_READWRITE,
-};
+use libsqlite3_sys::*;
 
 use crate::{
     app::HermesAppName,
@@ -14,6 +10,7 @@ use crate::{
 };
 
 /// Represents the various errors that can occur when opening a database.
+#[derive(Debug)]
 pub(super) enum OpenError {
     /// The in-memory configuration provided is invalid.
     InvalidInMemoryConfig,
@@ -81,13 +78,10 @@ pub(super) fn open(
         let size_limit = i64::from(config.max_db_size);
 
         unsafe {
-            sqlite3_file_control(
-                db_ptr,
-                "main\0".as_ptr().cast::<i8>(),
-                SQLITE_FCNTL_SIZE_LIMIT,
-                size_limit as *mut std::ffi::c_void,
-            )
-        }
+          sqlite3_soft_heap_limit64(size_limit)
+        };
+
+        SQLITE_OK
     } else {
         let page_size = config.max_db_size / 4_096;
         let pragma_stmt = format!("PRAGMA max_page_count = {page_size}");
@@ -108,6 +102,8 @@ pub(super) fn open(
         }
     };
 
+    println!("$$$$$$$$: {}", rc);
+
     if rc != SQLITE_OK {
         return Err(OpenError::FailedSettingDatabaseSize);
     }
@@ -117,15 +113,30 @@ pub(super) fn open(
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, path::Path};
+
     use super::*;
     use crate::app::HermesAppName;
 
     #[test]
     fn test_open_success() {
         let app_name = HermesAppName(String::from("tmp"));
+        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
         let db_ptr = open(false, false, app_name);
 
-        assert!(db_ptr.is_ok());
+        let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
+        let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
+
+        assert!(db_ptr.is_ok() && has_db_file && is_remove_success.is_ok());
+    }
+
+    #[test]
+    fn test_open_inmemory() {
+      let app_name = HermesAppName(String::from("tmp"));
+
+      let db_ptr = open(false, true, app_name);
+
+      assert!(db_ptr.is_ok());
     }
 }
