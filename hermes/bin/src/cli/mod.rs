@@ -33,7 +33,7 @@ impl Cli {
     /// Execute cli commands of the hermes
     #[allow(dead_code)]
     pub(crate) fn exec(self) {
-        println!("{BUILD_INFO}");
+        println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
         if let Err(err) = match self.command {
             None => run::Run::exec(),
             Some(Commands::Package(cmd)) => cmd.exec(),

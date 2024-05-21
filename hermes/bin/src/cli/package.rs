@@ -19,7 +19,7 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
-        println!("{}Build wasm module package...", Emoji::new("📦", ""));
+        println!("{} Build wasm module package...", Emoji::new("📦", ""));
 
         WasmModulePackage::from_dir(self.dir)?;
 
