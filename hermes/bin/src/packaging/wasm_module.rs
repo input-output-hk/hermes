@@ -9,6 +9,7 @@ use super::{
 use crate::errors::Errors;
 
 /// Wasm module package.
+#[derive(Debug)]
 pub(crate) struct WasmModulePackage {
     /// hdf5 package instance
     _package: hdf5::File,

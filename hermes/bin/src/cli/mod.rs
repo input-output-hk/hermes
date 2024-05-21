@@ -6,6 +6,7 @@ mod run;
 
 use build_info::BUILD_INFO;
 use clap::{Parser, Subcommand};
+use console::{style, Emoji};
 
 /// Hermes
 ///
@@ -31,11 +32,16 @@ enum Commands {
 impl Cli {
     /// Execute cli commands of the hermes
     #[allow(dead_code)]
-    pub(crate) fn exec(self) -> anyhow::Result<()> {
+    pub(crate) fn exec(self) {
         println!("{BUILD_INFO}");
-        match self.command {
+        if let Err(err) = match self.command {
             None => run::Run::exec(),
             Some(Commands::Package(cmd)) => cmd.exec(),
+        } {
+            let alarm_emoji = Emoji::new("🚨", "Errors");
+            let err_msg = style(err.to_string()).red();
+            println!("{alarm_emoji}:\n{err_msg}");
+            std::process::exit(1);
         }
     }
 }

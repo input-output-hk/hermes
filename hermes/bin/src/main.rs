@@ -20,10 +20,6 @@ pub use wasm::module::bench::{
 #[allow(clippy::exit)]
 fn main() {
     use clap::Parser;
-    use tracing::error;
 
-    if let Err(err) = cli::Cli::parse().exec() {
-        error!("{err}");
-        std::process::exit(1);
-    }
+    cli::Cli::parse().exec();
 }
