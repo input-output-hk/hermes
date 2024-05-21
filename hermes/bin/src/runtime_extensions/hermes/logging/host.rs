@@ -2,7 +2,6 @@
 
 use super::log_msg::log_message;
 use crate::{
-    logger::LogLevel,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::{
         json::api::Json,
@@ -60,16 +59,7 @@ impl Host for HermesRuntimeContext {
         &mut self, level: Level, file: Option<String>, function: Option<String>, line: Option<u32>,
         col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
     ) -> wasmtime::Result<()> {
-        log_message(
-            LogLevel::from(level),
-            ctx,
-            &msg,
-            file,
-            function,
-            line,
-            col,
-            data,
-        );
+        log_message(level.into(), ctx, &msg, file, function, line, col, data);
         Ok(())
     }
 }

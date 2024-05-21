@@ -20,6 +20,14 @@ This workaround has effectively bypassed the mentioned problems until a permanen
 CARGO_FEATURE_STD=1 cargo b
 ```
 
+## Run hermes
+
+Hermes has a different options how to run, to inspect all of them, run the following:
+
+```shell
+hermes --help
+```
+
 ## Running benchmarks
 
 Before running benchmarks need to compile a simple WASM module:
