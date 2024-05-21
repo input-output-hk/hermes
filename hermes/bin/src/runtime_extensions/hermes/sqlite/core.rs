@@ -1,5 +1,5 @@
 ///! Core functionality implementation for the `SQLite` open function.
-use libsqlite3_sys::*;
+use libsqlite3_sys::{SQLITE_ERROR, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64};
 
 use crate::{
     app::HermesAppName,
@@ -77,9 +77,7 @@ pub(super) fn open(
     let rc = if memory {
         let size_limit = i64::from(config.max_db_size);
 
-        unsafe {
-          sqlite3_soft_heap_limit64(size_limit)
-        };
+        unsafe { sqlite3_soft_heap_limit64(size_limit) };
 
         SQLITE_OK
     } else {
@@ -102,7 +100,7 @@ pub(super) fn open(
         }
     };
 
-    println!("$$$$$$$$: {}", rc);
+    println!("$$$$$$$$: {rc}");
 
     if rc != SQLITE_OK {
         return Err(OpenError::FailedSettingDatabaseSize);
@@ -133,10 +131,10 @@ mod tests {
 
     #[test]
     fn test_open_inmemory() {
-      let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from("tmp"));
 
-      let db_ptr = open(false, true, app_name);
+        let db_ptr = open(false, true, app_name);
 
-      assert!(db_ptr.is_ok());
+        assert!(db_ptr.is_ok());
     }
 }
