@@ -29,7 +29,6 @@ enum Commands {
 
 impl Cli {
     /// Execute cli commands of the hermes
-    #[allow(dead_code)]
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{BUILD_INFO}");
         match self.command {
