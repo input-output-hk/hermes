@@ -34,7 +34,8 @@ impl WasmModulePackage {
         let path = path.as_ref();
         let mut errors = Errors::new();
 
-        let package = hdf5::File::create(path.join("module.hdf5"))?;
+        let package_path = path.join("module.hdf5");
+        let package = hdf5::File::create(&package_path)?;
 
         match copy_file_from_dir_to_package(path, Self::CONFIG_SCHEMA_JSON, &package) {
             Ok(()) => {
@@ -64,6 +65,10 @@ impl WasmModulePackage {
                     Err(err) => errors.add_err(err),
                 }
             });
+
+        if !errors.is_empty() {
+            std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
+        }
 
         errors.return_result(Self { _package: package })
     }
