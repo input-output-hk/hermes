@@ -105,11 +105,11 @@ mod tests {
         copy_file_from_dir_to_package(dir.path(), metadata_json, &hdf5_file)
             .expect("Cannot copy metadata.json to hdf5 package");
 
-        let metada_json = hdf5_file
+        let metadata_json_ds = hdf5_file
             .dataset(metadata_json)
             .expect("cannot open metadata.json dataset");
         let data = String::from_utf8(
-            metada_json
+            metadata_json_ds
                 .read_raw()
                 .expect("cannot read metadata.json dataset"),
         )
