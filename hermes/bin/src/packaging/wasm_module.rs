@@ -8,18 +8,27 @@ use super::{
 };
 use crate::errors::Errors;
 
+/// Wasm module package.
 pub(crate) struct WasmModulePackage {
-    package: hdf5::File,
+    /// hdf5 package instance
+    _package: hdf5::File,
 }
 
 impl WasmModulePackage {
+    /// Config JSON file name.
     const CONFIG_JSON: &'static str = "config.json";
+    /// Config schema JSON file name.
     const CONFIG_SCHEMA_JSON: &'static str = "config.schema.json";
+    /// Metadata JSON file name.
     const METDATA_JSON: &'static str = "metadata.json";
+    /// Module wasm file name.
     const MODULE_WASM: &'static str = "module.wasm";
+    /// Settings schema JSON file name.
     const SETTINGS_SCHEMA_JSON: &'static str = "settings.schema.json";
+    /// Share directory name.
     const SHARE: &'static str = "share";
 
+    /// Create a new Wasm module package from a directory.
     pub(crate) fn from_dir<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let path = path.as_ref();
         let mut errors = Errors::new();
@@ -53,7 +62,7 @@ impl WasmModulePackage {
                 }
             });
 
-        errors.return_result(Self { package })
+        errors.return_result(Self { _package: package })
     }
 }
 

@@ -2,7 +2,6 @@
 
 use crate::errors::Errors;
 
-#[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 pub(crate) mod wasm_module;
 
 /// Get path name.
