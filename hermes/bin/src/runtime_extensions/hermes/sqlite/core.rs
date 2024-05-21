@@ -111,12 +111,15 @@ pub(super) fn open(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path};
+    use std::{fs::{self, File}, path::Path};
 
     use super::*;
     use crate::app::HermesAppName;
 
+    use serial_test::file_serial;
+
     #[test]
+    #[file_serial]
     fn test_open_success() {
         let app_name = HermesAppName(String::from("tmp"));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
@@ -130,10 +133,35 @@ mod tests {
     }
 
     #[test]
+    #[file_serial]
+    fn test_open_readonly() {
+        let app_name = HermesAppName(String::from("tmp"));
+        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
+
+        File::create(config.db_file.clone().unwrap().as_str()).unwrap();
+
+        let db_ptr = open(true, false, app_name);
+
+        let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
+        let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
+
+        assert!(db_ptr.is_ok() && has_db_file && is_remove_success.is_ok());
+    }
+
+    #[test]
     fn test_open_inmemory() {
         let app_name = HermesAppName(String::from("tmp"));
 
         let db_ptr = open(false, true, app_name);
+
+        assert!(db_ptr.is_ok());
+    }
+
+    #[test]
+    fn test_open_inmemory_readonly() {
+        let app_name = HermesAppName(String::from("tmp"));
+
+        let db_ptr = open(true, true, app_name);
 
         assert!(db_ptr.is_ok());
     }

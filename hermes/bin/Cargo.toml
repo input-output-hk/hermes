@@ -64,3 +64,4 @@ build-info-build = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 tracing-subscriber = { workspace = true }
+serial_test = { workspace = true }
