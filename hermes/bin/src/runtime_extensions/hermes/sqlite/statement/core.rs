@@ -1,5 +1,11 @@
 ///! Core functionality implementation for `SQLite` statement object.
-use libsqlite3_sys::{SQLITE_BLOB, SQLITE_DONE, SQLITE_ERROR, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_TEXT, sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64, sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_bytes, sqlite3_column_double, sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type, sqlite3_column_value, sqlite3_finalize, sqlite3_step, sqlite3_stmt};
+use libsqlite3_sys::{
+    sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
+    sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_bytes, sqlite3_column_double,
+    sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type, sqlite3_column_value,
+    sqlite3_finalize, sqlite3_step, sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE, SQLITE_ERROR,
+    SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_TEXT,
+};
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
 

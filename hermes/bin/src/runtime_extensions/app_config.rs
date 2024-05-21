@@ -8,9 +8,9 @@ use crate::app::HermesAppName;
 /// file and the maximum size of the database.
 
 pub(crate) struct SqliteConfig {
-    /// Path to the SQLite database file, not set if it's in-memory database.
+    /// Path to the `SQLite` database file, not set if it's in-memory database.
     pub(crate) db_file: Option<String>,
-    /// Maximum size of the SQLite database in bytes.
+    /// Maximum size of the `SQLite` database in bytes.
     pub(crate) max_db_size: u32,
 }
 

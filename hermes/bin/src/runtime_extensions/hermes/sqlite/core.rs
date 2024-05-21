@@ -25,7 +25,7 @@ pub(super) enum OpenError {
     FailedOpeningDatabase,
     /// Failed to set the database size.
     FailedSettingDatabaseSize,
-    /// An error occurred with SQLite, represented by an `Errno`.
+    /// An error occurred with `SQLite`, represented by an `Errno`.
     SQLiteError(Errno),
 }
 
@@ -117,10 +117,15 @@ pub(super) fn open(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::app::HermesAppName;
 
     #[test]
     fn test_open_success() {
-        let _app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from("tmp"));
+
+        let db_ptr = open(false, false, app_name);
+
+        assert!(db_ptr.is_ok());
     }
 }
