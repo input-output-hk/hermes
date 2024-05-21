@@ -8,6 +8,14 @@ use build_info::BUILD_INFO;
 use clap::{Parser, Subcommand};
 use console::{style, Emoji};
 
+use crate::{
+    errors::Errors,
+    logger::{self, LoggerConfigBuilder},
+};
+
+/// A parameter identifier specifying the log level.
+const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
+
 /// Hermes
 ///
 /// Hermes node application which could be used to run a hermes node itself by executing
@@ -31,15 +39,37 @@ enum Commands {
 
 impl Cli {
     /// Execute cli commands of the hermes
-    #[allow(dead_code)]
     pub(crate) fn exec(self) {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
-        if let Err(err) = match self.command {
+
+        let mut errors = Errors::new();
+        let log_level = std::env::var(ENV_LOG_LEVEL)
+            .unwrap_or_default()
+            .parse()
+            .unwrap_or_default();
+
+        let log_config = LoggerConfigBuilder::default()
+            .log_level(log_level)
+            .with_thread(true)
+            .with_file(true)
+            .with_line_num(true)
+            .build();
+
+        logger::init(&log_config).unwrap_or_else(|err| errors.add_err(err));
+
+        match self.command {
             None => run::Run::exec(),
             Some(Commands::Package(cmd)) => cmd.exec(),
-        } {
-            println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(err).red());
-            std::process::exit(1);
+        }
+        .unwrap_or_else(|err| {
+            match err.downcast::<Errors>() {
+                Ok(errs) => errors.merge(errs),
+                Err(err) => errors.add_err(err),
+            }
+        });
+
+        if !errors.is_empty() {
+            println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
         }
     }
 }

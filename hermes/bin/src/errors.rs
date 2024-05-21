@@ -21,6 +21,11 @@ impl Errors {
         Self(Vec::new())
     }
 
+    /// Returns `true` if the `Errors` contains no elements.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Add an error to the `Errors`
     pub(crate) fn add_err(&mut self, err: anyhow::Error) {
         self.0.push(err);
