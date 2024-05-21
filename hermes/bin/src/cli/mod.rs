@@ -1,6 +1,7 @@
 //! CLI interpreter for the service
 
 mod build_info;
+mod package;
 mod run;
 
 use build_info::BUILD_INFO;
@@ -21,10 +22,10 @@ pub(crate) struct Cli {
 }
 
 /// Hermes cli commands
-#[derive(Subcommand, Clone)]
+#[derive(Subcommand)]
 enum Commands {
     /// Package the app
-    Package,
+    Package(package::PackageCommand),
 }
 
 impl Cli {
@@ -34,7 +35,7 @@ impl Cli {
         println!("{BUILD_INFO}");
         match self.command {
             None => run::Run::exec(),
-            Some(Commands::Package) => todo!(),
+            Some(Commands::Package(cmd)) => cmd.exec(),
         }
     }
 }
