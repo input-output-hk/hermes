@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use console::Emoji;
 
 use crate::packaging::wasm_module::WasmModulePackage;
 
@@ -18,7 +19,12 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
+        println!("{}Build wasm module package...", Emoji::new("📦", ""));
+
         WasmModulePackage::from_dir(self.dir)?;
+
+        println!("{} Done", Emoji::new("✅", ""));
+
         Ok(())
     }
 }

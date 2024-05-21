@@ -47,8 +47,10 @@ impl WasmModulePackage {
 
         copy_file_from_dir_to_package(path, Self::METDATA_JSON, &package)
             .unwrap_or_else(|err| errors.add_err(err));
+
         copy_file_from_dir_to_package(path, Self::MODULE_WASM, &package)
             .unwrap_or_else(|err| errors.add_err(err));
+
         copy_file_from_dir_to_package(path, Self::SETTINGS_SCHEMA_JSON, &package)
             .or_else(|err| err.is::<FileNotFoundError>().then_some(()).ok_or(err))
             .unwrap_or_else(|err| errors.add_err(err));

@@ -38,9 +38,7 @@ impl Cli {
             None => run::Run::exec(),
             Some(Commands::Package(cmd)) => cmd.exec(),
         } {
-            let alarm_emoji = Emoji::new("🚨", "Errors");
-            let err_msg = style(err.to_string()).red();
-            println!("{alarm_emoji}:\n{err_msg}");
+            println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(err).red());
             std::process::exit(1);
         }
     }

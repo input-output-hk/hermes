@@ -58,7 +58,6 @@ hdf5 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 console = { workspace = true }
-indicatif = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
