@@ -13,5 +13,6 @@ workspace = true
 
 [dependencies]
 derive_more =  "0.99.17"
+
 pest = { version = "2.7.2", features = ["std", "pretty-print", "memchr", "const_prec_climber"] }
 pest_derive = { version = "2.7.2", features = ["grammar-extras"] }
