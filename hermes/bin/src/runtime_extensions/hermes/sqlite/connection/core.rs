@@ -157,6 +157,25 @@ mod tests {
         assert!(stmt_ptr.is_ok())
     }
 
+    #[test]
+    fn test_execute_create_schema_simple() {
+        let db_ptr = init();
+
+        let create_table_sql = r#"
+            CREATE TABLE IF NOT EXISTS people (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                age INTEGER
+            );
+        "#;
+
+        let sql_cstring = std::ffi::CString::new(create_table_sql).unwrap();
+
+        let result = execute(db_ptr, sql_cstring);
+
+        assert!(result.is_ok())
+    }
+
     /* #[test]
     fn test_execute_simple() {
         let db_ptr = init();
