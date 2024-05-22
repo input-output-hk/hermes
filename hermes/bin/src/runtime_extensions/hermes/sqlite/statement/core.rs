@@ -10,7 +10,7 @@ use libsqlite3_sys::{
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
 
 /// Stores application data into parameters of the original SQL.
-pub(super) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Result<(), Errno> {
+pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Result<(), Errno> {
     let result = unsafe {
         match value {
             Value::Blob(value) => sqlite3_bind_blob(
@@ -43,7 +43,7 @@ pub(super) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
 }
 
 /// Advances a statement to the next result row or to completion.
-pub(super) fn step(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
+pub(crate) fn step(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
     let result = unsafe { sqlite3_step(stmt_ptr) };
 
     if result != SQLITE_DONE {
@@ -54,7 +54,7 @@ pub(super) fn step(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
 }
 
 /// Returns information about a single column of the current result row of a query.
-pub(super) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, Errno> {
+pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, Errno> {
     let value = unsafe {
         let column_type = sqlite3_column_type(stmt_ptr, index);
 
@@ -93,7 +93,7 @@ pub(super) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
 /// statement encountered no errors or if the statement is never been evaluated,
 /// then the function results without errors. If the most recent evaluation of
 /// statement failed, then the function results the appropriate error code.
-pub(super) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
+pub(crate) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
     let result = unsafe { sqlite3_finalize(stmt_ptr) };
 
     if result != SQLITE_OK {
@@ -104,4 +104,35 @@ pub(super) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use libsqlite3_sys::*;
+    use super::*;
+    use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::{connection::core, core::open}};
+
+    fn init() -> *mut sqlite3 {
+        let app_name = HermesAppName(String::from("tmp"));
+
+        open(false, true, app_name).unwrap()
+    }
+
+    #[test]
+    fn test_finalize_simple() {
+        let db_ptr = init();
+
+        let sql = String::from("SELECT 1;");
+        let sql_cstring = std::ffi::CString::new(sql).unwrap();
+
+        let stmt_ptr = core::prepare(db_ptr, sql_cstring).unwrap();
+
+        let result = finalize(stmt_ptr);
+
+        assert!(result.is_ok())
+    }
+
+    // #[test]
+    // fn test_bind_simple() {
+    //     let db_ptr = init();
+
+    //     let sql = String::from("SELECT 1;");
+    // }
+}
