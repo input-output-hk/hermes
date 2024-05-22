@@ -85,5 +85,5 @@ chrono = "0.4.35"
 chrono-tz = "0.9.0"
 saffron = "0.1.0"
 tokio = "1.36.0"
-hdf5 = { git="https://github.com/aldanor/hdf5-rust.git", rev="694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version="0.8.1" }
+hdf5 = { git="https://github.com/aldanor/hdf5-rust.git", rev="694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version="0.8.1", features = ["static","blosc","zlib","lzf"]}
 console = "0.15.8"
