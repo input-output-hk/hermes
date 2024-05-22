@@ -66,7 +66,7 @@ mod tests {
 
         assert_eq!(
             combined_errors.to_string(),
-            "- error 1,\n- error 2\n- error 3\n- error 4\n"
+            "- error 1\n- error 2\n- error 3\n- error 4\n"
         );
     }
 }

@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_module_manifest.schema.json",
+    "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
     "title": "Hermes Application WASM Component Module Manifest Schema",
     "description": "Defines the src packages which are used to build a Hermes WASM Component Module.",
     "type": "object",
@@ -9,8 +9,8 @@
         "$schema": {
             "type": "string",
             "title": "Application Package Manifest Schema Reference",
-            "default": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_module_manifest.schema.json",
-            "pattern": "^(https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/)|(.*/)hermes_module_manifest.schema.json$",
+            "default": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+            "pattern": "^(https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/)|(.*/)hermes_module_manifest.schema.json$",
             "description": "Reference to the Application Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
         },
         "metadata": {
@@ -59,8 +59,6 @@
         }
     },
     "required": [
-        "$schema",
-        "metadata",
-        "component"
+        "$schema"
     ]
 }
