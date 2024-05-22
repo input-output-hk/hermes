@@ -82,12 +82,12 @@ exceptions = [
 [[licenses.clarify]]
 crate = "byte-array-literals"
 expression = "Apache-2.0 WITH LLVM-exception"
-license-files = [{ path = "../../../LICENSE", hash = 0x001c7e6c }
+license-files = [{ path = "../../../LICENSE", hash = 0x001c7e6c }]
 
 [[licenses.clarify]]
 crate = "hdf5-src"
 expression = "MIT"
-license-files = [{ path = "../LICENSE-MIT", hash = 0x001c7e6c }]]
+license-files = [{ path = "../LICENSE-MIT", hash = 0x001c7e6c }]
 
 # SPDX considers OpenSSL to encompass both the OpenSSL and SSLeay licenses
 # https://spdx.org/licenses/OpenSSL.html
