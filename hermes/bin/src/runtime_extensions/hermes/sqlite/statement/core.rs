@@ -105,9 +105,15 @@ pub(crate) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
 
 #[cfg(test)]
 mod tests {
-    use libsqlite3_sys::*;
     use super::*;
-    use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::{connection::core, core::open}};
+    use crate::{
+        app::HermesAppName,
+        runtime_extensions::hermes::sqlite::{
+            connection::core::{self, close},
+            core::open,
+        },
+    };
+    use libsqlite3_sys::*;
 
     fn init() -> *mut sqlite3 {
         let app_name = HermesAppName(String::from("tmp"));
@@ -124,9 +130,10 @@ mod tests {
 
         let stmt_ptr = core::prepare(db_ptr, sql_cstring).unwrap();
 
+        let _ = close(db_ptr);
         let result = finalize(stmt_ptr);
 
-        assert!(result.is_ok())
+        assert!(result.is_ok());
     }
 
     // #[test]

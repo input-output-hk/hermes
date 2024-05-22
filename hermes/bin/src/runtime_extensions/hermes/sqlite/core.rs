@@ -118,7 +118,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::app::HermesAppName;
+    use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::connection::core};
 
     use serial_test::file_serial;
 
@@ -129,6 +129,10 @@ mod tests {
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
         let db_ptr = open(false, false, app_name);
+
+        if let Ok(db_ptr) = db_ptr {
+            let _ = core::close(db_ptr);
+        }
 
         let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
         let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
@@ -149,7 +153,21 @@ mod tests {
         let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
         let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
 
+        if let Ok(db_ptr) = db_ptr {
+            let _ = core::close(db_ptr);
+        }
+
         assert!(db_ptr.is_ok() && has_db_file && is_remove_success.is_ok());
+    }
+
+    #[test]
+    #[file_serial]
+    fn test_open_readonly_without_existing_file() {
+        let app_name = HermesAppName(String::from("tmp"));
+
+        let db_ptr = open(true, false, app_name);
+
+        assert!(db_ptr.is_err());
     }
 
     #[test]
@@ -157,6 +175,10 @@ mod tests {
         let app_name = HermesAppName(String::from("tmp"));
 
         let db_ptr = open(false, true, app_name);
+
+        if let Ok(db_ptr) = db_ptr {
+            let _ = core::close(db_ptr);
+        }
 
         assert!(db_ptr.is_ok());
     }
@@ -166,6 +188,10 @@ mod tests {
         let app_name = HermesAppName(String::from("tmp"));
 
         let db_ptr = open(true, true, app_name);
+
+        if let Ok(db_ptr) = db_ptr {
+            let _ = core::close(db_ptr);
+        }
 
         assert!(db_ptr.is_ok());
     }

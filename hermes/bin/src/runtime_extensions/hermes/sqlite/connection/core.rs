@@ -1,9 +1,9 @@
 ///! Core functionality implementation for `SQLite` connection object.
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close_v2, sqlite3_db_status, sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt, sqlite3_finalize,
-    SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS, SQLITE_DBSTATUS_CACHE_SPILL,
-    SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED, SQLITE_DBSTATUS_CACHE_WRITE,
-    SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT,
+    sqlite3, sqlite3_close_v2, sqlite3_db_status, sqlite3_finalize, sqlite3_prepare_v3,
+    sqlite3_step, sqlite3_stmt, SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS,
+    SQLITE_DBSTATUS_CACHE_SPILL, SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED,
+    SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT,
     SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE,
     SQLITE_DBSTATUS_LOOKASIDE_USED, SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED,
     SQLITE_DONE, SQLITE_MISUSE, SQLITE_OK,
@@ -119,7 +119,7 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<()
 
     let result = unsafe { sqlite3_step(stmt_ptr) };
     if result != SQLITE_DONE {
-        println!("#######: pass {}", result);
+        println!("#######: pass {result}");
         return Err(result.into());
     }
 
@@ -135,9 +135,12 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use libsqlite3_sys::*;
     use super::*;
-    use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::core::open};
+    use crate::{
+        app::HermesAppName,
+        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
+    };
+    
 
     fn init() -> *mut sqlite3 {
         let app_name = HermesAppName(String::from("tmp"));
@@ -154,26 +157,33 @@ mod tests {
 
         let stmt_ptr = prepare(db_ptr, sql_cstring);
 
-        assert!(stmt_ptr.is_ok())
+        if let Ok(stmt_ptr) = stmt_ptr {
+            let _ = close(db_ptr);
+            let _ = finalize(stmt_ptr);
+        }
+
+        assert!(stmt_ptr.is_ok());
     }
 
     #[test]
     fn test_execute_create_schema_simple() {
         let db_ptr = init();
 
-        let create_table_sql = r#"
+        let create_table_sql = r"
             CREATE TABLE IF NOT EXISTS people (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 age INTEGER
             );
-        "#;
+        ";
 
         let sql_cstring = std::ffi::CString::new(create_table_sql).unwrap();
 
         let result = execute(db_ptr, sql_cstring);
 
-        assert!(result.is_ok())
+        let _ = close(db_ptr);
+
+        assert!(result.is_ok());
     }
 
     /* #[test]
@@ -196,6 +206,8 @@ mod tests {
 
         let result = close(db_ptr);
 
-        assert!(result.is_ok())
+        let _ = close(db_ptr);
+
+        assert!(result.is_ok());
     }
 }
