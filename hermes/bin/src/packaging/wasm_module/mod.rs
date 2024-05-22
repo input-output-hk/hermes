@@ -1,5 +1,8 @@
 //! Wasm module package.
 
+#[allow(dead_code)]
+mod manifest;
+
 use std::path::Path;
 
 use super::{
