@@ -2,7 +2,6 @@
 
 use std::path::{Path, PathBuf};
 
-use schemars::JsonSchema;
 use serde::Deserialize;
 
 /// Manifest file open and read error.
@@ -16,7 +15,7 @@ pub(crate) struct ManifestFileError(PathBuf);
 pub(crate) struct ManifestReadingError(String);
 
 /// WASM module package manifet.json definition.
-#[derive(Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Path to the metadata JSON file.
     #[serde(default = "Manifest::default_metadata_path")]
@@ -90,16 +89,9 @@ impl Manifest {
 
 #[cfg(test)]
 mod tests {
-    use schemars::schema_for;
     use temp_dir::TempDir;
 
     use super::*;
-
-    #[test]
-    fn test() {
-        let schema = schema_for!(Manifest);
-        println!("{}", serde_json::to_string_pretty(&schema).unwrap());
-    }
 
     #[test]
     fn manifest_json_deserialize_test() {

@@ -1,7 +1,7 @@
 //! CLI interpreter for the service
 
 mod build_info;
-mod package;
+mod module;
 mod run;
 
 use build_info::BUILD_INFO;
@@ -33,8 +33,8 @@ pub(crate) struct Cli {
 /// Hermes cli commands
 #[derive(Subcommand)]
 enum Commands {
-    /// Package the app
-    Package(package::PackageCommand),
+    /// module commands
+    Module(module::ModuleCommand),
 }
 
 impl Cli {
@@ -59,7 +59,7 @@ impl Cli {
 
         match self.command {
             None => run::Run::exec(),
-            Some(Commands::Package(cmd)) => cmd.exec(),
+            Some(Commands::Module(cmd)) => cmd.exec(),
         }
         .unwrap_or_else(|err| {
             match err.downcast::<Errors>() {

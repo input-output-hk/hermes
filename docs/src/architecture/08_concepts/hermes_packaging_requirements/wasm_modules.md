@@ -125,8 +125,8 @@ Packaging a Module is controlled by a manifest file, which must conform to the H
   This file must conform to the manifests [JSON schema](#wasm-component-module-manifest---schema).
   An example manifest of this [JSON schema](#wasm-component-module-manifest---schema)
   is [here](#wasm-component-module-manifest---example).
-* `[<optional output path>]` - By default the module will be created in the current working directory.
-  This option allows the path of the generated module to be set, it can be absolute or relative to the current working directory.
+* `[<optional output path>]` - By default the module will be created in the same directory where manifest placed.
+  This option allows the path of the generated module to be set, it can be absolute or relative to the manifest directory.
 * `--name module name override` - The name to give the module file, instead of taking it from the manifest file.
 
 *Note: the extension `.hmod` will automatically be added to the `module name`
