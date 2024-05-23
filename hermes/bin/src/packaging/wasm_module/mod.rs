@@ -22,7 +22,7 @@ impl WasmModulePackage {
     ) -> anyhow::Result<Self> {
         let mut errors = Errors::new();
 
-        let package = hdf5::File::create(&output_path)?;
+        let package = hdf5::File::create(output_path.as_ref().join("module.hmod"))?;
 
         copy_file_from_dir_to_package(manifest.metadata, &package)
             .unwrap_or_else(|err| errors.add_err(err));
