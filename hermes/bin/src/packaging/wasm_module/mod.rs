@@ -2,7 +2,7 @@
 
 pub(crate) mod manifest;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use self::manifest::Manifest;
 use super::{copy_dir_recursively_to_package, copy_file_from_dir_to_package};
@@ -10,10 +10,8 @@ use crate::errors::Errors;
 
 /// Create WASM module package error.
 #[derive(thiserror::Error, Debug)]
-#[error(
-    "Failed to create WASM module package. Package with this name {{0}} could be already exists."
-)]
-pub(crate) struct CreatePackageError(String);
+#[error("Failed to create WASM module package. Package at {0} could be already exists.")]
+pub(crate) struct CreatePackageError(PathBuf);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -30,8 +28,9 @@ impl WasmModulePackage {
         let mut errors = Errors::new();
 
         let package_name = "module.hmod";
-        let package = hdf5::File::create(output_path.as_ref().join(package_name))
-            .map_err(|_| CreatePackageError(package_name.to_string()))?;
+        let package_path = output_path.as_ref().join(package_name);
+        let package =
+            hdf5::File::create(&package_path).map_err(|_| CreatePackageError(package_path))?;
 
         copy_file_from_dir_to_package(manifest.metadata, &package)
             .unwrap_or_else(|err| errors.add_err(err));
@@ -102,8 +101,7 @@ mod tests {
             settings_schema: Some(settings_schema_path),
             share: None,
         };
-        let package_path = dir.path().join("module.hdf5");
-        WasmModulePackage::from_manifest(manifest, package_path)
+        WasmModulePackage::from_manifest(manifest, dir.path())
             .expect("Cannot create module package");
     }
 }
