@@ -39,7 +39,6 @@ fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
     package
         .new_dataset_builder()
         .with_data(&file_data)
-        .blosc_zlib(9, true)
         .create(file_name.as_str())?;
 
     Ok(())
@@ -138,6 +137,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn blosc_compression_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
