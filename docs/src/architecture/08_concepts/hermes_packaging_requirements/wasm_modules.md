@@ -117,7 +117,7 @@ Packaging a Module is controlled by a manifest file, which must conform to the H
 
 <!-- markdownlint-disable code-block-style -->
 ```sh
-./hermes module <manifest.json> [<optional output path>] [--name <module name override>]
+./hermes module package <manifest.json> [<optional output path>] [--name <module name override>]
 ```
 <!-- markdownlint-enable code-block-style -->
 

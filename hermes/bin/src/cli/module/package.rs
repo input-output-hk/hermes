@@ -1,4 +1,4 @@
-//! module cli command
+//! WASM module package command
 
 use std::path::PathBuf;
 
@@ -9,7 +9,7 @@ use crate::packaging::wasm_module::{manifest::Manifest, WasmModulePackage};
 
 /// WASM module packaging
 #[derive(Args)]
-pub(crate) struct ModuleCommand {
+pub(crate) struct PackageCommand {
     /// Defines the location of all the src artifacts needed to build the package. This
     /// file must conform to the manifests JSON schema. An example manifest of this JSON
     /// schema is here.
@@ -21,7 +21,7 @@ pub(crate) struct ModuleCommand {
     output_path: Option<PathBuf>,
 }
 
-impl ModuleCommand {
+impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{} Build wasm module package...", Emoji::new("📦", ""));

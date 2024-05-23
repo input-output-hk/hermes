@@ -34,7 +34,8 @@ pub(crate) struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// module commands
-    Module(module::ModuleCommand),
+    #[command(subcommand)]
+    Module(module::Commands),
 }
 
 impl Cli {
