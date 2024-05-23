@@ -8,6 +8,13 @@ use self::manifest::Manifest;
 use super::{copy_dir_recursively_to_package, copy_file_from_dir_to_package};
 use crate::errors::Errors;
 
+/// Create WASM module package error.
+#[derive(thiserror::Error, Debug)]
+#[error(
+    "Failed to create WASM module package. Package with this name {{0}} could be already exists."
+)]
+pub(crate) struct CreatePackageError(String);
+
 /// Wasm module package.
 #[derive(Debug)]
 pub(crate) struct WasmModulePackage {
@@ -22,7 +29,9 @@ impl WasmModulePackage {
     ) -> anyhow::Result<Self> {
         let mut errors = Errors::new();
 
-        let package = hdf5::File::create(output_path.as_ref().join("module.hmod"))?;
+        let package_name = "module.hmod";
+        let package = hdf5::File::create(output_path.as_ref().join(package_name))
+            .map_err(|_| CreatePackageError(package_name.to_string()))?;
 
         copy_file_from_dir_to_package(manifest.metadata, &package)
             .unwrap_or_else(|err| errors.add_err(err));

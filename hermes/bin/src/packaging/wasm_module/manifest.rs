@@ -1,4 +1,4 @@
-//! WASM module package manifet.json struct.
+//! WASM module package manifest.json struct.
 
 use std::path::{Path, PathBuf};
 
@@ -14,7 +14,7 @@ pub(crate) struct ManifestFileError(PathBuf);
 #[error("WASM module manifest json file reading error: {0}")]
 pub(crate) struct ManifestReadingError(String);
 
-/// WASM module package manifet.json definition.
+/// WASM module package manifest.json definition.
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Path to the metadata JSON file.
