@@ -1,5 +1,5 @@
 {
-    "$schema": "../hermes_app_metadata.schema.json",
+    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
     "name": "Athena - Project Catalyst Voting",
     "icon": "/srv/www/icons/athena.svg",
     "version": "V2.7.3",
@@ -31,7 +31,6 @@
             "note": "Just defines the license by the file path."
         }
     ],
-    "build_date": 1709041814,
     "developer": {
         "name": "IOG Singapore.",
         "contact": "Contact details.",

@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_app_metadata.schema.json",
+    "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
     "title": "Application Metadata Schema",
     "description": "Metadata which defines a Hermes Application and is carried inside the Hermes Application Package.",
     "type": "object",
@@ -9,8 +9,8 @@
         "$schema": {
             "type": "string",
             "title": "Application Metadata Schema Reference",
-            "default": "https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/hermes_app_metadata.schema.json",
-            "pattern": "^(https://github.com/input-output-hk/hermes/blob/main/hermes/schemas/)|(.*/)hermes_app_metadata.schema.json$",
+            "default": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
+            "pattern": "^(https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/)|(.*/)hermes_app_metadata.schema.json$",
             "description": "Reference to the Application Metadata Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
         },
         "name": {
@@ -96,7 +96,8 @@
         "build_date": {
             "type": "integer",
             "title": "Application Build Date",
-            "description": "Unix Epoch Timestamp of when the Application was packaged or built."
+            "description": "Unix Epoch Timestamp of when the Application was packaged or built.\nThis field will be overwritten if present, by the Hermes packaging system.\nThe field is required, but this will be checked when the package is validated.",
+            "default": 0
         },
         "developer": {
             "type": "object",
@@ -194,7 +195,6 @@
         "version",
         "description",
         "copyright",
-        "license",
-        "build_date"
+        "license"
     ]
 }

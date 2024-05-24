@@ -4,10 +4,8 @@
 
 use std::fmt::Debug;
 
-pub use pest::Parser;
-
-extern crate derive_more;
 use derive_more::{Display, From};
+pub use pest::Parser;
 use pest::{error::Error, iterators::Pairs};
 
 pub mod rfc_8610 {
