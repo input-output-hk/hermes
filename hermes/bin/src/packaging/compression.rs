@@ -19,12 +19,7 @@ static BLOSC_THREADS_INIT: once_cell::sync::Lazy<()> = once_cell::sync::Lazy::ne
 
 /// Initialize blosc.
 fn blosc_init() {
-    /// Default system core amount, any machine has at least 1 core.
-    const DEFAULT_SYSTEM_CORE_NUM: u8 = 1;
-
-    let num_cpus = num_cpus::get()
-        .try_into()
-        .unwrap_or(DEFAULT_SYSTEM_CORE_NUM);
+    let num_cpus = num_cpus::get().try_into().unwrap_or(MIN_BLOSC_THREADS);
 
     let blosc_threads = std::cmp::min(MIN_BLOSC_THREADS, num_cpus);
     hdf5::filters::blosc_set_nthreads(blosc_threads);
