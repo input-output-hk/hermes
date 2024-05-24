@@ -10,6 +10,7 @@ const COMPRESSION_ALGORITHM: Blosc = Blosc::ZStd;
 const COMPRESSION_LEVEL: u8 = 9;
 
 /// Minimum chunk size in kb, 8mb.
+#[allow(dead_code)]
 const MIN_CHUNK_SIZE: usize = 8000;
 
 /// Minimum blosc threads.
@@ -31,9 +32,7 @@ pub(crate) fn enable_compression(ds_builder: hdf5::DatasetBuilder) -> hdf5::Data
     // Calling `blosc_init()` only once on the fist call
     let () = *BLOSC_THREADS_INIT;
 
-    ds_builder
-        .chunk_min_kb(MIN_CHUNK_SIZE)
-        .blosc(COMPRESSION_ALGORITHM, COMPRESSION_LEVEL, true)
+    ds_builder.blosc(COMPRESSION_ALGORITHM, COMPRESSION_LEVEL, true)
 }
 
 #[cfg(test)]
