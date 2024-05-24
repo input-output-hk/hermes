@@ -1,9 +1,11 @@
 //! Hermes packaging.
 
+mod compression;
 pub(crate) mod wasm_module;
 
 use std::path::PathBuf;
 
+use self::compression::enable_compression;
 use crate::errors::Errors;
 
 /// Get path name.
@@ -36,8 +38,7 @@ fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
 
     let file_name = get_path_name(&file_path)?;
 
-    package
-        .new_dataset_builder()
+    enable_compression(package.new_dataset_builder())
         .with_data(&file_data)
         .create(file_name.as_str())?;
 
@@ -86,8 +87,6 @@ pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use hdf5::File;
     use temp_dir::TempDir;
 
@@ -134,48 +133,6 @@ mod tests {
             .expect_err("Should return error");
 
         assert!(err.is::<FileNotFoundError>());
-    }
-
-    #[test]
-    #[ignore]
-    fn blosc_compression_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let compressed_file_name = dir.child("compressed_test.hdf5");
-        let compressed_hdf5_file =
-            File::create(&compressed_file_name).expect("cannot create HDF5 file");
-        let uncompressed_file_name = dir.child("uncompressed_test.hdf5");
-        let uncompressed_hdf5_file =
-            File::create(&uncompressed_file_name).expect("cannot create HDF5 file");
-
-        let large_json = "large.json";
-        let large_json_data = std::fs::read(Path::new("src/packaging").join(large_json))
-            .expect("cannot read large.json file");
-
-        uncompressed_hdf5_file
-            .new_dataset_builder()
-            .with_data(&large_json_data)
-            .create(large_json)
-            .expect("Cannot create dataset for uncompressed hdf5 package");
-
-        copy_file_from_dir_to_package(
-            Path::new("src/packaging").join(large_json),
-            &compressed_hdf5_file,
-        )
-        .expect("Cannot copy metadata.json to hdf5 package");
-
-        println!(
-            "compressed package size: {}",
-            std::fs::read(compressed_file_name)
-                .expect("Cannot read hdf5 package bytes")
-                .len()
-        );
-        println!(
-            "uncompressed package size: {}",
-            std::fs::read(uncompressed_file_name)
-                .expect("Cannot read hdf5 package bytes")
-                .len()
-        );
     }
 
     #[test]
