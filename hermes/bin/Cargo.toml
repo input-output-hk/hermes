@@ -56,6 +56,7 @@ pallas = { workspace = true }
 saffron = { workspace = true }
 hdf5 = { workspace = true }
 blosc-src = { workspace = true }
+num_cpus = { workspace = true }
 console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

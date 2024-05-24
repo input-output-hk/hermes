@@ -22,12 +22,11 @@ fn blosc_init() {
     /// Default system core amount, any machine has at least 1 core.
     const DEFAULT_SYSTEM_CORE_NUM: u8 = 1;
 
-    let core_num = std::thread::available_parallelism()
-        .map(std::num::NonZeroUsize::get)
-        .unwrap_or(DEFAULT_SYSTEM_CORE_NUM.into())
+    let num_cpus = num_cpus::get()
         .try_into()
         .unwrap_or(DEFAULT_SYSTEM_CORE_NUM);
-    let blosc_threads = std::cmp::min(MIN_BLOSC_THREADS, core_num);
+
+    let blosc_threads = std::cmp::min(MIN_BLOSC_THREADS, num_cpus);
     hdf5::filters::blosc_set_nthreads(blosc_threads);
 }
 
