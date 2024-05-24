@@ -1,5 +1,10 @@
 //! Enabling blosc compression for the hdf5 package.
 
+use hdf5::filters::Blosc;
+
+/// Compression algorithm.
+const COMPRESSION_ALOGORITHM: Blosc = Blosc::ZStd;
+
 /// Compression level.
 const COMPRESSION_LEVEL: u8 = 9;
 
@@ -33,7 +38,7 @@ pub(crate) fn enable_compression(ds_builder: hdf5::DatasetBuilder) -> hdf5::Data
 
     ds_builder
         .chunk_min_kb(MIN_CHUNK_SIZE)
-        .blosc_zstd(COMPRESSION_LEVEL, true)
+        .blosc(COMPRESSION_ALOGORITHM, COMPRESSION_LEVEL, true)
 }
 
 #[cfg(test)]
