@@ -1,17 +1,18 @@
 //! Enabling blosc compression for the hdf5 package.
+// cspell: words cpus, nthreads
 
 use hdf5::filters::Blosc;
 
 /// Compression algorithm.
-const COMPRESSION_ALOGORITHM: Blosc = Blosc::ZStd;
+const COMPRESSION_ALGORITHM: Blosc = Blosc::ZStd;
 
 /// Compression level.
 const COMPRESSION_LEVEL: u8 = 9;
 
-/// Minumum chunk size in kb, 8mb.
+/// Minimum chunk size in kb, 8mb.
 const MIN_CHUNK_SIZE: usize = 8000;
 
-/// Minumum blosc threads.
+/// Minimum blosc threads.
 const MIN_BLOSC_THREADS: u8 = 8;
 
 /// Statically initialize blosc on the first call only once.
@@ -32,7 +33,7 @@ pub(crate) fn enable_compression(ds_builder: hdf5::DatasetBuilder) -> hdf5::Data
 
     ds_builder
         .chunk_min_kb(MIN_CHUNK_SIZE)
-        .blosc(COMPRESSION_ALOGORITHM, COMPRESSION_LEVEL, true)
+        .blosc(COMPRESSION_ALGORITHM, COMPRESSION_LEVEL, true)
 }
 
 #[cfg(test)]
