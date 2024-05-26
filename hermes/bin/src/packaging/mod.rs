@@ -24,6 +24,11 @@ fn get_path_name<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<String> {
 #[error("File not found at {0}")]
 pub(crate) struct FileNotFoundError(PathBuf);
 
+/// File not found error.
+#[derive(thiserror::Error, Debug)]
+#[error("File is empty: {0}")]
+pub(crate) struct EmptyFileError(PathBuf);
+
 /// Copy file to hdf5 package.
 fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
     file_path: P, package: &hdf5::Group,
@@ -35,6 +40,10 @@ fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
             anyhow::Error::new(err)
         }
     })?;
+
+    if file_data.is_empty() {
+        return Err(EmptyFileError(file_path.as_ref().into()).into());
+    }
 
     let file_name = get_path_name(&file_path)?;
 
@@ -121,18 +130,22 @@ mod tests {
     }
 
     #[test]
-    fn copy_file_to_package_not_found_test() {
+    fn copy_file_to_package_errors_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
         let file_name = dir.child("test.hdf5");
         let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
 
-        let metadata_json = "metadata.json";
-
-        let err = copy_file_from_dir_to_package(dir.path().join(metadata_json), &hdf5_file)
-            .expect_err("Should return error");
-
+        let file_name = "file.json";
+        let file_path = dir.path().join(file_name);
+        let err =
+            copy_file_from_dir_to_package(&file_path, &hdf5_file).expect_err("Should return error");
         assert!(err.is::<FileNotFoundError>());
+
+        std::fs::File::create(&file_path).expect("Cannot create file.json");
+        let err =
+            copy_file_from_dir_to_package(file_path, &hdf5_file).expect_err("Should return error");
+        assert!(err.is::<EmptyFileError>());
     }
 
     #[test]
@@ -145,11 +158,11 @@ mod tests {
 
         let file_1_name = "file_1";
         let file_1 = dir.child(file_1_name);
-        std::fs::File::create(file_1).expect("Cannot create file_1 file");
+        std::fs::write(file_1, [0, 1, 2]).expect("Cannot create file_1 file");
 
         let file_2_name = "file_2_name";
         let file_2 = dir.child(file_2_name);
-        std::fs::File::create(file_2).expect("Cannot create file_2 file");
+        std::fs::write(file_2, [0, 1, 2]).expect("Cannot create file_2 file");
 
         let child_dir_name = "child_dir";
         let child_dir = dir.child(child_dir_name);
@@ -157,7 +170,7 @@ mod tests {
 
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
-        std::fs::File::create(file_3).expect("Cannot create file_3 file");
+        std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
 
         copy_dir_recursively_to_package(dir.path(), &hdf5_file)
             .expect("Cannot copy dir to hdf5 package");
