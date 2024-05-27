@@ -2,8 +2,13 @@
 //! This file exists, so that doc tests can be used inside binary crates.
 
 pub mod app;
+#[allow(dead_code)]
+pub mod cli;
+pub mod errors;
 pub mod event;
+#[allow(dead_code)]
 pub mod logger;
+pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;

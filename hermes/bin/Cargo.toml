@@ -27,7 +27,6 @@ harness = false
 
 [dependencies]
 cardano-chain-follower = { workspace = true }
-
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
@@ -48,7 +47,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "json", "time"] }
 build-info = { workspace = true }
-derive_more = { workspace = true, features = ["display"], default-features = false }
+derive_more = { workspace = true }
 chrono = { workspace = true, features = ["now"] }
 chrono-tz = { workspace = true }
 iana-time-zone = { workspace = true }
@@ -57,6 +56,10 @@ pallas = { workspace = true }
 saffron = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"] }
 stringzilla = { workspace = true }
+hdf5 = { workspace = true }
+console = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
@@ -65,3 +68,4 @@ build-info-build = { workspace = true }
 hex = { workspace = true }
 tracing-subscriber = { workspace = true }
 serial_test = { workspace = true }
+temp-dir = "0.1.13"

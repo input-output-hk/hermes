@@ -11,6 +11,7 @@ bindgen
 bkioshn
 blockdiag
 blockfetch
+blosc
 bmac
 BROTLI
 cantopen

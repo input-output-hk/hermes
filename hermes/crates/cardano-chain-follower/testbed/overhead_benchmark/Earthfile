@@ -1,5 +1,6 @@
 VERSION 0.8
 
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot:v3.00.3 AS mithril-snapshot-ci
 IMPORT ../../../.. AS hermes
 
 build:
@@ -15,10 +16,10 @@ local-run-preprod:
 
     FROM +build
 
-    COPY --dir github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot/snapshot/immutable mithril_snapshot 
+    COPY --dir mithril-snapshot-ci+package-preprod-snapshot/snapshot/immutable mithril_snapshot 
     COPY +build/overhead_benchmark overhead_benchmark_bin
     RUN ./overhead_benchmark_bin --bench-name $BENCH_NAME --mithril-snapshot-path ./mithril_snapshot
 
 local-save-preprod-snapshot:
-    FROM github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot+package-preprod-snapshot
+    FROM mithril-snapshot-ci+package-preprod-snapshot
     SAVE ARTIFACT immutable AS LOCAL local_preprod_mithril_snapshot 

@@ -182,24 +182,8 @@ mod test {
     #[test]
     #[ignore = "Just for testing locally"]
     fn subscription_works() {
-        tracing_subscriber::fmt()
-            .with_thread_ids(true)
-            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-            .init();
-
         let app_name = HermesAppName("test_app_it_works".to_string());
         let module_id = crate::wasm::module::ModuleId(rusty_ulid::Ulid::generate());
-
-        // let module_bytes = include_bytes!("REPLACE_WITH_TEST_COMPONENT_PATH");
-        // let app =
-        //     crate::app::HermesApp::new(app_name.clone(),
-        // vec![module_bytes.to_vec()]).expect("app"); let module_id =
-        // app.indexed_modules().keys().next().expect("module").clone();
-        //
-        // let mut indexed_apps = std::collections::HashMap::new();
-        // indexed_apps.insert(app_name.clone(), app);
-        //
-        // crate::event::queue::init(std::sync::Arc::new(indexed_apps)).expect("init");
 
         subscribe(
             CardanoBlockchainId::Preprod,
@@ -278,11 +262,6 @@ mod test {
     #[test]
     #[ignore = "Just for local testing"]
     fn reading_works() {
-        tracing_subscriber::fmt()
-            .with_thread_ids(true)
-            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-            .init();
-
         let block_data = read_block(
             CardanoBlockchainId::Preprod,
             cardano_chain_follower::Point::Specific(

@@ -2,19 +2,18 @@
 
 use std::str::FromStr;
 
-use clap::ValueEnum;
-extern crate derive_more;
 use derive_more::Display;
-use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time},
     FmtSubscriber,
 };
 
-use crate::runtime_extensions::bindings::hermes::logging::api::Level;
+use crate::runtime_extensions::bindings::hermes::logging;
 
 /// All valid logging levels.
-#[derive(ValueEnum, Clone, Copy, Display, Default)]
+#[derive(Clone, Copy, Display, Default)]
+#[allow(dead_code)]
 pub(crate) enum LogLevel {
     /// Errors
     #[display(fmt = "Error")]
@@ -23,8 +22,8 @@ pub(crate) enum LogLevel {
     #[display(fmt = "Warn")]
     Warn,
     /// Informational Messages
-    #[display(fmt = "Info")]
     #[default]
+    #[display(fmt = "Info")]
     Info,
     /// Debug messages
     #[display(fmt = "Debug")]
@@ -35,7 +34,7 @@ pub(crate) enum LogLevel {
 }
 
 impl FromStr for LogLevel {
-    type Err = ();
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Error and Warn levels are force to Info level
@@ -44,19 +43,21 @@ impl FromStr for LogLevel {
             "error" | "warn" | "info" => Ok(LogLevel::Info),
             "debug" => Ok(LogLevel::Debug),
             "trace" => Ok(LogLevel::Trace),
-            _ => Err(()),
+            _ => Err(anyhow::anyhow!("Invalid log level string: {}", s)),
         }
     }
 }
 
-impl From<Level> for LogLevel {
-    fn from(level: Level) -> Self {
+impl From<logging::api::Level> for LogLevel {
+    fn from(level: logging::api::Level) -> Self {
         // Error and Warn levels are force to Info level
         // as Info is the highest log level one can choose.
         match level {
-            Level::Info | Level::Warn | Level::Error => LogLevel::Info,
-            Level::Debug => LogLevel::Debug,
-            Level::Trace => LogLevel::Trace,
+            logging::api::Level::Info | logging::api::Level::Warn | logging::api::Level::Error => {
+                LogLevel::Info
+            },
+            logging::api::Level::Debug => LogLevel::Debug,
+            logging::api::Level::Trace => LogLevel::Trace,
         }
     }
 }
@@ -87,16 +88,8 @@ pub(crate) struct LoggerConfig {
     with_line_num: bool,
 }
 
-#[allow(dead_code)]
-impl LoggerConfig {
-    /// Entry point to logger building.
-    pub(crate) fn builder() -> LoggerConfigBuilder {
-        LoggerConfigBuilder::default()
-    }
-}
-
 /// Logger configuration builder.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct LoggerConfigBuilder {
     /// Builder log level.
     log_level: Option<LogLevel>,
@@ -113,7 +106,7 @@ impl LoggerConfigBuilder {
     /// Build the logger configuration.
     pub(crate) fn build(self) -> LoggerConfig {
         LoggerConfig {
-            log_level: self.log_level.unwrap_or(LogLevel::Info),
+            log_level: self.log_level.unwrap_or_default(),
             with_thread: self.with_thread.unwrap_or(false),
             with_file: self.with_file.unwrap_or(false),
             with_line_num: self.with_line_num.unwrap_or(false),
@@ -153,8 +146,7 @@ impl LoggerConfigBuilder {
 /// - Display time in RFC 3339 format
 /// - Events emit when the span close
 /// - Maximum verbosity level
-#[allow(dead_code)]
-pub(crate) fn init(logger_config: &LoggerConfig) -> Result<(), SetGlobalDefaultError> {
+pub(crate) fn init(logger_config: &LoggerConfig) -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
         .json()
         .with_level(true)
@@ -167,5 +159,5 @@ pub(crate) fn init(logger_config: &LoggerConfig) -> Result<(), SetGlobalDefaultE
         .with_max_level(LevelFilter::from_level(logger_config.log_level.into()))
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
+    Ok(tracing::subscriber::set_global_default(subscriber)?)
 }
