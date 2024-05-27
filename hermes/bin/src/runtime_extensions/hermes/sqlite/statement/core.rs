@@ -4,7 +4,7 @@ use libsqlite3_sys::{
     sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_bytes, sqlite3_column_double,
     sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type, sqlite3_column_value,
     sqlite3_finalize, sqlite3_step, sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE, SQLITE_ERROR,
-    SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_TEXT, SQLITE_ROW,
+    SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_TEXT, SQLITE_ROW, SQLITE_STATIC,
 };
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
@@ -30,7 +30,11 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
                     Err(_) => return Err(SQLITE_ERROR.into()),
                 };
 
-                sqlite3_bind_text(stmt_ptr, index, c_value.as_ptr(), -1, None)
+                println!("$$$$$: {:?}", c_value);
+
+                let n_byte = c_value.as_bytes_with_nul().len();
+
+                sqlite3_bind_text(stmt_ptr, index, c_value.as_ptr(), n_byte as i32, SQLITE_STATIC())
             },
         }
     };
@@ -78,8 +82,14 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
             SQLITE_NULL => Value::Null,
             SQLITE_TEXT => {
                 let text_ptr = sqlite3_column_text(stmt_ptr, index);
-                let text_slice = std::ffi::CStr::from_ptr(text_ptr.cast::<i8>());
-                let text_string = text_slice.to_string_lossy().into_owned();
+                let text_slice = std::ffi::CStr::from_ptr(text_ptr as *const i8);
+                println!("#######: {:?} {:?}", text_ptr, text_slice);
+
+                let text_string = match text_slice.to_str() {
+                    Ok(value) => String::from(value),
+                    Err(_) => return Err(SQLITE_ERROR.into()),
+                };
+                
                 Value::Text(text_string)
             },
             _ => return Err(SQLITE_ERROR.into()),
@@ -121,7 +131,7 @@ mod tests {
         open(false, true, app_name).unwrap()
     }
 
-    fn init_simple_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) {
+    fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {});", db_value_type);
         let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
@@ -137,26 +147,121 @@ mod tests {
         let _ = finalize(stmt_ptr).unwrap();
     }
 
-    #[test]
-    fn test_value_double() {
-        let db_ptr = init();
-
-        let value = Value::Double(3.14159);
-        let _ = init_simple_value(db_ptr, "REAL", value.clone());
-
+    fn get_value(db_ptr: *mut sqlite3) -> Result<Value, Errno> {
         let sql = String::from("SELECT Value FROM Dummy WHERE Id = 1;");
         let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
         let stmt_ptr = prepare(db_ptr, sql_cstring).unwrap();
         let _ = step(stmt_ptr).unwrap();
         let col_result = column(stmt_ptr, 0);
+        let _ = finalize(stmt_ptr).unwrap();
 
-        if let (Value::Double(x), Ok(Value::Double(y))) = (value, col_result) {
+        col_result
+    }
+
+    #[test]
+    fn test_value_double() {
+        let db_ptr = init();
+
+        let value = Value::Double(3.14159);
+        let _ = init_value(db_ptr, "REAL", value.clone());
+        let value_result = get_value(db_ptr);
+
+        if let (Value::Double(x), Ok(Value::Double(y))) = (value, value_result) {
             assert_eq!(x, y);
         } else {
             panic!();
         }
+
+        close(db_ptr).unwrap();
     }
+
+    #[test]
+    fn test_value_bool() {
+        let db_ptr = init();
+
+        let value = Value::Int32(1);
+        let _ = init_value(db_ptr, "BOOLEAN", value.clone());
+        let value_result = get_value(db_ptr);
+
+        if let (Value::Int32(x), Ok(Value::Int32(y))) = (value, value_result) {
+            assert_eq!(x, y);
+        } else {
+            panic!();
+        }
+
+        close(db_ptr).unwrap();
+    }
+
+    #[test]
+    fn test_value_int32() {
+        let db_ptr = init();
+
+        let value = Value::Int32(i32::MAX);
+        let _ = init_value(db_ptr, "MEDIUMINT", value.clone());
+        let value_result = get_value(db_ptr);
+
+        if let (Value::Int32(x), Ok(Value::Int32(y))) = (value, value_result) {
+            assert_eq!(x, y);
+        } else {
+            panic!();
+        }
+
+        close(db_ptr).unwrap();
+    }
+
+    #[test]
+    fn test_value_int32_nullable() {
+        let db_ptr = init();
+
+        let value = Value::Null;
+        let _ = init_value(db_ptr, "MEDIUMINT", value.clone());
+        let value_result = get_value(db_ptr);
+
+        if let (Value::Null, Ok(Value::Null)) = (value, value_result) {
+            assert!(true);
+        } else {
+            panic!();
+        }
+
+        close(db_ptr).unwrap();
+    }
+
+    #[test]
+    fn test_value_int64() {
+        let db_ptr = init();
+
+        let value = Value::Int64(i64::MAX);
+        let _ = init_value(db_ptr, "BIGINT", value.clone());
+        let value_result = get_value(db_ptr);
+
+        if let (Value::Int64(x), Ok(Value::Int64(y))) = (value, value_result) {
+            assert_eq!(x, y);
+        } else {
+            panic!();
+        }
+
+        close(db_ptr).unwrap();
+    }
+
+    /* #[test]
+    fn test_value_text() {
+        let db_ptr = init();
+
+        let value = Value::Text(String::from("Hello, World!"));
+        let _ = init_value(db_ptr, "TEXT", value.clone());
+        let value_result = get_value(db_ptr);
+
+        println!("######@##: {:?}",value_result.clone());
+
+        if let (Value::Text(x), Ok(Value::Text(y))) = (value, value_result) {
+            assert_eq!(x, y);
+        } else {
+            panic!();
+        }
+
+        close(db_ptr).unwrap();
+    } */
 
     #[test]
     fn test_finalize_simple() {
