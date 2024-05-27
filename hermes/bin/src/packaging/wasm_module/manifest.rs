@@ -23,14 +23,28 @@ pub(crate) struct Manifest {
     /// Path to the  WASM component file.
     #[serde(default = "Manifest::default_component_path")]
     pub(crate) component: PathBuf,
-    /// Path to the config JSON file.
-    pub(crate) config: Option<PathBuf>,
-    /// Path to the config schema JSON file.
-    pub(crate) config_schema: Option<PathBuf>,
-    /// Path to the settings schema JSON file.
-    pub(crate) settings_schema: Option<PathBuf>,
+    /// WASM module config.
+    pub(crate) config: Option<Config>,
+    /// WASM module settings.
+    pub(crate) settings: Option<Settings>,
     /// Path to the share directory.
     pub(crate) share: Option<PathBuf>,
+}
+
+/// WASM module config definition.
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Config {
+    /// Path to the config JSON file.
+    pub(crate) file: Option<PathBuf>,
+    /// Path to the config schema JSON file.
+    pub(crate) schema: PathBuf,
+}
+
+/// WASM module settings definition.
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Settings {
+    /// Path to the settings schema JSON file.
+    pub(crate) schema: PathBuf,
 }
 
 impl Manifest {
@@ -63,18 +77,18 @@ impl Manifest {
             manifest.component = dir_path.join(&manifest.component);
         }
         if let Some(config) = &mut manifest.config {
-            if config.is_relative() {
-                *config = dir_path.join(&config);
+            if let Some(config_file) = &mut config.file {
+                if config_file.is_relative() {
+                    *config_file = dir_path.join(&config_file);
+                }
+            }
+            if config.schema.is_relative() {
+                config.schema = dir_path.join(&config.schema);
             }
         }
-        if let Some(config_schema) = &mut manifest.config_schema {
-            if config_schema.is_relative() {
-                *config_schema = dir_path.join(&config_schema);
-            }
-        }
-        if let Some(settings_schema) = &mut manifest.settings_schema {
-            if settings_schema.is_relative() {
-                *settings_schema = dir_path.join(&settings_schema);
+        if let Some(settings) = &mut manifest.settings {
+            if settings.schema.is_relative() {
+                settings.schema = dir_path.join(&settings.schema);
             }
         }
         if let Some(share) = &mut manifest.share {
@@ -94,55 +108,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn manifest_json_deserialize_test() {
-        let value = serde_json::json!({
-            "metadata": "metadata.json",
-            "component": "module.wasm",
-            "config": "config.json",
-            "config_schema": "config.schema.json",
-            "settings_schema": "settings.schema.json",
-            "share": "share"
-        });
-        let manifest = serde_json::from_value::<Manifest>(value).expect("failed to deserialize");
-        let expected = Manifest {
-            metadata: PathBuf::from("metadata.json"),
-            component: PathBuf::from("module.wasm"),
-            config: Some(PathBuf::from("config.json")),
-            config_schema: Some(PathBuf::from("config.schema.json")),
-            settings_schema: Some(PathBuf::from("settings.schema.json")),
-            share: Some(PathBuf::from("share")),
-        };
-        assert_eq!(manifest, expected);
-
-        let value = serde_json::json!({
-            "metadata": "metadata.json",
-            "component": "module.wasm",
-        });
-        let manifest = serde_json::from_value::<Manifest>(value).expect("failed to deserialize");
-        let expected = Manifest {
-            metadata: PathBuf::from("metadata.json"),
-            component: PathBuf::from("module.wasm"),
-            config: None,
-            config_schema: None,
-            settings_schema: None,
-            share: None,
-        };
-        assert_eq!(manifest, expected);
-
-        let value = serde_json::json!({});
-        let manifest = serde_json::from_value::<Manifest>(value).expect("failed to deserialize");
-        let expected = Manifest {
-            metadata: PathBuf::from("metadata.json"),
-            component: PathBuf::from("module.wasm"),
-            config: None,
-            config_schema: None,
-            settings_schema: None,
-            share: None,
-        };
-        assert_eq!(manifest, expected);
-    }
-
-    #[test]
     fn manifest_from_file_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
         let dir_path = dir.path();
@@ -151,9 +116,13 @@ mod tests {
         let manifest_json_data = serde_json::json!({
             "metadata": "metadata.json",
             "component": "module.wasm",
-            "config": "config.json",
-            "config_schema": "config.schema.json",
-            "settings_schema": "settings.schema.json",
+            "config": {
+                "file": "config.json",
+                "schema": "config.schema.json"
+            },
+            "settings": {
+                "schema": "settings.schema.json"
+            },
             "share": "share"
         })
         .to_string();
@@ -162,18 +131,28 @@ mod tests {
         assert_eq!(manifest, Manifest {
             metadata: dir_path.join("metadata.json"),
             component: dir_path.join("module.wasm"),
-            config: Some(dir_path.join("config.json")),
-            config_schema: Some(dir_path.join("config.schema.json")),
-            settings_schema: Some(dir_path.join("settings.schema.json")),
-            share: Some(dir_path.join("share")),
+            config: Config {
+                file: dir_path.join("config.json").into(),
+                schema: dir_path.join("config.schema.json"),
+            }
+            .into(),
+            settings: Settings {
+                schema: dir_path.join("settings.schema.json"),
+            }
+            .into(),
+            share: dir_path.join("share").into(),
         });
 
         let manifest_json_data = serde_json::json!({
             "metadata": "/metadata.json",
             "component": "/module.wasm",
-            "config": "/config.json",
-            "config_schema": "/config.schema.json",
-            "settings_schema": "/settings.schema.json",
+            "config": {
+                "file": "/config.json",
+                "schema": "/config.schema.json"
+            },
+            "settings": {
+                "schema": "/settings.schema.json"
+            },
             "share": "/share"
         })
         .to_string();
@@ -182,10 +161,16 @@ mod tests {
         assert_eq!(manifest, Manifest {
             metadata: PathBuf::from("/metadata.json"),
             component: PathBuf::from("/module.wasm"),
-            config: Some(PathBuf::from("/config.json")),
-            config_schema: Some(PathBuf::from("/config.schema.json")),
-            settings_schema: Some(PathBuf::from("/settings.schema.json")),
-            share: Some(PathBuf::from("/share")),
+            config: Config {
+                file: PathBuf::from("/config.json").into(),
+                schema: PathBuf::from("/config.schema.json"),
+            }
+            .into(),
+            settings: Settings {
+                schema: PathBuf::from("/settings.schema.json"),
+            }
+            .into(),
+            share: PathBuf::from("/share").into(),
         });
 
         let path = dir_path.join("manifest.json");
@@ -196,8 +181,7 @@ mod tests {
             metadata: dir_path.join("metadata.json"),
             component: dir_path.join("module.wasm"),
             config: None,
-            config_schema: None,
-            settings_schema: None,
+            settings: None,
             share: None,
         });
     }

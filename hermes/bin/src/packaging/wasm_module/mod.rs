@@ -39,17 +39,16 @@ impl WasmModulePackage {
             .unwrap_or_else(|err| errors.add_err(err));
 
         if let Some(config) = manifest.config {
-            copy_file_from_dir_to_package(config, &package)
+            if let Some(config_file) = config.file {
+                copy_file_from_dir_to_package(config_file, &package)
+                    .unwrap_or_else(|err| errors.add_err(err));
+            }
+            copy_file_from_dir_to_package(config.schema, &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
 
-        if let Some(config_schema) = manifest.config_schema {
-            copy_file_from_dir_to_package(config_schema, &package)
-                .unwrap_or_else(|err| errors.add_err(err));
-        }
-
-        if let Some(settings_schema) = manifest.settings_schema {
-            copy_file_from_dir_to_package(settings_schema, &package)
+        if let Some(settings) = manifest.settings {
+            copy_file_from_dir_to_package(settings.schema, &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
 
@@ -72,6 +71,7 @@ impl WasmModulePackage {
 
 #[cfg(test)]
 mod tests {
+    use manifest::{Config, Settings};
     use temp_dir::TempDir;
 
     use super::*;
@@ -96,9 +96,15 @@ mod tests {
         let manifest = Manifest {
             metadata: metadata_path,
             component: component_path,
-            config: Some(config_path),
-            config_schema: Some(config_schema_path),
-            settings_schema: Some(settings_schema_path),
+            config: Config {
+                file: config_path.into(),
+                schema: config_schema_path,
+            }
+            .into(),
+            settings: Settings {
+                schema: settings_schema_path,
+            }
+            .into(),
             share: None,
         };
         WasmModulePackage::from_manifest(manifest, dir.path())
