@@ -135,7 +135,6 @@ mod tests {
         app::HermesAppName,
         runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
     };
-    
 
     fn init() -> *mut sqlite3 {
         let app_name = HermesAppName(String::from("tmp"));
@@ -180,20 +179,6 @@ mod tests {
 
         assert!(result.is_ok());
     }
-
-    /* #[test]
-    fn test_execute_simple() {
-        let db_ptr = init();
-
-        let sql = String::from("SELECT 1;");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
-
-        let result = execute(db_ptr, sql_cstring);
-
-        println!("##########: {:?}", result);
-
-        assert!(result.is_ok())
-    } */
 
     #[test]
     fn test_close_simple() {
