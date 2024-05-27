@@ -48,7 +48,37 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
+    use crate::packaging::get_path_name;
 
+    fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
+        dir: P, package: &hdf5::Group, with_compression: bool,
+    ) -> anyhow::Result<()> {
+        let dir_name = get_path_name(&dir)?;
+        let package = package.create_group(&dir_name)?;
+
+        for dir_entry in std::fs::read_dir(dir)? {
+            let dir_entry = dir_entry?;
+            let path = dir_entry.path();
+            if path.is_dir() {
+                copy_dir_recursively_to_package(&path, &package, with_compression)?;
+            }
+            if path.is_file() {
+                let file_data = std::fs::read(&path)?;
+                let file_name = get_path_name(path)?;
+                let ds = if with_compression {
+                    enable_compression(package.new_dataset_builder())
+                } else {
+                    package.new_dataset_builder()
+                };
+                ds.with_data(&file_data).create(file_name.as_str())?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Test of the blosc compression.
+    /// Copies whole `src` directory into hdf5 packages with blosc compression and without
+    /// it and checks the difference.
     #[test]
     fn blosc_compression_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
@@ -60,20 +90,11 @@ mod tests {
         let uncompressed_hdf5_file =
             File::create(&uncompressed_file_name).expect("cannot create HDF5 file");
 
-        let large_json = "large.json";
-        let large_json_data = std::fs::read(Path::new("src/packaging").join(large_json))
-            .expect("cannot read large.json file");
-
-        enable_compression(compressed_hdf5_file.new_dataset_builder())
-            .with_data(&large_json_data)
-            .create(large_json)
-            .expect("Cannot create dataset for compressed hdf5 package");
-
-        uncompressed_hdf5_file
-            .new_dataset_builder()
-            .with_data(&large_json_data)
-            .create(large_json)
-            .expect("Cannot create dataset for uncompressed hdf5 package");
+        let src_dir_path = Path::new("src");
+        copy_dir_recursively_to_package(src_dir_path, &compressed_hdf5_file, true)
+            .expect("Cannot copy src dir to compressed package");
+        copy_dir_recursively_to_package(src_dir_path, &uncompressed_hdf5_file, false)
+            .expect("Cannot copy src dir to uncompressed package");
 
         let compressed_size = std::fs::read(compressed_file_name)
             .expect("Cannot read hdf5 package bytes")
@@ -82,7 +103,7 @@ mod tests {
             .expect("Cannot read hdf5 package bytes")
             .len();
         assert!(
-            compressed_size == uncompressed_size,
+            compressed_size < uncompressed_size,
             "compressed package size: {compressed_size}, uncompressed package size: {uncompressed_size}",
         );
     }
