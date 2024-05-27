@@ -2,8 +2,12 @@
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
     "metadata": "file://modules/counter/counter_metadata.json",
     "component": "file://counter.wasm",
-    "config_schema": "file://modules/counter/config.schema.json",
-    "config": "file://modules/counter/config.json",
-    "settings_schema": "file://modules/counter/settings.schema.json",
+    "config": {
+        "file": "file://modules/counter/config.json",
+        "schema": "file://modules/counter/config.schema.json"
+    },
+    "settings": {
+        "schema": "file://modules/counter/settings.schema.json"
+    },
     "share": "file://modules/counter/share"
 }
