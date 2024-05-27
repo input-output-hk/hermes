@@ -201,7 +201,7 @@ mod tests {
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
         std::fs::File::create(file_3).expect("Cannot create file_3 file");
-
+ 
         copy_dir_recursively_to_package(dir.path(), &hdf5_file)
             .expect("Cannot copy dir to hdf5 package");
 
