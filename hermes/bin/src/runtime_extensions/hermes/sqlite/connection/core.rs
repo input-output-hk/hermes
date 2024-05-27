@@ -115,11 +115,8 @@ pub(crate) fn prepare(
 pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<(), Errno> {
     let stmt_ptr = prepare(db_ptr, sql)?;
 
-    println!("#######: pass");
-
     let result = unsafe { sqlite3_step(stmt_ptr) };
     if result != SQLITE_DONE {
-        println!("#######: pass {result}");
         return Err(result.into());
     }
 
@@ -127,8 +124,6 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<()
     if result != SQLITE_OK {
         return Err(result.into());
     }
-
-    println!("#######: passed");
 
     Ok(())
 }
