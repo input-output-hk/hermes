@@ -13,6 +13,12 @@
             "pattern": "^(https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/)|(.*/)hermes_module_manifest.schema.json$",
             "description": "Reference to the Application Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
         },
+        "name": {
+            "type": "string",
+            "title": "Hermes Module Package name.",
+            "description": "Name of the Hermes WASM Module Package with which it will be created.",
+            "default": "module"
+        },
         "metadata": {
             "type": "string",
             "title": "Hermes Module Metadata File",

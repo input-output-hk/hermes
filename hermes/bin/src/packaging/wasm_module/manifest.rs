@@ -17,6 +17,9 @@ pub(crate) struct ManifestReadingError(String);
 /// WASM module package manifest.json definition.
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
+    /// Package name.
+    #[serde(default = "Manifest::default_package_name")]
+    pub(crate) name: String,
     /// Path to the metadata JSON file.
     #[serde(default = "Manifest::default_metadata_path")]
     pub(crate) metadata: PathBuf,
@@ -48,6 +51,11 @@ pub(crate) struct Settings {
 }
 
 impl Manifest {
+    /// Default package name.
+    fn default_package_name() -> String {
+        String::from("module")
+    }
+
     /// Default metadata JSON file path.
     fn default_metadata_path() -> PathBuf {
         PathBuf::from("metadata.json")
@@ -129,6 +137,7 @@ mod tests {
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
+            name: "module".to_string(),
             metadata: dir_path.join("metadata.json"),
             component: dir_path.join("module.wasm"),
             config: Config {
@@ -159,6 +168,7 @@ mod tests {
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
+            name: "module".to_string(),
             metadata: PathBuf::from("/metadata.json"),
             component: PathBuf::from("/module.wasm"),
             config: Config {
@@ -178,6 +188,7 @@ mod tests {
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
+            name: "module".to_string(),
             metadata: dir_path.join("metadata.json"),
             component: dir_path.join("module.wasm"),
             config: None,

@@ -21,14 +21,17 @@ pub(crate) struct WasmModulePackage {
 }
 
 impl WasmModulePackage {
+    /// WASM module package file extension.
+    const FILE_EXTENSION: &'static str = "hmod";
+
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn from_manifest<P: AsRef<Path>>(
         manifest: Manifest, output_path: P,
     ) -> anyhow::Result<Self> {
         let mut errors = Errors::new();
 
-        let package_name = "module.hmod";
-        let package_path = output_path.as_ref().join(package_name);
+        let mut package_path = output_path.as_ref().join(manifest.name);
+        package_path.set_extension(Self::FILE_EXTENSION);
         let package =
             hdf5::File::create(&package_path).map_err(|_| CreatePackageError(package_path))?;
 
@@ -94,6 +97,7 @@ mod tests {
             .expect("Cannot create settings.schema.json file");
 
         let manifest = Manifest {
+            name: "module".to_string(),
             metadata: metadata_path,
             component: component_path,
             config: Config {
