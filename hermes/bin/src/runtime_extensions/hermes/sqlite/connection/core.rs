@@ -160,6 +160,36 @@ mod tests {
     }
 
     #[test]
+    fn test_config_simple() {
+        let db_ptr = init();
+
+        let before_schema_status_result = status(db_ptr, StatusOptions::SCHEMA_USED, false);
+
+        let create_table_sql = r"
+            CREATE TABLE IF NOT EXISTS people (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            );
+        ";
+
+        let sql_cstring = std::ffi::CString::new(create_table_sql).unwrap();
+
+        let () = execute(db_ptr, sql_cstring).unwrap();
+
+        let after_schema_status_result = status(db_ptr, StatusOptions::SCHEMA_USED, false);
+
+        let _ = close(db_ptr);
+
+        if let (Ok((after_value, _)), Ok((before_value, _))) =
+            (after_schema_status_result, before_schema_status_result)
+        {
+            assert!(before_value == 0 && after_value > 0);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
     fn test_execute_create_schema_simple() {
         let db_ptr = init();
 
