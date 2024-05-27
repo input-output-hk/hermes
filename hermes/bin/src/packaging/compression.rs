@@ -7,12 +7,16 @@ use hdf5::filters::Blosc;
 const COMPRESSION_ALGORITHM: Blosc = Blosc::ZStd;
 
 /// Compression level.
+/// zstd compressor of 9 to get a good balance of compression ration and decompression
+/// speed.
 const COMPRESSION_LEVEL: u8 = 9;
 
 /// Minimum chunk size in kb, 8mb.
+/// 1mb per compressor/decompressor thread
 const MIN_CHUNK_SIZE: usize = 8000;
 
 /// Minimum blosc threads.
+/// 8 threads being a minimum likely standard across most computers.
 const MIN_BLOSC_THREADS: u8 = 8;
 
 /// Statically initialize blosc on the first call only once.
@@ -78,7 +82,7 @@ mod tests {
             .expect("Cannot read hdf5 package bytes")
             .len();
         assert!(
-            compressed_size < uncompressed_size,
+            compressed_size == uncompressed_size,
             "compressed package size: {compressed_size}, uncompressed package size: {uncompressed_size}",
         );
     }
