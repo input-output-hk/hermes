@@ -33,8 +33,8 @@ impl WasmModulePackage {
         let package_name = package_name.unwrap_or(manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
         package_path.set_extension(Self::FILE_EXTENSION);
-        let package =
-            hdf5::File::create(&package_path).map_err(|_| CreatePackageError(package_path))?;
+        let package = hdf5::File::create(&package_path)
+            .map_err(|_| CreatePackageError(package_path.clone()))?;
 
         copy_file_from_dir_to_package(manifest.metadata, &package)
             .unwrap_or_else(|err| errors.add_err(err));
@@ -66,7 +66,7 @@ impl WasmModulePackage {
         }
 
         if !errors.is_empty() {
-            std::fs::remove_file(output_path).unwrap_or_else(|err| errors.add_err(err.into()));
+            std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
         }
 
         errors.return_result(Self { _package: package })
