@@ -1,5 +1,6 @@
 //! `SQLite` connection object host implementation for WASM runtime.
 
+use anyhow::Ok;
 use libsqlite3_sys::sqlite3;
 
 use crate::{
@@ -112,7 +113,11 @@ impl HostSqlite for HermesRuntimeContext {
         Ok(core::execute(db_ptr, sql_cstring))
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        core::close(db_ptr);
+
+        Ok(())
     }
 }
