@@ -6,7 +6,7 @@ pub mod app;
 pub mod cli;
 pub mod errors;
 pub mod event;
-#[allow(dead_code)]
+pub mod json_schema_validation;
 pub mod logger;
 pub mod packaging;
 pub mod reactor;

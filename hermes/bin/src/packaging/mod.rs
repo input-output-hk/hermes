@@ -46,8 +46,8 @@ fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
 
 /// Dir not found error.
 #[derive(thiserror::Error, Debug)]
-#[error("Dir {0} not found")]
-pub(crate) struct DirNotFoundError(String);
+#[error("Directory not found at {0}")]
+pub(crate) struct DirNotFoundError(PathBuf);
 
 /// Copy dir to hdf5 package recursively.
 pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
@@ -58,7 +58,7 @@ pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
 
     let entries = std::fs::read_dir(&dir).map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
-            anyhow::Error::new(DirNotFoundError(dir_name))
+            anyhow::Error::new(DirNotFoundError(dir.as_ref().into()))
         } else {
             anyhow::Error::new(err)
         }
@@ -201,7 +201,7 @@ mod tests {
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
         std::fs::File::create(file_3).expect("Cannot create file_3 file");
- 
+
         copy_dir_recursively_to_package(dir.path(), &hdf5_file)
             .expect("Cannot copy dir to hdf5 package");
 

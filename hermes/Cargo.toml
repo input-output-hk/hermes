@@ -89,3 +89,4 @@ hdf5 = { git="https://github.com/aldanor/hdf5-rust.git", rev="694e900972fbf5ffbd
 console = "0.15.8"
 serde = "1.0"
 serde_json = "1.0"
+jsonschema = "0.18.0"

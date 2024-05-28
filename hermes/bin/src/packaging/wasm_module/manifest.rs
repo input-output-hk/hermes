@@ -2,7 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+use crate::json_schema_validation::JsonSchema;
 
 /// Manifest file open and read error.
 #[derive(thiserror::Error, Debug)]
@@ -11,11 +13,11 @@ pub(crate) struct ManifestFileError(PathBuf);
 
 /// WASM module package manifest reading error.
 #[derive(thiserror::Error, Debug)]
-#[error("WASM module manifest json file reading error: {0}")]
+#[error("WASM module manifest json file reading errors:\n{0}")]
 pub(crate) struct ManifestReadingError(String);
 
 /// WASM module package manifest.json definition.
-#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Package name.
     #[serde(default = "Manifest::default_package_name")]
@@ -35,7 +37,7 @@ pub(crate) struct Manifest {
 }
 
 /// WASM module config definition.
-#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Config {
     /// Path to the config JSON file.
     pub(crate) file: Option<PathBuf>,
@@ -44,13 +46,17 @@ pub(crate) struct Config {
 }
 
 /// WASM module settings definition.
-#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Settings {
     /// Path to the settings schema JSON file.
     pub(crate) schema: PathBuf,
 }
 
 impl Manifest {
+    /// WASM module manifest JSON schema.
+    const MANIFEST_SCHEMA: &'static str =
+        include_str!("../../../../schemas/hermes_module_manifest.schema.json");
+
     /// Default package name.
     fn default_package_name() -> String {
         String::from("module")
@@ -75,8 +81,10 @@ impl Manifest {
             .parent()
             .ok_or_else(|| ManifestFileError(path.into()))?;
 
-        let mut manifest: Manifest =
-            serde_json::from_reader(file).map_err(|err| ManifestReadingError(err.to_string()))?;
+        let schema = JsonSchema::from_str(Self::MANIFEST_SCHEMA)?;
+        let mut manifest: Manifest = schema
+            .deserialize_and_validate(file)
+            .map_err(|err| ManifestReadingError(err.to_string()))?;
 
         if manifest.metadata.is_relative() {
             manifest.metadata = dir_path.join(&manifest.metadata);
