@@ -1,4 +1,6 @@
-///! Core functionality implementation for `SQLite` statement object.
+use std::os::raw::c_char;
+
+/// ! Core functionality implementation for `SQLite` statement object.
 use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_blob, sqlite3_column_bytes,
@@ -8,21 +10,21 @@ use libsqlite3_sys::{
     SQLITE_TRANSIENT,
 };
 
-use std::os::raw::c_char;
-
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
 
 /// Stores application data into parameters of the original SQL.
 pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Result<(), Errno> {
     let result = unsafe {
         match value {
-            Value::Blob(value) => sqlite3_bind_blob(
-                stmt_ptr,
-                index,
-                value.as_ptr().cast::<std::ffi::c_void>(),
-                value.len() as i32,
-                SQLITE_TRANSIENT(),
-            ),
+            Value::Blob(value) => {
+                sqlite3_bind_blob(
+                    stmt_ptr,
+                    index,
+                    value.as_ptr().cast::<std::ffi::c_void>(),
+                    value.len() as i32,
+                    SQLITE_TRANSIENT(),
+                )
+            },
             Value::Double(value) => sqlite3_bind_double(stmt_ptr, index, value),
             Value::Int32(value) => sqlite3_bind_int(stmt_ptr, index, value),
             Value::Int64(value) => sqlite3_bind_int64(stmt_ptr, index, value),
@@ -120,6 +122,8 @@ pub(crate) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
 
 #[cfg(test)]
 mod tests {
+    use libsqlite3_sys::*;
+
     use super::*;
     use crate::{
         app::HermesAppName,
@@ -128,7 +132,6 @@ mod tests {
             core::open,
         },
     };
-    use libsqlite3_sys::*;
 
     fn init() -> *mut sqlite3 {
         let app_name = HermesAppName(String::from("tmp"));

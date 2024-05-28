@@ -215,13 +215,15 @@ fn process_chain_update(
             process_block_chain_update(module_state_key, chain_id, block_data, event_subscriptions)
                 .context("Processing block chain update")
         },
-        cardano_chain_follower::ChainUpdate::Rollback(block_data) => process_rollback_chain_update(
-            module_state_key,
-            chain_id,
-            &block_data,
-            event_subscriptions,
-        )
-        .context("Processing rollback chain update"),
+        cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
+            process_rollback_chain_update(
+                module_state_key,
+                chain_id,
+                &block_data,
+                event_subscriptions,
+            )
+            .context("Processing rollback chain update")
+        },
     }
 }
 

@@ -1,4 +1,4 @@
-///! Core functionality implementation for `SQLite` connection object.
+/// ! Core functionality implementation for `SQLite` connection object.
 use libsqlite3_sys::{
     sqlite3, sqlite3_close_v2, sqlite3_db_status, sqlite3_finalize, sqlite3_prepare_v3,
     sqlite3_step, sqlite3_stmt, SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS,

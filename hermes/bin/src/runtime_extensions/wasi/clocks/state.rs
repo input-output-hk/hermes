@@ -66,9 +66,11 @@ pub(crate) fn monotonic_clock_res() -> Instant {
 pub(crate) fn wall_clock_now() -> wasmtime::Result<Datetime> {
     Ok(SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| Datetime {
-            seconds: d.as_secs(),
-            nanoseconds: d.subsec_nanos(),
+        .map(|d| {
+            Datetime {
+                seconds: d.as_secs(),
+                nanoseconds: d.subsec_nanos(),
+            }
         })?)
 }
 

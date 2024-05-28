@@ -159,17 +159,14 @@ mod tests {
         .to_string();
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
-        assert_eq!(
-            manifest,
-            Manifest {
-                metadata: dir_path.join("metadata.json"),
-                component: dir_path.join("module.wasm"),
-                config: Some(dir_path.join("config.json")),
-                config_schema: Some(dir_path.join("config.schema.json")),
-                settings_schema: Some(dir_path.join("settings.schema.json")),
-                share: Some(dir_path.join("share")),
-            }
-        );
+        assert_eq!(manifest, Manifest {
+            metadata: dir_path.join("metadata.json"),
+            component: dir_path.join("module.wasm"),
+            config: Some(dir_path.join("config.json")),
+            config_schema: Some(dir_path.join("config.schema.json")),
+            settings_schema: Some(dir_path.join("settings.schema.json")),
+            share: Some(dir_path.join("share")),
+        });
 
         let manifest_json_data = serde_json::json!({
             "metadata": "/metadata.json",
@@ -182,32 +179,26 @@ mod tests {
         .to_string();
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(path).expect("Cannot create manifest");
-        assert_eq!(
-            manifest,
-            Manifest {
-                metadata: PathBuf::from("/metadata.json"),
-                component: PathBuf::from("/module.wasm"),
-                config: Some(PathBuf::from("/config.json")),
-                config_schema: Some(PathBuf::from("/config.schema.json")),
-                settings_schema: Some(PathBuf::from("/settings.schema.json")),
-                share: Some(PathBuf::from("/share")),
-            }
-        );
+        assert_eq!(manifest, Manifest {
+            metadata: PathBuf::from("/metadata.json"),
+            component: PathBuf::from("/module.wasm"),
+            config: Some(PathBuf::from("/config.json")),
+            config_schema: Some(PathBuf::from("/config.schema.json")),
+            settings_schema: Some(PathBuf::from("/settings.schema.json")),
+            share: Some(PathBuf::from("/share")),
+        });
 
         let path = dir_path.join("manifest.json");
         let manifest_json_data = serde_json::json!({}).to_string();
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
-        assert_eq!(
-            manifest,
-            Manifest {
-                metadata: dir_path.join("metadata.json"),
-                component: dir_path.join("module.wasm"),
-                config: None,
-                config_schema: None,
-                settings_schema: None,
-                share: None,
-            }
-        );
+        assert_eq!(manifest, Manifest {
+            metadata: dir_path.join("metadata.json"),
+            component: dir_path.join("module.wasm"),
+            config: None,
+            config_schema: None,
+            settings_schema: None,
+            share: None,
+        });
     }
 }

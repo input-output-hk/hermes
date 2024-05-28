@@ -62,9 +62,11 @@ impl Cli {
             None => run::Run::exec(),
             Some(Commands::Module(cmd)) => cmd.exec(),
         }
-        .unwrap_or_else(|err| match err.downcast::<Errors>() {
-            Ok(errs) => errors.merge(errs),
-            Err(err) => errors.add_err(err),
+        .unwrap_or_else(|err| {
+            match err.downcast::<Errors>() {
+                Ok(errs) => errors.merge(errs),
+                Err(err) => errors.add_err(err),
+            }
         });
 
         if !errors.is_empty() {

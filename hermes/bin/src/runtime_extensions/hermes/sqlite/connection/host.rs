@@ -3,14 +3,13 @@
 use anyhow::Ok;
 use libsqlite3_sys::sqlite3;
 
+use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
         Errno, HostSqlite, Sqlite, Statement, StatusOptions,
     },
 };
-
-use super::core;
 
 impl HostSqlite for HermesRuntimeContext {
     /// Closes a database connection, destructor for `sqlite3`.

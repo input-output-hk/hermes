@@ -1,7 +1,6 @@
 //! `SQLite` host implementation for WASM runtime.
 
 use super::core;
-
 use crate::{
     app::HermesAppName,
     runtime_context::HermesRuntimeContext,
@@ -31,18 +30,26 @@ impl Host for HermesRuntimeContext {
             Ok(db_ptr) => db_ptr,
             Err(err) => {
                 return match err {
-                    core::OpenError::InvalidInMemoryConfig => Err(wasmtime::Error::msg(
-                        "In-memory config is not set for a in-memory option",
-                    )),
-                    core::OpenError::InvalidPersistentConfig => Err(wasmtime::Error::msg(
-                        "Persistent config is not set for a non-memory option",
-                    )),
-                    core::OpenError::MissingDatabaseNameForPersistentConfig => Err(
-                        wasmtime::Error::msg("Database name is not set for a database file config"),
-                    ),
-                    core::OpenError::FailedOpeningDatabase => Err(wasmtime::Error::msg(
-                        "Error opening a connection to the database",
-                    )),
+                    core::OpenError::InvalidInMemoryConfig => {
+                        Err(wasmtime::Error::msg(
+                            "In-memory config is not set for a in-memory option",
+                        ))
+                    },
+                    core::OpenError::InvalidPersistentConfig => {
+                        Err(wasmtime::Error::msg(
+                            "Persistent config is not set for a non-memory option",
+                        ))
+                    },
+                    core::OpenError::MissingDatabaseNameForPersistentConfig => {
+                        Err(wasmtime::Error::msg(
+                            "Database name is not set for a database file config",
+                        ))
+                    },
+                    core::OpenError::FailedOpeningDatabase => {
+                        Err(wasmtime::Error::msg(
+                            "Error opening a connection to the database",
+                        ))
+                    },
                     core::OpenError::FailedSettingDatabaseSize => {
                         Err(wasmtime::Error::msg("Error setting database size"))
                     },

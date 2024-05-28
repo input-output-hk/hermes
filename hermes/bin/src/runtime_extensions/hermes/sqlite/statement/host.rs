@@ -3,7 +3,6 @@
 use libsqlite3_sys::sqlite3_stmt;
 
 use super::core;
-
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{Errno, HostStatement, Statement, Value},
