@@ -7,7 +7,7 @@ use libsqlite3_sys::{
 use crate::{
     app::HermesAppName,
     runtime_extensions::{
-        app_config::{get_app_inmemory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg},
+        app_config::{get_app_in_memory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg},
         bindings::hermes::sqlite::api::Errno,
     },
 };
@@ -36,12 +36,12 @@ pub(super) fn open(
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
     let (db_path, config) = if memory {
-        let inmemory_config = match get_app_inmemory_sqlite_db_cfg(app_name) {
+        let in_memory_config = match get_app_in_memory_sqlite_db_cfg(app_name) {
             Some(config) => config,
             None => return Err(OpenError::InvalidInMemoryConfig),
         };
 
-        (":memory:".into(), inmemory_config)
+        (":memory:".into(), in_memory_config)
     } else {
         let persistent_config = match get_app_persistent_sqlite_db_cfg(app_name) {
             Some(config) => config,
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_inmemory() {
+    fn test_open_in_memory() {
         let app_name = HermesAppName(String::from("tmp"));
 
         let db_ptr = open(false, true, app_name);
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_inmemory_readonly() {
+    fn test_open_in_memory_readonly() {
         let app_name = HermesAppName(String::from("tmp"));
 
         let db_ptr = open(true, true, app_name);

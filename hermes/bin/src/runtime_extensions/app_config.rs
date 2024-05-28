@@ -21,7 +21,7 @@ pub(crate) fn get_app_persistent_sqlite_db_cfg(_app_name: HermesAppName) -> Opti
     })
 }
 
-pub(crate) fn get_app_inmemory_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
+pub(crate) fn get_app_in_memory_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
     Some(SqliteConfig {
         db_file: None,
         max_db_size: 1_048_576,
