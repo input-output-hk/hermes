@@ -1,13 +1,13 @@
 //! Hermes packaging.
 
 #[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
-mod resourses;
+mod resources;
 mod schema_validation;
 pub(crate) mod wasm_module;
 
 use std::{io::Read, path::PathBuf};
 
-use resourses::Resource;
+use resources::Resource;
 
 use crate::errors::Errors;
 

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::packaging::{resourses::Resource, schema_validation::SchemaValidator};
+use crate::packaging::{resources::Resource, schema_validation::SchemaValidator};
 
 /// Manifest file open and read error.
 #[derive(thiserror::Error, Debug)]

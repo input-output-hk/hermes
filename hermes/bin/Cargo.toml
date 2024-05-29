@@ -59,6 +59,7 @@ console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 jsonschema = { workspace = true }
+uri_parser = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
