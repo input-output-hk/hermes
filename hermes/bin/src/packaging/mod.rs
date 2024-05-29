@@ -1,5 +1,6 @@
 //! Hermes packaging.
 
+mod schema_validation;
 pub(crate) mod wasm_module;
 
 use std::path::PathBuf;

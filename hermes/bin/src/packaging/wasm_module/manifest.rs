@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::json_schema_validation::JsonSchema;
+use crate::packaging::schema_validation::SchemaValidator;
 
 /// Manifest file open and read error.
 #[derive(thiserror::Error, Debug)]
@@ -81,8 +81,8 @@ impl Manifest {
             .parent()
             .ok_or_else(|| ManifestFileError(path.into()))?;
 
-        let schema = JsonSchema::from_str(Self::MANIFEST_SCHEMA)?;
-        let mut manifest: Manifest = schema
+        let schema_validator = SchemaValidator::from_str(Self::MANIFEST_SCHEMA)?;
+        let mut manifest: Manifest = schema_validator
             .deserialize_and_validate(file)
             .map_err(|err| ManifestReadingError(err.to_string()))?;
 
@@ -92,6 +92,7 @@ impl Manifest {
         if manifest.component.is_relative() {
             manifest.component = dir_path.join(&manifest.component);
         }
+
         if let Some(config) = &mut manifest.config {
             if let Some(config_file) = &mut config.file {
                 if config_file.is_relative() {

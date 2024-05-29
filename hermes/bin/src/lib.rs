@@ -6,7 +6,6 @@ pub mod app;
 pub mod cli;
 pub mod errors;
 pub mod event;
-pub mod json_schema_validation;
 pub mod logger;
 pub mod packaging;
 pub mod reactor;

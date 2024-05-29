@@ -13,15 +13,13 @@ use crate::errors::Errors;
 pub(crate) struct InvalidJsonSchema(String);
 
 /// Json Schema Draft 7 Validator.
-#[allow(dead_code)]
 #[derive(Debug)]
-pub(crate) struct JsonSchema {
+pub(crate) struct SchemaValidator {
     /// JSON schema validator instance.
     schema: JSONSchema,
 }
 
-#[allow(dead_code)]
-impl JsonSchema {
+impl SchemaValidator {
     /// Create a new json schema validator from string.
     pub(crate) fn from_str(schema_str: &str) -> anyhow::Result<Self> {
         let schema =

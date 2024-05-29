@@ -4,7 +4,6 @@ mod app;
 mod cli;
 mod errors;
 mod event;
-mod json_schema_validation;
 mod logger;
 mod packaging;
 mod reactor;
