@@ -55,7 +55,7 @@ pub(crate) fn prepare(
 
     let n_byte = sql.as_bytes_with_nul().len();
 
-    let result = unsafe {
+    let rc = unsafe {
         sqlite3_prepare_v3(
             db_ptr,
             sql.as_ptr(),
@@ -66,8 +66,8 @@ pub(crate) fn prepare(
         )
     };
 
-    if result != SQLITE_OK {
-        Err(result.into())
+    if rc != SQLITE_OK {
+        Err(Errno::Sqlite(rc))
     } else {
         Ok(stmt_ptr)
     }
@@ -78,14 +78,14 @@ pub(crate) fn prepare(
 pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<(), Errno> {
     let stmt_ptr = prepare(db_ptr, sql)?;
 
-    let result = unsafe { sqlite3_step(stmt_ptr) };
-    if result != SQLITE_DONE {
-        return Err(result.into());
+    let rc = unsafe { sqlite3_step(stmt_ptr) };
+    if rc != SQLITE_DONE {
+        return Err(Errno::Sqlite(rc));
     }
 
-    let result = unsafe { sqlite3_finalize(stmt_ptr) };
-    if result != SQLITE_OK {
-        return Err(result.into());
+    let rc = unsafe { sqlite3_finalize(stmt_ptr) };
+    if rc != SQLITE_OK {
+        return Err(Errno::Sqlite(rc));
     }
 
     Ok(())

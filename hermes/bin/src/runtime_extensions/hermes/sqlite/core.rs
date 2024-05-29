@@ -12,6 +12,8 @@ use crate::{
     },
 };
 
+const PAGE_SIZE: u32 = 4_096;
+
 /// Represents the various errors that can occur when opening a database.
 #[derive(Debug)]
 pub(super) enum OpenError {
@@ -84,7 +86,7 @@ pub(super) fn open(
 
         SQLITE_OK
     } else {
-        let page_size = config.max_db_size / 4_096;
+        let page_size = config.max_db_size / PAGE_SIZE;
         let pragma_stmt = format!("PRAGMA max_page_count = {page_size}");
 
         let c_pragma_stmt = match std::ffi::CString::new(pragma_stmt) {
