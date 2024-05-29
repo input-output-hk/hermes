@@ -2,9 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::packaging::schema_validation::SchemaValidator;
+use crate::packaging::{resourses::Resource, schema_validation::SchemaValidator};
 
 /// Manifest file open and read error.
 #[derive(thiserror::Error, Debug)]
@@ -17,17 +17,17 @@ pub(crate) struct ManifestFileError(PathBuf);
 pub(crate) struct ManifestReadingError(String);
 
 /// WASM module package manifest.json definition.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Package name.
     #[serde(default = "Manifest::default_package_name")]
     pub(crate) name: String,
     /// Path to the metadata JSON file.
     #[serde(default = "Manifest::default_metadata_path")]
-    pub(crate) metadata: PathBuf,
+    pub(crate) metadata: Resource,
     /// Path to the  WASM component file.
     #[serde(default = "Manifest::default_component_path")]
-    pub(crate) component: PathBuf,
+    pub(crate) component: Resource,
     /// WASM module config.
     pub(crate) config: Option<Config>,
     /// WASM module settings.
@@ -37,19 +37,19 @@ pub(crate) struct Manifest {
 }
 
 /// WASM module config definition.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub(crate) struct Config {
     /// Path to the config JSON file.
-    pub(crate) file: Option<PathBuf>,
+    pub(crate) file: Option<Resource>,
     /// Path to the config schema JSON file.
-    pub(crate) schema: PathBuf,
+    pub(crate) schema: Resource,
 }
 
 /// WASM module settings definition.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub(crate) struct Settings {
     /// Path to the settings schema JSON file.
-    pub(crate) schema: PathBuf,
+    pub(crate) schema: Resource,
 }
 
 impl Manifest {
@@ -63,13 +63,13 @@ impl Manifest {
     }
 
     /// Default metadata JSON file path.
-    fn default_metadata_path() -> PathBuf {
-        PathBuf::from("metadata.json")
+    fn default_metadata_path() -> Resource {
+        PathBuf::from("metadata.json").into()
     }
 
     /// Default WASM component file path.
-    fn default_component_path() -> PathBuf {
-        PathBuf::from("module.wasm")
+    fn default_component_path() -> Resource {
+        PathBuf::from("module.wasm").into()
     }
 
     /// Create a Manifest from a path.
@@ -86,27 +86,16 @@ impl Manifest {
             .deserialize_and_validate(file)
             .map_err(|err| ManifestReadingError(err.to_string()))?;
 
-        if manifest.metadata.is_relative() {
-            manifest.metadata = dir_path.join(&manifest.metadata);
-        }
-        if manifest.component.is_relative() {
-            manifest.component = dir_path.join(&manifest.component);
-        }
-
+        manifest.metadata.make_relative_to(dir_path);
+        manifest.component.make_relative_to(dir_path);
         if let Some(config) = &mut manifest.config {
             if let Some(config_file) = &mut config.file {
-                if config_file.is_relative() {
-                    *config_file = dir_path.join(&config_file);
-                }
+                config_file.make_relative_to(dir_path);
             }
-            if config.schema.is_relative() {
-                config.schema = dir_path.join(&config.schema);
-            }
+            config.schema.make_relative_to(dir_path);
         }
         if let Some(settings) = &mut manifest.settings {
-            if settings.schema.is_relative() {
-                settings.schema = dir_path.join(&settings.schema);
-            }
+            settings.schema.make_relative_to(dir_path);
         }
         if let Some(share) = &mut manifest.share {
             if share.is_relative() {
@@ -148,15 +137,15 @@ mod tests {
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
             name: "module".to_string(),
-            metadata: dir_path.join("metadata.json"),
-            component: dir_path.join("module.wasm"),
+            metadata: dir_path.join("metadata.json").into(),
+            component: dir_path.join("module.wasm").into(),
             config: Config {
-                file: dir_path.join("config.json").into(),
-                schema: dir_path.join("config.schema.json"),
+                file: Some(dir_path.join("config.json").into()),
+                schema: dir_path.join("config.schema.json").into(),
             }
             .into(),
             settings: Settings {
-                schema: dir_path.join("settings.schema.json"),
+                schema: dir_path.join("settings.schema.json").into(),
             }
             .into(),
             share: dir_path.join("share").into(),
@@ -180,15 +169,15 @@ mod tests {
         let manifest = Manifest::from_file(path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
             name: "module".to_string(),
-            metadata: PathBuf::from("/metadata.json"),
-            component: PathBuf::from("/module.wasm"),
+            metadata: PathBuf::from("/metadata.json").into(),
+            component: PathBuf::from("/module.wasm").into(),
             config: Config {
-                file: PathBuf::from("/config.json").into(),
-                schema: PathBuf::from("/config.schema.json"),
+                file: Some(PathBuf::from("/config.json").into()),
+                schema: PathBuf::from("/config.schema.json").into(),
             }
             .into(),
             settings: Settings {
-                schema: PathBuf::from("/settings.schema.json"),
+                schema: PathBuf::from("/settings.schema.json").into(),
             }
             .into(),
             share: PathBuf::from("/share").into(),
@@ -203,8 +192,8 @@ mod tests {
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
             name: "module".to_string(),
-            metadata: dir_path.join("metadata.json"),
-            component: dir_path.join("module.wasm"),
+            metadata: dir_path.join("metadata.json").into(),
+            component: dir_path.join("module.wasm").into(),
             config: None,
             settings: None,
             share: None,

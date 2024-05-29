@@ -5,7 +5,7 @@ pub(crate) mod manifest;
 use std::path::{Path, PathBuf};
 
 use self::manifest::Manifest;
-use super::{copy_dir_recursively_to_package, copy_file_from_dir_to_package};
+use super::{copy_dir_recursively_to_package, copy_resource_to_package};
 use crate::errors::Errors;
 
 /// Create WASM module package error.
@@ -36,23 +36,23 @@ impl WasmModulePackage {
         let package = hdf5::File::create(&package_path)
             .map_err(|_| CreatePackageError(package_path.clone()))?;
 
-        copy_file_from_dir_to_package(manifest.metadata, &package)
+        copy_resource_to_package(&manifest.metadata, &package)
             .unwrap_or_else(|err| errors.add_err(err));
 
-        copy_file_from_dir_to_package(manifest.component, &package)
+        copy_resource_to_package(&manifest.component, &package)
             .unwrap_or_else(|err| errors.add_err(err));
 
         if let Some(config) = manifest.config {
             if let Some(config_file) = config.file {
-                copy_file_from_dir_to_package(config_file, &package)
+                copy_resource_to_package(&config_file, &package)
                     .unwrap_or_else(|err| errors.add_err(err));
             }
-            copy_file_from_dir_to_package(config.schema, &package)
+            copy_resource_to_package(&config.schema, &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
 
         if let Some(settings) = manifest.settings {
-            copy_file_from_dir_to_package(settings.schema, &package)
+            copy_resource_to_package(&settings.schema, &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
 
@@ -99,15 +99,15 @@ mod tests {
 
         let manifest = Manifest {
             name: "module".to_string(),
-            metadata: metadata_path,
-            component: component_path,
+            metadata: metadata_path.into(),
+            component: component_path.into(),
             config: Config {
-                file: config_path.into(),
-                schema: config_schema_path,
+                file: Some(config_path.into()),
+                schema: config_schema_path.into(),
             }
             .into(),
             settings: Settings {
-                schema: settings_schema_path,
+                schema: settings_schema_path.into(),
             }
             .into(),
             share: None,

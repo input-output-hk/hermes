@@ -1,10 +1,13 @@
 //! Hermes packaging.
 
+#[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 mod resourses;
 mod schema_validation;
 pub(crate) mod wasm_module;
 
-use std::path::PathBuf;
+use std::{io::Read, path::PathBuf};
+
+use resourses::Resource;
 
 use crate::errors::Errors;
 
@@ -19,29 +22,18 @@ fn get_path_name<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<String> {
         .to_string())
 }
 
-/// File not found error.
-#[derive(thiserror::Error, Debug)]
-#[error("File not found at {0}")]
-pub(crate) struct FileNotFoundError(PathBuf);
+/// Copy resource to hdf5 package.
+fn copy_resource_to_package(resource: &Resource, package: &hdf5::Group) -> anyhow::Result<()> {
+    let mut reader = resource.get_reader()?;
+    let resource_name = resource.name()?;
 
-/// Copy file to hdf5 package.
-fn copy_file_from_dir_to_package<P: AsRef<std::path::Path>>(
-    file_path: P, package: &hdf5::Group,
-) -> anyhow::Result<()> {
-    let file_data = std::fs::read(&file_path).map_err(|err| {
-        if err.kind() == std::io::ErrorKind::NotFound {
-            anyhow::Error::new(FileNotFoundError(file_path.as_ref().into()))
-        } else {
-            anyhow::Error::new(err)
-        }
-    })?;
-
-    let file_name = get_path_name(&file_path)?;
+    let mut resource_data = Vec::new();
+    reader.read_to_end(&mut resource_data)?;
 
     package
         .new_dataset_builder()
-        .with_data(&file_data)
-        .create(file_name.as_str())?;
+        .with_data(&resource_data)
+        .create(resource_name.as_str())?;
 
     Ok(())
 }
@@ -79,7 +71,7 @@ pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
             });
         }
         if path.is_file() {
-            copy_file_from_dir_to_package(&path, &package)
+            copy_resource_to_package(&path.into(), &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
     }
@@ -88,8 +80,6 @@ pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use hdf5::File;
     use temp_dir::TempDir;
 
@@ -108,7 +98,7 @@ mod tests {
         std::fs::write(&metadata_json_path, metadata_json_data)
             .expect("Cannot write data to metadata.json");
 
-        copy_file_from_dir_to_package(&metadata_json_path, &hdf5_file)
+        copy_resource_to_package(&metadata_json_path.into(), &hdf5_file)
             .expect("Cannot copy metadata.json to hdf5 package");
 
         let metadata_json_ds = hdf5_file
@@ -121,63 +111,6 @@ mod tests {
         )
         .expect("cannot parse metadata.json dataset");
         assert_eq!(data, metadata_json_data);
-    }
-
-    #[test]
-    fn copy_file_to_package_not_found_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let file_name = dir.child("test.hdf5");
-        let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
-
-        let metadata_json = "metadata.json";
-
-        let err = copy_file_from_dir_to_package(dir.path().join(metadata_json), &hdf5_file)
-            .expect_err("Should return error");
-
-        assert!(err.is::<FileNotFoundError>());
-    }
-
-    #[test]
-    #[ignore]
-    fn blosc_compression_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let compressed_file_name = dir.child("compressed_test.hdf5");
-        let compressed_hdf5_file =
-            File::create(&compressed_file_name).expect("cannot create HDF5 file");
-        let uncompressed_file_name = dir.child("uncompressed_test.hdf5");
-        let uncompressed_hdf5_file =
-            File::create(&uncompressed_file_name).expect("cannot create HDF5 file");
-
-        let large_json = "large.json";
-        let large_json_data = std::fs::read(Path::new("src/packaging").join(large_json))
-            .expect("cannot read large.json file");
-
-        uncompressed_hdf5_file
-            .new_dataset_builder()
-            .with_data(&large_json_data)
-            .create(large_json)
-            .expect("Cannot create dataset for uncompressed hdf5 package");
-
-        copy_file_from_dir_to_package(
-            Path::new("src/packaging").join(large_json),
-            &compressed_hdf5_file,
-        )
-        .expect("Cannot copy metadata.json to hdf5 package");
-
-        println!(
-            "compressed package size: {}",
-            std::fs::read(compressed_file_name)
-                .expect("Cannot read hdf5 package bytes")
-                .len()
-        );
-        println!(
-            "uncompressed package size: {}",
-            std::fs::read(uncompressed_file_name)
-                .expect("Cannot read hdf5 package bytes")
-                .len()
-        );
     }
 
     #[test]
