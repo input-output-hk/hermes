@@ -7,7 +7,7 @@ use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
-        Errno, HostSqlite, Sqlite, Statement, StatusOptions,
+        Errno, HostSqlite, Sqlite, Statement, Error,
     },
 };
 
@@ -30,26 +30,17 @@ impl HostSqlite for HermesRuntimeContext {
         Ok(core::close(db_ptr))
     }
 
-    /// Retrieves runtime status information about a single database connection.
+    /// Retrieves the numeric result code for the most recent failed SQLite operation on a database connection.
     ///
-    /// ## Parameters
+    /// # Returns
     ///
-    /// - `opt`: An integer constant, taken from the set of `status-options`, that
-    ///   determines the parameter to interrogate.
-    /// - `reset-flag`: If is true, then the highest instantaneous value is reset back
-    ///   down to the current value.
-    ///
-    /// ## Returns
-    ///
-    /// A tuple of the current value of the requested parameter, and the highest
-    /// instantaneous value on success, and an error code on failure.
-    fn status(
-        &mut self, resource: wasmtime::component::Resource<Sqlite>, opt: StatusOptions,
-        reset_flag: bool,
-    ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
+    /// The numeric result code for the most recent failed SQLite operation.
+    fn errcode(
+        &mut self, resource: wasmtime::component::Resource<Sqlite>,
+    ) -> wasmtime::Result<Error> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        Ok(core::status(db_ptr, opt, reset_flag))
+        Ok(core::close(db_ptr))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
