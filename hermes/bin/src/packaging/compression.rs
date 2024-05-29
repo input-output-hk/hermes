@@ -1,5 +1,5 @@
 //! Enabling blosc compression for the hdf5 package.
-// cspell: words nthreads
+// cspell: words nthreads decompressor
 
 use hdf5::filters::Blosc;
 
