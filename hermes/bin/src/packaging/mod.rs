@@ -1,5 +1,6 @@
 //! Hermes packaging.
 
+mod resourses;
 mod schema_validation;
 pub(crate) mod wasm_module;
 

@@ -20,20 +20,34 @@
             "default": "module"
         },
         "metadata": {
-            "type": "string",
             "title": "Hermes Module Metadata File",
             "description": "Link to the Hermes Module Metadata json file.\nWill be renamed to `metadata.json` inside the module.",
-            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
-            "format": "uri",
-            "default": "file://metadata.json"
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                    "format": "uri"
+                },
+                {
+                    "type": "string"
+                }
+            ],
+            "default": "metadata.json"
         },
         "component": {
-            "type": "string",
             "title": "WASM Component File",
             "description": "Link to the Hermes Module WASM Component file.\nThis is a fully compiled and linked WASM Object file.\nWill be renamed to `module.wasm` inside the module.",
-            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+\\.wasm))+$",
-            "format": "uri",
-            "default": "file://module.wasm"
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                    "format": "uri"
+                },
+                {
+                    "type": "string"
+                }
+            ],
+            "default": "module.wasm"
         },
         "config": {
             "type": "object",
@@ -41,18 +55,32 @@
             "description": "Object representing the Application Module Config File.",
             "properties": {
                 "file": {
-                    "type": "string",
                     "title": "Application Module Config File Location",
                     "description": "Path to the WASM Component Library Module Config File.\nThis will be renamed to `config.json` inside the module.",
-                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
-                    "format": "uri"
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                            "format": "uri"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 },
                 "schema": {
-                    "type": "string",
                     "title": "Application Module Config Schema Location",
                     "description": "Path to the WASM Component Module Config Schema File.\nThis will be renamed to `config.schema.json` inside the module.",
-                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
-                    "format": "uri"
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                            "format": "uri"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 }
             }
         },
@@ -62,20 +90,34 @@
             "description": "Object representing the Application Module Settings.",
             "properties": {
                 "schema": {
-                    "type": "string",
                     "title": "Application Module Settings Schema Location",
                     "description": "Path to the WASM Component Module Settings Schema File.\nThis will be renamed to `settings.schema.json` inside the module.",
-                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
-                    "format": "uri"
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                            "format": "uri"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
                 }
             }
         },
         "share": {
-            "type": "string",
             "title": "Application Module Share Dataset.",
             "description": "Path to the WASM Component Library Module Shareable Data.\nWill set the default data defined for the module itself.",
-            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-            "format": "uri"
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.json$",
+                    "format": "uri"
+                },
+                {
+                    "type": "string"
+                }
+            ]
         }
     },
     "required": [

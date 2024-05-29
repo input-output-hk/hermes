@@ -131,6 +131,7 @@ mod tests {
 
         let path = dir_path.join("manifest.json");
         let manifest_json_data = serde_json::json!({
+            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
             "metadata": "metadata.json",
             "component": "module.wasm",
             "config": {
@@ -162,6 +163,7 @@ mod tests {
         });
 
         let manifest_json_data = serde_json::json!({
+            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
             "metadata": "/metadata.json",
             "component": "/module.wasm",
             "config": {
@@ -193,7 +195,10 @@ mod tests {
         });
 
         let path = dir_path.join("manifest.json");
-        let manifest_json_data = serde_json::json!({}).to_string();
+        let manifest_json_data = serde_json::json!({
+            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+        })
+        .to_string();
         std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
         let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
