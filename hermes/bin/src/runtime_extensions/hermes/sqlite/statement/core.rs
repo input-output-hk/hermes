@@ -133,8 +133,10 @@ mod tests {
         },
     };
 
+    const TMP_DIR: &str = "tmp-dir";
+
     fn init() -> *mut sqlite3 {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
 
         open(false, true, app_name).unwrap()
     }

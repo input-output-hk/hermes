@@ -122,10 +122,12 @@ mod tests {
     use super::*;
     use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::connection::core};
 
+    const TMP_DIR: &str = "tmp-dir";
+
     #[test]
     #[file_serial]
     fn test_open_success() {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
         let db_ptr = open(false, false, app_name);
@@ -143,7 +145,7 @@ mod tests {
     #[test]
     #[file_serial]
     fn test_open_readonly() {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
         File::create(config.db_file.clone().unwrap().as_str()).unwrap();
@@ -163,7 +165,7 @@ mod tests {
     #[test]
     #[file_serial]
     fn test_open_readonly_without_existing_file() {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(true, false, app_name);
 
@@ -172,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_open_in_memory() {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(false, true, app_name);
 
@@ -185,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_open_in_memory_readonly() {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(true, true, app_name);
 

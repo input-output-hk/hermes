@@ -9,7 +9,7 @@ use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Error};
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
-pub(crate) fn validate_sql(sql: &String) -> bool {
+pub(crate) fn validate_sql(sql: &str) -> bool {
     sql.sz_find("PRAGMA ".as_bytes()).is_some()
 }
 
@@ -99,8 +99,10 @@ mod tests {
         runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
     };
 
+    const TMP_DIR: &str = "tmp-dir";
+
     fn init() -> *mut sqlite3 {
-        let app_name = HermesAppName(String::from("tmp"));
+        let app_name = HermesAppName(String::from(TMP_DIR));
 
         open(false, true, app_name).unwrap()
     }
