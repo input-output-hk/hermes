@@ -111,10 +111,10 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
 /// then the function results without errors. If the most recent evaluation of
 /// statement failed, then the function results the appropriate error code.
 pub(crate) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
-    let result = unsafe { sqlite3_finalize(stmt_ptr) };
+    let rc = unsafe { sqlite3_finalize(stmt_ptr) };
 
-    if result != SQLITE_OK {
-        Err(result.into())
+    if rc != SQLITE_OK {
+        Err(Errno::Sqlite(rc))
     } else {
         Ok(())
     }

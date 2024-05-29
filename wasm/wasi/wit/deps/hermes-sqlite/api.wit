@@ -19,8 +19,9 @@ interface api {
 
     // Errors that indicate that something has gone wrong.
     variant errno {
-        /// A generic error code that is used when no other more specific error code is available.
+        /// An error caused from internal SQLite engine.
         sqlite(s32),
+        /// An error caused during the conversion of a CString.
         converting-cstring,
     }
 
@@ -28,7 +29,7 @@ interface api {
     variant value {
         /// A blob or a UTF-8 text in bytes.
         blob(list<u8>),
-        /// real number.
+        /// Real number.
         double(float64),
         /// 32-bit integer.
         int32(s32),

@@ -1,16 +1,11 @@
 /// ! Core functionality implementation for `SQLite` connection object.
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close_v2, sqlite3_db_status, sqlite3_finalize, sqlite3_prepare_v3,
-    sqlite3_step, sqlite3_stmt, SQLITE_DBSTATUS_CACHE_HIT, SQLITE_DBSTATUS_CACHE_MISS,
-    SQLITE_DBSTATUS_CACHE_SPILL, SQLITE_DBSTATUS_CACHE_USED, SQLITE_DBSTATUS_CACHE_USED_SHARED,
-    SQLITE_DBSTATUS_CACHE_WRITE, SQLITE_DBSTATUS_DEFERRED_FKS, SQLITE_DBSTATUS_LOOKASIDE_HIT,
-    SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE,
-    SQLITE_DBSTATUS_LOOKASIDE_USED, SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED,
-    SQLITE_DONE, SQLITE_MISUSE, SQLITE_OK,
+    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize, sqlite3_prepare_v3,
+    sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
 };
 use stringzilla::StringZilla;
 
-use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, StatusOptions};
+use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Error};
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
@@ -20,66 +15,34 @@ pub(crate) fn validate_sql(sql: &String) -> bool {
 
 /// Closes a database connection, destructor for `sqlite3`.
 pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
-    let result = unsafe { sqlite3_close_v2(db_ptr) };
+    let rc = unsafe { sqlite3_close_v2(db_ptr) };
 
-    if result != SQLITE_OK {
-        Err(result.into())
+    if rc != SQLITE_OK {
+        Err(Errno::Sqlite(rc))
     } else {
         Ok(())
     }
 }
 
 /// Retrieves runtime status information about a single database connection.
-pub(crate) fn status(
-    db_ptr: *mut sqlite3, opt: StatusOptions, reset_flag: bool,
-) -> Result<(i32, i32), Errno> {
-    let status_code = if opt.contains(StatusOptions::LOOKASIDE_USED) {
-        SQLITE_DBSTATUS_LOOKASIDE_USED
-    } else if opt.contains(StatusOptions::CACHE_USED) {
-        SQLITE_DBSTATUS_CACHE_USED
-    } else if opt.contains(StatusOptions::SCHEMA_USED) {
-        SQLITE_DBSTATUS_SCHEMA_USED
-    } else if opt.contains(StatusOptions::STMT_USED) {
-        SQLITE_DBSTATUS_STMT_USED
-    } else if opt.contains(StatusOptions::LOOKASIDE_HIT) {
-        SQLITE_DBSTATUS_LOOKASIDE_HIT
-    } else if opt.contains(StatusOptions::LOOKASIDE_MISS_FULL) {
-        SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL
-    } else if opt.contains(StatusOptions::LOOKASIDE_MISS_SIZE) {
-        SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE
-    } else if opt.contains(StatusOptions::CACHE_HIT) {
-        SQLITE_DBSTATUS_CACHE_HIT
-    } else if opt.contains(StatusOptions::CACHE_MISS) {
-        SQLITE_DBSTATUS_CACHE_MISS
-    } else if opt.contains(StatusOptions::CACHE_WRITE) {
-        SQLITE_DBSTATUS_CACHE_WRITE
-    } else if opt.contains(StatusOptions::DEFERRED_FKS) {
-        SQLITE_DBSTATUS_DEFERRED_FKS
-    } else if opt.contains(StatusOptions::CACHE_USED_SHARED) {
-        SQLITE_DBSTATUS_CACHE_USED_SHARED
-    } else if opt.contains(StatusOptions::CACHE_SPILL) {
-        SQLITE_DBSTATUS_CACHE_SPILL
-    } else {
-        return Err(SQLITE_MISUSE.into());
-    };
-
-    let mut current_value = 0;
-    let mut highwater_mark = 0;
-
-    let result = unsafe {
-        sqlite3_db_status(
-            db_ptr,
-            status_code,
-            &mut current_value,
-            &mut highwater_mark,
-            reset_flag.into(),
+pub(crate) fn errcode(
+    db_ptr: *mut sqlite3
+) -> Error {
+    let (error_code, error_msg) = unsafe {
+        (
+            sqlite3_errcode(db_ptr),
+            sqlite3_errmsg(db_ptr)
         )
     };
 
-    if result != SQLITE_OK {
-        Err(result.into())
-    } else {
-        Ok((current_value, highwater_mark))
+    let message = unsafe {
+        std::ffi::CString::from_raw(error_msg as *mut i8).into_string()
+            .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?
+    };
+
+    Error {
+        code: error_code,
+        message
     }
 }
 
