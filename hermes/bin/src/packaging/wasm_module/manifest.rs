@@ -33,7 +33,7 @@ pub(crate) struct Manifest {
     /// WASM module settings.
     pub(crate) settings: Option<Settings>,
     /// Path to the share directory.
-    pub(crate) share: Option<PathBuf>,
+    pub(crate) share: Option<Resource>,
 }
 
 /// WASM module config definition.
@@ -98,9 +98,7 @@ impl Manifest {
             settings.schema.make_relative_to(dir_path);
         }
         if let Some(share) = &mut manifest.share {
-            if share.is_relative() {
-                *share = dir_path.join(&share);
-            }
+            share.make_relative_to(dir_path);
         }
 
         Ok(manifest)
@@ -148,7 +146,7 @@ mod tests {
                 schema: dir_path.join("settings.schema.json").into(),
             }
             .into(),
-            share: dir_path.join("share").into(),
+            share: Some(dir_path.join("share").into()),
         });
 
         let manifest_json_data = serde_json::json!({
@@ -169,18 +167,18 @@ mod tests {
         let manifest = Manifest::from_file(path).expect("Cannot create manifest");
         assert_eq!(manifest, Manifest {
             name: "module".to_string(),
-            metadata: PathBuf::from("/metadata.json").into(),
-            component: PathBuf::from("/module.wasm").into(),
+            metadata: "/metadata.json".into(),
+            component: "/module.wasm".into(),
             config: Config {
-                file: Some(PathBuf::from("/config.json").into()),
-                schema: PathBuf::from("/config.schema.json").into(),
+                file: Some("/config.json".into()),
+                schema: "/config.schema.json".into(),
             }
             .into(),
             settings: Settings {
-                schema: PathBuf::from("/settings.schema.json").into(),
+                schema: "/settings.schema.json".into(),
             }
             .into(),
-            share: PathBuf::from("/share").into(),
+            share: Some("/share".into()),
         });
 
         let path = dir_path.join("manifest.json");

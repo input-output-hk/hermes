@@ -5,22 +5,11 @@ mod resources;
 mod schema_validation;
 pub(crate) mod wasm_module;
 
-use std::{io::Read, path::PathBuf};
+use std::io::Read;
 
 use resources::Resource;
 
 use crate::errors::Errors;
-
-/// Get path name.
-fn get_path_name<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<String> {
-    Ok(path
-        .as_ref()
-        .file_name()
-        .ok_or(anyhow::anyhow!("cannot get path name"))?
-        .to_str()
-        .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
-        .to_string())
-}
 
 /// Copy resource to hdf5 package.
 fn copy_resource_to_package(resource: &Resource, package: &hdf5::Group) -> anyhow::Result<()> {
@@ -38,40 +27,31 @@ fn copy_resource_to_package(resource: &Resource, package: &hdf5::Group) -> anyho
     Ok(())
 }
 
-/// Dir not found error.
-#[derive(thiserror::Error, Debug)]
-#[error("Directory not found at {0}")]
-pub(crate) struct DirNotFoundError(PathBuf);
-
 /// Copy dir to hdf5 package recursively.
-pub(crate) fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
-    dir: P, package: &hdf5::Group,
+pub(crate) fn copy_dir_recursively_to_package(
+    resource: &Resource, package: &hdf5::Group,
 ) -> anyhow::Result<()> {
-    let dir_name = get_path_name(&dir)?;
+    let dir_name = resource.name()?;
     let package = package.create_group(&dir_name)?;
 
-    let entries = std::fs::read_dir(&dir).map_err(|err| {
-        if err.kind() == std::io::ErrorKind::NotFound {
-            anyhow::Error::new(DirNotFoundError(dir.as_ref().into()))
-        } else {
-            anyhow::Error::new(err)
-        }
-    })?;
+    let entries = resource.get_directory_content()?;
 
     let mut errors = Errors::new();
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            copy_dir_recursively_to_package(&path, &package).unwrap_or_else(|err| {
-                match err.downcast::<Errors>() {
-                    Ok(errs) => errors.merge(errs),
-                    Err(err) => errors.add_err(err),
-                }
-            });
+            copy_dir_recursively_to_package(&path.as_path().into(), &package).unwrap_or_else(
+                |err| {
+                    match err.downcast::<Errors>() {
+                        Ok(errs) => errors.merge(errs),
+                        Err(err) => errors.add_err(err),
+                    }
+                },
+            );
         }
         if path.is_file() {
-            copy_resource_to_package(&path.into(), &package)
+            copy_resource_to_package(&path.as_path().into(), &package)
                 .unwrap_or_else(|err| errors.add_err(err));
         }
     }
@@ -116,7 +96,8 @@ mod tests {
     #[test]
     fn copy_dir_recursively_to_package_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
-        let dir_name = get_path_name(dir.path()).expect("Cannot get root dir name");
+        let dir_resource = Resource::from(dir.path());
+        let dir_name = dir_resource.name().expect("Cannot get root dir name");
 
         let file_name = dir.child("test.hdf5");
         let hdf5_file = File::create(file_name).expect("cannot create HDF5 file");
@@ -137,7 +118,7 @@ mod tests {
         let file_3 = child_dir.join(file_3_name);
         std::fs::File::create(file_3).expect("Cannot create file_3 file");
 
-        copy_dir_recursively_to_package(dir.path(), &hdf5_file)
+        copy_dir_recursively_to_package(&dir_resource, &hdf5_file)
             .expect("Cannot copy dir to hdf5 package");
 
         let root_group = hdf5_file.group(&dir_name).expect("Cannot open root group");

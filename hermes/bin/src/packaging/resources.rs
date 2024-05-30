@@ -55,6 +55,11 @@ impl Uri {
 #[error("Resource not found at {0}")]
 pub(crate) struct ResourceNotFoundError(String);
 
+/// Cannot get directory content error.
+#[derive(thiserror::Error, Debug)]
+#[error("Cannot get directory content at {0}")]
+pub(crate) struct CannotGetDirectoryContent(String);
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Resource {
     FsPath(PathBuf),
@@ -104,6 +109,20 @@ impl Resource {
                 std::fs::File::open(path).map_err(|err| {
                     if err.kind() == std::io::ErrorKind::NotFound {
                         ResourceNotFoundError(self.to_string()).into()
+                    } else {
+                        err.into()
+                    }
+                })
+            },
+        }
+    }
+
+    pub(crate) fn get_directory_content(&self) -> anyhow::Result<std::fs::ReadDir> {
+        match self {
+            Resource::FsPath(path) => {
+                std::fs::read_dir(path).map_err(|err| {
+                    if err.kind() == std::io::ErrorKind::NotFound {
+                        CannotGetDirectoryContent(self.to_string()).into()
                     } else {
                         err.into()
                     }

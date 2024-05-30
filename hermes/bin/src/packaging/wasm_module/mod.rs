@@ -57,7 +57,7 @@ impl WasmModulePackage {
         }
 
         if let Some(share_path) = manifest.share {
-            copy_dir_recursively_to_package(share_path, &package).unwrap_or_else(|err| {
+            copy_dir_recursively_to_package(&share_path, &package).unwrap_or_else(|err| {
                 match err.downcast::<Errors>() {
                     Ok(errs) => errors.merge(errs),
                     Err(err) => errors.add_err(err),
