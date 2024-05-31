@@ -34,7 +34,11 @@ interface api {
         /// Failed to set the database size limit.
         failed-setting-database-size,
         /// Unknown column type is retrieved.
-        unknown-column-type
+        unknown-column-type,
+        /// `PRAGMA` commands are not allowed to execute inside Hermes.
+        forbidden-pragma-command,
+        /// Unhandled null pointer is returned while interacting with the database.
+        returned-null-pointer
     }
 
     /// The value of a column in a specific data format.

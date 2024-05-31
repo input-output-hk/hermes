@@ -97,10 +97,7 @@ impl HostSqlite for HermesRuntimeContext {
 
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        let sql_cstring = std::ffi::CString::new(sql)
-            .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?;
-
-        Ok(core::execute(db_ptr, sql_cstring))
+        Ok(core::execute(db_ptr, sql))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {

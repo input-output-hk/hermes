@@ -7,6 +7,49 @@ use stringzilla::StringZilla;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Error};
 
+/// Splits a given SQL string into individual commands, ensuring that semicolons
+/// within string literals are not treated as command separators.
+///
+/// # Arguments
+///
+/// * `sql` - A string slice that holds the SQL statements to be split into individual commands.
+///
+/// # Returns
+///
+/// * `Vec<String>` - A vector of strings, each containing an individual SQL command.
+fn split_sql_commands(sql: &str) -> Vec<String> {
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut escape = false;
+    let mut current_command = String::new();
+    let mut commands = Vec::new();
+
+    for c in sql.chars() {
+        current_command.push(c);
+        
+        match c {
+            '\'' if !in_double_quote && !escape => in_single_quote = !in_single_quote,
+            '"' if !in_single_quote && !escape => in_double_quote = !in_double_quote,
+            '\\' if !escape => escape = true,
+            ';' if !in_single_quote && !in_double_quote => {
+                // If not inside a string literal, push the current command to the vector
+                commands.push(current_command.trim().to_string());
+                current_command.clear();
+            }
+            _ => {
+                escape = false;
+            }
+        }
+    }
+
+    // Push the last command if it's not empty
+    if !current_command.trim().is_empty() {
+        commands.push(current_command.trim().to_string());
+    }
+
+    commands
+}
+
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
 pub(crate) fn validate_sql(sql: &str) -> bool {
@@ -28,17 +71,20 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
 pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<Error> {
     let (error_code, error_msg) = unsafe { (sqlite3_errcode(db_ptr), sqlite3_errmsg(db_ptr)) };
 
+    if error_code == SQLITE_OK {
+        return None;
+    }
+
     let message = unsafe {
-        std::ffi::CString::from_raw(error_msg.cast_mut())
-            .into_string()
+        std::ffi::CStr::from_ptr(error_msg)
+            .to_str()
+            .map(|s| s.to_owned())
             .ok()
     };
 
-    message.map(|message| {
-        Error {
-            code: error_code,
-            message,
-        }
+    message.map(|message| Error {
+        code: error_code,
+        message,
     })
 }
 
@@ -71,17 +117,24 @@ pub(crate) fn prepare(
 
 /// Executes an SQL query directly without preparing it into a statement and returns
 /// the result.
-pub(crate) fn execute(db_ptr: *mut sqlite3, sql: std::ffi::CString) -> Result<(), Errno> {
-    let stmt_ptr = prepare(db_ptr, sql)?;
+pub(crate) fn execute(db_ptr: *mut sqlite3, sql: String) -> Result<(), Errno> {
+    let commands = split_sql_commands(sql.as_str());
 
-    let rc = unsafe { sqlite3_step(stmt_ptr) };
-    if rc != SQLITE_DONE {
-        return Err(Errno::Sqlite(rc));
-    }
+    for command in commands {
+        let sql_cstring = std::ffi::CString::new(command)
+            .map_err(|_| Errno::ConvertingCString)?;
 
-    let rc = unsafe { sqlite3_finalize(stmt_ptr) };
-    if rc != SQLITE_OK {
-        return Err(Errno::Sqlite(rc));
+        let stmt_ptr = prepare(db_ptr, sql_cstring)?;
+
+        let rc = unsafe { sqlite3_step(stmt_ptr) };
+        if rc != SQLITE_DONE {
+            return Err(Errno::Sqlite(rc));
+        }
+
+        let rc = unsafe { sqlite3_finalize(stmt_ptr) };
+        if rc != SQLITE_OK {
+            return Err(Errno::Sqlite(rc));
+        }
     }
 
     Ok(())
@@ -92,7 +145,7 @@ mod tests {
     use super::*;
     use crate::{
         app::HermesAppName,
-        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
+        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize}
     };
 
     const TMP_DIR: &str = "tmp-dir";
@@ -132,13 +185,72 @@ mod tests {
             );
         ";
 
-        let sql_cstring = std::ffi::CString::new(create_table_sql).unwrap();
-
-        let result = execute(db_ptr, sql_cstring);
+        let result = execute(db_ptr, String::from(create_table_sql));
 
         let _ = close(db_ptr);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_err_info() {
+        let db_ptr = init();
+
+        let insert_user_sql = r"
+            INSERT INTO user(name, email) VALUES('testing', 'sample');
+        ";
+        let result = execute(db_ptr, String::from(insert_user_sql));
+
+        let err_info = errcode(db_ptr);
+
+        let _ = close(db_ptr);
+
+        assert!(result.is_err());
+
+        if let Some(err_info) = err_info {
+            assert_eq!(err_info.code, 1);
+            assert_eq!(err_info.message, String::from("no such table: user"));
+        } else {
+            panic!();
+        }
+    }
+
+    #[test]
+    fn test_execute_create_schema_multiple() {
+        let db_ptr = init();
+
+        let create_table_sql = r"
+            CREATE TABLE user (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE profile (
+                id INTEGER PRIMARY KEY,
+                bio TEXT NOT NULL
+            );
+        ";
+        let result = execute(db_ptr, String::from(create_table_sql));
+
+        assert!(result.is_ok());
+
+        let insert_user_sql = r"
+            INSERT INTO user(name, email) VALUES('testing', 'sample');
+        ";
+        let result = execute(db_ptr, String::from(insert_user_sql));
+
+        assert!(result.is_ok());
+
+        let insert_order_sql = r"
+            INSERT INTO profile(bio) VALUES('testing');
+        ";
+        let result = execute(db_ptr, String::from(insert_order_sql));
+
+        let err_info = errcode(db_ptr);
+
+        let _ = close(db_ptr);
+
+        assert!(result.is_ok() && err_info.is_none());
     }
 
     #[test]

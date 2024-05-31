@@ -140,9 +140,8 @@ mod tests {
 
     fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {db_value_type});");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
-        let () = execute(db_ptr, sql_cstring).unwrap();
+        let () = execute(db_ptr, String::from(sql)).unwrap();
 
         let sql = String::from("INSERT INTO Dummy(Value) VALUES(?);");
         let sql_cstring = std::ffi::CString::new(sql).unwrap();
