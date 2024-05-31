@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.0 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/rust-build AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -42,6 +42,8 @@ bindings-expand:
 check:
     FROM +builder
 
+    RUN echo $CARGO_HOME
+    RUN echo $CARGO_INSTALL_ROOT
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
 # all-hosts-check : Test which runs check with all supported host tooling.  
