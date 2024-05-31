@@ -14,9 +14,7 @@ use serde::{Deserialize, Deserializer};
 /// This definition mainly based on the [URI RFC](https://tools.ietf.org/html/rfc3986),
 /// but the implementation is not compliant with it and conforms with our needs.
 /// The parsing pattern is as follows:
-/// ```
-/// [schema] :// [host] / [path]
-/// ```
+/// `[schema] :// [host] / [path]`
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Uri {
     /// URI schema component.
@@ -29,9 +27,7 @@ pub(crate) struct Uri {
 
 impl Uri {
     /// Parse URI from string with the following pattern:
-    /// ```
-    /// [schema] :// [host] / [path]
-    /// ```
+    /// `[schema] :// [host] / [path]`
     #[allow(clippy::indexing_slicing)]
     pub(crate) fn parse_from_str(s: &str) -> Self {
         let schema_and_host_and_path = s.splitn(2, "://").collect::<Vec<_>>();
