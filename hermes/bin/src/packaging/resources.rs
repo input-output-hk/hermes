@@ -1,5 +1,7 @@
 //! Resources module functionality.
 
+// cspell: words splitn
+
 use std::{
     fmt::{Debug, Display},
     io::Read,
