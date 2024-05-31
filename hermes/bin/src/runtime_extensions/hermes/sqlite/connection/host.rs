@@ -6,7 +6,7 @@ use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
-        Errno, HostSqlite, Sqlite, Statement, Error,
+        Errno, Error, HostSqlite, Sqlite, Statement,
     },
 };
 
@@ -29,14 +29,15 @@ impl HostSqlite for HermesRuntimeContext {
         Ok(core::close(db_ptr))
     }
 
-    /// Retrieves the numeric result code for the most recent failed SQLite operation on a database connection.
+    /// Retrieves the numeric result code for the most recent failed `SQLite` operation on a
+    /// database connection.
     ///
     /// # Returns
     ///
-    /// The numeric result code for the most recent failed SQLite operation.
+    /// The numeric result code for the most recent failed `SQLite` operation.
     fn errcode(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
-    ) -> wasmtime::Result<Error> {
+    ) -> wasmtime::Result<Option<Error>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
         Ok(core::errcode(db_ptr))
@@ -105,7 +106,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
         let db_ptr: *mut sqlite3 = rep.rep() as *mut _;
 
-        core::close(db_ptr);
+        let _ = core::close(db_ptr);
 
         Ok(())
     }

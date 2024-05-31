@@ -74,10 +74,10 @@ impl HostStatement for HermesRuntimeContext {
         Ok(core::finalize(stmt_ptr))
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
+    fn drop(&mut self, resource: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
         let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
 
-        core::finalize(stmt_ptr);
+        let _ = core::finalize(stmt_ptr);
 
         Ok(())
     }

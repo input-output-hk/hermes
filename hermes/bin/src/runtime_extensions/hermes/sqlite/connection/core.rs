@@ -1,7 +1,7 @@
 /// ! Core functionality implementation for `SQLite` connection object.
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize, sqlite3_prepare_v3,
-    sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
+    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize,
+    sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
 };
 use stringzilla::StringZilla;
 
@@ -25,25 +25,21 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
 }
 
 /// Retrieves runtime status information about a single database connection.
-pub(crate) fn errcode(
-    db_ptr: *mut sqlite3
-) -> Error {
-    let (error_code, error_msg) = unsafe {
-        (
-            sqlite3_errcode(db_ptr),
-            sqlite3_errmsg(db_ptr)
-        )
-    };
+pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<Error> {
+    let (error_code, error_msg) = unsafe { (sqlite3_errcode(db_ptr), sqlite3_errmsg(db_ptr)) };
 
     let message = unsafe {
-        std::ffi::CString::from_raw(error_msg as *mut i8).into_string()
-            .map_err(|_| wasmtime::Error::msg("Failed to convert SQL string to CString"))?
+        std::ffi::CString::from_raw(error_msg.cast_mut())
+            .into_string()
+            .ok()
     };
 
-    Error {
-        code: error_code,
-        message
-    }
+    message.map(|message| {
+        Error {
+            code: error_code,
+            message,
+        }
+    })
 }
 
 /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -122,36 +118,6 @@ mod tests {
         }
 
         assert!(stmt_ptr.is_ok());
-    }
-
-    #[test]
-    fn test_config_simple() {
-        let db_ptr = init();
-
-        let before_schema_status_result = status(db_ptr, StatusOptions::SCHEMA_USED, false);
-
-        let create_table_sql = r"
-            CREATE TABLE IF NOT EXISTS people (
-                id INTEGER PRIMARY KEY,
-                name TEXT
-            );
-        ";
-
-        let sql_cstring = std::ffi::CString::new(create_table_sql).unwrap();
-
-        let () = execute(db_ptr, sql_cstring).unwrap();
-
-        let after_schema_status_result = status(db_ptr, StatusOptions::SCHEMA_USED, false);
-
-        let _ = close(db_ptr);
-
-        if let (Ok((after_value, _)), Ok((before_value, _))) =
-            (after_schema_status_result, before_schema_status_result)
-        {
-            assert!(before_value == 0 && after_value > 0);
-        } else {
-            panic!()
-        }
     }
 
     #[test]

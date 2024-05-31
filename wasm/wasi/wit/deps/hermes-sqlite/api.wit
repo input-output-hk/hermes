@@ -22,7 +22,19 @@ interface api {
         /// An error caused from internal SQLite engine.
         sqlite(s32),
         /// An error caused during the conversion of a CString.
-        converting-cstring,
+        converting-c-string,
+        /// The in-memory configuration provided is invalid.
+        invalid-in-memory-config,
+        /// The persistent configuration provided is invalid.
+        invalid-persistent-config,
+        /// The database name is missing in the persistent configuration.
+        missing-database-name-for-persistent-config,
+        /// Failed to open the database.
+        failed-opening-database,
+        /// Failed to set the database size limit.
+        failed-setting-database-size,
+        /// Unknown column type is retrieved.
+        unknown-column-type
     }
 
     /// The value of a column in a specific data format.
@@ -56,8 +68,8 @@ interface api {
         ///
         /// # Returns
         ///
-        /// The numeric result code for the most recent failed SQLite operation.
-        errcode: func() -> error;
+        /// The error object containing numeric code and detail message for the most recent failed SQLite operation. If there is no recent failed, none is returned.
+        errcode: func() -> option<error>;
 
         /// Compiles SQL text into byte-code that will do the work of querying or updating the database.
         ///

@@ -5,16 +5,15 @@ use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_blob, sqlite3_column_bytes,
     sqlite3_column_double, sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type,
-    sqlite3_finalize, sqlite3_step, sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE, SQLITE_ERROR,
-    SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_ROW, SQLITE_TEXT,
-    SQLITE_TRANSIENT,
+    sqlite3_finalize, sqlite3_step, sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE, SQLITE_FLOAT,
+    SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_ROW, SQLITE_TEXT, SQLITE_TRANSIENT,
 };
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
 
 /// Stores application data into parameters of the original SQL.
 pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Result<(), Errno> {
-    let result = unsafe {
+    let rc = unsafe {
         match value {
             Value::Blob(value) => {
                 sqlite3_bind_blob(
@@ -30,10 +29,8 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
             Value::Int64(value) => sqlite3_bind_int64(stmt_ptr, index, value),
             Value::Null => sqlite3_bind_null(stmt_ptr, index),
             Value::Text(value) => {
-                let c_value = match std::ffi::CString::new(value) {
-                    Ok(value) => value,
-                    Err(_) => return Err(SQLITE_ERROR.into()),
-                };
+                let c_value =
+                    std::ffi::CString::new(value).map_err(|_| Errno::ConvertingCString)?;
 
                 let n_byte = c_value.as_bytes_with_nul().len();
 
@@ -48,8 +45,8 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
         }
     };
 
-    if result != SQLITE_OK {
-        Err(result.into())
+    if rc != SQLITE_OK {
+        Err(Errno::Sqlite(rc))
     } else {
         Ok(())
     }
@@ -57,10 +54,10 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
 
 /// Advances a statement to the next result row or to completion.
 pub(crate) fn step(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
-    let result = unsafe { sqlite3_step(stmt_ptr) };
+    let rc = unsafe { sqlite3_step(stmt_ptr) };
 
-    if result != SQLITE_DONE && result != SQLITE_ROW {
-        Err(result.into())
+    if rc != SQLITE_DONE && rc != SQLITE_ROW {
+        Err(Errno::Sqlite(rc))
     } else {
         Ok(())
     }
@@ -92,14 +89,14 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
                 let text_ptr = sqlite3_column_text(stmt_ptr, index);
                 let text_slice = std::ffi::CStr::from_ptr(text_ptr.cast::<c_char>());
 
-                let text_string = match text_slice.to_str() {
-                    Ok(value) => String::from(value),
-                    Err(_) => return Err(SQLITE_ERROR.into()),
-                };
+                let text_string = text_slice
+                    .to_str()
+                    .map(String::from)
+                    .map_err(|_| Errno::ConvertingCString)?;
 
                 Value::Text(text_string)
             },
-            _ => return Err(SQLITE_ERROR.into()),
+            _ => return Err(Errno::UnknownColumnType),
         }
     };
 

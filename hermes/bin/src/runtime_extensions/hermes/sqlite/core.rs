@@ -1,6 +1,6 @@
 /// ! Core functionality implementation for the `SQLite` open function.
 use libsqlite3_sys::{
-    sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_ERROR, SQLITE_OK,
+    sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
 };
 
@@ -14,45 +14,28 @@ use crate::{
 
 const PAGE_SIZE: u32 = 4_096;
 
-/// Represents the various errors that can occur when opening a database.
-#[derive(Debug)]
-pub(super) enum OpenError {
-    /// The in-memory configuration provided is invalid.
-    InvalidInMemoryConfig,
-    /// The persistent configuration provided is invalid.
-    InvalidPersistentConfig,
-    /// The database name is missing in the persistent configuration.
-    MissingDatabaseNameForPersistentConfig,
-    /// Failed to open the database.
-    FailedOpeningDatabase,
-    /// Failed to set the database size.
-    FailedSettingDatabaseSize,
-    /// An error occurred with `SQLite`, represented by an `Errno`.
-    SQLiteError(Errno),
-}
-
 /// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(
     readonly: bool, memory: bool, app_name: HermesAppName,
-) -> Result<*mut sqlite3, OpenError> {
+) -> Result<*mut sqlite3, Errno> {
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
     let (db_path, config) = if memory {
         let in_memory_config = match get_app_in_memory_sqlite_db_cfg(app_name) {
             Some(config) => config,
-            None => return Err(OpenError::InvalidInMemoryConfig),
+            None => return Err(Errno::InvalidInMemoryConfig),
         };
 
         (":memory:".into(), in_memory_config)
     } else {
         let persistent_config = match get_app_persistent_sqlite_db_cfg(app_name) {
             Some(config) => config,
-            None => return Err(OpenError::InvalidPersistentConfig),
+            None => return Err(Errno::InvalidPersistentConfig),
         };
 
         let db_name = match &persistent_config.db_file {
             Some(db_name) => db_name.clone(),
-            None => return Err(OpenError::MissingDatabaseNameForPersistentConfig),
+            None => return Err(Errno::MissingDatabaseNameForPersistentConfig),
         };
 
         (db_name, persistent_config)
@@ -63,7 +46,7 @@ pub(super) fn open(
         SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
     };
 
-    let result = unsafe {
+    let rc = unsafe {
         sqlite3_open_v2(
             db_path.as_str().as_ptr().cast(),
             &mut db_ptr,
@@ -72,10 +55,10 @@ pub(super) fn open(
         )
     };
 
-    if result != SQLITE_OK {
-        return Err(OpenError::SQLiteError(result.into()));
+    if rc != SQLITE_OK {
+        return Err(Errno::Sqlite(rc));
     } else if db_ptr.is_null() {
-        return Err(OpenError::FailedOpeningDatabase);
+        return Err(Errno::FailedOpeningDatabase);
     }
 
     // config database size limitation
@@ -89,10 +72,8 @@ pub(super) fn open(
         let page_size = config.max_db_size / PAGE_SIZE;
         let pragma_stmt = format!("PRAGMA max_page_count = {page_size}");
 
-        let c_pragma_stmt = match std::ffi::CString::new(pragma_stmt) {
-            Ok(value) => value,
-            Err(_) => return Err(OpenError::SQLiteError(SQLITE_ERROR.into())),
-        };
+        let c_pragma_stmt =
+            std::ffi::CString::new(pragma_stmt).map_err(|_| Errno::ConvertingCString)?;
 
         unsafe {
             sqlite3_exec(
@@ -106,7 +87,7 @@ pub(super) fn open(
     };
 
     if rc != SQLITE_OK {
-        return Err(OpenError::FailedSettingDatabaseSize);
+        return Err(Errno::FailedSettingDatabaseSize);
     }
 
     Ok(db_ptr)
