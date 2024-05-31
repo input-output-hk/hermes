@@ -141,12 +141,11 @@ mod tests {
     fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {db_value_type});");
 
-        let () = execute(db_ptr, String::from(sql)).unwrap();
+        let () = execute(db_ptr, sql).unwrap();
 
         let sql = String::from("INSERT INTO Dummy(Value) VALUES(?);");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
-        let stmt_ptr = prepare(db_ptr, sql_cstring).unwrap();
+        let stmt_ptr = prepare(db_ptr, sql).unwrap();
 
         let () = bind(stmt_ptr, 1, value).unwrap();
         let () = step(stmt_ptr).unwrap();
@@ -155,9 +154,8 @@ mod tests {
 
     fn get_value(db_ptr: *mut sqlite3) -> Result<Value, Errno> {
         let sql = String::from("SELECT Value FROM Dummy WHERE Id = 1;");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
-        let stmt_ptr = prepare(db_ptr, sql_cstring).unwrap();
+        let stmt_ptr = prepare(db_ptr, sql).unwrap();
         let () = step(stmt_ptr).unwrap();
         let col_result = column(stmt_ptr, 0);
         let () = finalize(stmt_ptr).unwrap();
@@ -169,17 +167,15 @@ mod tests {
     fn test_value_double() {
         let db_ptr = init();
 
-        let value = Value::Double(3.14159);
+        let value = Value::Double(std::f64::consts::PI);
         let () = init_value(db_ptr, "REAL", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Double(x), Ok(Value::Double(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(
+            matches!((value, value_result), (Value::Double(x), Ok(Value::Double(y))) if x.eq(&y))
+        );
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -190,13 +186,9 @@ mod tests {
         let () = init_value(db_ptr, "BOOLEAN", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Int32(x), Ok(Value::Int32(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -207,13 +199,9 @@ mod tests {
         let () = init_value(db_ptr, "MEDIUMINT", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Int32(x), Ok(Value::Int32(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -224,13 +212,12 @@ mod tests {
         let () = init_value(db_ptr, "MEDIUMINT", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Null, Ok(Value::Null)) = (value, value_result) {
-            assert!(true);
-        } else {
-            panic!();
-        }
+        assert!(matches!(
+            (value, value_result),
+            (Value::Null, Ok(Value::Null))
+        ));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -241,13 +228,9 @@ mod tests {
         let () = init_value(db_ptr, "BIGINT", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Int64(x), Ok(Value::Int64(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(matches!((value, value_result), (Value::Int64(x), Ok(Value::Int64(y))) if x == y));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -258,13 +241,9 @@ mod tests {
         let () = init_value(db_ptr, "TEXT", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Text(x), Ok(Value::Text(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(matches!((value, value_result), (Value::Text(x), Ok(Value::Text(y))) if x == y));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -275,13 +254,9 @@ mod tests {
         let () = init_value(db_ptr, "BLOB", value.clone());
         let value_result = get_value(db_ptr);
 
-        if let (Value::Blob(x), Ok(Value::Blob(y))) = (value, value_result) {
-            assert_eq!(x, y);
-        } else {
-            panic!();
-        }
+        assert!(matches!((value, value_result), (Value::Blob(x), Ok(Value::Blob(y))) if x == y));
 
-        close(db_ptr).unwrap();
+        assert!(close(db_ptr).is_ok());
     }
 
     #[test]
@@ -289,13 +264,12 @@ mod tests {
         let db_ptr = init();
 
         let sql = String::from("SELECT 1;");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
-        let stmt_ptr = core::prepare(db_ptr, sql_cstring).unwrap();
+        let stmt_ptr = core::prepare(db_ptr, sql).unwrap();
 
-        let _ = close(db_ptr);
         let result = finalize(stmt_ptr);
 
         assert!(result.is_ok());
+        assert!(close(db_ptr).is_ok());
     }
 }

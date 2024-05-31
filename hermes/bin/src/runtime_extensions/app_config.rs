@@ -9,6 +9,7 @@ use crate::app::HermesAppName;
 
 const MAX_CONFIG_DB_SIZE: u32 = 1_048_576;
 
+/// Represents config object for SQLite
 pub(crate) struct SqliteConfig {
     /// Path to the `SQLite` database file, not set if it's in-memory database.
     pub(crate) db_file: Option<String>,

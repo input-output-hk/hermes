@@ -12,7 +12,8 @@ use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Error};
 ///
 /// # Arguments
 ///
-/// * `sql` - A string slice that holds the SQL statements to be split into individual commands.
+/// * `sql` - A string slice that holds the SQL statements to be split into individual
+///   commands.
 ///
 /// # Returns
 ///
@@ -26,7 +27,7 @@ fn split_sql_commands(sql: &str) -> Vec<String> {
 
     for c in sql.chars() {
         current_command.push(c);
-        
+
         match c {
             '\'' if !in_double_quote && !escape => in_single_quote = !in_single_quote,
             '"' if !in_single_quote && !escape => in_double_quote = !in_double_quote,
@@ -35,10 +36,10 @@ fn split_sql_commands(sql: &str) -> Vec<String> {
                 // If not inside a string literal, push the current command to the vector
                 commands.push(current_command.trim().to_string());
                 current_command.clear();
-            }
+            },
             _ => {
                 escape = false;
-            }
+            },
         }
     }
 
@@ -78,29 +79,35 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<Error> {
     let message = unsafe {
         std::ffi::CStr::from_ptr(error_msg)
             .to_str()
-            .map(|s| s.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
             .ok()
     };
 
-    message.map(|message| Error {
-        code: error_code,
-        message,
+    message.map(|message| {
+        Error {
+            code: error_code,
+            message,
+        }
     })
 }
 
 /// Compiles SQL text into byte-code that will do the work of querying or updating the
 /// database.
-pub(crate) fn prepare(
-    db_ptr: *mut sqlite3, sql: std::ffi::CString,
-) -> Result<*mut sqlite3_stmt, Errno> {
+pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: String) -> Result<*mut sqlite3_stmt, Errno> {
+    if validate_sql(&sql) {
+        return Err(Errno::ForbiddenPragmaCommand);
+    }
+
+    let sql_cstring = std::ffi::CString::new(sql).map_err(|_| Errno::ConvertingCString)?;
+
     let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
-    let n_byte = sql.as_bytes_with_nul().len();
+    let n_byte = sql_cstring.as_bytes_with_nul().len();
 
     let rc = unsafe {
         sqlite3_prepare_v3(
             db_ptr,
-            sql.as_ptr(),
+            sql_cstring.as_ptr(),
             n_byte as i32,
             0,
             &mut stmt_ptr,
@@ -121,10 +128,7 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: String) -> Result<(), Errno> {
     let commands = split_sql_commands(sql.as_str());
 
     for command in commands {
-        let sql_cstring = std::ffi::CString::new(command)
-            .map_err(|_| Errno::ConvertingCString)?;
-
-        let stmt_ptr = prepare(db_ptr, sql_cstring)?;
+        let stmt_ptr = prepare(db_ptr, command)?;
 
         let rc = unsafe { sqlite3_step(stmt_ptr) };
         if rc != SQLITE_DONE {
@@ -145,7 +149,7 @@ mod tests {
     use super::*;
     use crate::{
         app::HermesAppName,
-        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize}
+        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
     };
 
     const TMP_DIR: &str = "tmp-dir";
@@ -161,9 +165,8 @@ mod tests {
         let db_ptr = init();
 
         let sql = String::from("SELECT 1;");
-        let sql_cstring = std::ffi::CString::new(sql).unwrap();
 
-        let stmt_ptr = prepare(db_ptr, sql_cstring);
+        let stmt_ptr = prepare(db_ptr, sql);
 
         if let Ok(stmt_ptr) = stmt_ptr {
             let _ = close(db_ptr);
