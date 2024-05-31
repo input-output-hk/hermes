@@ -21,22 +21,18 @@ pub(super) fn open(
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
     let (db_path, config) = if memory {
-        let in_memory_config = match get_app_in_memory_sqlite_db_cfg(app_name) {
-            Some(config) => config,
-            None => return Err(Errno::InvalidInMemoryConfig),
-        };
+        let in_memory_config =
+            get_app_in_memory_sqlite_db_cfg(app_name).ok_or(Errno::InvalidInMemoryConfig)?;
 
         (":memory:".into(), in_memory_config)
     } else {
-        let persistent_config = match get_app_persistent_sqlite_db_cfg(app_name) {
-            Some(config) => config,
-            None => return Err(Errno::InvalidPersistentConfig),
-        };
+        let persistent_config =
+            get_app_persistent_sqlite_db_cfg(app_name).ok_or(Errno::InvalidPersistentConfig)?;
 
-        let db_name = match &persistent_config.db_file {
-            Some(db_name) => db_name.clone(),
-            None => return Err(Errno::MissingDatabaseNameForPersistentConfig),
-        };
+        let db_name = persistent_config
+            .db_file
+            .clone()
+            .ok_or(Errno::MissingDatabaseNameForPersistentConfig)?;
 
         (db_name, persistent_config)
     };

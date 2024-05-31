@@ -10,7 +10,7 @@
 /// SQLite API Interface
 interface api {
     /// Represents an error with a code and a message.
-    record error {
+    record error-info {
         /// The numeric result code of the error.
         code: s32,
         /// The error message associated with the error code.
@@ -73,7 +73,7 @@ interface api {
         /// # Returns
         ///
         /// The error object containing numeric code and detail message for the most recent failed SQLite operation. If there is no recent failed, none is returned.
-        errcode: func() -> option<error>;
+        errcode: func() -> option<error-info>;
 
         /// Compiles SQL text into byte-code that will do the work of querying or updating the database.
         ///

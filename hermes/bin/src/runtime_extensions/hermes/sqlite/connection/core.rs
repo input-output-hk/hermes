@@ -5,7 +5,7 @@ use libsqlite3_sys::{
 };
 use stringzilla::StringZilla;
 
-use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Error};
+use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, ErrorInfo};
 
 /// Splits a given SQL string into individual commands, ensuring that semicolons
 /// within string literals are not treated as command separators.
@@ -69,7 +69,7 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
 }
 
 /// Retrieves runtime status information about a single database connection.
-pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<Error> {
+pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
     let (error_code, error_msg) = unsafe { (sqlite3_errcode(db_ptr), sqlite3_errmsg(db_ptr)) };
 
     if error_code == SQLITE_OK {
@@ -84,7 +84,7 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<Error> {
     };
 
     message.map(|message| {
-        Error {
+        ErrorInfo {
             code: error_code,
             message,
         }
