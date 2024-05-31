@@ -1,3 +1,5 @@
+// cspell: words errcode errmsg
+
 /// ! Core functionality implementation for `SQLite` connection object.
 use libsqlite3_sys::{
     sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize,

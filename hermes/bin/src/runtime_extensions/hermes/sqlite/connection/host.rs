@@ -1,3 +1,5 @@
+// cspell: words errcode
+
 //! `SQLite` connection object host implementation for WASM runtime.
 
 use libsqlite3_sys::sqlite3;
