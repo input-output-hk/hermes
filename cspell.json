@@ -218,6 +218,7 @@
         //.config/dictionaries/cspell/vi_VN/cspell-ext.json
     ],
     "ignorePaths": [
+        "hermes/bin/src/packaging/large.json",
         ".config/dictionaries/**",
         "*.svg",
         "*.wasm",
