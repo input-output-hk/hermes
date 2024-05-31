@@ -22,14 +22,14 @@
         "metadata": {
             "type": "string",
             "title": "Hermes Module Metadata File",
-            "description": "Link to the Hermes Module Metadata json file.\nWill be renamed to `metadata.json` inside the module.",
+            "description": "Link to the Hermes Module Metadata json file.\nWill be renamed to `metadata.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
             "default": "metadata.json"
         },
         "component": {
             "type": "string",
             "title": "WASM Component File",
-            "description": "Link to the Hermes Module WASM Component file.\nThis is a fully compiled and linked WASM Object file.\nWill be renamed to `module.wasm` inside the module.",
+            "description": "Link to the Hermes Module WASM Component file.\nThis is a fully compiled and linked WASM Object file.\nWill be renamed to `module.wasm` inside the module.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
             "default": "module.wasm"
         },
@@ -41,13 +41,13 @@
                 "file": {
                     "type": "string",
                     "title": "Application Module Config File Location",
-                    "description": "Path to the WASM Component Library Module Config File.\nThis will be renamed to `config.json` inside the module.",
+                    "description": "Path to the WASM Component Library Module Config File.\nThis will be renamed to `config.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 },
                 "schema": {
                     "type": "string",
                     "title": "Application Module Config Schema Location",
-                    "description": "Path to the WASM Component Module Config Schema File.\nThis will be renamed to `config.schema.json` inside the module.",
+                    "description": "Path to the WASM Component Module Config Schema File.\nThis will be renamed to `config.schema.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 }
             }
@@ -60,7 +60,7 @@
                 "schema": {
                     "type": "string",
                     "title": "Application Module Settings Schema Location",
-                    "description": "Path to the WASM Component Module Settings Schema File.\nThis will be renamed to `settings.schema.json` inside the module.",
+                    "description": "Path to the WASM Component Module Settings Schema File.\nThis will be renamed to `settings.schema.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 }
             }
@@ -68,7 +68,7 @@
         "share": {
             "type": "string",
             "title": "Application Module Share Dataset.",
-            "description": "Path to the WASM Component Library Module Shareable Data.\nWill set the default data defined for the module itself.",
+            "description": "Path to the WASM Component Library Module Shareable Data.\nWill set the default data defined for the module itself.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
         }
     },
