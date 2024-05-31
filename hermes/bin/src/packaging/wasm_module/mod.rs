@@ -90,11 +90,12 @@ mod tests {
         let component_path = dir.path().join("module.wasm");
         let settings_schema_path = dir.path().join("settings.schema.json");
 
-        std::fs::File::create(&config_path).expect("Cannot create config.json file");
-        std::fs::File::create(&config_schema_path).expect("Cannot create config.schema.json file");
-        std::fs::File::create(&metadata_path).expect("Cannot create metadata.json file");
-        std::fs::File::create(&component_path).expect("Cannot create module.wasm file");
-        std::fs::File::create(&settings_schema_path)
+        std::fs::write(&config_path, [1, 2, 3]).expect("Cannot create config.json file");
+        std::fs::write(&config_schema_path, [1, 2, 3])
+            .expect("Cannot create config.schema.json file");
+        std::fs::write(&metadata_path, [1, 2, 3]).expect("Cannot create metadata.json file");
+        std::fs::write(&component_path, [1, 2, 3]).expect("Cannot create module.wasm file");
+        std::fs::write(&settings_schema_path, [1, 2, 3])
             .expect("Cannot create settings.schema.json file");
 
         let manifest = Manifest {

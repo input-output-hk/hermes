@@ -1,5 +1,6 @@
 //! Hermes packaging.
 
+mod compression;
 #[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 mod resources;
 mod schema_validation;
@@ -9,6 +10,7 @@ use std::io::Read;
 
 use resources::Resource;
 
+use self::compression::enable_compression;
 use crate::errors::Errors;
 
 /// Copy resource to hdf5 package.
@@ -19,8 +21,7 @@ fn copy_resource_to_package(resource: &Resource, package: &hdf5::Group) -> anyho
     let mut resource_data = Vec::new();
     reader.read_to_end(&mut resource_data)?;
 
-    package
-        .new_dataset_builder()
+    enable_compression(package.new_dataset_builder())
         .with_data(&resource_data)
         .create(resource_name.as_str())?;
 
@@ -104,11 +105,11 @@ mod tests {
 
         let file_1_name = "file_1";
         let file_1 = dir.child(file_1_name);
-        std::fs::File::create(file_1).expect("Cannot create file_1 file");
+        std::fs::write(file_1, [0, 1, 2]).expect("Cannot create file_1 file");
 
         let file_2_name = "file_2_name";
         let file_2 = dir.child(file_2_name);
-        std::fs::File::create(file_2).expect("Cannot create file_2 file");
+        std::fs::write(file_2, [0, 1, 2]).expect("Cannot create file_2 file");
 
         let child_dir_name = "child_dir";
         let child_dir = dir.child(child_dir_name);
@@ -116,7 +117,7 @@ mod tests {
 
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
-        std::fs::File::create(file_3).expect("Cannot create file_3 file");
+        std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
 
         copy_dir_recursively_to_package(&dir_resource, &hdf5_file)
             .expect("Cannot copy dir to hdf5 package");
