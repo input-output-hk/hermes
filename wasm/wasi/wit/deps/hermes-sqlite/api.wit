@@ -1,3 +1,5 @@
+// cspell: words errcode
+
 /// # SQLite API
 ///
 /// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
