@@ -8,14 +8,28 @@ use std::{
 
 use serde::{Deserialize, Deserializer};
 
+/// URI resource definition.
+/// This definition mainly based on the [URI RFC](https://tools.ietf.org/html/rfc3986),
+/// but the implementation is not compliant with it and conforms with our needs.
+/// The parsing pattern is as follows:
+/// ```
+/// [schema] :// [host] / [path]
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Uri {
+    /// URI schema component.
     schema: Option<String>,
+    /// URI host component.
     host: Option<String>,
+    /// URI path component.
     path: Option<String>,
 }
 
 impl Uri {
+    /// Parse URI from string with the following pattern:
+    /// ```
+    /// [schema] :// [host] / [path]
+    /// ```
     #[allow(clippy::indexing_slicing)]
     pub(crate) fn parse_from_str(s: &str) -> Self {
         let schema_and_host_and_path = s.splitn(2, "://").collect::<Vec<_>>();
@@ -57,8 +71,10 @@ pub(crate) struct ResourceNotFoundError(String);
 #[error("Cannot get directory content at {0}")]
 pub(crate) struct CannotGetDirectoryContent(String);
 
+/// Resource definition.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Resource {
+    /// File system resource.
     FsPath(PathBuf),
 }
 
@@ -77,6 +93,7 @@ impl Display for Resource {
 }
 
 impl Resource {
+    /// Create resource from URI.
     fn from_uri(uri: Uri) -> anyhow::Result<Self> {
         match uri.schema {
             None => {
@@ -107,6 +124,7 @@ impl Resource {
         }
     }
 
+    /// Get resource name.
     pub(crate) fn name(&self) -> anyhow::Result<String> {
         match self {
             Self::FsPath(path) => {
@@ -120,6 +138,7 @@ impl Resource {
         }
     }
 
+    /// Make resource relative to given path.
     pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
         match self {
             Resource::FsPath(path) => {
@@ -130,6 +149,7 @@ impl Resource {
         }
     }
 
+    /// Get data reader for the resource.
     pub(crate) fn get_reader(&self) -> anyhow::Result<impl Read + Debug> {
         match self {
             Resource::FsPath(path) => {
@@ -144,6 +164,7 @@ impl Resource {
         }
     }
 
+    /// Get directory content.
     pub(crate) fn get_directory_content(&self) -> anyhow::Result<std::fs::ReadDir> {
         match self {
             Resource::FsPath(path) => {

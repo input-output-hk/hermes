@@ -1,7 +1,6 @@
 //! Hermes packaging.
 
 mod compression;
-#[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 mod resources;
 mod schema_validation;
 pub(crate) mod wasm_module;
