@@ -57,6 +57,8 @@ saffron = { workspace = true }
 libsqlite3-sys = { workspace = true, features = ["bundled"] }
 stringzilla = { workspace = true }
 hdf5 = { workspace = true }
+blosc-src = { workspace = true }
+num_cpus = { workspace = true }
 console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -69,3 +71,6 @@ hex = { workspace = true }
 tracing-subscriber = { workspace = true }
 serial_test = { workspace = true }
 temp-dir = "0.1.13"
+
+[package.metadata.cargo-machete]
+ignored = ["blosc-src"]
