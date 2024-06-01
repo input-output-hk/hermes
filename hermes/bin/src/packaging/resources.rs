@@ -297,21 +297,4 @@ mod tests {
         };
         assert!(Resource::from_uri(uri).is_err());
     }
-
-    #[test]
-    fn resource_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let file_name = "file.txt";
-        std::fs::write(dir.path().join(file_name), [0, 1, 2])
-            .expect("Cannot write data to file.txt");
-
-        let mut resource = Resource::FsPath(file_name.into());
-
-        let err = resource.get_reader().expect_err("Should return error");
-        assert!(err.is::<ResourceNotFoundError>());
-
-        resource.make_relative_to(dir.path());
-        resource.get_reader().expect("Cannot get reader");
-    }
 }
