@@ -189,8 +189,6 @@ impl<'de> Deserialize<'de> for Resource {
 
 #[cfg(test)]
 mod tests {
-    use temp_dir::TempDir;
-
     use super::*;
 
     #[test]
