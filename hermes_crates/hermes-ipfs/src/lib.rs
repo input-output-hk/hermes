@@ -18,7 +18,11 @@ pub struct HermesIpfs {
 impl HermesIpfs {
     /// Start a new node.
     ///
-    /// # Errors
+    /// ## Returns
+    ///
+    /// * `HermesIpfs`
+    ///
+    /// ## Errors
     ///
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn new() -> anyhow::Result<Self> {
@@ -29,63 +33,50 @@ impl HermesIpfs {
 
     /// Add a file to IPFS.
     ///
-    /// # Parameters
+    /// ## Parameters
     ///
-    /// * `payload` The payload can be specified as a file path, as a stream of bytes, or as a
-    ///     named stream of bytes.
+    /// * `file_path` The `file_path` can be specified as a type that converts into `std::path::PathBuf`.
     ///
-    ///     * File path types
+    ///     ** For example:**
     ///         * `&str`
     ///         * `String`
-    ///         * `&std::path::Path`
     ///         * `std::path::PathBuf`
     ///
-    ///     * Stream of bytes
-    ///         * `Vec<u8>`
-    ///         * `&static [u8]`
+    /// ## Returns
     ///
-    ///     * Named stream of bytes
-    ///         * `(String, Vec<u8>)`
-    ///         * `(String, &static [u8])`
+    /// * `IpfsPath`
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an error if the file fails to upload.
-    pub async fn add_file(&self, payload: impl Into<AddOpt>) -> anyhow::Result<IpfsPath> {
-        let mut stream = self.node.add_unixfs(payload);
-        let mut ipfs_path = None;
+    pub async fn add_ipfs_file(
+        &self,
+        file_path: impl Into<std::path::PathBuf>,
+    ) -> anyhow::Result<IpfsPath> {
+        let ipfs_path = self.node.add_unixfs(file_path.into()).await?;
+        Ok(ipfs_path)
+    }
 
-        while let Some(status) = stream.next().await {
-            match status {
-                UnixfsStatus::ProgressStatus {
-                    written,
-                    total_size,
-                } => match total_size {
-                    Some(size) => println!("{written} out of {size} stored"),
-                    None => println!("{written} been stored"),
-                },
-                UnixfsStatus::FailedStatus {
-                    written,
-                    total_size,
-                    error,
-                } => {
-                    match total_size {
-                        Some(size) => println!("failed with {written} out of {size} stored"),
-                        None => println!("failed with {written} stored"),
-                    }
-
-                    if let Some(error) = error {
-                        anyhow::bail!(error);
-                    }
-                    return Err(Error::AddFileFailure.into());
-                }
-                UnixfsStatus::CompletedStatus { path, written, .. } => {
-                    println!("{written} bytes stored with path {path}");
-                    ipfs_path = Some(path);
-                }
-            }
-        }
-        ipfs_path.ok_or(Error::AddFileFailure.into())
+    /// Get a file from IPFS
+    ///
+    /// ## Parameters
+    ///
+    /// * `file_path` The `file_path` can be specified as a type that converts into `IpfsPath`.
+    ///
+    ///     ** For example:**
+    ///         * `&str`
+    ///         * `String`
+    ///
+    /// ## Returns
+    ///
+    /// * `Vec<u8>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns an error if the file fails to download.
+    pub async fn get_ipfs_file<T: Into<IpfsPath>>(&self, file_path: T) -> anyhow::Result<Vec<u8>> {
+        let stream_bytes = self.node.cat_unixfs(file_path).await?;
+        Ok(stream_bytes.to_vec())
     }
 }
 
