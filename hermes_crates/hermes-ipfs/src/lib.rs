@@ -2,11 +2,9 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use futures::StreamExt;
+use rust_ipfs::{Ipfs, UninitializedIpfsNoop};
 
-use rust_ipfs::{unixfs::UnixfsStatus, Ipfs, UninitializedIpfsNoop};
-
-pub use rust_ipfs::{path::IpfsPath, unixfs::AddOpt};
+pub use rust_ipfs::path::IpfsPath;
 
 /// Hermes IPFS Node
 #[allow(dead_code)]
@@ -49,7 +47,7 @@ impl HermesIpfs {
     /// ## Errors
     ///
     /// Returns an error if the file fails to upload.
-    pub async fn add_ipfs_file(
+    pub async fn add_file_ipfs(
         &self,
         file_path: impl Into<std::path::PathBuf>,
     ) -> anyhow::Result<IpfsPath> {
@@ -74,16 +72,8 @@ impl HermesIpfs {
     /// ## Errors
     ///
     /// Returns an error if the file fails to download.
-    pub async fn get_ipfs_file<T: Into<IpfsPath>>(&self, file_path: T) -> anyhow::Result<Vec<u8>> {
+    pub async fn get_file_ipfs<T: Into<IpfsPath>>(&self, file_path: T) -> anyhow::Result<Vec<u8>> {
         let stream_bytes = self.node.cat_unixfs(file_path).await?;
         Ok(stream_bytes.to_vec())
     }
-}
-
-/// Hermes IPFS Errors.
-#[derive(thiserror::Error, Debug)]
-enum Error {
-    /// File upload to IPFS failed.
-    #[error = "failed to add file to ipfs"]
-    AddFileFailure,
 }
