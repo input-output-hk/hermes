@@ -34,25 +34,18 @@ pub(crate) fn copy_dir_recursively_to_package(
     let dir_name = resource.name()?;
     let package = package.create_group(&dir_name)?;
 
-    let entries = resource.get_directory_content()?;
-
     let mut errors = Errors::new();
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            copy_dir_recursively_to_package(&path.as_path().into(), &package).unwrap_or_else(
-                |err| {
-                    match err.downcast::<Errors>() {
-                        Ok(errs) => errors.merge(errs),
-                        Err(err) => errors.add_err(err),
-                    }
-                },
-            );
+    for resource in resource.get_directory_content()? {
+        if resource.is_dir() {
+            copy_dir_recursively_to_package(&resource, &package).unwrap_or_else(|err| {
+                match err.downcast::<Errors>() {
+                    Ok(errs) => errors.merge(errs),
+                    Err(err) => errors.add_err(err),
+                }
+            });
         }
-        if path.is_file() {
-            copy_resource_to_package(&path.as_path().into(), &package)
-                .unwrap_or_else(|err| errors.add_err(err));
+        if resource.is_file() {
+            copy_resource_to_package(&resource, &package).unwrap_or_else(|err| errors.add_err(err));
         }
     }
     errors.return_result(())

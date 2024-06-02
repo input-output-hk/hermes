@@ -136,6 +136,20 @@ impl Resource {
         }
     }
 
+    /// Check if resource is a directory.
+    pub(crate) fn is_dir(&self) -> bool {
+        match self {
+            Resource::FsPath(path) => path.is_dir(),
+        }
+    }
+
+    /// Check if resource is a file.
+    pub(crate) fn is_file(&self) -> bool {
+        match self {
+            Resource::FsPath(path) => path.is_file(),
+        }
+    }
+
     /// Make resource relative to given path.
     pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
         match self {
@@ -163,18 +177,24 @@ impl Resource {
     }
 
     /// Get directory content.
-    pub(crate) fn get_directory_content(&self) -> anyhow::Result<std::fs::ReadDir> {
+    pub(crate) fn get_directory_content(&self) -> anyhow::Result<Vec<Resource>> {
+        let mut res = Vec::new();
         match self {
             Resource::FsPath(path) => {
-                std::fs::read_dir(path).map_err(|err| {
+                let entries = std::fs::read_dir(path).map_err(|err| {
                     if err.kind() == std::io::ErrorKind::NotFound {
-                        CannotGetDirectoryContent(self.to_string()).into()
+                        anyhow::Error::new(CannotGetDirectoryContent(self.to_string()))
                     } else {
-                        err.into()
+                        anyhow::Error::new(err)
                     }
-                })
+                })?;
+                for entry in entries {
+                    res.push(Resource::FsPath(entry?.path()));
+                }
             },
         }
+
+        Ok(res)
     }
 }
 
