@@ -21,55 +21,76 @@ pub(crate) struct WasmModulePackage {
 }
 
 impl WasmModulePackage {
+    /// WASM module package component file.
+    const COMPONENT_FILE: &'static str = "module.wasm";
+    /// WASM module package config file.
+    const CONFIG_FILE: &'static str = "config.json";
+    /// WASM module package config schema file.
+    const CONFIG_SCHEMA_FILE: &'static str = "config.schema.json";
     /// WASM module package file extension.
     const FILE_EXTENSION: &'static str = "hmod";
+    /// WASM module package metadata file.
+    const METADATA_FILE: &'static str = "metadata.json";
+    /// WASM module package settings schema file.
+    const SETTINGS_SCHEMA_FILE: &'static str = "settings.schema.json";
+    /// WASM module package share directory.
+    const SHARE_DIR: &'static str = "share";
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn from_manifest<P: AsRef<Path>>(
-        manifest: Manifest, output_path: P, package_name: Option<String>,
+        manifest: &Manifest, output_path: P, package_name: Option<&str>,
     ) -> anyhow::Result<Self> {
-        let mut errors = Errors::new();
-
-        let package_name = package_name.unwrap_or(manifest.name);
+        let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
         package_path.set_extension(Self::FILE_EXTENSION);
         let package = hdf5::File::create(&package_path)
             .map_err(|_| CreatePackageError(package_path.clone()))?;
 
-        copy_resource_to_package(&manifest.metadata, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-
-        copy_resource_to_package(&manifest.component, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-
-        if let Some(config) = manifest.config {
-            if let Some(config_file) = config.file {
-                copy_resource_to_package(&config_file, &package)
-                    .unwrap_or_else(|err| errors.add_err(err));
-            }
-            copy_resource_to_package(&config.schema, &package)
-                .unwrap_or_else(|err| errors.add_err(err));
-        }
-
-        if let Some(settings) = manifest.settings {
-            copy_resource_to_package(&settings.schema, &package)
-                .unwrap_or_else(|err| errors.add_err(err));
-        }
-
-        if let Some(share_path) = manifest.share {
-            copy_dir_recursively_to_package(&share_path, &package).unwrap_or_else(|err| {
-                match err.downcast::<Errors>() {
-                    Ok(errs) => errors.merge(errs),
-                    Err(err) => errors.add_err(err),
-                }
-            });
-        }
+        let mut errors = Self::copy_data_to_package(manifest, &package);
 
         if !errors.is_empty() {
             std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
         }
 
         errors.return_result(Self { _package: package })
+    }
+
+    /// Copy data from manifest to package.
+    fn copy_data_to_package(manifest: &Manifest, package: &hdf5::File) -> Errors {
+        let mut errors = Errors::new();
+
+        copy_resource_to_package(&manifest.metadata, Self::METADATA_FILE, package)
+            .unwrap_or_else(|err| errors.add_err(err));
+
+        copy_resource_to_package(&manifest.component, Self::COMPONENT_FILE, package)
+            .unwrap_or_else(|err| errors.add_err(err));
+
+        if let Some(config) = &manifest.config {
+            if let Some(config_file) = &config.file {
+                copy_resource_to_package(config_file, Self::CONFIG_FILE, package)
+                    .unwrap_or_else(|err| errors.add_err(err));
+            }
+            copy_resource_to_package(&config.schema, Self::CONFIG_SCHEMA_FILE, package)
+                .unwrap_or_else(|err| errors.add_err(err));
+        }
+
+        if let Some(settings) = &manifest.settings {
+            copy_resource_to_package(&settings.schema, Self::SETTINGS_SCHEMA_FILE, package)
+                .unwrap_or_else(|err| errors.add_err(err));
+        }
+
+        if let Some(share_path) = &manifest.share {
+            copy_dir_recursively_to_package(share_path, Self::SHARE_DIR, package).unwrap_or_else(
+                |err| {
+                    match err.downcast::<Errors>() {
+                        Ok(errs) => errors.merge(errs),
+                        Err(err) => errors.add_err(err),
+                    }
+                },
+            );
+        }
+
+        errors
     }
 }
 
@@ -113,7 +134,7 @@ mod tests {
             .into(),
             share: None,
         };
-        WasmModulePackage::from_manifest(manifest, dir.path(), None)
+        WasmModulePackage::from_manifest(&manifest, dir.path(), None)
             .expect("Cannot create module package");
     }
 }

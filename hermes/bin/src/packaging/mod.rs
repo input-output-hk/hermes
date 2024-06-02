@@ -3,6 +3,7 @@
 mod compression;
 mod resources;
 mod schema_validation;
+#[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 pub(crate) mod wasm_module;
 
 use std::io::Read;
@@ -13,39 +14,41 @@ use self::compression::enable_compression;
 use crate::errors::Errors;
 
 /// Copy resource to hdf5 package.
-fn copy_resource_to_package(resource: &Resource, package: &hdf5::Group) -> anyhow::Result<()> {
+fn copy_resource_to_package(
+    resource: &Resource, name: &str, package: &hdf5::Group,
+) -> anyhow::Result<()> {
     let mut reader = resource.get_reader()?;
-    let resource_name = resource.name()?;
-
     let mut resource_data = Vec::new();
     reader.read_to_end(&mut resource_data)?;
 
     enable_compression(package.new_dataset_builder())
         .with_data(&resource_data)
-        .create(resource_name.as_str())?;
+        .create(name)?;
 
     Ok(())
 }
 
 /// Copy dir to hdf5 package recursively.
 pub(crate) fn copy_dir_recursively_to_package(
-    resource: &Resource, package: &hdf5::Group,
+    resource: &Resource, name: &str, package: &hdf5::Group,
 ) -> anyhow::Result<()> {
-    let dir_name = resource.name()?;
-    let package = package.create_group(&dir_name)?;
+    let package = package.create_group(name)?;
 
     let mut errors = Errors::new();
     for resource in resource.get_directory_content()? {
         if resource.is_dir() {
-            copy_dir_recursively_to_package(&resource, &package).unwrap_or_else(|err| {
-                match err.downcast::<Errors>() {
-                    Ok(errs) => errors.merge(errs),
-                    Err(err) => errors.add_err(err),
-                }
-            });
+            copy_dir_recursively_to_package(&resource, &resource.name()?, &package).unwrap_or_else(
+                |err| {
+                    match err.downcast::<Errors>() {
+                        Ok(errs) => errors.merge(errs),
+                        Err(err) => errors.add_err(err),
+                    }
+                },
+            );
         }
         if resource.is_file() {
-            copy_resource_to_package(&resource, &package).unwrap_or_else(|err| errors.add_err(err));
+            copy_resource_to_package(&resource, &resource.name()?, &package)
+                .unwrap_or_else(|err| errors.add_err(err));
         }
     }
     errors.return_result(())
@@ -71,7 +74,7 @@ mod tests {
         std::fs::write(&metadata_json_path, metadata_json_data)
             .expect("Cannot write data to metadata.json");
 
-        copy_resource_to_package(&metadata_json_path.into(), &hdf5_file)
+        copy_resource_to_package(&metadata_json_path.into(), metadata_json, &hdf5_file)
             .expect("Cannot copy metadata.json to hdf5 package");
 
         let metadata_json_ds = hdf5_file
@@ -111,8 +114,12 @@ mod tests {
         let file_3 = child_dir.join(file_3_name);
         std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
 
-        copy_dir_recursively_to_package(&dir_resource, &hdf5_file)
-            .expect("Cannot copy dir to hdf5 package");
+        copy_dir_recursively_to_package(
+            &dir_resource,
+            &dir_resource.name().expect("Cannot get root dir name"),
+            &hdf5_file,
+        )
+        .expect("Cannot copy dir to hdf5 package");
 
         let root_group = hdf5_file.group(&dir_name).expect("Cannot open root group");
         assert!(root_group.dataset(file_1_name).is_ok());
