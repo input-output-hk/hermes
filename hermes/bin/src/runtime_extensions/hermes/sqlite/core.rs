@@ -152,7 +152,7 @@ mod tests {
         let db_ptr = open(true, false, app_name);
 
         assert!(db_ptr.is_err());
-        
+
         Ok(())
     }
 

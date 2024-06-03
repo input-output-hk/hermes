@@ -143,7 +143,7 @@ mod tests {
 
         execute(db_ptr, sql.as_str())?;
 
-        let sql = String::from("INSERT INTO Dummy(Value) VALUES(?);");
+        let sql = "INSERT INTO Dummy(Value) VALUES(?);";
 
         let stmt_ptr = prepare(db_ptr, sql)?;
 
@@ -155,7 +155,7 @@ mod tests {
     }
 
     fn get_value(db_ptr: *mut sqlite3) -> Result<Value, Errno> {
-        let sql = String::from("SELECT Value FROM Dummy WHERE Id = 1;");
+        let sql = "SELECT Value FROM Dummy WHERE Id = 1;";
 
         let stmt_ptr = prepare(db_ptr, sql)?;
         step(stmt_ptr)?;
@@ -265,7 +265,7 @@ mod tests {
     fn test_finalize_simple() -> Result<(), Errno> {
         let db_ptr = init()?;
 
-        let sql = String::from("SELECT 1;");
+        let sql = "SELECT 1;";
 
         let stmt_ptr = core::prepare(db_ptr, sql)?;
 

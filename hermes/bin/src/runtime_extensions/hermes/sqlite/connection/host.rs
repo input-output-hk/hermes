@@ -63,7 +63,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        let result = core::prepare(db_ptr, sql);
+        let result = core::prepare(db_ptr, sql.as_str());
 
         match result {
             Ok(stmt_ptr) => {

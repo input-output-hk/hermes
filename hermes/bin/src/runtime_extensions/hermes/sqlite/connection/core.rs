@@ -95,8 +95,8 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
 
 /// Compiles SQL text into byte-code that will do the work of querying or updating the
 /// database.
-pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: String) -> Result<*mut sqlite3_stmt, Errno> {
-    if validate_sql(&sql) {
+pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_stmt, Errno> {
+    if validate_sql(sql) {
         return Err(Errno::ForbiddenPragmaCommand);
     }
 
@@ -130,7 +130,7 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: &str) -> Result<(), Errno> {
     let commands = split_sql_commands(sql);
 
     for command in commands {
-        let stmt_ptr = prepare(db_ptr, command)?;
+        let stmt_ptr = prepare(db_ptr, command.as_str())?;
 
         let rc = unsafe { sqlite3_step(stmt_ptr) };
         if rc != SQLITE_DONE {
@@ -166,7 +166,7 @@ mod tests {
     fn test_prepare_simple() -> Result<(), Errno> {
         let db_ptr = init()?;
 
-        let sql = String::from("SELECT 1;");
+        let sql = "SELECT 1;";
 
         let stmt_ptr = prepare(db_ptr, sql)?;
 
