@@ -23,7 +23,7 @@ pub(crate) struct CreatePackageError(PathBuf);
 
 /// Invalid file error.
 #[derive(thiserror::Error, Debug)]
-#[error("Ivalid file at {0}:\n {1}")]
+#[error("Invalid file at {0}:\n {1}")]
 pub(crate) struct InvalidFileError(Resource, String);
 
 /// Wasm module package.
@@ -121,7 +121,6 @@ impl WasmModulePackage {
             .schema
             .get_reader()
             .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
-        // if it is a valid a schema validator, it's a valid schema
         SchemaValidator::from_reader(setting_schema_reader)
             .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
 
