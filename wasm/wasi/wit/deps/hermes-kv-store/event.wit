@@ -17,4 +17,9 @@ interface event {
     /// Returns:
     ///     Nothing.
     kv-update: func(key: string, value: kv-values);
+
+
+     /// Random
+    kv-get: func(key: string)-> string;
+
 }
