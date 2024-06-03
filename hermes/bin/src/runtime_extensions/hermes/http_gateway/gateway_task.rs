@@ -2,13 +2,12 @@
 
 use std::convert::Infallible;
 
+use hyper::{
+    server::Server,
+    service::{make_service_fn, service_fn},
+    {self},
+};
 use tracing::{error, info};
-
-use hyper::server::Server;
-use hyper::service::make_service_fn;
-
-use hyper::service::service_fn;
-use hyper::{self};
 
 use super::routing::router;
 

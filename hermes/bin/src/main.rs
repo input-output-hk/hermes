@@ -12,8 +12,6 @@ mod reactor;
 mod runtime_context;
 mod runtime_extensions;
 mod wasm;
-use crate::logger::LoggerConfigBuilder;
-
 use std::process;
 
 use app::HermesAppName;
@@ -24,6 +22,8 @@ pub use wasm::module::bench::{
     module_hermes_component_bench, module_small_component_bench,
     module_small_component_full_pre_load_bench,
 };
+
+use crate::logger::LoggerConfigBuilder;
 
 /// A parameter identifier specifying the log level.
 const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";

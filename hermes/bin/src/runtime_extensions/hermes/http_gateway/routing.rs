@@ -1,9 +1,8 @@
 use std::sync::mpsc::channel;
 
+use anyhow::{anyhow, Ok};
 use hyper::{self, Body, HeaderMap, Method, Request, Response, StatusCode};
 use serde::Deserialize;
-
-use anyhow::{anyhow, Ok};
 
 use crate::{
     event::{HermesEvent, TargetApp, TargetModule},
@@ -39,7 +38,6 @@ pub fn _not_found() -> Response<Body> {
 /// X-Forwarded-Host header
 /// Host header
 /// request target / URI
-///
 // Note that user agents can set X-Forwarded-Host and Host headers
 // to arbitrary values so make sure to validate them to avoid security issues.
 pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<Hostname> {
@@ -50,8 +48,8 @@ pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<Hostname> {
     Ok(Hostname(host.to_owned()))
 }
 
-/// Routing by hostname is a mechanism for isolating API services by giving each API its own hostname;
-/// for example, service-a.api.example.com or service-a.example.com.
+/// Routing by hostname is a mechanism for isolating API services by giving each API its
+/// own hostname; for example, service-a.api.example.com or service-a.example.com.
 pub async fn router(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let host = host_resolver(req.headers())?;
 
@@ -71,7 +69,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
 
     let headers = req.headers().clone();
 
-    //let _event_body: Event = serde_json::from_slice(&req.collect().await?.to_bytes())?;
+    // let _event_body: Event = serde_json::from_slice(&req.collect().await?.to_bytes())?;
 
     match (method, uri.path()) {
         (Method::GET, "/kv") => {
