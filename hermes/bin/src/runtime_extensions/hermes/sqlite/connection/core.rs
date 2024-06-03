@@ -126,8 +126,8 @@ pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: String) -> Result<*mut sqlite3_
 
 /// Executes an SQL query directly without preparing it into a statement and returns
 /// the result.
-pub(crate) fn execute(db_ptr: *mut sqlite3, sql: String) -> Result<(), Errno> {
-    let commands = split_sql_commands(sql.as_str());
+pub(crate) fn execute(db_ptr: *mut sqlite3, sql: &str) -> Result<(), Errno> {
+    let commands = split_sql_commands(sql);
 
     for command in commands {
         let stmt_ptr = prepare(db_ptr, command)?;
@@ -188,7 +188,7 @@ mod tests {
             );
         ";
 
-        execute(db_ptr, String::from(create_table_sql))?;
+        execute(db_ptr, create_table_sql)?;
 
         Ok(())
     }
@@ -200,7 +200,7 @@ mod tests {
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
         ";
-        let result = execute(db_ptr, String::from(insert_user_sql));
+        let result = execute(db_ptr, insert_user_sql);
 
         let err_info = errcode(db_ptr);
 
@@ -233,17 +233,17 @@ mod tests {
                 bio TEXT NOT NULL
             );
         ";
-        execute(db_ptr, String::from(create_table_sql))?;
+        execute(db_ptr, create_table_sql)?;
 
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
         ";
-        execute(db_ptr, String::from(insert_user_sql))?;
+        execute(db_ptr, insert_user_sql)?;
 
         let insert_order_sql = r"
             INSERT INTO profile(bio) VALUES('testing');
         ";
-        execute(db_ptr, String::from(insert_order_sql))?;
+        execute(db_ptr, insert_order_sql)?;
 
         let err_info = errcode(db_ptr);
 

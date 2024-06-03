@@ -108,12 +108,13 @@ mod tests {
     fn test_open_success() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
+        let db_file = config.db_file.clone().unwrap();
 
         let db_ptr = open(false, false, app_name)?;
         core::close(db_ptr)?;
 
-        let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
-        let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
+        let has_db_file = Path::new(db_file.as_str()).exists();
+        let is_remove_success = fs::remove_file(Path::new(db_file.as_str()));
 
         assert!(has_db_file && is_remove_success.is_ok());
 
@@ -125,13 +126,16 @@ mod tests {
     fn test_open_readonly() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
+        let db_file = config.db_file.clone().unwrap();
 
-        File::create(config.db_file.clone().unwrap().as_str()).unwrap();
+        let file_result = File::create(db_file.as_str());
+
+        assert!(file_result.is_ok());
 
         let db_ptr = open(true, false, app_name)?;
 
-        let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
-        let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
+        let has_db_file = Path::new(db_file.as_str()).exists();
+        let is_remove_success = fs::remove_file(Path::new(db_file.as_str()));
 
         core::close(db_ptr)?;
 

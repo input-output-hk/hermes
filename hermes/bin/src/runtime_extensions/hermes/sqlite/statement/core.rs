@@ -141,7 +141,7 @@ mod tests {
     fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) -> Result<(), Errno> {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {db_value_type});");
 
-        execute(db_ptr, sql)?;
+        execute(db_ptr, sql.as_str())?;
 
         let sql = String::from("INSERT INTO Dummy(Value) VALUES(?);");
 

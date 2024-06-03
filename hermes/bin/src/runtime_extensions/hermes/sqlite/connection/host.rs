@@ -88,7 +88,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
 
-        Ok(core::execute(db_ptr, sql))
+        Ok(core::execute(db_ptr, sql.as_str()))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
