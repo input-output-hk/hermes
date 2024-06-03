@@ -156,31 +156,29 @@ mod tests {
 
     const TMP_DIR: &str = "tmp-dir";
 
-    fn init() -> *mut sqlite3 {
+    fn init() -> Result<*mut sqlite3, Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
-        open(false, true, app_name).unwrap()
+        open(false, true, app_name)
     }
 
     #[test]
-    fn test_prepare_simple() {
-        let db_ptr = init();
+    fn test_prepare_simple() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let sql = String::from("SELECT 1;");
 
-        let stmt_ptr = prepare(db_ptr, sql);
+        let stmt_ptr = prepare(db_ptr, sql)?;
 
-        if let Ok(stmt_ptr) = stmt_ptr {
-            let _ = close(db_ptr);
-            let _ = finalize(stmt_ptr);
-        }
+        close(db_ptr)?;
+        finalize(stmt_ptr)?;
 
-        assert!(stmt_ptr.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_execute_create_schema_simple() {
-        let db_ptr = init();
+    fn test_execute_create_schema_simple() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let create_table_sql = r"
             CREATE TABLE IF NOT EXISTS people (
@@ -190,16 +188,14 @@ mod tests {
             );
         ";
 
-        let result = execute(db_ptr, String::from(create_table_sql));
+        execute(db_ptr, String::from(create_table_sql))?;
 
-        let _ = close(db_ptr);
-
-        assert!(result.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_err_info() {
-        let db_ptr = init();
+    fn test_err_info() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
@@ -208,7 +204,7 @@ mod tests {
 
         let err_info = errcode(db_ptr);
 
-        let _ = close(db_ptr);
+        close(db_ptr)?;
 
         assert!(result.is_err());
 
@@ -218,11 +214,13 @@ mod tests {
         } else {
             panic!();
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_execute_create_schema_multiple() {
-        let db_ptr = init();
+    fn test_execute_create_schema_multiple() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let create_table_sql = r"
             CREATE TABLE user (
@@ -235,37 +233,33 @@ mod tests {
                 bio TEXT NOT NULL
             );
         ";
-        let result = execute(db_ptr, String::from(create_table_sql));
-
-        assert!(result.is_ok());
+        execute(db_ptr, String::from(create_table_sql))?;
 
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
         ";
-        let result = execute(db_ptr, String::from(insert_user_sql));
-
-        assert!(result.is_ok());
+        execute(db_ptr, String::from(insert_user_sql))?;
 
         let insert_order_sql = r"
             INSERT INTO profile(bio) VALUES('testing');
         ";
-        let result = execute(db_ptr, String::from(insert_order_sql));
+        execute(db_ptr, String::from(insert_order_sql))?;
 
         let err_info = errcode(db_ptr);
 
-        let _ = close(db_ptr);
+        close(db_ptr)?;
 
-        assert!(result.is_ok() && err_info.is_none());
+        assert!(err_info.is_none());
+
+        Ok(())
     }
 
     #[test]
-    fn test_close_simple() {
-        let db_ptr = init();
+    fn test_close_simple() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
-        let result = close(db_ptr);
+        close(db_ptr)?;
 
-        let _ = close(db_ptr);
-
-        assert!(result.is_ok());
+        Ok(())
     }
 }

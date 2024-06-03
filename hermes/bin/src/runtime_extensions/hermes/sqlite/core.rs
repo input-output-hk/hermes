@@ -105,75 +105,70 @@ mod tests {
 
     #[test]
     #[file_serial]
-    fn test_open_success() {
+    fn test_open_success() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
-        let db_ptr = open(false, false, app_name);
-
-        if let Ok(db_ptr) = db_ptr {
-            let _ = core::close(db_ptr);
-        }
+        let db_ptr = open(false, false, app_name)?;
+        core::close(db_ptr)?;
 
         let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
         let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
 
-        assert!(db_ptr.is_ok() && has_db_file && is_remove_success.is_ok());
+        assert!(has_db_file && is_remove_success.is_ok());
+
+        Ok(())
     }
 
     #[test]
     #[file_serial]
-    fn test_open_readonly() {
+    fn test_open_readonly() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
 
         File::create(config.db_file.clone().unwrap().as_str()).unwrap();
 
-        let db_ptr = open(true, false, app_name);
+        let db_ptr = open(true, false, app_name)?;
 
         let has_db_file = Path::new(config.db_file.clone().unwrap().as_str()).exists();
         let is_remove_success = fs::remove_file(Path::new(config.db_file.unwrap().as_str()));
 
-        if let Ok(db_ptr) = db_ptr {
-            let _ = core::close(db_ptr);
-        }
+        core::close(db_ptr)?;
 
-        assert!(db_ptr.is_ok() && has_db_file && is_remove_success.is_ok());
+        assert!(has_db_file && is_remove_success.is_ok());
+
+        Ok(())
     }
 
     #[test]
     #[file_serial]
-    fn test_open_readonly_without_existing_file() {
+    fn test_open_readonly_without_existing_file() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(true, false, app_name);
 
         assert!(db_ptr.is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn test_open_in_memory() {
+    fn test_open_in_memory() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
-        let db_ptr = open(false, true, app_name);
+        let db_ptr = open(false, true, app_name)?;
+        core::close(db_ptr)?;
 
-        if let Ok(db_ptr) = db_ptr {
-            let _ = core::close(db_ptr);
-        }
-
-        assert!(db_ptr.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_open_in_memory_readonly() {
+    fn test_open_in_memory_readonly() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
-        let db_ptr = open(true, true, app_name);
+        let db_ptr = open(true, true, app_name)?;
+        core::close(db_ptr)?;
 
-        if let Ok(db_ptr) = db_ptr {
-            let _ = core::close(db_ptr);
-        }
-
-        assert!(db_ptr.is_ok());
+        Ok(())
     }
 }

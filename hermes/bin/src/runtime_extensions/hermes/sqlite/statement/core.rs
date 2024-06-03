@@ -132,43 +132,45 @@ mod tests {
 
     const TMP_DIR: &str = "tmp-dir";
 
-    fn init() -> *mut sqlite3 {
+    fn init() -> Result<*mut sqlite3, Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
-        open(false, true, app_name).unwrap()
+        open(false, true, app_name)
     }
 
-    fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) {
+    fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) -> Result<(), Errno> {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {db_value_type});");
 
-        let () = execute(db_ptr, sql).unwrap();
+        execute(db_ptr, sql)?;
 
         let sql = String::from("INSERT INTO Dummy(Value) VALUES(?);");
 
-        let stmt_ptr = prepare(db_ptr, sql).unwrap();
+        let stmt_ptr = prepare(db_ptr, sql)?;
 
-        let () = bind(stmt_ptr, 1, value).unwrap();
-        let () = step(stmt_ptr).unwrap();
-        let () = finalize(stmt_ptr).unwrap();
+        bind(stmt_ptr, 1, value)?;
+        step(stmt_ptr)?;
+        finalize(stmt_ptr)?;
+
+        Ok(())
     }
 
     fn get_value(db_ptr: *mut sqlite3) -> Result<Value, Errno> {
         let sql = String::from("SELECT Value FROM Dummy WHERE Id = 1;");
 
-        let stmt_ptr = prepare(db_ptr, sql).unwrap();
-        let () = step(stmt_ptr).unwrap();
+        let stmt_ptr = prepare(db_ptr, sql)?;
+        step(stmt_ptr)?;
         let col_result = column(stmt_ptr, 0);
-        let () = finalize(stmt_ptr).unwrap();
+        finalize(stmt_ptr)?;
 
         col_result
     }
 
     #[test]
-    fn test_value_double() {
-        let db_ptr = init();
+    fn test_value_double() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Double(std::f64::consts::PI);
-        let () = init_value(db_ptr, "REAL", value.clone());
+        init_value(db_ptr, "REAL", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(
@@ -176,40 +178,46 @@ mod tests {
         );
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_bool() {
-        let db_ptr = init();
+    fn test_value_bool() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Int32(1);
-        let () = init_value(db_ptr, "BOOLEAN", value.clone());
+        init_value(db_ptr, "BOOLEAN", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_int32() {
-        let db_ptr = init();
+    fn test_value_int32() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Int32(i32::MAX);
-        let () = init_value(db_ptr, "MEDIUMINT", value.clone());
+        init_value(db_ptr, "MEDIUMINT", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_int32_nullable() {
-        let db_ptr = init();
+    fn test_value_int32_nullable() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Null;
-        let () = init_value(db_ptr, "MEDIUMINT", value.clone());
+        init_value(db_ptr, "MEDIUMINT", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!(
@@ -218,58 +226,68 @@ mod tests {
         ));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_int64() {
-        let db_ptr = init();
+    fn test_value_int64() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Int64(i64::MAX);
-        let () = init_value(db_ptr, "BIGINT", value.clone());
+        init_value(db_ptr, "BIGINT", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!((value, value_result), (Value::Int64(x), Ok(Value::Int64(y))) if x == y));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_text() {
-        let db_ptr = init();
+    fn test_value_text() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Text(String::from("Hello, World!"));
-        let () = init_value(db_ptr, "TEXT", value.clone());
+        init_value(db_ptr, "TEXT", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!((value, value_result), (Value::Text(x), Ok(Value::Text(y))) if x == y));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_value_blob() {
-        let db_ptr = init();
+    fn test_value_blob() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let value = Value::Blob(vec![1, 2, 3, 4, 5]);
-        let () = init_value(db_ptr, "BLOB", value.clone());
+        init_value(db_ptr, "BLOB", value.clone())?;
         let value_result = get_value(db_ptr);
 
         assert!(matches!((value, value_result), (Value::Blob(x), Ok(Value::Blob(y))) if x == y));
 
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn test_finalize_simple() {
-        let db_ptr = init();
+    fn test_finalize_simple() -> Result<(), Errno> {
+        let db_ptr = init()?;
 
         let sql = String::from("SELECT 1;");
 
-        let stmt_ptr = core::prepare(db_ptr, sql).unwrap();
+        let stmt_ptr = core::prepare(db_ptr, sql)?;
 
         let result = finalize(stmt_ptr);
 
         assert!(result.is_ok());
         assert!(close(db_ptr).is_ok());
+
+        Ok(())
     }
 }

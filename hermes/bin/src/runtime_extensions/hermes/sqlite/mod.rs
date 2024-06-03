@@ -1,7 +1,5 @@
 //! `SQLite` runtime extension implementation.
 
-// cspell: words NOMEM Nomem
-
 mod connection;
 mod core;
 mod host;

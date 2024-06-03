@@ -17,6 +17,7 @@ pub(crate) struct SqliteConfig {
     pub(crate) max_db_size: u32,
 }
 
+/// Gets `SQLite` config for persistent datastore
 pub(crate) fn get_app_persistent_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
     Some(SqliteConfig {
         db_file: Some(String::from("hermes_datastore.db")),
@@ -24,6 +25,7 @@ pub(crate) fn get_app_persistent_sqlite_db_cfg(_app_name: HermesAppName) -> Opti
     })
 }
 
+/// Gets `SQLite` config for in-memory datastore
 pub(crate) fn get_app_in_memory_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
     Some(SqliteConfig {
         db_file: None,
