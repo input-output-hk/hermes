@@ -56,7 +56,7 @@ fn split_sql_commands(sql: &str) -> Vec<String> {
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
 pub(crate) fn validate_sql(sql: &str) -> bool {
-    sql.sz_find("PRAGMA ".as_bytes()).is_some()
+    sql.to_uppercase().sz_find("PRAGMA ".as_bytes()).is_some()
 }
 
 /// Closes a database connection, destructor for `sqlite3`.
@@ -160,6 +160,23 @@ mod tests {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
         open(false, true, app_name)
+    }
+
+    #[test]
+    fn test_validate_pragma() -> Result<(), Errno> {
+        let db_ptr = init()?;
+
+        let sql = "PRAGMA page_size;";
+        let stmt_ptr = prepare(db_ptr, sql);
+
+        assert!(matches!(stmt_ptr, Err(Errno::ForbiddenPragmaCommand)));
+
+        let sql = "pragma page_size;";
+        let stmt_ptr = prepare(db_ptr, sql);
+
+        assert!(matches!(stmt_ptr, Err(Errno::ForbiddenPragmaCommand)));
+
+        close(db_ptr)
     }
 
     #[test]
