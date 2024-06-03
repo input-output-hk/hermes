@@ -41,7 +41,7 @@ interface api {
         forbidden-pragma-command,
         /// Unhandled null pointer is returned while interacting with the database.
         returned-null-pointer,
-        /// The numeric value is trancated or improperly converted during the execution.  
+        /// The numeric value is truncated or improperly converted during the execution.  
         converting-numeric
     }
 
