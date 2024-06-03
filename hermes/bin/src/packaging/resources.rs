@@ -70,7 +70,7 @@ pub(crate) struct ResourceNotFoundError(String);
 pub(crate) struct CannotGetDirectoryContent(String);
 
 /// Resource definition.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Resource {
     /// File system resource.
     FsPath(PathBuf),

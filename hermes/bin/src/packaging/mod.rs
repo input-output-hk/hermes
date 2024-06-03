@@ -20,6 +20,9 @@ fn copy_resource_to_package(
     let mut reader = resource.get_reader()?;
     let mut resource_data = Vec::new();
     reader.read_to_end(&mut resource_data)?;
+    if resource_data.is_empty() {
+        return Err(anyhow::anyhow!("Resource {} is empty", resource.name()?));
+    }
 
     enable_compression(package.new_dataset_builder())
         .with_data(&resource_data)

@@ -4,14 +4,24 @@ pub(crate) mod manifest;
 
 use std::path::{Path, PathBuf};
 
+use manifest::Settings;
+
 use self::manifest::Manifest;
-use super::{copy_dir_recursively_to_package, copy_resource_to_package};
+use super::{
+    copy_dir_recursively_to_package, copy_resource_to_package, resources::Resource,
+    schema_validation::SchemaValidator,
+};
 use crate::errors::Errors;
 
 /// Create WASM module package error.
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to create WASM module package. Package at {0} could be already exists.")]
 pub(crate) struct CreatePackageError(PathBuf);
+
+/// Invalid settings schema error.
+#[derive(thiserror::Error, Debug)]
+#[error("Ivalid settings schema at {0}:\n{1}")]
+pub(crate) struct InvalidSettingsSchemaError(Resource, String);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -46,7 +56,10 @@ impl WasmModulePackage {
         let package = hdf5::File::create(&package_path)
             .map_err(|_| CreatePackageError(package_path.clone()))?;
 
-        let mut errors = Self::copy_data_to_package(manifest, &package);
+        let mut errors = Errors::new();
+
+        Self::validate(manifest, &mut errors);
+        Self::copy_data_to_package(manifest, &package, &mut errors);
 
         if !errors.is_empty() {
             std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
@@ -55,10 +68,26 @@ impl WasmModulePackage {
         errors.return_result(Self { _package: package })
     }
 
-    /// Copy data from manifest to package.
-    fn copy_data_to_package(manifest: &Manifest, package: &hdf5::File) -> Errors {
-        let mut errors = Errors::new();
+    fn validate_settings(settings: &Settings) -> anyhow::Result<()> {
+        let setting_schema_reader = settings
+            .schema
+            .get_reader()
+            .map_err(|err| InvalidSettingsSchemaError(settings.schema.clone(), err.to_string()))?;
+        // if it is a valid a schema validator, it's a valid schema
+        SchemaValidator::from_reader(setting_schema_reader)
+            .map_err(|err| InvalidSettingsSchemaError(settings.schema.clone(), err.to_string()))?;
 
+        Ok(())
+    }
+
+    fn validate(manifest: &Manifest, errors: &mut Errors) {
+        if let Some(settings) = &manifest.settings {
+            Self::validate_settings(settings).unwrap_or_else(|err| errors.add_err(err));
+        }
+    }
+
+    /// Copy data from manifest to package.
+    fn copy_data_to_package(manifest: &Manifest, package: &hdf5::File, errors: &mut Errors) {
         copy_resource_to_package(&manifest.metadata, Self::METADATA_FILE, package)
             .unwrap_or_else(|err| errors.add_err(err));
 
@@ -89,8 +118,6 @@ impl WasmModulePackage {
                 },
             );
         }
-
-        errors
     }
 }
 
