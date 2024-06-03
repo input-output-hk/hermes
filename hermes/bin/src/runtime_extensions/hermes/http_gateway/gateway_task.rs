@@ -60,11 +60,13 @@ fn executor() {
                         rusty_ulid::generate_ulid_string(),
                     );
                 },
-                Err(err) => error!(
-                    "Unable to record connection state for {:?} {:?}",
-                    client.remote_addr().to_string(),
-                    err
-                ),
+                Err(err) => {
+                    error!(
+                        "Unable to record connection state for {:?} {:?}",
+                        client.remote_addr().to_string(),
+                        err
+                    )
+                },
             }
 
             async move { Ok::<_, Infallible>(service_fn(router)) }
