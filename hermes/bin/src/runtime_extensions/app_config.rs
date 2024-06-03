@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::app::HermesAppName;
 
 /// ! Hermes application configuration for modules.
@@ -12,7 +14,7 @@ const MAX_CONFIG_DB_SIZE: u32 = 1_048_576;
 /// Represents config object for `SQLite`
 pub(crate) struct SqliteConfig {
     /// Path to the `SQLite` database file, not set if it's in-memory database.
-    pub(crate) db_file: Option<String>,
+    pub(crate) db_file: Option<PathBuf>,
     /// Maximum size of the `SQLite` database in bytes.
     pub(crate) max_db_size: u32,
 }
@@ -20,7 +22,7 @@ pub(crate) struct SqliteConfig {
 /// Gets `SQLite` config for persistent datastore
 pub(crate) fn get_app_persistent_sqlite_db_cfg(_app_name: HermesAppName) -> Option<SqliteConfig> {
     Some(SqliteConfig {
-        db_file: Some(String::from("hermes_datastore.db")),
+        db_file: Some(PathBuf::from("hermes_datastore.db")),
         max_db_size: MAX_CONFIG_DB_SIZE,
     })
 }

@@ -44,7 +44,7 @@ pub(super) fn open(
 
     let rc = unsafe {
         sqlite3_open_v2(
-            db_path.as_str().as_ptr().cast(),
+            db_path.to_string_lossy().as_ptr().cast(),
             &mut db_ptr,
             flags,
             std::ptr::null(),
@@ -113,8 +113,8 @@ mod tests {
         let db_ptr = open(false, false, app_name)?;
         core::close(db_ptr)?;
 
-        let has_db_file = Path::new(db_file.as_str()).exists();
-        let is_remove_success = fs::remove_file(Path::new(db_file.as_str()));
+        let has_db_file = Path::new(&db_file).exists();
+        let is_remove_success = fs::remove_file(Path::new(&db_file));
 
         assert!(has_db_file && is_remove_success.is_ok());
 
@@ -128,14 +128,14 @@ mod tests {
         let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
         let db_file = config.db_file.clone().unwrap();
 
-        let file_result = File::create(db_file.as_str());
+        let file_result = File::create(&db_file);
 
         assert!(file_result.is_ok());
 
         let db_ptr = open(true, false, app_name)?;
 
-        let has_db_file = Path::new(db_file.as_str()).exists();
-        let is_remove_success = fs::remove_file(Path::new(db_file.as_str()));
+        let has_db_file = Path::new(&db_file).exists();
+        let is_remove_success = fs::remove_file(Path::new(&db_file));
 
         core::close(db_ptr)?;
 
