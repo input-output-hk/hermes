@@ -32,7 +32,7 @@ impl SchemaValidator {
         let schema = JSONSchema::options()
             .with_draft(Draft::Draft7)
             .compile(json)
-            .map_err(|err| anyhow::anyhow!("Invalid draft 7 JSON schema:\n{err}"))?;
+            .map_err(|err| anyhow::anyhow!("Invalid draft 7 JSON schema:\n {err}"))?;
 
         Ok(Self { schema })
     }

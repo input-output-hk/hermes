@@ -2,26 +2,29 @@
 
 pub(crate) mod manifest;
 
-use std::path::{Path, PathBuf};
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+};
 
-use manifest::Settings;
+use manifest::{Config, Settings};
 
 use self::manifest::Manifest;
 use super::{
     copy_dir_recursively_to_package, copy_resource_to_package, resources::Resource,
     schema_validation::SchemaValidator,
 };
-use crate::errors::Errors;
+use crate::{errors::Errors, wasm};
 
 /// Create WASM module package error.
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to create WASM module package. Package at {0} could be already exists.")]
 pub(crate) struct CreatePackageError(PathBuf);
 
-/// Invalid settings schema error.
+/// Invalid file error.
 #[derive(thiserror::Error, Debug)]
-#[error("Ivalid settings schema at {0}:\n{1}")]
-pub(crate) struct InvalidSettingsSchemaError(Resource, String);
+#[error("Ivalid file at {0}:\n {1}")]
+pub(crate) struct InvalidFileError(Resource, String);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -68,22 +71,61 @@ impl WasmModulePackage {
         errors.return_result(Self { _package: package })
     }
 
+    fn validate(manifest: &Manifest, errors: &mut Errors) {
+        Self::validate_component(&manifest.component).unwrap_or_else(|err| errors.add_err(err));
+        if let Some(config) = &manifest.config {
+            Self::validate_config(config).unwrap_or_else(|err| errors.add_err(err));
+        }
+        if let Some(settings) = &manifest.settings {
+            Self::validate_settings(settings).unwrap_or_else(|err| errors.add_err(err));
+        }
+    }
+
+    fn validate_component(component: &Resource) -> anyhow::Result<()> {
+        let mut component_reader = component
+            .get_reader()
+            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+
+        let mut module_bytes = Vec::new();
+        component_reader
+            .read_to_end(&mut module_bytes)
+            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+
+        wasm::module::Module::new(&module_bytes)
+            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+        Ok(())
+    }
+
+    fn validate_config(config: &Config) -> anyhow::Result<()> {
+        let config_schema_reader = config
+            .schema
+            .get_reader()
+            .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+        let config_schema = SchemaValidator::from_reader(config_schema_reader)
+            .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+
+        if let Some(config_file) = &config.file {
+            let config_schema_reader = config_file
+                .get_reader()
+                .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+
+            config_schema
+                .deserialize_and_validate::<_, serde_json::Value>(config_schema_reader)
+                .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+        }
+        Ok(())
+    }
+
     fn validate_settings(settings: &Settings) -> anyhow::Result<()> {
         let setting_schema_reader = settings
             .schema
             .get_reader()
-            .map_err(|err| InvalidSettingsSchemaError(settings.schema.clone(), err.to_string()))?;
+            .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
         // if it is a valid a schema validator, it's a valid schema
         SchemaValidator::from_reader(setting_schema_reader)
-            .map_err(|err| InvalidSettingsSchemaError(settings.schema.clone(), err.to_string()))?;
+            .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
 
         Ok(())
-    }
-
-    fn validate(manifest: &Manifest, errors: &mut Errors) {
-        if let Some(settings) = &manifest.settings {
-            Self::validate_settings(settings).unwrap_or_else(|err| errors.add_err(err));
-        }
     }
 
     /// Copy data from manifest to package.
@@ -138,13 +180,34 @@ mod tests {
         let component_path = dir.path().join("module.wasm");
         let settings_schema_path = dir.path().join("settings.schema.json");
 
-        std::fs::write(&config_path, [1, 2, 3]).expect("Cannot create config.json file");
-        std::fs::write(&config_schema_path, [1, 2, 3])
+        let config = serde_json::json!({});
+        let config_schema = serde_json::json!({});
+        let settings_schema = serde_json::json!({});
+        let component = r#"
+            (component
+                (core module $Module
+                    (export "foo" (func $foo))
+                    (func $foo (result i32)
+                        i32.const 1
+                    )
+                )
+                (core instance $module (instantiate (module $Module)))
+                (func $foo (result s32) (canon lift (core func $module "foo")))
+                (export "foo" (func $foo))
+            )"#;
+
+        std::fs::write(&config_path, config.to_string().as_bytes())
+            .expect("Cannot create config.json file");
+        std::fs::write(&config_schema_path, config_schema.to_string().as_bytes())
             .expect("Cannot create config.schema.json file");
         std::fs::write(&metadata_path, [1, 2, 3]).expect("Cannot create metadata.json file");
-        std::fs::write(&component_path, [1, 2, 3]).expect("Cannot create module.wasm file");
-        std::fs::write(&settings_schema_path, [1, 2, 3])
-            .expect("Cannot create settings.schema.json file");
+        std::fs::write(&component_path, component.to_string().as_bytes())
+            .expect("Cannot create module.wasm file");
+        std::fs::write(
+            &settings_schema_path,
+            settings_schema.to_string().as_bytes(),
+        )
+        .expect("Cannot create settings.schema.json file");
 
         let manifest = Manifest {
             name: "module".to_string(),
