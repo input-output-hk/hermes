@@ -170,10 +170,9 @@ mod tests {
 
         let stmt_ptr = prepare(db_ptr, sql)?;
 
-        close(db_ptr)?;
         finalize(stmt_ptr)?;
 
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -190,7 +189,7 @@ mod tests {
 
         execute(db_ptr, create_table_sql)?;
 
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -247,19 +246,15 @@ mod tests {
 
         let err_info = errcode(db_ptr);
 
-        close(db_ptr)?;
-
         assert!(err_info.is_none());
 
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
     fn test_close_simple() -> Result<(), Errno> {
         let db_ptr = init()?;
 
-        close(db_ptr)?;
-
-        Ok(())
+        close(db_ptr)
     }
 }

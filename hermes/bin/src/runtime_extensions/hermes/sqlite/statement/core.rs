@@ -177,9 +177,7 @@ mod tests {
             matches!((value, value_result), (Value::Double(x), Ok(Value::Double(y))) if x.eq(&y))
         );
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -192,9 +190,7 @@ mod tests {
 
         assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -207,9 +203,7 @@ mod tests {
 
         assert!(matches!((value, value_result), (Value::Int32(x), Ok(Value::Int32(y))) if x == y));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -225,9 +219,7 @@ mod tests {
             (Value::Null, Ok(Value::Null))
         ));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -240,9 +232,7 @@ mod tests {
 
         assert!(matches!((value, value_result), (Value::Int64(x), Ok(Value::Int64(y))) if x == y));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -255,9 +245,7 @@ mod tests {
 
         assert!(matches!((value, value_result), (Value::Text(x), Ok(Value::Text(y))) if x == y));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -270,9 +258,7 @@ mod tests {
 
         assert!(matches!((value, value_result), (Value::Blob(x), Ok(Value::Blob(y))) if x == y));
 
-        assert!(close(db_ptr).is_ok());
-
-        Ok(())
+        close(db_ptr)
     }
 
     #[test]
@@ -286,8 +272,7 @@ mod tests {
         let result = finalize(stmt_ptr);
 
         assert!(result.is_ok());
-        assert!(close(db_ptr).is_ok());
 
-        Ok(())
+        close(db_ptr)
     }
 }

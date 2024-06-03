@@ -152,7 +152,7 @@ mod tests {
         let db_ptr = open(true, false, app_name);
 
         assert!(db_ptr.is_err());
-
+        
         Ok(())
     }
 
@@ -161,9 +161,8 @@ mod tests {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(false, true, app_name)?;
-        core::close(db_ptr)?;
 
-        Ok(())
+        core::close(db_ptr)
     }
 
     #[test]
@@ -171,8 +170,7 @@ mod tests {
         let app_name = HermesAppName(String::from(TMP_DIR));
 
         let db_ptr = open(true, true, app_name)?;
-        core::close(db_ptr)?;
 
-        Ok(())
+        core::close(db_ptr)
     }
 }
