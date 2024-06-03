@@ -1,9 +1,10 @@
 // cspell: words errcode errmsg
 
-/// ! Core functionality implementation for `SQLite` connection object.
+//! Core functionality implementation for `SQLite` connection object.
+
 use libsqlite3_sys::{
     sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize,
-    sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
+    sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_ROW,
 };
 use stringzilla::StringZilla;
 
@@ -63,10 +64,10 @@ pub(crate) fn validate_sql(sql: &str) -> bool {
 pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     let rc = unsafe { sqlite3_close_v2(db_ptr) };
 
-    if rc != SQLITE_OK {
-        Err(Errno::Sqlite(rc))
-    } else {
+    if rc == SQLITE_OK {
         Ok(())
+    } else {
+        Err(Errno::Sqlite(rc))
     }
 }
 
@@ -105,22 +106,23 @@ pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_st
     let mut stmt_ptr: *mut sqlite3_stmt = std::ptr::null_mut();
 
     let n_byte = sql_cstring.as_bytes_with_nul().len();
+    let n_byte = i32::try_from(n_byte).map_err(|_| Errno::ConvertingNumeric)?;
 
     let rc = unsafe {
         sqlite3_prepare_v3(
             db_ptr,
             sql_cstring.as_ptr(),
-            n_byte as i32,
+            n_byte,
             0,
             &mut stmt_ptr,
             std::ptr::null_mut(),
         )
     };
 
-    if rc != SQLITE_OK {
-        Err(Errno::Sqlite(rc))
-    } else {
+    if rc == SQLITE_OK {
         Ok(stmt_ptr)
+    } else {
+        Err(Errno::Sqlite(rc))
     }
 }
 
@@ -133,7 +135,7 @@ pub(crate) fn execute(db_ptr: *mut sqlite3, sql: &str) -> Result<(), Errno> {
         let stmt_ptr = prepare(db_ptr, command.as_str())?;
 
         let rc = unsafe { sqlite3_step(stmt_ptr) };
-        if rc != SQLITE_DONE {
+        if rc != SQLITE_DONE && rc != SQLITE_ROW {
             return Err(Errno::Sqlite(rc));
         }
 
@@ -218,18 +220,14 @@ mod tests {
         ";
         let result = execute(db_ptr, insert_user_sql);
 
-        let err_info = errcode(db_ptr);
+        let err_info = errcode(db_ptr).expect("should return error info");
 
         close(db_ptr)?;
 
         assert!(result.is_err());
 
-        if let Some(err_info) = err_info {
-            assert_eq!(err_info.code, 1);
-            assert_eq!(err_info.message, String::from("no such table: user"));
-        } else {
-            panic!();
-        }
+        assert_eq!(err_info.code, 1);
+        assert_eq!(err_info.message, String::from("no such table: user"));
 
         Ok(())
     }

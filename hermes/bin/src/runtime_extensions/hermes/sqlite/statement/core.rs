@@ -1,6 +1,6 @@
+//! Core functionality implementation for `SQLite` statement object.
 use std::os::raw::c_char;
 
-/// ! Core functionality implementation for `SQLite` statement object.
 use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_blob, sqlite3_column_bytes,
@@ -16,11 +16,13 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
     let rc = unsafe {
         match value {
             Value::Blob(value) => {
+                let bytes_len = i32::try_from(value.len()).map_err(|_| Errno::ConvertingNumeric)?;
+
                 sqlite3_bind_blob(
                     stmt_ptr,
                     index,
                     value.as_ptr().cast::<std::ffi::c_void>(),
-                    value.len() as i32,
+                    bytes_len,
                     SQLITE_TRANSIENT(),
                 )
             },
@@ -33,22 +35,23 @@ pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Res
                     std::ffi::CString::new(value).map_err(|_| Errno::ConvertingCString)?;
 
                 let n_byte = c_value.as_bytes_with_nul().len();
+                let n_byte = i32::try_from(n_byte).map_err(|_| Errno::ConvertingNumeric)?;
 
                 sqlite3_bind_text(
                     stmt_ptr,
                     index,
                     c_value.as_ptr(),
-                    n_byte as i32,
+                    n_byte,
                     SQLITE_TRANSIENT(),
                 )
             },
         }
     };
 
-    if rc != SQLITE_OK {
-        Err(Errno::Sqlite(rc))
-    } else {
+    if rc == SQLITE_OK {
         Ok(())
+    } else {
+        Err(Errno::Sqlite(rc))
     }
 }
 
@@ -71,7 +74,8 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
         match column_type {
             SQLITE_BLOB => {
                 let blob_ptr = sqlite3_column_blob(stmt_ptr, index);
-                let blob_len = sqlite3_column_bytes(stmt_ptr, index) as usize;
+                let blob_len = sqlite3_column_bytes(stmt_ptr, index);
+                let blob_len = usize::try_from(blob_len).map_err(|_| Errno::ConvertingNumeric)?;
                 let blob_slice = std::slice::from_raw_parts(blob_ptr.cast::<u8>(), blob_len);
                 Value::Blob(blob_slice.to_vec())
             },
@@ -79,7 +83,10 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
             SQLITE_INTEGER => {
                 let int_value = sqlite3_column_int64(stmt_ptr, index);
                 if int_value >= i64::from(std::i32::MIN) && int_value <= i64::from(std::i32::MAX) {
-                    Value::Int32(int_value as i32)
+                    let int_value =
+                        i32::try_from(int_value).map_err(|_| Errno::ConvertingNumeric)?;
+
+                    Value::Int32(int_value)
                 } else {
                     Value::Int64(int_value)
                 }
@@ -110,10 +117,10 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
 pub(crate) fn finalize(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
     let rc = unsafe { sqlite3_finalize(stmt_ptr) };
 
-    if rc != SQLITE_OK {
-        Err(Errno::Sqlite(rc))
-    } else {
+    if rc == SQLITE_OK {
         Ok(())
+    } else {
+        Err(Errno::Sqlite(rc))
     }
 }
 

@@ -20,7 +20,9 @@ impl HostStatement for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
 
-        Ok(core::bind(stmt_ptr, index as i32, value))
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+
+        Ok(core::bind(stmt_ptr, index, value))
     }
 
     /// Advances a statement to the next result row or to completion.
@@ -53,7 +55,9 @@ impl HostStatement for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<Value, Errno>> {
         let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
 
-        Ok(core::column(stmt_ptr, index as i32))
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+
+        Ok(core::column(stmt_ptr, index))
     }
 
     /// Destroys a prepared statement object. If the most recent evaluation of the

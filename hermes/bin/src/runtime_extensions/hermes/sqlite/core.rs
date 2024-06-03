@@ -1,4 +1,5 @@
-/// ! Core functionality implementation for the `SQLite` open function.
+//! Core functionality implementation for the `SQLite` open function.
+
 use libsqlite3_sys::{
     sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
@@ -12,6 +13,7 @@ use crate::{
     },
 };
 
+/// The default page size of `SQLite`.
 const PAGE_SIZE: u32 = 4_096;
 
 /// Opens a connection to a new or existing `SQLite` database.
@@ -107,8 +109,9 @@ mod tests {
     #[file_serial]
     fn test_open_success() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
-        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
-        let db_file = config.db_file.clone().unwrap();
+        let config =
+            get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
+        let db_file = config.db_file.clone().expect("cannot find the db path");
 
         let db_ptr = open(false, false, app_name)?;
         core::close(db_ptr)?;
@@ -125,8 +128,9 @@ mod tests {
     #[file_serial]
     fn test_open_readonly() -> Result<(), Errno> {
         let app_name = HermesAppName(String::from(TMP_DIR));
-        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
-        let db_file = config.db_file.clone().unwrap();
+        let config =
+            get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
+        let db_file = config.db_file.clone().expect("cannot find the db path");
 
         let file_result = File::create(&db_file);
 
