@@ -8,12 +8,11 @@ use hyper::{self, Body, HeaderMap, Method, Request, Response, StatusCode};
 use serde::Deserialize;
 use tracing::info;
 
+use super::gateway_task::ConnectionManager;
 use crate::{
     event::{HermesEvent, TargetApp, TargetModule},
     runtime_extensions::hermes::kv_store::event::KVGet,
 };
-
-use super::gateway_task::ConnectionManager;
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
