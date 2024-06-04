@@ -12,7 +12,7 @@ use crate::errors::Errors;
 #[error("Invalid draft 7 JSON schema, err: {0}")]
 pub(crate) struct InvalidJsonSchema(String);
 
-/// Json Schema Draft 7 Validator.
+/// JSON Schema Draft 7 Validator.
 #[derive(Debug)]
 pub(crate) struct SchemaValidator {
     /// JSON schema validator instance.
