@@ -54,7 +54,7 @@ impl HermesIpfs {
     ///
     /// ## Parameters
     ///
-    /// * `ipfs_path` - `GetIpfsFile(ipfs_path)` Path used to get the file from IPFS.
+    /// * `ipfs_path` - `GetIpfsFile(String)` Path used to get the file from IPFS.
     ///
     /// ## Returns
     ///
@@ -80,7 +80,7 @@ pub enum AddIpfsFile {
     /// Path in local disk storage to the file.
     Path(std::path::PathBuf),
     /// Stream of file bytes, with an optional name.
-    /// **NOTE** current implementation of rust-ipfs does not add names to published files.
+    /// **NOTE** current implementation of `rust-ipfs` does not add names to published files.
     Stream((Option<String>, Vec<u8>)),
 }
 
@@ -99,6 +99,7 @@ pub struct GetIpfsFile(pub String);
 
 impl TryFrom<GetIpfsFile> for IpfsPath {
     type Error = anyhow::Error;
+
     fn try_from(GetIpfsFile(ipfs_path): GetIpfsFile) -> Result<Self, Self::Error> {
         IpfsPath::from_str(&ipfs_path)
     }
