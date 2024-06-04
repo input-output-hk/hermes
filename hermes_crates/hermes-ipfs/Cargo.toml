@@ -40,6 +40,7 @@ missing_docs_in_private_items = "deny"
 
 [dependencies]
 anyhow = "1.0.86"
+libipld = "0.16.0"
 rust-ipfs = "0.11.19"
 thiserror = "1.0.61"
 
