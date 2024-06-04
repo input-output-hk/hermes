@@ -2,6 +2,9 @@
 
 // cspell: words splitn
 
+mod fs_resource;
+mod uri;
+
 use std::{
     fmt::{Debug, Display},
     io::Read,
@@ -9,55 +12,7 @@ use std::{
 };
 
 use serde::{Deserialize, Deserializer};
-
-/// URI resource definition.
-/// This definition mainly based on the [URI RFC](https://tools.ietf.org/html/rfc3986),
-/// but the implementation is not compliant with it and conforms with our needs.
-/// The parsing pattern is as follows:
-/// `[schema] :// [host] / [path]`
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Uri {
-    /// URI schema component.
-    schema: Option<String>,
-    /// URI host component.
-    host: Option<String>,
-    /// URI path component.
-    path: Option<String>,
-}
-
-impl Uri {
-    /// Parse URI from string with the following pattern:
-    /// `[schema] :// [host] / [path]`
-    #[allow(clippy::indexing_slicing)]
-    pub(crate) fn parse_from_str(s: &str) -> Self {
-        let schema_and_host_and_path = s.splitn(2, "://").collect::<Vec<_>>();
-        let mut schema = None;
-        let mut host = None;
-        let mut path = None;
-
-        if schema_and_host_and_path.len() == 2 {
-            schema = Some(schema_and_host_and_path[0].to_string());
-
-            let host_and_path = schema_and_host_and_path[1]
-                .splitn(2, '/')
-                .collect::<Vec<_>>();
-            if host_and_path.len() == 2 {
-                host = Some(host_and_path[0].to_string());
-                path = Some(host_and_path[1].to_string());
-            } else {
-                host = Some(host_and_path[0].to_string());
-            }
-        } else {
-            path = Some(schema_and_host_and_path[0].to_string());
-        }
-
-        Self {
-            schema: schema.filter(|s| !s.is_empty()),
-            host: host.filter(|s| !s.is_empty()),
-            path: path.filter(|s| !s.is_empty()),
-        }
-    }
-}
+use uri::Uri;
 
 /// Resource not found error.
 #[derive(thiserror::Error, Debug)]
@@ -68,6 +23,31 @@ pub(crate) struct ResourceNotFoundError(String);
 #[derive(thiserror::Error, Debug)]
 #[error("Cannot get directory content at {0}")]
 pub(crate) struct CannotGetDirectoryContent(String);
+
+/// `Resource` trait definition.
+#[allow(dead_code)]
+pub(crate) trait ResourceTrait {
+    /// Get resource name.
+    fn name(&self) -> anyhow::Result<String>;
+
+    /// Check if resource is a directory.
+    fn is_dir(&self) -> bool;
+
+    /// Check if resource is a file.
+    fn is_file(&self) -> bool;
+
+    /// Make resource relative to given path.
+    fn make_relative_to<P: AsRef<Path>>(&mut self, to: P)
+    where Self: Sized;
+
+    /// Get data reader for the resource.
+    fn get_reader(&self) -> anyhow::Result<impl Read + Debug>
+    where Self: Sized;
+
+    /// Get directory content.
+    fn get_directory_content(&self) -> anyhow::Result<Vec<Self>>
+    where Self: Sized;
+}
 
 /// Resource definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,81 +187,49 @@ impl<'de> Deserialize<'de> for Resource {
     }
 }
 
+/// Create resource from URI.
+fn create_resource_from_uri(uri: Uri) -> anyhow::Result<Box<dyn ResourceTrait>> {
+    match uri.schema {
+        None => {
+            if uri.host.is_some() {
+                return Err(anyhow::anyhow!(
+                    "URI with host is not supported for this type of schema",
+                ));
+            }
+            if let Some(path) = uri.path {
+                Ok(Box::new(PathBuf::from(path)))
+            } else {
+                Err(anyhow::anyhow!("Empty path in URI"))
+            }
+        },
+        Some(schema) if schema == "file" => {
+            if uri.host.is_some() {
+                return Err(anyhow::anyhow!(
+                    "URI with host is not supported for this type of schema",
+                ));
+            }
+            if let Some(path) = uri.path {
+                Ok(Box::new(PathBuf::from(path)))
+            } else {
+                Err(anyhow::anyhow!("Empty path in URI"))
+            }
+        },
+        Some(schema) => Err(anyhow::anyhow!("Unsupported URI schema {schema}")),
+    }
+}
+
+impl<'de> Deserialize<'de> for Box<dyn ResourceTrait> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de> {
+        let s = String::deserialize(deserializer)?;
+        let uri = Uri::parse_from_str(&s);
+        create_resource_from_uri(uri).map_err(|e| serde::de::Error::custom(e.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn uri_parsing_test() {
-        assert_eq!(
-            Uri::parse_from_str("https://www.google.com/file.txt"),
-            Uri {
-                schema: Some("https".to_string()),
-                host: Some("www.google.com".to_string()),
-                path: Some("file.txt".to_string())
-            }
-        );
-        assert_eq!(Uri::parse_from_str("://www.google.com/file.txt"), Uri {
-            schema: None,
-            host: Some("www.google.com".to_string()),
-            path: Some("file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("www.google.com/file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("www.google.com/file.txt".to_string()),
-        });
-        assert_eq!(Uri::parse_from_str("file://www.google.com"), Uri {
-            schema: Some("file".to_string()),
-            host: Some("www.google.com".to_string()),
-            path: None
-        });
-        assert_eq!(Uri::parse_from_str("file:///../file.txt"), Uri {
-            schema: Some("file".to_string()),
-            host: None,
-            path: Some("../file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("file:///~/file.txt"), Uri {
-            schema: Some("file".to_string()),
-            host: None,
-            path: Some("~/file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("file:///file.txt"), Uri {
-            schema: Some("file".to_string()),
-            host: None,
-            path: Some("file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("/file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("/file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("./file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("./file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("~/file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("~/file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str("../file.txt"), Uri {
-            schema: None,
-            host: None,
-            path: Some("../file.txt".to_string())
-        });
-        assert_eq!(Uri::parse_from_str(""), Uri {
-            schema: None,
-            host: None,
-            path: None,
-        });
-    }
 
     #[test]
     fn resource_from_uri_test() {
