@@ -46,8 +46,6 @@ impl HermesEventPayload for KVGet {
             .hermes_kv_store_event()
             .call_kv_get(&mut module.store, &self.event)?;
 
-        self.sender.send(value.to_string()).unwrap();
-
-        Ok(())
+        Ok(self.sender.send(value.to_string())?)
     }
 }

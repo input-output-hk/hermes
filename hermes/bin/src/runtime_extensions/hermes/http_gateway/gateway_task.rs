@@ -29,7 +29,7 @@ pub fn spawn() {
 
 /// Starts the HTTP Gateway
 fn executor() {
-    let shared = Arc::new(ConnectionManager {
+    let connection_manager = Arc::new(ConnectionManager {
         connection_context: Mutex::new(HashMap::new()),
     });
 
@@ -52,7 +52,7 @@ fn executor() {
         let addr = ([127, 0, 0, 1], 5000).into();
 
         let gateway_service = make_service_fn(|client: &AddrStream| {
-            let connection_manager = shared.clone();
+            let connection_manager = connection_manager.clone();
             let ip = client.remote_addr();
 
             async move {
