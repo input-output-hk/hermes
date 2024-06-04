@@ -72,13 +72,13 @@ pub async fn router(
     let host = host_resolver(req.headers())?;
 
     match host.0.as_str() {
-        "test.hermes.local" => Ok(route_to_hermes(req).await?),
+        "test.hermes.local.kv" => Ok(route_to_kv(req).await?),
         _ => todo!(),
     }
 }
 
 /// Route to hermes backend
-async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
+async fn route_to_kv(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let method = req.method().to_owned();
     let uri = req.uri().to_owned();
 
@@ -90,7 +90,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     // let _event_body: Event = serde_json::from_slice(&req.collect().await?.to_bytes())?;
 
     match (method, uri.path()) {
-        (Method::GET, "/kv") => {
+        (Method::GET, "/api") => {
             let event_method = headers
                 .get("Method")
                 .ok_or(anyhow!("No event method for target app"))?
@@ -119,6 +119,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
                 _ => todo!(),
             }
         },
+        (Method::GET, "/") => todo!(), // serve static
         _ => todo!(),
     };
 }
