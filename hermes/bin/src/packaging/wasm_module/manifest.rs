@@ -72,7 +72,7 @@ impl Manifest {
         PathBuf::from("module.wasm").into()
     }
 
-    /// Create a Manifest from a path.
+    /// Create a `Manifest` from a path.
     pub(crate) fn from_file<P: AsRef<Path>>(path_to_manifest: P) -> anyhow::Result<Self> {
         let path = path_to_manifest.as_ref();
         let file = std::fs::File::open(path).map_err(|_| ManifestFileError(path.into()))?;

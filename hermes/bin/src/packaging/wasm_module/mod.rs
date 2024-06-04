@@ -1,13 +1,16 @@
 //! Wasm module package.
 
 pub(crate) mod manifest;
+mod metadata;
 
 use std::{
     io::Read,
     path::{Path, PathBuf},
 };
 
+use chrono::Utc;
 use manifest::{Config, Settings};
+use metadata::Metadata;
 
 use self::manifest::Manifest;
 use super::{
@@ -51,7 +54,7 @@ impl WasmModulePackage {
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn from_manifest<P: AsRef<Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>,
+        manifest: Manifest, output_path: P, package_name: Option<&str>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -61,8 +64,12 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate(manifest, &mut errors);
-        Self::copy_data_to_package(manifest, &package, &mut errors);
+        Self::validate(&manifest, &mut errors);
+
+        let mut metadata = Metadata::from_resource(&manifest.metadata)?;
+        metadata.set_build_date(Utc::now());
+
+        Self::copy_data_to_package(&manifest, &package, &mut errors);
 
         if !errors.is_empty() {
             std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
