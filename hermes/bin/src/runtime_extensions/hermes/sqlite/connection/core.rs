@@ -2,57 +2,15 @@
 
 //! Core functionality implementation for `SQLite` connection object.
 
+use std::ptr::null_mut;
+
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_finalize,
-    sqlite3_prepare_v3, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_ROW,
+    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
+    sqlite3_stmt, SQLITE_OK,
 };
 use stringzilla::StringZilla;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, ErrorInfo};
-
-/// Splits a given SQL string into individual commands, ensuring that semicolons
-/// within string literals are not treated as command separators.
-///
-/// # Arguments
-///
-/// * `sql` - A string slice that holds the SQL statements to be split into individual
-///   commands.
-///
-/// # Returns
-///
-/// * `Vec<String>` - A vector of strings, each containing an individual SQL command.
-fn split_sql_commands(sql: &str) -> Vec<String> {
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
-    let mut escape = false;
-    let mut current_command = String::new();
-    let mut commands = Vec::new();
-
-    for c in sql.chars() {
-        current_command.push(c);
-
-        match c {
-            '\'' if !in_double_quote && !escape => in_single_quote = !in_single_quote,
-            '"' if !in_single_quote && !escape => in_double_quote = !in_double_quote,
-            '\\' if !escape => escape = true,
-            ';' if !in_single_quote && !in_double_quote => {
-                // If not inside a string literal, push the current command to the vector
-                commands.push(current_command.trim().to_string());
-                current_command.clear();
-            },
-            _ => {
-                escape = false;
-            },
-        }
-    }
-
-    // Push the last command if it's not empty
-    if !current_command.trim().is_empty() {
-        commands.push(current_command.trim().to_string());
-    }
-
-    commands
-}
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
@@ -129,23 +87,15 @@ pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_st
 /// Executes an SQL query directly without preparing it into a statement and returns
 /// the result.
 pub(crate) fn execute(db_ptr: *mut sqlite3, sql: &str) -> Result<(), Errno> {
-    let commands = split_sql_commands(sql);
+    let sql_cstring = std::ffi::CString::new(sql).map_err(|_| Errno::ConvertingCString)?;
 
-    for command in commands {
-        let stmt_ptr = prepare(db_ptr, command.as_str())?;
+    let rc = unsafe { sqlite3_exec(db_ptr, sql_cstring.as_ptr(), None, null_mut(), null_mut()) };
 
-        let rc = unsafe { sqlite3_step(stmt_ptr) };
-        if rc != SQLITE_DONE && rc != SQLITE_ROW {
-            return Err(Errno::Sqlite(rc));
-        }
-
-        let rc = unsafe { sqlite3_finalize(stmt_ptr) };
-        if rc != SQLITE_OK {
-            return Err(Errno::Sqlite(rc));
-        }
+    if rc == SQLITE_OK {
+        Ok(())
+    } else {
+        Err(Errno::Sqlite(rc))
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
