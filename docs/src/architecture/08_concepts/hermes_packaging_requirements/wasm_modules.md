@@ -177,10 +177,11 @@ The compressed/uncompressed statistic should be per file, and also for the total
 
     ```json
     {{ include_file('includes/schemas/example/hermes_module_manifest.json', indent=4) }}
+    ```
 
 ### WASM Component Module Manifest - Minimal Example
 
-??? note "Example: MINIMAL `hermes_module_manifest.json`"
+??? note "Example: MINIMAL `hermes_module_minimal_manifest.json`"
 
     ```json
     {{ include_file('includes/schemas/example/hermes_module_minimal_manifest.json', indent=4) }}

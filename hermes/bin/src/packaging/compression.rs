@@ -1,4 +1,5 @@
 //! Enabling blosc compression for the hdf5 package.
+
 // cspell: words nthreads decompressor
 
 use hdf5::filters::Blosc;
@@ -48,12 +49,17 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::get_path_name;
 
     fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
         dir: P, package: &hdf5::Group, with_compression: bool,
     ) -> anyhow::Result<()> {
-        let dir_name = get_path_name(&dir)?;
+        let dir_name = dir
+            .as_ref()
+            .file_name()
+            .ok_or(anyhow::anyhow!("cannot get path name"))?
+            .to_str()
+            .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
+            .to_string();
         let package = package.create_group(&dir_name)?;
 
         for dir_entry in std::fs::read_dir(dir)? {
@@ -64,7 +70,12 @@ mod tests {
             }
             if path.is_file() {
                 let file_data = std::fs::read(&path)?;
-                let file_name = get_path_name(path)?;
+                let file_name = path
+                    .file_name()
+                    .ok_or(anyhow::anyhow!("cannot get path name"))?
+                    .to_str()
+                    .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
+                    .to_string();
                 let ds = if with_compression {
                     enable_compression(package.new_dataset_builder())
                 } else {
