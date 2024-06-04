@@ -8,14 +8,14 @@ pub(crate) mod wasm_module;
 
 use std::io::Read;
 
-use resources::Resource;
+use resources::ResourceTrait;
 
 use self::compression::enable_compression;
 use crate::errors::Errors;
 
 /// Copy resource to hdf5 package.
 fn copy_resource_to_package(
-    resource: &Resource, name: &str, package: &hdf5::Group,
+    resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
 ) -> anyhow::Result<()> {
     let mut reader = resource.get_reader()?;
     let mut resource_data = Vec::new();
@@ -33,7 +33,7 @@ fn copy_resource_to_package(
 
 /// Copy dir to hdf5 package recursively.
 pub(crate) fn copy_dir_recursively_to_package(
-    resource: &Resource, name: &str, package: &hdf5::Group,
+    resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
 ) -> anyhow::Result<()> {
     let package = package.create_group(name)?;
 
@@ -60,6 +60,7 @@ pub(crate) fn copy_dir_recursively_to_package(
 #[cfg(test)]
 mod tests {
     use hdf5::File;
+    use resources::fs_resource::FsResource;
     use temp_dir::TempDir;
 
     use super::*;
@@ -77,8 +78,12 @@ mod tests {
         std::fs::write(&metadata_json_path, metadata_json_data)
             .expect("Cannot write data to metadata.json");
 
-        copy_resource_to_package(&metadata_json_path.into(), metadata_json, &hdf5_file)
-            .expect("Cannot copy metadata.json to hdf5 package");
+        copy_resource_to_package(
+            &FsResource::new(metadata_json_path),
+            metadata_json,
+            &hdf5_file,
+        )
+        .expect("Cannot copy metadata.json to hdf5 package");
 
         let metadata_json_ds = hdf5_file
             .dataset(metadata_json)
@@ -95,7 +100,7 @@ mod tests {
     #[test]
     fn copy_dir_recursively_to_package_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
-        let dir_resource = Resource::from(dir.path());
+        let dir_resource = FsResource::new(dir.path());
         let dir_name = dir_resource.name().expect("Cannot get root dir name");
 
         let file_name = dir.child("test.hdf5");
@@ -117,12 +122,8 @@ mod tests {
         let file_3 = child_dir.join(file_3_name);
         std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
 
-        copy_dir_recursively_to_package(
-            &dir_resource,
-            &dir_resource.name().expect("Cannot get root dir name"),
-            &hdf5_file,
-        )
-        .expect("Cannot copy dir to hdf5 package");
+        copy_dir_recursively_to_package(&dir_resource, &dir_name, &hdf5_file)
+            .expect("Cannot copy dir to hdf5 package");
 
         let root_group = hdf5_file.group(&dir_name).expect("Cannot open root group");
         assert!(root_group.dataset(file_1_name).is_ok());

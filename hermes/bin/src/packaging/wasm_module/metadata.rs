@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::packaging::{resources::Resource, schema_validation::SchemaValidator};
+use crate::packaging::{resources::ResourceTrait, schema_validation::SchemaValidator};
 
 /// WASM module package metadata reading error.
 #[derive(thiserror::Error, Debug)]
@@ -20,7 +20,7 @@ impl Metadata {
         include_str!("../../../../schemas/hermes_module_metadata.schema.json");
 
     /// Create `Metadata` from `Resource`.
-    pub(crate) fn from_resource(resource: &Resource) -> anyhow::Result<Self> {
+    pub(crate) fn from_resource(resource: &impl ResourceTrait) -> anyhow::Result<Self> {
         let manifest_reader = resource.get_reader()?;
 
         let schema_validator = SchemaValidator::from_str(Self::METADATA_SCHEMA)?;

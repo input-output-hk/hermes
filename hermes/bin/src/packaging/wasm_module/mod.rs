@@ -14,7 +14,8 @@ use metadata::Metadata;
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package, resources::Resource,
+    copy_dir_recursively_to_package, copy_resource_to_package,
+    resources::{Resource, ResourceTrait},
     schema_validation::SchemaValidator,
 };
 use crate::{errors::Errors, wasm};
@@ -175,6 +176,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
+    use crate::packaging::resources::fs_resource::FsResource;
 
     #[test]
     fn from_dir_test() {
@@ -186,6 +188,7 @@ mod tests {
         let component_path = dir.path().join("module.wasm");
         let settings_schema_path = dir.path().join("settings.schema.json");
 
+        let metadata = serde_json::json!({});
         let config = serde_json::json!({});
         let config_schema = serde_json::json!({});
         let settings_schema = serde_json::json!({});
@@ -206,7 +209,8 @@ mod tests {
             .expect("Cannot create config.json file");
         std::fs::write(&config_schema_path, config_schema.to_string().as_bytes())
             .expect("Cannot create config.schema.json file");
-        std::fs::write(&metadata_path, [1, 2, 3]).expect("Cannot create metadata.json file");
+        std::fs::write(&metadata_path, metadata.to_string().as_bytes())
+            .expect("Cannot create metadata.json file");
         std::fs::write(&component_path, component.to_string().as_bytes())
             .expect("Cannot create module.wasm file");
         std::fs::write(
@@ -217,20 +221,20 @@ mod tests {
 
         let manifest = Manifest {
             name: "module".to_string(),
-            metadata: metadata_path.into(),
-            component: component_path.into(),
+            metadata: Resource::Fs(FsResource::new(metadata_path)),
+            component: Resource::Fs(FsResource::new(component_path)),
             config: Config {
-                file: Some(config_path.into()),
-                schema: config_schema_path.into(),
+                file: Some(Resource::Fs(FsResource::new(config_path))),
+                schema: Resource::Fs(FsResource::new(config_schema_path)),
             }
             .into(),
             settings: Settings {
-                schema: settings_schema_path.into(),
+                schema: Resource::Fs(FsResource::new(settings_schema_path)),
             }
             .into(),
             share: None,
         };
-        WasmModulePackage::from_manifest(&manifest, dir.path(), None)
+        WasmModulePackage::from_manifest(manifest, dir.path(), None)
             .expect("Cannot create module package");
     }
 }
