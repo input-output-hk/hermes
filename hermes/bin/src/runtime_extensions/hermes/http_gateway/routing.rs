@@ -1,13 +1,19 @@
-use std::sync::mpsc::channel;
+use std::{
+    net::SocketAddr,
+    sync::{mpsc::channel, Arc},
+};
 
 use anyhow::{anyhow, Ok};
 use hyper::{self, Body, HeaderMap, Method, Request, Response, StatusCode};
 use serde::Deserialize;
+use tracing::info;
 
 use crate::{
     event::{HermesEvent, TargetApp, TargetModule},
     runtime_extensions::hermes::kv_store::event::KVGet,
 };
+
+use super::gateway_task::ConnectionManager;
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
@@ -50,7 +56,20 @@ pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<Hostname> {
 
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
-pub async fn router(req: Request<Body>) -> anyhow::Result<Response<Body>> {
+pub async fn router(
+    req: Request<Body>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr,
+) -> anyhow::Result<Response<Body>> {
+    connection_manager
+        .connection_context
+        .try_lock()
+        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
+        .insert(rusty_ulid::generate_ulid_string(), ip.to_string());
+
+    info!(
+        "conns {:?}",
+        connection_manager.connection_context.try_lock().unwrap()
+    );
+
     let host = host_resolver(req.headers())?;
 
     match host.0.as_str() {

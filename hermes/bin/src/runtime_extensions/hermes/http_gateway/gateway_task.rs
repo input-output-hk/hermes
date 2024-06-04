@@ -15,7 +15,8 @@ use tracing::{error, info};
 
 use super::routing::router;
 
-struct ConnectionManager {
+/// Manages connection state
+pub struct ConnectionManager {
     pub connection_context: Mutex<HashMap<String, String>>,
 }
 
@@ -52,24 +53,14 @@ fn executor() {
 
         let gateway_service = make_service_fn(|client: &AddrStream| {
             let connection_manager = shared.clone();
+            let ip = client.remote_addr();
 
-            match connection_manager.connection_context.try_lock() {
-                Ok(mut context) => {
-                    context.insert(
-                        client.remote_addr().to_string(),
-                        rusty_ulid::generate_ulid_string(),
-                    );
-                },
-                Err(err) => {
-                    error!(
-                        "Unable to record connection state for {:?} {:?}",
-                        client.remote_addr().to_string(),
-                        err
-                    )
-                },
+            async move {
+                Ok::<_, Infallible>(service_fn(move |req| {
+                    let shared = &connection_manager;
+                    router(req, shared.clone(), ip)
+                }))
             }
-
-            async move { Ok::<_, Infallible>(service_fn(router)) }
         });
 
         Server::bind(&addr)
