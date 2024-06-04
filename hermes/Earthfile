@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.00.3 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.1 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -12,7 +12,7 @@ IMPORT ../wasm/stub-module AS stub-module
 # builder : Set up our target toolchains, and copy our files.
 builder:
     DO rust-ci+SETUP
-    COPY --dir .cargo .config crates bin .
+    COPY --dir .cargo .config crates bin schemas .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 

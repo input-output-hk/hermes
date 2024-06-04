@@ -1,5 +1,8 @@
 //! `SQLite` statement host implementation for WASM runtime.
 
+use libsqlite3_sys::sqlite3_stmt;
+
+use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{Errno, HostStatement, Statement, Value},
@@ -13,9 +16,13 @@ impl HostStatement for HermesRuntimeContext {
     /// - `index`: The index of the SQL parameter to be set.
     /// - `value`: The value to bind to the parameter.
     fn bind(
-        &mut self, _self_: wasmtime::component::Resource<Statement>, _index: u32, _value: Value,
+        &mut self, resource: wasmtime::component::Resource<Statement>, index: u32, value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+
+        Ok(core::bind(stmt_ptr, index, value))
     }
 
     /// Advances a statement to the next result row or to completion.
@@ -23,9 +30,11 @@ impl HostStatement for HermesRuntimeContext {
     /// After a prepared statement has been prepared, this function must be called one or
     /// more times to evaluate the statement.
     fn step(
-        &mut self, _self_: wasmtime::component::Resource<Statement>,
+        &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        Ok(core::step(stmt_ptr))
     }
 
     /// Returns information about a single column of the current result row of a query.
@@ -42,9 +51,13 @@ impl HostStatement for HermesRuntimeContext {
     ///
     /// The value of a result column in a specific data format.
     fn column(
-        &mut self, _self_: wasmtime::component::Resource<Statement>, _index: u32,
+        &mut self, resource: wasmtime::component::Resource<Statement>, index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+
+        Ok(core::column(stmt_ptr, index))
     }
 
     /// Destroys a prepared statement object. If the most recent evaluation of the
@@ -58,12 +71,18 @@ impl HostStatement for HermesRuntimeContext {
     /// it has been finalized can result in undefined and undesirable behavior such as
     /// segfaults and heap corruption.
     fn finalize(
-        &mut self, _self_: wasmtime::component::Resource<Statement>,
+        &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        Ok(core::finalize(stmt_ptr))
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, resource: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
+        let stmt_ptr: *mut sqlite3_stmt = resource.rep() as *mut _;
+
+        let _ = core::finalize(stmt_ptr);
+
+        Ok(())
     }
 }

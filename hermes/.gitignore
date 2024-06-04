@@ -12,3 +12,6 @@ bindings.rs
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# Auto-generated while executing the code locally
+bin/hermes_datastore.db
