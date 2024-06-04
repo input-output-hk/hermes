@@ -84,6 +84,31 @@ impl HermesIpfs {
         self.node.insert_pin(cid).await
     }
 
+    /// Checks whether a given block is pinned.
+    ///
+    /// # Crash unsafety
+    ///
+    /// Cannot currently detect partially written recursive pins. Those can happen if
+    /// [`HermesIpfs::insert_pin`] is interrupted by a crash for example.
+    ///
+    /// Works correctly only under no-crash situations. Workaround for hitting a crash is to re-pin
+    /// any existing recursive pins.
+    ///
+    /// ## Parameters
+    ///
+    /// * `cid` - `Cid` Content identifier to be pinned.
+    ///
+    /// ## Returns
+    /// `true` if the block is pinned, `false` if not. See Crash unsafety notes for the false
+    /// response.
+    ///
+    /// ## Errors
+    ///
+    /// Returns an error if checking pin fails.
+    pub async fn is_pinned(&self, cid: &Cid) -> anyhow::Result<bool> {
+        self.node.is_pinned(cid).await
+    }
+
     /// Remove pinned content from IPFS.
     ///
     /// ## Parameters
@@ -94,7 +119,7 @@ impl HermesIpfs {
     ///
     /// Returns an error if removing pin fails.
     pub async fn remove_pin(&self, cid: &Cid) -> anyhow::Result<()> {
-        self.node.remove_pin(cid).await
+        self.node.remove_pin(cid).recursive().await
     }
 
     /// Stop and exit the IPFS node daemon.
