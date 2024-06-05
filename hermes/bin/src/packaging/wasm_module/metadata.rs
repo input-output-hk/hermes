@@ -15,7 +15,9 @@ pub(crate) struct MeatadataReadingError(String);
 /// Metadata object
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Metadata {
+    /// Resource name
     name: String,
+    /// metadata JSON object
     object: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -45,7 +47,7 @@ impl Metadata {
     }
 
     /// Set `name` property.
-    pub(crate) fn _set_name(&mut self, name: String) {
+    pub(crate) fn set_name(&mut self, name: String) {
         self.object.insert("name".to_string(), name.into());
     }
 

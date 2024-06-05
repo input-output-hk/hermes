@@ -64,15 +64,15 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate_and_write_metadata(&manifest, &package)
+        Self::validate_and_write_metadata(manifest, package_name.to_string(), &package)
             .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_component(&manifest, &package)
+        Self::validate_and_write_component(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_config(&manifest, &package)
+        Self::validate_and_write_config(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_settings(&manifest, &package)
+        Self::validate_and_write_settings(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
-        Self::write_share_dir(&manifest, &package).unwrap_or_else(|err| {
+        Self::write_share_dir(manifest, &package).unwrap_or_else(|err| {
             match err.downcast::<Errors>() {
                 Ok(errs) => errors.merge(errs),
                 Err(err) => errors.add_err(err),
@@ -89,11 +89,12 @@ impl WasmModulePackage {
     /// Validate metadata.json file, provide a `build_date` and `name` properties and
     /// write it to the package.
     fn validate_and_write_metadata(
-        manifest: &Manifest, package: &hdf5::File,
+        manifest: &Manifest, name: String, package: &hdf5::File,
     ) -> anyhow::Result<()> {
         let metadata = &manifest.metadata;
         let mut metadata = Metadata::from_resource(metadata)?;
         metadata.set_build_date(Utc::now());
+        metadata.set_name(name);
 
         let resource = metadata.get_resource()?;
         copy_resource_to_package(&resource, Self::METADATA_FILE, package)?;
