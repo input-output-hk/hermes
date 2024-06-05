@@ -3,7 +3,6 @@
 mod compression;
 mod resources;
 mod schema_validation;
-#[allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
 pub(crate) mod wasm_module;
 
 use std::io::Read;

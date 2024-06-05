@@ -9,7 +9,6 @@ use std::{
 };
 
 use chrono::Utc;
-use manifest::{Config, Settings};
 use metadata::Metadata;
 
 use self::manifest::Manifest;
@@ -65,12 +64,20 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate(&manifest, &mut errors);
-
-        let mut metadata = Metadata::from_resource(&manifest.metadata)?;
-        metadata.set_build_date(Utc::now());
-
-        Self::copy_data_to_package(&manifest, &package, &mut errors);
+        Self::validate_and_write_metadata(&manifest, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
+        Self::validate_and_write_component(&manifest, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
+        Self::validate_and_write_config(&manifest, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
+        Self::validate_and_write_settings(&manifest, &package)
+            .unwrap_or_else(|err| errors.add_err(err));
+        Self::write_share_dir(&manifest, &package).unwrap_or_else(|err| {
+            match err.downcast::<Errors>() {
+                Ok(errs) => errors.merge(errs),
+                Err(err) => errors.add_err(err),
+            }
+        });
 
         if !errors.is_empty() {
             std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
@@ -79,17 +86,26 @@ impl WasmModulePackage {
         errors.return_result(Self { _package: package })
     }
 
-    fn validate(manifest: &Manifest, errors: &mut Errors) {
-        Self::validate_component(&manifest.component).unwrap_or_else(|err| errors.add_err(err));
-        if let Some(config) = &manifest.config {
-            Self::validate_config(config).unwrap_or_else(|err| errors.add_err(err));
-        }
-        if let Some(settings) = &manifest.settings {
-            Self::validate_settings(settings).unwrap_or_else(|err| errors.add_err(err));
-        }
+    /// Validate metadata.json file, provide a `build_date` and `name` properties and
+    /// write it to the package.
+    fn validate_and_write_metadata(
+        manifest: &Manifest, package: &hdf5::File,
+    ) -> anyhow::Result<()> {
+        let metadata = &manifest.metadata;
+        let mut metadata = Metadata::from_resource(metadata)?;
+        metadata.set_build_date(Utc::now());
+
+        let resource = metadata.get_resource()?;
+        copy_resource_to_package(&resource, Self::METADATA_FILE, package)?;
+        Ok(())
     }
 
-    fn validate_component(component: &Resource) -> anyhow::Result<()> {
+    /// Validate WASM component file and write it to the package.
+    fn validate_and_write_component(
+        manifest: &Manifest, package: &hdf5::File,
+    ) -> anyhow::Result<()> {
+        let component = &manifest.component;
+
         let mut component_reader = component
             .get_reader()
             .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
@@ -101,72 +117,61 @@ impl WasmModulePackage {
 
         wasm::module::Module::new(&module_bytes)
             .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+
+        copy_resource_to_package(component, Self::COMPONENT_FILE, package)?;
         Ok(())
     }
 
-    fn validate_config(config: &Config) -> anyhow::Result<()> {
-        let config_schema_reader = config
-            .schema
-            .get_reader()
-            .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
-        let config_schema = SchemaValidator::from_reader(config_schema_reader)
-            .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
-
-        if let Some(config_file) = &config.file {
-            let config_schema_reader = config_file
-                .get_reader()
-                .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
-
-            config_schema
-                .deserialize_and_validate::<_, serde_json::Value>(config_schema_reader)
-                .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
-        }
-        Ok(())
-    }
-
-    fn validate_settings(settings: &Settings) -> anyhow::Result<()> {
-        let setting_schema_reader = settings
-            .schema
-            .get_reader()
-            .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
-        SchemaValidator::from_reader(setting_schema_reader)
-            .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
-
-        Ok(())
-    }
-
-    /// Copy data from manifest to package.
-    fn copy_data_to_package(manifest: &Manifest, package: &hdf5::File, errors: &mut Errors) {
-        copy_resource_to_package(&manifest.metadata, Self::METADATA_FILE, package)
-            .unwrap_or_else(|err| errors.add_err(err));
-
-        copy_resource_to_package(&manifest.component, Self::COMPONENT_FILE, package)
-            .unwrap_or_else(|err| errors.add_err(err));
-
+    /// Validate config file and config schema and write them to the package.
+    fn validate_and_write_config(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
         if let Some(config) = &manifest.config {
+            let config_schema_reader = config
+                .schema
+                .get_reader()
+                .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+            let config_schema = SchemaValidator::from_reader(config_schema_reader)
+                .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+
+            copy_resource_to_package(&config.schema, Self::CONFIG_SCHEMA_FILE, package)?;
+
             if let Some(config_file) = &config.file {
-                copy_resource_to_package(config_file, Self::CONFIG_FILE, package)
-                    .unwrap_or_else(|err| errors.add_err(err));
+                let config_schema_reader = config_file
+                    .get_reader()
+                    .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+
+                config_schema
+                    .deserialize_and_validate::<_, serde_json::Value>(config_schema_reader)
+                    .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+
+                copy_resource_to_package(config_file, Self::CONFIG_FILE, package)?;
             }
-            copy_resource_to_package(&config.schema, Self::CONFIG_SCHEMA_FILE, package)
-                .unwrap_or_else(|err| errors.add_err(err));
         }
+        Ok(())
+    }
 
+    /// Validate settings schema file and it to the package.
+    fn validate_and_write_settings(
+        manifest: &Manifest, package: &hdf5::File,
+    ) -> anyhow::Result<()> {
         if let Some(settings) = &manifest.settings {
-            copy_resource_to_package(&settings.schema, Self::SETTINGS_SCHEMA_FILE, package)
-                .unwrap_or_else(|err| errors.add_err(err));
-        }
+            let setting_schema_reader = settings
+                .schema
+                .get_reader()
+                .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
+            SchemaValidator::from_reader(setting_schema_reader)
+                .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
 
-        if let Some(share_path) = &manifest.share {
-            copy_dir_recursively_to_package(share_path, Self::SHARE_DIR, package).unwrap_or_else(
-                |err| {
-                    match err.downcast::<Errors>() {
-                        Ok(errs) => errors.merge(errs),
-                        Err(err) => errors.add_err(err),
-                    }
-                },
-            );
+            copy_resource_to_package(&settings.schema, Self::SETTINGS_SCHEMA_FILE, package)?;
         }
+        Ok(())
+    }
+
+    /// Write share dir to the package.
+    fn write_share_dir(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
+        if let Some(share_dir) = &manifest.share {
+            copy_dir_recursively_to_package(share_dir, Self::SHARE_DIR, package)?;
+        }
+        Ok(())
     }
 }
 
@@ -188,7 +193,15 @@ mod tests {
         let component_path = dir.path().join("module.wasm");
         let settings_schema_path = dir.path().join("settings.schema.json");
 
-        let metadata = serde_json::json!({});
+        let metadata = serde_json::json!({
+            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+            "name": "Test module",
+            "version": "V1.0.0",
+            "description": "Some description",
+            "src": ["https://github.com/input-output-hk/hermes"],
+            "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+            "license": [{"spdx": "MIT"}]
+        });
         let config = serde_json::json!({});
         let config_schema = serde_json::json!({});
         let settings_schema = serde_json::json!({});
