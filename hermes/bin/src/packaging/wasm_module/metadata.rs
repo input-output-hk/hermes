@@ -33,10 +33,8 @@ impl Metadata {
 
     /// Set `build_date` property to the `Metadata` object.
     pub(crate) fn set_build_date(&mut self, date: DateTime<Utc>) {
-        self.object.insert(
-            "build_date".to_string(),
-            date.to_rfc3339().to_string().into(),
-        );
+        self.object
+            .insert("build_date".to_string(), date.timestamp().into());
     }
 
     /// Set `name` property to the `Metadata` object.

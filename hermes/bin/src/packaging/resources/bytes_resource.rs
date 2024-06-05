@@ -14,8 +14,7 @@ pub(crate) struct BytesResource {
 }
 
 impl BytesResource {
-    /// Create a new `BytesResource` instance
-    #[allow(dead_code)]
+    /// Create a new `BytesResource` instance.
     pub(crate) fn new(name: String, data: Vec<u8>) -> Self {
         Self { name, data }
     }

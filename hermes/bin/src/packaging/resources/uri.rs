@@ -1,5 +1,7 @@
 //! URI hermes specific parsing implementation.
 
+// cspell: words splitn
+
 /// URI resource definition.
 /// This definition mainly based on the [URI RFC](https://tools.ietf.org/html/rfc3986),
 /// but the implementation is not compliant with it and conforms with our needs.

@@ -87,6 +87,14 @@ impl WasmModulePackage {
         errors.return_result(Self { package })
     }
 
+    /// Get `Metadata` object from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
+        let ds = self.package.dataset(Self::METADATA_FILE)?;
+        let reader = ds.as_byte_reader()?;
+        Metadata::from_reader(reader)
+    }
+
     /// Validate metadata.json file and write it to the package.
     /// Also updates `Metadata` object by setting `build_date` and `name` properties.
     fn validate_and_write_metadata(
@@ -201,15 +209,19 @@ mod tests {
         let component_path = dir.path().join("module.wasm");
         let settings_schema_path = dir.path().join("settings.schema.json");
 
-        let metadata = serde_json::json!({
-            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
-            "name": "Test module",
-            "version": "V1.0.0",
-            "description": "Some description",
-            "src": ["https://github.com/input-output-hk/hermes"],
-            "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
-            "license": [{"spdx": "MIT"}]
-        });
+        let mut metadata = Metadata::from_reader(
+            serde_json::json!(
+                {
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+                    "name": "Test module",
+                    "version": "V1.0.0",
+                    "description": "Some description",
+                    "src": ["https://github.com/input-output-hk/hermes"],
+                    "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+                    "license": [{"spdx": "MIT"}]
+                }
+            ).to_string().as_bytes()
+        ).expect("Invalid metadata");
         let config = serde_json::json!({});
         let config_schema = serde_json::json!({});
         let settings_schema = serde_json::json!({});
@@ -230,8 +242,11 @@ mod tests {
             .expect("Cannot create config.json file");
         std::fs::write(&config_schema_path, config_schema.to_string().as_bytes())
             .expect("Cannot create config.schema.json file");
-        std::fs::write(&metadata_path, metadata.to_string().as_bytes())
-            .expect("Cannot create metadata.json file");
+        std::fs::write(
+            &metadata_path,
+            metadata.to_bytes().expect("Cannot decode metadata"),
+        )
+        .expect("Cannot create metadata.json file");
         std::fs::write(&component_path, component.to_string().as_bytes())
             .expect("Cannot create module.wasm file");
         std::fs::write(
@@ -262,30 +277,12 @@ mod tests {
                 .expect("Cannot create module package");
 
         // check metadata JSON file
-        let expected_metadata_json = serde_json::json!({
-            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
-            "name": manifest.name,
-            "version": "V1.0.0",
-            "description": "Some description",
-            "src": ["https://github.com/input-output-hk/hermes"],
-            "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
-            "license": [{"spdx": "MIT"}],
-            "build_date": build_time.to_rfc3339(),
-        });
+        metadata.set_name(&manifest.name);
+        metadata.set_build_date(build_time);
 
-        let metadata_ds = package
-            .package
-            .dataset(WasmModulePackage::METADATA_FILE)
-            .expect("cannot open component dataset");
-        let metadata_json: serde_json::Value = serde_json::from_str(
-            &String::from_utf8(
-                metadata_ds
-                    .read_raw()
-                    .expect("cannot read metadata.json dataset"),
-            )
-            .expect("cannot parse metadata.json dataset"),
-        )
-        .expect("Cannot deserialize metadata.json to JSON object");
-        assert_eq!(metadata_json, expected_metadata_json);
+        let package_metadata = package
+            .get_metadata()
+            .expect("Cannot get metadata from package");
+        assert_eq!(metadata, package_metadata);
     }
 }

@@ -1,7 +1,5 @@
 //! Resources module functionality.
 
-// cspell: words splitn
-
 pub(crate) mod bytes_resource;
 pub(crate) mod fs_resource;
 mod uri;
