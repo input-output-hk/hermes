@@ -20,6 +20,7 @@ impl Display for FsResource {
 }
 
 impl FsResource {
+    /// Create a new `FsResource` instance.
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self(path.as_ref().to_path_buf())
     }
@@ -54,7 +55,7 @@ impl ResourceTrait for FsResource {
     fn get_reader(&self) -> anyhow::Result<impl Read + Debug> {
         std::fs::File::open(&self.0).map_err(|err| {
             if err.kind() == std::io::ErrorKind::NotFound {
-                anyhow::anyhow!("File not found at {}", self.0.display()).into()
+                anyhow::anyhow!("File not found at {}", self.0.display())
             } else {
                 err.into()
             }

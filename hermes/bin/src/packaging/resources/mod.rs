@@ -2,6 +2,7 @@
 
 // cspell: words splitn
 
+pub(crate) mod bytes_resource;
 pub(crate) mod fs_resource;
 mod uri;
 
@@ -15,8 +16,7 @@ use fs_resource::FsResource;
 use serde::{Deserialize, Deserializer};
 use uri::Uri;
 
-/// `Resource` trait definition.
-#[allow(dead_code)]
+/// Resource trait definition.
 pub(crate) trait ResourceTrait {
     /// Get resource name.
     fn name(&self) -> anyhow::Result<String>;
