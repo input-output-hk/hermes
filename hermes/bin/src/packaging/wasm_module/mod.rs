@@ -54,7 +54,7 @@ impl WasmModulePackage {
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn from_manifest<P: AsRef<Path>>(
-        manifest: Manifest, output_path: P, package_name: Option<&str>,
+        manifest: &Manifest, output_path: P, package_name: Option<&str>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -247,7 +247,7 @@ mod tests {
             .into(),
             share: None,
         };
-        WasmModulePackage::from_manifest(manifest, dir.path(), None)
+        WasmModulePackage::from_manifest(&manifest, dir.path(), None)
             .expect("Cannot create module package");
     }
 }
