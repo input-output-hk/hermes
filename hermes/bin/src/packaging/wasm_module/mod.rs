@@ -33,7 +33,8 @@ pub(crate) struct InvalidFileError(String, String);
 #[derive(Debug)]
 pub(crate) struct WasmModulePackage {
     /// hdf5 package instance
-    _package: hdf5::File,
+    #[allow(dead_code)]
+    package: hdf5::File,
 }
 
 impl WasmModulePackage {
@@ -83,7 +84,7 @@ impl WasmModulePackage {
             std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
         }
 
-        errors.return_result(Self { _package: package })
+        errors.return_result(Self { package })
     }
 
     /// Validate metadata.json file and write it to the package.
@@ -256,7 +257,35 @@ mod tests {
         };
 
         let build_time = DateTime::default();
-        WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
-            .expect("Cannot create module package");
+        let package =
+            WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+                .expect("Cannot create module package");
+
+        // check metadata JSON file
+        let expected_metadata_json = serde_json::json!({
+            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+            "name": manifest.name,
+            "version": "V1.0.0",
+            "description": "Some description",
+            "src": ["https://github.com/input-output-hk/hermes"],
+            "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+            "license": [{"spdx": "MIT"}],
+            "build_date": build_time.to_rfc3339(),
+        });
+
+        let metadata_ds = package
+            .package
+            .dataset(WasmModulePackage::METADATA_FILE)
+            .expect("cannot open component dataset");
+        let metadata_json: serde_json::Value = serde_json::from_str(
+            &String::from_utf8(
+                metadata_ds
+                    .read_raw()
+                    .expect("cannot read metadata.json dataset"),
+            )
+            .expect("cannot parse metadata.json dataset"),
+        )
+        .expect("Cannot deserialize metadata.json to JSON object");
+        assert_eq!(metadata_json, expected_metadata_json);
     }
 }
