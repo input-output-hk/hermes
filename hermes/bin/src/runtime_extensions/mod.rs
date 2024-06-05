@@ -2,6 +2,7 @@
 
 use tracing::{span, Level};
 
+pub(crate) mod app_config;
 pub(crate) mod bindings;
 pub mod hermes;
 pub(crate) mod wasi;

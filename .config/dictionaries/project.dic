@@ -33,6 +33,7 @@ cpus
 crontabs
 crontagged
 cryptoxide
+cstring
 dashmap
 dashmap
 Datelike
@@ -47,9 +48,9 @@ dotenvy
 dotglob
 drep
 dreps
+Earthfile
 encryptor
 Errno
-Earthfile
 excalidraw
 fadvise
 fcntl
@@ -89,6 +90,7 @@ jormungandr
 Jörmungandr
 lcov
 Leshiy
+libsqlite
 libtest
 linkat
 lintfix
@@ -157,6 +159,7 @@ seckey
 slotno
 smac
 stevenj
+stringzilla
 subsec
 symlinkat
 syscall
