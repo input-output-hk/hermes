@@ -1,7 +1,7 @@
 //! Filesystem resource implementation.
 
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     io::Read,
     path::{Path, PathBuf},
 };
@@ -12,12 +12,6 @@ use super::ResourceTrait;
 /// A simple wrapper over `PathBuf`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FsResource(PathBuf);
-
-impl Display for FsResource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
 
 impl FsResource {
     /// Create a new `FsResource` instance.
@@ -30,6 +24,11 @@ impl FsResource {
         if self.0.is_relative() {
             self.0 = to.as_ref().join(&self.0);
         }
+    }
+
+    /// Get resource location.
+    pub(crate) fn location(&self) -> String {
+        format!("{}", self.0.display())
     }
 }
 

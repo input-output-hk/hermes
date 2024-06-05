@@ -8,13 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use chrono::Utc;
 use metadata::Metadata;
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package,
-    resources::{Resource, ResourceTrait},
+    copy_dir_recursively_to_package, copy_resource_to_package, resources::ResourceTrait,
     schema_validation::SchemaValidator,
 };
 use crate::{errors::Errors, wasm};
@@ -27,7 +25,7 @@ pub(crate) struct CreatePackageError(PathBuf);
 /// Invalid file error.
 #[derive(thiserror::Error, Debug)]
 #[error("Invalid file at {0}:\n {1}")]
-pub(crate) struct InvalidFileError(Resource, String);
+pub(crate) struct InvalidFileError(String, String);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -53,7 +51,7 @@ impl WasmModulePackage {
     const SHARE_DIR: &'static str = "share";
 
     /// Create a new WASM module package from a manifest file.
-    pub(crate) fn from_manifest<P: AsRef<Path>>(
+    pub(crate) fn build_from_manifest<P: AsRef<Path>>(
         manifest: &Manifest, output_path: P, package_name: Option<&str>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
@@ -64,7 +62,7 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate_and_write_metadata(manifest, package_name.to_string(), &package)
+        Self::validate_and_write_metadata(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
         Self::validate_and_write_component(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
@@ -86,18 +84,18 @@ impl WasmModulePackage {
         errors.return_result(Self { _package: package })
     }
 
-    /// Validate metadata.json file, provide a `build_date` and `name` properties and
-    /// write it to the package.
+    /// Validate metadata.json file and write it to the package.
     fn validate_and_write_metadata(
-        manifest: &Manifest, name: String, package: &hdf5::File,
+        manifest: &Manifest, package: &hdf5::File,
     ) -> anyhow::Result<()> {
-        let metadata = &manifest.metadata;
-        let mut metadata = Metadata::from_resource(metadata)?;
-        metadata.set_build_date(Utc::now());
-        metadata.set_name(name);
+        let resource = &manifest.metadata;
+        let metadata_reader = resource
+            .get_reader()
+            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        let resource = metadata.get_resource()?;
-        copy_resource_to_package(&resource, Self::METADATA_FILE, package)?;
+        Metadata::from_reader(metadata_reader)?;
+
+        copy_resource_to_package(resource, Self::METADATA_FILE, package)?;
         Ok(())
     }
 
@@ -105,21 +103,21 @@ impl WasmModulePackage {
     fn validate_and_write_component(
         manifest: &Manifest, package: &hdf5::File,
     ) -> anyhow::Result<()> {
-        let component = &manifest.component;
+        let resource = &manifest.component;
 
-        let mut component_reader = component
+        let mut component_reader = resource
             .get_reader()
-            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
         let mut module_bytes = Vec::new();
         component_reader
             .read_to_end(&mut module_bytes)
-            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
         wasm::module::Module::new(&module_bytes)
-            .map_err(|err| InvalidFileError(component.clone(), err.to_string()))?;
+            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        copy_resource_to_package(component, Self::COMPONENT_FILE, package)?;
+        copy_resource_to_package(resource, Self::COMPONENT_FILE, package)?;
         Ok(())
     }
 
@@ -129,20 +127,20 @@ impl WasmModulePackage {
             let config_schema_reader = config
                 .schema
                 .get_reader()
-                .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+                .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
             let config_schema = SchemaValidator::from_reader(config_schema_reader)
-                .map_err(|err| InvalidFileError(config.schema.clone(), err.to_string()))?;
+                .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
 
             copy_resource_to_package(&config.schema, Self::CONFIG_SCHEMA_FILE, package)?;
 
             if let Some(config_file) = &config.file {
                 let config_schema_reader = config_file
                     .get_reader()
-                    .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+                    .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
 
                 config_schema
                     .deserialize_and_validate::<_, serde_json::Value>(config_schema_reader)
-                    .map_err(|err| InvalidFileError(config_file.clone(), err.to_string()))?;
+                    .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
 
                 copy_resource_to_package(config_file, Self::CONFIG_FILE, package)?;
             }
@@ -158,9 +156,9 @@ impl WasmModulePackage {
             let setting_schema_reader = settings
                 .schema
                 .get_reader()
-                .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
+                .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
             SchemaValidator::from_reader(setting_schema_reader)
-                .map_err(|err| InvalidFileError(settings.schema.clone(), err.to_string()))?;
+                .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
 
             copy_resource_to_package(&settings.schema, Self::SETTINGS_SCHEMA_FILE, package)?;
         }
@@ -182,7 +180,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::fs_resource::FsResource;
+    use crate::packaging::resources::{fs_resource::FsResource, Resource};
 
     #[test]
     fn from_dir_test() {
@@ -248,7 +246,7 @@ mod tests {
             .into(),
             share: None,
         };
-        WasmModulePackage::from_manifest(&manifest, dir.path(), None)
+        WasmModulePackage::build_from_manifest(&manifest, dir.path(), None)
             .expect("Cannot create module package");
     }
 }

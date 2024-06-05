@@ -48,7 +48,8 @@ impl PackageCommand {
 
         let manifest = Manifest::from_file(&self.manifest_path)?;
         let package_name = self.name.as_deref();
-        WasmModulePackage::from_manifest(&manifest, output_path, package_name)?;
+
+        WasmModulePackage::build_from_manifest(&manifest, output_path, package_name)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())

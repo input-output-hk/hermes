@@ -78,7 +78,7 @@ mod tests {
             .expect("Cannot write data to metadata.json");
 
         copy_resource_to_package(
-            &FsResource::new(metadata_json_path),
+            &FsResource::new(metadata_json_path.clone()),
             metadata_json,
             &hdf5_file,
         )

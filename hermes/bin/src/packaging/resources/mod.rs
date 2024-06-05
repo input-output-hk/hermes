@@ -6,11 +6,7 @@ pub(crate) mod bytes_resource;
 pub(crate) mod fs_resource;
 mod uri;
 
-use std::{
-    fmt::{Debug, Display},
-    io::Read,
-    path::Path,
-};
+use std::{fmt::Debug, io::Read, path::Path};
 
 use fs_resource::FsResource;
 use serde::{Deserialize, Deserializer};
@@ -40,14 +36,6 @@ pub(crate) trait ResourceTrait {
 pub(crate) enum Resource {
     /// File system resource.
     Fs(FsResource),
-}
-
-impl Display for Resource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Fs(fs) => Display::fmt(fs, f),
-        }
-    }
 }
 
 impl ResourceTrait for Resource {
@@ -125,6 +113,13 @@ impl Resource {
     pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
         match self {
             Resource::Fs(fs) => fs.make_relative_to(to),
+        }
+    }
+
+    /// Get resource location.
+    pub(crate) fn location(&self) -> String {
+        match self {
+            Resource::Fs(fs) => fs.location(),
         }
     }
 }
