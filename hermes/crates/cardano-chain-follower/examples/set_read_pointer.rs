@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network, Point};
+use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network, Point};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -17,14 +17,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default().build();
-
-    let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        config,
-    )
-    .await?;
+    let mut follower = FollowerConfigBuilder::default_for(Network::Mainnet)
+        .build()
+        .connect()
+        .await?;
 
     let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
     let mut pointer_set = false;

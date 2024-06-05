@@ -15,6 +15,36 @@ use crate::{
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
 
+/// Default relay for a local test relay node.
+const DEFAULT_TESTNET_RELAY: &str = "localhost:3001";
+
+// Mainnet Defaults.
+/// Default Relay to use
+const DEFAULT_MAINNET_RELAY: &str = "backbone.cardano.iog.io:3001";
+/// Main-net Mithril Signature genesis vkey.
+const DEFAULT_MAINNET_MITHRIL_GENESIS_KEY: &str = include_str!("data/mainnet-genesis.vkey");
+/// Default Mithril Aggregator to use.
+const DEFAULT_MAINNET_MITHRIL_AGGREGATOR: &str =
+    "https://aggregator.release-mainnet.api.mithril.network/aggregator";
+
+// Preprod Defaults
+/// Default Relay to use
+const DEFAULT_PREPROD_RELAY: &str = "preprod-node.play.dev.cardano.org:3001";
+/// Preprod network Mithril Signature genesis vkey.
+const DEFAULT_PREPROD_MITHRIL_GENESIS_KEY: &str = include_str!("data/preprod-genesis.vkey");
+/// Default Mithril Aggregator to use.
+const DEFAULT_PREPROD_MITHRIL_AGGREGATOR: &str =
+    "https://aggregator.release-preprod.api.mithril.network/aggregator";
+
+// Preview Defaults
+/// Default Relay to use
+const DEFAULT_PREVIEW_RELAY: &str = "preview-node.play.dev.cardano.org:3001";
+/// Preview network Mithril Signature genesis vkey.
+const DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY: &str = include_str!("data/preview-genesis.vkey");
+/// Default Mithril Aggregator to use.
+const DEFAULT_PREVIEW_MITHRIL_AGGREGATOR: &str =
+    "https://aggregator.pre-release-preview.api.mithril.network/aggregator";
+
 /// Enum of chain updates received by the follower.
 pub enum ChainUpdate {
     /// New block inserted on chain.
@@ -33,27 +63,96 @@ impl ChainUpdate {
     }
 }
 
-/// Builder used to create [`FollowerConfig`]s.
-pub struct FollowerConfigBuilder {
+/// A Follower Connection to the Cardano Network.
+#[derive(Clone)]
+pub struct FollowerConfig {
+    /// Chain Network
+    chain: Network,
+    /// Relay Node Address
+    relay_address: String,
     /// Block buffer size option.
     chain_update_buffer_size: usize,
     /// Where to start following from.
     follow_from: PointOrTip,
     /// Path to the Mithril snapshot the follower should use.
     mithril_snapshot_path: Option<PathBuf>,
+    /// Address of the Mithril Aggregator to use to find the latest snapshot data to
+    /// download.
+    _mithril_aggregator_address: Option<String>,
+    /// The Genesis Key needed for a network to do Mithril snapshot validation.
+    _mithril_genesis_key: Option<String>,
+    /// Is the mithril snapshot to be transparently updated to latest, in the background.
+    mithril_update: bool,
 }
 
-impl Default for FollowerConfigBuilder {
-    fn default() -> Self {
-        Self {
-            chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-            follow_from: PointOrTip::Tip,
-            mithril_snapshot_path: None,
-        }
-    }
-}
+/// Builder used to create [`FollowerConfig`]s.
+#[derive(Clone)]
+pub struct FollowerConfigBuilder(FollowerConfig);
 
 impl FollowerConfigBuilder {
+    /// Sets the defaults for a given cardano network.
+    /// Each network has a different set of defaults, so no single "default" can apply.
+    /// This function is preferred to the `default()` standard function.
+    #[must_use]
+    pub fn default_for(chain: Network) -> Self {
+        match chain {
+            Network::Mainnet => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_MAINNET_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    _mithril_aggregator_address: Some(
+                        DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    _mithril_genesis_key: Some(DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Preview => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_PREVIEW_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    _mithril_aggregator_address: Some(
+                        DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    _mithril_genesis_key: Some(DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Preprod => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_PREPROD_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    _mithril_aggregator_address: Some(
+                        DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    _mithril_genesis_key: Some(DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Testnet => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_TESTNET_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    _mithril_aggregator_address: None,
+                    _mithril_genesis_key: None,
+                    mithril_update: false,
+                })
+            },
+        }
+    }
+
     /// Sets the size of the chain updates buffer used by the [`Follower`].
     ///
     /// # Arguments
@@ -61,7 +160,7 @@ impl FollowerConfigBuilder {
     /// * `chain_update_buffer_size`: Size of the chain updates buffer.
     #[must_use]
     pub fn chain_update_buffer_size(mut self, block_buffer_size: usize) -> Self {
-        self.chain_update_buffer_size = block_buffer_size;
+        self.0.chain_update_buffer_size = block_buffer_size;
         self
     }
 
@@ -73,7 +172,7 @@ impl FollowerConfigBuilder {
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
     where P: Into<PointOrTip> {
-        self.follow_from = from.into();
+        self.0.follow_from = from.into();
         self
     }
 
@@ -82,41 +181,60 @@ impl FollowerConfigBuilder {
     /// # Arguments
     ///
     /// * `path`: Mithril snapshot path.
+    /// * `update`: Auto-update this path with the latest mithril snapshot as it changes.
     #[must_use]
-    pub fn mithril_snapshot_path(mut self, path: PathBuf) -> Self {
-        self.mithril_snapshot_path = Some(path);
+    pub fn mithril_snapshot_path(mut self, path: PathBuf, update: bool) -> Self {
+        self.0.mithril_snapshot_path = Some(path);
+        self.0.mithril_update = update;
         self
     }
 
     /// Builds a [`FollowerConfig`].
     #[must_use]
     pub fn build(self) -> FollowerConfig {
-        FollowerConfig {
-            chain_update_buffer_size: self.chain_update_buffer_size,
-            follow_from: self.follow_from,
-            mithril_snapshot_path: self.mithril_snapshot_path,
-        }
+        self.0
     }
 }
 
-/// Configuration for the Cardano chain follower.
-#[derive(Clone)]
-pub struct FollowerConfig {
-    /// Configured chain update buffer size.
-    pub chain_update_buffer_size: usize,
-    /// Where to start following from.
-    pub follow_from: PointOrTip,
-    /// Path to the Mithril snapshot the follower should use.
-    pub mithril_snapshot_path: Option<PathBuf>,
-}
+impl FollowerConfig {
+    /// Connects the follower to a node, and/or to a mithril snapshot.
+    /// Nodes connect using the node-to-node protocol.
+    ///
+    /// # Arguments
+    ///
+    /// All arguments come from the configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the connection could not be established.
+    pub async fn connect(self) -> Result<Follower> {
+        let mut client = PeerClient::connect(self.relay_address.clone(), self.chain.into())
+            .await
+            .map_err(Error::Client)?;
 
-/// Information used to connect to a client.
-#[derive(Clone)]
-struct ClientConnectInfo {
-    /// Node's address
-    address: String,
-    /// Network magic
-    network: Network,
+        let Some(follow_from) =
+            set_client_read_pointer(&mut client, self.follow_from.clone()).await?
+        else {
+            return Err(Error::SetReadPointer);
+        };
+
+        let mithril_snapshot = if let Some(path) = self.mithril_snapshot_path.clone() {
+            Some(MithrilSnapshot::from_path(path)?)
+        } else {
+            None
+        };
+
+        let (task_request_tx, chain_update_rx, task_join_handle) =
+            task::FollowTask::spawn(client, self.clone(), mithril_snapshot.clone(), follow_from);
+
+        Ok(Follower {
+            connection_cfg: self.clone(),
+            chain_update_rx,
+            follow_task_request_tx: task_request_tx,
+            follow_task_join_handle: task_join_handle,
+            mithril_snapshot,
+        })
+    }
 }
 
 /// Handler for receiving the read block response from the client.
@@ -176,7 +294,7 @@ pub struct Follower {
     /// Client connection information.
     ///
     /// This is used to open more connections when needed.
-    client_connect_info: ClientConnectInfo,
+    connection_cfg: FollowerConfig,
     /// Chain update receiver.
     chain_update_rx: mpsc::Receiver<Result<ChainUpdate>>,
     /// Follow task request sender.
@@ -188,60 +306,6 @@ pub struct Follower {
 }
 
 impl Follower {
-    /// Connects the follower to a producer using the node-to-node protocol.
-    ///
-    /// # Arguments
-    ///
-    /// * `address`: Address of the node to connect to.
-    /// * `network`: The [Network] the client is assuming it's connecting to.
-    /// * `config`: Follower's configuration (see [`FollowerConfigBuilder`]).
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if the connection could not be established.
-    pub async fn connect(address: &str, network: Network, config: FollowerConfig) -> Result<Self> {
-        let mut client = PeerClient::connect(address, network.into())
-            .await
-            .map_err(Error::Client)?;
-
-        let Some(follow_from) = set_client_read_pointer(&mut client, config.follow_from).await?
-        else {
-            return Err(Error::SetReadPointer);
-        };
-
-        let mithril_snapshot = if let Some(path) = config.mithril_snapshot_path {
-            Some(MithrilSnapshot::from_path(path)?)
-        } else {
-            None
-        };
-
-        let connect_info = ClientConnectInfo {
-            address: address.to_string(),
-            network,
-        };
-
-        let (task_request_tx, chain_update_rx, task_join_handle) = task::FollowTask::spawn(
-            client,
-            connect_info,
-            mithril_snapshot.clone(),
-            config.chain_update_buffer_size,
-            follow_from,
-        );
-
-        let client_connect_info = ClientConnectInfo {
-            address: address.to_string(),
-            network,
-        };
-
-        Ok(Self {
-            client_connect_info,
-            chain_update_rx,
-            follow_task_request_tx: task_request_tx,
-            follow_task_join_handle: task_join_handle,
-            mithril_snapshot,
-        })
-    }
-
     /// Set the follower's chain read-pointer. Returns None if the point was
     /// not found on the chain.
     ///
@@ -277,12 +341,14 @@ impl Follower {
     #[must_use]
     pub fn read_block<P>(&self, at: P) -> ReadBlock
     where P: Into<PointOrTip> {
-        let connect_info = self.client_connect_info.clone();
         let mithril_snapshot = self.mithril_snapshot.clone();
         let at = at.into();
 
+        let relay_address = self.connection_cfg.relay_address.clone();
+        let network = self.connection_cfg.chain;
+
         let join_handle = tokio::spawn(async move {
-            let mut client = PeerClient::connect(connect_info.address, connect_info.network.into())
+            let mut client = PeerClient::connect(relay_address, network.into())
                 .await
                 .map_err(Error::Client)?;
 
@@ -321,12 +387,14 @@ impl Follower {
     #[must_use]
     pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
     where P: Into<PointOrTip> {
-        let connect_info = self.client_connect_info.clone();
         let mithril_snapshot = self.mithril_snapshot.clone();
         let to = to.into();
 
+        let relay_address = self.connection_cfg.relay_address.clone();
+        let network = self.connection_cfg.chain;
+
         let join_handle = tokio::spawn(async move {
-            let mut client = PeerClient::connect(connect_info.address, connect_info.network.into())
+            let mut client = PeerClient::connect(relay_address, network.into())
                 .await
                 .map_err(Error::Client)?;
 
@@ -407,8 +475,11 @@ mod task {
     };
     use tokio::sync::{mpsc, oneshot};
 
-    use super::{set_client_read_pointer, ChainUpdate, ClientConnectInfo};
-    use crate::{mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, PointOrTip, Result};
+    use super::{set_client_read_pointer, ChainUpdate};
+    use crate::{
+        mithril_snapshot::MithrilSnapshot, Error, FollowerConfig, MultiEraBlockData, PointOrTip,
+        Result,
+    };
 
     /// Request the task to set the read pointer to the given point or to the
     /// tip.
@@ -422,7 +493,7 @@ mod task {
     /// Holds state for a follow task.
     pub(super) struct FollowTask {
         /// Client connection info.
-        connect_info: ClientConnectInfo,
+        connection_cfg: FollowerConfig,
         /// Optional Mithril Snapshot that will be used by the follow task when fetching
         /// chain updates.
         mithril_snapshot: Option<MithrilSnapshot>,
@@ -435,18 +506,19 @@ mod task {
     impl FollowTask {
         /// Spawn a follow task.
         pub(super) fn spawn(
-            client: PeerClient, connect_info: ClientConnectInfo,
-            mithril_snapshot: Option<MithrilSnapshot>, buffer_size: usize, follow_from: Point,
+            client: PeerClient, connection_cfg: FollowerConfig,
+            mithril_snapshot: Option<MithrilSnapshot>, follow_from: Point,
         ) -> (
             mpsc::Sender<SetReadPointerRequest>,
             mpsc::Receiver<crate::Result<ChainUpdate>>,
             tokio::task::JoinHandle<()>,
         ) {
             let (request_tx, request_rx) = mpsc::channel(1);
-            let (chain_update_tx, chain_update_rx) = mpsc::channel(buffer_size);
+            let (chain_update_tx, chain_update_rx) =
+                mpsc::channel(connection_cfg.chain_update_buffer_size);
 
             let this = Self {
-                connect_info,
+                connection_cfg,
                 mithril_snapshot,
                 request_rx,
                 chain_update_tx,
@@ -477,7 +549,7 @@ mod task {
             loop {
                 tokio::select! {
                     Some(SetReadPointerRequest { at, response_tx }) = self.request_rx.recv() => {
-                        let res = PeerClient::connect(&self.connect_info.address, self.connect_info.network.into())
+                        let res = PeerClient::connect(&self.connection_cfg.relay_address, self.connection_cfg.chain.into())
                             .await;
 
                         let Ok(mut client) = res else {

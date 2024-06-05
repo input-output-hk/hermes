@@ -3,7 +3,7 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network};
+use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -18,14 +18,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default().build();
-
-    let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        config,
-    )
-    .await?;
+    let mut follower = FollowerConfigBuilder::default_for(Network::Mainnet)
+        .build()
+        .connect()
+        .await?;
 
     // Wait for 3 chain updates and shutdown.
     for _ in 0..3 {

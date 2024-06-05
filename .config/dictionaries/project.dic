@@ -21,8 +21,8 @@ CBOR
 cbork
 cdylib
 CEST
-CHAINCODE
 chaincode
+CHAINCODE
 chainsync
 chrono
 ciphertext
@@ -35,8 +35,6 @@ crontagged
 cryptoxide
 cstring
 dashmap
-dashmap
-Datelike
 Datelike
 DBSTATUS
 dbsync
@@ -84,10 +82,10 @@ Intellij
 ioerr
 iohk
 jetbrains
-jsonschema
 jorm
 jormungandr
 Jörmungandr
+jsonschema
 lcov
 Leshiy
 libsqlite
@@ -180,6 +178,7 @@ unfinalized
 unlinkat
 utimensat
 vitss
+vkey
 voteplan
 voteplans
 wasi
@@ -189,7 +188,7 @@ webasm
 webassembly
 WORKDIR
 xprivate
-XPRV
 xprv
+XPRV
 xpub
 yoroi
