@@ -2,12 +2,9 @@
 
 use std::io::Read;
 
-use crate::packaging::schema_validation::SchemaValidator;
+use chrono::{DateTime, Utc};
 
-/// WASM module package metadata reading error.
-#[derive(thiserror::Error, Debug)]
-#[error("WASM module metadata json file reading errors:\n{0}")]
-pub(crate) struct MeatadataReadingError(String);
+use crate::packaging::schema_validation::SchemaValidator;
 
 /// Metadata object
 #[derive(Debug, PartialEq, Eq)]
@@ -24,9 +21,26 @@ impl Metadata {
     /// Create `Metadata` from reader.
     pub(crate) fn from_reader(reader: impl Read) -> anyhow::Result<Self> {
         let schema_validator = SchemaValidator::from_str(Self::METADATA_SCHEMA)?;
-        let object = schema_validator
-            .deserialize_and_validate(reader)
-            .map_err(|e| MeatadataReadingError(e.to_string()))?;
+        let object = schema_validator.deserialize_and_validate(reader)?;
         Ok(Self { object })
+    }
+
+    /// Convert `Metadata` object to json bytes
+    pub(crate) fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+        let bytes = serde_json::to_vec(&self.object)?;
+        Ok(bytes)
+    }
+
+    /// Set `build_date` property to the `Metadata` object.
+    pub(crate) fn set_build_date(&mut self, date: DateTime<Utc>) {
+        self.object.insert(
+            "build_date".to_string(),
+            date.to_rfc3339().to_string().into(),
+        );
+    }
+
+    /// Set `name` property to the `Metadata` object.
+    pub(crate) fn set_name(&mut self, name: &str) {
+        self.object.insert("name".to_string(), name.into());
     }
 }

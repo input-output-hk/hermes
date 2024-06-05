@@ -8,11 +8,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use chrono::{DateTime, Utc};
 use metadata::Metadata;
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package, resources::ResourceTrait,
+    copy_dir_recursively_to_package, copy_resource_to_package,
+    resources::{bytes_resource::BytesResource, ResourceTrait},
     schema_validation::SchemaValidator,
 };
 use crate::{errors::Errors, wasm};
@@ -24,7 +26,7 @@ pub(crate) struct CreatePackageError(PathBuf);
 
 /// Invalid file error.
 #[derive(thiserror::Error, Debug)]
-#[error("Invalid file at {0}:\n {1}")]
+#[error("Invalid file at {0}:\n{1}")]
 pub(crate) struct InvalidFileError(String, String);
 
 /// Wasm module package.
@@ -52,7 +54,7 @@ impl WasmModulePackage {
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>,
+        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_time: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -62,7 +64,7 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate_and_write_metadata(manifest, &package)
+        Self::validate_and_write_metadata(manifest, build_time, package_name, &package)
             .unwrap_or_else(|err| errors.add_err(err));
         Self::validate_and_write_component(manifest, &package)
             .unwrap_or_else(|err| errors.add_err(err));
@@ -85,17 +87,22 @@ impl WasmModulePackage {
     }
 
     /// Validate metadata.json file and write it to the package.
+    /// Also updates `Metadata` object by setting `build_date` and `name` properties.
     fn validate_and_write_metadata(
-        manifest: &Manifest, package: &hdf5::File,
+        manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &hdf5::File,
     ) -> anyhow::Result<()> {
         let resource = &manifest.metadata;
         let metadata_reader = resource
             .get_reader()
             .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        Metadata::from_reader(metadata_reader)?;
+        let mut metadata = Metadata::from_reader(metadata_reader)
+            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
+        metadata.set_build_date(build_date);
+        metadata.set_name(name);
 
-        copy_resource_to_package(resource, Self::METADATA_FILE, package)?;
+        let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
+        copy_resource_to_package(&resource, Self::METADATA_FILE, package)?;
         Ok(())
     }
 
@@ -117,7 +124,8 @@ impl WasmModulePackage {
         wasm::module::Module::new(&module_bytes)
             .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        copy_resource_to_package(resource, Self::COMPONENT_FILE, package)?;
+        let resource = BytesResource::new(resource.name()?, module_bytes);
+        copy_resource_to_package(&resource, Self::COMPONENT_FILE, package)?;
         Ok(())
     }
 
@@ -246,7 +254,9 @@ mod tests {
             .into(),
             share: None,
         };
-        WasmModulePackage::build_from_manifest(&manifest, dir.path(), None)
+
+        let build_time = DateTime::default();
+        WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
             .expect("Cannot create module package");
     }
 }
