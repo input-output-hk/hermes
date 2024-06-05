@@ -179,6 +179,7 @@ unlinkat
 utimensat
 vitss
 vkey
+VKEYS
 voteplan
 voteplans
 wasi

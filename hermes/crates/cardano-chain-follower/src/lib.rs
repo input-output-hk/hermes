@@ -3,7 +3,7 @@
 mod follow;
 mod mithril_snapshot;
 
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
@@ -42,6 +42,19 @@ pub enum Error {
     /// Failed to parse
     #[error("Failed to parse network")]
     ParseNetwork,
+    /// Mithril Snapshot path is not a directory
+    #[error("Mithril Snapshot path `{0}` is not a directory")]
+    MithrilSnapshotDirectoryNotFound(String),
+    /// Mithril Snapshot path is already configured for another network
+    #[error("Mithril Snapshot path `{0}` is already configured for network `{1}`")]
+    MithrilSnapshotDirectoryAlreadyConfiguredForNetwork(PathBuf, Network),
+    /// Mithril Snapshot path is already configured for this network
+    #[error("Mithril Snapshot path `{0}` is already configured as `{1}`")]
+    MithrilSnapshotDirectoryAlreadyConfigured(PathBuf, PathBuf),
+    /// Mithril Snapshot path not configured, trying to start auto-update
+    #[error("Mithril Snapshot path is not configured.  Can not start Auto Snapshot Update.")]
+    MithrilSnapshotDirectoryNotConfigured,
+
     /// Internal Error
     #[error("Internal error")]
     InternalError,

@@ -16,6 +16,8 @@ pallas-hardano.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"] }
 tracing.workspace = true
+dashmap = { workspace = true }
+once_cell = { workspace = true }
 
 [dev-dependencies]
 hex.workspace = true

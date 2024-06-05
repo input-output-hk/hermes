@@ -67,7 +67,7 @@ impl ChainUpdate {
 #[derive(Clone)]
 pub struct FollowerConfig {
     /// Chain Network
-    chain: Network,
+    pub chain: Network,
     /// Relay Node Address
     relay_address: String,
     /// Block buffer size option.
@@ -75,14 +75,14 @@ pub struct FollowerConfig {
     /// Where to start following from.
     follow_from: PointOrTip,
     /// Path to the Mithril snapshot the follower should use.
-    mithril_snapshot_path: Option<PathBuf>,
+    pub mithril_snapshot_path: Option<PathBuf>,
     /// Address of the Mithril Aggregator to use to find the latest snapshot data to
     /// download.
     _mithril_aggregator_address: Option<String>,
     /// The Genesis Key needed for a network to do Mithril snapshot validation.
     _mithril_genesis_key: Option<String>,
     /// Is the mithril snapshot to be transparently updated to latest, in the background.
-    mithril_update: bool,
+    pub mithril_update: bool,
 }
 
 /// Builder used to create [`FollowerConfig`]s.
@@ -218,21 +218,16 @@ impl FollowerConfig {
             return Err(Error::SetReadPointer);
         };
 
-        let mithril_snapshot = if let Some(path) = self.mithril_snapshot_path.clone() {
-            Some(MithrilSnapshot::from_path(path)?)
-        } else {
-            None
-        };
+        MithrilSnapshot::init(self.clone())?;
 
         let (task_request_tx, chain_update_rx, task_join_handle) =
-            task::FollowTask::spawn(client, self.clone(), mithril_snapshot.clone(), follow_from);
+            task::FollowTask::spawn(client, self.clone(), follow_from);
 
         Ok(Follower {
             connection_cfg: self.clone(),
             chain_update_rx,
             follow_task_request_tx: task_request_tx,
             follow_task_join_handle: task_join_handle,
-            mithril_snapshot,
         })
     }
 }
@@ -301,8 +296,6 @@ pub struct Follower {
     follow_task_request_tx: mpsc::Sender<task::SetReadPointerRequest>,
     /// Follow task thread join handle.
     follow_task_join_handle: JoinHandle<()>,
-    /// Optional Mithril snapshot information.
-    mithril_snapshot: Option<MithrilSnapshot>,
 }
 
 impl Follower {
@@ -341,7 +334,6 @@ impl Follower {
     #[must_use]
     pub fn read_block<P>(&self, at: P) -> ReadBlock
     where P: Into<PointOrTip> {
-        let mithril_snapshot = self.mithril_snapshot.clone();
         let at = at.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -359,9 +351,8 @@ impl Follower {
                 },
 
                 PointOrTip::Point(point) => {
-                    let snapshot_res = mithril_snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.try_read_block(point.clone()).ok())
+                    let snapshot_res = MithrilSnapshot::try_read_block(network, point.clone())
+                        .ok()
                         .flatten();
 
                     match snapshot_res {
@@ -387,7 +378,6 @@ impl Follower {
     #[must_use]
     pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
     where P: Into<PointOrTip> {
-        let mithril_snapshot = self.mithril_snapshot.clone();
         let to = to.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -404,12 +394,10 @@ impl Follower {
                     read_block_range_from_network(&mut client, from, to_point).await
                 },
                 PointOrTip::Point(to) => {
-                    let snapshot_res = mithril_snapshot
-                        .as_ref()
-                        .and_then(|snapshot| {
-                            snapshot.try_read_block_range(from.clone(), to.clone()).ok()
-                        })
-                        .flatten();
+                    let snapshot_res =
+                        MithrilSnapshot::try_read_block_range(network, from.clone(), &to)
+                            .ok()
+                            .flatten();
 
                     match snapshot_res {
                         Some((last_point_read, mut block_data_vec)) => {
@@ -477,8 +465,8 @@ mod task {
 
     use super::{set_client_read_pointer, ChainUpdate};
     use crate::{
-        mithril_snapshot::MithrilSnapshot, Error, FollowerConfig, MultiEraBlockData, PointOrTip,
-        Result,
+        mithril_snapshot::MithrilSnapshot, Error, FollowerConfig, MultiEraBlockData, Network,
+        PointOrTip, Result,
     };
 
     /// Request the task to set the read pointer to the given point or to the
@@ -494,9 +482,6 @@ mod task {
     pub(super) struct FollowTask {
         /// Client connection info.
         connection_cfg: FollowerConfig,
-        /// Optional Mithril Snapshot that will be used by the follow task when fetching
-        /// chain updates.
-        mithril_snapshot: Option<MithrilSnapshot>,
         /// Request receiver.
         request_rx: mpsc::Receiver<SetReadPointerRequest>,
         /// Chain update sender.
@@ -506,8 +491,7 @@ mod task {
     impl FollowTask {
         /// Spawn a follow task.
         pub(super) fn spawn(
-            client: PeerClient, connection_cfg: FollowerConfig,
-            mithril_snapshot: Option<MithrilSnapshot>, follow_from: Point,
+            client: PeerClient, connection_cfg: FollowerConfig, follow_from: Point,
         ) -> (
             mpsc::Sender<SetReadPointerRequest>,
             mpsc::Receiver<crate::Result<ChainUpdate>>,
@@ -519,7 +503,6 @@ mod task {
 
             let this = Self {
                 connection_cfg,
-                mithril_snapshot,
                 request_rx,
                 chain_update_tx,
             };
@@ -540,7 +523,7 @@ mod task {
         async fn run(mut self, client: PeerClient, from: Point) {
             let fetch_chain_updates_fut = Self::fetch_chain_updates(
                 client,
-                self.mithril_snapshot.as_ref(),
+                self.connection_cfg.chain,
                 self.chain_update_tx.clone(),
                 from,
             );
@@ -561,7 +544,7 @@ mod task {
                             Ok(Some(from)) => {
                                 fetch_chain_updates_fut.set(Self::fetch_chain_updates(
                                     client,
-                                    self.mithril_snapshot.as_ref(),
+                                    self.connection_cfg.chain,
                                     self.chain_update_tx.clone(),
                                     from.clone(),
                                 ));
@@ -587,13 +570,13 @@ mod task {
         /// This can be either read from the Mithril snapshot (if configured) or
         /// from the N2N remote client.
         async fn fetch_chain_updates(
-            mut client: PeerClient, mithril_snapshot: Option<&MithrilSnapshot>,
+            mut client: PeerClient, network: Network,
             chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>, from: Point,
         ) {
             let mut current_point = from;
 
-            let set_to_snapshot = mithril_snapshot
-                .and_then(|snapshot| snapshot.try_read_blocks_from_point(current_point.clone()));
+            let set_to_snapshot =
+                MithrilSnapshot::try_read_blocks_from_point(network, current_point.clone());
 
             if let Some(iter) = set_to_snapshot {
                 let mut last_recv_from_snapshot = false;
