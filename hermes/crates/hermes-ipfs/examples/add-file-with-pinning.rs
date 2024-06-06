@@ -50,9 +50,7 @@ async fn main() -> anyhow::Result<()> {
     println!("* Get file from IPFS:");
     println!("");
     println!("* Retrieving from {ipfs_path}");
-    let get_file_bytes = hermes_ipfs
-        .get_ipfs_file(GetIpfsFile(ipfs_path.to_string()))
-        .await?;
+    let get_file_bytes = hermes_ipfs.get_ipfs_file(GetIpfsFile(ipfs_path)).await?;
     println!("* Got file, {} bytes:", get_file_bytes.len());
     let get_file = String::from_utf8(get_file_bytes)?;
     println!("* FILE CONTENTS:");

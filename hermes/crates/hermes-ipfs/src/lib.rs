@@ -2,16 +2,19 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// IPFS Content Identifier.
 pub use libipld::Cid;
+/// Peer Info type.
+pub use rust_ipfs::p2p::PeerInfo;
 /// Enum for specifying paths in IPFS.
 pub use rust_ipfs::path::IpfsPath;
-use rust_ipfs::{p2p::PeerInfo, unixfs::AddOpt, Ipfs, Multiaddr, PeerId, UninitializedIpfsNoop};
+/// Multiaddr type.
+pub use rust_ipfs::Multiaddr;
+/// Peer ID type.
+pub use rust_ipfs::PeerId;
+use rust_ipfs::{unixfs::AddOpt, Ipfs, UninitializedIpfsNoop};
 
 /// Hermes IPFS Node
 ///
@@ -100,7 +103,6 @@ impl HermesIpfs {
     ///
     /// Returns an error if the file fails to download.
     pub async fn get_ipfs_file(&self, ipfs_path: GetIpfsFile) -> anyhow::Result<Vec<u8>> {
-        let ipfs_path: IpfsPath = ipfs_path.try_into()?;
         let stream_bytes = self.node.cat_unixfs(ipfs_path).await?;
         Ok(stream_bytes.to_vec())
     }
@@ -189,8 +191,8 @@ impl HermesIpfs {
         self.node.listening_addresses().await
     }
 
-    /// Gets the inner node for direct manipulation.
     #[must_use]
+    /// Gets the inner node for direct manipulation.
     pub fn node(&self) -> Node {
         self.node.clone()
     }
@@ -217,12 +219,10 @@ impl From<AddIpfsFile> for AddOpt {
 }
 
 /// Path to get the file from IPFS
-pub struct GetIpfsFile(pub String);
+pub struct GetIpfsFile(pub IpfsPath);
 
-impl TryFrom<GetIpfsFile> for IpfsPath {
-    type Error = anyhow::Error;
-
-    fn try_from(GetIpfsFile(ipfs_path): GetIpfsFile) -> Result<Self, Self::Error> {
-        IpfsPath::from_str(&ipfs_path)
+impl From<GetIpfsFile> for IpfsPath {
+    fn from(value: GetIpfsFile) -> Self {
+        value.0
     }
 }
