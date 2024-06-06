@@ -1,0 +1,20 @@
+[package]
+name = "hermes-ipfs"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+libipld.workspace = true
+rust-ipfs.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

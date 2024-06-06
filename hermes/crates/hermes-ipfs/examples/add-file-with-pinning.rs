@@ -21,21 +21,14 @@ async fn main() -> anyhow::Result<()> {
     println!("***************************************");
     println!("* Adding file to IPFS:");
     println!("");
-
     let ipfs_file = b"This is a demo file that is stored in IPFS.".to_vec();
-
     let ipfs_path = hermes_ipfs
         .add_ipfs_file(AddIpfsFile::Stream((None, ipfs_file)))
         .await?;
-
     println!("* IPFS file published at {ipfs_path}");
-
-    let root = ipfs_path.root();
-
-    let cid = root.cid().ok_or(anyhow::anyhow!(
+    let cid = ipfs_path.root().cid().ok_or(anyhow::anyhow!(
         "ERROR! Could not extract CID from IPFS path."
     ))?;
-
     println!("* CID: {cid}");
     println!("* CID Version: {:?}", cid.version());
     print_cid_pinned(&hermes_ipfs, cid).await?;
