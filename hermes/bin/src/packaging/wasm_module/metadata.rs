@@ -6,11 +6,11 @@ use chrono::{DateTime, Utc};
 
 use crate::packaging::schema_validation::SchemaValidator;
 
-/// Metadata object
+/// Metadata object.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Metadata {
-    /// metadata JSON object
-    object: serde_json::Map<String, serde_json::Value>,
+    /// metadata JSON object.
+    json: serde_json::Map<String, serde_json::Value>,
 }
 
 impl Metadata {
@@ -21,24 +21,24 @@ impl Metadata {
     /// Create `Metadata` from reader.
     pub(crate) fn from_reader(reader: impl Read) -> anyhow::Result<Self> {
         let schema_validator = SchemaValidator::from_str(Self::METADATA_SCHEMA)?;
-        let object = schema_validator.deserialize_and_validate(reader)?;
-        Ok(Self { object })
+        let json = schema_validator.deserialize_and_validate(reader)?;
+        Ok(Self { json })
     }
 
-    /// Convert `Metadata` object to json bytes
+    /// Convert `Metadata` object to json bytes.
     pub(crate) fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
-        let bytes = serde_json::to_vec(&self.object)?;
+        let bytes = serde_json::to_vec(&self.json)?;
         Ok(bytes)
     }
 
     /// Set `build_date` property to the `Metadata` object.
     pub(crate) fn set_build_date(&mut self, date: DateTime<Utc>) {
-        self.object
+        self.json
             .insert("build_date".to_string(), date.timestamp().into());
     }
 
     /// Set `name` property to the `Metadata` object.
     pub(crate) fn set_name(&mut self, name: &str) {
-        self.object.insert("name".to_string(), name.into());
+        self.json.insert("name".to_string(), name.into());
     }
 }
