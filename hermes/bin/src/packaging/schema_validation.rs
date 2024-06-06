@@ -7,11 +7,6 @@ use serde::de::DeserializeOwned;
 
 use crate::errors::Errors;
 
-/// Invalid JSON schema error.
-#[derive(thiserror::Error, Debug)]
-#[error("Invalid draft 7 JSON schema, err: {0}")]
-pub(crate) struct InvalidJsonSchema(String);
-
 /// JSON Schema Draft 7 Validator.
 #[derive(Debug)]
 pub(crate) struct SchemaValidator {
@@ -20,15 +15,24 @@ pub(crate) struct SchemaValidator {
 }
 
 impl SchemaValidator {
-    /// Create a new json schema validator from string.
-    pub(crate) fn from_str(schema_str: &str) -> anyhow::Result<Self> {
-        let schema =
-            serde_json::from_str(schema_str).map_err(|err| InvalidJsonSchema(err.to_string()))?;
+    /// Create a new json schema validator from reader.
+    pub(crate) fn from_reader<R: Read>(reader: R) -> anyhow::Result<Self> {
+        let schema = serde_json::from_reader(reader)?;
+        Self::from_json(&schema)
+    }
 
+    /// Create a new json schema validator from string.
+    pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
+        let schema = serde_json::from_str(str)?;
+        Self::from_json(&schema)
+    }
+
+    /// Create a new json schema validator from JSON value.
+    pub(crate) fn from_json(json: &serde_json::Value) -> anyhow::Result<Self> {
         let schema = JSONSchema::options()
             .with_draft(Draft::Draft7)
-            .compile(&schema)
-            .map_err(|err| InvalidJsonSchema(err.to_string()))?;
+            .compile(json)
+            .map_err(|err| anyhow::anyhow!("Invalid draft 7 JSON schema:\n {err}"))?;
 
         Ok(Self { schema })
     }
