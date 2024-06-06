@@ -15,7 +15,7 @@ use tracing::{error, info};
 
 use super::routing::router;
 
-/// Manages connection state
+/// Manages and tracks client connections
 pub struct ConnectionManager {
     pub connection_context: Mutex<HashMap<String, String>>,
 }

@@ -1,22 +1,26 @@
 use std::{
     net::SocketAddr,
-    sync::{mpsc::channel, Arc},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc,
+    },
 };
 
 use anyhow::{anyhow, Ok};
-use hyper::{self, Body, HeaderMap, Method, Request, Response, StatusCode};
-use serde::Deserialize;
-use tracing::info;
-
-use super::gateway_task::ConnectionManager;
-use crate::{
-    event::{HermesEvent, TargetApp, TargetModule},
-    runtime_extensions::hermes::kv_store::event::KVGet,
+use hyper::{
+    self,
+    body::{Bytes, HttpBody},
+    Body, HeaderMap, Request, Response, StatusCode,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
-pub struct Event {
-    _body: String,
+use crate::event::{HermesEvent, TargetApp, TargetModule};
+
+use super::{event::HTTPEvent, gateway_task::ConnectionManager};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Headers<K, V> {
+    contents: Vec<(K, V)>,
 }
 
 #[derive(Debug)]
@@ -37,14 +41,7 @@ pub fn _not_found() -> Response<Body> {
 }
 
 /// Extractor that resolves the hostname of the request.
-/// Hostname is resolved through the following, in order:
-///
-/// Forwarded header
-/// X-Forwarded-Host header
-/// Host header
-/// request target / URI
-// Note that user agents can set X-Forwarded-Host and Host headers
-// to arbitrary values so make sure to validate them to avoid security issues.
+/// Hostname is resolved through the Host header
 pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<Hostname> {
     let host = headers
         .get("Host")
@@ -64,62 +61,65 @@ pub async fn router(
         .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
         .insert(rusty_ulid::generate_ulid_string(), ip.to_string());
 
-    info!(
-        "conns {:?}",
-        connection_manager.connection_context.try_lock().unwrap()
-    );
-
     let host = host_resolver(req.headers())?;
 
     match host.0.as_str() {
-        "test.hermes.local.kv" => Ok(route_to_kv(req).await?),
+        "app.hermes.local" => Ok(route(req).await?),
         _ => todo!(),
     }
 }
 
-/// Route to hermes backend
-async fn route_to_kv(req: Request<Body>) -> anyhow::Result<Response<Body>> {
-    let method = req.method().to_owned();
+/// Route single request to hermes backend
+async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let uri = req.uri().to_owned();
 
     // wire to triggered event lambda instance
     let (lambda_send, lambda_recv_answer) = channel();
 
-    let headers = req.headers().clone();
+    let method = req.method().to_owned().to_string();
 
-    // let _event_body: Event = serde_json::from_slice(&req.collect().await?.to_bytes())?;
-
-    match (method, uri.path()) {
-        (Method::GET, "/api") => {
-            let event_method = headers
-                .get("Method")
-                .ok_or(anyhow!("No event method for target app"))?
-                .to_str()?;
-
-            let event_params = headers
-                .get("Params")
-                .ok_or(anyhow!("No event parameters for target app"))?
-                .to_str()?;
-
-            match event_method {
-                "kv-get" => {
-                    let on_kv_get_event = KVGet {
-                        sender: lambda_send,
-                        event: event_params.to_owned(),
-                    };
-
-                    crate::event::queue::send(HermesEvent::new(
-                        on_kv_get_event,
-                        TargetApp::All,
-                        TargetModule::All,
-                    ))?;
-
-                    return Ok(Response::new(lambda_recv_answer.recv()?.into()));
-                },
-                _ => todo!(),
-            }
-        },
-        (Method::GET, "/") => todo!(), // serve static
-        _ => todo!(),
+    let mut header_kv = Headers {
+        contents: Vec::new(),
     };
+
+    for header in req.headers() {
+        header_kv.contents.push((
+            header.0.as_str().to_owned(),
+            header.1.to_str().unwrap().to_owned(),
+        ))
+    }
+
+    let header_bytes = bincode::serialize(&header_kv)?;
+
+    let body = &req.collect().await?.to_bytes();
+
+    match uri.path() {
+        "/api" => compose_http_event(
+            method,
+            header_bytes,
+            body.clone(),
+            lambda_send,
+            lambda_recv_answer,
+        ),
+        _ => todo!(),
+    }
+}
+
+fn compose_http_event(
+    method: String, headers: Vec<u8>, body: Bytes, sender: Sender<String>,
+    receiver: Receiver<String>,
+) -> anyhow::Result<Response<Body>> {
+    let on_http_event = HTTPEvent {
+        method,
+        headers,
+        body,
+        sender,
+    };
+    crate::event::queue::send(HermesEvent::new(
+        on_http_event,
+        TargetApp::All,
+        TargetModule::All,
+    ))?;
+
+    return Ok(Response::new(receiver.recv()?.into()));
 }

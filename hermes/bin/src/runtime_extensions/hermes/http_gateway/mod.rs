@@ -3,8 +3,10 @@
 use gateway_task::spawn;
 use rusty_ulid::Ulid;
 
+mod event;
 mod gateway_task;
 mod routing;
+
 /// State.
 pub struct State {
     pub instance: Ulid,
