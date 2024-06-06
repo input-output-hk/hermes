@@ -98,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     println!("* Fetched: {fetched_file:?}");
     println!("***************************************");
     println!("");
-    // Stop the nodes and exite
+    // Stop the nodes and exit.
     hermes_ipfs_a.stop().await;
     println!("***************************************");
     println!("* Hermes IPFS node A has stopped.");

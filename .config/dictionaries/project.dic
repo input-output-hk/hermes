@@ -108,6 +108,7 @@ mkcron
 mkdelay
 mkdirat
 moderations
+Multiaddr
 multiera
 nanos
 netkey
