@@ -3,7 +3,7 @@
 mod follow;
 mod mithril_snapshot;
 
-use std::{path::PathBuf, str::FromStr};
+use std::{io, path::PathBuf, str::FromStr};
 
 pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
@@ -54,7 +54,12 @@ pub enum Error {
     /// Mithril Snapshot path not configured, trying to start auto-update
     #[error("Mithril Snapshot path is not configured.  Can not start Auto Snapshot Update.")]
     MithrilSnapshotDirectoryNotConfigured,
-
+    /// Mithril snapshot directory failed to be created.
+    #[error("Mithril Snapshot path `{0}` does not exist, and could not be created. `{1}`")]
+    MithrilSnapshotDirectoryCreationError(PathBuf, io::Error),
+    /// Mithril snapshot directory is not writable and we need to be able to update the snapshot data.
+    #[error("Mithril Snapshot path `{0}` is not writable, or contains read-only files.")]
+    MithrilSnapshotDirectoryNotWritable(PathBuf),
     /// Internal Error
     #[error("Internal error")]
     InternalError,

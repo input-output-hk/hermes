@@ -1,6 +1,6 @@
 //! Internal Mithril snapshot functions.
 
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
@@ -55,29 +55,67 @@ fn read_mithril_path(network: Network) -> Option<PathBuf> {
 }
 
 /// Check that a given mithril path is not already configured.
-fn check_mithril_path_conflicts(network: Network, path: PathBuf) -> Result<()> {
+fn check_mithril_path_conflicts(network: Network, path: &PathBuf) -> Result<()> {
     if let Some(entry) = SNAPSHOT_PATHS
         .iter()
         .filter(|entry| *entry.key() != network)
         .find(|entry| *entry.value() == *path)
     {
         return Err(Error::MithrilSnapshotDirectoryAlreadyConfiguredForNetwork(
-            path,
+            path.clone(),
             *entry.key(),
         ));
     }
     Ok(())
 }
 
-/// Check if the configured path is a valid directory, and that it does not exist already
-/// in the map.
-fn set_snapshot_path(network: Network, path: PathBuf) -> Result<()> {
-    if !path.is_dir() {
-        return Err(Error::MithrilSnapshotDirectoryNotFound(
-            path.display().to_string(),
-        ));
+/// Check that a given mithril snapshot path and everything in it is writable.
+/// We don't care why its NOT writable, just that it is either all writable, or not.
+/// Will return false on the first detection of a read only file or directory.
+fn check_writable(path: &PathBuf) -> bool {
+    // Check the permissions of the current path
+    if let Ok(metadata) = fs::metadata(path) {
+        if metadata.permissions().readonly() {
+            return false;
+        }
     }
 
+    // Can't read the directory for any reason, so can't write to the directory.
+    let path_iterator = match fs::read_dir(path) {
+        Err(_) => return false,
+        Ok(entries) => entries,
+    };
+
+    // Recursively check the contents of the directory
+    for entry in path_iterator {
+        let entry = match entry {
+            Err(_) => return false,
+            Ok(entry) => entry,
+        };
+
+        // If the entry is a directory, recursively check its permissions
+        // otherwise just check we could re-write it.
+        if let Ok(metadata) = entry.metadata() {
+            if metadata.is_dir() {
+                if !check_writable(&entry.path()) {
+                    return false;
+                }
+            } else {
+                // If its not a directory then it must be a file.
+                if metadata.permissions().readonly() {
+                    return false;
+                }
+            }
+        }
+    }
+    // Otherwise we could write everything we scanned.
+    true
+}
+
+/// Check if the configured path is a valid directory, and that it does not exist already
+/// in the map.
+fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()> {
+    // Check if we are already configured for a different path, or the path is used by a different network.
     let current_path = read_mithril_path(network);
     match current_path {
         Some(current_path) => {
@@ -87,13 +125,41 @@ fn set_snapshot_path(network: Network, path: PathBuf) -> Result<()> {
                     current_path,
                 ));
             }
-            return Ok(());
         },
         None => {
             // Check that path isn't in any other key
-            check_mithril_path_conflicts(network, path)?;
+            check_mithril_path_conflicts(network, &path)?;
         },
     }
+
+    // Path not in use, or its not changed, so try and set it up.
+
+    // If the path does not exist, try and make it.
+    if !path.exists() {
+        // Try and make the directory.
+        fs::create_dir(&path)
+            .map_err(|e| Error::MithrilSnapshotDirectoryCreationError(path.clone(), e))?;
+    }
+
+    // If the path is NOT a directory, then we can't use it.
+    if !path.is_dir() {
+        return Err(Error::MithrilSnapshotDirectoryNotFound(
+            path.display().to_string(),
+        ));
+    }
+
+    // if we plan to update the snapshot, the directory and all its contents needs to be writable.
+    // Do this test last, because it could be relatively slow, and is not necessary if any of the other checks fail.
+    if update {
+        // If the directory is not writable then we can't use
+        if !check_writable(&path) {
+            return Err(Error::MithrilSnapshotDirectoryNotWritable(path.clone()));
+        }
+    }
+
+    // All the previous checks passed, so we can use this path.
+    // Effectively a NOOP if the path was perviously added, but it doesn't hurt to do it again.
+    SNAPSHOT_PATHS.insert(network, path);
 
     Ok(())
 }
@@ -107,7 +173,7 @@ impl MithrilSnapshot {
     pub fn init(follower_cfg: FollowerConfig) -> Result<()> {
         // Validate and Set the snapshot path configuration
         if let Some(path) = follower_cfg.mithril_snapshot_path {
-            set_snapshot_path(follower_cfg.chain, path)?;
+            set_snapshot_path(follower_cfg.chain, path, follower_cfg.mithril_update)?;
         } else {
             if follower_cfg.mithril_update {
                 return Err(Error::MithrilSnapshotDirectoryNotConfigured);
