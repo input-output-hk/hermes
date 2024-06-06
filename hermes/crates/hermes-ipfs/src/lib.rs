@@ -2,9 +2,9 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use std::str::FromStr;
+use std::{ops::{Deref, DerefMut}, str::FromStr};
 
-use rust_ipfs::{unixfs::AddOpt, Ipfs, UninitializedIpfsNoop};
+use rust_ipfs::{p2p::PeerInfo, unixfs::AddOpt, Ipfs, PeerId, UninitializedIpfsNoop};
 
 /// IPFS Content Identifier.
 pub use libipld::Cid;
@@ -12,10 +12,36 @@ pub use libipld::Cid;
 pub use rust_ipfs::path::IpfsPath;
 
 /// Hermes IPFS Node
+///
+/// Provides the functionality of the inner `IPFS` by de-referencing.
+#[derive(Clone, Debug)]
+pub struct Node(Ipfs);
+
+impl From<Ipfs> for Node {
+    fn from(value: Ipfs) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for Node {
+    type Target = Ipfs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Node {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// Hermes IPFS
 #[allow(dead_code)]
 pub struct HermesIpfs {
     /// IPFS node
-    node: Ipfs,
+    node: Node,
 }
 
 impl HermesIpfs {
@@ -30,7 +56,7 @@ impl HermesIpfs {
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
         // TODO(saibatizoku):
-        let node = UninitializedIpfsNoop::new().with_default().start().await?;
+        let node = UninitializedIpfsNoop::new().with_default().set_default_listener().start().await?.into();
         Ok(HermesIpfs { node })
     }
 
@@ -124,7 +150,22 @@ impl HermesIpfs {
 
     /// Stop and exit the IPFS node daemon.
     pub async fn stop(self) {
-        self.node.exit_daemon().await;
+        self.node.0.exit_daemon().await;
+    }
+
+    /// Returns the peer identity information. If no peer id is supplied the local node identity is used.
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if peer info cannot be retrieved.
+    pub async fn identity(&self, peer_id: Option<PeerId>) -> anyhow::Result<PeerInfo> {
+        self.node.identity(peer_id).await
+    }
+
+    /// Gets the inner node for direct manipulation.
+    #[must_use]
+    pub fn node(&self) -> Node {
+        self.node.clone()
     }
 }
 
