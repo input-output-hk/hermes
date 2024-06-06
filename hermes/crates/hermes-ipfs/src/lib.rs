@@ -2,14 +2,16 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use std::{ops::{Deref, DerefMut}, str::FromStr};
-
-use rust_ipfs::{p2p::PeerInfo, unixfs::AddOpt, Ipfs, PeerId, UninitializedIpfsNoop};
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// IPFS Content Identifier.
 pub use libipld::Cid;
 /// Enum for specifying paths in IPFS.
 pub use rust_ipfs::path::IpfsPath;
+use rust_ipfs::{p2p::PeerInfo, unixfs::AddOpt, Ipfs, Multiaddr, PeerId, UninitializedIpfsNoop};
 
 /// Hermes IPFS Node
 ///
@@ -56,7 +58,12 @@ impl HermesIpfs {
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
         // TODO(saibatizoku):
-        let node = UninitializedIpfsNoop::new().with_default().set_default_listener().start().await?.into();
+        let node = UninitializedIpfsNoop::new()
+            .with_default()
+            .set_default_listener()
+            .start()
+            .await?
+            .into();
         Ok(HermesIpfs { node })
     }
 
@@ -64,7 +71,8 @@ impl HermesIpfs {
     ///
     /// ## Parameters
     ///
-    /// * `file_path` The `file_path` can be specified as a type that converts into `std::path::PathBuf`.
+    /// * `file_path` The `file_path` can be specified as a type that converts into
+    ///   `std::path::PathBuf`.
     ///
     /// ## Returns
     ///
@@ -117,16 +125,16 @@ impl HermesIpfs {
     /// Cannot currently detect partially written recursive pins. Those can happen if
     /// [`HermesIpfs::insert_pin`] is interrupted by a crash for example.
     ///
-    /// Works correctly only under no-crash situations. Workaround for hitting a crash is to re-pin
-    /// any existing recursive pins.
+    /// Works correctly only under no-crash situations. Workaround for hitting a crash is
+    /// to re-pin any existing recursive pins.
     ///
     /// ## Parameters
     ///
     /// * `cid` - `Cid` Content identifier to be pinned.
     ///
     /// ## Returns
-    /// `true` if the block is pinned, `false` if not. See Crash unsafety notes for the false
-    /// response.
+    /// `true` if the block is pinned, `false` if not. See Crash unsafety notes for the
+    /// false response.
     ///
     /// ## Errors
     ///
@@ -153,13 +161,32 @@ impl HermesIpfs {
         self.node.0.exit_daemon().await;
     }
 
-    /// Returns the peer identity information. If no peer id is supplied the local node identity is used.
+    /// Returns the peer identity information. If no peer id is supplied the local node
+    /// identity is used.
     ///
     /// ## Errors
     ///
     /// Returns error if peer info cannot be retrieved.
     pub async fn identity(&self, peer_id: Option<PeerId>) -> anyhow::Result<PeerInfo> {
         self.node.identity(peer_id).await
+    }
+
+    /// Add peer to address book
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to add peer.
+    pub async fn add_peer(&self, peer_id: PeerId, addr: Multiaddr) -> anyhow::Result<()> {
+        self.node.add_peer(peer_id, addr).await
+    }
+
+    /// Returns local listening addresses
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if listening addresses cannot be retrieved.
+    pub async fn listening_addresses(&self) -> anyhow::Result<Vec<Multiaddr>> {
+        self.node.listening_addresses().await
     }
 
     /// Gets the inner node for direct manipulation.
@@ -174,7 +201,8 @@ pub enum AddIpfsFile {
     /// Path in local disk storage to the file.
     Path(std::path::PathBuf),
     /// Stream of file bytes, with an optional name.
-    /// **NOTE** current implementation of `rust-ipfs` does not add names to published files.
+    /// **NOTE** current implementation of `rust-ipfs` does not add names to published
+    /// files.
     Stream((Option<String>, Vec<u8>)),
 }
 
