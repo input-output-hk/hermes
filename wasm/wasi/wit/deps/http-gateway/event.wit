@@ -1,0 +1,19 @@
+/// Interface HTTP Gateway
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+
+/// Logging API Interface
+interface event {
+
+    use hermes:binary/api.{bstr};
+
+    // headers kv
+    type kv-headers = list<tuple<string, string>>;
+
+    /// Reply
+    reply: func(headers: bstr)-> kv-headers;
+
+}
