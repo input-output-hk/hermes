@@ -71,11 +71,9 @@ pub async fn router(
 
 /// Route single request to hermes backend
 async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
-    let uri = req.uri().to_owned();
-
-    // wire to triggered event lambda instance
     let (lambda_send, lambda_recv_answer) = channel();
 
+    let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
 
     let mut header_kv = Headers {
