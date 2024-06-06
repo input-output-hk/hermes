@@ -1,9 +1,9 @@
 //! Wasm module package.
 
-#[allow(dead_code)]
 mod config;
 pub(crate) mod manifest;
 mod metadata;
+mod settings;
 
 use std::{
     io::Read,
@@ -13,12 +13,12 @@ use std::{
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use metadata::Metadata;
+use settings::SettingsSchema;
 
 use self::manifest::Manifest;
 use super::{
     copy_dir_recursively_to_package, copy_resource_to_package,
     resources::{bytes_resource::BytesResource, ResourceTrait},
-    schema_validation::SchemaValidator,
 };
 use crate::{errors::Errors, wasm};
 
@@ -35,8 +35,7 @@ pub(crate) struct InvalidFileError(String, String);
 /// Wasm module package.
 #[derive(Debug)]
 pub(crate) struct WasmModulePackage {
-    /// hdf5 package instance
-    #[allow(dead_code)]
+    /// hdf5 package instance.
     package: hdf5::File,
 }
 
@@ -116,6 +115,14 @@ impl WasmModulePackage {
         let ds = self.package.dataset(Self::CONFIG_FILE)?;
         let reader = ds.as_byte_reader()?;
         Config::from_reader(reader, config_schema.validator())
+    }
+
+    /// Get `SettingsSchema` object from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_settings_schema(&self) -> anyhow::Result<SettingsSchema> {
+        let ds = self.package.dataset(Self::SETTINGS_SCHEMA_FILE)?;
+        let reader = ds.as_byte_reader()?;
+        SettingsSchema::from_reader(reader)
     }
 
     /// Validate metadata.json file and write it to the package.
@@ -198,10 +205,11 @@ impl WasmModulePackage {
                 .schema
                 .get_reader()
                 .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
-            SchemaValidator::from_reader(setting_schema_reader)
+            let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
                 .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
 
-            copy_resource_to_package(&settings.schema, Self::SETTINGS_SCHEMA_FILE, package)?;
+            let resource = BytesResource::new(settings.schema.name()?, settings_schema.to_bytes()?);
+            copy_resource_to_package(&resource, Self::SETTINGS_SCHEMA_FILE, package)?;
         }
         Ok(())
     }
@@ -283,7 +291,9 @@ mod tests {
         )
         .expect("Invalid config");
 
-        let settings_schema = serde_json::json!({});
+        let settings_schema =
+            SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
+                .expect("Invalid settings schema");
         let component = r#"
             (component
                 (core module $Module
@@ -313,7 +323,10 @@ mod tests {
                 .to_bytes()
                 .expect("cannot decode config schema to bytes")
                 .as_slice(),
-            settings_schema.to_string().as_bytes(),
+            settings_schema
+                .to_bytes()
+                .expect("cannot decode settings schema to bytes")
+                .as_slice(),
         );
 
         let build_time = DateTime::default();
@@ -335,10 +348,17 @@ mod tests {
             .get_config_schema()
             .expect("Cannot get config schema from package");
         assert_eq!(config_schema, package_config_schema);
+
         // check config JSON file
         let package_config = package
             .get_config()
             .expect("Cannot get config from package");
         assert_eq!(config, package_config);
+
+        // check settings schema JSON file
+        let package_settings_schema = package
+            .get_settings_schema()
+            .expect("Cannot get settings schema from package");
+        assert_eq!(settings_schema, package_settings_schema);
     }
 }
