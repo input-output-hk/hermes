@@ -2,7 +2,10 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// IPFS Content Identifier.
 pub use libipld::Cid;
@@ -218,11 +221,55 @@ impl From<AddIpfsFile> for AddOpt {
     }
 }
 
+impl From<String> for AddIpfsFile {
+    fn from(value: String) -> Self {
+        Self::Path(value.into())
+    }
+}
+
+impl From<std::path::PathBuf> for AddIpfsFile {
+    fn from(value: std::path::PathBuf) -> Self {
+        Self::Path(value)
+    }
+}
+
+impl From<Vec<u8>> for AddIpfsFile {
+    fn from(value: Vec<u8>) -> Self {
+        Self::Stream((None, value))
+    }
+}
+
+impl From<(String, Vec<u8>)> for AddIpfsFile {
+    fn from((name, stream): (String, Vec<u8>)) -> Self {
+        Self::Stream((Some(name), stream))
+    }
+}
+
+impl From<(Option<String>, Vec<u8>)> for AddIpfsFile {
+    fn from(value: (Option<String>, Vec<u8>)) -> Self {
+        Self::Stream(value)
+    }
+}
+
 /// Path to get the file from IPFS
-pub struct GetIpfsFile(pub IpfsPath);
+pub struct GetIpfsFile(IpfsPath);
+
+impl From<IpfsPath> for GetIpfsFile {
+    fn from(value: IpfsPath) -> Self {
+        GetIpfsFile(value)
+    }
+}
 
 impl From<GetIpfsFile> for IpfsPath {
     fn from(value: GetIpfsFile) -> Self {
         value.0
+    }
+}
+
+impl FromStr for GetIpfsFile {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(GetIpfsFile(s.parse()?))
     }
 }

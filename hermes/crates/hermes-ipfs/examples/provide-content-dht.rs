@@ -1,7 +1,7 @@
 //! Use Hermes IPFS to distribute content using DHT
 #![allow(clippy::println_empty_string)]
 
-use hermes_ipfs::{AddIpfsFile, GetIpfsFile, HermesIpfs, IpfsPath};
+use hermes_ipfs::{HermesIpfs, IpfsPath};
 
 /// Connect Node A, upload file and provide CID by adding to DHT
 async fn connect_node_a_upload_and_provide(
@@ -23,9 +23,7 @@ async fn connect_node_a_upload_and_provide(
     println!("***************************************");
     println!("* Adding file to IPFS:");
     println!("");
-    let ipfs_path = hermes_ipfs
-        .add_ipfs_file(AddIpfsFile::Stream((None, file_content)))
-        .await?;
+    let ipfs_path = hermes_ipfs.add_ipfs_file(file_content.into()).await?;
     println!("* IPFS file published at {ipfs_path}");
     let cid = ipfs_path.root().cid().ok_or(anyhow::anyhow!(
         "ERROR! Could not extract CID from IPFS path."
@@ -94,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Fetch the content from the `ipfs_path`.
     let fetched_bytes = hermes_ipfs_b
-        .get_ipfs_file(GetIpfsFile(ipfs_path_string.parse()?))
+        .get_ipfs_file(ipfs_path_string.parse()?)
         .await?;
     assert_eq!(ipfs_file, fetched_bytes);
     let fetched_file = String::from_utf8(fetched_bytes)?;
