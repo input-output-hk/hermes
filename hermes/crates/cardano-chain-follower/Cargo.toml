@@ -18,6 +18,11 @@ tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"
 tracing.workspace = true
 dashmap = { workspace = true }
 once_cell = { workspace = true }
+url = { workspace = true }
+mithril-client = {version = "0.8.0", features = ["full"]}
+anyhow = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 hex.workspace = true

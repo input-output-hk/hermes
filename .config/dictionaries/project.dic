@@ -6,6 +6,7 @@ adminer
 apskhem
 asyncio
 auditability
+Autoupdate
 backpressure
 bindgen
 bkioshn
@@ -73,6 +74,7 @@ gmtime
 happ
 hardano
 hasher
+hexdigit
 highwater
 hmod
 ideascale

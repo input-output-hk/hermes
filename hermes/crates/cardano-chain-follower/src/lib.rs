@@ -2,6 +2,7 @@
 
 mod follow;
 mod mithril_snapshot;
+mod mithril_snapshot_downloader;
 
 use std::{io, path::PathBuf, str::FromStr};
 
@@ -60,6 +61,33 @@ pub enum Error {
     /// Mithril snapshot directory is not writable and we need to be able to update the snapshot data.
     #[error("Mithril Snapshot path `{0}` is not writable, or contains read-only files.")]
     MithrilSnapshotDirectoryNotWritable(PathBuf),
+    /// Mithril aggregator URL is already defined for a network.
+    #[error("Mithril Aggregator URL `{0}` is already configured as `{1}`")]
+    MithrilAggregatorURLAlreadyConfigured(String, String),
+    /// Mithril aggregator URL is already defined for a network.
+    #[error("Mithril Aggregator URL `{0}` is already configured for network `{1}`")]
+    MithrilAggregatorURLAlreadyConfiguredForNetwork(String, Network),
+    /// Mithril aggregator URL is not a valid URL
+    #[error("Mithril Aggregator URL `{0}` is not a valid URL: `{1}`")]
+    MithrilAggregatorURLParseError(String, url::ParseError),
+    /// General Mithril Client Error
+    #[error("Mithril Client Error for {0} @ {1}: {2}")]
+    MithrilClientError(Network, String, anyhow::Error),
+    /// Mithril Aggregator has no Snapshots
+    #[error("Mithril Aggregator does not list any Mithril Snapshots for {0} @ {1}")]
+    MithrilClientNoSnapshotsError(Network, String),
+    /// Mithril Aggregator mismatch
+    #[error("Mithril Aggregator network mismatch.  Wanted {0} Got {1}")]
+    MithrilClientNetworkMismatch(Network, String),
+    /// Mithril genesis VKEY Mismatch
+    #[error("Mithril Genesis VKEY for Network {0} is already set, and can not be changed to a different value.")]
+    MithrilGenesisVKeyMismatch(Network),
+    /// Mithril genesis VKEY is not properly HEX Encoded
+    #[error("Mithril Genesis VKEY for Network {0} is not hex encoded.  Needs to be only HEX Ascii characters, and even length.")]
+    MithrilGenesisVKeyNotHex(Network),
+    /// Mithril Autoupdate requires an Aggregator and a VKEY
+    #[error("Mithril Auto Update Network {0} failed to start. No Aggregator and/or Genesis VKEY are configured.")]
+    MithrilUpdateRequiresAggregatorAndVkey(Network),
     /// Internal Error
     #[error("Internal error")]
     InternalError,
