@@ -1,26 +1,28 @@
-use crate::options::TurboDownloaderOptions;
+use std::{
+    fs,
+    fs::File,
+    path::{Path, PathBuf},
+    sync::{mpsc::sync_channel, Arc, Mutex, MutexGuard},
+    thread,
+    time::Instant,
+};
+
 use anyhow::anyhow;
-use flate2::read::GzDecoder;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::sync_channel;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
-use std::{fs, thread};
-
 use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
 use lz4_flex::frame::FrameDecoder;
-
-use crate::engine::download_loop;
-use crate::engine::{decode_loop, init_download_loop};
-use crate::progress::{InternalProgress, UnpackedFileInfo};
-use crate::tsutils::TimePair;
-use crate::utils::bytes_to_human;
-use crate::utils::resolve_url;
-use crate::wrapper::{DataChunk, MpscReaderFromReceiver};
-use crate::TurboDownloaderProgress;
 use tar::Archive;
 use tracing::{debug, error, info};
+
+use crate::{
+    engine::{decode_loop, download_loop, init_download_loop},
+    options::TurboDownloaderOptions,
+    progress::{InternalProgress, UnpackedFileInfo},
+    tsutils::TimePair,
+    utils::{bytes_to_human, resolve_url},
+    wrapper::{DataChunk, MpscReaderFromReceiver},
+    TurboDownloaderProgress,
+};
 
 /// Created from [TurboDownloaderOptions]
 pub struct TurboDownloader {
@@ -125,20 +127,20 @@ impl TurboDownloader {
             .start_time = TimePair::now();
         self.download_started = true;
         let url = self.url.clone();
-        //let url = "https://github.com/golemfactory/ya-runtime-http-auth/releases/download/v0.1.0/ya-runtime-http-auth-linux-v0.1.0.tar.gz";
+        // let url = "https://github.com/golemfactory/ya-runtime-http-auth/releases/download/v0.1.0/ya-runtime-http-auth-linux-v0.1.0.tar.gz";
 
         let target_path = if let Some(target_path) = self.target_path.clone() {
             target_path
         } else {
             let last_segment = url.split('/').last().unwrap();
             if last_segment.starts_with(".tar.") {
-                //handle case when split with .tar. returns empty string
+                // handle case when split with .tar. returns empty string
                 return Err(anyhow!("Cannot infer output directory from url, specify output directory with --output-dir"));
             }
             if last_segment.contains(".tar.") {
                 let last_segment = last_segment.split(".tar.").next().unwrap();
                 println!("Output directory from url: {}", last_segment);
-                //check if directory or file exists:
+                // check if directory or file exists:
                 PathBuf::from(last_segment)
             } else {
                 return Err(anyhow!("Cannot infer output directory from url, specify output directory with --output-dir"));
@@ -172,7 +174,7 @@ impl TurboDownloader {
                         },
                         Err(err) => {
                             error!("Error when initializing download: {:?}", err);
-                            //stop other threads as well
+                            // stop other threads as well
                             return Err(err);
                         },
                     }
@@ -202,7 +204,7 @@ impl TurboDownloader {
                     },
                     Err(err) => {
                         error!("Error in download loop: {:?}, finishing thread", err);
-                        //stop other threads as well
+                        // stop other threads as well
                         pc.lock().unwrap().stop_requested = true;
                         pc.lock().unwrap().error_message_download = Some(err.to_string());
                     },
@@ -251,7 +253,7 @@ impl TurboDownloader {
             };
             if let Err(err) = res {
                 error!("Error in decode loop: {:?}, finishing thread", err);
-                //stop other threads as well
+                // stop other threads as well
                 pc.lock().unwrap().stop_requested = true;
                 pc.lock().unwrap().error_message_unpack = Some(err.to_string());
             };
@@ -292,16 +294,16 @@ impl TurboDownloader {
                     },
                 }
 
-                /* match archive.unpack(target_path) {
-                    Ok(_) => {
-                        info!("Successfully unpacked");
-                        Ok(())
-                    }
-                    Err(err) => {
-                        error!("Error while unpacking {:?}", err);
-                        Err(err)
-                    }
-                }*/
+                // match archive.unpack(target_path) {
+                // Ok(_) => {
+                // info!("Successfully unpacked");
+                // Ok(())
+                // }
+                // Err(err) => {
+                // error!("Error while unpacking {:?}", err);
+                // Err(err)
+                // }
+                // }
             } else {
                 let mut output_file = File::create(&target_path).unwrap();
                 match std::io::copy(&mut p2, &mut output_file) {
@@ -392,7 +394,8 @@ impl TurboDownloader {
         pc.stop_requested = true;
     }
 
-    ///Downloader supports pausing and resuming, you can call this method to pause download
+    /// Downloader supports pausing and resuming, you can call this method to pause
+    /// download
     pub fn pause_download(self: &TurboDownloader) {
         let mut pc = self
             .progress_context
@@ -401,7 +404,8 @@ impl TurboDownloader {
         pc.paused = true;
     }
 
-    ///Downloader supports pausing and resuming, you can call this method to resume download
+    /// Downloader supports pausing and resuming, you can call this method to resume
+    /// download
     pub fn resume_download(self: &TurboDownloader) {
         let mut pc = self
             .progress_context

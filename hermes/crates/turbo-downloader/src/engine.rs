@@ -1,24 +1,26 @@
-use reqwest::header::{HeaderValue, CONTENT_LENGTH};
-use reqwest::{header, StatusCode};
+use std::{
+    io::Read,
+    str::FromStr,
+    sync::{mpsc::SyncSender, Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use std::io::Read;
-
-use std::str::FromStr;
-use std::sync::mpsc::SyncSender;
-use std::sync::{Arc, Mutex};
-use std::thread;
-
-use crate::options::TurboDownloaderOptions;
 use anyhow::anyhow;
-
-use reqwest::blocking::Response;
-use std::time::Duration;
-
-use crate::progress::{DownloadChunkProgress, InternalProgress};
-use crate::utils::bytes_to_human;
-use crate::wrapper::DataChunk;
-
+use reqwest::{
+    blocking::Response,
+    header,
+    header::{HeaderValue, CONTENT_LENGTH},
+    StatusCode,
+};
 use tracing::{debug, error, info, warn};
+
+use crate::{
+    options::TurboDownloaderOptions,
+    progress::{DownloadChunkProgress, InternalProgress},
+    utils::bytes_to_human,
+    wrapper::DataChunk,
+};
 
 fn download_chunk(
     chunk_no: usize, thread_no: usize, progress_context: Arc<Mutex<InternalProgress>>,
@@ -60,7 +62,7 @@ fn download_chunk(
                 return Err(anyhow::anyhow!("Stop requested"));
             }
         }
-        //Speed throttling is not perfect by any means, but it's good enough for now
+        // Speed throttling is not perfect by any means, but it's good enough for now
         if let Some(max_speed) = max_speed {
             let should_take_time =
                 Duration::from_secs_f64(total_downloaded as f64 / max_speed as f64);
@@ -240,10 +242,12 @@ pub fn init_download_loop(
         .get(CONTENT_LENGTH)
         .ok_or_else(|| anyhow!("response doesn't include the content length"))
     {
-        Ok(length) => Some(
-            usize::from_str(length.to_str()?)
-                .map_err(|_| anyhow!("invalid Content-Length header"))?,
-        ),
+        Ok(length) => {
+            Some(
+                usize::from_str(length.to_str()?)
+                    .map_err(|_| anyhow!("invalid Content-Length header"))?,
+            )
+        },
         Err(_) => {
             warn!("Content-Length header not found, continue download without knowledge about file size...");
             use_chunks = false;
@@ -270,7 +274,7 @@ pub fn init_download_loop(
         use_chunks = false;
     }
 
-    //check if server supports partial content
+    // check if server supports partial content
     if use_chunks {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -360,7 +364,7 @@ pub fn download_loop(
         if max_length == 0 {
             break;
         }
-        //one thread for one range
+        // one thread for one range
         if chunk_no % thread_count != thread_no {
             continue;
         }
@@ -387,15 +391,14 @@ pub fn download_loop(
 
         {
             let mut progress = progress_context.lock().unwrap();
-            progress.current_chunks.insert(
-                chunk_no,
-                DownloadChunkProgress {
+            progress
+                .current_chunks
+                .insert(chunk_no, DownloadChunkProgress {
                     downloaded: 0,
                     to_download: max_length,
                     unpacked: 0,
                     to_unpack: max_length,
-                },
-            );
+                });
         }
 
         loop {
@@ -410,7 +413,7 @@ pub fn download_loop(
                 continue;
             }
             if thread_count > 1 {
-                //unfortunately we can't reuse response, when using more threads
+                // unfortunately we can't reuse response, when using more threads
                 download_response = None;
             }
 
@@ -426,7 +429,7 @@ pub fn download_loop(
             } else {
                 // recreate response if last one was closed
                 let new_range = if thread_count == 1 {
-                    //reuse connection if only one thread
+                    // reuse connection if only one thread
                     std::ops::Range {
                         start: range.start,
                         end: total_length,
@@ -487,8 +490,9 @@ pub fn download_loop(
                         info!("Removing chunk {} at idx {}", chunk_no, idx_to_remove);
                         pc.unfinished_chunks.remove(idx_to_remove);
 
-                        // remove from current chunks - it's easier, because there is only few of them
-                        //pc.current_chunks.remove(&chunk_no);
+                        // remove from current chunks - it's easier, because there is only
+                        // few of them pc.current_chunks.remove(&
+                        // chunk_no);
                     }
                     if let Err(err) = send_download_chunks.send(dc) {
                         error!("Error while sending chunk: {:?}", err);
@@ -497,7 +501,7 @@ pub fn download_loop(
                     break;
                 },
                 Err(err) => {
-                    //reset response to force reconnection
+                    // reset response to force reconnection
                     download_response = None;
                     let progress = {
                         let mut progress = progress_context.lock().unwrap();

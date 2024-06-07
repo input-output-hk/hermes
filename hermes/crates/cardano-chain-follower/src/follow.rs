@@ -96,46 +96,60 @@ impl FollowerConfigBuilder {
     #[must_use]
     pub fn default_for(chain: Network) -> Self {
         match chain {
-            Network::Mainnet => Self(FollowerConfig {
-                chain,
-                relay_address: DEFAULT_MAINNET_RELAY.to_string(),
-                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                follow_from: PointOrTip::Tip,
-                mithril_snapshot_path: None,
-                mithril_aggregator_address: Some(DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string()),
-                mithril_genesis_key: Some(DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string()),
-                mithril_update: false,
-            }),
-            Network::Preview => Self(FollowerConfig {
-                chain,
-                relay_address: DEFAULT_PREVIEW_RELAY.to_string(),
-                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                follow_from: PointOrTip::Tip,
-                mithril_snapshot_path: None,
-                mithril_aggregator_address: Some(DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string()),
-                mithril_genesis_key: Some(DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string()),
-                mithril_update: false,
-            }),
-            Network::Preprod => Self(FollowerConfig {
-                chain,
-                relay_address: DEFAULT_PREPROD_RELAY.to_string(),
-                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                follow_from: PointOrTip::Tip,
-                mithril_snapshot_path: None,
-                mithril_aggregator_address: Some(DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string()),
-                mithril_genesis_key: Some(DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string()),
-                mithril_update: false,
-            }),
-            Network::Testnet => Self(FollowerConfig {
-                chain,
-                relay_address: DEFAULT_TESTNET_RELAY.to_string(),
-                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                follow_from: PointOrTip::Tip,
-                mithril_snapshot_path: None,
-                mithril_aggregator_address: None,
-                mithril_genesis_key: None,
-                mithril_update: false,
-            }),
+            Network::Mainnet => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_MAINNET_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    mithril_aggregator_address: Some(
+                        DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    mithril_genesis_key: Some(DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Preview => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_PREVIEW_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    mithril_aggregator_address: Some(
+                        DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    mithril_genesis_key: Some(DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Preprod => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_PREPROD_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    mithril_aggregator_address: Some(
+                        DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string(),
+                    ),
+                    mithril_genesis_key: Some(DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string()),
+                    mithril_update: false,
+                })
+            },
+            Network::Testnet => {
+                Self(FollowerConfig {
+                    chain,
+                    relay_address: DEFAULT_TESTNET_RELAY.to_string(),
+                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                    follow_from: PointOrTip::Tip,
+                    mithril_snapshot_path: None,
+                    mithril_aggregator_address: None,
+                    mithril_genesis_key: None,
+                    mithril_update: false,
+                })
+            },
         }
     }
 
@@ -157,9 +171,7 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         self.0.follow_from = from.into();
         self
     }
@@ -235,9 +247,11 @@ impl Future for ReadBlock {
         tokio::pin!(p);
 
         match p.poll(cx) {
-            std::task::Poll::Ready(res) => match res {
-                Ok(res) => std::task::Poll::Ready(res),
-                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+            std::task::Poll::Ready(res) => {
+                match res {
+                    Ok(res) => std::task::Poll::Ready(res),
+                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+                }
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -259,9 +273,11 @@ impl Future for ReadBlockRange {
         tokio::pin!(p);
 
         match p.poll(cx) {
-            std::task::Poll::Ready(res) => match res {
-                Ok(res) => std::task::Poll::Ready(res),
-                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+            std::task::Poll::Ready(res) => {
+                match res {
+                    Ok(res) => std::task::Poll::Ready(res),
+                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+                }
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -294,9 +310,7 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let (response_tx, response_rx) = oneshot::channel();
 
         let req = task::SetReadPointerRequest {
@@ -319,9 +333,7 @@ impl Follower {
     /// * `at`: Point at which to read the block.
     #[must_use]
     pub fn read_block<P>(&self, at: P) -> ReadBlock
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let at = at.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -365,9 +377,7 @@ impl Follower {
     /// * `to`: Block range end.
     #[must_use]
     pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
-    where
-        P: Into<PointOrTip>,
-    {
+    where P: Into<PointOrTip> {
         let to = to.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -737,24 +747,30 @@ mod task {
 /// Sets the N2N remote client's read pointer.
 async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Result<Option<Point>> {
     match at {
-        PointOrTip::Point(Point::Origin) => client
-            .chainsync()
-            .intersect_origin()
-            .await
-            .map(Some)
-            .map_err(Error::Chainsync),
-        PointOrTip::Point(p @ Point::Specific(..)) => client
-            .chainsync()
-            .find_intersect(vec![p])
-            .await
-            .map(|(point, _)| point)
-            .map_err(Error::Chainsync),
-        PointOrTip::Tip => client
-            .chainsync()
-            .intersect_tip()
-            .await
-            .map(Some)
-            .map_err(Error::Chainsync),
+        PointOrTip::Point(Point::Origin) => {
+            client
+                .chainsync()
+                .intersect_origin()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync)
+        },
+        PointOrTip::Point(p @ Point::Specific(..)) => {
+            client
+                .chainsync()
+                .find_intersect(vec![p])
+                .await
+                .map(|(point, _)| point)
+                .map_err(Error::Chainsync)
+        },
+        PointOrTip::Tip => {
+            client
+                .chainsync()
+                .intersect_tip()
+                .await
+                .map(Some)
+                .map_err(Error::Chainsync)
+        },
     }
 }
 

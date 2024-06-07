@@ -1,7 +1,11 @@
-use crate::progress::InternalProgress;
-use std::io::{ErrorKind, Read};
-use std::sync::{Arc, Mutex};
+use std::{
+    io::{ErrorKind, Read},
+    sync::{Arc, Mutex},
+};
+
 use tracing::{trace, warn};
+
+use crate::progress::InternalProgress;
 
 pub struct DataChunk {
     pub chunk_no: usize,
@@ -90,7 +94,7 @@ impl Read for MpscReaderFromReceiver {
             self.current_buf = found_chunk.data;
             self.current_buf_pos = 0;
             if self.is_unpack {
-                //keep chunk hisotry
+                // keep chunk hisotry
                 let chunk_history = 1;
                 if self.current_chunk_no >= chunk_history {
                     let mut pc = self.progress_context.lock().unwrap();

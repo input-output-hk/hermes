@@ -1,10 +1,14 @@
-use crate::tsutils::TimePair;
+use std::{
+    collections::{BTreeMap, VecDeque},
+    time,
+    time::Instant,
+};
+
 use chrono::Utc;
 use serde::Serialize;
-use std::collections::{BTreeMap, VecDeque};
-use std::time;
-use std::time::Instant;
 use tracing::trace;
+
+use crate::tsutils::TimePair;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProgressHistoryEntry {
@@ -37,13 +41,14 @@ impl ProgressHistory {
     }
 
     pub fn get_speed(&self) -> usize {
-        //warn!("First enty from {}", self.progress_entries.get(0).map(|entry| std::time::Instant::now() - entry.time).unwrap_or());
+        // warn!("First enty from {}", self.progress_entries.get(0).map(|entry|
+        // std::time::Instant::now() - entry.time).unwrap_or());
         let current_time = time::Instant::now();
         let mut last_time = current_time
             .checked_sub(self.keep_time)
             .unwrap_or(current_time);
         let mut total: usize = 0;
-        //let now = std::time::Instant::now();
+        // let now = std::time::Instant::now();
         for entry in self.progress_entries.iter().rev() {
             if current_time - entry.time > self.keep_time {
                 break;
@@ -52,7 +57,8 @@ impl ProgressHistory {
             last_time = entry.time;
         }
         let elapsed_secs = time::Instant::now() - last_time;
-        //let elapsed_secs = time::Instant::now - last_time (chrono::Utc::now() - last_time).num_milliseconds() as f64 / 1000.0;
+        // let elapsed_secs = time::Instant::now - last_time (chrono::Utc::now() -
+        // last_time).num_milliseconds() as f64 / 1000.0;
         trace!("Progress entries count {}", self.progress_entries.len());
         trace!("Last entry: {:?}", elapsed_secs);
 
@@ -72,14 +78,14 @@ impl ProgressHistory {
             bytes,
         });
 
-        //this should be removed max one time
+        // this should be removed max one time
         assert!(self.progress_entries.len() <= self.max_entries + 1);
         while self.progress_entries.len() > self.max_entries {
-            //warn!("ProgressHistory: max_entries reached");
+            // warn!("ProgressHistory: max_entries reached");
             self.progress_entries.remove(0);
         }
 
-        //remove old entries
+        // remove old entries
         while let Some(first) = self.progress_entries.first() {
             if current_time - first.time > self.keep_time {
                 self.progress_entries.remove(0);
@@ -114,7 +120,7 @@ pub struct InternalProgress {
     pub chunk_size: usize,
     pub unfinished_chunks: Vec<usize>,
     pub current_chunks: BTreeMap<usize, DownloadChunkProgress>,
-    //pub unpack_chunks: BTreeMap<usize, UnpackChunkProgress>,
+    // pub unpack_chunks: BTreeMap<usize, UnpackChunkProgress>,
     pub total_chunks: usize,
     pub total_downloaded: usize,
     pub total_download_size: Option<usize>,
@@ -144,7 +150,7 @@ impl Default for InternalProgress {
             chunk_size: 0,
             unfinished_chunks: vec![],
             current_chunks: BTreeMap::new(),
-            //unpack_chunks: BTreeMap::new(),
+            // unpack_chunks: BTreeMap::new(),
             total_chunks: 0,
             total_download_size: None,
             total_downloaded: 0,
@@ -198,9 +204,9 @@ pub struct TurboDownloaderProgress {
     pub current_chunks: BTreeMap<usize, DownloadChunkProgress>,
     pub unpacked_files: usize,
     pub last_unpacked_files: VecDeque<UnpackedFileInfo>,
-    //pub unpack_chunks: BTreeMap<usize, UnpackChunkProgress>,
-    //pub progress_buckets_download: ProgressHistory,
-    //pub progress_buckets_unpack: ProgressHistory,
+    // pub unpack_chunks: BTreeMap<usize, UnpackChunkProgress>,
+    // pub progress_buckets_download: ProgressHistory,
+    // pub progress_buckets_unpack: ProgressHistory,
 }
 
 impl InternalProgress {
@@ -228,13 +234,13 @@ impl InternalProgress {
             chunks_downloading: self.chunk_downloaded.len(),
             chunks_total: self.total_chunks,
             chunks_left: self.unfinished_chunks.len(),
-            //progress_buckets_download: self.progress_buckets_download.clone(),
-            //progress_buckets_unpack: self.progress_buckets_unpack.clone(),
+            // progress_buckets_download: self.progress_buckets_download.clone(),
+            // progress_buckets_unpack: self.progress_buckets_unpack.clone(),
             current_chunks: self.current_chunks.clone(),
             server_chunk_support: self.server_chunk_support,
             unpacked_files: self.unpacked_files,
             last_unpacked_files: self.last_unpacked_files.clone(),
-            //unpack_chunks: self.unpack_chunks.clone(),
+            // unpack_chunks: self.unpack_chunks.clone(),
         }
     }
 
@@ -276,6 +282,7 @@ impl InternalProgress {
             / elapsed.as_secs_f64();
         res_f64.round() as usize
     }
+
     pub fn get_unpack_speed(&self) -> usize {
         if self.finish_time.is_some() {
             return 0;

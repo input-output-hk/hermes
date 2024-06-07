@@ -58,7 +58,8 @@ pub enum Error {
     /// Mithril snapshot directory failed to be created.
     #[error("Mithril Snapshot path `{0}` does not exist, and could not be created. `{1}`")]
     MithrilSnapshotDirectoryCreationError(PathBuf, io::Error),
-    /// Mithril snapshot directory is not writable and we need to be able to update the snapshot data.
+    /// Mithril snapshot directory is not writable and we need to be able to update the
+    /// snapshot data.
     #[error("Mithril Snapshot path `{0}` is not writable, or contains read-only files.")]
     MithrilSnapshotDirectoryNotWritable(PathBuf),
     /// Mithril aggregator URL is already defined for a network.

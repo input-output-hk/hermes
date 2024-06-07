@@ -1,7 +1,7 @@
 //! Internal Mithril snapshot downloader task.
 //!
-//! This task is responsible for downloading Mithril snapshot files. It downloads the latest
-//! snapshot file and then sleeps until the next snapshot is available.
+//! This task is responsible for downloading Mithril snapshot files. It downloads the
+//! latest snapshot file and then sleeps until the next snapshot is available.
 use chrono::{TimeDelta, Utc};
 use mithril_client::{Certificate, Client, Snapshot, SnapshotListItem};
 use tokio::time::{sleep, Duration};
@@ -12,9 +12,11 @@ use crate::{
     Network,
 };
 
-/// The minimum duration between checks for a new Mithril Snapshot. (Must be same as `MINIMUM_MITHRIL_UPDATE_CHECK_DURATION`)
+/// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
+/// `MINIMUM_MITHRIL_UPDATE_CHECK_DURATION`)
 const MINIMUM_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::minutes(10); // 10 Minutes
-/// The minimum duration between checks for a new Mithril Snapshot. (Must be same as `MINIMUM_MITHRIL_UPDATE_CHECK_INTERVAL`)
+/// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
+/// `MINIMUM_MITHRIL_UPDATE_CHECK_INTERVAL`)
 const MINIMUM_MITHRIL_UPDATE_CHECK_DURATION: Duration = Duration::from_secs(10 * 60); // 10 Minutes
 /// Average Mithril Update is 6 Hrs, so don;t wait longer than 7.
 const MAXIMUM_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::hours(7); // 7 Hours
@@ -26,7 +28,8 @@ const DOWNLOAD_ERROR_RETRY_DURATION: Duration = Duration::from_secs(2 * 60); // 
 
 /// Returns the Latest and chronologically previous snapshots data from the Aggregator.
 /// Will return None if it can not get the Snapshot list, or there are no entries in it.
-/// If there is only a single entry then the latest and chronologically next will be identical.
+/// If there is only a single entry then the latest and chronologically next will be
+/// identical.
 async fn get_latest_snapshots(
     client: &Client, network: Network,
 ) -> Option<(SnapshotListItem, SnapshotListItem)> {
@@ -50,7 +53,8 @@ async fn get_latest_snapshots(
     Some((latest_snapshot.clone(), chronologically_previous.clone()))
 }
 
-/// Create a client, should never fail, but return None if it does, because we can't continue.
+/// Create a client, should never fail, but return None if it does, because we can't
+/// continue.
 fn create_client(network: Network) -> Option<Client> {
     // This Can't fail, because we pre-validated the key exists. But just in case...
     let Some(aggregator_url) = read_aggregator_url(network) else {
@@ -90,8 +94,9 @@ fn calculate_sleep_duration(
     let mut snapshot_interval = (latest_snapshot.created_at - previous_snapshot.created_at)
         .max(MAXIMUM_MITHRIL_UPDATE_CHECK_INTERVAL);
 
-    // We should never be negative, but we CAN be zero if there was no chronologically previous snapshot.
-    // In this case GUESS how long the interval should be based on experience.
+    // We should never be negative, but we CAN be zero if there was no chronologically
+    // previous snapshot. In this case GUESS how long the interval should be based on
+    // experience.
     if snapshot_interval <= TimeDelta::seconds(0) {
         snapshot_interval = EXPECTED_MITHRIL_UPDATE_CHECK_INTERVAL;
     }
@@ -160,7 +165,8 @@ async fn download_and_verify_snapshot_certificate(
 
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
-/// This is because there can ONLY be one snapshot for each of the three known Cardano networks.
+/// This is because there can ONLY be one snapshot for each of the three known Cardano
+/// networks.
 pub(crate) async fn background_mithril_update(network: Network) {
     let mut previous_snapshot_data: Option<SnapshotListItem> = None;
     let mut next_sleep = Duration::from_secs(0);
@@ -198,7 +204,8 @@ pub(crate) async fn background_mithril_update(network: Network) {
 
         // Download the snapshot from the aggregator.
         let Some(snapshot) = get_snapshot(&client, &latest_snapshot, network).await else {
-            // If we couldn't get the snapshot then we don't need to do anything else, transient error.
+            // If we couldn't get the snapshot then we don't need to do anything else, transient
+            // error.
             next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
             continue;
         };

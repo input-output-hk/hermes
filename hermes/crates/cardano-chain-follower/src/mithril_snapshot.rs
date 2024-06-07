@@ -6,7 +6,6 @@ use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
-
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -162,7 +161,8 @@ fn check_writable(path: &PathBuf) -> bool {
 /// Check if the configured path is a valid directory, and that it does not exist already
 /// in the map.
 fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()> {
-    // Check if we are already configured for a different path, or the path is used by a different network.
+    // Check if we are already configured for a different path, or the path is used by a
+    // different network.
     let current_path = read_mithril_path(network);
     match current_path {
         Some(current_path) => {
@@ -195,8 +195,9 @@ fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()
         ));
     }
 
-    // if we plan to update the snapshot, the directory and all its contents needs to be writable.
-    // Do this test last, because it could be relatively slow, and is not necessary if any of the other checks fail.
+    // if we plan to update the snapshot, the directory and all its contents needs to be
+    // writable. Do this test last, because it could be relatively slow, and is not
+    // necessary if any of the other checks fail.
     if update {
         // If the directory is not writable then we can't use
         if !check_writable(&path) {
@@ -205,7 +206,8 @@ fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()
     }
 
     // All the previous checks passed, so we can use this path.
-    // Effectively a NOOP if the path was perviously added, but it doesn't hurt to do it again.
+    // Effectively a NOOP if the path was perviously added, but it doesn't hurt to do it
+    // again.
     SNAPSHOT_PATHS.insert(network, path);
 
     Ok(())
@@ -278,9 +280,11 @@ fn is_hex(s: &str) -> bool {
     s.chars().count() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-/// Set the genesis VKEY for a network, but only if its not already set, or has not changed if it is.
+/// Set the genesis VKEY for a network, but only if its not already set, or has not
+/// changed if it is.
 fn set_genesis_vkey(network: Network, vkey: &str) -> Result<()> {
-    // First sanitize the vkey by removing all whitespace and make sure its actually valid hex.
+    // First sanitize the vkey by removing all whitespace and make sure its actually valid
+    // hex.
     let vkey = remove_whitespace(vkey);
     if !is_hex(&vkey) {
         return Err(Error::MithrilGenesisVKeyNotHex(network));
@@ -301,7 +305,8 @@ fn set_genesis_vkey(network: Network, vkey: &str) -> Result<()> {
 /// Try and update the current tip from an existing snapshot.
 fn update_tip(network: Network) -> Result<()> {
     if let Some(snapshot_path) = read_mithril_path(network) {
-        // If the TIP is not set, try and set it in-case there is already a snapshot in the snapshot directory.
+        // If the TIP is not set, try and set it in-case there is already a snapshot in the
+        // snapshot directory.
         let tip = pallas_hardano::storage::immutable::get_tip(&snapshot_path)
             .map_err(|_| Error::MithrilSnapshot)?
             .ok_or(Error::MithrilSnapshot)?;

@@ -1,7 +1,10 @@
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+
 use humansize::{FormatSizeOptions, SizeFormatter, DECIMAL};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 use crate::progress::InternalProgress;
 

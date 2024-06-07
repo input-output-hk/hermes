@@ -1,7 +1,10 @@
+use std::{
+    fmt::{Debug, Formatter},
+    time::{Instant, SystemTime, UNIX_EPOCH},
+};
+
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
-use std::fmt::{Debug, Formatter};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
 pub struct TimePair {

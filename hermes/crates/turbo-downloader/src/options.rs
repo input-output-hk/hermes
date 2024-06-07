@@ -1,5 +1,6 @@
-use crate::TurboDownloader;
 use std::path::PathBuf;
+
+use crate::TurboDownloader;
 
 /// Turbo Downloader Options.
 #[derive(Debug, Clone)]
