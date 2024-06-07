@@ -3,7 +3,7 @@
 //! This task is responsible for downloading Mithril snapshot files. It downloads the latest
 //! snapshot file and then sleeps until the next snapshot is available.
 use chrono::{TimeDelta, Utc};
-use mithril_client::{Client, SnapshotListItem};
+use mithril_client::{Certificate, Client, Snapshot, SnapshotListItem};
 use tokio::time::{sleep, Duration};
 use tracing::error;
 
@@ -108,6 +108,56 @@ fn calculate_sleep_duration(
         .unwrap_or(MINIMUM_MITHRIL_UPDATE_CHECK_DURATION)
 }
 
+/// Get the actual snapshot from the specified `snapshot_item` from the list of snapshots.
+/// Returns None if there are any issues doing this, otherwise the Snapshot.
+/// The only issues should be transient communications errors.
+async fn get_snapshot(
+    client: &Client, snapshot_item: &SnapshotListItem, network: Network,
+) -> Option<Snapshot> {
+    let latest_digest = snapshot_item.digest.as_ref();
+    let snapshot = match client.snapshot().get(latest_digest).await {
+        Ok(snapshot) => {
+            if let Some(snapshot) = snapshot {
+                snapshot
+            } else {
+                // Some kind of communications error has ocurred.
+                error!("No snapshot returned for {} ???", network);
+                return None;
+            }
+        },
+        Err(err) => {
+            // Some kind of communications error has ocurred.
+            error!(
+                "Failure to get the latest snapshot for {} with error: {}",
+                network, err
+            );
+            return None;
+        },
+    };
+
+    Some(snapshot)
+}
+
+/// Download and Verify the Snapshots certificate
+async fn download_and_verify_snapshot_certificate(
+    client: &Client, snapshot: &Snapshot, network: Network,
+) -> Option<Certificate> {
+    let certificate = match client
+        .certificate()
+        .verify_chain(&snapshot.certificate_hash)
+        .await
+    {
+        Ok(certificate) => certificate,
+        Err(err) => {
+            // The certificate is invalid.
+            error!("The certificate for {} is invalid: {}", network, err);
+            return None;
+        },
+    };
+
+    Some(certificate)
+}
+
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
 /// This is because there can ONLY be one snapshot for each of the three known Cardano networks.
@@ -146,11 +196,22 @@ pub(crate) async fn background_mithril_update(network: Network) {
             }
         }
 
-        // Download the snapshot and the certificate.
+        // Download the snapshot from the aggregator.
+        let Some(snapshot) = get_snapshot(&client, &latest_snapshot, network).await else {
+            // If we couldn't get the snapshot then we don't need to do anything else, transient error.
+            next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
+            continue;
+        };
 
-        // Validate the snapshot.
+        // Download and Verify the certificate.
+        let certificate =
+            download_and_verify_snapshot_certificate(&client, &snapshot, network).await
+        else {
+            next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
+            continue;
+        };
 
-        // Extract the snapshot, and only change files that are different from the previous one.
+        // Download and unpack the actual snapshot archive.
 
         // Update the previous snapshot to the latest.
         previous_snapshot_data = Some(latest_snapshot.clone());

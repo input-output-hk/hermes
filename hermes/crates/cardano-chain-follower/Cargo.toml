@@ -23,6 +23,7 @@ mithril-client = {version = "0.8.0", features = ["full"]}
 anyhow = { workspace = true }
 regex = { workspace = true }
 chrono = { workspace = true }
+download-lib = "0.2.3"
 
 [dev-dependencies]
 hex.workspace = true
