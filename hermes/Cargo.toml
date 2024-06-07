@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "bin",
     "crates/cardano-chain-follower",
+    "crates/turbo-downloader"
 ]
 
 [workspace.package]
@@ -98,3 +99,12 @@ serde_json = "1.0"
 jsonschema = "0.18.0"
 url="2.5.0"
 regex = "1.10.4"
+reqwest = { version = "0.12.4", default-features = false, features = ["blocking", "rustls-tls"] }
+humansize = { version = "^2.1.2", default-features = false, features = ["no_alloc"] }
+
+tar = "0.4.41"
+flate2 = "1.0.30"
+bzip2 = "^0.4.3"
+lz4_flex = "0.11.3"
+xz2 = "^0.1.7"
+zstd = "0.13.1"
