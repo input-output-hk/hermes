@@ -13,7 +13,16 @@ interface event {
     // headers kv
     type kv-headers = list<tuple<string, string>>;
 
-    /// Reply
-    reply: func(headers: bstr)-> kv-headers;
+    // http response code 
+    type code = u16;
 
+    // body
+    type body = bstr;
+
+    // response
+    type response = tuple<code, kv-headers, body>;
+
+    /// Reply
+    reply: func(body: bstr, headers: bstr, path: string, method: string) -> response;
+    
 }

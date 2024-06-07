@@ -4,14 +4,30 @@ use std::sync::mpsc::Sender;
 
 use crate::event::HermesEventPayload;
 use hyper::{self, body::Bytes};
-use tracing::info;
+use serde::{Deserialize, Serialize};
+
+/// HTTP response code
+type Code = u16;
+
+/// Headers in kv form
+type HeadersKV = Vec<(String, String)>;
+
+/// Req body
+type Body = Vec<u8>;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum HTTPEventMsg {
+    HTTPEventReceiver,
+    HttpEventResponse((Code, HeadersKV, Body)),
+}
 
 /// HTTP Event
 pub struct HTTPEvent {
     pub(crate) headers: Vec<u8>,
     pub(crate) method: String,
+    pub(crate) path: String,
     pub(crate) body: Bytes,
-    pub(crate) sender: Sender<String>,
+    pub(crate) sender: Sender<HTTPEventMsg>,
 }
 
 impl HermesEventPayload for HTTPEvent {
@@ -20,21 +36,20 @@ impl HermesEventPayload for HTTPEvent {
     }
 
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-        let value = module
-            .instance
-            .hermes_http_gateway_event()
-            .call_reply(&mut module.store, &self.headers)?;
-
-        info!("{:?} {:?}", self.body, self.method);
-
-        info!("valz {:?}", value);
-
-        // http wit thing which
-
-        // valid hosts
+        let event_response = module.instance.hermes_http_gateway_event().call_reply(
+            &mut module.store,
+            &self.body.as_ref().to_vec(),
+            &self.headers,
+            &self.path,
+            &self.method,
+        )?;
 
         // http event will repsonse with none or response reply which i just respond and then flag connection is done
         // flag event is processed or not
-        Ok(self.sender.send("should be ok".to_string())?)
+        Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((
+            event_response.0,
+            event_response.1,
+            event_response.2,
+        )))?)
     }
 }

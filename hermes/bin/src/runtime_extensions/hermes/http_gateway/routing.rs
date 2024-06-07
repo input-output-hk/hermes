@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
-use super::{event::HTTPEvent, gateway_task::ConnectionManager};
+use super::{
+    event::{HTTPEvent, HTTPEventMsg},
+    gateway_task::ConnectionManager,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Headers<K, V> {
@@ -24,8 +27,10 @@ struct Headers<K, V> {
 }
 
 #[derive(Debug)]
+/// hostname (nodename)
 pub struct Hostname(pub String);
 
+/// HTTP error response generator
 pub fn _error_response(err: String) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -33,6 +38,7 @@ pub fn _error_response(err: String) -> Response<Body> {
         .unwrap()
 }
 
+/// HTTP not found response generator
 pub fn _not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
@@ -71,22 +77,22 @@ pub async fn router(
 
 /// Route single request to hermes backend
 async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
-    let (lambda_send, lambda_recv_answer) = channel();
+    let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
+        channel();
 
     let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
+    let path = req.uri().path().to_string();
 
     let mut header_kv = Headers {
         contents: Vec::new(),
     };
 
     for header in req.headers() {
-        header_kv.contents.push((
-            header.0.as_str().to_owned(),
-            header.1.to_str().unwrap().to_owned(),
-        ))
+        header_kv
+            .contents
+            .push((header.0.as_str().to_owned(), header.1.to_str()?.to_owned()))
     }
-
     let header_bytes = bincode::serialize(&header_kv)?;
 
     let body = &req.collect().await?.to_bytes();
@@ -96,6 +102,7 @@ async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             method,
             header_bytes,
             body.clone(),
+            path,
             lambda_send,
             lambda_recv_answer,
         ),
@@ -103,13 +110,16 @@ async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     }
 }
 
+/// Compose http event and send to global queue, await queue response and relay back to waiting receiver channel
+/// for HTTP response
 fn compose_http_event(
-    method: String, headers: Vec<u8>, body: Bytes, sender: Sender<String>,
-    receiver: Receiver<String>,
+    method: String, headers: Vec<u8>, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
+    receiver: Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<Body>> {
     let on_http_event = HTTPEvent {
-        method,
         headers,
+        method,
+        path,
         body,
         sender,
     };
@@ -119,5 +129,7 @@ fn compose_http_event(
         TargetModule::All,
     ))?;
 
-    return Ok(Response::new(receiver.recv()?.into()));
+    return Ok(Response::new(
+        serde_json::to_string(&receiver.recv()?)?.into(),
+    ));
 }
