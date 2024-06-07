@@ -500,16 +500,67 @@ impl MithrilSnapshot {
         }
     }
 
-    /// Naively checks if the snapshot contains a point.
+    /// Checks if the snapshot contains a given point.
     ///
     /// # Arguments
+    /// * `network`: The network that this function should check against.
+    /// * `point`: The point to be checked for existence within the specified Mithril snapshot.
     ///
-    /// * `point`: Point to check.
+    /// Returns true if the point exists within the Mithril snapshot for the specified network, false otherwise.
     pub fn contains_point(network: Network, point: &Point) -> bool {
         if let Some(tip) = MithrilSnapshot::tip(network) {
             point.slot_or_default() <= tip.slot_or_default()
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::mithril_snapshot::{
+        check_map_conflicts, downloader_handle_set, Network, SYNC_HANDLE_MAP,
+    };
+    use dashmap::DashMap;
+    use tokio::task::{self};
+
+    #[test]
+    fn test_check_map_conflicts() {
+        let network1 = Network::Mainnet;
+        let network2 = Network::Testnet;
+
+        let map: DashMap<Network, i32> = DashMap::new();
+
+        // When map is empty there is no conflict.
+        assert_eq!(None, check_map_conflicts(network1, &map, &5));
+
+        map.insert(network1, 5);
+
+        // When network is the same there is no conflict.
+        assert_eq!(None, check_map_conflicts(network1, &map, &5));
+
+        let conflict = check_map_conflicts(network2, &map, &5);
+
+        // When network is different there is a conflict.
+        assert_eq!(Some(Network::Mainnet), conflict);
+    }
+
+    #[tokio::test]
+    async fn test_downloader_handle_set() {
+        let network = Network::Mainnet;
+
+        // Test with an empty DashMap
+        assert!(!downloader_handle_set(network));
+
+        // Create a join handle.
+        let handle = task::spawn(async {
+            println!("I return nothing.");
+        });
+
+        // Store it
+        SYNC_HANDLE_MAP.insert(network, handle);
+
+        // And check if its set.
+        assert!(downloader_handle_set(network));
     }
 }
