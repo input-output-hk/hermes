@@ -2,13 +2,21 @@
 //!
 //! This task is responsible for downloading Mithril snapshot files. It downloads the
 //! latest snapshot file and then sleeps until the next snapshot is available.
+use std::{path::Path, sync::Arc};
+
+use anyhow::{anyhow, Context};
+use async_trait::async_trait;
 use chrono::{TimeDelta, Utc};
-use mithril_client::{Certificate, Client, Snapshot, SnapshotListItem};
+use mithril_client::{
+    common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, Client, MessageBuilder,
+    MithrilCertificate, MithrilResult, Snapshot, SnapshotListItem,
+};
 use tokio::time::{sleep, Duration};
-use tracing::error;
+use tracing::{debug, error};
+use turbo_downloader::TurboDownloaderOptions;
 
 use crate::{
-    mithril_snapshot::{read_aggregator_url, read_genesis_vkey},
+    mithril_snapshot::{read_aggregator_url, read_genesis_vkey, read_mithril_path, update_tip},
     Network,
 };
 
@@ -68,8 +76,18 @@ fn create_client(network: Network) -> Option<Client> {
         return None;
     };
 
+    let downloader = match TurboSnapshotDownloader::new() {
+        Ok(downloader) => Arc::new(downloader),
+        Err(err) => {
+            error!("Unexpected Error [{}]: Unable to create Snapshot Downloader for {}. Mithril Snapshots can not update.", err,network);
+            return None;
+        },
+    };
+
     // This can't fail, because we already tested it works. But just in case...
     let client = match mithril_client::ClientBuilder::aggregator(&aggregator_url, &genesis_vkey)
+        //.add_feedback_receiver(receiver)
+        .with_snapshot_downloader(downloader)
         .build()
     {
         Ok(c) => c,
@@ -146,7 +164,7 @@ async fn get_snapshot(
 /// Download and Verify the Snapshots certificate
 async fn download_and_verify_snapshot_certificate(
     client: &Client, snapshot: &Snapshot, network: Network,
-) -> Option<Certificate> {
+) -> Option<MithrilCertificate> {
     let certificate = match client
         .certificate()
         .verify_chain(&snapshot.certificate_hash)
@@ -173,6 +191,12 @@ pub(crate) async fn background_mithril_update(network: Network) {
 
     let Some(client) = create_client(network) else {
         // If we couldn't create a client, then we don' t need to do anything.
+        return;
+    };
+
+    // This Can't fail, because we pre-validated the key exists. But just in case...
+    let Some(mithril_path) = read_mithril_path(network) else {
+        error!("Unexpected Error: No Mithril Path Configured for {}.  Mithril Snapshots can not update.", network);
         return;
     };
 
@@ -206,21 +230,123 @@ pub(crate) async fn background_mithril_update(network: Network) {
         let Some(snapshot) = get_snapshot(&client, &latest_snapshot, network).await else {
             // If we couldn't get the snapshot then we don't need to do anything else, transient
             // error.
-            next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
             continue;
         };
 
         // Download and Verify the certificate.
-        let certificate =
+        let Some(certificate) =
             download_and_verify_snapshot_certificate(&client, &snapshot, network).await
         else {
-            next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
             continue;
         };
 
         // Download and unpack the actual snapshot archive.
+        if let Err(error) = client
+            .snapshot()
+            .download_unpack(&snapshot, &mithril_path)
+            .await
+        {
+            // If we couldn't download and unpack, assume its a transient error,
+            error!("Failed to Download and Unpack snapshot: {error}");
+            continue;
+        }
+
+        if let Err(error) = client.snapshot().add_statistics(&snapshot).await {
+            // Just log not fatal to anything.
+            error!("Could not increment snapshot download statistics for {network}: {error}");
+            // We can processing the download even after this fails.
+        }
+
+        match MessageBuilder::new()
+            .compute_snapshot_message(&certificate, &mithril_path)
+            .await
+        {
+            Ok(message) => {
+                if !certificate.match_message(&message) {
+                    // If we couldn't match then assume its a transient error.
+                    error!(
+                        "Failed to Match Certificate and Computed Snapshot Message for {network}!"
+                    );
+                    continue;
+                }
+            },
+            Err(error) => {
+                // If we couldn't build the message then assume its a transient error.
+                error!("Failed to Compute Snapshot Message: {error}");
+                continue;
+            },
+        }
+
+        // Download was A-OK - Update the new immutable tip.
+        if let Err(error) = update_tip(network) {
+            // If we couldn't update the tip then assume its a transient error.
+            error!("Failed to Update Tip for {network}: {error}");
+            continue;
+        }
 
         // Update the previous snapshot to the latest.
         previous_snapshot_data = Some(latest_snapshot.clone());
+    }
+}
+
+/// A snapshot downloader that only handles download through HTTP.
+pub struct TurboSnapshotDownloader {
+    /// Handle to a HTTP client to use for downloading simply.
+    http_client: reqwest::Client,
+    /// Turbo Downloader options.
+    turbo_downloader: Arc<TurboDownloaderOptions>,
+}
+
+impl TurboSnapshotDownloader {
+    /// Constructs a new `HttpSnapshotDownloader`.
+    pub fn new() -> MithrilResult<Self> {
+        let http_client = reqwest::ClientBuilder::new()
+            .build()
+            .with_context(|| "Building http client for TurboSnapshotDownloader failed")?;
+
+        let turbo_downloader = TurboDownloaderOptions::default();
+
+        Ok(Self {
+            http_client,
+            turbo_downloader: turbo_downloader.into(),
+        })
+    }
+}
+
+#[async_trait]
+impl SnapshotDownloader for TurboSnapshotDownloader {
+    async fn download_unpack(
+        &self, location: &str, target_dir: &Path, _compression_algorithm: CompressionAlgorithm,
+        _download_id: &str, _snapshot_size: u64,
+    ) -> MithrilResult<()> {
+        if !target_dir.is_dir() {
+            Err(
+                anyhow!("target path is not a directory or does not exist: `{target_dir:?}`")
+                    .context("Download-Unpack: prerequisite error"),
+            )?;
+        }
+
+        self.turbo_downloader
+            .start_download(location, Some(target_dir.to_path_buf()))
+            .await?;
+
+        Ok(())
+    }
+
+    async fn probe(&self, location: &str) -> MithrilResult<()> {
+        debug!("HEAD Snapshot location='{location}'.");
+
+        let request_builder = self.http_client.head(location);
+        let response = request_builder.send().await.with_context(|| {
+            format!("Cannot perform a HEAD for snapshot at location='{location}'")
+        })?;
+
+        match response.status() {
+            reqwest::StatusCode::OK => Ok(()),
+            reqwest::StatusCode::NOT_FOUND => {
+                Err(anyhow!("Snapshot location='{location} not found"))
+            },
+            status_code => Err(anyhow!("Unhandled error {status_code}")),
+        }
     }
 }

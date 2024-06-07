@@ -11,20 +11,23 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+# This is the only place we use this, so not a workspace dependency.
+mithril-client = {version = "0.8.0", features = ["full"]}
+
+turbo-downloader.workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"] }
+tokio.workspace = true
 tracing.workspace = true
-dashmap = { workspace = true }
-once_cell = { workspace = true }
-url = { workspace = true }
-mithril-client = {version = "0.8.0", features = ["full"]}
-anyhow = { workspace = true }
-regex = { workspace = true }
-chrono = { workspace = true }
-download-lib = "0.2.3"
+dashmap.workspace = true
+once_cell.workspace = true
+url.workspace = true
+anyhow.workspace = true 
+chrono.workspace = true 
+reqwest.workspace = true 
+async-trait.workspace = true 
 
 [dev-dependencies]
 hex.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber.workspace = true

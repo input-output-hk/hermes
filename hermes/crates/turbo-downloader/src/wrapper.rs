@@ -94,7 +94,7 @@ impl Read for MpscReaderFromReceiver {
             self.current_buf = found_chunk.data;
             self.current_buf_pos = 0;
             if self.is_unpack {
-                // keep chunk hisotry
+                // keep chunk history
                 let chunk_history = 1;
                 if self.current_chunk_no >= chunk_history {
                     let mut pc = self.progress_context.lock().unwrap();
@@ -102,7 +102,6 @@ impl Read for MpscReaderFromReceiver {
                         .remove(&(self.current_chunk_no - chunk_history));
                 }
             }
-        } else {
         }
 
         let min_val = std::cmp::min(self.current_buf.len() - self.current_buf_pos, buf.len());

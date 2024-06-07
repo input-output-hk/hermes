@@ -77,6 +77,7 @@ hasher
 hexdigit
 highwater
 hmod
+humansize
 ideascale
 idents
 IFMT
@@ -141,6 +142,7 @@ readlinkat
 redoc
 REMOVEDIR
 renameat
+reqwest
 retriggering
 rulelist
 rulename

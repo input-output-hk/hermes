@@ -1,17 +1,11 @@
 [workspace]
 resolver = "2"
-members = [
-    "bin",
-    "crates/cardano-chain-follower",
-    "crates/turbo-downloader"
-]
+members = ["bin", "crates/cardano-chain-follower", "crates/turbo-downloader"]
 
 [workspace.package]
 edition = "2021"
 version = "0.0.1"
-authors = [
-    "Steven Johnson <steven.johnson@iohk.io>"
-]
+authors = ["Steven Johnson <steven.johnson@iohk.io>"]
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
@@ -57,6 +51,7 @@ pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev =
 pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
+turbo-downloader = { path = "crates/turbo-downloader", version = "0.1.0" }
 
 wasmtime = "20.0.2"
 rusty_ulid = "2.0.0"
@@ -85,11 +80,14 @@ derive_more = "0.99.17"
 chrono = "0.4.35"
 chrono-tz = "0.9.0"
 saffron = "0.1.0"
-tokio = "1.36.0"
+tokio = { version = "1.36.0", features = ["macros", "rt", "net", "rt-multi-thread"] }
 libsqlite3-sys = "0.28.0"
 stringzilla = "3.8.4"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
-hdf5 = { git="https://github.com/aldanor/hdf5-rust.git", rev="694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version="0.8.1", features = [ "static", "blosc" ]}
+hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", rev = "694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version = "0.8.1", features = [
+    "static",
+    "blosc",
+] }
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.0", features = ["lz4", "zlib", "zstd"] }
 num_cpus = "1.16.0"
@@ -97,10 +95,20 @@ console = "0.15.8"
 serde = "1.0"
 serde_json = "1.0"
 jsonschema = "0.18.0"
-url="2.5.0"
+url = "2.5.0"
 regex = "1.10.4"
-reqwest = { version = "0.12.4", default-features = false, features = ["blocking", "rustls-tls"] }
-humansize = { version = "^2.1.2", default-features = false, features = ["no_alloc"] }
+humansize = { version = "^2.1.2", default-features = false, features = [
+    "no_alloc",
+] }
+reqwest = { version = "0.12.4", default-features = false, features = [
+    "blocking",
+    "rustls-tls-native-roots",
+    "gzip",
+    "brotli",
+    "zstd",
+    "deflate",
+    "hickory-dns",
+] } 
 
 tar = "0.4.41"
 flate2 = "1.0.30"
@@ -108,3 +116,4 @@ bzip2 = "^0.4.3"
 lz4_flex = "0.11.3"
 xz2 = "^0.1.7"
 zstd = "0.13.1"
+async-trait = "0.1.80"

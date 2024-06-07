@@ -1,5 +1,5 @@
 [package]
-name = "Turbo-Downloader"
+name = "turbo-downloader"
 description = "Turbo Downloader Library - Fast downloader + optional extractor library for compressed *.tar.* files."
 authors = [
     "Sieciech Czajka <sieciech.czajka@golem.network>",
@@ -14,7 +14,9 @@ name = "turbo_downloader"
 
 [dependencies]
 tokio = { workspace = true }
+
 reqwest = { workspace = true }
+
 anyhow = { workspace = true }
 tracing = { workspace = true }
 humansize = { workspace = true }

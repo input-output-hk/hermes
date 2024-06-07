@@ -42,9 +42,9 @@ impl Default for TurboDownloaderOptions {
 impl TurboDownloaderOptions {
     /// Constructs downloader from given options.
     pub async fn start_download(
-        self, url: &str, target_path: Option<PathBuf>,
+        &self, url: &str, target_path: Option<PathBuf>,
     ) -> anyhow::Result<TurboDownloader> {
-        let mut pd = TurboDownloader::new(url, target_path, self);
+        let mut pd = TurboDownloader::new(url, target_path, self.clone());
         pd.start_download().await?;
         Ok(pd)
     }

@@ -73,7 +73,7 @@ fn downloader_handle_set(network: Network) -> bool {
 }
 
 /// Read the current mithril path for a network.
-fn read_mithril_path(network: Network) -> Option<PathBuf> {
+pub(crate) fn read_mithril_path(network: Network) -> Option<PathBuf> {
     SNAPSHOT_PATHS
         .get(&network)
         .map(|entry| entry.value().clone())
@@ -303,7 +303,7 @@ fn set_genesis_vkey(network: Network, vkey: &str) -> Result<()> {
 }
 
 /// Try and update the current tip from an existing snapshot.
-fn update_tip(network: Network) -> Result<()> {
+pub(crate) fn update_tip(network: Network) -> Result<()> {
     if let Some(snapshot_path) = read_mithril_path(network) {
         // If the TIP is not set, try and set it in-case there is already a snapshot in the
         // snapshot directory.
