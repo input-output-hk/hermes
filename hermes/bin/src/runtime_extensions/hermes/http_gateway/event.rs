@@ -12,6 +12,15 @@ type Code = u16;
 /// Headers in kv form
 type HeadersKV = Vec<(String, String)>;
 
+/// HTTP Path
+type Path = String;
+
+/// HTTP method e.g GET
+type Method = String;
+
+/// HTTP raw headers bytes
+type RawHeaders = Vec<u8>;
+
 /// Req body
 type Body = Vec<u8>;
 
@@ -23,9 +32,9 @@ pub enum HTTPEventMsg {
 
 /// HTTP Event
 pub struct HTTPEvent {
-    pub(crate) headers: Vec<u8>,
-    pub(crate) method: String,
-    pub(crate) path: String,
+    pub(crate) headers: RawHeaders,
+    pub(crate) method: Method,
+    pub(crate) path: Path,
     pub(crate) body: Bytes,
     pub(crate) sender: Sender<HTTPEventMsg>,
 }
