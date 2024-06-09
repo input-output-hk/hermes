@@ -2,9 +2,10 @@
 
 use std::sync::mpsc::Sender;
 
-use crate::event::HermesEventPayload;
 use hyper::{self, body::Bytes};
 use serde::{Deserialize, Serialize};
+
+use crate::event::HermesEventPayload;
 
 /// HTTP response code
 type Code = u16;
@@ -53,8 +54,8 @@ impl HermesEventPayload for HTTPEvent {
             &self.method,
         )?;
 
-        // http event will repsonse with none or response reply which i just respond and then flag connection is done
-        // flag event is processed or not
+        // http event will repsonse with none or response reply which i just respond and then flag
+        // connection is done flag event is processed or not
         Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((
             event_response.0,
             event_response.1,

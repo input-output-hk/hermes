@@ -13,13 +13,13 @@ use hyper::{
     Body, HeaderMap, Request, Response, StatusCode,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::event::{HermesEvent, TargetApp, TargetModule};
+use tracing::info;
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg},
-    gateway_task::ConnectionManager,
+    gateway_task::{ClientIPAddr, ConnectionManager, EventUID, LiveConnection, Processed},
 };
+use crate::event::{HermesEvent, TargetApp, TargetModule};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Headers<K, V> {
@@ -61,18 +61,38 @@ pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<Hostname> {
 pub async fn router(
     req: Request<Body>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr,
 ) -> anyhow::Result<Response<Body>> {
+    let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
+
     connection_manager
         .connection_context
         .try_lock()
         .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
-        .insert(rusty_ulid::generate_ulid_string(), ip.to_string());
+        .insert(
+            unique_request_id.clone(),
+            (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
+        );
+
+    info!("connection manager {:?}", connection_manager);
 
     let host = host_resolver(req.headers())?;
 
-    match host.0.as_str() {
-        "app.hermes.local" => Ok(route(req).await?),
+    let response = match host.0.as_str() {
+        "app.hermes.local" => route(req).await?,
         _ => todo!(),
-    }
+    };
+
+    connection_manager
+        .connection_context
+        .try_lock()
+        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
+        .insert(
+            unique_request_id,
+            (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
+        );
+
+    info!("connection manager {:?}\n", connection_manager);
+
+    Ok(response)
 }
 
 /// Route single request to hermes backend
@@ -98,20 +118,22 @@ async fn route(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let body = &req.collect().await?.to_bytes();
 
     match uri.path() {
-        "/api" => compose_http_event(
-            method,
-            header_bytes,
-            body.clone(),
-            path,
-            lambda_send,
-            lambda_recv_answer,
-        ),
+        "/api" => {
+            compose_http_event(
+                method,
+                header_bytes,
+                body.clone(),
+                path,
+                lambda_send,
+                lambda_recv_answer,
+            )
+        },
         _ => todo!(),
     }
 }
 
-/// Compose http event and send to global queue, await queue response and relay back to waiting receiver channel
-/// for HTTP response
+/// Compose http event and send to global queue, await queue response and relay back to
+/// waiting receiver channel for HTTP response
 fn compose_http_event(
     method: String, headers: Vec<u8>, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
     receiver: Receiver<HTTPEventMsg>,

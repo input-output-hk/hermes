@@ -3,6 +3,7 @@
 use std::{
     collections::HashMap,
     convert::Infallible,
+    net::SocketAddr,
     sync::{Arc, Mutex},
 };
 
@@ -15,9 +16,26 @@ use tracing::{error, info};
 
 use super::routing::router;
 
+/// Unique identifier for incoming request
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
+pub struct EventUID(pub String);
+
+/// Incoming request client IP
+#[derive(Debug)]
+pub struct ClientIPAddr(pub SocketAddr);
+
+/// Has the event been processed
+#[derive(Debug)]
+pub struct Processed(pub bool);
+
+/// Is the connection still live
+#[derive(Debug)]
+pub struct LiveConnection(pub bool);
+
 /// Manages and tracks client connections
+#[derive(Debug)]
 pub struct ConnectionManager {
-    pub connection_context: Mutex<HashMap<String, String>>,
+    pub connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
 }
 
 /// Spawns a OS thread running the Tokio runtime task.
