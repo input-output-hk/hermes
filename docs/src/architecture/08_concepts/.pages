@@ -2,3 +2,5 @@ title: Cross Cutting Concepts
 arrange:
   - hermes_runtime_engine
   - hermes_packaging_requirements
+  - cardano_chain_follower
+  - hermes_signing_procedure
