@@ -59,10 +59,8 @@ pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hostname)>
 
     // <app.name>.hermes.local
     // host = hermes.local
-
-    let app = host
-        .split('.')
-        .next()
+    let (app, host) = host
+        .split_once('.')
         .ok_or(anyhow::anyhow!("Malformed Host header"))?;
 
     Ok((AppName(app.to_owned()), Hostname(host.to_owned())))
@@ -135,16 +133,14 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let body = &req.collect().await?.to_bytes();
 
     match uri.path() {
-        "/api" => {
-            compose_http_event(
-                method,
-                header_bytes,
-                body.clone(),
-                path,
-                lambda_send,
-                lambda_recv_answer,
-            )
-        },
+        "/api" => compose_http_event(
+            method,
+            header_bytes,
+            body.clone(),
+            path,
+            lambda_send,
+            lambda_recv_answer,
+        ),
         _ => todo!(),
     }
 }
