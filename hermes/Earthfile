@@ -116,3 +116,7 @@ json-schemas:
     COPY --dir schemas .
 
     SAVE ARTIFACT schemas schemas
+
+show-build-dependency-tree:
+    LOCALLY
+    RUN cargo tree -e normal,build -f "{p}[{f}]" 

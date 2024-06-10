@@ -101,13 +101,16 @@ humansize = { version = "^2.1.2", default-features = false, features = [
     "no_alloc",
 ] }
 reqwest = { version = "0.12.4", default-features = false, features = [
-    "blocking",
     "rustls-tls-native-roots",
+    "http2",
+    "blocking",
+    "charset",
     "gzip",
     "brotli",
     "zstd",
     "deflate",
     "hickory-dns",
+    "macos-system-configuration",
 ] } 
 
 tar = "0.4.41"

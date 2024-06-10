@@ -11,9 +11,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-# This is the only place we use this, so not a workspace dependency.
-mithril-client = {version = "0.8.0", features = ["full"]}
+mithril-client = {git = "https://github.com/input-output-hk/catalyst-mithril.git", rev = "3881d48caaf846fb91a64915890fdb47e1e31fa9", version = "0.8.3", default-features = false, features = [
+"full",
+] }
 
+# This is the only place we use this, so not a workspace dependency.
 turbo-downloader.workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
@@ -23,11 +25,54 @@ tracing.workspace = true
 dashmap.workspace = true
 once_cell.workspace = true
 url.workspace = true
-anyhow.workspace = true 
-chrono.workspace = true 
-reqwest.workspace = true 
-async-trait.workspace = true 
+anyhow.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+async-trait.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
 tracing-subscriber.workspace = true
+
+# Note, these features are for support of features exposed by dependencies.
+[features]
+default = ["rustls-tls-native-roots"]
+
+# These features are for support of dependent crates only.
+# They do not change the operation of the main crate.
+native-tls = [
+    "reqwest/native-tls",
+    "mithril-client/native-tls",
+    "turbo-downloader/native-tls",
+]
+native-tls-alpn = [
+    "reqwest/native-tls-alpn",
+    "mithril-client/native-tls-alpn",
+    "turbo-downloader/native-tls-alpn",
+]
+native-tls-vendored = [
+    "reqwest/native-tls-vendored",
+    "mithril-client/native-tls-vendored",
+    "turbo-downloader/native-tls-vendored",
+]
+
+rustls-tls = [
+    "reqwest/rustls-tls",
+    "mithril-client/rustls-tls",
+    "turbo-downloader/rustls-tls",
+]
+rustls-tls-manual-roots = [
+    "reqwest/rustls-tls-manual-roots",
+    "mithril-client/rustls-tls-manual-roots",
+    "turbo-downloader/rustls-tls-manual-roots",
+]
+rustls-tls-webpki-roots = [
+    "reqwest/rustls-tls-webpki-roots",
+    "mithril-client/rustls-tls-webpki-roots",
+    "turbo-downloader/rustls-tls-webpki-roots",
+]
+rustls-tls-native-roots = [
+    "reqwest/rustls-tls-native-roots",
+    "mithril-client/rustls-tls-native-roots",
+    "turbo-downloader/rustls-tls-native-roots",
+]

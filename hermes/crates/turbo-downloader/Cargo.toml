@@ -15,7 +15,19 @@ name = "turbo_downloader"
 [dependencies]
 tokio = { workspace = true }
 
-reqwest = { workspace = true }
+#reqwest = { workspace = true }
+reqwest = { version = "0.12.4", default-features = false, features = [
+    "rustls-tls-native-roots",
+    "http2",
+    "blocking",
+    "charset",
+    "gzip",
+    "brotli",
+    "zstd",
+    "deflate",
+    "hickory-dns",
+    "macos-system-configuration",
+] } 
 
 anyhow = { workspace = true }
 tracing = { workspace = true }
@@ -34,3 +46,19 @@ chrono = { workspace = true, features = [
     "std",
     "serde",
 ] }
+
+[features]
+default = [
+    "rustls-tls-native-roots"
+]
+
+# These features are for support of dependent crates only.
+# They do not change the operation of the main crate.
+native-tls = ["reqwest/native-tls"]
+native-tls-alpn = ["reqwest/native-tls-alpn"]
+native-tls-vendored = ["reqwest/native-tls-vendored"]
+
+rustls-tls = ["reqwest/rustls-tls"]
+rustls-tls-manual-roots = ["reqwest/rustls-tls-manual-roots"]
+rustls-tls-webpki-roots = ["reqwest/rustls-tls-webpki-roots"]
+rustls-tls-native-roots = ["reqwest/rustls-tls-native-roots"]

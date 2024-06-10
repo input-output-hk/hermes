@@ -13,13 +13,12 @@ targets = [
     "wasm32-wasip1",
     "wasm32-wasip2",
 ]
-all-features = true
 
 [advisories]
 version = 2
 ignore = [
     { id = "RUSTSEC-2020-0168", reason = "`mach` is used by wasmtime and we have no control over that." },
-    { id = "RUSTSEC-2021-0145", reason = "we don't target windows, and don;t use a custom global allocator." },
+    { id = "RUSTSEC-2021-0145", reason = "we don't target windows, and don't use a custom global allocator." },
 ]
 
 [bans]
@@ -54,12 +53,13 @@ allow-git = [
     "https://github.com/input-output-hk/catalyst-pallas.git",
     "https://github.com/bytecodealliance/wasmtime",
     "https://github.com/aldanor/hdf5-rust",
+    "https://github.com/input-output-hk/catalyst-mithril.git",
 ]
 
 [licenses]
 version = 2
 # Don't warn if a listed license isn't found
-unused-allowed-license="allow"
+unused-allowed-license = "allow"
 # We want really high confidence when inferring licenses from text
 confidence-threshold = 0.93
 allow = [
@@ -72,11 +72,18 @@ allow = [
     "Apache-2.0 WITH LLVM-exception",
     "CC0-1.0",
     "ISC",
+    "Zlib",
 ]
 exceptions = [
-    #{ allow = ["Zlib"], crate = "tinyvec" },
-    #{ allow = ["Unicode-DFS-2016"], crate = "unicode-ident" },
-    #{ allow = ["OpenSSL"], crate = "ring" },
+    { allow = [
+        "OpenSSL",
+    ], crate = "ring" }, # OpenSSL is permissive, but be explicit about where we accept it.
+    { allow = [
+        "LGPL-3.0",
+    ], crate = "rug" }, # LGPL is ok, but be explicit about where we allow it.
+    { allow = [
+        "LGPL-3.0",
+    ], crate = "gmp-mpfr-sys" }, # LGPL is ok, but be explicit about where we allow it.
 ]
 
 [[licenses.clarify]]
@@ -89,6 +96,8 @@ crate = "hdf5-src"
 expression = "MIT"
 license-files = [{ path = "../LICENSE-MIT", hash = 0x001c7e6c }]
 
+[[licenses.clarify]]
+crate = "ring"
 # SPDX considers OpenSSL to encompass both the OpenSSL and SSLeay licenses
 # https://spdx.org/licenses/OpenSSL.html
 # ISC - Both BoringSSL and ring use this for their new files
@@ -96,16 +105,15 @@ license-files = [{ path = "../LICENSE-MIT", hash = 0x001c7e6c }]
 # license, for third_party/fiat, which, unlike other third_party directories, is
 # compiled into non-test libraries, is included below."
 # OpenSSL - Obviously
-#expression = "ISC AND MIT AND OpenSSL"
-#license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
-#[[licenses.clarify]]
-#crate = "webpki"
-#expression = "ISC"
-#license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+[[licenses.clarify]]
+crate = "rug"
+expression = "LGPL-3.0"
+license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
 
-# Actually "ISC-style"
-#[[licenses.clarify]]
-#crate = "rustls-webpki"
-#expression = "ISC"
-#license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+[[licenses.clarify]]
+crate = "gmp-mpfr-sys"
+expression = "LGPL-3.0"
+license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]

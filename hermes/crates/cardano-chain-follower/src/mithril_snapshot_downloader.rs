@@ -26,9 +26,9 @@ const MINIMUM_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::minutes(10);
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
 /// `MINIMUM_MITHRIL_UPDATE_CHECK_INTERVAL`)
 const MINIMUM_MITHRIL_UPDATE_CHECK_DURATION: Duration = Duration::from_secs(10 * 60); // 10 Minutes
-/// Average Mithril Update is 6 Hrs, so don;t wait longer than 7.
+/// Average Mithril Update is 6 Hrs, so don't wait longer than 7.
 const MAXIMUM_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::hours(7); // 7 Hours
-/// Average Mithril Update is 6 Hrs, so don;t wait longer than 7.
+/// Average Mithril Update is 6 Hrs, so don't wait longer than 7.
 const EXPECTED_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::hours(6); // 6 Hours
 /// We shouldn't get errors that need to wait for this, but if we do wait this long.
 /// These errors should be transient if they occur.
