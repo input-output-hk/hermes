@@ -135,14 +135,16 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let body = &req.collect().await?.to_bytes();
 
     match uri.path() {
-        "/api" => compose_http_event(
-            method,
-            header_bytes,
-            body.clone(),
-            path,
-            lambda_send,
-            lambda_recv_answer,
-        ),
+        "/api" => {
+            compose_http_event(
+                method,
+                header_bytes,
+                body.clone(),
+                path,
+                lambda_send,
+                lambda_recv_answer,
+            )
+        },
         _ => todo!(),
     }
 }

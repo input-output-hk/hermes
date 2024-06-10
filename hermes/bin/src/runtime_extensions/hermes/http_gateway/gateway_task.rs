@@ -27,7 +27,8 @@ pub struct Config {
     pub local_addr: SocketAddr,
 }
 
-/// We will eventually use env vars when deployment pipeline is in place, hardcoded default is fine for now.
+/// We will eventually use env vars when deployment pipeline is in place, hardcoded
+/// default is fine for now.
 impl Default for Config {
     fn default() -> Self {
         Self {
