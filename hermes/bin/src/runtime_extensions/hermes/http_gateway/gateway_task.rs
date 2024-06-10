@@ -16,6 +16,31 @@ use tracing::{error, info};
 
 use super::routing::router;
 
+#[derive(Debug, Clone)]
+/// hostname (nodename)
+pub struct Hostname(pub String);
+
+/// Config for gateway setup
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub valid_hosts: Vec<Hostname>,
+    pub local_addr: SocketAddr,
+}
+
+/// We will eventually use env vars when deployment pipeline is in place, hardcoded default is fine for now.
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            valid_hosts: [
+                Hostname("hermes.local".to_owned()),
+                Hostname("localhost".to_owned()),
+            ]
+            .to_vec(),
+            local_addr: SocketAddr::new([127, 0, 0, 1].into(), 5000),
+        }
+    }
+}
+
 /// Unique identifier for incoming request
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub struct EventUID(pub String);
@@ -47,6 +72,8 @@ pub fn spawn() {
 
 /// Starts the HTTP Gateway
 fn executor() {
+    let config = Config::default();
+
     let connection_manager = Arc::new(ConnectionManager {
         connection_context: Mutex::new(HashMap::new()),
     });
@@ -67,21 +94,19 @@ fn executor() {
     info!("Starting HTTP Gateway");
 
     rt.block_on(async move {
-        let addr = ([127, 0, 0, 1], 5000).into();
-
         let gateway_service = make_service_fn(|client: &AddrStream| {
             let connection_manager = connection_manager.clone();
             let ip = client.remote_addr();
+            let config = config.clone();
 
             async move {
                 Ok::<_, Infallible>(service_fn(move |req| {
-                    let shared = &connection_manager;
-                    router(req, shared.clone(), ip)
+                    router(req, connection_manager.clone(), ip, config.clone())
                 }))
             }
         });
 
-        Server::bind(&addr)
+        Server::bind(&config.local_addr)
             .serve(gateway_service)
             .await
             .expect("Failing to start HTTP gateway server is not recoverable");
