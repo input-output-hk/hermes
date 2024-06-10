@@ -54,8 +54,6 @@ impl HermesEventPayload for HTTPEvent {
             &self.method,
         )?;
 
-        // http event will repsonse with none or response reply which i just respond and then flag
-        // connection is done flag event is processed or not
         Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((
             event_response.0,
             event_response.1,
