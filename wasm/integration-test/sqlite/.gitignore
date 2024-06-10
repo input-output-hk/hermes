@@ -1,3 +1,2 @@
 target/
-# src/hermes.rs
-# src/bindings.rs
+src/hermes.rs

@@ -1,3 +1,6 @@
+//! Hermes SQLite module integration test with WASM runtime.
+//! Generate `hermes.rs` with `earthly +gen-bindings` before writing the test.
+
 // Allow everything since this is generated code.
 #[allow(clippy::all, unused)]
 mod hermes;
@@ -5,25 +8,68 @@ mod hermes;
 use hermes::{
     exports::hermes::integration_test::event::TestResult,
     hermes::{
-        cardano::{
-            self,
-            api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
-        },
+        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
         kv_store::api::KvValues,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
 
+struct TestItem {
+    name: &'static str,
+    executor: fn() -> bool,
+}
+
+const TESTS: &'static [TestItem] = &[
+    TestItem {
+        name: "open-database-simple",
+        executor: || -> bool {
+            false
+        }
+    }
+];
+
+const BENCHES: &'static [TestItem] = &[
+    TestItem {
+        name: "bench-simple",
+        executor: || -> bool {
+            false
+        }
+    }
+];
+
+
 struct TestComponent;
 
 impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
     fn test(test: u32, run: bool) -> Option<TestResult> {
-        todo!()
+        TESTS.get(test as usize).map(|item| {
+            TestResult {
+                name: String::from(item.name),
+                status: {
+                    if run {
+                        (item.executor)()
+                    } else {
+                        true
+                    }
+                }
+            }
+        })
     }
 
-    fn bench(_test: u32, _run: bool) -> Option<TestResult> {
-        None
+    fn bench(test: u32, run: bool) -> Option<TestResult> {
+        BENCHES.get(test as usize).map(|item| {
+            TestResult {
+                name: String::from(item.name),
+                status: {
+                    if run {
+                        (item.executor)()
+                    } else {
+                        true
+                    }
+                }
+            }
+        })
     }
 }
 
