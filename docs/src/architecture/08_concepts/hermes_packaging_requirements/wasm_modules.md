@@ -132,9 +132,12 @@ Packaging a Module is controlled by a manifest file, which must conform to the H
 *Note: the extension `.hmod` will automatically be added to the `module name`
 to signify this is a Hermes WASM Component Module.*
 
-#### Signing the Application Package
+#### Signing the WASM module package
 
-As the author of the Application:
+More detailed explation about signing procedure could be found
+[here](../hermes_signing_procedure/index.md).
+
+As the author of the WASM module package:
 
 <!-- markdownlint-disable code-block-style -->
 ```sh
