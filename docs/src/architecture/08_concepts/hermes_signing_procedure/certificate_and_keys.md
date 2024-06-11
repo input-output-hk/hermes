@@ -1,3 +1,5 @@
+<!-- cspell: words outpubkey mycommname -->
+
 # Certificate and Keys
 
 Hermes utilizes the [x.509] standard as the foundation for signing and verification procedures.
@@ -27,7 +29,7 @@ MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV
 -----END PRIVATE KEY-----
 ```
 
-Prublic key example:
+Public key example:
 
 ```PEM
 -----BEGIN PUBLIC KEY-----

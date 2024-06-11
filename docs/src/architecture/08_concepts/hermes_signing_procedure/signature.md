@@ -79,7 +79,7 @@ In Hermes, the following headers with its values **MUST** be included in the [CO
 
 `protected`:
 
-* `kid`: a Blake2B hash of the signer's [x.509] certificate acociated with it's keys
+* `kid`: a Blake2B hash of the signer's [x.509] certificate associated with it's keys
   (This parameter identifies one piece of data
   that can be used as input to find the needed cryptographic key.).
 
