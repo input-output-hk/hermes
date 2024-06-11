@@ -8,7 +8,7 @@ use std::{
 };
 
 /// IPFS Content Identifier.
-pub use libipld::Cid;
+pub use libipld::{self as ipld, Cid};
 /// Peer Info type.
 pub use rust_ipfs::p2p::PeerInfo;
 /// Enum for specifying paths in IPFS.
@@ -49,7 +49,7 @@ impl DerefMut for Node {
 #[allow(dead_code)]
 pub struct HermesIpfs {
     /// IPFS node
-    node: Node,
+    pub node: Node,
 }
 
 impl HermesIpfs {
@@ -64,13 +64,15 @@ impl HermesIpfs {
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
         // TODO(saibatizoku):
-        let node = UninitializedIpfsNoop::new()
+        let node: Ipfs = UninitializedIpfsNoop::new()
             .with_default()
             .set_default_listener()
+            //.with_mdns()
+            //.with_upnp()
             .start()
-            .await?
-            .into();
-        Ok(HermesIpfs { node })
+            .await?;
+
+        Ok(HermesIpfs { node: Node(node) })
     }
 
     /// Add a file to IPFS.
@@ -192,12 +194,6 @@ impl HermesIpfs {
     /// Returns error if listening addresses cannot be retrieved.
     pub async fn listening_addresses(&self) -> anyhow::Result<Vec<Multiaddr>> {
         self.node.listening_addresses().await
-    }
-
-    #[must_use]
-    /// Gets the inner node for direct manipulation.
-    pub fn node(&self) -> Node {
-        self.node.clone()
     }
 }
 
