@@ -20,6 +20,7 @@ pub(crate) struct SignCommand {
 
 impl SignCommand {
     /// Run cli command
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{} Sign wasm module package...", Emoji::new("📝", ""));
 

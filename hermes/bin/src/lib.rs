@@ -10,8 +10,8 @@ pub mod logger;
 pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
-#[allow(dead_code)]
 pub mod runtime_extensions;
+pub mod sign;
 pub mod wasm;
 
 #[cfg(feature = "bench")]

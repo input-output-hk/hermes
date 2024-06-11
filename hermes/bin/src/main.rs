@@ -9,6 +9,7 @@ mod packaging;
 mod reactor;
 mod runtime_context;
 mod runtime_extensions;
+mod sign;
 mod wasm;
 
 #[cfg(feature = "bench")]
