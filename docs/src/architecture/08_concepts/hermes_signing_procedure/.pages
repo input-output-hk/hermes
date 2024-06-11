@@ -1,4 +1,4 @@
 title: Hermes Signing Procedure
 arrange:
   - certificate_and_keys.md
-  - signature.md
+  - signature_format.md

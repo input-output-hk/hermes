@@ -49,26 +49,9 @@ So every [COSE] signature **MUST** be encoded as `COSE Signed Data Object` even 
 
 ## Signature payload
 
-As mentioned earlier, the content type of the [COSE] signature payload is JSON.
-Therefore, the payload must conform to the following schema:
-
-<!-- markdownlint-disable max-one-sentence-per-line -->
-??? note "Schema: `hermes_module_cose_payload.schema.json`"
-
-    ```json
-        {{ include_file('includes/schemas/hermes_module_cose_payload.schema.json', indent=4) }}
-    ```
-<!-- markdownlint-enable max-one-sentence-per-line -->
-
-### Example
-
-<!-- markdownlint-disable max-one-sentence-per-line -->
-??? note "Example: `hermes_module_cose_payload.json`"
-
-    ```json
-        {{ include_file('includes/schemas/example/hermes_module_cose_payload.json', indent=4) }}
-    ```
-<!-- markdownlint-enable max-one-sentence-per-line -->
+As mentioned earlier, the content type of the [COSE] signature payload is JSON
+and should follows the defined schema.
+Each particular signature payload schema defined for specific Hermes entities. 
 
 ## Signature headers
 
