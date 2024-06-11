@@ -8,6 +8,7 @@ mod hermes;
 use hermes::{
     exports::hermes::integration_test::event::TestResult,
     hermes::{
+        sqlite,
         cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
         kv_store::api::KvValues,
@@ -22,9 +23,19 @@ struct TestItem {
 
 const TESTS: &'static [TestItem] = &[
     TestItem {
-        name: "open-database-simple",
+        name: "open-database-persistent-simple",
         executor: || -> bool {
-            false
+            let result = sqlite::api::open(false, false);
+
+            result.is_ok()
+        }
+    },
+    TestItem {
+        name: "open-database-memory-simple",
+        executor: || -> bool {
+            let result = sqlite::api::open(false, true);
+
+            result.is_ok()
         }
     }
 ];
@@ -37,7 +48,6 @@ const BENCHES: &'static [TestItem] = &[
         }
     }
 ];
-
 
 struct TestComponent;
 

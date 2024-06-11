@@ -13,7 +13,7 @@ gen-bindings:
 
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
-# build - builds the cardano integration test wasm component
+# build - builds the sqlite integration test wasm component
 build:
     DO rust-ci+SETUP
 
@@ -21,13 +21,12 @@ build:
     COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
-    DO rust-ci+CARGO --args "build --target wasm32-unknown-unknown --release" \
+    DO rust-ci+CARGO \
+        --args "build --target wasm32-unknown-unknown --release" \
         --output="wasm32-unknown-unknown/release/sqlite_test_component.wasm"
-
-    # RUN cargo build --target wasm32-unknown-unknown --release
 
     COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
 
-    RUN wasm-tools component new -o cardano.wasm target/wasm32-unknown-unknown/release/sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+    RUN wasm-tools component new -o sqlite.wasm target/wasm32-unknown-unknown/release/sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
 
-    SAVE ARTIFACT cardano.wasm
+    SAVE ARTIFACT sqlite.wasm
