@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use cardano_chain_follower::{FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         total_txs += block.tx_count();
     }
 
-    println!("Total transactions: {total_txs}");
+    info!("Total transactions: {total_txs}");
 
     Ok(())
 }

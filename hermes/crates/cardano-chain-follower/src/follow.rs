@@ -1,6 +1,6 @@
 //! Cardano chain follow module.
 
-use std::{future::Future, path::PathBuf};
+use std::{fmt::Display, future::Future, path::PathBuf};
 
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
 use tokio::{
@@ -46,11 +46,54 @@ const DEFAULT_PREVIEW_MITHRIL_AGGREGATOR: &str =
     "https://aggregator.pre-release-preview.api.mithril.network/aggregator";
 
 /// Enum of chain updates received by the follower.
+#[derive(Debug)]
 pub enum ChainUpdate {
+    /// Immutable Block from the immutable part of the blockchain.
+    ImmutableBlock(MultiEraBlockData),
     /// New block inserted on chain.
     Block(MultiEraBlockData),
     /// Chain rollback to the given block.
     Rollback(MultiEraBlockData),
+}
+
+impl Display for ChainUpdate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let block_type = match self {
+            Self::ImmutableBlock(_) => "Immutable",
+            Self::Block(_) => "Live",
+            Self::Rollback(_) => "Rollback",
+        };
+
+        let decoded_block = self.block_data().decode();
+        match decoded_block {
+            Err(err) => {
+                write!(f, "{block_type} : failed to decode block: {err}")?;
+            },
+            Ok(block) => {
+                let block_number = block.number();
+                let slot = block.slot();
+                let size = block.size();
+                let txns = block.tx_count();
+                let aux_data = block.has_aux_data();
+
+                let block_era = match block {
+                    pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
+                        "Byron Epoch Boundary".to_string()
+                    },
+                    pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(_, era) => {
+                        format!("{era}")
+                    },
+                    pallas::ledger::traverse::MultiEraBlock::Babbage(_) => "Babbage".to_string(),
+                    pallas::ledger::traverse::MultiEraBlock::Byron(_) => "Byron".to_string(),
+                    pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
+                    _ => "Unknown".to_string(),
+                };
+
+                write!(f, "{block_type} {block_era} block : Slot# {slot} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
+            },
+        }
+        Ok(())
+    }
 }
 
 impl ChainUpdate {
@@ -58,13 +101,15 @@ impl ChainUpdate {
     #[must_use]
     pub fn block_data(&self) -> &MultiEraBlockData {
         match self {
-            ChainUpdate::Block(block_data) | ChainUpdate::Rollback(block_data) => block_data,
+            ChainUpdate::ImmutableBlock(block_data)
+            | ChainUpdate::Block(block_data)
+            | ChainUpdate::Rollback(block_data) => block_data,
         }
     }
 }
 
 /// A Follower Connection to the Cardano Network.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FollowerConfig {
     /// Chain Network
     pub chain: Network,
@@ -83,10 +128,11 @@ pub struct FollowerConfig {
     pub mithril_genesis_key: Option<String>,
     /// Is the mithril snapshot to be transparently updated to latest, in the background.
     pub mithril_update: bool,
+    // pub genesis_parameters: GenesisParameters,
 }
 
 /// Builder used to create [`FollowerConfig`]s.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FollowerConfigBuilder(FollowerConfig);
 
 impl FollowerConfigBuilder {
@@ -285,6 +331,7 @@ impl Future for ReadBlockRange {
 }
 
 /// Cardano chain follower.
+#[derive(Debug)]
 pub struct Follower {
     /// Client connection information.
     ///
@@ -593,7 +640,7 @@ mod task {
                                     Point::Specific(block.slot(), block.hash().to_vec());
 
                                 if chain_update_tx
-                                    .send(Ok(ChainUpdate::Block(block_data)))
+                                    .send(Ok(ChainUpdate::ImmutableBlock(block_data)))
                                     .await
                                     .is_err()
                                 {
@@ -823,4 +870,85 @@ async fn read_block_range_from_network(
     tracing::trace!(from_slot, to_slot, "Block range read from n2n");
 
     Ok(data_vec)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use test_log::test;
+    use tokio::time::sleep;
+    use tracing::debug;
+
+    use crate::{
+        ChainUpdate::{Block, ImmutableBlock, Rollback},
+        FollowerConfigBuilder, Network, Point, PointOrTip,
+    };
+
+    #[ignore]
+    #[test(tokio::test)]
+    // Development only test, not for CI.
+    async fn test_follow_preprod() {
+        tracing::dispatcher::get_default(|x| debug!("{x:?}"));
+
+        let follower = FollowerConfigBuilder::default_for(Network::Preprod)
+            .follow_from(PointOrTip::Point(Point::Origin))
+            .mithril_snapshot_path("/tmp/mithril/preprod".into(), true)
+            .build();
+
+        debug!("{follower:?}");
+
+        let connection = follower.connect().await;
+
+        debug!("{connection:?}");
+
+        assert!(connection.is_ok());
+        #[allow(clippy::unwrap_used)]
+        let mut connection = connection.unwrap();
+
+        let mut consecutive_errors = 0;
+        let mut immutable_blocks = 0;
+        let mut live_blocks = 0;
+        let mut rollbacks = 0;
+
+        while consecutive_errors < 100 {
+            let block = connection.next().await;
+            match block {
+                Err(err) => {
+                    debug!("Block Error ({consecutive_errors}): {err:?}");
+                    sleep(Duration::from_secs(30)).await;
+                    consecutive_errors += 1;
+                },
+                Ok(data) => {
+                    let mut show = false;
+
+                    match &data {
+                        ImmutableBlock(_) => {
+                            if immutable_blocks % 10_000 == 0 {
+                                debug!("Immutable Block {immutable_blocks}");
+                                show = true;
+                            }
+                            immutable_blocks += 1;
+                        },
+                        Block(_) => {
+                            if live_blocks == 0 {
+                                debug!("Immutable Block {immutable_blocks}");
+                            }
+                            live_blocks += 1;
+                            debug!("Live Block {live_blocks}");
+                            show = true;
+                        },
+                        Rollback(_) => {
+                            rollbacks += 1;
+                            debug!("Rollback {rollbacks}");
+                            show = true;
+                        },
+                    }
+                    if show {
+                        debug!("{data}");
+                    }
+                },
+            }
+        }
+    }
 }

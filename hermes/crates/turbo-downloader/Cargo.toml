@@ -15,19 +15,7 @@ name = "turbo_downloader"
 [dependencies]
 tokio = { workspace = true }
 
-#reqwest = { workspace = true }
-reqwest = { version = "0.12.4", default-features = false, features = [
-    "rustls-tls-native-roots",
-    "http2",
-    "blocking",
-    "charset",
-    "gzip",
-    "brotli",
-    "zstd",
-    "deflate",
-    "hickory-dns",
-    "macos-system-configuration",
-] } 
+reqwest = { workspace = true }
 
 anyhow = { workspace = true }
 tracing = { workspace = true }

@@ -3,7 +3,7 @@
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::hermes::cardano::api::{
-        BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn,
+        BlockDetail, CardanoBlock, CardanoBlockchainId, CardanoTxn,
     },
 };
 
@@ -14,7 +14,7 @@ pub(super) struct OnCardanoBlockEvent {
     /// This raw CBOR block data.
     pub(super) block: CardanoBlock,
     /// Source information about where the block came from, and if we are at tip or not.
-    pub(super) source: BlockSrc,
+    pub(super) details: BlockDetail,
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
@@ -26,7 +26,12 @@ impl HermesEventPayload for OnCardanoBlockEvent {
         module
             .instance
             .hermes_cardano_event_on_block()
-            .call_on_cardano_block(&mut module.store, self.blockchain, &self.block, self.source)?;
+            .call_on_cardano_block(
+                &mut module.store,
+                self.blockchain,
+                &self.block,
+                &self.details,
+            )?;
         Ok(())
     }
 }
@@ -35,12 +40,12 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 pub(super) struct OnCardanoTxnEvent {
     /// The blockchain id the block originated from.
     pub(super) blockchain: CardanoBlockchainId,
-    /// The slot the transaction is in.
-    pub(super) slot: u64,
-    /// The offset in the block this transaction is at.
+    /// The transaction index with the block the transaction is in.
     pub(super) txn_index: u32,
     /// The raw transaction data itself.
     pub(super) txn: CardanoTxn,
+    /// Details about the block the transaction is in.
+    pub(super) details: BlockDetail,
 }
 
 impl HermesEventPayload for OnCardanoTxnEvent {
@@ -55,9 +60,9 @@ impl HermesEventPayload for OnCardanoTxnEvent {
             .call_on_cardano_txn(
                 &mut module.store,
                 self.blockchain,
-                self.slot,
                 self.txn_index,
                 &self.txn,
+                &self.details,
             )?;
 
         Ok(())
@@ -69,7 +74,7 @@ pub(super) struct OnCardanoRollback {
     /// The blockchain id the block originated from.
     pub(super) blockchain: CardanoBlockchainId,
     /// The slot the transaction is in.
-    pub(super) slot: u64,
+    pub(super) details: BlockDetail,
 }
 
 impl HermesEventPayload for OnCardanoRollback {
@@ -81,7 +86,7 @@ impl HermesEventPayload for OnCardanoRollback {
         module
             .instance
             .hermes_cardano_event_on_rollback()
-            .call_on_cardano_rollback(&mut module.store, self.blockchain, self.slot)?;
+            .call_on_cardano_rollback(&mut module.store, self.blockchain, &self.details)?;
         Ok(())
     }
 }

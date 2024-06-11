@@ -32,7 +32,7 @@ pub async fn run(params: BenchmarkParams) -> anyhow::Result<()> {
         let update = follower.next().await?;
 
         match update {
-            ChainUpdate::Block(raw_block_data) => {
+            ChainUpdate::ImmutableBlock(data) | ChainUpdate::Block(raw_block_data) => {
                 let block_data = raw_block_data.decode()?;
 
                 monitor_task_handle.send_update(monitor::BenchmarkStats {

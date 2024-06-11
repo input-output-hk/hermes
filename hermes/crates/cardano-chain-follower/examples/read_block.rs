@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use cardano_chain_follower::{FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|tx| tx.fee().unwrap_or_default())
         .sum::<u64>();
 
-    println!("Total fee: {total_fee}");
+    info!("Total fee: {total_fee}");
 
     Ok(())
 }

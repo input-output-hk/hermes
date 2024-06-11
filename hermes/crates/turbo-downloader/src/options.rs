@@ -27,14 +27,16 @@ pub struct TurboDownloaderOptions {
 
 impl Default for TurboDownloaderOptions {
     fn default() -> Self {
+        let dl_threads = 20;
+        let dl_buffer = 512 * 1024 * 1024;
         Self {
-            chunk_size_downloader: 30_000_000,
-            chunk_size_decoder: 10_000_000,
+            chunk_size_downloader: dl_buffer / dl_threads,
+            chunk_size_decoder: dl_buffer / dl_threads / 8,
+            download_threads: dl_threads,
             max_download_speed: None,
             force_no_chunks: false,
-            download_threads: 2,
             ignore_symlinks: false,
-            ignore_directory_exists: false,
+            ignore_directory_exists: true, // Default to safe over-write.
         }
     }
 }
@@ -42,10 +44,10 @@ impl Default for TurboDownloaderOptions {
 impl TurboDownloaderOptions {
     /// Constructs downloader from given options.
     pub async fn start_download(
-        &self, url: &str, target_path: Option<PathBuf>,
+        &self, url: &str, target_path: PathBuf,
     ) -> anyhow::Result<TurboDownloader> {
-        let mut pd = TurboDownloader::new(url, target_path, self.clone());
-        pd.start_download().await?;
-        Ok(pd)
+        let mut dl = TurboDownloader::new(url, target_path, self.clone());
+        dl.start_download().await?;
+        Ok(dl)
     }
 }

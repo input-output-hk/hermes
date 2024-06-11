@@ -10,6 +10,7 @@
 interface api {
     use hermes:binary/api.{bstr};
     use hermes:cbor/api.{cbor};
+    use wasi:clocks/wall-clock@0.2.0.{datetime};
 
     /// Cardano Blocks are CBOR Data
     type cardano-block = cbor;
@@ -26,16 +27,33 @@ interface api {
     }
 
     /// Source information about where the block came from, and if we are at tip or not.
-    flags block-src {
-        tip,
+    enum block-src {
         node,
         mithril
+    }
+
+    type block-point = tuple<u64, bstr>;
+
+    /// Details of the block
+    record block-detail {
+        /// The era of the block.
+        era: string,
+        /// The source of this block (Immutable or Live data)
+        src: block-src, 
+        /// Is this block currently the Live Tip of the blockchain.
+        tip: bool,
+        /// Block Height
+        height: u64,
+        /// Block Slot#/Hash
+        slot: block-point,
+        /// Wall Clock of the slot calculated from the Slot# and Genesis parameters.
+        wall-clock: datetime,
     }
 
     /// The Slot number to interact with
     variant slot {
         genesis,          // The very start of the blockchain.
-        point(tuple<u64, bstr>), // A particular slot number.
+        point(block-point), // A particular slot/block number.
         tip,              // The TIP of the blockchain.
         continue,         // From wherever its currently pointing.
     }

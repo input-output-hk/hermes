@@ -186,6 +186,7 @@ vkey
 VKEYS
 voteplan
 voteplans
+wallclock
 wasi
 WASI
 wasmtime

@@ -30,7 +30,7 @@ pub struct TurboDownloader {
     progress_context: Arc<Mutex<InternalProgress>>,
     options: TurboDownloaderOptions,
     download_started: bool,
-    target_path: Option<PathBuf>,
+    target_path: PathBuf,
     thread_last_stage: Option<thread::JoinHandle<()>>,
 }
 
@@ -104,7 +104,7 @@ fn tar_unpack(
 
 impl TurboDownloader {
     pub(crate) fn new(
-        url: &str, target_path: Option<PathBuf>, turbo_downloader_options: TurboDownloaderOptions,
+        url: &str, target_path: PathBuf, turbo_downloader_options: TurboDownloaderOptions,
     ) -> Self {
         Self {
             url: url.to_string(),
@@ -127,25 +127,10 @@ impl TurboDownloader {
             .start_time = TimePair::now();
         self.download_started = true;
         let url = self.url.clone();
-        // let url = "https://github.com/golemfactory/ya-runtime-http-auth/releases/download/v0.1.0/ya-runtime-http-auth-linux-v0.1.0.tar.gz";
 
-        let target_path = if let Some(target_path) = self.target_path.clone() {
-            target_path
-        } else {
-            let last_segment = url.split('/').last().unwrap();
-            if last_segment.starts_with(".tar.") {
-                // handle case when split with .tar. returns empty string
-                return Err(anyhow!("Cannot infer output directory from url, specify output directory with --output-dir"));
-            }
-            if last_segment.contains(".tar.") {
-                let last_segment = last_segment.split(".tar.").next().unwrap();
-                println!("Output directory from url: {}", last_segment);
-                // check if directory or file exists:
-                PathBuf::from(last_segment)
-            } else {
-                return Err(anyhow!("Cannot infer output directory from url, specify output directory with --output-dir"));
-            }
-        };
+        // Don't allow inferred target path,  must be specified.
+        let target_path = self.target_path.clone();
+
         if !self.options.ignore_directory_exists && target_path.exists() {
             return Err(anyhow!(
                 "Output directory from url already exists: {}. Remove it or specify --force flag",

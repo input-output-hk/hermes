@@ -7,7 +7,7 @@
 use std::{error::Error, path::PathBuf};
 
 use cardano_chain_follower::{FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for data in data_vec {
         let block = data.decode()?;
 
-        println!(
+        info!(
             "Block {} has {} transactions",
             block.number(),
             block.tx_count()

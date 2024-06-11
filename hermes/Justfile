@@ -1,0 +1,26 @@
+# use with https://github.com/casey/just
+#
+# Hermes developer convenience functions
+
+# cspell: words prereqs, commitlog
+
+default:
+    @just --list --unsorted
+
+# Show the dependency tree and all enabled feature flags of every crate.
+cargo-tree:
+    cargo tree -e features,normal,build -f "{p}[{f}]" --workspace --frozen
+
+# Check Dependency licenses and CVE's
+license-check:
+    cargo deny check --exclude-dev
+
+# Run long running developer test for mithril downloading.
+test-mithril-download-preprod:
+    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug" \
+    cargo test follow::tests::test_follow_preprod -- --show-output --ignored --nocapture
+
+# Run long running developer test for mithril downloading.
+test-mithril-download-mainnet:
+    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug" \
+    cargo test follow::tests::test_follow_mainnet -- --show-output --ignored --nocapture    

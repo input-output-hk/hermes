@@ -2,7 +2,10 @@
 //!
 //! This task is responsible for downloading Mithril snapshot files. It downloads the
 //! latest snapshot file and then sleeps until the next snapshot is available.
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -15,10 +18,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{debug, error};
 use turbo_downloader::TurboDownloaderOptions;
 
-use crate::{
-    mithril_snapshot::{read_aggregator_url, read_genesis_vkey, read_mithril_path, update_tip},
-    Network,
-};
+use crate::{mithril_snapshot::update_tip, Network};
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
 /// `MINIMUM_MITHRIL_UPDATE_CHECK_DURATION`)
@@ -63,19 +63,7 @@ async fn get_latest_snapshots(
 
 /// Create a client, should never fail, but return None if it does, because we can't
 /// continue.
-fn create_client(network: Network) -> Option<Client> {
-    // This Can't fail, because we pre-validated the key exists. But just in case...
-    let Some(aggregator_url) = read_aggregator_url(network) else {
-        error!("Unexpected Error: No Aggregator URL Configured for {}.  Mithril Snapshots can not update.", network);
-        return None;
-    };
-
-    // This Can't fail, because we pre-validated the key exists. But just in case...
-    let Some(genesis_vkey) = read_genesis_vkey(network) else {
-        error!("Unexpected Error: No Genesis VKEY Configured for {}.  Mithril Snapshots can not update.", network);
-        return None;
-    };
-
+fn create_client(network: Network, aggregator_url: &str, genesis_vkey: &str) -> Option<Client> {
     let downloader = match TurboSnapshotDownloader::new() {
         Ok(downloader) => Arc::new(downloader),
         Err(err) => {
@@ -85,7 +73,7 @@ fn create_client(network: Network) -> Option<Client> {
     };
 
     // This can't fail, because we already tested it works. But just in case...
-    let client = match mithril_client::ClientBuilder::aggregator(&aggregator_url, &genesis_vkey)
+    let client = match mithril_client::ClientBuilder::aggregator(aggregator_url, genesis_vkey)
         //.add_feedback_receiver(receiver)
         .with_snapshot_downloader(downloader)
         .build()
@@ -181,24 +169,61 @@ async fn download_and_verify_snapshot_certificate(
     Some(certificate)
 }
 
+/// This function creates a client based on the given network and genesis vkey.
+///
+/// # Arguments
+///
+/// * `network` - The network type for the client to connect to.
+/// * `aggregator_url` - A reference to the URL of an aggregator that can be used to
+///   create the client.
+/// * `genesis_vkey` - The genesis verification key, which is needed to authenticate with
+///   the server.
+///
+/// # Returns
+///
+/// This function returns a `Client` object if it successfully connects to the specified
+/// URL and creates a client. If it fails, it waits for `DOWNLOAD_ERROR_RETRY_DURATION`
+/// before attempting again. This never times out, as we can not attempt this if the
+/// aggregator was not contactable when the parameters were defined.
+async fn connect_client(network: Network, aggregator_url: &str, genesis_vkey: &str) -> Client {
+    // Note: we pre-validated connection before we ran, so failure here should be transient.
+    // Just wait if we fail, and try again later.
+    loop {
+        if let Some(client) = create_client(network, aggregator_url, genesis_vkey) {
+            return client;
+        }
+
+        // If we couldn't create a client, then we don' t need to do anything.
+        // Error already logged in create_client, no need to print anything here.
+        sleep(DOWNLOAD_ERROR_RETRY_DURATION).await;
+    }
+}
+
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
 /// This is because there can ONLY be one snapshot for each of the three known Cardano
 /// networks.
-pub(crate) async fn background_mithril_update(network: Network) {
+/// # Arguments
+///
+/// * `network` - The network type for the client to connect to.
+/// * `aggregator_url` - A reference to the URL of an aggregator that can be used to
+///   create the client.
+/// * `genesis_vkey` - The genesis verification key, which is needed to authenticate with
+///   the server.
+///
+/// # Returns
+///
+/// This does not return, it is a background task.
+pub(crate) async fn background_mithril_update(
+    network: Network, aggregator_url: String, genesis_vkey: String, mithril_path: PathBuf,
+) {
+    debug!("Mithril Snapshot background updater for: {network} from {aggregator_url} to {mithril_path:?} : Starting");
     let mut previous_snapshot_data: Option<SnapshotListItem> = None;
     let mut next_sleep = Duration::from_secs(0);
 
-    let Some(client) = create_client(network) else {
-        // If we couldn't create a client, then we don' t need to do anything.
-        return;
-    };
-
-    // This Can't fail, because we pre-validated the key exists. But just in case...
-    let Some(mithril_path) = read_mithril_path(network) else {
-        error!("Unexpected Error: No Mithril Path Configured for {}.  Mithril Snapshots can not update.", network);
-        return;
-    };
+    // Note: we pre-validated connection before we ran, so failure here should be transient.
+    // Just wait if we fail, and try again later.
+    let client = connect_client(network, &aggregator_url, &genesis_vkey).await;
 
     loop {
         // Wait until its likely we have a new snapshot ready to download.
@@ -326,9 +351,22 @@ impl SnapshotDownloader for TurboSnapshotDownloader {
             )?;
         }
 
-        self.turbo_downloader
-            .start_download(location, Some(target_dir.to_path_buf()))
+        debug!("Download and Unpack started='{location}' to '{target_dir:?}'.");
+
+        let downloader = self
+            .turbo_downloader
+            .start_download(location, target_dir.to_path_buf())
             .await?;
+
+        while !downloader.is_finished() {
+            let progress = downloader.get_progress();
+            debug!("Download-Unpack: Downloading snapshot, progress={progress:?}");
+            let progress = downloader.get_progress_human_line();
+            debug!("Download-Unpack: Downloading snapshot, progress={progress:?}");
+            sleep(Duration::from_secs(10)).await;
+        }
+
+        debug!("Download and Unpack finished='{location}' to '{target_dir:?}'.");
 
         Ok(())
     }
@@ -340,6 +378,10 @@ impl SnapshotDownloader for TurboSnapshotDownloader {
         let response = request_builder.send().await.with_context(|| {
             format!("Cannot perform a HEAD for snapshot at location='{location}'")
         })?;
+
+        let status = response.status();
+
+        debug!("Probe for '{location}' completed: {status}");
 
         match response.status() {
             reqwest::StatusCode::OK => Ok(()),

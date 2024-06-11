@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network};
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -28,10 +28,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let chain_update = follower.next().await?;
 
         match chain_update {
+            ChainUpdate::ImmutableBlock(data) => {
+                let block = data.decode()?;
+
+                info!(
+                    "New IMMUTABLE block NUMBER={} SLOT={} HASH={}",
+                    block.number(),
+                    block.slot(),
+                    hex::encode(block.hash()),
+                );
+            },
             ChainUpdate::Block(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
                     "New block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),
@@ -41,7 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ChainUpdate::Rollback(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
                     "Rollback block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),

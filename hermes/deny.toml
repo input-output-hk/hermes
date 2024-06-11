@@ -77,13 +77,13 @@ allow = [
 exceptions = [
     { allow = [
         "OpenSSL",
-    ], crate = "ring" }, # OpenSSL is permissive, but be explicit about where we accept it.
-    { allow = [
-        "LGPL-3.0",
-    ], crate = "rug" }, # LGPL is ok, but be explicit about where we allow it.
-    { allow = [
-        "LGPL-3.0",
-    ], crate = "gmp-mpfr-sys" }, # LGPL is ok, but be explicit about where we allow it.
+    ], crate = "ring" }, # OpenSSL license is permissive, but be explicit about where we accept it.
+    #{ allow = [
+    #    "LGPL-3.0",
+    #], crate = "rug" }, # LGPL is ok, but be explicit about where we allow it.
+    #{ allow = [
+    #    "LGPL-3.0",
+    #], crate = "gmp-mpfr-sys" }, # LGPL is ok, but be explicit about where we allow it.
 ]
 
 [[licenses.clarify]]
@@ -108,12 +108,12 @@ crate = "ring"
 expression = "ISC AND MIT AND OpenSSL"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
-[[licenses.clarify]]
-crate = "rug"
-expression = "LGPL-3.0"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+#[[licenses.clarify]]
+#crate = "rug"
+#expression = "LGPL-3.0"
+#license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
 
-[[licenses.clarify]]
-crate = "gmp-mpfr-sys"
-expression = "LGPL-3.0"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+#[[licenses.clarify]]
+#crate = "gmp-mpfr-sys"
+#expression = "LGPL-3.0"
+#license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]

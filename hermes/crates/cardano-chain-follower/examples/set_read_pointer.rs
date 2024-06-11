@@ -3,7 +3,7 @@
 use std::error::Error;
 
 use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -36,17 +36,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     110_908_236,
                     hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
                 )).await?;
-                println!("set read pointer");
+                info!("set read pointer");
 
                 pointer_set = true;
             }
 
             chain_update = follower.next() => {
                 match chain_update? {
+                    ChainUpdate::ImmutableBlock(data) => {
+                        let block = data.decode()?;
+
+                        info!(
+                            "New IMMUTABLE block NUMBER={} SLOT={} HASH={}",
+                            block.number(),
+                            block.slot(),
+                            hex::encode(block.hash()),
+                        );
+                    },
                     ChainUpdate::Block(data) => {
                         let block = data.decode()?;
 
-                        println!(
+                        info!(
                             "New block NUMBER={} SLOT={} HASH={}",
                             block.number(),
                             block.slot(),
@@ -56,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ChainUpdate::Rollback(data) => {
                         let block = data.decode()?;
 
-                        println!(
+                        info!(
                             "Rollback block NUMBER={} SLOT={} HASH={}",
                             block.number(),
                             block.slot(),

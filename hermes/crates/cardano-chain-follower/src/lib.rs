@@ -39,7 +39,10 @@ pub enum Error {
     FollowTaskNotRunning,
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
-    MithrilSnapshot,
+    MithrilSnapshot(Option<pallas_hardano::storage::immutable::Error>),
+    /// Mithril snapshot chunk error.
+    #[error("Failed to read block(s) from Mithril snapshot")]
+    MithrilSnapshotChunk(pallas_hardano::storage::immutable::chunk::Error),
     /// Failed to parse
     #[error("Failed to parse network")]
     ParseNetwork,
@@ -86,9 +89,9 @@ pub enum Error {
     /// Mithril genesis VKEY is not properly HEX Encoded
     #[error("Mithril Genesis VKEY for Network {0} is not hex encoded.  Needs to be only HEX Ascii characters, and even length.")]
     MithrilGenesisVKeyNotHex(Network),
-    /// Mithril Autoupdate requires an Aggregator and a VKEY
-    #[error("Mithril Auto Update Network {0} failed to start. No Aggregator and/or Genesis VKEY are configured.")]
-    MithrilUpdateRequiresAggregatorAndVkey(Network),
+    /// Mithril Autoupdate requires an Aggregator and a VKEY and a Path
+    #[error("Mithril Auto Update Network {0} failed to start. No Aggregator and/or Genesis VKEY and/or Path are configured.")]
+    MithrilUpdateRequiresAggregatorAndVkeyAndPath(Network),
     /// Internal Error
     #[error("Internal error")]
     InternalError,
@@ -98,7 +101,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A point in the chain or the tip.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PointOrTip {
     /// Represents a specific point of the chain.
     Point(Point),
@@ -113,7 +116,7 @@ impl From<Point> for PointOrTip {
 }
 
 /// CBOR encoded data of a multi-era block.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct MultiEraBlockData(Vec<u8>);
 
 impl MultiEraBlockData {

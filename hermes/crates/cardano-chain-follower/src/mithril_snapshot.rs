@@ -1,12 +1,13 @@
 //! Internal Mithril snapshot functions.
 
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, sync::Arc};
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
-use tokio::task::JoinHandle;
+use tokio::{sync::Mutex, task::JoinHandle};
+use tracing::{debug, warn};
 
 use crate::{
     mithril_snapshot_downloader::background_mithril_update, Error, FollowerConfig,
@@ -48,8 +49,10 @@ static GENESIS_VKEYS: Lazy<DashMap<Network, String>> = Lazy::new(DashMap::new);
 /// Current TIP of a network.
 static CURRENT_TIPS: Lazy<DashMap<Network, Point>> = Lazy::new(DashMap::new);
 
+/// Type we use to manage the Sync Task handle map.
+type SyncMap = Arc<Mutex<DashMap<Network, JoinHandle<()>>>>;
 /// Handle to the mithril sync thread.
-static SYNC_HANDLE_MAP: Lazy<DashMap<Network, JoinHandle<()>>> = Lazy::new(DashMap::new);
+static SYNC_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| Arc::new(Mutex::new(DashMap::new())));
 
 /// Check if a given value already exists in another key in the same Dashmap
 /// Returns the first network found that conflicts.
@@ -67,16 +70,24 @@ fn check_map_conflicts<T: std::cmp::PartialEq + Clone>(
     None
 }
 
-/// Check if we have already saved the join handle for a running download task.
-fn downloader_handle_set(network: Network) -> bool {
-    SYNC_HANDLE_MAP.contains_key(&network)
-}
-
 /// Read the current mithril path for a network.
+/// This is the entire mithril snapshot, not just the immutable data.
 pub(crate) fn read_mithril_path(network: Network) -> Option<PathBuf> {
     SNAPSHOT_PATHS
         .get(&network)
         .map(|entry| entry.value().clone())
+}
+
+/// Get the path of the immutable data within a mithril snapshot.
+pub(crate) fn read_mithril_immutable_path(network: Network) -> Option<PathBuf> {
+    match read_mithril_path(network) {
+        Some(path) => {
+            let mut immutable = path.clone();
+            immutable.push("immutable");
+            Some(immutable)
+        },
+        None => None,
+    }
 }
 
 /// Check that a given mithril path is not already configured.
@@ -184,7 +195,7 @@ fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()
     // If the path does not exist, try and make it.
     if !path.exists() {
         // Try and make the directory.
-        fs::create_dir(&path)
+        fs::create_dir_all(&path)
             .map_err(|e| Error::MithrilSnapshotDirectoryCreationError(path.clone(), e))?;
     }
 
@@ -215,7 +226,9 @@ fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()
 
 /// Set the Aggregator for a particular network.
 /// Aggregator is validated to ensure it has some chance of success.
-async fn set_aggregator(network: Network, aggregator_url: String) -> Result<()> {
+async fn set_aggregator(
+    network: Network, aggregator_url: String, genesis_vkey: String,
+) -> Result<()> {
     // Check if the aggregator is already defined on this network to the same URL.
     if let Some(current_aggregator_url) = read_aggregator_url(network) {
         if current_aggregator_url != aggregator_url {
@@ -231,12 +244,9 @@ async fn set_aggregator(network: Network, aggregator_url: String) -> Result<()> 
 
     // Not configured already, and not already in use, so make sure its valid.
     // We do this by trying to use it to get a list of snapshots.
-    let client = mithril_client::ClientBuilder::aggregator(
-        &aggregator_url,
-        "DUMMY_GENESIS_VERIFICATION_KEY",
-    )
-    .build()
-    .map_err(|e| Error::MithrilClientError(network, aggregator_url.clone(), e))?;
+    let client = mithril_client::ClientBuilder::aggregator(&aggregator_url, &genesis_vkey)
+        .build()
+        .map_err(|e| Error::MithrilClientError(network, aggregator_url.clone(), e))?;
 
     let snapshots = client
         .snapshot()
@@ -304,12 +314,15 @@ fn set_genesis_vkey(network: Network, vkey: &str) -> Result<()> {
 
 /// Try and update the current tip from an existing snapshot.
 pub(crate) fn update_tip(network: Network) -> Result<()> {
-    if let Some(snapshot_path) = read_mithril_path(network) {
+    if let Some(snapshot_path) = read_mithril_immutable_path(network) {
+        debug!("Updating TIP from Immutable storage @ {snapshot_path:?}");
         // If the TIP is not set, try and set it in-case there is already a snapshot in the
         // snapshot directory.
-        let tip = pallas_hardano::storage::immutable::get_tip(&snapshot_path)
-            .map_err(|_| Error::MithrilSnapshot)?
-            .ok_or(Error::MithrilSnapshot)?;
+        let Some(tip) = pallas_hardano::storage::immutable::get_tip(&snapshot_path)
+            .map_err(|error| Error::MithrilSnapshot(Some(error)))?
+        else {
+            return Err(Error::MithrilSnapshot(None));
+        };
 
         CURRENT_TIPS.insert(network, tip);
     }
@@ -325,6 +338,10 @@ impl MithrilSnapshot {
     /// Initialize Mithril snapshot processing for a particular configured network.
     pub async fn init(follower_cfg: FollowerConfig) -> Result<()> {
         // Validate and Set the snapshot path configuration
+        debug!(
+            "Validating Snapshot Path: {:?}",
+            follower_cfg.mithril_snapshot_path
+        );
         if let Some(path) = follower_cfg.mithril_snapshot_path {
             set_snapshot_path(follower_cfg.chain, path, follower_cfg.mithril_update)?;
         } else {
@@ -333,36 +350,76 @@ impl MithrilSnapshot {
             }
             return Ok(());
         }
-        // Set the aggregator if not already set.
-        if let Some(aggregator_url) = follower_cfg.mithril_aggregator_address {
-            set_aggregator(follower_cfg.chain, aggregator_url).await?;
-        }
 
         // Set the Genesis VKEY if not already set.
+        debug!(
+            "Validating Genesis Key: {:?}",
+            follower_cfg.mithril_genesis_key
+        );
         if let Some(genesis_vkey) = follower_cfg.mithril_genesis_key {
             set_genesis_vkey(follower_cfg.chain, &genesis_vkey)?;
+
+            // Set the aggregator if not already set - will fail if Genesis key not already set
+            // correctly.
+            debug!(
+                "Validating Aggregator URL: {:?}",
+                follower_cfg.mithril_aggregator_address
+            );
+            if let Some(aggregator_url) = follower_cfg.mithril_aggregator_address {
+                set_aggregator(follower_cfg.chain, aggregator_url, genesis_vkey).await?;
+            }
         }
 
         // Set the current TIP of the Mithril Snapshot, IF it already exists.
         // We don't care if this errors, its optimistic.
-        let _unused = update_tip(follower_cfg.chain);
+        debug!(
+            "Updating TIP of any existing Mithril Snapshot (May Fail) for {}",
+            follower_cfg.chain
+        );
+
+        let tip_status = update_tip(follower_cfg.chain);
+
+        match tip_status {
+            Ok(()) => debug!("Mithril TIP Exists and updated OK."),
+            Err(e) => warn!("Mithril TIP failed to update with error: {e:?}"),
+        }
 
         // If we want to auto-update, AND we haven't already started updating, start it.
         // Can only start it IF the Aggregator and VKEy are configured as well.
         if follower_cfg.mithril_update {
-            if read_aggregator_url(follower_cfg.chain).is_some()
-                && read_genesis_vkey(follower_cfg.chain).is_some()
-            {
-                // Start the update - IFF its not already running.
-                if !downloader_handle_set(follower_cfg.chain) {
-                    let handle = tokio::spawn(background_mithril_update(follower_cfg.chain));
-                    SYNC_HANDLE_MAP.insert(follower_cfg.chain, handle);
-                }
-            } else {
-                return Err(Error::MithrilUpdateRequiresAggregatorAndVkey(
+            // All must be set or we can't start the autoupdate.
+            let Some(aggregator_url) = read_aggregator_url(follower_cfg.chain) else {
+                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
                     follower_cfg.chain,
                 ));
+            };
+            let Some(genesis_vkey) = read_genesis_vkey(follower_cfg.chain) else {
+                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
+                    follower_cfg.chain,
+                ));
+            };
+            let Some(mithril_path) = read_mithril_path(follower_cfg.chain) else {
+                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
+                    follower_cfg.chain,
+                ));
+            };
+
+            // Start the update - IFF its not already running.
+            let sync_map = SYNC_HANDLE_MAP.lock().await;
+
+            if !sync_map.contains_key(&follower_cfg.chain) {
+                debug!("Mithril Autoupdate for {} : Starting", follower_cfg.chain);
+                let handle = tokio::spawn(background_mithril_update(
+                    follower_cfg.chain,
+                    aggregator_url,
+                    genesis_vkey,
+                    mithril_path,
+                ));
+                sync_map.insert(follower_cfg.chain, handle);
+                debug!("Mithril Autoupdate for {} : Started", follower_cfg.chain);
             }
+
+            drop(sync_map);
         }
 
         Ok(())
@@ -386,18 +443,18 @@ impl MithrilSnapshot {
     ///
     /// Returns Err if anything fails while reading the block data.
     pub fn try_read_block(network: Network, point: Point) -> Result<Option<MultiEraBlockData>> {
-        if let Some(mithril_path) = read_mithril_path(network) {
+        if let Some(mithril_path) = read_mithril_immutable_path(network) {
             if !MithrilSnapshot::contains_point(network, &point) {
                 return Ok(None);
             }
 
             let mut block_data_iter =
                 pallas_hardano::storage::immutable::read_blocks_from_point(&mithril_path, point)
-                    .map_err(|_| Error::MithrilSnapshot)?;
+                    .map_err(|error| Error::MithrilSnapshot(Some(error)))?;
 
             match block_data_iter.next() {
                 Some(res) => {
-                    let block_data = res.map_err(|_| Error::MithrilSnapshot)?;
+                    let block_data = res.map_err(Error::MithrilSnapshotChunk)?;
 
                     Ok(Some(MultiEraBlockData(block_data)))
                 },
@@ -425,18 +482,18 @@ impl MithrilSnapshot {
     pub fn try_read_block_range(
         network: Network, from: Point, to: &Point,
     ) -> Result<Option<(Point, Vec<MultiEraBlockData>)>> {
-        if let Some(mithril_path) = read_mithril_path(network) {
+        if let Some(mithril_path) = read_mithril_immutable_path(network) {
             if !MithrilSnapshot::contains_point(network, &from) {
                 return Ok(None);
             }
 
             let blocks_iter =
                 pallas_hardano::storage::immutable::read_blocks_from_point(&mithril_path, from)
-                    .map_err(|_| Error::MithrilSnapshot)?;
+                    .map_err(|error| Error::MithrilSnapshot(Some(error)))?;
 
             let mut block_data_vec = Vec::new();
             for result in blocks_iter {
-                let block_data = MultiEraBlockData(result.map_err(|_| Error::MithrilSnapshot)?);
+                let block_data = MultiEraBlockData(result.map_err(Error::MithrilSnapshotChunk)?);
 
                 // TODO(fsgr): Should we check the hash as well?
                 //             Maybe throw an error if we don't get the block we were expecting at
@@ -482,7 +539,7 @@ impl MithrilSnapshot {
     pub fn try_read_blocks_from_point(
         network: Network, point: Point,
     ) -> Option<MithrilSnapshotIterator> {
-        if let Some(mithril_path) = read_mithril_path(network) {
+        if let Some(mithril_path) = read_mithril_immutable_path(network) {
             if MithrilSnapshot::contains_point(network, &point) {
                 let iter = pallas_hardano::storage::immutable::read_blocks_from_point(
                     &mithril_path,
@@ -504,9 +561,11 @@ impl MithrilSnapshot {
     ///
     /// # Arguments
     /// * `network`: The network that this function should check against.
-    /// * `point`: The point to be checked for existence within the specified Mithril snapshot.
+    /// * `point`: The point to be checked for existence within the specified Mithril
+    ///   snapshot.
     ///
-    /// Returns true if the point exists within the Mithril snapshot for the specified network, false otherwise.
+    /// Returns true if the point exists within the Mithril snapshot for the specified
+    /// network, false otherwise.
     pub fn contains_point(network: Network, point: &Point) -> bool {
         if let Some(tip) = MithrilSnapshot::tip(network) {
             point.slot_or_default() <= tip.slot_or_default()
@@ -518,11 +577,9 @@ impl MithrilSnapshot {
 
 #[cfg(test)]
 mod tests {
-    use crate::mithril_snapshot::{
-        check_map_conflicts, downloader_handle_set, Network, SYNC_HANDLE_MAP,
-    };
     use dashmap::DashMap;
-    use tokio::task::{self};
+
+    use crate::mithril_snapshot::{check_map_conflicts, Network};
 
     #[test]
     fn test_check_map_conflicts() {
@@ -543,24 +600,5 @@ mod tests {
 
         // When network is different there is a conflict.
         assert_eq!(Some(Network::Mainnet), conflict);
-    }
-
-    #[tokio::test]
-    async fn test_downloader_handle_set() {
-        let network = Network::Mainnet;
-
-        // Test with an empty DashMap
-        assert!(!downloader_handle_set(network));
-
-        // Create a join handle.
-        let handle = task::spawn(async {
-            println!("I return nothing.");
-        });
-
-        // Store it
-        SYNC_HANDLE_MAP.insert(network, handle);
-
-        // And check if its set.
-        assert!(downloader_handle_set(network));
     }
 }
