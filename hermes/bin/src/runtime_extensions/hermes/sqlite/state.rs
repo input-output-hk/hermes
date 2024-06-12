@@ -19,9 +19,9 @@ pub(crate) struct ResourceObjectState {
 /// Represents the state of resources.
 pub(crate) struct ResourceState {
     /// The state of database object.
-    db_ptr_state: ResourceObjectState,
+    db_state: ResourceObjectState,
     /// The state of database statement object.
-    stmt_ptr_state: ResourceObjectState,
+    stmt_state: ResourceObjectState,
 }
 
 impl ResourceObjectState {
@@ -36,8 +36,8 @@ impl ResourceObjectState {
     /// Adds a value into the resource. If it does not exist, allocate one and returns the
     /// new created key ID. In case of the key ID is running out of numbers, returns
     /// `None`.
-    pub(super) fn allocate_object(&mut self, item_ptr: usize) -> Option<u32> {
-        if let Some((existing_id, _)) = self.id_map.iter().find(|(_, val)| val == &&item_ptr) {
+    pub(super) fn allocate_object(&mut self, object_ptr: usize) -> Option<u32> {
+        if let Some((existing_id, _)) = self.id_map.iter().find(|(_, val)| val == &&object_ptr) {
             Some(*existing_id)
         } else {
             let (new_id, is_overflow) = self
@@ -47,7 +47,7 @@ impl ResourceObjectState {
             if is_overflow {
                 None
             } else {
-                self.id_map.insert(new_id, item_ptr);
+                self.id_map.insert(new_id, object_ptr);
                 self.current_id = Some(new_id);
                 Some(new_id)
             }
@@ -69,19 +69,19 @@ impl ResourceState {
     /// Create a new `ResourceState` with initial state.
     pub(super) fn new() -> Self {
         Self {
-            db_ptr_state: ResourceObjectState::new(),
-            stmt_ptr_state: ResourceObjectState::new(),
+            db_state: ResourceObjectState::new(),
+            stmt_state: ResourceObjectState::new(),
         }
     }
 
     /// Gets the state for managing database objects.
     pub(super) fn get_db_state(&mut self) -> &mut ResourceObjectState {
-        &mut self.db_ptr_state
+        &mut self.db_state
     }
 
     /// Gets the state for managing statement objects.
     pub(super) fn get_stmt_state(&mut self) -> &mut ResourceObjectState {
-        &mut self.stmt_ptr_state
+        &mut self.stmt_state
     }
 }
 

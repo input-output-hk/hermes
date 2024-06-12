@@ -8,10 +8,10 @@ mod hermes;
 use hermes::{
     exports::hermes::integration_test::event::TestResult,
     hermes::{
-        sqlite,
         cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
         kv_store::api::KvValues,
+        sqlite,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
@@ -26,55 +26,208 @@ const TESTS: &'static [TestItem] = &[
         name: "open-database-persistent-simple",
         executor: || -> bool {
             let Ok(sqlite) = sqlite::api::open(false, false) else {
-                return false
+                return false;
             };
 
             let result = sqlite.close();
 
             result.is_ok()
-        }
-    }
+        },
+    },
+    TestItem {
+        name: "open-database-persistent-multiple",
+        executor: || -> bool {
+            let Ok(sqlite_a) = sqlite::api::open(false, false) else {
+                return false;
+            };
+            let Ok(sqlite_b) = sqlite::api::open(false, false) else {
+                return false;
+            };
+            let Ok(sqlite_c) = sqlite::api::open(false, false) else {
+                return false;
+            };
+
+            let result_a = sqlite_a.close();
+            let result_b = sqlite_b.close();
+            let result_c = sqlite_c.close();
+
+            result_a.is_ok() && result_b.is_ok() && result_c.is_ok()
+        },
+    },
+    TestItem {
+        name: "open-database-persistent-multiple-alt",
+        executor: || -> bool {
+            let Ok(sqlite_a) = sqlite::api::open(false, false) else {
+                return false;
+            };
+            let result_a = sqlite_a.close();
+
+            let Ok(sqlite_b) = sqlite::api::open(false, false) else {
+                return false;
+            };
+            let result_b = sqlite_b.close();
+
+            let Ok(sqlite_c) = sqlite::api::open(false, false) else {
+                return false;
+            };
+            let result_c = sqlite_c.close();
+
+            result_a.is_ok() && result_b.is_ok() && result_c.is_ok()
+        },
+    },
+    TestItem {
+        name: "open-database-memory-simple",
+        executor: || -> bool {
+            let Ok(sqlite) = sqlite::api::open(false, true) else {
+                return false;
+            };
+            let result = sqlite.close();
+
+            result.is_ok()
+        },
+    },
+    TestItem {
+        name: "execute-create-schema-simple",
+        executor: || -> bool {
+            let Ok(sqlite) = sqlite::api::open(false, true) else {
+                return false;
+            };
+
+            let create_table_sql = r"
+                CREATE TABLE IF NOT EXISTS people (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    age INTEGER
+                );
+            ";
+
+            let Ok(()) = sqlite.execute(create_table_sql) else {
+                return false;
+            };
+
+            let result = sqlite.close();
+
+            result.is_ok()
+        },
+    },
+    TestItem {
+        name: "prepare-simple",
+        executor: || -> bool {
+            let Ok(sqlite) = sqlite::api::open(false, true) else {
+                return false;
+            };
+
+            let Ok(stmt) = sqlite.prepare("SELECT 1;") else {
+                return false;
+            };
+
+            let finalize_result = stmt.finalize();
+            let close_result = sqlite.close();
+
+            finalize_result.is_ok() && close_result.is_ok()
+        },
+    },
+    TestItem {
+        name: "prepare-simple-without-cleaning",
+        executor: || -> bool {
+            let Ok(sqlite) = sqlite::api::open(false, true) else {
+                return false;
+            };
+
+            let Ok(_) = sqlite.prepare("SELECT 1;") else {
+                return false;
+            };
+
+            true
+        },
+    },
+    TestItem {
+        name: "text-value-simple",
+        executor: || -> bool {
+            let Ok(sqlite) = sqlite::api::open(false, true) else {
+                return false;
+            };
+
+            // prepare and insert value
+            let create_table_sql = r"
+                CREATE TABLE dummy(id INTEGER PRIMARY KEY, value TEXT);
+            ";
+            let insert_sql = "INSERT INTO dummy(value) VALUES(?);";
+
+            let value = sqlite::api::Value::Text(String::from("Hello, World!"));
+
+            let Ok(()) = sqlite.execute(create_table_sql) else {
+                return false;
+            };
+            let Ok(stmt) = sqlite.prepare(insert_sql) else {
+                return false;
+            };
+            let Ok(()) = stmt.bind(1, &value) else {
+                return false;
+            };
+            let Ok(()) = stmt.step() else {
+                return false;
+            };
+            let Ok(()) = stmt.finalize() else {
+                return false;
+            };
+
+            // retrieve value
+            let retrieve_sql = "SELECT value FROM dummy WHERE id = 1;";
+
+            let Ok(stmt) = sqlite.prepare(retrieve_sql) else {
+                return false;
+            };
+            let Ok(()) = stmt.step() else {
+                return false;
+            };
+            let Ok(retrieved_value) = stmt.column(0) else {
+                return false;
+            };
+            let Ok(()) = stmt.finalize() else {
+                return false;
+            };
+
+            let Ok(()) = sqlite.close() else {
+                return false;
+            };
+
+            matches!((value, retrieved_value), (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b)
+        },
+    },
 ];
 
-const BENCHES: &'static [TestItem] = &[
-    TestItem {
-        name: "bench-simple",
-        executor: || -> bool {
-            false
-        }
-    }
-];
+const BENCHES: &'static [TestItem] = &[TestItem {
+    name: "bench-simple",
+    executor: || -> bool { false },
+}];
 
 struct TestComponent;
 
 impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
     fn test(test: u32, run: bool) -> Option<TestResult> {
-        TESTS.get(test as usize).map(|item| {
-            TestResult {
-                name: String::from(item.name),
-                status: {
-                    if run {
-                        (item.executor)()
-                    } else {
-                        true
-                    }
+        TESTS.get(test as usize).map(|item| TestResult {
+            name: String::from(item.name),
+            status: {
+                if run {
+                    (item.executor)()
+                } else {
+                    true
                 }
-            }
+            },
         })
     }
 
     fn bench(test: u32, run: bool) -> Option<TestResult> {
-        BENCHES.get(test as usize).map(|item| {
-            TestResult {
-                name: String::from(item.name),
-                status: {
-                    if run {
-                        (item.executor)()
-                    } else {
-                        true
-                    }
+        BENCHES.get(test as usize).map(|item| TestResult {
+            name: String::from(item.name),
+            status: {
+                if run {
+                    (item.executor)()
+                } else {
+                    true
                 }
-            }
+            },
         })
     }
 }
