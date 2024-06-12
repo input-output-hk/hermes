@@ -65,6 +65,8 @@ jsonschema = { workspace = true }
 hmac = { workspace = true }
 pbkdf2 = { workspace = true }
 sha2 = { workspace = true }
+ed25519 = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["pem"] }
 
 [build-dependencies]
 build-info-build = { workspace = true }
