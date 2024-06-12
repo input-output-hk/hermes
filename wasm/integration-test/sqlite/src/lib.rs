@@ -24,7 +24,7 @@ struct TestItem {
 const TESTS: &'static [TestItem] = &[
     TestItem {
         name: "open-database-persistent-simple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, false) else {
                 return false;
             };
@@ -36,7 +36,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "open-database-persistent-multiple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite_a) = sqlite::api::open(false, false) else {
                 return false;
             };
@@ -56,7 +56,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "open-database-persistent-multiple-alt",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite_a) = sqlite::api::open(false, false) else {
                 return false;
             };
@@ -77,7 +77,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "open-database-memory-simple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, true) else {
                 return false;
             };
@@ -88,7 +88,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "execute-create-schema-simple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, true) else {
                 return false;
             };
@@ -112,7 +112,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "prepare-simple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, true) else {
                 return false;
             };
@@ -129,7 +129,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "prepare-simple-without-cleaning",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, true) else {
                 return false;
             };
@@ -143,7 +143,7 @@ const TESTS: &'static [TestItem] = &[
     },
     TestItem {
         name: "text-value-simple",
-        executor: || -> bool {
+        executor: || {
             let Ok(sqlite) = sqlite::api::open(false, true) else {
                 return false;
             };
@@ -197,10 +197,17 @@ const TESTS: &'static [TestItem] = &[
     },
 ];
 
-const BENCHES: &'static [TestItem] = &[TestItem {
-    name: "bench-simple",
-    executor: || -> bool { false },
-}];
+const BENCHES: &'static [TestItem] = &[
+    TestItem {
+        // FIXME: right now, according to the config, still sharing the same file. If you need to add a new case for bench related to a file, you need to clean up the old one.
+        name: "bench-persistent-insert",
+        executor: || { helper::bench_insert(false) },
+    },
+    TestItem {
+        name: "bench-memory-insert",
+        executor: || { helper::bench_insert(true) },
+    },
+];
 
 struct TestComponent;
 
@@ -272,3 +279,41 @@ impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
 }
 
 hermes::export!(TestComponent with_types_in hermes);
+
+mod helper {
+    use crate::sqlite;
+
+    pub(super) fn bench_insert(memory: bool) -> bool {
+        let Ok(sqlite) = sqlite::api::open(false, memory) else {
+            return false;
+        };
+
+        let create_table_sql = r"
+            CREATE TABLE dummy(id INTEGER PRIMARY KEY, value TEXT);
+        ";
+        let insert_sql = "INSERT INTO dummy(value) VALUES(?);";
+
+        let value = sqlite::api::Value::Text(String::from("Hello, World!"));
+
+        let Ok(()) = sqlite.execute(create_table_sql) else {
+            return false;
+        };
+
+        for _ in 0..100 {
+            let Ok(stmt) = sqlite.prepare(insert_sql) else {
+                return false;
+            };
+            let Ok(()) = stmt.bind(1, &value) else {
+                return false;
+            };
+            let Ok(()) = stmt.step() else {
+                return false;
+            };
+            let Ok(()) = stmt.finalize() else {
+                return false;
+            };
+        }
+
+        sqlite.close().is_ok()
+    }
+}
