@@ -77,12 +77,13 @@ impl HostSqlite for HermesRuntimeContext {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stmt_id = state::InternalState::get_or_create_resource(self.app_name().clone())
-                        .get_stmt_state()
-                        .allocate_object(stmt_ptr as _)
-                        .ok_or_else(|| {
-                            wasmtime::Error::msg("Internal state error while calling `prepare`")
-                        })?;
+                    let stmt_id =
+                        state::InternalState::get_or_create_resource(self.app_name().clone())
+                            .get_stmt_state()
+                            .allocate_object(stmt_ptr as _)
+                            .ok_or_else(|| {
+                                wasmtime::Error::msg("Internal state error while calling `prepare`")
+                            })?;
 
                     Ok(Ok(wasmtime::component::Resource::new_own(stmt_id)))
                 }
