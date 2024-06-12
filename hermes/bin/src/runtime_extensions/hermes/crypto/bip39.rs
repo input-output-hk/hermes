@@ -3,14 +3,11 @@
 use std::vec;
 
 use bip39::{Language, Mnemonic};
-use cryptoxide::{
-    digest::Digest,
-    hmac::Hmac,
-    pbkdf2::pbkdf2,
-    sha2::{Sha256, Sha512},
-};
 use ed25519_bip32::XPrv;
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
 use rand::RngCore;
+use sha2::{Digest, Sha256, Sha512};
 
 use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 
@@ -36,9 +33,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 
     // Parse will detect language and check mnemonic valid length
     // 12, 15, 18, 21, 24 are valid mnemonic length
-    let Ok(mnemonic) = Mnemonic::parse(mnemonic) else {
-        return Err(Errno::InvalidMnemonic);
-    };
+    let mnemonic = Mnemonic::parse(mnemonic).map_err(|_| Errno::InvalidMnemonic)?;
 
     let entropy = mnemonic.to_entropy();
 
@@ -46,9 +41,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
     // from a master seed.
     // https://github.com/satoshilabs/slips/blob/master/slip-0023.md
     let mut pbkdf2_result = [0; 96];
-    let passphrase_byte: &[u8] = passphrase.as_bytes();
-    let mut mac = Hmac::new(Sha512::new(), passphrase_byte);
-    pbkdf2(&mut mac, &entropy, ITER, &mut pbkdf2_result);
+    let _ = pbkdf2::<Hmac<Sha512>>(passphrase.as_bytes(), &entropy, ITER, &mut pbkdf2_result);
 
     Ok(XPrv::normalize_bytes_force3rd(pbkdf2_result))
 }
@@ -96,20 +89,14 @@ pub(crate) fn generate_new_mnemonic(
         |lang| string_to_language(&lang),
     )?;
 
-    let prefix_index_bits = match get_prefix_index_bits(prefix, language) {
-        Ok(prefix_index_bits) => prefix_index_bits,
-        Err(e) => return Err(e),
-    };
+    let prefix_index_bits = get_prefix_index_bits(prefix, language)?;
 
     // Create an vec that will hold binary conversion of entropy.
     let mut bits_entropy = Vec::new();
     // Add the prefix index bit to the bit entropy.
     bits_entropy.extend_from_slice(&prefix_index_bits);
 
-    let entropy = match generate_entropy(word_count) {
-        Ok(entropy) => entropy,
-        Err(e) => return Err(e),
-    };
+    let entropy = generate_entropy(word_count)?;
 
     // Convert bytes entropy to bits.
     byte_to_bit(entropy, &mut bits_entropy, word_count);
@@ -171,18 +158,17 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
 fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
     // Number of checksum bits to be added.
     let check_sum_num = word_count / 3 * 4 * 8 / 32;
-    let mut hash_result = [0u8; 32];
-    let mut hasher = Sha256::new();
+
     // Convert bits_entropy to bytes, so it works with SHA256 hasher.
     let bytes_entropy = bits_to_bytes(entropy_bits);
-    hasher.input(&bytes_entropy);
 
-    hasher.result(&mut hash_result);
+    let hash_result = Sha256::digest(bytes_entropy);
 
     // Retrieve the first `check_sum_num` check sum bits from the hash result.
     let mut check_sum_bits = Vec::new();
+    let first_bit = hash_result.first().unwrap_or(&0);
     for i in 0..check_sum_num {
-        check_sum_bits.push(hash_result[0] >> (7 - i) & 1);
+        check_sum_bits.push(first_bit >> (7 - i) & 1);
     }
     check_sum_bits
 }

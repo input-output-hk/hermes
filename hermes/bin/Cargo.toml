@@ -37,7 +37,6 @@ criterion = { workspace = true, optional = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }
 bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
-cryptoxide = { workspace = true }
 rand = { workspace = true }
 bip32 = { workspace = true }
 ed25519-bip32 = { workspace = true }
@@ -63,6 +62,9 @@ console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 jsonschema = { workspace = true }
+hmac = { workspace = true }
+pbkdf2 = { workspace = true }
+sha2 = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
