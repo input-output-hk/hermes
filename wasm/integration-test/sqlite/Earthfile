@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.1 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.5 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -29,4 +29,15 @@ build:
 
     RUN wasm-tools component new -o sqlite.wasm target/wasm32-unknown-unknown/release/sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
 
-    SAVE ARTIFACT sqlite.wasm
+    SAVE ARTIFACT sqlite.wasm AS LOCAL sqlite.wasm
+
+build-wasm:
+    DO rust-ci+SETUP
+
+    COPY target/wasm32-unknown-unknown/release/sqlite_test_component.wasm .
+    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
+
+    RUN --no-cache wasm-tools component new -o sqlite.wasm sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+
+    SAVE ARTIFACT sqlite.wasm AS LOCAL sqlite.wasm
+

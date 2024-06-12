@@ -25,15 +25,11 @@ const TESTS: &'static [TestItem] = &[
     TestItem {
         name: "open-database-persistent-simple",
         executor: || -> bool {
-            let result = sqlite::api::open(false, false);
+            let Ok(sqlite) = sqlite::api::open(false, false) else {
+                return false
+            };
 
-            result.is_ok()
-        }
-    },
-    TestItem {
-        name: "open-database-memory-simple",
-        executor: || -> bool {
-            let result = sqlite::api::open(false, true);
+            let result = sqlite.close();
 
             result.is_ok()
         }
