@@ -1,3 +1,5 @@
+// cspell: words mapref
+
 //! Internal state implementation for the `SQLite` module.
 
 use std::collections::HashMap;

@@ -199,7 +199,7 @@ const TESTS: &'static [TestItem] = &[
 
 const BENCHES: &'static [TestItem] = &[
     TestItem {
-        // FIXME: right now, according to the config, still sharing the same file. If you need to add a new case for bench related to a file, you need to clean up the old one.
+        // FIXME: right now, according to the config, still sharing the same file. If you need to add a new case for a bench related to a file, you need to clean up the old one.
         name: "bench-persistent-insert",
         executor: || { helper::bench_insert(false) },
     },
