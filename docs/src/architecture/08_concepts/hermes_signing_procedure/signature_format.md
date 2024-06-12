@@ -51,7 +51,7 @@ So every [COSE] signature **MUST** be encoded as `COSE Signed Data Object` even 
 
 As mentioned earlier, the content type of the [COSE] signature payload is JSON
 and should follows the defined schema.
-Each particular signature payload schema defined for specific Hermes entities. 
+Each particular signature payload schema defined for specific Hermes entities.
 
 ## Signature headers
 
