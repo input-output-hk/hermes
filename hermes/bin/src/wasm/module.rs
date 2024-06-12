@@ -19,7 +19,7 @@ use crate::{
 
 /// Bad WASM module error
 #[derive(thiserror::Error, Debug)]
-#[error("Bad WASM module, err: {0}")]
+#[error("Bad WASM module:\n {0}")]
 struct BadWASMModuleError(String);
 
 /// Structure defines an abstraction over the WASM module instance.

@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
@@ -47,7 +48,9 @@ impl PackageCommand {
             .unwrap_or(manifest_dir.into());
 
         let manifest = Manifest::from_file(&self.manifest_path)?;
-        WasmModulePackage::from_manifest(manifest, output_path, self.name)?;
+        let package_name = self.name.as_deref();
+        let build_time = Utc::now();
+        WasmModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())
