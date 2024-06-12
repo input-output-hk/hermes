@@ -30,14 +30,3 @@ build:
     RUN wasm-tools component new -o sqlite.wasm target/wasm32-unknown-unknown/release/sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
 
     SAVE ARTIFACT sqlite.wasm AS LOCAL sqlite.wasm
-
-build-wasm:
-    DO rust-ci+SETUP
-
-    COPY target/wasm32-unknown-unknown/release/sqlite_test_component.wasm .
-    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
-
-    RUN --no-cache wasm-tools component new -o sqlite.wasm sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
-
-    SAVE ARTIFACT sqlite.wasm AS LOCAL sqlite.wasm
-

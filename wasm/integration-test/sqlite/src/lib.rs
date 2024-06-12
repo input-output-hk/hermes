@@ -21,7 +21,7 @@ struct TestItem {
     executor: fn() -> bool,
 }
 
-const TESTS: &'static [TestItem] = &[
+const TESTS: &[TestItem] = &[
     TestItem {
         name: "open-database-persistent-simple",
         executor: || {
@@ -197,15 +197,15 @@ const TESTS: &'static [TestItem] = &[
     },
 ];
 
-const BENCHES: &'static [TestItem] = &[
+const BENCHES: &[TestItem] = &[
     TestItem {
         // FIXME: right now, according to the config, still sharing the same file. If you need to add a new case for a bench related to a file, you need to clean up the old one.
         name: "bench-persistent-insert",
-        executor: || { helper::bench_insert(false) },
+        executor: || helper::bench_insert(false),
     },
     TestItem {
         name: "bench-memory-insert",
-        executor: || { helper::bench_insert(true) },
+        executor: || helper::bench_insert(true),
     },
 ];
 
