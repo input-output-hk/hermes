@@ -31,10 +31,6 @@ impl Host for HermesRuntimeContext {
                         wasmtime::Error::msg("Internal state error while calling `open`")
                     })?;
 
-                println!("open {db_id} {db_ptr:?}");
-
-                println!("{:?}", state::InternalState::get_or_create_resource(self.app_name().clone()).get_db_state());
-
                 Ok(Ok(wasmtime::component::Resource::new_own(db_id)))
             },
             Err(err) => Ok(Err(err)),

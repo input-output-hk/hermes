@@ -24,22 +24,10 @@ impl HostSqlite for HermesRuntimeContext {
     fn close(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        println!(
-            "before {:?}",
-            state::InternalState::get_or_create_resource(self.app_name().clone()).get_db_state()
-        );
-
         let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
             .get_db_state()
             .delete_object_by_id(resource.rep())
             .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `close`"))?;
-
-        println!("close {} {:?}", resource.rep(), db_ptr);
-
-        println!(
-            "{:?}",
-            state::InternalState::get_or_create_resource(self.app_name().clone()).get_db_state()
-        );
 
         Ok(core::close(db_ptr as *mut _))
     }
