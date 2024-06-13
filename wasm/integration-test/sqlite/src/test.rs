@@ -112,10 +112,9 @@ pub(crate) const TESTS: &[TestItem] = &[
 
             sqlite.close()?;
 
-            if matches!((value, retrieved_value), (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b) {
-              Ok(())
-            } else {
-              Err(sqlite::api::Errno::Sqlite(1))
+            match (value, retrieved_value) {
+                (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b => Ok(()),
+                _ => Err(sqlite::api::Errno::Sqlite(1)),
             }
         },
     },
