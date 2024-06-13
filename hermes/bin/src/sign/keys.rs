@@ -26,7 +26,7 @@ impl Display for KeyFileError {
 /// Public or private key decoding from string error.
 #[derive(thiserror::Error, Debug)]
 #[error("Cannot decode key from string. Invalid PEM format.")]
-pub(crate) struct KeyDecodingError;
+pub(crate) struct KeyPemDecodingError;
 
 /// Ed25519 private key instance.
 /// Wrapper over `ed25519_dalek::SigningKey`.
@@ -43,7 +43,7 @@ impl PrivateKey {
 
     /// Create new private key from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let key = SigningKey::from_pkcs8_pem(str).map_err(|_| KeyDecodingError)?;
+        let key = SigningKey::from_pkcs8_pem(str).map_err(|_| KeyPemDecodingError)?;
         Ok(Self(key))
     }
 }
@@ -54,16 +54,22 @@ impl PrivateKey {
 pub(crate) struct PublicKey(VerifyingKey);
 
 impl PublicKey {
-    /// Create new private key from file decoded in PEM format
+    /// Create new public key from file decoded in PEM format.
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let str =
             std::fs::read_to_string(&path).map_err(|_| KeyFileError(path.as_ref().into(), None))?;
         Ok(Self::from_str(&str).map_err(|err| KeyFileError(path.as_ref().into(), Some(err)))?)
     }
 
-    /// Create new private key from string decoded in PEM format
+    /// Create new public key from string decoded in PEM format.
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let key = VerifyingKey::from_public_key_pem(str).map_err(|_| KeyDecodingError)?;
+        let key = VerifyingKey::from_public_key_pem(str).map_err(|_| KeyPemDecodingError)?;
+        Ok(Self(key))
+    }
+
+    /// Create new public key from raw bytes.
+    pub(crate) fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
+        let key = VerifyingKey::from_bytes(bytes.try_into()?)?;
         Ok(Self(key))
     }
 }

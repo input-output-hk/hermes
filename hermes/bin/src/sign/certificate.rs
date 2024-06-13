@@ -7,6 +7,8 @@ use std::{
 
 use x509_cert::der::DecodePem;
 
+use super::keys::PublicKey;
+
 /// Certificate file open and read error.
 #[derive(thiserror::Error, Debug)]
 pub(crate) struct CertificateFileError(PathBuf, Option<anyhow::Error>);
@@ -48,6 +50,17 @@ impl Certificate {
         let cert = x509_cert::Certificate::from_pem(str.as_bytes())?;
         Ok(Self(cert))
     }
+
+    /// Get certificate's subject public key.
+    pub(crate) fn subject_public_key(&self) -> anyhow::Result<PublicKey> {
+        let subject_public_key = &self
+            .0
+            .tbs_certificate
+            .subject_public_key_info
+            .subject_public_key;
+
+        PublicKey::from_bytes(subject_public_key.raw_bytes())
+    }
 }
 
 #[cfg(test)]
@@ -79,7 +92,19 @@ mod tests {
         );
         std::fs::write(&private_key_path, private_key).expect("Cannot create cert.pem file");
 
-        let _cert =
+        let cert =
             Certificate::from_file(private_key_path).expect("Cannot create certificate from file");
+
+        let cert_public_key = cert.subject_public_key().expect("Cannot get public key");
+
+        let expected_public_key = PublicKey::from_str(&format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PUBLIC KEY-----",
+            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
+            "-----END PUBLIC KEY-----"
+        ))
+        .expect("Cannot parse public key");
+
+        assert_eq!(cert_public_key, expected_public_key);
     }
 }
