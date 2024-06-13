@@ -33,7 +33,7 @@ pub fn error_response(err: String) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())
-        .unwrap()
+        .expect("Infallible")
 }
 
 /// HTTP not found response generator
@@ -41,7 +41,7 @@ pub fn not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())
-        .unwrap()
+        .expect("Infallible")
 }
 
 /// Extractor that resolves the hostname of the request.
