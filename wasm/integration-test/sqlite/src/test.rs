@@ -1,75 +1,58 @@
-use crate::hermes::hermes::sqlite;
+use crate::hermes::hermes::sqlite::{
+  self,
+  api::Errno
+};
 
 pub(crate) struct TestItem {
     pub(crate) name: &'static str,
-    pub(crate) executor: fn() -> bool,
+    pub(crate) executor: fn() -> Result<(), Errno>,
 }
 
 pub(crate) const TESTS: &[TestItem] = &[
     TestItem {
         name: "open-database-persistent-simple",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, false) else {
-                return false;
-            };
+            let sqlite = sqlite::api::open(false, false)?;
 
-            sqlite.close().is_ok()
+            sqlite.close()
         },
     },
     TestItem {
         name: "open-database-persistent-multiple",
         executor: || {
-            let Ok(sqlite_a) = sqlite::api::open(false, false) else {
-                return false;
-            };
-            let Ok(sqlite_b) = sqlite::api::open(false, false) else {
-                return false;
-            };
-            let Ok(sqlite_c) = sqlite::api::open(false, false) else {
-                return false;
-            };
+            let sqlite_a = sqlite::api::open(false, false)?;
+            let sqlite_b = sqlite::api::open(false, false)?;
+            let sqlite_c = sqlite::api::open(false, false)?;
 
-            sqlite_a.close().is_ok() && sqlite_b.close().is_ok() && sqlite_c.close().is_ok()
+            sqlite_a.close()?;
+            sqlite_b.close()?;
+            sqlite_c.close()
         },
     },
     TestItem {
         name: "open-database-persistent-multiple-alt",
         executor: || {
-            let Ok(sqlite_a) = sqlite::api::open(false, false) else {
-                return false;
-            };
-            let result_a = sqlite_a.close();
+            let sqlite_a = sqlite::api::open(false, false)?;
+            sqlite_a.close()?;
 
-            let Ok(sqlite_b) = sqlite::api::open(false, false) else {
-                return false;
-            };
-            let result_b = sqlite_b.close();
+            let sqlite_b = sqlite::api::open(false, false)?;
+            sqlite_b.close()?;
 
-            let Ok(sqlite_c) = sqlite::api::open(false, false) else {
-                return false;
-            };
-            let result_c = sqlite_c.close();
-
-            result_a.is_ok() && result_b.is_ok() && result_c.is_ok()
+            let sqlite_c = sqlite::api::open(false, false)?;
+            sqlite_c.close()
         },
     },
     TestItem {
         name: "open-database-memory-simple",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, true) else {
-                return false;
-            };
-            let result = sqlite.close();
-
-            result.is_ok()
+            let sqlite = sqlite::api::open(false, true)?;
+            sqlite.close()
         },
     },
     TestItem {
         name: "execute-create-schema-simple",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, true) else {
-                return false;
-            };
+            let sqlite = sqlite::api::open(false, true)?;
 
             let create_table_sql = r"
               CREATE TABLE IF NOT EXISTS people (
@@ -79,52 +62,33 @@ pub(crate) const TESTS: &[TestItem] = &[
               );
           ";
 
-            let Ok(()) = sqlite.execute(create_table_sql) else {
-                return false;
-            };
-
-            let result = sqlite.close();
-
-            result.is_ok()
+            sqlite.execute(create_table_sql)?;
+            sqlite.close()
         },
     },
     TestItem {
         name: "prepare-simple",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, true) else {
-                return false;
-            };
+            let sqlite = sqlite::api::open(false, true)?;
+            let stmt = sqlite.prepare("SELECT 1;")?;
 
-            let Ok(stmt) = sqlite.prepare("SELECT 1;") else {
-                return false;
-            };
-
-            let finalize_result = stmt.finalize();
-            let close_result = sqlite.close();
-
-            finalize_result.is_ok() && close_result.is_ok()
+            stmt.finalize()?;
+            sqlite.close()
         },
     },
     TestItem {
         name: "prepare-simple-without-cleaning",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, true) else {
-                return false;
-            };
+            let sqlite = sqlite::api::open(false, true)?;
+            sqlite.prepare("SELECT 1;")?;
 
-            let Ok(_) = sqlite.prepare("SELECT 1;") else {
-                return false;
-            };
-
-            true
+            Ok(())
         },
     },
     TestItem {
         name: "text-value-simple",
         executor: || {
-            let Ok(sqlite) = sqlite::api::open(false, true) else {
-                return false;
-            };
+            let sqlite = sqlite::api::open(false, true)?;
 
             // prepare and insert value
             let create_table_sql = r"
@@ -134,43 +98,28 @@ pub(crate) const TESTS: &[TestItem] = &[
 
             let value = sqlite::api::Value::Text(String::from("Hello, World!"));
 
-            let Ok(()) = sqlite.execute(create_table_sql) else {
-                return false;
-            };
-            let Ok(stmt) = sqlite.prepare(insert_sql) else {
-                return false;
-            };
-            let Ok(()) = stmt.bind(1, &value) else {
-                return false;
-            };
-            let Ok(()) = stmt.step() else {
-                return false;
-            };
-            let Ok(()) = stmt.finalize() else {
-                return false;
-            };
+            sqlite.execute(create_table_sql)?;
+
+            let stmt = sqlite.prepare(insert_sql)?;
+            stmt.bind(1, &value)?;
+            stmt.step()?;
+            stmt.finalize()?;
 
             // retrieve value
             let retrieve_sql = "SELECT value FROM dummy WHERE id = 1;";
 
-            let Ok(stmt) = sqlite.prepare(retrieve_sql) else {
-                return false;
-            };
-            let Ok(()) = stmt.step() else {
-                return false;
-            };
-            let Ok(retrieved_value) = stmt.column(0) else {
-                return false;
-            };
-            let Ok(()) = stmt.finalize() else {
-                return false;
-            };
+            let stmt = sqlite.prepare(retrieve_sql)?;
+            stmt.step()?;
+            let retrieved_value = stmt.column(0)?;
+            stmt.finalize()?;
 
-            let Ok(()) = sqlite.close() else {
-                return false;
-            };
+            sqlite.close()?;
 
-            matches!((value, retrieved_value), (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b)
+            if matches!((value, retrieved_value), (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b) {
+              Ok(())
+            } else {
+              Err(Errno::Sqlite(1))
+            }
         },
     },
 ];
@@ -190,10 +139,8 @@ pub(crate) const BENCHES: &[TestItem] = &[
 mod helper {
     use crate::sqlite;
 
-    pub(super) fn bench_insert(memory: bool) -> bool {
-        let Ok(sqlite) = sqlite::api::open(false, memory) else {
-            return false;
-        };
+    pub(super) fn bench_insert(memory: bool) -> Result<(), sqlite::api::Errno> {
+        let sqlite = sqlite::api::open(false, memory)?;
 
         let create_table_sql = r"
           CREATE TABLE dummy(id INTEGER PRIMARY KEY, value TEXT);
@@ -202,25 +149,15 @@ mod helper {
 
         let value = sqlite::api::Value::Text(String::from("Hello, World!"));
 
-        let Ok(()) = sqlite.execute(create_table_sql) else {
-            return false;
-        };
+        sqlite.execute(create_table_sql)?;
 
         for _ in 0..100 {
-            let Ok(stmt) = sqlite.prepare(insert_sql) else {
-                return false;
-            };
-            let Ok(()) = stmt.bind(1, &value) else {
-                return false;
-            };
-            let Ok(()) = stmt.step() else {
-                return false;
-            };
-            let Ok(()) = stmt.finalize() else {
-                return false;
-            };
+            let stmt = sqlite.prepare(insert_sql)?;
+            stmt.bind(1, &value)?;
+            stmt.step()?;
+            stmt.finalize()?;
         }
 
-        sqlite.close().is_ok()
+        sqlite.close()
     }
 }

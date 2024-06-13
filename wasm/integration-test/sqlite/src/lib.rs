@@ -26,7 +26,7 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
             name: String::from(item.name),
             status: {
                 if run {
-                    (item.executor)()
+                    (item.executor)().is_ok()
                 } else {
                     true
                 }
@@ -39,7 +39,7 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
             name: String::from(item.name),
             status: {
                 if run {
-                    (item.executor)()
+                    (item.executor)().is_ok()
                 } else {
                     true
                 }
