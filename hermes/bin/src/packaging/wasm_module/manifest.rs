@@ -2,8 +2,6 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
-
 use crate::packaging::{
     resources::{fs_resource::FsResource, Resource},
     schema_validation::SchemaValidator,
@@ -20,16 +18,13 @@ pub(crate) struct ManifestFileError(PathBuf);
 pub(crate) struct ManifestReadingError(String);
 
 /// WASM module package manifest.json definition.
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Package name.
-    #[serde(default = "Manifest::default_package_name")]
     pub(crate) name: String,
     /// Path to the metadata JSON file.
-    #[serde(default = "Manifest::default_metadata_path")]
     pub(crate) metadata: Resource,
     /// Path to the  WASM component file.
-    #[serde(default = "Manifest::default_component_path")]
     pub(crate) component: Resource,
     /// WASM module config.
     pub(crate) config: Option<Config>,
@@ -40,7 +35,7 @@ pub(crate) struct Manifest {
 }
 
 /// WASM module config definition.
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Config {
     /// Path to the config JSON file.
     pub(crate) file: Option<Resource>,
@@ -49,7 +44,7 @@ pub(crate) struct Config {
 }
 
 /// WASM module settings definition.
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Settings {
     /// Path to the settings schema JSON file.
     pub(crate) schema: Resource,
@@ -80,15 +75,15 @@ impl Manifest {
         let path = path_to_manifest.as_ref();
         let file = std::fs::File::open(path).map_err(|_| ManifestFileError(path.into()))?;
 
+        let schema_validator = SchemaValidator::from_str(Self::MANIFEST_SCHEMA)?;
+        let mut manifest: Manifest = schema_validator
+            .deserialize_and_validate::<_, json_serde::ManifestSerdeDef>(file)
+            .map_err(|err| ManifestReadingError(err.to_string()))?
+            .into();
+
         let dir_path = path
             .parent()
             .ok_or_else(|| ManifestFileError(path.into()))?;
-
-        let schema_validator = SchemaValidator::from_str(Self::MANIFEST_SCHEMA)?;
-        let mut manifest: Manifest = schema_validator
-            .deserialize_and_validate(file)
-            .map_err(|err| ManifestReadingError(err.to_string()))?;
-
         manifest.metadata.make_relative_to(dir_path);
         manifest.component.make_relative_to(dir_path);
         if let Some(config) = &mut manifest.config {
@@ -105,6 +100,70 @@ impl Manifest {
         }
 
         Ok(manifest)
+    }
+}
+
+mod json_serde {
+    //! Serde definition of the manifest objects.
+
+    use serde::Deserialize;
+
+    use crate::packaging::resources::Resource;
+
+    /// Serde definition of the `Manifest` object.
+    #[derive(Deserialize)]
+    pub(crate) struct ManifestSerdeDef {
+        /// Package name.
+        #[serde(default = "super::Manifest::default_package_name")]
+        name: String,
+        /// Path to the metadata JSON file.
+        #[serde(default = "super::Manifest::default_metadata_path")]
+        metadata: Resource,
+        /// Path to the  WASM component file.
+        #[serde(default = "super::Manifest::default_component_path")]
+        component: Resource,
+        /// WASM module config.
+        config: Option<ConfigSerdeDef>,
+        /// WASM module settings.
+        settings: Option<SettingsSerdeDef>,
+        /// Path to the share directory.
+        share: Option<Resource>,
+    }
+
+    /// Serde definition of the `Config` object.
+    #[derive(Deserialize)]
+    pub(crate) struct ConfigSerdeDef {
+        /// Path to the config JSON file.
+        file: Option<Resource>,
+        /// Path to the config schema JSON file.
+        schema: Resource,
+    }
+
+    /// Serde definition of the `Settings` object.
+    #[derive(Deserialize)]
+    pub(crate) struct SettingsSerdeDef {
+        /// Path to the settings schema JSON file.
+        schema: Resource,
+    }
+
+    impl From<ManifestSerdeDef> for super::Manifest {
+        fn from(def: ManifestSerdeDef) -> Self {
+            Self {
+                name: def.name,
+                metadata: def.metadata,
+                component: def.component,
+                config: def.config.map(|def| {
+                    super::Config {
+                        file: def.file,
+                        schema: def.schema,
+                    }
+                }),
+                settings: def
+                    .settings
+                    .map(|def| super::Settings { schema: def.schema }),
+                share: def.share,
+            }
+        }
     }
 }
 

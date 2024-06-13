@@ -1,7 +1,5 @@
 //! Blake2b-256 hash implementation.
 
-use serde::{Deserialize, Serialize};
-
 /// Blake2b-256 hash instance.
 /// Wrapper over `blake2b_simd::Hash`
 #[derive(Clone, Debug, PartialEq, Eq)]
