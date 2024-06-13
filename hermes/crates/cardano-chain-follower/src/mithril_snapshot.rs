@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn test_check_map_conflicts() {
         let network1 = Network::Mainnet;
-        let network2 = Network::Testnet;
+        let network2 = Network::Preprod;
 
         let map: DashMap<Network, i32> = DashMap::new();
 

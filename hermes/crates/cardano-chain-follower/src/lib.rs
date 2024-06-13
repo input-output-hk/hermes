@@ -1,6 +1,7 @@
 //! Cardano chain follower.
 
 mod follow;
+mod mithril_config;
 mod mithril_snapshot;
 mod mithril_snapshot_downloader;
 
@@ -10,9 +11,7 @@ pub use follow::*;
 pub use pallas::network::miniprotocols::Point;
 use pallas::{
     ledger::traverse::{wellknown::GenesisValues, MultiEraBlock},
-    network::miniprotocols::{
-        chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC,
-    },
+    network::miniprotocols::{chainsync, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC},
 };
 use thiserror::Error;
 
@@ -154,8 +153,6 @@ pub enum Network {
     Preprod,
     /// Cardano preview network.
     Preview,
-    /// Cardano testnet network.
-    Testnet,
 }
 
 /// The human readable name of the Cardano mainnet network.
@@ -164,8 +161,6 @@ const MAINNET_NAME: &str = "mainnet";
 const PREPROD_NAME: &str = "preprod";
 /// The human readable name of the Cardano preview network.
 const PREVIEW_NAME: &str = "preview";
-/// The human readable name of a Cardano local testnet network.
-const TESTNET_NAME: &str = "testnet";
 
 impl FromStr for Network {
     type Err = Error;
@@ -175,7 +170,6 @@ impl FromStr for Network {
             MAINNET_NAME => Ok(Network::Mainnet),
             PREPROD_NAME => Ok(Network::Preprod),
             PREVIEW_NAME => Ok(Network::Preview),
-            TESTNET_NAME => Ok(Network::Testnet),
             _ => Err(Error::ParseNetwork),
         }
     }
@@ -187,7 +181,6 @@ impl std::fmt::Display for Network {
             Network::Mainnet => write!(f, "{MAINNET_NAME}"),
             Network::Preprod => write!(f, "{PREPROD_NAME}"),
             Network::Preview => write!(f, "{PREVIEW_NAME}"),
-            Network::Testnet => write!(f, "{TESTNET_NAME}"),
         }
     }
 }
@@ -198,7 +191,6 @@ impl From<Network> for u64 {
             Network::Mainnet => MAINNET_MAGIC,
             Network::Preprod => PRE_PRODUCTION_MAGIC,
             Network::Preview => PREVIEW_MAGIC,
-            Network::Testnet => TESTNET_MAGIC,
         }
     }
 }
@@ -210,7 +202,6 @@ pub fn network_genesis_values(network: &Network) -> Option<GenesisValues> {
         Network::Mainnet => GenesisValues::from_magic(MAINNET_MAGIC),
         Network::Preprod => GenesisValues::from_magic(PRE_PRODUCTION_MAGIC),
         Network::Preview => GenesisValues::from_magic(PREVIEW_MAGIC),
-        Network::Testnet => GenesisValues::from_magic(TESTNET_MAGIC),
     }
 }
 

@@ -1,9 +1,11 @@
 //! Cardano Blockchain runtime extension implementation.
 
+use cardano_chain_follower::PointOrTip;
 use dashmap::DashMap;
 
 use crate::{
-    app::HermesAppName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
+    app::HermesAppName,
+    runtime_extensions::bindings::hermes::cardano::api::{CardanoBlockchainId, SubscribeOptions},
     wasm::module::ModuleId,
 };
 
@@ -22,8 +24,6 @@ struct SubscriptionState {
     subscribed_to_blocks: bool,
     /// Whether the module is subscribed to receive transaction events.
     subscribed_to_txns: bool,
-    /// Whether the module is subscribed to receive rollback events.
-    subscribed_to_rollbacks: bool,
     /// Handle to the cardano chain follower from which the module is receiving
     /// events.
     follower_handle: Option<chain_follower_task::Handle>,
@@ -60,23 +60,11 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-/// Available subscription types.
-pub(super) enum SubscriptionType {
-    /// Subscribe to block events from a given point.
-    Blocks(cardano_chain_follower::PointOrTip),
-    /// Subscribe to rollback events.
-    Rollbacks,
-    /// Subscribe to transaction events.
-    Transactions,
-    /// Continue previously stopped subscription event generation.
-    Continue,
-}
-
 /// Subscribes a module or resumes the generation of subscribed events for a module.
 pub(super) fn subscribe(
     chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
-    sub_type: SubscriptionType,
-) -> Result<u64> {
+    whence: Option<PointOrTip>, what: SubscribeOptions,
+) -> Result<()> {
     let network = chain_id.into();
 
     let mut sub_state = STATE
@@ -84,64 +72,63 @@ pub(super) fn subscribe(
         .entry((app_name.clone(), module_id.clone(), network))
         .or_default();
 
-    match sub_type {
-        SubscriptionType::Blocks(follow_from) => {
-            if let Some(handle) = sub_state.follower_handle.as_ref() {
-                handle.set_read_pointer_sync(follow_from)?;
-            } else {
-                let (follower_handle, starting_point) = STATE.tokio_rt_handle.spawn_follower_sync(
-                    app_name,
-                    module_id,
-                    chain_id,
-                    follow_from,
-                )?;
-
-                sub_state.follower_handle = Some(follower_handle);
-                sub_state.current_slot = starting_point.slot_or_default();
-            }
-
-            sub_state.subscribed_to_blocks = true;
-        },
-        SubscriptionType::Rollbacks => {
-            sub_state.subscribed_to_rollbacks = true;
-        },
-        SubscriptionType::Transactions => {
-            sub_state.subscribed_to_txns = true;
-        },
-        SubscriptionType::Continue => {
-            if let Some(handle) = sub_state.follower_handle.as_ref() {
-                handle.resume()?;
-            }
-        },
+    // Set what we want to subscribe to.
+    if what.contains(SubscribeOptions::BLOCK) {
+        sub_state.subscribed_to_blocks = true;
     }
 
-    Ok(sub_state.current_slot)
+    if what.contains(SubscribeOptions::TRANSACTION) {
+        sub_state.subscribed_to_txns = true;
+    }
+
+    if let Some(follow_from) = whence {
+        if let Some(handle) = sub_state.follower_handle.as_ref() {
+            handle.set_read_pointer_sync(follow_from)?;
+        } else {
+            let (follower_handle, starting_point) = STATE.tokio_rt_handle.spawn_follower_sync(
+                app_name,
+                module_id,
+                chain_id,
+                follow_from,
+            )?;
+
+            sub_state.follower_handle = Some(follower_handle);
+            sub_state.current_slot = starting_point.slot_or_default();
+        }
+    } else if let Some(handle) = sub_state.follower_handle.as_ref() {
+        handle.resume()?;
+    }
+
+    Ok(())
 }
 
 /// Unsubscribes a module or stops the generation of subscribed events for a module.
 pub(super) fn unsubscribe(
     chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
-    opts: crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions,
+    opts: SubscribeOptions,
 ) -> Result<()> {
-    use crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions;
-
     let network = chain_id.into();
     let sub_state = STATE.subscriptions.get_mut(&(app_name, module_id, network));
 
     if let Some(mut sub_state) = sub_state {
-        if opts & UnsubscribeOptions::BLOCK == UnsubscribeOptions::BLOCK {
+        let mut block_stopped = false;
+        let mut txn_stopped = false;
+
+        if opts.contains(SubscribeOptions::BLOCK) && sub_state.subscribed_to_blocks {
             sub_state.subscribed_to_blocks = false;
+            block_stopped = true;
         }
 
-        if opts & UnsubscribeOptions::TRANSACTION == UnsubscribeOptions::TRANSACTION {
+        if opts.contains(SubscribeOptions::TRANSACTION) && sub_state.subscribed_to_txns {
             sub_state.subscribed_to_txns = false;
+            txn_stopped = true;
         }
 
-        if opts & UnsubscribeOptions::ROLLBACK == UnsubscribeOptions::ROLLBACK {
-            sub_state.subscribed_to_rollbacks = false;
-        }
-
-        if opts & UnsubscribeOptions::STOP == UnsubscribeOptions::STOP {
+        // If we changed the subscription state, and ended up subscribed to nothing, then just STOP.
+        if (block_stopped || txn_stopped)
+            && !sub_state.subscribed_to_blocks
+            && !sub_state.subscribed_to_txns
+        {
             if let Some(handle) = sub_state.follower_handle.as_ref() {
                 handle.stop()?;
             }
@@ -164,18 +151,19 @@ impl From<CardanoBlockchainId> for cardano_chain_follower::Network {
             CardanoBlockchainId::Mainnet => cardano_chain_follower::Network::Mainnet,
             CardanoBlockchainId::Preprod => cardano_chain_follower::Network::Preprod,
             CardanoBlockchainId::Preview => cardano_chain_follower::Network::Preview,
-            CardanoBlockchainId::LocalTestBlockchain => todo!(),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{read_block, subscribe, unsubscribe, SubscriptionType};
+    use cardano_chain_follower::PointOrTip;
+
+    use super::{read_block, subscribe, unsubscribe};
     use crate::{
         app::HermesAppName,
         runtime_extensions::bindings::hermes::cardano::api::{
-            CardanoBlockchainId, UnsubscribeOptions,
+            CardanoBlockchainId, SubscribeOptions,
         },
     };
 
@@ -189,7 +177,8 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Rollbacks,
+            Some(PointOrTip::Tip),
+            SubscribeOptions::BLOCK,
         )
         .expect("subscribed");
 
@@ -197,7 +186,8 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
+            Some(PointOrTip::Tip),
+            SubscribeOptions::TRANSACTION,
         )
         .expect("subscribed");
 
@@ -205,7 +195,17 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Transactions,
+            Some(PointOrTip::Tip),
+            SubscribeOptions::all(),
+        )
+        .expect("subscribed");
+
+        subscribe(
+            CardanoBlockchainId::Preprod,
+            app_name.clone(),
+            module_id.clone(),
+            Some(PointOrTip::Tip),
+            SubscribeOptions::empty(),
         )
         .expect("subscribed");
 
@@ -215,14 +215,12 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            SubscriptionType::Blocks(
-                cardano_chain_follower::Point::Specific(
-                    49_075_522,
-                    hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                        .expect("decode hex value"),
-                )
-                .into(),
-            ),
+            Some(PointOrTip::Point(cardano_chain_follower::Point::Specific(
+                49_075_522,
+                hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
+                    .expect("decode hex value"),
+            ))),
+            SubscribeOptions::empty(),
         )
         .expect("subscribed");
 
@@ -232,7 +230,7 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            UnsubscribeOptions::BLOCK,
+            SubscribeOptions::BLOCK,
         )
         .expect("subscribed");
 
@@ -242,17 +240,18 @@ mod test {
             CardanoBlockchainId::Preprod,
             app_name.clone(),
             module_id.clone(),
-            UnsubscribeOptions::STOP,
+            SubscribeOptions::all(),
         )
-        .expect("subscribed");
+        .expect("unsubscribed");
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
         subscribe(
             CardanoBlockchainId::Preprod,
-            app_name,
-            module_id,
-            SubscriptionType::Continue,
+            app_name.clone(),
+            module_id.clone(),
+            None,
+            SubscribeOptions::empty(),
         )
         .expect("subscribed");
 

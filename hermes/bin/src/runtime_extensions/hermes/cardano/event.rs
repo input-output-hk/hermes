@@ -68,25 +68,3 @@ impl HermesEventPayload for OnCardanoTxnEvent {
         Ok(())
     }
 }
-
-/// On Cardano rollback event
-pub(super) struct OnCardanoRollback {
-    /// The blockchain id the block originated from.
-    pub(super) blockchain: CardanoBlockchainId,
-    /// The slot the transaction is in.
-    pub(super) details: BlockDetail,
-}
-
-impl HermesEventPayload for OnCardanoRollback {
-    fn event_name(&self) -> &str {
-        "on-cardano-rollback"
-    }
-
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-        module
-            .instance
-            .hermes_cardano_event_on_rollback()
-            .call_on_cardano_rollback(&mut module.store, self.blockchain, &self.details)?;
-        Ok(())
-    }
-}

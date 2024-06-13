@@ -1,12 +1,26 @@
 //!  Cardano Blockchain host implementation for WASM runtime.
 
+use cardano_chain_follower::PointOrTip;
+
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::cardano::api::{
-        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
-        UnsubscribeOptions,
+        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, SubscribeOptions,
+        TxnError,
     },
 };
+
+/// Convert a `whence` parameter into a `Point`.
+fn whence_to_point(whence: Slot) -> Option<PointOrTip> {
+    match whence {
+        Slot::Genesis => Some(cardano_chain_follower::Point::Origin.into()),
+        Slot::Point((slot, hash)) => {
+            Some(cardano_chain_follower::Point::Specific(slot, hash).into())
+        },
+        Slot::Tip => Some(cardano_chain_follower::PointOrTip::Tip),
+        Slot::Continue => None,
+    }
+}
 
 impl Host for HermesRuntimeContext {
     /// Subscribe to the Blockchain block data.
@@ -36,31 +50,22 @@ impl Host for HermesRuntimeContext {
     ///
     /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
     /// unsubscribed.
-    fn subscribe_blocks(
-        &mut self, net: CardanoBlockchainId, whence: Slot,
-    ) -> wasmtime::Result<Result<u64, FetchError>> {
-        let sub_type = match whence {
-            Slot::Genesis => {
-                super::SubscriptionType::Blocks(cardano_chain_follower::Point::Origin.into())
-            },
-            Slot::Point((slot, hash)) => {
-                super::SubscriptionType::Blocks(
-                    cardano_chain_follower::Point::Specific(slot, hash).into(),
-                )
-            },
-            Slot::Tip => super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
-            Slot::Continue => super::SubscriptionType::Continue,
-        };
+    fn subscribe(
+        &mut self, net: CardanoBlockchainId, whence: Slot, what: SubscribeOptions,
+    ) -> wasmtime::Result<Result<(), FetchError>> {
+        // Convert whence to an actual Point or None if we don't have one at all.
+        let whence = whence_to_point(whence);
 
         let res = super::subscribe(
             net,
             self.app_name().clone(),
             self.module_id().clone(),
-            sub_type,
+            whence,
+            what,
         );
 
         match res {
-            Ok(slot) => Ok(Ok(slot)),
+            Ok(()) => Ok(Ok(())),
             Err(_) => Ok(Err(FetchError::InvalidSlot)),
         }
     }
@@ -86,51 +91,10 @@ impl Host for HermesRuntimeContext {
     /// event twice,
     /// once before the `stop` and once after the `continue`.
     fn unsubscribe(
-        &mut self, net: CardanoBlockchainId, opts: UnsubscribeOptions,
+        &mut self, net: CardanoBlockchainId, opts: SubscribeOptions,
     ) -> wasmtime::Result<()> {
         super::unsubscribe(net, self.app_name().clone(), self.module_id().clone(), opts)
         // .map_err(|e| wasmtime::Error::new(e))
-    }
-
-    /// Subscribe to transaction data events, does not alter the blockchain sync in
-    /// anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    fn subscribe_txn(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        super::subscribe(
-            net,
-            self.app_name().clone(),
-            self.module_id().clone(),
-            super::SubscriptionType::Transactions,
-        )?;
-
-        Ok(())
-    }
-
-    /// Subscribe to blockchain rollback events, does not alter the blockchain sync in
-    /// anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    ///
-    /// **Notes**
-    ///
-    /// After a rollback event, the blockchain sync will AUTOMATICALLY start sending block
-    /// data from the rollback point.  No action is required to actually follow the
-    /// rollback, unless the
-    /// default behavior is not desired.
-    fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        super::subscribe(
-            net,
-            self.app_name().clone(),
-            self.module_id().clone(),
-            super::SubscriptionType::Rollbacks,
-        )?;
-
-        Ok(())
     }
 
     /// Fetch a block from the requested blockchain at the requested slot.
@@ -156,11 +120,9 @@ impl Host for HermesRuntimeContext {
     fn fetch_block(
         &mut self, net: CardanoBlockchainId, whence: Slot,
     ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
-        let at = match whence {
-            Slot::Genesis => cardano_chain_follower::Point::Origin.into(),
-            Slot::Point((slot, hash)) => cardano_chain_follower::Point::Specific(slot, hash).into(),
-            Slot::Tip => cardano_chain_follower::PointOrTip::Tip,
-            Slot::Continue => todo!(),
+        // Convert whence to an actual Point or None if we don't have one at all.
+        let Some(at) = whence_to_point(whence) else {
+            return Ok(Err(FetchError::InvalidSlot));
         };
 
         match super::read_block(net, at) {
@@ -190,6 +152,36 @@ impl Host for HermesRuntimeContext {
         let block_data = pallas::ledger::traverse::MultiEraBlock::decode(&block)?;
 
         Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect())
+    }
+
+    /// Subscribe to transaction data events, does not alter the blockchain sync in
+    /// anyway.
+    ///
+    /// **Parameters**
+    ///
+    /// - `net` : The blockchain network to subscribe to txn events from.
+    fn fetch_txn(
+        &mut self, net: CardanoBlockchainId, whence: Slot, offset: u16,
+    ) -> wasmtime::Result<Result<CardanoTxn, FetchError>> {
+        // Convert whence to an actual Point or None if we don't have one at all.
+        let Some(at) = whence_to_point(whence) else {
+            return Ok(Err(FetchError::InvalidSlot));
+        };
+
+        match super::read_block(net, at) {
+            Ok(block_data) => {
+                let Ok(decoded_block) = block_data.decode() else {
+                    // Shouldn't happen, but if it does say the Slot is invalid.
+                    return Ok(Err(FetchError::InvalidSlot));
+                };
+                let txs = decoded_block.txs();
+                let Some(txn) = txs.get(offset as usize) else {
+                    return Ok(Err(FetchError::InvalidTxn));
+                };
+                Ok(Ok(txn.encode()))
+            },
+            Err(_) => Ok(Err(FetchError::InvalidSlot)),
+        }
     }
 
     /// Post a transactions to the blockchain.

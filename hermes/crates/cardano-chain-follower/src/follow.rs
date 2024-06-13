@@ -1,12 +1,14 @@
 //! Cardano chain follow module.
 
-use std::{fmt::Display, future::Future, path::PathBuf};
+use std::{fmt::Display, future::Future, path::PathBuf, time::Duration};
 
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
+    time::timeout,
 };
+use tracing::debug;
 
 use crate::{
     mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, Network, PointOrTip, Result,
@@ -14,9 +16,6 @@ use crate::{
 
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
-
-/// Default relay for a local test relay node.
-const DEFAULT_TESTNET_RELAY: &str = "localhost:3001";
 
 // Mainnet Defaults.
 /// Default Relay to use
@@ -50,8 +49,12 @@ const DEFAULT_PREVIEW_MITHRIL_AGGREGATOR: &str =
 pub enum ChainUpdate {
     /// Immutable Block from the immutable part of the blockchain.
     ImmutableBlock(MultiEraBlockData),
+    /// Immutable Block from the immutable part of the blockchain (Rollback).
+    ImmutableBlockRollback(MultiEraBlockData),
     /// New block inserted on chain.
     Block(MultiEraBlockData),
+    /// New block inserted on chain.
+    BlockTip(MultiEraBlockData),
     /// Chain rollback to the given block.
     Rollback(MultiEraBlockData),
 }
@@ -60,7 +63,9 @@ impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let block_type = match self {
             Self::ImmutableBlock(_) => "Immutable",
+            Self::ImmutableBlockRollback(_) => "Immutable Rollback",
             Self::Block(_) => "Live",
+            Self::BlockTip(_) => "Tip",
             Self::Rollback(_) => "Rollback",
         };
 
@@ -102,7 +107,9 @@ impl ChainUpdate {
     pub fn block_data(&self) -> &MultiEraBlockData {
         match self {
             ChainUpdate::ImmutableBlock(block_data)
+            | ChainUpdate::ImmutableBlockRollback(block_data)
             | ChainUpdate::Block(block_data)
+            | ChainUpdate::BlockTip(block_data)
             | ChainUpdate::Rollback(block_data) => block_data,
         }
     }
@@ -142,60 +149,36 @@ impl FollowerConfigBuilder {
     #[must_use]
     pub fn default_for(chain: Network) -> Self {
         match chain {
-            Network::Mainnet => {
-                Self(FollowerConfig {
-                    chain,
-                    relay_address: DEFAULT_MAINNET_RELAY.to_string(),
-                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                    follow_from: PointOrTip::Tip,
-                    mithril_snapshot_path: None,
-                    mithril_aggregator_address: Some(
-                        DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string(),
-                    ),
-                    mithril_genesis_key: Some(DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string()),
-                    mithril_update: false,
-                })
-            },
-            Network::Preview => {
-                Self(FollowerConfig {
-                    chain,
-                    relay_address: DEFAULT_PREVIEW_RELAY.to_string(),
-                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                    follow_from: PointOrTip::Tip,
-                    mithril_snapshot_path: None,
-                    mithril_aggregator_address: Some(
-                        DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string(),
-                    ),
-                    mithril_genesis_key: Some(DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string()),
-                    mithril_update: false,
-                })
-            },
-            Network::Preprod => {
-                Self(FollowerConfig {
-                    chain,
-                    relay_address: DEFAULT_PREPROD_RELAY.to_string(),
-                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                    follow_from: PointOrTip::Tip,
-                    mithril_snapshot_path: None,
-                    mithril_aggregator_address: Some(
-                        DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string(),
-                    ),
-                    mithril_genesis_key: Some(DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string()),
-                    mithril_update: false,
-                })
-            },
-            Network::Testnet => {
-                Self(FollowerConfig {
-                    chain,
-                    relay_address: DEFAULT_TESTNET_RELAY.to_string(),
-                    chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-                    follow_from: PointOrTip::Tip,
-                    mithril_snapshot_path: None,
-                    mithril_aggregator_address: None,
-                    mithril_genesis_key: None,
-                    mithril_update: false,
-                })
-            },
+            Network::Mainnet => Self(FollowerConfig {
+                chain,
+                relay_address: DEFAULT_MAINNET_RELAY.to_string(),
+                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                follow_from: PointOrTip::Tip,
+                mithril_snapshot_path: None,
+                mithril_aggregator_address: Some(DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string()),
+                mithril_genesis_key: Some(DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string()),
+                mithril_update: false,
+            }),
+            Network::Preview => Self(FollowerConfig {
+                chain,
+                relay_address: DEFAULT_PREVIEW_RELAY.to_string(),
+                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                follow_from: PointOrTip::Tip,
+                mithril_snapshot_path: None,
+                mithril_aggregator_address: Some(DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string()),
+                mithril_genesis_key: Some(DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string()),
+                mithril_update: false,
+            }),
+            Network::Preprod => Self(FollowerConfig {
+                chain,
+                relay_address: DEFAULT_PREPROD_RELAY.to_string(),
+                chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
+                follow_from: PointOrTip::Tip,
+                mithril_snapshot_path: None,
+                mithril_aggregator_address: Some(DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string()),
+                mithril_genesis_key: Some(DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string()),
+                mithril_update: false,
+            }),
         }
     }
 
@@ -217,7 +200,9 @@ impl FollowerConfigBuilder {
     /// * `from`: Sync starting point.
     #[must_use]
     pub fn follow_from<P>(mut self, from: P) -> Self
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         self.0.follow_from = from.into();
         self
     }
@@ -242,6 +227,40 @@ impl FollowerConfigBuilder {
     }
 }
 
+/// Try and connect, but if it takes longer then 5 seconds, retry the connection.
+/// Retry 5 times before giving up.
+async fn retry_connect(
+    addr: &str, magic: u64,
+) -> std::result::Result<pallas::network::facades::PeerClient, pallas::network::facades::Error> {
+    let mut retries = 5;
+    loop {
+        match timeout(Duration::from_secs(2), PeerClient::connect(addr, magic)).await {
+            Ok(peer) => match peer {
+                Ok(peer) => return Ok(peer),
+                Err(err) => {
+                    retries -= 1;
+                    if retries == 0 {
+                        return Err(err);
+                    }
+                    debug!("retrying {retries} connect to {addr} : {err:?}");
+                },
+            },
+            Err(error) => {
+                retries -= 1;
+                if retries == 0 {
+                    return Err(pallas::network::facades::Error::ConnectFailure(
+                        tokio::io::Error::new(
+                            tokio::io::ErrorKind::Other,
+                            format!("failed to connect to {addr} : {error}"),
+                        ),
+                    ));
+                }
+                debug!("retrying {retries} connect to {addr} : {error:?}");
+            },
+        }
+    }
+}
+
 impl FollowerConfig {
     /// Connects the follower to a node, and/or to a mithril snapshot.
     /// Nodes connect using the node-to-node protocol.
@@ -254,9 +273,17 @@ impl FollowerConfig {
     ///
     /// Returns Err if the connection could not be established.
     pub async fn connect(self) -> Result<Follower> {
-        let mut client = PeerClient::connect(self.relay_address.clone(), self.chain.into())
+        debug!("Follower Connecting.");
+
+        // Sometimes this takes a really long time.
+        // Other times it's neigh on instantaneous.
+        // Time out if its too long, and try again.
+        // Wrap the future with a `Timeout` set to expire in 5 seconds (and try 5 times).
+        let mut client = retry_connect(&self.relay_address, self.chain.into())
             .await
             .map_err(Error::Client)?;
+
+        debug!("Follower client created");
 
         let Some(follow_from) =
             set_client_read_pointer(&mut client, self.follow_from.clone()).await?
@@ -264,10 +291,16 @@ impl FollowerConfig {
             return Err(Error::SetReadPointer);
         };
 
+        debug!("Client Read Pointer set OK : {follow_from:?}");
+
         MithrilSnapshot::init(self.clone()).await?;
+
+        debug!("Mithril Snapshot initialized.");
 
         let (task_request_tx, chain_update_rx, task_join_handle) =
             task::FollowTask::spawn(client, self.clone(), follow_from);
+
+        debug!("Follower Task started.");
 
         Ok(Follower {
             connection_cfg: self.clone(),
@@ -293,11 +326,9 @@ impl Future for ReadBlock {
         tokio::pin!(p);
 
         match p.poll(cx) {
-            std::task::Poll::Ready(res) => {
-                match res {
-                    Ok(res) => std::task::Poll::Ready(res),
-                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
-                }
+            std::task::Poll::Ready(res) => match res {
+                Ok(res) => std::task::Poll::Ready(res),
+                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -319,11 +350,9 @@ impl Future for ReadBlockRange {
         tokio::pin!(p);
 
         match p.poll(cx) {
-            std::task::Poll::Ready(res) => {
-                match res {
-                    Ok(res) => std::task::Poll::Ready(res),
-                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
-                }
+            std::task::Poll::Ready(res) => match res {
+                Ok(res) => std::task::Poll::Ready(res),
+                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -357,7 +386,9 @@ impl Follower {
     ///
     /// Returns Err if something went wrong while communicating with the producer.
     pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let (response_tx, response_rx) = oneshot::channel();
 
         let req = task::SetReadPointerRequest {
@@ -380,7 +411,9 @@ impl Follower {
     /// * `at`: Point at which to read the block.
     #[must_use]
     pub fn read_block<P>(&self, at: P) -> ReadBlock
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let at = at.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -424,7 +457,9 @@ impl Follower {
     /// * `to`: Block range end.
     #[must_use]
     pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
-    where P: Into<PointOrTip> {
+    where
+        P: Into<PointOrTip>,
+    {
         let to = to.into();
 
         let relay_address = self.connection_cfg.relay_address.clone();
@@ -509,6 +544,7 @@ mod task {
         },
     };
     use tokio::sync::{mpsc, oneshot};
+    use tracing::debug;
 
     use super::{set_client_read_pointer, ChainUpdate};
     use crate::{
@@ -730,7 +766,13 @@ mod task {
             tracing::trace!("Received block data from client");
 
             match res {
-                chainsync::NextResponse::RollForward(header, _tip) => {
+                chainsync::NextResponse::RollForward(header, tip) => {
+                    // Note: Tip is poorly documented.
+                    // It is a tuple with the following structure:
+                    // ((Slot#, BlockHash), Block# ).
+                    // We can find if we are AT tip by comparing the current block Point with the tip Point.
+                    // We can estimate how far behind we are (in blocks) by subtracting current block
+                    // height and the tip block height.
                     let decoded_header = MultiEraHeader::decode(
                         header.variant,
                         header.byron_prefix.map(|p| p.0),
@@ -740,6 +782,11 @@ mod task {
 
                     let point =
                         Point::Specific(decoded_header.slot(), decoded_header.hash().to_vec());
+
+                    // See if this block is the current nodes TIP.
+                    let at_tip = point == tip.0;
+                    debug!("At Tip? {point:?} == {tip:?}");
+
                     tracing::trace!(point = ?point, "Fetching roll forward block data");
                     let block_data = client
                         .blockfetch()
@@ -747,7 +794,14 @@ mod task {
                         .await
                         .map_err(Error::Blockfetch)?;
 
-                    Ok(Some(ChainUpdate::Block(MultiEraBlockData(block_data))))
+                    let update = if at_tip {
+                        // Then we are at the tip of the blockchain.
+                        ChainUpdate::BlockTip(MultiEraBlockData(block_data))
+                    } else {
+                        ChainUpdate::Block(MultiEraBlockData(block_data))
+                    };
+
+                    Ok(Some(update))
                 },
                 chainsync::NextResponse::RollBackward(point, _tip) => {
                     tracing::trace!(point = ?point, "Fetching roll backward block data");
@@ -794,30 +848,24 @@ mod task {
 /// Sets the N2N remote client's read pointer.
 async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Result<Option<Point>> {
     match at {
-        PointOrTip::Point(Point::Origin) => {
-            client
-                .chainsync()
-                .intersect_origin()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Point(p @ Point::Specific(..)) => {
-            client
-                .chainsync()
-                .find_intersect(vec![p])
-                .await
-                .map(|(point, _)| point)
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Tip => {
-            client
-                .chainsync()
-                .intersect_tip()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync)
-        },
+        PointOrTip::Point(Point::Origin) => client
+            .chainsync()
+            .intersect_origin()
+            .await
+            .map(Some)
+            .map_err(Error::Chainsync),
+        PointOrTip::Point(p @ Point::Specific(..)) => client
+            .chainsync()
+            .find_intersect(vec![p])
+            .await
+            .map(|(point, _)| point)
+            .map_err(Error::Chainsync),
+        PointOrTip::Tip => client
+            .chainsync()
+            .intersect_tip()
+            .await
+            .map(Some)
+            .map_err(Error::Chainsync),
     }
 }
 
@@ -881,7 +929,7 @@ mod tests {
     use tracing::debug;
 
     use crate::{
-        ChainUpdate::{Block, ImmutableBlock, Rollback},
+        ChainUpdate::{Block, BlockTip, ImmutableBlock, ImmutableBlockRollback, Rollback},
         FollowerConfigBuilder, Network, Point, PointOrTip,
     };
 
@@ -909,6 +957,7 @@ mod tests {
         let mut consecutive_errors = 0;
         let mut immutable_blocks = 0;
         let mut live_blocks = 0;
+        let mut live_block_tips = 0;
         let mut rollbacks = 0;
 
         while consecutive_errors < 100 {
@@ -920,32 +969,42 @@ mod tests {
                     consecutive_errors += 1;
                 },
                 Ok(data) => {
-                    let mut show = false;
+                    let data_msg = format!("{data}");
 
                     match &data {
                         ImmutableBlock(_) => {
                             if immutable_blocks % 10_000 == 0 {
-                                debug!("Immutable Block {immutable_blocks}");
-                                show = true;
+                                debug!("Immutable Block {immutable_blocks} : {data_msg}");
                             }
+                            immutable_blocks += 1;
+                        },
+                        ImmutableBlockRollback(_) => {
+                            debug!("Immutable Block Rollback {immutable_blocks} : {data_msg}");
                             immutable_blocks += 1;
                         },
                         Block(_) => {
                             if live_blocks == 0 {
-                                debug!("Immutable Block {immutable_blocks}");
+                                debug!("Total Immutable Blocks = {immutable_blocks}");
                             }
                             live_blocks += 1;
-                            debug!("Live Block {live_blocks}");
-                            show = true;
+                            debug!("Live Block {live_blocks}/T#{live_block_tips}/R#{rollbacks} : {data_msg}");
+                        },
+                        BlockTip(_) => {
+                            if live_blocks == 0 {
+                                debug!("Total Immutable Blocks = {immutable_blocks}");
+                            }
+                            live_blocks += 1;
+                            live_block_tips += 1;
+                            debug!("Live Block Tip {live_blocks}/T#{live_block_tips}/R#{rollbacks} : {data_msg}");
                         },
                         Rollback(_) => {
+                            if live_blocks == 0 {
+                                debug!("Total Immutable Blocks = {immutable_blocks}");
+                            }
+                            live_blocks += 1;
                             rollbacks += 1;
-                            debug!("Rollback {rollbacks}");
-                            show = true;
+                            debug!("Live Block Rollback {live_blocks}/{live_block_tips}/{rollbacks} : {data_msg}");
                         },
-                    }
-                    if show {
-                        debug!("{data}");
                     }
                 },
             }

@@ -6,5 +6,4 @@ world all {
 
     export event-on-block;
     export event-on-txn;
-    export event-on-rollback;
 }

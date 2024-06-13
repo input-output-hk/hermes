@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["bin", "crates/cardano-chain-follower", "crates/turbo-downloader"]
+members = [
+    "bin",
+    "crates/cardano-chain-follower",
+    #"crates/turbo-downloader"
+]
 
 [workspace.package]
 edition = "2021"
@@ -51,7 +55,7 @@ pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev =
 pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
-turbo-downloader = { path = "crates/turbo-downloader", version = "0.1.0" }
+#turbo-downloader = { path = "crates/turbo-downloader", version = "0.1.0" }
 
 wasmtime = "20.0.2"
 rusty_ulid = "2.0.0"
@@ -62,7 +66,9 @@ thiserror = "1.0.56"
 hex = "0.4.3"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-test-log = { version = "0.2.16", default-features = false, features = ["trace"] }
+test-log = { version = "0.2.16", default-features = false, features = [
+    "trace",
+] }
 criterion = "0.5.1"
 libtest-mimic = "0.7.0"
 crossbeam-queue = "0.3.11"
@@ -126,6 +132,8 @@ mithril-client = { git = "https://github.com/input-output-hk/mithril.git", rev =
 #    "num-integer-backend",
 #] }
 
+bytes = "1.6.0"
+
 tar = "0.4.41"
 flate2 = "1.0.30"
 bzip2 = "^0.4.3"
@@ -133,3 +141,6 @@ lz4_flex = "0.11.3"
 xz2 = "^0.1.7"
 zstd = "0.13.1"
 async-trait = "0.1.80"
+dirs = "5.0.1"
+futures = "0.3.30"
+bytesize = "1.3.0"

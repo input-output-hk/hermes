@@ -2,21 +2,12 @@
 //!
 //! This task is responsible for downloading Mithril snapshot files. It downloads the
 //! latest snapshot file and then sleeps until the next snapshot is available.
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::PathBuf;
 
-use anyhow::{anyhow, Context};
-use async_trait::async_trait;
 use chrono::{TimeDelta, Utc};
-use mithril_client::{
-    common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, Client, MessageBuilder,
-    MithrilCertificate, MithrilResult, Snapshot, SnapshotListItem,
-};
+use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error};
-use turbo_downloader::TurboDownloaderOptions;
 
 use crate::{mithril_snapshot::update_tip, Network};
 
@@ -64,6 +55,7 @@ async fn get_latest_snapshots(
 /// Create a client, should never fail, but return None if it does, because we can't
 /// continue.
 fn create_client(network: Network, aggregator_url: &str, genesis_vkey: &str) -> Option<Client> {
+    /* Temporarily disable
     let downloader = match TurboSnapshotDownloader::new() {
         Ok(downloader) => Arc::new(downloader),
         Err(err) => {
@@ -71,11 +63,12 @@ fn create_client(network: Network, aggregator_url: &str, genesis_vkey: &str) -> 
             return None;
         },
     };
+    */
 
     // This can't fail, because we already tested it works. But just in case...
     let client = match mithril_client::ClientBuilder::aggregator(aggregator_url, genesis_vkey)
         //.add_feedback_receiver(receiver)
-        .with_snapshot_downloader(downloader)
+        //.with_snapshot_downloader(downloader)
         .build()
     {
         Ok(c) => c,
@@ -225,12 +218,17 @@ pub(crate) async fn background_mithril_update(
     // Just wait if we fail, and try again later.
     let client = connect_client(network, &aggregator_url, &genesis_vkey).await;
 
+    debug!("Mithril Snapshot background updater for: {network} : Client connected.");
+
     loop {
+        debug!("Mithril Snapshot background updater for: {network} : Sleeping for {next_sleep:?}.");
         // Wait until its likely we have a new snapshot ready to download.
         sleep(next_sleep).await;
 
         // Default sleep if we end up back at the top of this loop because of an error.
         next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
+
+        debug!("Mithril Snapshot background updater for: {network} : Getting Latest Snapshot.");
 
         // This should only fail if the Aggregator is offline.
         // Because we check we can talk to the aggregator before we create the downloader task.
@@ -240,6 +238,10 @@ pub(crate) async fn background_mithril_update(
             // If we couldn't get the latest snapshot then we don't need to do anything else.
             continue;
         };
+
+        debug!(
+            "Mithril Snapshot background updater for: {network} : Checking if we are up-to-date."
+        );
 
         // Check if the latest snapshot is different from our actual previous one.
         if let Some(ref previous_snapshot) = previous_snapshot_data {
@@ -251,6 +253,8 @@ pub(crate) async fn background_mithril_update(
             }
         }
 
+        debug!("Mithril Snapshot background updater for: {network} : Download snapshot fro aggregator.");
+
         // Download the snapshot from the aggregator.
         let Some(snapshot) = get_snapshot(&client, &latest_snapshot, network).await else {
             // If we couldn't get the snapshot then we don't need to do anything else, transient
@@ -258,12 +262,16 @@ pub(crate) async fn background_mithril_update(
             continue;
         };
 
+        debug!("Mithril Snapshot background updater for: {network} : Download/Verify certificate.");
+
         // Download and Verify the certificate.
         let Some(certificate) =
             download_and_verify_snapshot_certificate(&client, &snapshot, network).await
         else {
             continue;
         };
+
+        debug!("Mithril Snapshot background updater for: {network} : Download and unpack the Mithril snapshot.");
 
         // Download and unpack the actual snapshot archive.
         if let Err(error) = client
@@ -276,11 +284,15 @@ pub(crate) async fn background_mithril_update(
             continue;
         }
 
+        debug!("Mithril Snapshot background updater for: {network} : Add statistics for download.");
+
         if let Err(error) = client.snapshot().add_statistics(&snapshot).await {
             // Just log not fatal to anything.
             error!("Could not increment snapshot download statistics for {network}: {error}");
             // We can processing the download even after this fails.
         }
+
+        debug!("Mithril Snapshot background updater for: {network} : Check Certificate.");
 
         match MessageBuilder::new()
             .compute_snapshot_message(&certificate, &mithril_path)
@@ -302,6 +314,8 @@ pub(crate) async fn background_mithril_update(
             },
         }
 
+        debug!("Mithril Snapshot background updater for: {network} : Updating TIP.");
+
         // Download was A-OK - Update the new immutable tip.
         if let Err(error) = update_tip(network) {
             // If we couldn't update the tip then assume its a transient error.
@@ -309,10 +323,14 @@ pub(crate) async fn background_mithril_update(
             continue;
         }
 
+        debug!("Mithril Snapshot background updater for: {network} : Updating TIP.");
+
         // Update the previous snapshot to the latest.
         previous_snapshot_data = Some(latest_snapshot.clone());
     }
 }
+
+/* Temporarily disable this code.
 
 /// A snapshot downloader that only handles download through HTTP.
 pub struct TurboSnapshotDownloader {
@@ -392,3 +410,5 @@ impl SnapshotDownloader for TurboSnapshotDownloader {
         }
     }
 }
+
+*/

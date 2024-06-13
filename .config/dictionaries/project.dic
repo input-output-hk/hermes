@@ -15,6 +15,7 @@ blockfetch
 blosc
 bmac
 BROTLI
+bytesize
 cantopen
 cardano
 cbor
@@ -73,6 +74,7 @@ getres
 gmtime
 happ
 hardano
+hardlink
 hasher
 hexdigit
 highwater
@@ -162,6 +164,7 @@ slotno
 smac
 stevenj
 stringzilla
+subdir
 subsec
 symlinkat
 syscall

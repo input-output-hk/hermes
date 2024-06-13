@@ -17,10 +17,10 @@ license-check:
 
 # Run long running developer test for mithril downloading.
 test-mithril-download-preprod:
-    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug" \
+    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug,mithril-client=debug,pallas_hardano=error,h2=error,hickory_resolver=error,hickory_proto=error,rustls=error" \
     cargo test follow::tests::test_follow_preprod -- --show-output --ignored --nocapture
 
 # Run long running developer test for mithril downloading.
 test-mithril-download-mainnet:
-    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug" \
+    RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug,mithril-client=debug" \
     cargo test follow::tests::test_follow_mainnet -- --show-output --ignored --nocapture    

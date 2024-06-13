@@ -13,8 +13,7 @@ workspace = true
 [dependencies]
 mithril-client.workspace = true
 
-# This is the only place we use this, so not a workspace dependency.
-turbo-downloader.workspace = true
+#turbo-downloader.workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
 thiserror.workspace = true
@@ -27,6 +26,10 @@ anyhow.workspace = true
 chrono.workspace = true
 reqwest.workspace = true
 async-trait.workspace = true
+dirs.workspace = true
+regex.workspace = true
+futures.workspace = true
+bytesize.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
@@ -42,36 +45,36 @@ default = ["rustls-tls-native-roots"]
 native-tls = [
     "reqwest/native-tls",
     "mithril-client/native-tls",
-    "turbo-downloader/native-tls",
+    #"turbo-downloader/native-tls",
 ]
 native-tls-alpn = [
     "reqwest/native-tls-alpn",
     "mithril-client/native-tls-alpn",
-    "turbo-downloader/native-tls-alpn",
+    #"turbo-downloader/native-tls-alpn",
 ]
 native-tls-vendored = [
     "reqwest/native-tls-vendored",
     "mithril-client/native-tls-vendored",
-    "turbo-downloader/native-tls-vendored",
+    #"turbo-downloader/native-tls-vendored",
 ]
 
 rustls-tls = [
     "reqwest/rustls-tls",
     "mithril-client/rustls-tls",
-    "turbo-downloader/rustls-tls",
+    #"turbo-downloader/rustls-tls",
 ]
 rustls-tls-manual-roots = [
     "reqwest/rustls-tls-manual-roots",
     "mithril-client/rustls-tls-manual-roots",
-    "turbo-downloader/rustls-tls-manual-roots",
+    #"turbo-downloader/rustls-tls-manual-roots",
 ]
 rustls-tls-webpki-roots = [
     "reqwest/rustls-tls-webpki-roots",
     "mithril-client/rustls-tls-webpki-roots",
-    "turbo-downloader/rustls-tls-webpki-roots",
+    #"turbo-downloader/rustls-tls-webpki-roots",
 ]
 rustls-tls-native-roots = [
     "reqwest/rustls-tls-native-roots",
     "mithril-client/rustls-tls-native-roots",
-    "turbo-downloader/rustls-tls-native-roots",
+    #"turbo-downloader/rustls-tls-native-roots",
 ]

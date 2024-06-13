@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             chain_update = follower.next() => {
                 match chain_update? {
-                    ChainUpdate::ImmutableBlock(data) => {
+                    ChainUpdate::ImmutableBlock(data) | ChainUpdate::ImmutableBlockRollback(data) => {
                         let block = data.decode()?;
 
                         info!(
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             hex::encode(block.hash()),
                         );
                     },
-                    ChainUpdate::Block(data) => {
+                    ChainUpdate::Block(data) | ChainUpdate::BlockTip(data) => {
                         let block = data.decode()?;
 
                         info!(
