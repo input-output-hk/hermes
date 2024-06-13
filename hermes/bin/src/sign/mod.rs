@@ -4,4 +4,6 @@
 #[allow(dead_code)]
 pub(crate) mod certificate;
 #[allow(dead_code)]
+pub(crate) mod hash;
+#[allow(dead_code)]
 pub(crate) mod keys;

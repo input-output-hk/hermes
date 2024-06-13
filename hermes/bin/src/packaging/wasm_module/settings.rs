@@ -2,7 +2,7 @@
 
 use std::io::Read;
 
-use crate::packaging::schema_validation::SchemaValidator;
+use crate::{packaging::schema_validation::SchemaValidator, sign::hash::Hash};
 
 /// Settings schema object.
 #[derive(Debug)]
@@ -26,6 +26,12 @@ impl SettingsSchema {
         let json: serde_json::Map<_, _> = serde_json::from_reader(reader)?;
         let validator = SchemaValidator::from_json(&serde_json::Value::Object(json.clone()))?;
         Ok(Self { json, validator })
+    }
+
+    /// Calculates a `Hash` value of the `SettingsSchema` object.
+    pub(crate) fn hash(&self) -> anyhow::Result<Hash> {
+        let bytes = self.to_bytes()?;
+        Ok(Hash::calc_hash(&bytes))
     }
 
     /// Convert `SettingsSchema` object to json bytes

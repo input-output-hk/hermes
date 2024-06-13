@@ -4,6 +4,7 @@ mod config;
 pub(crate) mod manifest;
 mod metadata;
 mod settings;
+mod signature_payload;
 
 use std::{
     io::Read,
@@ -100,8 +101,28 @@ impl WasmModulePackage {
         Ok(Self { package })
     }
 
-    /// Get `Metadata` object from package.
+    /// Sign the package and store signature inside it.
     #[allow(dead_code)]
+    pub(crate) fn sign(&self) -> anyhow::Result<()> {
+        let metadata = self.get_metadata()?;
+        let _metadata_hash = metadata.hash()?;
+
+        if let Some(setting_schema) = self.get_settings_schema()? {
+            let _settings_schema_hash = setting_schema.hash()?;
+        }
+
+        let (config, config_schema) = self.get_config_with_schema()?;
+        if let Some(config) = config {
+            let _config_hash = config.hash()?;
+        }
+        if let Some(config_schema) = config_schema {
+            let _config_schema_hash = config_schema.hash()?;
+        }
+
+        Ok(())
+    }
+
+    /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
         let ds = self.package.dataset(Self::METADATA_FILE)?;
         let reader = ds.as_byte_reader()?;
@@ -109,31 +130,38 @@ impl WasmModulePackage {
     }
 
     /// Get `ConfigSchema` object from package.
-    #[allow(dead_code)]
-    pub(crate) fn get_config_schema(&self) -> anyhow::Result<ConfigSchema> {
+    pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
         let ds = self.package.dataset(Self::CONFIG_SCHEMA_FILE)?;
-        let reader = ds.as_byte_reader()?;
-        ConfigSchema::from_reader(reader)
+        let Ok(reader) = ds.as_byte_reader() else {
+            return Ok(None);
+        };
+        Ok(Some(ConfigSchema::from_reader(reader)?))
     }
 
-    /// Get `Config` object from package.
-    #[allow(dead_code)]
-    pub(crate) fn get_config(&self) -> anyhow::Result<Config> {
-        let ds = self.package.dataset(Self::CONFIG_SCHEMA_FILE)?;
-        let reader = ds.as_byte_reader()?;
-        let config_schema = ConfigSchema::from_reader(reader)?;
+    /// Get `Config` and `ConfigSchema` objects from package if present.
+    /// To obtain a valid `Config` object it is needed to get `ConfigSchema` first.
+    pub(crate) fn get_config_with_schema(
+        &self,
+    ) -> anyhow::Result<(Option<Config>, Option<ConfigSchema>)> {
+        let Some(config_schema) = self.get_config_schema()? else {
+            return Ok((None, None));
+        };
 
         let ds = self.package.dataset(Self::CONFIG_FILE)?;
-        let reader = ds.as_byte_reader()?;
-        Config::from_reader(reader, config_schema.validator())
+        let Ok(reader) = ds.as_byte_reader() else {
+            return Ok((None, Some(config_schema)));
+        };
+        let config = Config::from_reader(reader, config_schema.validator())?;
+        Ok((Some(config), Some(config_schema)))
     }
 
-    /// Get `SettingsSchema` object from package.
-    #[allow(dead_code)]
-    pub(crate) fn get_settings_schema(&self) -> anyhow::Result<SettingsSchema> {
+    /// Get `SettingsSchema` object from package if present.
+    pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         let ds = self.package.dataset(Self::SETTINGS_SCHEMA_FILE)?;
-        let reader = ds.as_byte_reader()?;
-        SettingsSchema::from_reader(reader)
+        let Ok(reader) = ds.as_byte_reader() else {
+            return Ok(None);
+        };
+        Ok(Some(SettingsSchema::from_reader(reader)?))
     }
 
     /// Validate metadata.json file and write it to the package.
@@ -354,22 +382,23 @@ mod tests {
             .expect("Cannot get metadata from package");
         assert_eq!(metadata, package_metadata);
 
-        // check config schema JSON file
-        let package_config_schema = package
-            .get_config_schema()
-            .expect("Cannot get config schema from package");
-        assert_eq!(config_schema, package_config_schema);
-
-        // check config JSON file
-        let package_config = package
-            .get_config()
+        // check config and config schema JSON files
+        let (package_config, package_config_schema) = package
+            .get_config_with_schema()
             .expect("Cannot get config from package");
-        assert_eq!(config, package_config);
+        assert_eq!(config, package_config.expect("Missing config in package"));
+        assert_eq!(
+            config_schema,
+            package_config_schema.expect("Missing config schema in package")
+        );
 
         // check settings schema JSON file
         let package_settings_schema = package
             .get_settings_schema()
             .expect("Cannot get settings schema from package");
-        assert_eq!(settings_schema, package_settings_schema);
+        assert_eq!(
+            settings_schema,
+            package_settings_schema.expect("Missing settings schema in package")
+        );
     }
 }
