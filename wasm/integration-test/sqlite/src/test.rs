@@ -57,7 +57,7 @@ pub(crate) const TESTS: &[TestItem] = &[
                   name TEXT,
                   age INTEGER
               );
-          ";
+            ";
 
             sqlite.execute(create_table_sql)?;
             sqlite.close()
@@ -90,7 +90,7 @@ pub(crate) const TESTS: &[TestItem] = &[
             // prepare and insert value
             let create_table_sql = r"
               CREATE TABLE dummy(id INTEGER PRIMARY KEY, value TEXT);
-          ";
+            ";
             let insert_sql = "INSERT INTO dummy(value) VALUES(?);";
 
             let value = sqlite::api::Value::Text(String::from("Hello, World!"));
@@ -140,7 +140,7 @@ mod helper {
 
         let create_table_sql = r"
           CREATE TABLE dummy(id INTEGER PRIMARY KEY, value TEXT);
-      ";
+        ";
         let insert_sql = "INSERT INTO dummy(value) VALUES(?);";
 
         let value = sqlite::api::Value::Text(String::from("Hello, World!"));
