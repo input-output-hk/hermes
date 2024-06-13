@@ -2,7 +2,7 @@
 
 use std::io::Read;
 
-use crate::{packaging::schema_validation::SchemaValidator, sign::hash::Hash};
+use crate::{packaging::schema_validation::SchemaValidator, sign::hash::Blake2b256};
 
 /// Config schema object.
 #[derive(Debug)]
@@ -29,9 +29,9 @@ impl ConfigSchema {
     }
 
     /// Calculates a `Hash` value of the `ConfigSchema` object.
-    pub(crate) fn hash(&self) -> anyhow::Result<Hash> {
+    pub(crate) fn hash(&self) -> anyhow::Result<Blake2b256> {
         let bytes = self.to_bytes()?;
-        Ok(Hash::calc_hash(&bytes))
+        Ok(Blake2b256::hash(&bytes))
     }
 
     /// Convert `ConfigSchema` object to json bytes
@@ -63,9 +63,9 @@ impl Config {
     }
 
     /// Calculates a `Hash` value of the `Config` object.
-    pub(crate) fn hash(&self) -> anyhow::Result<Hash> {
+    pub(crate) fn hash(&self) -> anyhow::Result<Blake2b256> {
         let bytes = self.to_bytes()?;
-        Ok(Hash::calc_hash(&bytes))
+        Ok(Blake2b256::hash(&bytes))
     }
 
     /// Convert `Config` object to json bytes

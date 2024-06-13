@@ -6,15 +6,13 @@ mod metadata;
 mod settings;
 mod signature_payload;
 
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use metadata::Metadata;
 use settings::SettingsSchema;
+use signature_payload::SignaturePayloadBuilder;
 
 use self::manifest::Manifest;
 use super::{
@@ -102,22 +100,25 @@ impl WasmModulePackage {
     }
 
     /// Sign the package and store signature inside it.
-    #[allow(dead_code)]
     pub(crate) fn sign(&self) -> anyhow::Result<()> {
         let metadata = self.get_metadata()?;
-        let _metadata_hash = metadata.hash()?;
+        let metadata_hash = metadata.hash()?;
 
+        let mut signature_payload_builder =
+            SignaturePayloadBuilder::new(metadata_hash.clone(), metadata_hash.clone());
         if let Some(setting_schema) = self.get_settings_schema()? {
-            let _settings_schema_hash = setting_schema.hash()?;
+            signature_payload_builder.with_settings_schema(setting_schema.hash()?);
         }
-
         let (config, config_schema) = self.get_config_with_schema()?;
         if let Some(config) = config {
-            let _config_hash = config.hash()?;
+            signature_payload_builder.with_config_file(config.hash()?);
         }
         if let Some(config_schema) = config_schema {
-            let _config_schema_hash = config_schema.hash()?;
+            signature_payload_builder.with_config_schema(config_schema.hash()?);
         }
+        signature_payload_builder.with_share(metadata_hash);
+
+        let _signature_payload = signature_payload_builder.build();
 
         Ok(())
     }
@@ -190,20 +191,14 @@ impl WasmModulePackage {
     ) -> anyhow::Result<()> {
         let resource = &manifest.component;
 
-        let mut component_reader = resource
+        let component_reader = resource
             .get_reader()
             .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        let mut module_bytes = Vec::new();
-        component_reader
-            .read_to_end(&mut module_bytes)
+        wasm::module::Module::from_reader(component_reader)
             .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
 
-        wasm::module::Module::new(&module_bytes)
-            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
-
-        let resource = BytesResource::new(resource.name()?, module_bytes);
-        copy_resource_to_package(&resource, Self::COMPONENT_FILE, package)?;
+        copy_resource_to_package(resource, Self::COMPONENT_FILE, package)?;
         Ok(())
     }
 
@@ -291,12 +286,12 @@ mod tests {
             name: module_name,
             metadata: Resource::Fs(FsResource::new(metadata_path)),
             component: Resource::Fs(FsResource::new(component_path)),
-            config: manifest::Config {
+            config: manifest::ManifestConfig {
                 file: Some(Resource::Fs(FsResource::new(config_path))),
                 schema: Resource::Fs(FsResource::new(config_schema_path)),
             }
             .into(),
-            settings: manifest::Settings {
+            settings: manifest::ManifestSettings {
                 schema: Resource::Fs(FsResource::new(settings_schema_path)),
             }
             .into(),

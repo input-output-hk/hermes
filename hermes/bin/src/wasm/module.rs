@@ -4,7 +4,10 @@
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::{
+    io::Read,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use rusty_ulid::Ulid;
 use wasmtime::{
@@ -71,12 +74,12 @@ pub struct Module {
 }
 
 impl Module {
-    /// Instantiate WASM module
+    /// Instantiate WASM module from bytes
     ///
     /// # Errors
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
-    pub fn new(module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
@@ -94,6 +97,18 @@ impl Module {
             id: ModuleId(Ulid::generate()),
             exc_counter: AtomicU32::new(0),
         })
+    }
+
+    /// Instantiate WASM module reader
+    ///
+    /// # Errors
+    ///  - `BadWASMModuleError`
+    ///  - `BadEngineConfigError`
+    ///  - `io::Error`
+    pub fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes)?;
+        Self::from_bytes(&bytes)
     }
 
     /// Get the module id

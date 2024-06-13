@@ -3,14 +3,14 @@
 /// Blake2b-256 hash instance.
 /// Wrapper over `blake2b_simd::Hash`
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Hash(blake2b_simd::Hash);
+pub(crate) struct Blake2b256(blake2b_simd::Hash);
 
-impl Hash {
+impl Blake2b256 {
     /// Blake2b-256 hash size.
     const HASH_SIZE: usize = 32;
 
-    /// Calculate a new `Hash` from bytes.
-    pub(crate) fn calc_hash(bytes: &[u8]) -> Self {
+    /// Calculate a new `Blake2b256` from bytes.
+    pub(crate) fn hash(bytes: &[u8]) -> Self {
         Self(
             blake2b_simd::Params::new()
                 .hash_length(Self::HASH_SIZE)
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn hash_serde_test() {
-        let hash = Hash::calc_hash(b"test");
+        let hash = Blake2b256::hash(b"test");
 
         let hex = hash.to_hex();
         assert_eq!(
@@ -46,7 +46,7 @@ mod tests {
             hex
         );
 
-        let decoded_hash = Hash::from_hex(&hex).expect("Could not decode hash from hex.");
+        let decoded_hash = Blake2b256::from_hex(&hex).expect("Could not decode hash from hex.");
         assert_eq!(hash, decoded_hash);
     }
 }

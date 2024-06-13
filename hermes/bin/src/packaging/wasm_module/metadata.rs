@@ -4,7 +4,7 @@ use std::io::Read;
 
 use chrono::{DateTime, Utc};
 
-use crate::{packaging::schema_validation::SchemaValidator, sign::hash::Hash};
+use crate::{packaging::schema_validation::SchemaValidator, sign::hash::Blake2b256};
 
 /// Metadata object.
 #[derive(Debug, PartialEq, Eq)]
@@ -26,9 +26,9 @@ impl Metadata {
     }
 
     /// Calculates a `Hash` value of the `Metadata` object.
-    pub(crate) fn hash(&self) -> anyhow::Result<Hash> {
+    pub(crate) fn hash(&self) -> anyhow::Result<Blake2b256> {
         let bytes = self.to_bytes()?;
-        Ok(Hash::calc_hash(&bytes))
+        Ok(Blake2b256::hash(&bytes))
     }
 
     /// Convert `Metadata` object to json bytes.

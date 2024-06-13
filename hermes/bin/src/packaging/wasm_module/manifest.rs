@@ -27,25 +27,25 @@ pub(crate) struct Manifest {
     /// Path to the  WASM component file.
     pub(crate) component: Resource,
     /// WASM module config.
-    pub(crate) config: Option<Config>,
+    pub(crate) config: Option<ManifestConfig>,
     /// WASM module settings.
-    pub(crate) settings: Option<Settings>,
+    pub(crate) settings: Option<ManifestSettings>,
     /// Path to the share directory.
     pub(crate) share: Option<Resource>,
 }
 
-/// WASM module config definition.
+/// `Manifest` config definition.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Config {
+pub(crate) struct ManifestConfig {
     /// Path to the config JSON file.
     pub(crate) file: Option<Resource>,
     /// Path to the config schema JSON file.
     pub(crate) schema: Resource,
 }
 
-/// WASM module settings definition.
+/// `Manifest` settings definition.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Settings {
+pub(crate) struct ManifestSettings {
     /// Path to the settings schema JSON file.
     pub(crate) schema: Resource,
 }
@@ -77,7 +77,7 @@ impl Manifest {
 
         let schema_validator = SchemaValidator::from_str(Self::MANIFEST_SCHEMA)?;
         let mut manifest: Manifest = schema_validator
-            .deserialize_and_validate::<_, json_serde::ManifestSerdeDef>(file)
+            .deserialize_and_validate::<_, serde_def::ManifestSerde>(file)
             .map_err(|err| ManifestReadingError(err.to_string()))?
             .into();
 
@@ -103,7 +103,7 @@ impl Manifest {
     }
 }
 
-mod json_serde {
+mod serde_def {
     //! Serde definition of the manifest objects.
 
     use serde::Deserialize;
@@ -112,7 +112,7 @@ mod json_serde {
 
     /// Serde definition of the `Manifest` object.
     #[derive(Deserialize)]
-    pub(crate) struct ManifestSerdeDef {
+    pub(crate) struct ManifestSerde {
         /// Package name.
         #[serde(default = "super::Manifest::default_package_name")]
         name: String,
@@ -123,16 +123,16 @@ mod json_serde {
         #[serde(default = "super::Manifest::default_component_path")]
         component: Resource,
         /// WASM module config.
-        config: Option<ConfigSerdeDef>,
+        config: Option<ConfigSerde>,
         /// WASM module settings.
-        settings: Option<SettingsSerdeDef>,
+        settings: Option<SettingsSerde>,
         /// Path to the share directory.
         share: Option<Resource>,
     }
 
     /// Serde definition of the `Config` object.
     #[derive(Deserialize)]
-    pub(crate) struct ConfigSerdeDef {
+    pub(crate) struct ConfigSerde {
         /// Path to the config JSON file.
         file: Option<Resource>,
         /// Path to the config schema JSON file.
@@ -141,26 +141,26 @@ mod json_serde {
 
     /// Serde definition of the `Settings` object.
     #[derive(Deserialize)]
-    pub(crate) struct SettingsSerdeDef {
+    pub(crate) struct SettingsSerde {
         /// Path to the settings schema JSON file.
         schema: Resource,
     }
 
-    impl From<ManifestSerdeDef> for super::Manifest {
-        fn from(def: ManifestSerdeDef) -> Self {
+    impl From<ManifestSerde> for super::Manifest {
+        fn from(def: ManifestSerde) -> Self {
             Self {
                 name: def.name,
                 metadata: def.metadata,
                 component: def.component,
                 config: def.config.map(|def| {
-                    super::Config {
+                    super::ManifestConfig {
                         file: def.file,
                         schema: def.schema,
                     }
                 }),
                 settings: def
                     .settings
-                    .map(|def| super::Settings { schema: def.schema }),
+                    .map(|def| super::ManifestSettings { schema: def.schema }),
                 share: def.share,
             }
         }
@@ -178,85 +178,89 @@ mod tests {
         let dir = TempDir::new().expect("cannot create temp dir");
         let dir_path = dir.path();
 
-        let path = dir_path.join("manifest.json");
-        let manifest_json_data = serde_json::json!({
-            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
-            "metadata": "metadata.json",
-            "component": "module.wasm",
-            "config": {
-                "file": "config.json",
-                "schema": "config.schema.json"
-            },
-            "settings": {
-                "schema": "settings.schema.json"
-            },
-            "share": "share"
-        })
-        .to_string();
-        std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-        let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
-        assert_eq!(manifest, Manifest {
-            name: "module".to_string(),
-            metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
-            component: Resource::Fs(FsResource::new(dir_path.join("module.wasm"))),
-            config: Config {
-                file: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
-                schema: Resource::Fs(FsResource::new(dir_path.join("config.schema.json"))),
-            }
-            .into(),
-            settings: Settings {
-                schema: Resource::Fs(FsResource::new(dir_path.join("settings.schema.json"))),
-            }
-            .into(),
-            share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
-        });
+        {
+            let path = dir_path.join("manifest.json");
+            let manifest_json_data = serde_json::json!({
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+                    "metadata": "metadata.json",
+                    "component": "module.wasm",
+                    "config": {
+                        "file": "config.json",
+                        "schema": "config.schema.json"
+                    },
+                    "settings": {
+                        "schema": "settings.schema.json"
+                    },
+                    "share": "share"
+                }).to_string();
+            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            assert_eq!(manifest, Manifest {
+                name: "module".to_string(),
+                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                component: Resource::Fs(FsResource::new(dir_path.join("module.wasm"))),
+                config: ManifestConfig {
+                    file: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
+                    schema: Resource::Fs(FsResource::new(dir_path.join("config.schema.json"))),
+                }
+                .into(),
+                settings: ManifestSettings {
+                    schema: Resource::Fs(FsResource::new(dir_path.join("settings.schema.json"))),
+                }
+                .into(),
+                share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+            });
+        }
 
-        let manifest_json_data = serde_json::json!({
-            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
-            "metadata": "/metadata.json",
-            "component": "/module.wasm",
-            "config": {
-                "file": "/config.json",
-                "schema": "/config.schema.json"
-            },
-            "settings": {
-                "schema": "/settings.schema.json"
-            },
-            "share": "/share"
-        })
-        .to_string();
-        std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-        let manifest = Manifest::from_file(path).expect("Cannot create manifest");
-        assert_eq!(manifest, Manifest {
-            name: "module".to_string(),
-            metadata: Resource::Fs(FsResource::new("/metadata.json")),
-            component: Resource::Fs(FsResource::new("/module.wasm")),
-            config: Config {
-                file: Some(Resource::Fs(FsResource::new("/config.json"))),
-                schema: Resource::Fs(FsResource::new("/config.schema.json")),
-            }
-            .into(),
-            settings: Settings {
-                schema: Resource::Fs(FsResource::new("/settings.schema.json")),
-            }
-            .into(),
-            share: Some(Resource::Fs(FsResource::new("/share"))),
-        });
+        {
+            let path = dir_path.join("manifest.json");
+            let manifest_json_data = serde_json::json!({
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+                    "metadata": "/metadata.json",
+                    "component": "/module.wasm",
+                    "config": {
+                        "file": "/config.json",
+                        "schema": "/config.schema.json"
+                    },
+                    "settings": {
+                        "schema": "/settings.schema.json"
+                    },
+                    "share": "/share"
+                }).to_string();
+            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            let manifest = Manifest::from_file(path).expect("Cannot create manifest");
+            assert_eq!(manifest, Manifest {
+                name: "module".to_string(),
+                metadata: Resource::Fs(FsResource::new("/metadata.json")),
+                component: Resource::Fs(FsResource::new("/module.wasm")),
+                config: ManifestConfig {
+                    file: Some(Resource::Fs(FsResource::new("/config.json"))),
+                    schema: Resource::Fs(FsResource::new("/config.schema.json")),
+                }
+                .into(),
+                settings: ManifestSettings {
+                    schema: Resource::Fs(FsResource::new("/settings.schema.json")),
+                }
+                .into(),
+                share: Some(Resource::Fs(FsResource::new("/share"))),
+            });
+        }
 
-        let path = dir_path.join("manifest.json");
-        let manifest_json_data = serde_json::json!({
-            "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
-        })
-        .to_string();
-        std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-        let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
-        assert_eq!(manifest, Manifest {
-            name: "module".to_string(),
-            metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
-            component: Resource::Fs(FsResource::new(dir_path.join("module.wasm"))),
-            config: None,
-            settings: None,
-            share: None,
-        });
+        {
+            let path = dir_path.join("manifest.json");
+            let manifest_json_data = serde_json::json!({
+                "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+                }).to_string();
+            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            assert_eq!(manifest, Manifest {
+                name: "module".to_string(),
+                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                component: Resource::Fs(FsResource::new(dir_path.join("module.wasm"))),
+                config: None,
+                settings: None,
+                share: None,
+            });
+        }
     }
 }
