@@ -1,11 +1,8 @@
-use crate::hermes::hermes::sqlite::{
-  self,
-  api::Errno
-};
+use crate::hermes::hermes::sqlite;
 
 pub(crate) struct TestItem {
     pub(crate) name: &'static str,
-    pub(crate) executor: fn() -> Result<(), Errno>,
+    pub(crate) executor: fn() -> Result<(), sqlite::api::Errno>,
 }
 
 pub(crate) const TESTS: &[TestItem] = &[
@@ -118,7 +115,7 @@ pub(crate) const TESTS: &[TestItem] = &[
             if matches!((value, retrieved_value), (sqlite::api::Value::Text(a), sqlite::api::Value::Text(b)) if a == b) {
               Ok(())
             } else {
-              Err(Errno::Sqlite(1))
+              Err(sqlite::api::Errno::Sqlite(1))
             }
         },
     },
