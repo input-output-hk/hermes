@@ -17,9 +17,9 @@ impl Display for KeyFileError {
         let err = self
             .1
             .as_ref()
-            .map(|msg| format!("error: {msg}\n"))
+            .map(|msg| format!("{msg}"))
             .unwrap_or_default();
-        write!(f, "{msg}\n{err}",)
+        writeln!(f, "{msg}\n{err}",)
     }
 }
 
@@ -28,11 +28,10 @@ impl Display for KeyFileError {
 #[error("Cannot decode key from string. Invalid PEM format.")]
 pub(crate) struct KeyDecodingError;
 
-/// Ed25519 private key
-pub(crate) struct PrivateKey {
-    /// `ed25519_dalek::SigningKey` key value
-    key: SigningKey,
-}
+/// Ed25519 private key instance.
+/// Wrapper over `ed25519_dalek::SigningKey`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PrivateKey(SigningKey);
 
 impl PrivateKey {
     /// Create new private key from file decoded in PEM format
@@ -45,15 +44,14 @@ impl PrivateKey {
     /// Create new private key from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
         let key = SigningKey::from_pkcs8_pem(str).map_err(|_| KeyDecodingError)?;
-        Ok(Self { key })
+        Ok(Self(key))
     }
 }
 
-/// Ed25519 public key
-pub(crate) struct PublicKey {
-    /// `ed25519_dalek::VerifyingKey` key value
-    key: VerifyingKey,
-}
+/// Ed25519 public key instance.
+/// Wrapper over `ed25519_dalek::VerifyingKey`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PublicKey(VerifyingKey);
 
 impl PublicKey {
     /// Create new private key from file decoded in PEM format
@@ -66,7 +64,7 @@ impl PublicKey {
     /// Create new private key from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
         let key = VerifyingKey::from_public_key_pem(str).map_err(|_| KeyDecodingError)?;
-        Ok(Self { key })
+        Ok(Self(key))
     }
 }
 
@@ -81,7 +79,12 @@ mod tests {
         let dir = TempDir::new().expect("cannot create temp dir");
 
         let private_key_path = dir.path().join("private.pem");
-        let private_key = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV\n-----END PRIVATE KEY-----";
+        let private_key = format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PRIVATE KEY-----",
+            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
+            "-----END PRIVATE KEY-----"
+        );
         std::fs::write(&private_key_path, private_key).expect("Cannot create private.pem file");
 
         let _key =
@@ -92,9 +95,14 @@ mod tests {
     fn public_key_from_file_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let private_key_path = dir.path().join("private.pem");
-        let private_key = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=\n-----END PUBLIC KEY-----";
-        std::fs::write(&private_key_path, private_key).expect("Cannot create private.pem file");
+        let private_key_path = dir.path().join("public.pem");
+        let private_key = format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PUBLIC KEY-----",
+            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
+            "-----END PUBLIC KEY-----"
+        );
+        std::fs::write(&private_key_path, private_key).expect("Cannot create public.pem file");
 
         let _key =
             PublicKey::from_file(private_key_path).expect("Cannot create private key from file");
