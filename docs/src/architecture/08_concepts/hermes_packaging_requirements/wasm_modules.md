@@ -134,7 +134,7 @@ to signify this is a Hermes WASM Component Module.*
 
 #### Signing the WASM module package
 
-More detailed explation about signing procedure could be found
+More detailed explanation about signing procedure could be found
 [here](../hermes_signing_procedure/index.md).
 
 As the author of the WASM module package:

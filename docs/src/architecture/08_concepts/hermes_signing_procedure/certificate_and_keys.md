@@ -95,7 +95,7 @@ To double check the content of the certificate and certificate details run:
 openssl x509 -text -in=cert.pem                 
 ```
 
-[x.509]: https://en.wikipedia.org/wiki/X.509
+[x.509]: https://datatracker.ietf.org/doc/html/rfc5280
 [CA]: https://en.wikipedia.org/wiki/Certificate_authority
 [ED25519]: https://en.wikipedia.org/wiki/EdDSA#ed25519
 [SHA-512]: https://en.wikipedia.org/wiki/SHA-512

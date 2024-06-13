@@ -45,7 +45,8 @@ The comprehensive list includes:
 * COSE Mac w/o Recipients Object
 
 However, Hermes will utilize only `COSE Signed Data Object` to enable signing with multiple users.
-So every [COSE] signature **MUST** be encoded as `COSE Signed Data Object` even if it contains a one signature in it.
+So every [COSE] signature **MUST** be encoded as `COSE Signed Data Object`
+even if it contains only one signature in it.
 
 ## Signature payload
 
@@ -62,7 +63,7 @@ In Hermes, the following headers with its values **MUST** be included in the [CO
 
 `protected`:
 
-* `kid`: a Blake2B hash of the signer's [x.509] certificate associated with it's keys
+* `kid`: a Blake2B hash of the signer's [x.509] certificate associated with its keys
   (This parameter identifies one piece of data
   that can be used as input to find the needed cryptographic key.).
 
