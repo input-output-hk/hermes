@@ -61,7 +61,7 @@ console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hyper = { version = "0.14.10", features = ["full"] }
-futures = "0.3.30"
+
 
 
 [build-dependencies]
