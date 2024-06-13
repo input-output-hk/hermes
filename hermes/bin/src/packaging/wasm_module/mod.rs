@@ -87,6 +87,17 @@ impl WasmModulePackage {
         errors.return_result(Self { package })
     }
 
+    /// Open an existing WASM module package.
+    pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let package = hdf5::File::open_rw(&path).map_err(|_| {
+            anyhow::anyhow!(
+                "Cannot load a WASM module package at {0}.",
+                path.as_ref().display()
+            )
+        })?;
+        Ok(Self { package })
+    }
+
     /// Get `Metadata` object from package.
     #[allow(dead_code)]
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
