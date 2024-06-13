@@ -9,7 +9,15 @@ pub(crate) struct Errors(Vec<anyhow::Error>);
 impl Display for Errors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for err in &self.0 {
-            writeln!(f, "- {err}")?;
+            write!(f, "- ")?;
+            let err_str = err.to_string();
+            let mut err_lines = err_str.lines();
+            if let Some(first_line) = err_lines.next() {
+                writeln!(f, "{first_line}")?;
+                for line in err_lines {
+                    writeln!(f, "  {line}")?;
+                }
+            }
         }
         Ok(())
     }

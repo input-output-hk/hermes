@@ -6,11 +6,11 @@ pub mod app;
 pub mod cli;
 pub mod errors;
 pub mod event;
-#[allow(dead_code)]
 pub mod logger;
 pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
+#[allow(dead_code)]
 pub mod runtime_extensions;
 pub mod wasm;
 

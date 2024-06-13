@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
@@ -18,7 +19,12 @@ pub(crate) struct PackageCommand {
     /// By default the module will be created in the same directory where manifest placed.
     /// This option allows the path of the generated module to be set, it can be absolute
     /// or relative to the manifest directory.
+    #[clap(long)]
     output_path: Option<PathBuf>,
+
+    /// The package name, instead of taking it from the manifest file.
+    #[clap(long)]
+    name: Option<String>,
 }
 
 impl PackageCommand {
@@ -42,7 +48,9 @@ impl PackageCommand {
             .unwrap_or(manifest_dir.into());
 
         let manifest = Manifest::from_file(&self.manifest_path)?;
-        WasmModulePackage::from_manifest(manifest, output_path)?;
+        let package_name = self.name.as_deref();
+        let build_time = Utc::now();
+        WasmModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())

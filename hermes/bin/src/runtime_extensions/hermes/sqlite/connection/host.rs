@@ -1,9 +1,14 @@
+// cspell: words errcode
+
 //! `SQLite` connection object host implementation for WASM runtime.
 
+use libsqlite3_sys::sqlite3;
+
+use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
-        Errno, HostSqlite, Sqlite, Statement, StatusOptions,
+        Errno, ErrorInfo, HostSqlite, Sqlite, Statement,
     },
 };
 
@@ -19,29 +24,25 @@ impl HostSqlite for HermesRuntimeContext {
     /// If an `sqlite3` object is destroyed while a transaction is open, the transaction
     /// is automatically rolled back.
     fn close(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        Ok(core::close(db_ptr))
     }
 
-    /// Retrieves runtime status information about a single database connection.
+    /// Retrieves the numeric result code for the most recent failed `SQLite` operation on
+    /// a database connection.
     ///
-    /// ## Parameters
+    /// # Returns
     ///
-    /// - `opt`: An integer constant, taken from the set of `status-options`, that
-    ///   determines the parameter to interrogate.
-    /// - `reset-flag`: If is true, then the highest instantaneous value is reset back
-    ///   down to the current value.
-    ///
-    /// ## Returns
-    ///
-    /// A tuple of the current value of the requested parameter, and the highest
-    /// instantaneous value on success, and an error code on failure.
-    fn status(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>, _opt: StatusOptions,
-        _reset_flag: bool,
-    ) -> wasmtime::Result<Result<(i32, i32), Errno>> {
-        todo!()
+    /// The numeric result code for the most recent failed `SQLite` operation.
+    fn errcode(
+        &mut self, resource: wasmtime::component::Resource<Sqlite>,
+    ) -> wasmtime::Result<Option<ErrorInfo>> {
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        Ok(core::errcode(db_ptr))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -58,9 +59,22 @@ impl HostSqlite for HermesRuntimeContext {
     /// If there is an error or the input text contains no SQL (if the input is an empty
     /// string or a comment) then an error code is returned.
     fn prepare(
-        &mut self, _db: wasmtime::component::Resource<Sqlite>, _sql: String,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        let result = core::prepare(db_ptr, sql.as_str());
+
+        match result {
+            Ok(stmt_ptr) => {
+                if stmt_ptr.is_null() {
+                    Ok(Err(Errno::ReturnedNullPointer))
+                } else {
+                    Ok(Ok(wasmtime::component::Resource::new_own(stmt_ptr as u32)))
+                }
+            },
+            Err(errno) => Ok(Err(errno)),
+        }
     }
 
     /// Executes an SQL query directly without preparing it into a statement and returns
@@ -70,12 +84,18 @@ impl HostSqlite for HermesRuntimeContext {
     ///
     /// - `sql`: SQL statement, UTF-8 encoded.
     fn execute(
-        &mut self, _self_: wasmtime::component::Resource<Sqlite>, _sql: String,
+        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        todo!()
+        let db_ptr: *mut sqlite3 = resource.rep() as *mut _;
+
+        Ok(core::execute(db_ptr, sql.as_str()))
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
+        let db_ptr: *mut sqlite3 = rep.rep() as *mut _;
+
+        let _ = core::close(db_ptr);
+
+        Ok(())
     }
 }
