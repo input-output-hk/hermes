@@ -11,7 +11,7 @@ use crate::event::HermesEventPayload;
 type Code = u16;
 
 /// Headers in kv form
-type HeadersKV = Vec<(String, String)>;
+pub type HeadersKV = Vec<(String, Vec<String>)>;
 
 /// HTTP Path
 type Path = String;
@@ -19,21 +19,19 @@ type Path = String;
 /// HTTP method e.g GET
 type Method = String;
 
-/// HTTP raw headers bytes
-type RawHeaders = Vec<u8>;
-
 /// Req body
 type Body = Vec<u8>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HTTPEventMsg {
     HTTPEventReceiver,
-    HttpEventResponse((Code, HeadersKV, Body)),
+    HttpEventResponseSome((Code, HeadersKV, Body)),
+    HttpEventResponseNone(),
 }
 
 /// HTTP Event
 pub struct HTTPEvent {
-    pub(crate) headers: RawHeaders,
+    pub(crate) headers: HeadersKV,
     pub(crate) method: Method,
     pub(crate) path: Path,
     pub(crate) body: Bytes,
@@ -54,10 +52,14 @@ impl HermesEventPayload for HTTPEvent {
             &self.method,
         )?;
 
-        Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((
-            event_response.0,
-            event_response.1,
-            event_response.2,
-        )))?)
+        if let Some(resp) = event_response {
+            Ok(self.sender.send(HTTPEventMsg::HttpEventResponseSome((
+                resp.code,
+                resp.headers,
+                resp.body,
+            )))?)
+        } else {
+            Ok(self.sender.send(HTTPEventMsg::HttpEventResponseNone())?)
+        }
     }
 }

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     sync::{
         mpsc::{channel, Receiver, Sender},
@@ -12,22 +13,16 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
-use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use super::{
-    event::{HTTPEvent, HTTPEventMsg},
+    event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
 };
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
 /// Application name
 pub struct AppName(pub String);
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Headers<K, V> {
-    contents: Vec<(K, V)>,
-}
 
 #[derive(Debug)]
 /// hostname (nodename)
@@ -42,7 +37,7 @@ pub fn error_response(err: String) -> Response<Body> {
 }
 
 /// HTTP not found response generator
-pub fn _not_found() -> Response<Body> {
+pub fn not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())
@@ -119,16 +114,16 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let method = req.method().to_owned().to_string();
     let path = req.uri().path().to_string();
 
-    let mut header_kv = Headers {
-        contents: Vec::new(),
-    };
+    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    for header in req.headers() {
-        header_kv
-            .contents
-            .push((header.0.as_str().to_owned(), header.1.to_str()?.to_owned()))
+    for (header_name, header_val) in req.headers() {
+        header_map
+            .entry(header_name.to_string())
+            .or_default()
+            .push(header_val.to_str()?.to_string());
     }
-    let header_bytes = bincode::serialize(&header_kv)?;
+
+    let header_kv: HeadersKV = header_map.into_iter().collect();
 
     let body = &req.collect().await?.to_bytes();
 
@@ -136,7 +131,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
         "/api" => {
             compose_http_event(
                 method,
-                header_bytes,
+                header_kv,
                 body.clone(),
                 path,
                 lambda_send,
@@ -150,7 +145,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
 fn compose_http_event(
-    method: String, headers: Vec<u8>, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
+    method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
     receiver: Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<Body>> {
     let on_http_event = HTTPEvent {
@@ -166,7 +161,12 @@ fn compose_http_event(
         TargetModule::All,
     ))?;
 
-    return Ok(Response::new(
-        serde_json::to_string(&receiver.recv()?)?.into(),
-    ));
+    match &receiver.recv()? {
+        HTTPEventMsg::HttpEventResponseSome(resp) => {
+            Ok(Response::new(serde_json::to_string(&resp)?.into()))
+        },
+        HTTPEventMsg::HttpEventResponseNone() => Ok(not_found()),
+
+        _ => Ok(error_response("HTTP event msg error".to_owned())),
+    }
 }

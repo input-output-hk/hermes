@@ -10,19 +10,14 @@ interface event {
 
     use hermes:binary/api.{bstr};
 
-    // headers kv
-    type kv-headers = list<tuple<string, string>>;
+    type header = tuple<string, list<string>>;
+    type headers = list<header>;
 
-    // http response code 
-    type code = u16;
+    record http-response{
+        code: u16,
+        headers: headers,
+        body: bstr
+    }
 
-    // body
-    type body = bstr;
-
-    // response
-    type response = tuple<code, kv-headers, body>;
-
-    /// Reply
-    reply: func(body: bstr, headers: bstr, path: string, method: string) -> response;
-    
+    reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-response>;    
 }
