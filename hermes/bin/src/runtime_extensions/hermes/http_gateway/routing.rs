@@ -123,21 +123,15 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             .push(header_val.to_str()?.to_string());
     }
 
-    let header_kv: HeadersKV = header_map.into_iter().collect();
-
-    let body = &req.collect().await?.to_bytes();
-
     match uri.path() {
-        "/api" => {
-            compose_http_event(
-                method,
-                header_kv,
-                body.clone(),
-                path,
-                lambda_send,
-                lambda_recv_answer,
-            )
-        },
+        "/api" => compose_http_event(
+            method,
+            header_map.into_iter().collect(),
+            req.collect().await?.to_bytes(), //body
+            path,
+            lambda_send,
+            lambda_recv_answer,
+        ),
         _ => todo!(),
     }
 }
