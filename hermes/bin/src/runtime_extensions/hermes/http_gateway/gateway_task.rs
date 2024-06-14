@@ -44,7 +44,7 @@ impl Default for Config {
 
 /// Unique identifier for incoming request
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
-pub struct EventUID(pub String);
+pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
 #[derive(Debug)]
