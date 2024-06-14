@@ -5,8 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ed25519::pkcs8::DecodePublicKey;
-use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey, VerifyingKey};
+use ed25519_dalek::{
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
+    SigningKey, VerifyingKey,
+};
 
 /// Public or private key file open and read error.
 #[derive(thiserror::Error, Debug)]
