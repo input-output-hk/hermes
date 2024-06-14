@@ -100,7 +100,7 @@ pub async fn router(
             (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
         );
 
-    info!("connection manager {:?}\n", connection_manager);
+    info!("connection manager {:?}", connection_manager);
 
     Ok(response)
 }
