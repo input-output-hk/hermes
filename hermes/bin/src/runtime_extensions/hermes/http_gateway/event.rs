@@ -23,14 +23,14 @@ type Method = String;
 type Body = Vec<u8>;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum HTTPEventMsg {
+pub(crate) enum HTTPEventMsg {
     HTTPEventReceiver,
     HttpEventResponseSome((Code, HeadersKV, Body)),
     HttpEventResponseNone(),
 }
 
 /// HTTP Event
-pub struct HTTPEvent {
+pub(crate) struct HTTPEvent {
     pub(crate) headers: HeadersKV,
     pub(crate) method: Method,
     pub(crate) path: Path,

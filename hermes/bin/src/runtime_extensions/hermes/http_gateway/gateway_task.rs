@@ -24,7 +24,7 @@ pub(crate) struct Hostname(pub String);
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     pub(crate) valid_hosts: Vec<Hostname>,
-    pub local_addr: SocketAddr,
+    pub(crate) local_addr: SocketAddr,
 }
 
 /// We will eventually use env vars when deployment pipeline is in place, hardcoded
@@ -52,20 +52,20 @@ pub(crate) struct ClientIPAddr(pub SocketAddr);
 
 /// Has the event been processed
 #[derive(Debug)]
-pub struct Processed(pub bool);
+pub(crate) struct Processed(pub bool);
 
 /// Is the connection still live
 #[derive(Debug)]
-pub struct LiveConnection(pub bool);
+pub(crate) struct LiveConnection(pub bool);
 
 /// Manages and tracks client connections
 #[derive(Debug)]
-pub struct ConnectionManager {
+pub(crate) struct ConnectionManager {
     pub connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
 }
 
 /// Spawns a OS thread running the Tokio runtime task.
-pub fn spawn() {
+pub(crate) fn spawn() {
     std::thread::spawn(move || {
         executor();
     });

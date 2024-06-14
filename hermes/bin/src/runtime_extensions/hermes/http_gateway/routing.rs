@@ -22,11 +22,11 @@ use super::{
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
 /// Application name
-pub struct AppName(pub String);
+pub(crate) struct AppName(pub String);
 
 #[derive(Debug)]
 /// hostname (nodename)
-pub struct Hostname(pub String);
+pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
 pub(crate) fn error_response(err: String) -> Response<Body> {

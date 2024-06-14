@@ -8,7 +8,7 @@ mod gateway_task;
 mod routing;
 
 /// State.
-pub struct State {
+pub(crate) struct State {
     pub instance: Ulid,
 }
 
