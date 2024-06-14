@@ -18,7 +18,7 @@ use super::routing::router;
 
 #[derive(Debug, Clone)]
 /// hostname (nodename)
-pub struct Hostname(pub String);
+pub(crate) struct Hostname(pub String);
 
 /// Config for gateway setup
 #[derive(Debug, Clone)]
