@@ -46,7 +46,7 @@ pub(crate) fn not_found() -> Response<Body> {
 
 /// Extractor that resolves the hostname of the request.
 /// Hostname is resolved through the Host header
-pub fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hostname)> {
+pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hostname)> {
     let host = headers
         .get("Host")
         .ok_or(anyhow!("No host header"))?
