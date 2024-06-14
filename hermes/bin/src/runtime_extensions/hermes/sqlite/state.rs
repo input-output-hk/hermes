@@ -11,9 +11,9 @@ use crate::app::HermesAppName;
 
 /// Represents an individual state for a particular object.
 #[derive(Debug)]
-pub(crate) struct ResourceObjectState {
+pub(crate) struct ResourceObjectState<T: ToOwned + PartialEq> {
     /// A map holding key-value pairs of an object ID and a value.
-    id_map: HashMap<u32, usize>,
+    id_map: HashMap<u32, T>,
     /// The current incremental state of ID.
     current_id: Option<u32>,
 }
@@ -21,12 +21,12 @@ pub(crate) struct ResourceObjectState {
 /// Represents the state of resources.
 pub(crate) struct ResourceState {
     /// The state of database object.
-    db_state: ResourceObjectState,
+    db_state: ResourceObjectState<usize>,
     /// The state of database statement object.
-    stmt_state: ResourceObjectState,
+    stmt_state: ResourceObjectState<usize>,
 }
 
-impl ResourceObjectState {
+impl<T: ToOwned + Eq> ResourceObjectState<T> {
     /// Create a new `ResourceObjectState` with initial state.
     fn new() -> Self {
         Self {
@@ -35,10 +35,10 @@ impl ResourceObjectState {
         }
     }
 
-    /// Adds a value into the resource. If it does not exist, allocate one and returns the
+    /// Adds a value into the resource. If it does not exist, assigns one and returns the
     /// new created key ID. In case of the key ID is running out of numbers, returns
     /// `None`.
-    pub(super) fn allocate_object(&mut self, object_ptr: usize) -> Option<u32> {
+    pub(super) fn add_object(&mut self, object_ptr: T) -> Option<u32> {
         if let Some((existing_id, _)) = self.id_map.iter().find(|(_, val)| val == &&object_ptr) {
             Some(*existing_id)
         } else {
@@ -57,12 +57,12 @@ impl ResourceObjectState {
     }
 
     /// Retrieves a value according to its key ID.
-    pub(super) fn get_object_by_id(&self, id: u32) -> Option<usize> {
+    pub(super) fn get_object_by_id(&self, id: u32) -> Option<<T as ToOwned>::Owned> {
         self.id_map.get(&id).map(ToOwned::to_owned)
     }
 
     /// Deletes a value according to its key ID, and returns the removed value if exists.
-    pub(super) fn delete_object_by_id(&mut self, id: u32) -> Option<usize> {
+    pub(super) fn delete_object_by_id(&mut self, id: u32) -> Option<T> {
         self.id_map.remove(&id)
     }
 }
@@ -77,12 +77,12 @@ impl ResourceState {
     }
 
     /// Gets the state for managing database objects.
-    pub(super) fn get_db_state(&mut self) -> &mut ResourceObjectState {
+    pub(super) fn get_db_state(&mut self) -> &mut ResourceObjectState<usize> {
         &mut self.db_state
     }
 
     /// Gets the state for managing statement objects.
-    pub(super) fn get_stmt_state(&mut self) -> &mut ResourceObjectState {
+    pub(super) fn get_stmt_state(&mut self) -> &mut ResourceObjectState<usize> {
         &mut self.stmt_state
     }
 }

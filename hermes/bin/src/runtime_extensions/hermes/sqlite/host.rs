@@ -26,7 +26,7 @@ impl Host for HermesRuntimeContext {
             Ok(db_ptr) => {
                 let db_id = state::InternalState::get_or_create_resource(self.app_name().clone())
                     .get_db_state()
-                    .allocate_object(db_ptr as _)
+                    .add_object(db_ptr as _)
                     .ok_or_else(|| {
                         wasmtime::Error::msg("Internal state error while calling `open`")
                     })?;

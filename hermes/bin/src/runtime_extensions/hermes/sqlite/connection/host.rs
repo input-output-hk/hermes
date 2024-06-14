@@ -80,7 +80,7 @@ impl HostSqlite for HermesRuntimeContext {
                     let stmt_id =
                         state::InternalState::get_or_create_resource(self.app_name().clone())
                             .get_stmt_state()
-                            .allocate_object(stmt_ptr as _)
+                            .add_object(stmt_ptr as _)
                             .ok_or_else(|| {
                                 wasmtime::Error::msg("Internal state error while calling `prepare`")
                             })?;
