@@ -157,8 +157,10 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
 /// Generate checksum bits from entropy bits.
 #[allow(clippy::indexing_slicing)]
 fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
-    // Number of checksum bits to be added.
-    let check_sum_num = word_count / 3 * 4 * 8 / 32;
+    // Entropy bits number.
+    let entropy_bits_number = word_count * 4 * 8 / 3;
+    // Number of checksum bits to be included.
+    let check_sum_number = entropy_bits_number / 32;
 
     // Convert bits_entropy to bytes, so it works with SHA256 hasher.
     let bytes_entropy = bits_to_bytes(entropy_bits);
@@ -167,7 +169,7 @@ fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
 
     // Retrieve the first `check_sum_num` check sum bits from the hash result.
     let mut check_sum_bits = Vec::new();
-    for i in 0..check_sum_num {
+    for i in 0..check_sum_number {
         check_sum_bits.push(hash_result[0] >> (7 - i) & 1);
     }
     check_sum_bits
