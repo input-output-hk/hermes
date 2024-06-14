@@ -29,7 +29,7 @@ pub struct AppName(pub String);
 pub struct Hostname(pub String);
 
 /// HTTP error response generator
-pub fn error_response(err: String) -> Response<Body> {
+pub(crate) fn error_response(err: String) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())
