@@ -48,7 +48,7 @@ pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
 #[derive(Debug)]
-pub struct ClientIPAddr(pub SocketAddr);
+pub(crate) struct ClientIPAddr(pub SocketAddr);
 
 /// Has the event been processed
 #[derive(Debug)]
