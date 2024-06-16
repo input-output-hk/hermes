@@ -16,6 +16,9 @@ use tracing::{error, info};
 
 use super::routing::router;
 
+/// HTTP Gateway port
+const GATEWAY_PORT: u16 = 5000;
+
 #[derive(Debug, Clone)]
 /// hostname (nodename)
 pub(crate) struct Hostname(pub String);
@@ -37,7 +40,7 @@ impl Default for Config {
                 Hostname("localhost".to_owned()),
             ]
             .to_vec(),
-            local_addr: SocketAddr::new([127, 0, 0, 1].into(), 5000),
+            local_addr: SocketAddr::new([127, 0, 0, 1].into(), GATEWAY_PORT),
         }
     }
 }
@@ -47,21 +50,34 @@ impl Default for Config {
 pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
+/// The evolution of event tracking and management will utilise this in more depth in the future.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct ClientIPAddr(pub SocketAddr);
 
 /// Has the event been processed
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct Processed(pub bool);
 
 /// Is the connection still live
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct LiveConnection(pub bool);
 
 /// Manages and tracks client connections
 #[derive(Debug)]
 pub(crate) struct ConnectionManager {
-    pub connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
+    connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
+}
+
+impl ConnectionManager {
+    /// Get connection context
+    pub fn get_connection_manager_context(
+        &self,
+    ) -> &Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>> {
+        &self.connection_context
+    }
 }
 
 /// Spawns a OS thread running the Tokio runtime task.

@@ -21,6 +21,10 @@ use super::{
 };
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
+/// Everything that hits /api should route to hermes
+const HERMES_ROUTE: &str = "/api";
+
+#[derive(Debug)]
 /// Application name
 pub(crate) struct AppName(pub String);
 
@@ -69,7 +73,7 @@ pub async fn router(
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
 
     connection_manager
-        .connection_context
+        .get_connection_manager_context()
         .try_lock()
         .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
         .insert(
@@ -79,7 +83,7 @@ pub async fn router(
 
     info!("connection manager {:?}", connection_manager);
 
-    let (_app_name, resolved_host) = host_resolver(req.headers())?;
+    let (app_name, resolved_host) = host_resolver(req.headers())?;
 
     let response = if config
         .valid_hosts
@@ -92,7 +96,7 @@ pub async fn router(
     };
 
     connection_manager
-        .connection_context
+        .get_connection_manager_context()
         .try_lock()
         .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
         .insert(
@@ -100,7 +104,10 @@ pub async fn router(
             (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
         );
 
-    info!("connection manager {:?}", connection_manager);
+    info!(
+        "connection manager {:?} app {:?}",
+        connection_manager, app_name.0
+    );
 
     Ok(response)
 }
@@ -124,7 +131,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     }
 
     match uri.path() {
-        "/api" => {
+        HERMES_ROUTE => {
             compose_http_event(
                 method,
                 header_map.into_iter().collect(),
