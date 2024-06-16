@@ -50,7 +50,8 @@ impl Default for Config {
 pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
-/// The evolution of event tracking and management will utilise this in more depth in the future.
+/// The evolution of event tracking and management will utilise this in more depth in the
+/// future.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct ClientIPAddr(pub SocketAddr);
