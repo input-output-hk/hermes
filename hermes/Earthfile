@@ -7,8 +7,6 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.6 AS rust-ci
 IMPORT ../wasm AS wasm
 IMPORT ../wasm/stub-module AS stub-module
 
-#cspell: words rustfmt
-
 # builder : Set up our target toolchains, and copy our files.
 builder:
     DO rust-ci+SETUP
