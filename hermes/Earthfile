@@ -42,6 +42,8 @@ bindings-expand:
 check:
     FROM +builder
 
+    RUN echo "testing";
+
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
 # all-hosts-check : Test which runs check with all supported host tooling.  
