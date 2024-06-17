@@ -1,4 +1,4 @@
-<!-- cspell: words outpubkey mycommname -->
+<!-- cspell: words outpubkey mycommname genpkey -->
 
 # Certificate and Keys
 

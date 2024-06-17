@@ -107,5 +107,5 @@ impl SignaturePayloadBuilder {
 }
 
 mod serde_def {
-    //! Serde definition of the singature payload objects.
+    //! Serde definition of the signature payload objects.
 }
