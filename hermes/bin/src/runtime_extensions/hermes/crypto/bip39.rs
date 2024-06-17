@@ -135,15 +135,16 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
 }
 
 /// Generate entropy bytes and return the value.
-/// 
+///
 /// Calculation:
-/// Each word in a BIP39 mnemonic phrase represents 11 bits of information. The total number
-/// of bits in the mnemonic phrase (including both entropy and checksum) is therefore:
+/// Each word in a BIP39 mnemonic phrase represents 11 bits of information. The total
+/// number of bits in the mnemonic phrase (including both entropy and checksum) is
+/// therefore:
 ///
 ///     total_bits = word_count * 11
 ///
-/// The total number of bits includes both the entropy bits and the checksum bits. The length
-/// of the checksum is defined as:
+/// The total number of bits includes both the entropy bits and the checksum bits. The
+/// length of the checksum is defined as:
 ///
 ///     checksum_len = entropy_bits / 32
 ///
@@ -172,12 +173,12 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
 ///                   = word_count * 11 * 4 / 33
 ///                   = word_count * 4 / 3
 ///
-/// However, since the number of mnemonic words is always a multiple of 3 
+/// However, since the number of mnemonic words is always a multiple of 3
 /// (in BIP39, valid word counts are 12, 15, 18, 21, or 24),
 /// we can simplify this to:
 ///
 ///     total_entropy_bytes = (word_count / 3) * 4
-/// 
+///
 /// Note that if entropy bits is needed, multiply the total_entropy_bytes by 8.
 fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Number of bytes entropy calculate from mnemonic word.
