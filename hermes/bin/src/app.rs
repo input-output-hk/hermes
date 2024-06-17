@@ -32,7 +32,7 @@ impl HermesApp {
     pub(crate) fn new(app_name: HermesAppName, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
         let mut modules = HashMap::with_capacity(module_bytes.len());
         for module_bytes in module_bytes {
-            let module = Module::new(&module_bytes)?;
+            let module = Module::from_bytes(&module_bytes)?;
             modules.insert(module.id().clone(), module);
         }
         Ok(Self {
