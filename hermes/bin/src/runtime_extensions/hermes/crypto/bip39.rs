@@ -179,7 +179,7 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
 ///
 ///     total_entropy_bytes = (word_count / 3) * 4
 ///
-/// Note that if entropy bits is needed, multiply the total_entropy_bytes by 8.
+/// Note that if entropy bits is needed, multiply the `total_entropy_bytes` by 8.
 fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Number of bytes entropy calculate from mnemonic word.
     let total_entropy_bytes = (word_count / 3) * 4;

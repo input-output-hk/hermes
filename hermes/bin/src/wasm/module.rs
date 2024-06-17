@@ -177,7 +177,8 @@ pub mod bench {
             }
         }
 
-        let module = Module::new(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
+        let module =
+            Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
 
         b.iter(|| {
             module

@@ -5,6 +5,7 @@ use crate::{
 };
 
 /// KV update event
+#[allow(dead_code)]
 struct KVUpdateEvent {
     /// Key.
     key: String,
