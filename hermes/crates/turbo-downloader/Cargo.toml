@@ -16,6 +16,7 @@ name = "turbo_downloader"
 tokio = { workspace = true }
 
 reqwest = { workspace = true }
+bytes = { workspace = true }
 
 anyhow = { workspace = true }
 tracing = { workspace = true }

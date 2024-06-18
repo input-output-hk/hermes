@@ -1,19 +1,19 @@
 //! Internal Mithril snapshot functions.
 
-use std::{fs, path::PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     error::{Error, Result},
     multi_era_block_data::MultiEraBlockData,
     network::Network,
-    FollowerConfig,
 };
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
-use tracing::{debug, warn};
+use tokio::{sync::Mutex, task::JoinHandle};
+use tracing::debug;
 
 /// Wraps the iterator type returned by Pallas.
 pub(crate) struct MithrilSnapshotIterator {
@@ -51,9 +51,9 @@ static GENESIS_VKEYS: Lazy<DashMap<Network, String>> = Lazy::new(DashMap::new);
 static CURRENT_TIPS: Lazy<DashMap<Network, Point>> = Lazy::new(DashMap::new);
 
 /// Type we use to manage the Sync Task handle map.
-//type SyncMap = Arc<Mutex<DashMap<Network, JoinHandle<()>>>>;
+type SyncMap = Arc<Mutex<DashMap<Network, JoinHandle<()>>>>;
 /// Handle to the mithril sync thread.
-//static SYNC_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| Arc::new(Mutex::new(DashMap::new())));
+static SYNC_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| Arc::new(Mutex::new(DashMap::new())));
 
 /// Check if a given value already exists in another key in the same Dashmap
 /// Returns the first network found that conflicts.
@@ -127,104 +127,6 @@ pub(crate) fn read_genesis_vkey(network: Network) -> Option<String> {
         .map(|entry| entry.value().clone())
 }
 
-/// Check that a given mithril snapshot path and everything in it is writable.
-/// We don't care why its NOT writable, just that it is either all writable, or not.
-/// Will return false on the first detection of a read only file or directory.
-fn check_writable(path: &PathBuf) -> bool {
-    // Check the permissions of the current path
-    if let Ok(metadata) = fs::metadata(path) {
-        if metadata.permissions().readonly() {
-            return false;
-        }
-    }
-
-    // Can't read the directory for any reason, so can't write to the directory.
-    let path_iterator = match fs::read_dir(path) {
-        Err(_) => return false,
-        Ok(entries) => entries,
-    };
-
-    // Recursively check the contents of the directory
-    for entry in path_iterator {
-        let entry = match entry {
-            Err(_) => return false,
-            Ok(entry) => entry,
-        };
-
-        // If the entry is a directory, recursively check its permissions
-        // otherwise just check we could re-write it.
-        if let Ok(metadata) = entry.metadata() {
-            if metadata.is_dir() {
-                if !check_writable(&entry.path()) {
-                    return false;
-                }
-            } else {
-                // If its not a directory then it must be a file.
-                if metadata.permissions().readonly() {
-                    return false;
-                }
-            }
-        }
-    }
-    // Otherwise we could write everything we scanned.
-    true
-}
-
-/// Check if the configured path is a valid directory, and that it does not exist already
-/// in the map.
-fn set_snapshot_path(network: Network, path: PathBuf, update: bool) -> Result<()> {
-    // Check if we are already configured for a different path, or the path is used by a
-    // different network.
-    let current_path = read_mithril_path(network);
-    match current_path {
-        Some(current_path) => {
-            if current_path != *path {
-                return Err(Error::MithrilSnapshotDirectoryAlreadyConfigured(
-                    path,
-                    current_path,
-                ));
-            }
-        },
-        None => {
-            // Check that path isn't in any other key
-            check_mithril_path_conflicts(network, &path)?;
-        },
-    }
-
-    // Path not in use, or its not changed, so try and set it up.
-
-    // If the path does not exist, try and make it.
-    if !path.exists() {
-        // Try and make the directory.
-        fs::create_dir_all(&path)
-            .map_err(|e| Error::MithrilSnapshotDirectoryCreation(path.clone(), e))?;
-    }
-
-    // If the path is NOT a directory, then we can't use it.
-    if !path.is_dir() {
-        return Err(Error::MithrilSnapshotDirectoryNotFound(
-            path.display().to_string(),
-        ));
-    }
-
-    // if we plan to update the snapshot, the directory and all its contents needs to be
-    // writable. Do this test last, because it could be relatively slow, and is not
-    // necessary if any of the other checks fail.
-    if update {
-        // If the directory is not writable then we can't use
-        if !check_writable(&path) {
-            return Err(Error::MithrilSnapshotDirectoryNotWritable(path.clone()));
-        }
-    }
-
-    // All the previous checks passed, so we can use this path.
-    // Effectively a NOOP if the path was perviously added, but it doesn't hurt to do it
-    // again.
-    SNAPSHOT_PATHS.insert(network, path);
-
-    Ok(())
-}
-
 /// Set the Aggregator for a particular network.
 /// Aggregator is validated to ensure it has some chance of success.
 async fn set_aggregator(
@@ -274,40 +176,6 @@ async fn set_aggregator(
     Ok(())
 }
 
-/// Remove whitespace from a string and return the new string
-fn remove_whitespace(s: &str) -> String {
-    s.chars()
-        .filter(|&c| !c.is_ascii_whitespace())
-        .collect::<String>()
-}
-
-/// Check if a string is an even number of hex digits.
-fn is_hex(s: &str) -> bool {
-    s.chars().count() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// Set the genesis VKEY for a network, but only if its not already set, or has not
-/// changed if it is.
-fn set_genesis_vkey(network: Network, vkey: &str) -> Result<()> {
-    // First sanitize the vkey by removing all whitespace and make sure its actually valid
-    // hex.
-    let vkey = remove_whitespace(vkey);
-    if !is_hex(&vkey) {
-        return Err(Error::MithrilGenesisVKeyNotHex(network));
-    }
-
-    // Check the Genesis VKEY is not already configured and if so, its not the same.
-    if let Some(current_vkey) = read_genesis_vkey(network) {
-        if current_vkey != vkey {
-            return Err(Error::MithrilGenesisVKeyMismatch(network));
-        }
-    }
-
-    GENESIS_VKEYS.insert(network, vkey);
-
-    Ok(())
-}
-
 /// Try and update the current tip from an existing snapshot.
 pub(crate) fn update_tip(network: Network) -> Result<()> {
     if let Some(snapshot_path) = read_mithril_immutable_path(network) {
@@ -331,98 +199,6 @@ pub(crate) fn update_tip(network: Network) -> Result<()> {
 pub(crate) struct MithrilSnapshot;
 
 impl MithrilSnapshot {
-    /// Initialize Mithril snapshot processing for a particular configured network.
-    pub async fn init(follower_cfg: FollowerConfig) -> Result<()> {
-        // Validate and Set the snapshot path configuration
-        debug!(
-            "Validating Snapshot Path: {:?}",
-            follower_cfg.mithril_snapshot_path
-        );
-        if let Some(path) = follower_cfg.mithril_snapshot_path {
-            set_snapshot_path(follower_cfg.chain, path, follower_cfg.mithril_update)?;
-        } else {
-            if follower_cfg.mithril_update {
-                return Err(Error::MithrilSnapshotDirectoryNotConfigured);
-            }
-            return Ok(());
-        }
-
-        // Set the Genesis VKEY if not already set.
-        debug!(
-            "Validating Genesis Key: {:?}",
-            follower_cfg.mithril_genesis_key
-        );
-        if let Some(genesis_vkey) = follower_cfg.mithril_genesis_key {
-            set_genesis_vkey(follower_cfg.chain, &genesis_vkey)?;
-
-            // Set the aggregator if not already set - will fail if Genesis key not already set
-            // correctly.
-            debug!(
-                "Validating Aggregator URL: {:?}",
-                follower_cfg.mithril_aggregator_address
-            );
-            if let Some(aggregator_url) = follower_cfg.mithril_aggregator_address {
-                set_aggregator(follower_cfg.chain, aggregator_url, genesis_vkey).await?;
-            }
-        }
-
-        // Set the current TIP of the Mithril Snapshot, IF it already exists.
-        // We don't care if this errors, its optimistic.
-        debug!(
-            "Updating TIP of any existing Mithril Snapshot (May Fail) for {}",
-            follower_cfg.chain
-        );
-
-        let tip_status = update_tip(follower_cfg.chain);
-
-        match tip_status {
-            Ok(()) => debug!("Mithril TIP Exists and updated OK."),
-            Err(e) => warn!("Mithril TIP failed to update with error: {e:?}"),
-        }
-
-        // If we want to auto-update, AND we haven't already started updating, start it.
-        // Can only start it IF the Aggregator and VKEy are configured as well.
-        if follower_cfg.mithril_update {
-            /*
-            // All must be set or we can't start the autoupdate.
-            let Some(aggregator_url) = read_aggregator_url(follower_cfg.chain) else {
-                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
-                    follower_cfg.chain,
-                ));
-            };
-            let Some(genesis_vkey) = read_genesis_vkey(follower_cfg.chain) else {
-                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
-                    follower_cfg.chain,
-                ));
-            };
-            let Some(mithril_path) = read_mithril_path(follower_cfg.chain) else {
-                return Err(Error::MithrilUpdateRequiresAggregatorAndVkeyAndPath(
-                    follower_cfg.chain,
-                ));
-            };
-
-            // Start the update - IFF its not already running.
-            let sync_map = SYNC_HANDLE_MAP.lock().await;
-
-            if !sync_map.contains_key(&follower_cfg.chain) {
-                debug!("Mithril Autoupdate for {} : Starting", follower_cfg.chain);
-                let handle = tokio::spawn(background_mithril_update(
-                    follower_cfg.chain,
-                    aggregator_url,
-                    genesis_vkey,
-                    mithril_path,
-                ));
-                sync_map.insert(follower_cfg.chain, handle);
-                debug!("Mithril Autoupdate for {} : Started", follower_cfg.chain);
-            }
-
-            drop(sync_map);
-            */
-        }
-
-        Ok(())
-    }
-
     /// Get the current tip of the configured Mithril Network
     pub fn tip(network: Network) -> Option<Point> {
         CURRENT_TIPS
@@ -574,30 +350,44 @@ impl MithrilSnapshot {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use dashmap::DashMap;
+/*
+    /// Initialize Mithril snapshot processing for a particular configured network.
+    pub async fn init(follower_cfg: FollowerConfig) -> Result<()> {
 
-    use crate::mithril_snapshot::{check_map_conflicts, Network};
+        // Set the current TIP of the Mithril Snapshot, IF it already exists.
+        // We don't care if this errors, its optimistic.
+        debug!(
+            "Updating TIP of any existing Mithril Snapshot (May Fail) for {}",
+            follower_cfg.chain
+        );
 
-    #[test]
-    fn test_check_map_conflicts() {
-        let network1 = Network::Mainnet;
-        let network2 = Network::Preprod;
+        let tip_status = update_tip(follower_cfg.chain);
 
-        let map: DashMap<Network, i32> = DashMap::new();
+        match tip_status {
+            Ok(()) => debug!("Mithril TIP Exists and updated OK."),
+            Err(e) => warn!("Mithril TIP failed to update with error: {e:?}"),
+        }
 
-        // When map is empty there is no conflict.
-        assert_eq!(None, check_map_conflicts(network1, &map, &5));
+            // Start the update - IFF its not already running.
+            let sync_map = SYNC_HANDLE_MAP.lock().await;
 
-        map.insert(network1, 5);
+            if !sync_map.contains_key(&follower_cfg.chain) {
+                debug!("Mithril Autoupdate for {} : Starting", follower_cfg.chain);
+                let handle = tokio::spawn(background_mithril_update(
+                    follower_cfg.chain,
+                    aggregator_url,
+                    genesis_vkey,
+                    mithril_path,
+                sync_map.insert(follower_cfg.chain, handle);
+                debug!("Mithril Autoupdate for {} : Started", follower_cfg.chain);
+            }
 
-        // When network is the same there is no conflict.
-        assert_eq!(None, check_map_conflicts(network1, &map, &5));
+            drop(sync_map);
+        }
 
-        let conflict = check_map_conflicts(network2, &map, &5);
-
-        // When network is different there is a conflict.
-        assert_eq!(Some(Network::Mainnet), conflict);
+        Ok(())
     }
-}
+*/
+
+#[cfg(test)]
+mod tests {}

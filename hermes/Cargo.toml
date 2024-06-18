@@ -92,7 +92,10 @@ tokio = { version = "1.36.0", features = [
     "rt",
     "net",
     "rt-multi-thread",
+    "process",
 ] }
+tokio-util = { version = "0.7.11", features  = ["codec"] }
+tokio-stream = "0.1.15"
 libsqlite3-sys = "0.28.0"
 stringzilla = "3.8.4"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
@@ -144,3 +147,6 @@ async-trait = "0.1.80"
 dirs = "5.0.1"
 futures = "0.3.30"
 bytesize = "1.3.0"
+
+async-compression = { version = "0.4.11", features = ["tokio","zstd"] }
+tokio-tar = "0.3.1"

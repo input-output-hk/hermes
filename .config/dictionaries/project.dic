@@ -15,6 +15,7 @@ blockfetch
 blosc
 bmac
 BROTLI
+bufread
 bytesize
 cantopen
 cardano

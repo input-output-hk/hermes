@@ -2,50 +2,37 @@
 
 use std::{
     cmp::Ordering,
-    ffi::OsStr,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
-use crate::Network;
+use crate::{
+    error::{Error, Result},
+    mithril_snapshot_downloader::background_mithril_update,
+    network::Network,
+    snapshot_id::SnapshotId,
+};
+
+use dashmap::DashMap;
 use futures::future::join_all;
+use once_cell::sync::Lazy;
+use pallas_hardano::storage::immutable::Point;
 use tokio::{
     fs::{self, remove_file},
-    io::{self, AsyncReadExt},
-};
-use tokio::{
     fs::{hard_link, File},
+    io::{self, AsyncReadExt},
     join,
+    sync::{mpsc, Mutex},
+    task::JoinHandle,
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
+
+/// Type we use to manage the Sync Task handle map.
+type SyncMap = Arc<Mutex<DashMap<Network, JoinHandle<()>>>>;
+/// Handle to the mithril sync thread.
+static SYNC_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| Arc::new(Mutex::new(DashMap::new())));
 
 // Mainnet Defaults.
-/// Main-net Mithril Signature genesis vkey.
-const DEFAULT_MAINNET_MITHRIL_GENESIS_KEY: &str = include_str!("data/mainnet-genesis.vkey");
-/// Default Mithril Aggregator to use.
-const DEFAULT_MAINNET_MITHRIL_AGGREGATOR: &str =
-    "https://aggregator.release-mainnet.api.mithril.network/aggregator";
-
-// Preprod Defaults
-/// Preprod network Mithril Signature genesis vkey.
-const DEFAULT_PREPROD_MITHRIL_GENESIS_KEY: &str = include_str!("data/preprod-genesis.vkey");
-/// Default Mithril Aggregator to use.
-const DEFAULT_PREPROD_MITHRIL_AGGREGATOR: &str =
-    "https://aggregator.release-preprod.api.mithril.network/aggregator";
-
-// Preview Defaults
-/// Preview network Mithril Signature genesis vkey.
-const DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY: &str = include_str!("data/preview-genesis.vkey");
-/// Default Mithril Aggregator to use.
-const DEFAULT_PREVIEW_MITHRIL_AGGREGATOR: &str =
-    "https://aggregator.pre-release-preview.api.mithril.network/aggregator";
-
-/// Default name of the executable if we can't derive it.
-const DEFAULT_EXE_NAME: &str = "cardano_chain_follower";
-
-/// ENV VAR name for the data path.
-const ENVVAR_MITHRIL_DATA_PATH: &str = "MITHRIL_DATA_PATH";
-/// ENV VAR name for the executable name.
-const ENVVAR_MITHRIL_EXE_NAME: &str = "MITHRIL_EXE_NAME";
 
 /// Subdirectory where we download archives.
 const DL_SUBDIR: &str = "dl";
@@ -58,48 +45,21 @@ const TMP_SUBDIR: &str = "tmp";
 #[allow(clippy::cast_possible_truncation)]
 const FILE_COMPARE_BUFFER_SIZE: usize = bytesize::MIB as usize;
 
-/// Get the default storage location for mithril snapshots.
-/// Defaults to: <platform data_local_dir>/<exe name>/mithril/<network>
-#[allow(dead_code)]
-fn get_default_mithril_path(chain: Network) -> PathBuf {
-    // Get the base path for storing Data.
-    // IF the ENV var is set, use that.
-    // Otherwise use the system default data path for an application.
-    // All else fails default to "/var/lib"
-    let mut base_path = std::env::var(ENVVAR_MITHRIL_DATA_PATH).map_or_else(
-        |_| dirs::data_local_dir().unwrap_or("/var/lib".into()),
-        PathBuf::from,
-    );
-
-    // Get the Executable name for the data path.
-    // IF the ENV var is set, use it, otherwise try and get it from the exe itself.
-    // Fallback to using a default exe name if all else fails.
-    let exe_name = std::env::var(ENVVAR_MITHRIL_EXE_NAME).unwrap_or(
-        std::env::current_exe()
-            .unwrap_or(DEFAULT_EXE_NAME.into())
-            .file_name()
-            .unwrap_or(OsStr::new(DEFAULT_EXE_NAME))
-            .to_string_lossy()
-            .to_string(),
-    );
-
-    // <base path>/<exe name>
-    base_path.push(exe_name);
-
-    // Put everything in a `mithril` sub directory.
-    base_path.push("mithril");
-
-    // <base path>/<exe name>/<network>
-    base_path.push(chain.to_string());
-
-    debug!("DEFAULT Mithril Data Path for {} : {:?}", chain, &base_path);
-
-    // Return the final path
-    base_path
-}
-
 /// Check if the src file and tmp file are identical.
 async fn compare_files(src_file: &Path, tmp_file: &Path) -> bool {
+    // Get data describing both files.
+    let Ok(src_file_data) = src_file.metadata() else {
+        return false;
+    };
+    let Ok(tmp_file_data) = tmp_file.metadata() else {
+        return false;
+    };
+
+    // if they are different sizes, no way we can de-duplicate them.
+    if src_file_data.len() != tmp_file_data.len() {
+        return false;
+    }
+
     // Finally ensure they are identical data
     let mut src = match File::open(src_file).await {
         Ok(f) => f,
@@ -184,15 +144,6 @@ async fn compare_files(src_file: &Path, tmp_file: &Path) -> bool {
     true
 }
 
-/// Check if `immutable_file_number` is later than the current latest snapshot.
-fn is_later(latest_snapshot: &Option<(PathBuf, u64)>, immutable_file_number: u64) -> bool {
-    match latest_snapshot {
-        None => true,
-        Some((_, cmp_file_number)) if immutable_file_number > *cmp_file_number => true,
-        _ => false,
-    }
-}
-
 /// Configuration used for the Mithril Snapshot downloader.
 #[derive(Clone, Debug)]
 pub struct MithrilSnapshotConfig {
@@ -216,22 +167,10 @@ impl MithrilSnapshotConfig {
     #[must_use]
     #[allow(dead_code)]
     pub fn default_for(chain: Network) -> Self {
-        match chain {
-            Network::Mainnet => Self {
-                path: get_default_mithril_path(chain),
-                aggregator_url: DEFAULT_MAINNET_MITHRIL_AGGREGATOR.to_string(),
-                genesis_key: DEFAULT_MAINNET_MITHRIL_GENESIS_KEY.to_string(),
-            },
-            Network::Preview => Self {
-                path: get_default_mithril_path(chain),
-                aggregator_url: DEFAULT_PREVIEW_MITHRIL_AGGREGATOR.to_string(),
-                genesis_key: DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY.to_string(),
-            },
-            Network::Preprod => Self {
-                path: get_default_mithril_path(chain),
-                aggregator_url: DEFAULT_PREPROD_MITHRIL_AGGREGATOR.to_string(),
-                genesis_key: DEFAULT_PREPROD_MITHRIL_GENESIS_KEY.to_string(),
-            },
+        Self {
+            path: chain.default_mithril_path(),
+            aggregator_url: chain.default_mithril_aggregator(),
+            genesis_key: chain.default_mithril_genesis_key(),
         }
     }
 
@@ -249,13 +188,13 @@ impl MithrilSnapshotConfig {
     /// Will use a path relative to mithril data path.
     #[must_use]
     #[allow(dead_code)]
-    pub async fn latest_snapshot_path(&self) -> Option<(PathBuf, u64)> {
+    pub async fn latest_snapshot_path(&self) -> Option<SnapshotId> {
         // Can we read directory entries from the base path, if not then there is no latest snapshot.
         let Ok(mut entries) = fs::read_dir(&self.path).await else {
             return None;
         };
 
-        let mut latest_snapshot: Option<(PathBuf, u64)> = None;
+        let mut latest_snapshot: Option<SnapshotId> = None;
 
         loop {
             // Get the next entry, stop on any error, or no entries left.
@@ -263,12 +202,10 @@ impl MithrilSnapshotConfig {
                 break;
             };
 
-            // Only care about directories.
-            if entry.path().is_dir() {
-                if let Ok(numeric_name) = entry.file_name().to_string_lossy().parse::<u64>() {
-                    if is_later(&latest_snapshot, numeric_name) {
-                        latest_snapshot = Some((entry.path(), numeric_name));
-                    }
+            if let Some(snapshot) = SnapshotId::try_new(&entry.path()) {
+                if snapshot > latest_snapshot {
+                    // Found a new latest snapshot
+                    latest_snapshot = Some(snapshot);
                 }
             }
         }
@@ -278,47 +215,82 @@ impl MithrilSnapshotConfig {
 
     /// Activate the tmp mithril path to a numbered snapshot path.
     /// And then remove any left over files in download or the tmp path, or old snapshots.
-    #[allow(dead_code)]
-    async fn activate(&self, snapshot_number: u64) -> io::Result<()> {
-        let new_path = self.numbered_path(snapshot_number);
+    pub(crate) async fn activate(&self, snapshot_number: u64) -> io::Result<PathBuf> {
+        let new_path = self.mithril_path(snapshot_number);
         let latest_path = self.latest_snapshot_path().await;
 
-        // Get the latest immutable file index or 0 if none exists.
-        let latest_immutable = latest_path.clone().unwrap_or(("".into(), 0)).1;
+        // Can't activate anything if the tmp directory does not exist.
+        if !self.tmp_path().is_dir() {
+            error!("No tmp path found to activate.");
+            return Err(io::Error::new(io::ErrorKind::NotFound, "No tmp path found"));
+        }
 
-        // The number we are trying to set is newer than the latest, so lets set it.
-        let cleanup_snapshot = if latest_immutable < snapshot_number {
-            match fs::rename(self.tmp_path(), new_path).await {
-                Ok(()) => latest_path.clone(),
-                Err(err) => {
-                    error!("Failed to Promote Snapshot {snapshot_number} to latest: {err:?}");
-                    Some((self.tmp_path(), snapshot_number))
-                },
+        // Check if we would actually be making a newer snapshot active. (Should never fail, but check anyway.)
+        if let Some(latest) = latest_path {
+            if latest >= snapshot_number {
+                error!(
+                    "Latest snapshot {latest:?} is >= than requested snapshot {snapshot_number}"
+                );
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "Latest snapshot is newer or equal",
+                ));
             }
-        } else {
-            warn!(
-                "The path to activate {:?} was NOT the latest {:?}, so it is being removed.",
-                new_path, latest_path
-            );
-            Some((new_path, snapshot_number))
         };
 
+        // Rename the tmp path to the new numbered path.
+        fs::rename(self.tmp_path(), &new_path).await?;
+
+        // Cleanup older snapshots, dl and tmp directories if they exist.
+        self.cleanup().await?;
+
+        Ok(new_path)
+    }
+
+    /// Cleanup the tmp mithril path, all old mithril paths and the dl path.
+    /// Removes those directories if they exist and all the files they contain.
+    #[allow(dead_code)]
+    async fn cleanup(&self) -> io::Result<()> {
         let mut cleanup_tasks = Vec::new();
 
-        // Clean up the tmp path, and old snapshots and download artifacts.
-        match cleanup_snapshot {
-            None => (),
-            Some((cleanup_snapshot, _snapshot)) => {
-                if cleanup_snapshot.exists() {
-                    cleanup_tasks.push(fs::remove_dir_all(cleanup_snapshot.clone()));
-                }
-            },
-        };
-
-        // Cleanup up the Download path.
+        // Cleanup up the Download path. (Finished with the archive)
         let download = self.dl_path();
         if !download.exists() {
             cleanup_tasks.push(fs::remove_dir_all(download.clone()));
+        }
+
+        // Cleanup up the tmp path. (Shouldn't normally exist, but clean it anyway)
+        let tmp = self.tmp_path();
+        if !tmp.exists() {
+            cleanup_tasks.push(fs::remove_dir_all(tmp.clone()));
+        }
+
+        // Cleanup all numbered paths which are not this latest path
+        match fs::read_dir(&self.path).await {
+            Err(err) => error!(
+                "Unexpected failure reading entries in the mithril path {} : {}",
+                self.path.to_string_lossy(),
+                err
+            ),
+            Ok(mut entries) => {
+                // Get latest mithril snapshot path and number.
+                let latest_snapshot = self.latest_snapshot_path().await;
+
+                loop {
+                    // Get the next entry, stop on any error, or no entries left.
+                    let Ok(Some(entry)) = entries.next_entry().await else {
+                        break;
+                    };
+
+                    // If None, its not a snapshot path, so continue.
+                    if let Some(this_snapshot) = SnapshotId::try_new(&entry.path()) {
+                        // Don't do anything with the latest snapshot.
+                        if this_snapshot != latest_snapshot {
+                            cleanup_tasks.push(fs::remove_dir_all(entry.path()));
+                        }
+                    };
+                }
+            },
         }
 
         for result in join_all(cleanup_tasks).await {
@@ -349,12 +321,13 @@ impl MithrilSnapshotConfig {
         }
 
         // Do we have a Mithril snapshot to deduplicate against.
-        let Some((snapshot_path, _)) = self.latest_snapshot_path().await else {
+        let Some(latest_snapshot) = self.latest_snapshot_path().await else {
             // No snapshot, so nothing to de-dup against.
             return false;
         };
 
         // Get the matching src file in the latest mithril snapshot to compare against.
+        let snapshot_path = latest_snapshot.as_ref();
         let tmp_path = self.tmp_path();
         let Ok(relative_file) = tmp_file.strip_prefix(tmp_path) else {
             return false;
@@ -365,19 +338,6 @@ impl MithrilSnapshotConfig {
         // First check if we even have a snapshot_file to compare with, and that its actually just a file.
         if !src_file.is_file() {
             // No snapshot file (or not a file), so nothing to de-dup
-            return false;
-        }
-
-        // Get data describing both files.
-        let Ok(src_file_data) = src_file.metadata() else {
-            return false;
-        };
-        let Ok(tmp_file_data) = tmp_file.metadata() else {
-            return false;
-        };
-
-        // if they are different sizes, no way we can de-duplicate them.
-        if src_file_data.len() != tmp_file_data.len() {
             return false;
         }
 
@@ -422,15 +382,192 @@ impl MithrilSnapshotConfig {
         snapshot_path
     }
 
-    /// Returns the path to Latest Tmp Snapshot Data.
+    /// Returns the path to the Numbered Snapshot Data.
     /// Will use a path relative to mithril data path.
     #[must_use]
     #[allow(dead_code)]
-    pub fn numbered_path(&self, snapshot_number: u64) -> PathBuf {
+    pub fn mithril_path(&self, snapshot_number: u64) -> PathBuf {
         let mut snapshot_path = self.path.clone();
         snapshot_path.push(snapshot_number.to_string());
         snapshot_path
     }
+
+    /// Check if the Mithril Snapshot Path is valid an usable.
+    async fn validate_path(&self) -> Result<()> {
+        let path = self.path.clone();
+        debug!("Validating Mithril Snapshot Path: {:?}", path);
+
+        // If the path does not exist, try and make it.
+        if !path.exists() {
+            // Try and make the directory.
+            fs::create_dir_all(&path)
+                .await
+                .map_err(|e| Error::MithrilSnapshotDirectoryCreation(path.clone(), e))?;
+        }
+
+        // If the path is NOT a directory, then we can't use it.
+        if !path.is_dir() {
+            return Err(Error::MithrilSnapshotDirectoryNotFound(
+                path.display().to_string(),
+            ));
+        }
+
+        // If the directory is not writable then we can't use
+        if !check_writable(&path) {
+            return Err(Error::MithrilSnapshotDirectoryNotWritable(path.clone()));
+        }
+
+        Ok(())
+    }
+
+    /// Validate the Genesis VKEY is at least the correct kind of data.
+    fn validate_genesis_vkey(&self, chain: Network) -> Result<()> {
+        // First sanitize the vkey by removing all whitespace and make sure its actually valid
+        // hex.
+        let vkey = remove_whitespace(&self.genesis_key);
+        if !is_hex(&vkey) {
+            return Err(Error::MithrilGenesisVKeyNotHex(chain));
+        }
+
+        Ok(())
+    }
+
+    /// Validate the Aggregator is resolvable and responsive.
+    async fn validate_aggregator_url(&self, chain: Network) -> Result<()> {
+        let url = self.aggregator_url.clone();
+        let key = self.genesis_key.clone();
+
+        debug!("Validating Aggregator URL: {:?}", url);
+
+        // Not configured already, and not already in use, so make sure its valid.
+        // We do this by trying to use it to get a list of snapshots.
+        let client = mithril_client::ClientBuilder::aggregator(&url, &key)
+            .build()
+            .map_err(|e| Error::MithrilClient(chain, url.clone(), e))?;
+
+        let snapshots = client
+            .snapshot()
+            .list()
+            .await
+            .map_err(|e| Error::MithrilClient(chain, url.clone(), e))?;
+
+        // Check we have a snapshot, and its for our network.
+        match snapshots.first() {
+            Some(snapshot) => {
+                if snapshot.beacon.network != chain.to_string() {
+                    return Err(Error::MithrilClientNetworkMismatch(
+                        chain,
+                        snapshot.beacon.network.clone(),
+                    ));
+                }
+            },
+            None => return Err(Error::MithrilClientNoSnapshots(chain, url)),
+        }
+
+        Ok(())
+    }
+
+    pub async fn validate(&self, chain: Network) -> Result<()> {
+        // Validate the path exists and is a directory, and is writable.
+        self.validate_path().await?;
+        // Validate the genesis vkey is valid.
+        self.validate_genesis_vkey(chain);
+        // Validate the Aggregator is valid and responsive.
+        self.validate_aggregator_url(chain).await?;
+
+        Ok(())
+    }
+
+    /// Run a Mithril Follower for the given network and configuration.
+    #[must_use]
+    pub(crate) async fn run(&self, chain: Network) -> Result<mpsc::Receiver<Point>> {
+        debug!("Mithril Autoupdate for {} : Starting", chain);
+
+        // Start the mITHRIL uPDATER - IFF its not already running.
+        // This lock also effectively stops us starting multiple updaters for multiple networks simultaneously.
+        // They will be started one at a time.
+        let sync_map = SYNC_HANDLE_MAP.lock().await;
+
+        // If we already have an entry in this map, then we are already running.
+        if sync_map.contains_key(&chain) {
+            error!("Mithril Autoupdate already running for {}", chain);
+            return Err(Error::MithrilSnapshotUpdaterAlreadyRunning(chain));
+        }
+
+        self.validate(chain).await?;
+
+        // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot TIP has changed.
+        let (tx, rx) = mpsc::channel::<Point>(2);
+
+        let handle = tokio::spawn(background_mithril_update(chain, self.clone(), tx));
+        sync_map.insert(chain, handle);
+        debug!("Mithril Autoupdate for {} : Started", chain);
+
+        drop(sync_map);
+
+        Ok(rx)
+    }
+}
+
+/// Check that a given mithril snapshot path and everything in it is writable.
+/// We don't care why its NOT writable, just that it is either all writable, or not.
+/// Will return false on the first detection of a read only file or directory.
+fn check_writable(path: &PathBuf) -> bool {
+    // Check the permissions of the current path
+    if let Ok(metadata) = path.metadata() {
+        if metadata.permissions().readonly() {
+            return false;
+        }
+    }
+
+    // Can't read the directory for any reason, so can't write to the directory.
+    let path_iterator = match path.read_dir() {
+        Err(_) => return false,
+        Ok(entries) => entries,
+    };
+
+    // Recursively check the contents of the directory
+    for entry in path_iterator {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => return false,
+        };
+
+        // If the entry is a directory, recursively check its permissions
+        // otherwise just check we could re-write it.
+        if let Ok(metadata) = entry.metadata() {
+            if metadata.is_dir() {
+                // This can NOT be combined with the `if` above.
+                // Doing so will cause the `else` to run on non-writable directories.
+                // Which is wrong.
+                if !check_writable(&entry.path()) {
+                    return false;
+                }
+            } else {
+                // If its not a directory then it must be a file.
+                if metadata.permissions().readonly() {
+                    return false;
+                }
+            }
+        } else {
+            // Can't identify the file type, so we can;t dedup it.
+            return false;
+        }
+    }
+    // Otherwise we could write everything we scanned.
+    true
+}
+
+/// Remove whitespace from a string and return the new string
+fn remove_whitespace(s: &str) -> String {
+    s.chars()
+        .filter(|&c| !c.is_ascii_whitespace())
+        .collect::<String>()
+}
+
+/// Check if a string is an even number of hex digits.
+fn is_hex(s: &str) -> bool {
+    s.chars().count() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 #[cfg(test)]
@@ -438,9 +575,10 @@ mod tests {
 
     use std::path::Path;
 
-    use regex::Regex;
-
     use super::*;
+    use crate::network::{ENVVAR_MITHRIL_DATA_PATH, ENVVAR_MITHRIL_EXE_NAME};
+
+    use regex::Regex;
 
     fn test_paths(
         path: &Path, network: Network, data_root: &str, exe_name: &str, subdir: Option<&str>,
@@ -468,7 +606,7 @@ mod tests {
     #[test]
     fn test_base_path() {
         fn test_network(network: Network, root: &str, app: &str) {
-            test_paths(&get_default_mithril_path(network), network, root, app, None);
+            test_paths(&network.default_mithril_path(), network, root, app, None);
         }
         // Use the probed EXE name
         test_network(Network::Mainnet, DEFAULT_ROOT, DEFAULT_APP);

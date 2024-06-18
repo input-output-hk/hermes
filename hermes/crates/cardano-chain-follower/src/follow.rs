@@ -1,6 +1,6 @@
 //! Cardano chain follow module.
 
-use std::{fmt::Display, future::Future, path::PathBuf, time::Duration};
+use std::{future::Future, path::PathBuf, time::Duration};
 
 use pallas::network::{facades::PeerClient, miniprotocols::Point};
 use tokio::{
@@ -11,7 +11,12 @@ use tokio::{
 use tracing::debug;
 
 use crate::{
-    mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, Network, PointOrTip, Result,
+    chain_update::ChainUpdate,
+    error::{Error, Result},
+    mithril_snapshot::MithrilSnapshot,
+    multi_era_block_data::MultiEraBlockData,
+    network::Network,
+    point_or_tip::PointOrTip,
 };
 
 /// Default [`Follower`] block buffer size.
@@ -43,77 +48,6 @@ const DEFAULT_PREVIEW_MITHRIL_GENESIS_KEY: &str = include_str!("data/preview-gen
 /// Default Mithril Aggregator to use.
 const DEFAULT_PREVIEW_MITHRIL_AGGREGATOR: &str =
     "https://aggregator.pre-release-preview.api.mithril.network/aggregator";
-
-/// Enum of chain updates received by the follower.
-#[derive(Debug)]
-pub enum ChainUpdate {
-    /// Immutable Block from the immutable part of the blockchain.
-    ImmutableBlock(MultiEraBlockData),
-    /// Immutable Block from the immutable part of the blockchain (Rollback).
-    ImmutableBlockRollback(MultiEraBlockData),
-    /// New block inserted on chain.
-    Block(MultiEraBlockData),
-    /// New block inserted on chain.
-    BlockTip(MultiEraBlockData),
-    /// Chain rollback to the given block.
-    Rollback(MultiEraBlockData),
-}
-
-impl Display for ChainUpdate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let block_type = match self {
-            Self::ImmutableBlock(_) => "Immutable",
-            Self::ImmutableBlockRollback(_) => "Immutable Rollback",
-            Self::Block(_) => "Live",
-            Self::BlockTip(_) => "Tip",
-            Self::Rollback(_) => "Rollback",
-        };
-
-        let decoded_block = self.block_data().decode();
-        match decoded_block {
-            Err(err) => {
-                write!(f, "{block_type} : failed to decode block: {err}")?;
-            },
-            Ok(block) => {
-                let block_number = block.number();
-                let slot = block.slot();
-                let size = block.size();
-                let txns = block.tx_count();
-                let aux_data = block.has_aux_data();
-
-                let block_era = match block {
-                    pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
-                        "Byron Epoch Boundary".to_string()
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(_, era) => {
-                        format!("{era}")
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::Babbage(_) => "Babbage".to_string(),
-                    pallas::ledger::traverse::MultiEraBlock::Byron(_) => "Byron".to_string(),
-                    pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
-                    _ => "Unknown".to_string(),
-                };
-
-                write!(f, "{block_type} {block_era} block : Slot# {slot} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
-            },
-        }
-        Ok(())
-    }
-}
-
-impl ChainUpdate {
-    /// Gets the chain update's block data.
-    #[must_use]
-    pub fn block_data(&self) -> &MultiEraBlockData {
-        match self {
-            ChainUpdate::ImmutableBlock(block_data)
-            | ChainUpdate::ImmutableBlockRollback(block_data)
-            | ChainUpdate::Block(block_data)
-            | ChainUpdate::BlockTip(block_data)
-            | ChainUpdate::Rollback(block_data) => block_data,
-        }
-    }
-}
 
 /// A Follower Connection to the Cardano Network.
 #[derive(Clone, Debug)]
@@ -328,7 +262,7 @@ impl Future for ReadBlock {
         match p.poll(cx) {
             std::task::Poll::Ready(res) => match res {
                 Ok(res) => std::task::Poll::Ready(res),
-                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+                Err(_) => std::task::Poll::Ready(Err(Error::Internal)),
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -352,7 +286,7 @@ impl Future for ReadBlockRange {
         match p.poll(cx) {
             std::task::Poll::Ready(res) => match res {
                 Ok(res) => std::task::Poll::Ready(res),
-                Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+                Err(_) => std::task::Poll::Ready(Err(Error::Internal)),
             },
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
@@ -548,8 +482,12 @@ mod task {
 
     use super::{set_client_read_pointer, ChainUpdate};
     use crate::{
-        mithril_snapshot::MithrilSnapshot, Error, FollowerConfig, MultiEraBlockData, Network,
-        PointOrTip, Result,
+        error::{Error, Result},
+        mithril_snapshot::MithrilSnapshot,
+        multi_era_block_data::MultiEraBlockData,
+        network::Network,
+        point_or_tip::PointOrTip,
+        FollowerConfig,
     };
 
     /// Request the task to set the read pointer to the given point or to the
@@ -568,7 +506,7 @@ mod task {
         /// Request receiver.
         request_rx: mpsc::Receiver<SetReadPointerRequest>,
         /// Chain update sender.
-        chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
+        chain_update_tx: mpsc::Sender<Result<ChainUpdate>>,
     }
 
     impl FollowTask {
@@ -577,7 +515,7 @@ mod task {
             client: PeerClient, connection_cfg: FollowerConfig, follow_from: Point,
         ) -> (
             mpsc::Sender<SetReadPointerRequest>,
-            mpsc::Receiver<crate::Result<ChainUpdate>>,
+            mpsc::Receiver<Result<ChainUpdate>>,
             tokio::task::JoinHandle<()>,
         ) {
             let (request_tx, request_rx) = mpsc::channel(1);
@@ -619,7 +557,7 @@ mod task {
                             .await;
 
                         let Ok(mut client) = res else {
-                            drop(response_tx.send(Err(crate::Error::SetReadPointer)));
+                            drop(response_tx.send(Err(Error::SetReadPointer)));
                             continue;
                         };
 
@@ -638,7 +576,7 @@ mod task {
                                 drop(response_tx.send(Ok(None)));
                             }
                             Err(_) => {
-                                drop(response_tx.send(Err(crate::Error::SetReadPointer)));
+                                drop(response_tx.send(Err(Error::SetReadPointer)));
                                 continue;
                             }
                         }
@@ -654,7 +592,7 @@ mod task {
         /// from the N2N remote client.
         async fn fetch_chain_updates(
             mut client: PeerClient, network: Network,
-            chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>, from: Point,
+            chain_update_tx: mpsc::Sender<Result<ChainUpdate>>, from: Point,
         ) {
             let mut current_point = from;
 
@@ -668,7 +606,7 @@ mod task {
                     let mut fallback = false;
 
                     if let Ok(raw_block_data) = result {
-                        let block_data = MultiEraBlockData(raw_block_data);
+                        let block_data = MultiEraBlockData::new(raw_block_data);
 
                         match block_data.decode() {
                             Ok(block) => {
@@ -716,11 +654,7 @@ mod task {
                                 }
                             },
                             Ok(None) | Err(_) => {
-                                drop(
-                                    chain_update_tx
-                                        .send(Err(crate::Error::SetReadPointer))
-                                        .await,
-                                );
+                                drop(chain_update_tx.send(Err(Error::SetReadPointer)).await);
                                 return;
                             },
                         }
@@ -752,7 +686,7 @@ mod task {
         ///
         /// Is cancelled by closing the `chain_update_tx` receiver end (explicitly or by
         /// dropping it).
-        async fn next_from_client(client: &mut PeerClient) -> crate::Result<Option<ChainUpdate>> {
+        async fn next_from_client(client: &mut PeerClient) -> Result<Option<ChainUpdate>> {
             tracing::trace!("Requesting next chain update");
             let res = {
                 match client.chainsync().state() {
@@ -796,9 +730,9 @@ mod task {
 
                     let update = if at_tip {
                         // Then we are at the tip of the blockchain.
-                        ChainUpdate::BlockTip(MultiEraBlockData(block_data))
+                        ChainUpdate::BlockTip(MultiEraBlockData::new(block_data))
                     } else {
-                        ChainUpdate::Block(MultiEraBlockData(block_data))
+                        ChainUpdate::Block(MultiEraBlockData::new(block_data))
                     };
 
                     Ok(Some(update))
@@ -811,7 +745,9 @@ mod task {
                         .await
                         .map_err(Error::Blockfetch)?;
 
-                    Ok(Some(ChainUpdate::Rollback(MultiEraBlockData(block_data))))
+                    Ok(Some(ChainUpdate::Rollback(MultiEraBlockData::new(
+                        block_data,
+                    ))))
                 },
                 chainsync::NextResponse::Await => Ok(None),
             }
@@ -819,7 +755,7 @@ mod task {
 
         /// Sends the next chain update through the follower's chain update channel.
         async fn send_next_chain_update(
-            client: &mut PeerClient, chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
+            client: &mut PeerClient, chain_update_tx: mpsc::Sender<Result<ChainUpdate>>,
         ) -> bool {
             loop {
                 let res = Self::next_from_client(client).await;
@@ -895,7 +831,7 @@ async fn read_block_from_network(
         .map_err(Error::Blockfetch)?;
 
     tracing::trace!(slot, "Block read from n2n");
-    Ok(MultiEraBlockData(block_data))
+    Ok(MultiEraBlockData::new(block_data))
 }
 
 /// Reads a range of blocks from the network using the N2N client.
@@ -912,7 +848,7 @@ async fn read_block_range_from_network(
         .await
         .map_err(Error::Blockfetch)?
         .into_iter()
-        .map(MultiEraBlockData)
+        .map(MultiEraBlockData::new)
         .collect();
 
     tracing::trace!(from_slot, to_slot, "Block range read from n2n");
@@ -929,8 +865,12 @@ mod tests {
     use tracing::debug;
 
     use crate::{
-        ChainUpdate::{Block, BlockTip, ImmutableBlock, ImmutableBlockRollback, Rollback},
-        FollowerConfigBuilder, Network, Point, PointOrTip,
+        chain_update::ChainUpdate::{
+            Block, BlockTip, ImmutableBlock, ImmutableBlockRollback, Rollback,
+        },
+        network::Network,
+        point_or_tip::PointOrTip,
+        FollowerConfigBuilder, Point,
     };
 
     #[ignore]

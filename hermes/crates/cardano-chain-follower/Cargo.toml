@@ -18,6 +18,8 @@ pallas.workspace = true
 pallas-hardano.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
+tokio-stream.workspace = true
 tracing.workspace = true
 dashmap.workspace = true
 once_cell.workspace = true
@@ -30,6 +32,8 @@ dirs.workspace = true
 regex.workspace = true
 futures.workspace = true
 bytesize.workspace = true
+async-compression.workspace = true
+tokio-tar.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
