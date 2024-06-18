@@ -16,6 +16,7 @@ pub(crate) struct SchemaValidator {
 
 impl SchemaValidator {
     /// Create a new json schema validator from reader.
+    #[allow(dead_code)]
     pub(crate) fn from_reader<R: Read>(reader: R) -> anyhow::Result<Self> {
         let schema = serde_json::from_reader(reader)?;
         Self::from_json(&schema)
