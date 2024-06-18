@@ -17,7 +17,9 @@ pub use rust_ipfs::path::IpfsPath;
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
-use rust_ipfs::{unixfs::AddOpt, Ipfs, UninitializedIpfsNoop};
+/// Builder type for IPFS Node configuration.
+pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
+use rust_ipfs::{unixfs::AddOpt, Ipfs};
 
 /// Hermes IPFS Node
 ///
@@ -64,7 +66,7 @@ impl HermesIpfs {
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
         // TODO(saibatizoku):
-        let node: Ipfs = UninitializedIpfsNoop::new()
+        let node: Ipfs = IpfsBuilder::new()
             .with_default()
             .set_default_listener()
             //.with_mdns()

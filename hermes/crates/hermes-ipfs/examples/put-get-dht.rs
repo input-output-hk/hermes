@@ -6,9 +6,7 @@ use rust_ipfs::libp2p::futures::{pin_mut, StreamExt};
 
 #[allow(clippy::indexing_slicing)]
 /// Connect Node A, upload file and provide CID by adding to DHT
-async fn start_bootstrapped_nodes(
-    _file_content: Vec<u8>,
-) -> anyhow::Result<(HermesIpfs, HermesIpfs)> {
+async fn start_bootstrapped_nodes() -> anyhow::Result<(HermesIpfs, HermesIpfs)> {
     let hermes_a = HermesIpfs::start().await?;
     println!("***************************************");
     println!("* Hermes IPFS node A has started.");
@@ -49,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     // File to be uploaded
     let ipfs_file = b"DEMO FILE DISTRIBUTED WITH DHT".to_vec();
     // Start Node A, publish file, and make node provider for CID
-    let (hermes_ipfs_a, hermes_ipfs_b) = start_bootstrapped_nodes(ipfs_file.clone()).await?;
+    let (hermes_ipfs_a, hermes_ipfs_b) = start_bootstrapped_nodes().await?;
     println!("* Hermes IPFS node A is publishing 'my_key' to DHT.");
     hermes_ipfs_a
         .node

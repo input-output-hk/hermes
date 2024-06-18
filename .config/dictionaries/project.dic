@@ -80,6 +80,7 @@ hmod
 ideascale
 idents
 ipfs
+ipld
 IFMT
 Intellij
 ioerr
@@ -94,12 +95,14 @@ Leshiy
 libsqlite
 libtest
 libipld
+libp2p
 linkat
 lintfix
 localizable
 lookaside
 maindbname
 mdlint
+mdns
 miniprotocol
 miniprotocols
 mithril
@@ -182,6 +185,7 @@ typenum
 unfinalized
 unixfs
 unlinkat
+upnp
 utimensat
 vitss
 voteplan
