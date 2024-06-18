@@ -16,7 +16,7 @@ use signature_payload::SignaturePayloadBuilder;
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package,
+    copy_dir_recursively_to_package, copy_resource_to_package, get_package_file_reader,
     resources::{bytes_resource::BytesResource, ResourceTrait},
 };
 use crate::{errors::Errors, wasm};
@@ -30,6 +30,11 @@ pub(crate) struct CreatePackageError(PathBuf);
 #[derive(thiserror::Error, Debug)]
 #[error("Invalid file at {0}:\n{1}")]
 pub(crate) struct InvalidFileError(String, String);
+
+/// Missing package file error.
+#[derive(thiserror::Error, Debug)]
+#[error("Missing package file {0}.")]
+pub(crate) struct MissingPackageFileError(String);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -125,18 +130,27 @@ impl WasmModulePackage {
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
-        let ds = self.package.dataset(Self::METADATA_FILE)?;
-        let reader = ds.as_byte_reader()?;
+        let reader = get_package_file_reader(Self::METADATA_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
         Metadata::from_reader(reader)
+    }
+
+    /// Get `wasm::module::Module` object from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
+        let reader = get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
+        wasm::module::Module::from_reader(reader)
     }
 
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
-        let ds = self.package.dataset(Self::CONFIG_SCHEMA_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok(None);
-        };
-        Ok(Some(ConfigSchema::from_reader(reader)?))
+        if let Some(reader) = get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)? {
+            let config_schema = ConfigSchema::from_reader(reader)?;
+            Ok(Some(config_schema))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
@@ -148,21 +162,22 @@ impl WasmModulePackage {
             return Ok((None, None));
         };
 
-        let ds = self.package.dataset(Self::CONFIG_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok((None, Some(config_schema)));
-        };
-        let config = Config::from_reader(reader, config_schema.validator())?;
-        Ok((Some(config), Some(config_schema)))
+        if let Some(reader) = get_package_file_reader(Self::CONFIG_FILE, &self.package)? {
+            let config_file = Config::from_reader(reader, config_schema.validator())?;
+            Ok((Some(config_file), Some(config_schema)))
+        } else {
+            Ok((None, Some(config_schema)))
+        }
     }
 
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
-        let ds = self.package.dataset(Self::SETTINGS_SCHEMA_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok(None);
-        };
-        Ok(Some(SettingsSchema::from_reader(reader)?))
+        if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
+            let settigns_schema = SettingsSchema::from_reader(reader)?;
+            Ok(Some(settigns_schema))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Validate metadata.json file and write it to the package.
@@ -376,6 +391,11 @@ mod tests {
             .get_metadata()
             .expect("Cannot get metadata from package");
         assert_eq!(metadata, package_metadata);
+
+        // check component WASM file
+        let _package_component = package
+            .get_component()
+            .expect("Cannot get component from package");
 
         // check config and config schema JSON files
         let (package_config, package_config_schema) = package

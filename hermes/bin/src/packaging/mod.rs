@@ -31,7 +31,7 @@ fn copy_resource_to_package(
 }
 
 /// Copy dir to hdf5 package recursively.
-pub(crate) fn copy_dir_recursively_to_package(
+fn copy_dir_recursively_to_package(
     resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
 ) -> anyhow::Result<()> {
     let package = package.create_group(name)?;
@@ -54,6 +54,16 @@ pub(crate) fn copy_dir_recursively_to_package(
         }
     }
     errors.return_result(())
+}
+
+/// Get package file reader if present.
+/// Return error if not possible get a byte reader.
+fn get_package_file_reader(name: &str, package: &hdf5::Group) -> anyhow::Result<Option<impl Read>> {
+    if let Ok(ds) = package.dataset(name) {
+        Ok(Some(ds.as_byte_reader()?))
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
@@ -84,15 +94,14 @@ mod tests {
         )
         .expect("Cannot copy metadata.json to hdf5 package");
 
-        let metadata_json_ds = hdf5_file
-            .dataset(metadata_json)
-            .expect("cannot open metadata.json dataset");
-        let data = String::from_utf8(
-            metadata_json_ds
-                .read_raw()
-                .expect("cannot read metadata.json dataset"),
-        )
-        .expect("cannot parse metadata.json dataset");
+        let mut metadata_json_reader = get_package_file_reader(metadata_json, &hdf5_file)
+            .unwrap_or_default()
+            .expect("Cannot get metadata.json reader");
+
+        let mut data = String::new();
+        metadata_json_reader
+            .read_to_string(&mut data)
+            .expect("cannot parse metadata.json dataset");
         assert_eq!(data, metadata_json_data);
     }
 
@@ -125,12 +134,18 @@ mod tests {
             .expect("Cannot copy dir to hdf5 package");
 
         let root_group = hdf5_file.group(&dir_name).expect("Cannot open root group");
-        assert!(root_group.dataset(file_1_name).is_ok());
-        assert!(root_group.dataset(file_2_name).is_ok());
+        assert!(get_package_file_reader(file_1_name, &root_group)
+            .unwrap_or_default()
+            .is_some());
+        assert!(get_package_file_reader(file_2_name, &root_group)
+            .unwrap_or_default()
+            .is_some());
 
         let child_group = root_group
             .group(child_dir_name)
             .expect("Cannot open child group");
-        assert!(child_group.dataset(file_3_name).is_ok());
+        assert!(get_package_file_reader(file_3_name, &child_group)
+            .unwrap_or_default()
+            .is_some());
     }
 }
