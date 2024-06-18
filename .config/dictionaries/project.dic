@@ -156,6 +156,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustyline
 saibatizoku
 sandboxed
 scanorder
