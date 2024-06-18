@@ -1,9 +1,8 @@
 //! Blake2b-256 hash implementation.
 
 /// Blake2b-256 hash instance.
-/// Wrapper over `blake2b_simd::Hash`
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Blake2b256(blake2b_simd::Hash);
+pub(crate) struct Blake2b256([u8; Self::HASH_SIZE]);
 
 impl Blake2b256 {
     /// Blake2b-256 hash size.
@@ -11,24 +10,26 @@ impl Blake2b256 {
 
     /// Calculate a new `Blake2b256` from bytes.
     pub(crate) fn hash(bytes: &[u8]) -> Self {
-        Self(
-            blake2b_simd::Params::new()
-                .hash_length(Self::HASH_SIZE)
-                .hash(bytes),
-        )
+        let hash = blake2b_simd::Params::new()
+            .hash_length(Self::HASH_SIZE)
+            .hash(bytes);
+
+        let mut hash_bytes = [0; Self::HASH_SIZE];
+        hash_bytes.copy_from_slice(hash.as_bytes());
+
+        Self(hash_bytes)
     }
 
     /// Convert the hash to a hexadecimal string.
     pub(crate) fn to_hex(&self) -> String {
-        let bytes = self.0.as_bytes();
-        hex::encode(bytes)
+        hex::encode(self.0)
     }
 
     /// Convert the hash from a hexadecimal string.
     pub(crate) fn from_hex(s: &str) -> anyhow::Result<Self> {
         let bytes = hex::decode(s)?;
-        let bytes: &[u8; Self::HASH_SIZE * 2] = bytes.as_slice().try_into()?;
-        Ok(Self(bytes.into()))
+        let hash_bytes = bytes.as_slice().try_into()?;
+        Ok(Self(hash_bytes))
     }
 }
 

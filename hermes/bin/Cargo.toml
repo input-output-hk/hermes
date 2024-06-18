@@ -30,7 +30,6 @@ cardano-chain-follower = { workspace = true }
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
@@ -65,6 +64,7 @@ jsonschema = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
 pbkdf2 = { workspace = true }
+blake2b_simd = { workspace = true }
 sha2 = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem"] }
 x509-cert = { workspace = true, features = ["pem"] }
