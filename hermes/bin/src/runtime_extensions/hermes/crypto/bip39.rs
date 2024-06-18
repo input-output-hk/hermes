@@ -141,48 +141,48 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
 /// number of bits in the mnemonic phrase (including both entropy and checksum) is
 /// therefore:
 ///
-///     total_bits = word_count * 11
+/// `total_bits` = `word_count` * 11
 ///
 /// The total number of bits includes both the entropy bits and the checksum bits. The
 /// length of the checksum is defined as:
 ///
-///     checksum_len = entropy_bits / 32
+/// `checksum_len` = `entropy_bits` / 32
 ///
 /// Therefore, the total number of bits can be written as:
 ///
-///     total_bits = entropy_bits + checksum_len
-///               = entropy_bits + entropy_bits / 32
-///               = entropy_bits * (1 + 1/32)
-///               = entropy_bits * 33 / 32
+/// `total_bits` = `entropy_bits` + `checksum_len`
+///              = `entropy_bits` + `entropy_bits` / 32
+///              = `entropy_bits` * (1 + 1/32)
+///              = `entropy_bits` * 33 / 32
 ///
 /// Since `total_bits` is also equal to `word_count * 11`, we have:
 ///
-///     word_count * 11 = entropy_bits * 33 / 32
+/// `word_count` * 11 = `entropy_bits` * 33 / 32
 ///
 /// Solving for `entropy_bits`, we get:
 ///
-///     entropy_bits = word_count * 11 * 32 / 33
+/// `entropy_bits` = `word_count` * 11 * 32 / 33
 ///
 /// To find the number of entropy bytes, we need to divide the entropy bits by 8:
 ///
-///     total_entropy_bytes = entropy_bits / 8
+/// `total_entropy_bytes` = `entropy_bits` / 8
 ///
 /// Simplifying further, we get:
 ///
-///     total_entropy_bytes = (word_count * 11 * 32 / 33) / 8
-///                   = word_count * 11 * 4 / 33
-///                   = word_count * 4 / 3
+/// `total_entropy_bytes` = (`word_count` * 11 * 32 / 33) / 8
+///                       = `word_count` * 11 * 4 / 33
+///                       = `word_count` * 4 / 3
 ///
 /// However, since the number of mnemonic words is always a multiple of 3
 /// (in BIP39, valid word counts are 12, 15, 18, 21, or 24),
 /// we can simplify this to:
 ///
-///     total_entropy_bytes = (word_count / 3) * 4
+/// `total_entropy_bytes` = `word_count` * 4 / 3
 ///
 /// Note that if entropy bits is needed, multiply the `total_entropy_bytes` by 8.
 fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Number of bytes entropy calculate from mnemonic word.
-    let total_entropy_bytes = (word_count / 3) * 4;
+    let total_entropy_bytes = word_count * 4 / 3;
     // Maximum length of mnemonic is 24 words which is 32 bytes entropy.
     let mut total_entropy_bytes_max = [0u8; 32];
     // Random number
