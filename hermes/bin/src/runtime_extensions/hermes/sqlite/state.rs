@@ -9,11 +9,14 @@ use once_cell::sync::Lazy;
 
 use crate::app::HermesAppName;
 
+/// The object pointer used specifically with C objects like `sqlite3` or `sqlite3_stmt`.
+type ObjectPointer = usize;
+
 /// Represents an individual state for a particular object.
 #[derive(Debug)]
-pub(crate) struct ResourceObjectState<T: ToOwned + PartialEq> {
+pub(crate) struct ResourceObjectState {
     /// A map holding key-value pairs of an object ID and a value.
-    id_map: HashMap<u32, T>,
+    id_map: HashMap<u32, ObjectPointer>,
     /// The current incremental state of ID.
     current_id: Option<u32>,
 }
@@ -21,12 +24,12 @@ pub(crate) struct ResourceObjectState<T: ToOwned + PartialEq> {
 /// Represents the state of resources.
 pub(crate) struct ResourceState {
     /// The state of database object.
-    db_state: ResourceObjectState<usize>,
+    db_state: ResourceObjectState,
     /// The state of database statement object.
-    stmt_state: ResourceObjectState<usize>,
+    stmt_state: ResourceObjectState,
 }
 
-impl<T: ToOwned + Eq> ResourceObjectState<T> {
+impl ResourceObjectState {
     /// Create a new `ResourceObjectState` with initial state.
     fn new() -> Self {
         Self {
@@ -38,7 +41,7 @@ impl<T: ToOwned + Eq> ResourceObjectState<T> {
     /// Adds a value into the resource. If it does not exist, assigns one and returns the
     /// new created key ID. In case of the key ID is running out of numbers, returns
     /// `None`.
-    pub(super) fn add_object(&mut self, object_ptr: T) -> Option<u32> {
+    pub(super) fn add_object(&mut self, object_ptr: ObjectPointer) -> Option<u32> {
         if let Some((existing_id, _)) = self.id_map.iter().find(|(_, val)| val == &&object_ptr) {
             Some(*existing_id)
         } else {
@@ -57,12 +60,12 @@ impl<T: ToOwned + Eq> ResourceObjectState<T> {
     }
 
     /// Retrieves a value according to its key ID.
-    pub(super) fn get_object_by_id(&self, id: u32) -> Option<<T as ToOwned>::Owned> {
+    pub(super) fn get_object_by_id(&self, id: u32) -> Option<ObjectPointer> {
         self.id_map.get(&id).map(ToOwned::to_owned)
     }
 
     /// Deletes a value according to its key ID, and returns the removed value if exists.
-    pub(super) fn delete_object_by_id(&mut self, id: u32) -> Option<T> {
+    pub(super) fn delete_object_by_id(&mut self, id: u32) -> Option<ObjectPointer> {
         self.id_map.remove(&id)
     }
 }
@@ -77,12 +80,12 @@ impl ResourceState {
     }
 
     /// Gets the state for managing database objects.
-    pub(super) fn get_db_state(&mut self) -> &mut ResourceObjectState<usize> {
+    pub(super) fn get_db_state(&mut self) -> &mut ResourceObjectState {
         &mut self.db_state
     }
 
     /// Gets the state for managing statement objects.
-    pub(super) fn get_stmt_state(&mut self) -> &mut ResourceObjectState<usize> {
+    pub(super) fn get_stmt_state(&mut self) -> &mut ResourceObjectState {
         &mut self.stmt_state
     }
 }
@@ -91,7 +94,7 @@ impl ResourceState {
 type State = DashMap<HermesAppName, ResourceState>;
 
 /// Global state to hold `SQLite` resources.
-static SQLITE_INTERNAL_STATE: Lazy<State> = Lazy::new(DashMap::new);
+static SQLITE_INTERNAL_STATE: Lazy<State> = Lazy::new(State::new);
 
 /// Represents the internal state object for `SQLite` module.
 pub(crate) struct InternalState;

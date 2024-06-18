@@ -25,7 +25,7 @@ You can visit `wasm/wasi/Earthfile` for supported languages needed to generate H
 ### SQLite benchmark result
 
 * Test: simple sequential insertion between persistent and in-memory database (100 iterations)
-  * Persistent: 8,493,667 ns/iter (+/- 0)
-  * In-memory: 37,492,916 ns/iter (+/- 0)
+  * Persistent: 37,492,916 ns/iter (+/- 0)
+  * In-memory: 8,493,667 ns/iter (+/- 0)
 
 Tested on MacBook Pro with M3 Pro chip 12-core CPU, 18-core GPU, and 18GB unified memory.
