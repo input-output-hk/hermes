@@ -103,11 +103,11 @@ impl ChainSyncConfig {
     /// # Errors
     ///
     /// `Error`: On error.
-    pub async fn run(self, chain: Network) -> Result<()> {
-        debug!("Chain Synchronization for {chain} : Starting");
+    pub async fn run(self) -> Result<()> {
+        debug!("Chain Synchronization for {} : Starting", self.chain);
 
         // Start the Mithril Snapshot Follower
-        let mut rx = self.mithril_cfg.run(chain).await?;
+        let mut rx = self.mithril_cfg.run(self.chain).await?;
 
         // Start the Live Blockchain Follower (uses rx from the mithril follower)
         let _mithril_updated = rx.recv().await;

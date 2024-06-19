@@ -8,7 +8,8 @@ use pallas::ledger::traverse::MultiEraBlock;
 pub struct MultiEraBlockData(Vec<u8>);
 
 impl MultiEraBlockData {
-    /// Creates a new MultiEraBlockData from the given bytes.
+    /// Creates a new `MultiEraBlockData` from the given bytes.
+    #[must_use]
     pub fn new(data: Vec<u8>) -> Self {
         MultiEraBlockData(data)
     }
@@ -35,7 +36,10 @@ impl MultiEraBlockData {
     ///
     /// This does not execute Plutus scripts nor validates ledger state.
     /// It only checks that the block is correctly formatted for its era.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns Err if the block's era couldn't be decided or if the encoded data is invalid.
     pub fn validate(&self) -> Result<()> {
         self.decode()?;
 

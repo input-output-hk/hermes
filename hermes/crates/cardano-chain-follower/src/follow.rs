@@ -227,7 +227,7 @@ impl FollowerConfig {
 
         debug!("Client Read Pointer set OK : {follow_from:?}");
 
-        MithrilSnapshot::init(self.clone()).await?;
+        //MithrilSnapshot::init(self.clone()).await?;
 
         debug!("Mithril Snapshot initialized.");
 
@@ -365,7 +365,7 @@ impl Follower {
                 },
 
                 PointOrTip::Point(point) => {
-                    let snapshot_res = MithrilSnapshot::try_read_block(network, point.clone())
+                    let snapshot_res = MithrilSnapshot::try_read_block(network, &point)
                         .ok()
                         .flatten();
 
@@ -410,10 +410,9 @@ impl Follower {
                     read_block_range_from_network(&mut client, from, to_point).await
                 },
                 PointOrTip::Point(to) => {
-                    let snapshot_res =
-                        MithrilSnapshot::try_read_block_range(network, from.clone(), &to)
-                            .ok()
-                            .flatten();
+                    let snapshot_res = MithrilSnapshot::try_read_block_range(network, &from, &to)
+                        .ok()
+                        .flatten();
 
                     match snapshot_res {
                         Some((last_point_read, mut block_data_vec)) => {
@@ -597,7 +596,7 @@ mod task {
             let mut current_point = from;
 
             let set_to_snapshot =
-                MithrilSnapshot::try_read_blocks_from_point(network, current_point.clone());
+                MithrilSnapshot::try_read_blocks_from_point(network, &current_point);
 
             if let Some(iter) = set_to_snapshot {
                 let mut last_recv_from_snapshot = false;

@@ -165,7 +165,6 @@ impl MithrilSnapshotConfig {
     /// Each network has a different set of defaults, so no single "default" can apply.
     /// This function is preferred to the `default()` standard function.
     #[must_use]
-    #[allow(dead_code)]
     pub fn default_for(chain: Network) -> Self {
         Self {
             path: chain.default_mithril_path(),
@@ -177,8 +176,7 @@ impl MithrilSnapshotConfig {
     /// Returns the path to Download Mithril Snapshot Archives to.
     /// Will use a path relative to mithril data path.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn dl_path(&self) -> PathBuf {
+    pub(crate) fn dl_path(&self) -> PathBuf {
         let mut dl_path = self.path.clone();
         dl_path.push(DL_SUBDIR);
         dl_path
@@ -187,8 +185,7 @@ impl MithrilSnapshotConfig {
     /// Returns the path to Latest Mithril Snapshot Data.
     /// Will use a path relative to mithril data path.
     #[must_use]
-    #[allow(dead_code)]
-    pub async fn latest_snapshot_path(&self) -> Option<SnapshotId> {
+    pub(crate) async fn latest_snapshot_path(&self) -> Option<SnapshotId> {
         // Can we read directory entries from the base path, if not then there is no latest snapshot.
         let Ok(mut entries) = fs::read_dir(&self.path).await else {
             return None;
@@ -249,7 +246,6 @@ impl MithrilSnapshotConfig {
 
     /// Cleanup the tmp mithril path, all old mithril paths and the dl path.
     /// Removes those directories if they exist and all the files they contain.
-    #[allow(dead_code)]
     async fn cleanup(&self) -> io::Result<()> {
         let mut cleanup_tasks = Vec::new();
 
@@ -312,8 +308,7 @@ impl MithrilSnapshotConfig {
     /// the latest snapshot.
     ///
     /// Returns true if de-duped, false otherwise.
-    #[allow(dead_code)]
-    pub async fn dedup_tmp(&self, tmp_file: &Path) -> bool {
+    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path) -> bool {
         // We don't want to deduplicate directories or symlinks (or other non-files).
         // Or files that just don't exist.
         if !tmp_file.is_file() {
@@ -375,8 +370,7 @@ impl MithrilSnapshotConfig {
     /// Returns the path to Latest Tmp Snapshot Data.
     /// Will use a path relative to mithril data path.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn tmp_path(&self) -> PathBuf {
+    pub(crate) fn tmp_path(&self) -> PathBuf {
         let mut snapshot_path = self.path.clone();
         snapshot_path.push(TMP_SUBDIR);
         snapshot_path
@@ -385,8 +379,7 @@ impl MithrilSnapshotConfig {
     /// Returns the path to the Numbered Snapshot Data.
     /// Will use a path relative to mithril data path.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn mithril_path(&self, snapshot_number: u64) -> PathBuf {
+    pub(crate) fn mithril_path(&self, snapshot_number: u64) -> PathBuf {
         let mut snapshot_path = self.path.clone();
         snapshot_path.push(snapshot_number.to_string());
         snapshot_path
@@ -467,11 +460,12 @@ impl MithrilSnapshotConfig {
         Ok(())
     }
 
-    pub async fn validate(&self, chain: Network) -> Result<()> {
+    /// Validate the mithril sync configuration is correct.
+    pub(crate) async fn validate(&self, chain: Network) -> Result<()> {
         // Validate the path exists and is a directory, and is writable.
         self.validate_path().await?;
         // Validate the genesis vkey is valid.
-        self.validate_genesis_vkey(chain);
+        self.validate_genesis_vkey(chain)?;
         // Validate the Aggregator is valid and responsive.
         self.validate_aggregator_url(chain).await?;
 
@@ -479,7 +473,6 @@ impl MithrilSnapshotConfig {
     }
 
     /// Run a Mithril Follower for the given network and configuration.
-    #[must_use]
     pub(crate) async fn run(&self, chain: Network) -> Result<mpsc::Receiver<Point>> {
         debug!("Mithril Autoupdate for {} : Starting", chain);
 
@@ -512,7 +505,7 @@ impl MithrilSnapshotConfig {
 /// Check that a given mithril snapshot path and everything in it is writable.
 /// We don't care why its NOT writable, just that it is either all writable, or not.
 /// Will return false on the first detection of a read only file or directory.
-fn check_writable(path: &PathBuf) -> bool {
+fn check_writable(path: &Path) -> bool {
     // Check the permissions of the current path
     if let Ok(metadata) = path.metadata() {
         if metadata.permissions().readonly() {
@@ -528,10 +521,7 @@ fn check_writable(path: &PathBuf) -> bool {
 
     // Recursively check the contents of the directory
     for entry in path_iterator {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => return false,
-        };
+        let Ok(entry) = entry else { return false };
 
         // If the entry is a directory, recursively check its permissions
         // otherwise just check we could re-write it.
