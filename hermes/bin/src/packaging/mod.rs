@@ -146,13 +146,13 @@ mod tests {
 
     #[test]
     fn copy_file_to_package_and_get_package_file_hash_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let tmp_dir = TempDir::new().expect("cannot create temp dir");
 
-        let package_name = dir.child("test.hdf5");
+        let package_name = tmp_dir.child("test.hdf5");
         let package = File::create(package_name).expect("cannot create HDF5 file");
 
         let file_1_name = "file_1";
-        let file_1 = dir.child(file_1_name);
+        let file_1 = tmp_dir.child(file_1_name);
         std::fs::write(&file_1, b"test").expect("Cannot create file_1 file");
 
         copy_resource_to_package(&FsResource::new(file_1), file_1_name, &package)
@@ -180,33 +180,34 @@ mod tests {
 
     #[test]
     fn copy_dir_recursively_to_package_and_get_package_file_hash_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-        let dir_resource = FsResource::new(dir.path());
-        let dir_name = dir_resource.name().expect("Cannot get root dir name");
+        let tmp_dir = TempDir::new().expect("cannot create temp dir");
 
-        let package_name = dir.child("test.hdf5");
+        let package_name = tmp_dir.child("test.hdf5");
         let package = File::create(package_name).expect("cannot create HDF5 package");
 
+        let dir_name = "dir";
+        let dir = tmp_dir.child(dir_name);
+
         let file_1_name = "file_1";
-        let file_1 = dir.child(file_1_name);
+        let file_1 = dir.join(file_1_name);
         std::fs::write(file_1, [0, 1, 2]).expect("Cannot create file_1 file");
 
         let file_2_name = "file_2_name";
-        let file_2 = dir.child(file_2_name);
+        let file_2 = dir.join(file_2_name);
         std::fs::write(file_2, [0, 1, 2]).expect("Cannot create file_2 file");
 
         let child_dir_name = "child_dir";
-        let child_dir = dir.child(child_dir_name);
+        let child_dir = dir.join(child_dir_name);
         std::fs::create_dir(&child_dir).expect("Cannot create child_dir directory");
 
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
         std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
 
-        copy_resource_dir_recursively_to_package(&dir_resource, &dir_name, &package)
+        copy_resource_dir_recursively_to_package(&FsResource::new(dir), dir_name, &package)
             .expect("Cannot copy dir to package");
 
-        let root_group = package.group(&dir_name).expect("Cannot open root group");
+        let root_group = package.group(dir_name).expect("Cannot open root group");
         assert!(get_package_file_reader(file_1_name, &root_group)
             .unwrap_or_default()
             .is_some());
@@ -221,7 +222,7 @@ mod tests {
             .unwrap_or_default()
             .is_some());
 
-        let hash = get_package_dir_hash(&dir_name, &package)
+        let hash = get_package_dir_hash(dir_name, &package)
             .expect("Package file hash calculation failed")
             .expect("Cannot get file_1 hash from package");
 
