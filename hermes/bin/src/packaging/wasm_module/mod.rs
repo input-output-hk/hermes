@@ -16,7 +16,8 @@ use signature_payload::SignaturePayloadBuilder;
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package, get_package_file_reader,
+    copy_resource_dir_recursively_to_package, copy_resource_to_package, get_package_dir_hash,
+    get_package_file_hash, get_package_file_reader,
     resources::{bytes_resource::BytesResource, ResourceTrait},
 };
 use crate::{errors::Errors, wasm};
@@ -106,22 +107,30 @@ impl WasmModulePackage {
 
     /// Sign the package and store signature inside it.
     pub(crate) fn sign(&self) -> anyhow::Result<()> {
-        let metadata = self.get_metadata()?;
-        let metadata_hash = metadata.hash()?;
+        let metadata_hash = get_package_file_hash(Self::METADATA_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
+        let component_hash = get_package_file_hash(Self::COMPONENT_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
 
         let mut signature_payload_builder =
-            SignaturePayloadBuilder::new(metadata_hash.clone(), metadata_hash.clone());
-        if let Some(setting_schema) = self.get_settings_schema()? {
-            signature_payload_builder.with_settings_schema(setting_schema.hash()?);
+            SignaturePayloadBuilder::new(metadata_hash.clone(), component_hash.clone());
+
+        if let Some(config_hash) = get_package_file_hash(Self::CONFIG_FILE, &self.package)? {
+            signature_payload_builder.with_config_file(config_hash);
         }
-        let (config, config_schema) = self.get_config_with_schema()?;
-        if let Some(config) = config {
-            signature_payload_builder.with_config_file(config.hash()?);
+        if let Some(config_schema_hash) =
+            get_package_file_hash(Self::CONFIG_SCHEMA_FILE, &self.package)?
+        {
+            signature_payload_builder.with_config_schema(config_schema_hash);
         }
-        if let Some(config_schema) = config_schema {
-            signature_payload_builder.with_config_schema(config_schema.hash()?);
+        if let Some(setting_schema_hash) =
+            get_package_file_hash(Self::SETTINGS_SCHEMA_FILE, &self.package)?
+        {
+            signature_payload_builder.with_settings_schema(setting_schema_hash);
         }
-        signature_payload_builder.with_share(metadata_hash);
+        if let Some(share_hash) = get_package_dir_hash(Self::SHARE_DIR, &self.package)? {
+            signature_payload_builder.with_share(share_hash);
+        }
 
         let _signature_payload = signature_payload_builder.build();
 
@@ -129,6 +138,7 @@ impl WasmModulePackage {
     }
 
     /// Get `Metadata` object from package.
+    #[allow(dead_code)]
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
         let reader = get_package_file_reader(Self::METADATA_FILE, &self.package)?
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
@@ -144,6 +154,7 @@ impl WasmModulePackage {
     }
 
     /// Get `ConfigSchema` object from package.
+    #[allow(dead_code)]
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
         if let Some(reader) = get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)? {
             let config_schema = ConfigSchema::from_reader(reader)?;
@@ -155,6 +166,7 @@ impl WasmModulePackage {
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
     /// To obtain a valid `Config` object it is needed to get `ConfigSchema` first.
+    #[allow(dead_code)]
     pub(crate) fn get_config_with_schema(
         &self,
     ) -> anyhow::Result<(Option<Config>, Option<ConfigSchema>)> {
@@ -171,6 +183,7 @@ impl WasmModulePackage {
     }
 
     /// Get `SettingsSchema` object from package if present.
+    #[allow(dead_code)]
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
             let settigns_schema = SettingsSchema::from_reader(reader)?;
@@ -266,7 +279,7 @@ impl WasmModulePackage {
     /// Write share dir to the package.
     fn write_share_dir(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
         if let Some(share_dir) = &manifest.share {
-            copy_dir_recursively_to_package(share_dir, Self::SHARE_DIR, package)?;
+            copy_resource_dir_recursively_to_package(share_dir, Self::SHARE_DIR, package)?;
         }
         Ok(())
     }
