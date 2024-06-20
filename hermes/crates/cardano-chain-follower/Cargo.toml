@@ -40,6 +40,7 @@ humantime.workspace = true
 hex.workspace = true
 tracing-subscriber.workspace = true
 test-log.workspace = true
+clap.workspace = true
 
 # Note, these features are for support of features exposed by dependencies.
 [features]

@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     error::{Error, Result},
-    mithril_snapshot_downloader::background_mithril_update,
+    mithril_snapshot_sync::background_mithril_update,
     network::Network,
     snapshot_id::SnapshotId,
 };

@@ -6,7 +6,7 @@ mod error;
 mod follow;
 mod mithril_config;
 mod mithril_snapshot;
-mod mithril_snapshot_downloader;
+mod mithril_snapshot_sync;
 mod multi_era_block_data;
 mod network;
 mod point_or_tip;
