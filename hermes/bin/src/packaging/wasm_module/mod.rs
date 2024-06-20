@@ -20,7 +20,11 @@ use super::{
     get_package_file_hash, get_package_file_reader,
     resources::{bytes_resource::BytesResource, ResourceTrait},
 };
-use crate::{errors::Errors, wasm};
+use crate::{
+    errors::Errors,
+    sign::{certificate::Certificate, keys::PrivateKey, signature::Signature},
+    wasm,
+};
 
 /// Create WASM module package error.
 #[derive(thiserror::Error, Debug)]
@@ -45,6 +49,8 @@ pub(crate) struct WasmModulePackage {
 }
 
 impl WasmModulePackage {
+    /// WASM module package signature file.
+    const AUTHOR_COSE_FILE: &'static str = "author.cose";
     /// WASM module package component file.
     const COMPONENT_FILE: &'static str = "module.wasm";
     /// WASM module package config file.
@@ -119,10 +125,18 @@ impl WasmModulePackage {
     }
 
     /// Sign the package and store signature inside it.
-    pub(crate) fn sign(&self) -> anyhow::Result<()> {
-        let _signature_payload = self.get_signature_payload()?;
+    pub(crate) fn sign(
+        &self, private_key: &PrivateKey, certificate: &Certificate,
+    ) -> anyhow::Result<()> {
+        let signature_payload = self.get_signature_payload()?;
 
-        Ok(())
+        let mut signature = Signature::new(signature_payload);
+        signature.add_sign(private_key, certificate)?;
+
+        let signature_bytes = signature.to_bytes()?;
+        let signature_resource =
+            BytesResource::new(Self::AUTHOR_COSE_FILE.to_string(), signature_bytes);
+        copy_resource_to_package(&signature_resource, Self::AUTHOR_COSE_FILE, &self.package)
     }
 
     /// Build and return `SignaturePayload`.
@@ -167,6 +181,16 @@ impl WasmModulePackage {
         let reader = get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
             .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
         wasm::module::Module::from_reader(reader)
+    }
+
+    /// Get `Signature` object from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
+        if let Some(reader) = get_package_file_reader(Self::AUTHOR_COSE_FILE, &self.package)? {
+            Ok(Some(Signature::<SignaturePayload>::from_reader(reader)?))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get `ConfigSchema` object from package.

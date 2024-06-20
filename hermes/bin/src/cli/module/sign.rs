@@ -28,12 +28,12 @@ impl SignCommand {
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{} Sign wasm module package...", Emoji::new("📝", ""));
 
-        let _private_key = PrivateKey::from_file(self.private_key)?;
-        let _cert = Certificate::from_file(self.cert)?;
+        let private_key = PrivateKey::from_file(self.private_key)?;
+        let cert = Certificate::from_file(self.cert)?;
         let package = WasmModulePackage::from_file(self.package)?;
 
         package.validate()?;
-        package.sign()?;
+        package.sign(&private_key, &cert)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())
