@@ -2,7 +2,6 @@
 
 mod compression;
 mod resources;
-mod schema_validation;
 pub(crate) mod wasm_module;
 
 use std::{collections::BTreeSet, io::Read};

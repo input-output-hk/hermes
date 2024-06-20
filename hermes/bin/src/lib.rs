@@ -11,6 +11,7 @@ pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
+pub mod schema_validation;
 pub mod sign;
 pub mod wasm;
 

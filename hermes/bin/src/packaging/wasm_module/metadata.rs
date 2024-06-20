@@ -4,7 +4,7 @@ use std::io::Read;
 
 use chrono::{DateTime, Utc};
 
-use crate::packaging::schema_validation::SchemaValidator;
+use crate::schema_validation::SchemaValidator;
 
 /// Metadata object.
 #[derive(Debug, PartialEq, Eq)]

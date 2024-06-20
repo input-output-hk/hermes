@@ -11,6 +11,7 @@ mod runtime_context;
 mod runtime_extensions;
 mod sign;
 mod wasm;
+mod schema_validation;
 
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{
