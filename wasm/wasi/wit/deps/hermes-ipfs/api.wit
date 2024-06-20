@@ -1,0 +1,39 @@
+/// Interface to local `IPFS` instance.
+interface api {
+    /// The binary contents of an IPFS file.
+    type ipfs-content = list<u8>;
+    /// A path to an IPFS file.
+    type ipfs-path = string;
+    /// A DHT key.
+    type dht-key = list<u8>;
+    /// A DHT value.
+    type dht-value = list<u8>;
+    /// A PubSub topic.
+    type pubsub-topic = string;
+    /// A PubSub message from a topic subscription.
+    type pubsub-message = string;
+
+    /// Errors that occur in IPFS networking.
+    enum errno {
+        file-add-error,
+        file-get-error,
+        dht-get-error,
+    }
+
+    /// Uploads a file to IPFS.
+    file-add: func(contents: ipfs-content) -> result<ipfs-path, errno>;
+    /// Retrieves a file from IPFS.
+    file-get: func(path: ipfs-path) -> result<ipfs-content, errno>;
+    /// Pins a file by path to IPFS.
+    file-pin: func(path: ipfs-path) -> bool;
+    /// Puts a DHT key-value into IPFS.
+    dht-put: func(key: dht-key, contents: ipfs-content) -> bool;
+    /// Gets a DHT key-value from IPFS.
+    dht-get: func(key: dht-key) -> result<dht-value, errno>;
+    /// Subscribes to a PubSub topic.
+    pubsub-subscribe: func(topic: pubsub-topic) -> bool;
+}
+
+world ipfs-api {
+    export api;
+}
