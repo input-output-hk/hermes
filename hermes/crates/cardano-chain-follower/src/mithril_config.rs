@@ -188,6 +188,10 @@ impl MithrilSnapshotConfig {
     pub(crate) async fn latest_snapshot_path(&self) -> Option<SnapshotId> {
         // Can we read directory entries from the base path, if not then there is no latest snapshot.
         let Ok(mut entries) = fs::read_dir(&self.path).await else {
+            error!(
+                "Getting latest snapshot failed: Can't read entries from {}",
+                self.path.to_string_lossy()
+            );
             return None;
         };
 
@@ -246,18 +250,20 @@ impl MithrilSnapshotConfig {
 
     /// Cleanup the tmp mithril path, all old mithril paths and the dl path.
     /// Removes those directories if they exist and all the files they contain.
-    async fn cleanup(&self) -> io::Result<()> {
+    pub(crate) async fn cleanup(&self) -> io::Result<()> {
         let mut cleanup_tasks = Vec::new();
 
         // Cleanup up the Download path. (Finished with the archive)
         let download = self.dl_path();
-        if !download.exists() {
+        if download.exists() {
+            debug!("Cleaning up DL @ {}", download.display());
             cleanup_tasks.push(fs::remove_dir_all(download.clone()));
         }
 
         // Cleanup up the tmp path. (Shouldn't normally exist, but clean it anyway)
         let tmp = self.tmp_path();
-        if !tmp.exists() {
+        if tmp.exists() {
+            debug!("Cleaning up TMP @ {}", tmp.display());
             cleanup_tasks.push(fs::remove_dir_all(tmp.clone()));
         }
 
@@ -282,6 +288,10 @@ impl MithrilSnapshotConfig {
                     if let Some(this_snapshot) = SnapshotId::try_new(&entry.path()) {
                         // Don't do anything with the latest snapshot.
                         if this_snapshot != latest_snapshot {
+                            debug!(
+                                "Cleaning up non-latest snapshot @ {}",
+                                entry.path().display()
+                            );
                             cleanup_tasks.push(fs::remove_dir_all(entry.path()));
                         }
                     };
@@ -308,18 +318,12 @@ impl MithrilSnapshotConfig {
     /// the latest snapshot.
     ///
     /// Returns true if de-duped, false otherwise.
-    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path) -> bool {
+    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotId) -> bool {
         // We don't want to deduplicate directories or symlinks (or other non-files).
         // Or files that just don't exist.
         if !tmp_file.is_file() {
             return false;
         }
-
-        // Do we have a Mithril snapshot to deduplicate against.
-        let Some(latest_snapshot) = self.latest_snapshot_path().await else {
-            // No snapshot, so nothing to de-dup against.
-            return false;
-        };
 
         // Get the matching src file in the latest mithril snapshot to compare against.
         let snapshot_path = latest_snapshot.as_ref();

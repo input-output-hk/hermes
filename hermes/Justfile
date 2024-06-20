@@ -16,11 +16,11 @@ license-check:
     cargo deny check --exclude-dev
 
 # Run long running developer test for mithril downloading.
-test-mithril-download-preprod:
+test-mithril-download:
     RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug,mithril-client=debug,pallas_hardano=error,h2=error,hickory_resolver=error,hickory_proto=error,rustls=error" \
     cargo test follow::tests::test_follow_preprod -- --show-output --ignored --nocapture
 
 # Run long running developer test for mithril downloading.
-test-mithril-download-mainnet:
+run-mithril-download-example:
     RUST_LOG="error,cardano_chain_follower=debug,turbo-downloader=debug,mithril-client=debug" \
-    cargo test follow::tests::test_follow_mainnet -- --show-output --ignored --nocapture    
+    cargo run --package cardano-chain-follower --example follow_all_chains_until_tip

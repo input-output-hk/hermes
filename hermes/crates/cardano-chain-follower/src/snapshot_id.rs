@@ -15,7 +15,12 @@ impl SnapshotId {
         // Path must actually exist, and be a directory.
         if !path.is_dir() {
             None
-        } else if let Ok(numeric_name) = path.to_string_lossy().parse::<u64>() {
+        } else if let Ok(numeric_name) = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .parse::<u64>()
+        {
             Some(SnapshotId(path.to_path_buf(), numeric_name))
         } else {
             None
@@ -32,7 +37,7 @@ impl std::convert::AsRef<std::path::Path> for SnapshotId {
 impl Display for SnapshotId {
     /// Convert this `SnapshotID` to a `String`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}/{}", self.0.display(), self.1)
+        write!(f, "{} @ Epoch [{}]", self.0.display(), self.1)
     }
 }
 
