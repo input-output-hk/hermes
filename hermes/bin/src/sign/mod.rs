@@ -7,3 +7,5 @@ pub(crate) mod certificate;
 pub(crate) mod hash;
 #[allow(dead_code)]
 pub(crate) mod keys;
+#[allow(dead_code)]
+pub(crate) mod signature;

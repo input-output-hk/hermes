@@ -57,6 +57,11 @@ impl Blake2b256 {
         hex::encode(self.0)
     }
 
+    /// Return the hash bytes.
+    pub(crate) fn to_bytes(&self) -> [u8; HASH_SIZE] {
+        self.0
+    }
+
     /// Convert the hash from a hexadecimal string.
     pub(crate) fn from_hex(s: &str) -> anyhow::Result<Self> {
         let bytes = hex::decode(s)?;
