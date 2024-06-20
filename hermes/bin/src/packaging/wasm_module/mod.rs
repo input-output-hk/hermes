@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use metadata::Metadata;
 use settings::SettingsSchema;
-use signature_payload::SignaturePayloadBuilder;
+use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
 use self::manifest::Manifest;
 use super::{
@@ -120,6 +120,13 @@ impl WasmModulePackage {
 
     /// Sign the package and store signature inside it.
     pub(crate) fn sign(&self) -> anyhow::Result<()> {
+        let _signature_payload = self.get_signature_payload()?;
+
+        Ok(())
+    }
+
+    /// Build and return `SignaturePayload`.
+    fn get_signature_payload(&self) -> anyhow::Result<SignaturePayload> {
         let metadata_hash = get_package_file_hash(Self::METADATA_FILE, &self.package)?
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
         let component_hash = get_package_file_hash(Self::COMPONENT_FILE, &self.package)?
@@ -145,13 +152,10 @@ impl WasmModulePackage {
             signature_payload_builder.with_share(share_hash);
         }
 
-        let _signature_payload = signature_payload_builder.build();
-
-        Ok(())
+        Ok(signature_payload_builder.build())
     }
 
     /// Get `Metadata` object from package.
-    #[allow(dead_code)]
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
         let reader = get_package_file_reader(Self::METADATA_FILE, &self.package)?
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
@@ -159,7 +163,6 @@ impl WasmModulePackage {
     }
 
     /// Get `wasm::module::Module` object from package.
-    #[allow(dead_code)]
     pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
         let reader = get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
             .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
@@ -167,7 +170,6 @@ impl WasmModulePackage {
     }
 
     /// Get `ConfigSchema` object from package.
-    #[allow(dead_code)]
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
         if let Some(reader) = get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)? {
             let config_schema = ConfigSchema::from_reader(reader)?;
@@ -179,7 +181,6 @@ impl WasmModulePackage {
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
     /// To obtain a valid `Config` object it is needed to get `ConfigSchema` first.
-    #[allow(dead_code)]
     pub(crate) fn get_config_with_schema(
         &self,
     ) -> anyhow::Result<(Option<Config>, Option<ConfigSchema>)> {
@@ -196,7 +197,6 @@ impl WasmModulePackage {
     }
 
     /// Get `SettingsSchema` object from package if present.
-    #[allow(dead_code)]
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
             let settigns_schema = SettingsSchema::from_reader(reader)?;
@@ -340,7 +340,7 @@ mod tests {
     fn from_dir_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let mut metadata = Metadata::from_json(
+        let mut metadata = Metadata::from_reader(
             serde_json::json!(
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",

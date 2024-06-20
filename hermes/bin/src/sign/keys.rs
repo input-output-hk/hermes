@@ -48,6 +48,11 @@ impl PrivateKey {
         let key = SigningKey::from_pkcs8_pem(str).map_err(|_| KeyPemDecodingError)?;
         Ok(Self(key))
     }
+
+    /// Get associated public key.
+    pub(crate) fn public_key(&self) -> PublicKey {
+        PublicKey(self.0.verifying_key())
+    }
 }
 
 /// Ed25519 public key instance.
@@ -103,16 +108,37 @@ mod tests {
     fn public_key_from_file_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let private_key_path = dir.path().join("public.pem");
-        let private_key = format!(
+        let public_key_path = dir.path().join("public.pem");
+        let public_key = format!(
             "{}\n{}\n{}",
             "-----BEGIN PUBLIC KEY-----",
             "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
             "-----END PUBLIC KEY-----"
         );
-        std::fs::write(&private_key_path, private_key).expect("Cannot create public.pem file");
+        std::fs::write(&public_key_path, public_key).expect("Cannot create public.pem file");
 
         let _key =
-            PublicKey::from_file(private_key_path).expect("Cannot create private key from file");
+            PublicKey::from_file(public_key_path).expect("Cannot create public key from file");
+    }
+
+    #[test]
+    fn public_private_key_test() {
+        let private_key = format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PRIVATE KEY-----",
+            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
+            "-----END PRIVATE KEY-----"
+        );
+        let public_key = format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PUBLIC KEY-----",
+            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
+            "-----END PUBLIC KEY-----"
+        );
+
+        let private_key = PrivateKey::from_str(&private_key).expect("Cannot create private key");
+        let public_key = PublicKey::from_str(&public_key).expect("Cannot create public key");
+
+        assert_eq!(private_key.public_key(), public_key);
     }
 }
