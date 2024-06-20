@@ -24,7 +24,7 @@ impl Blake2b256Hasher {
     ///  Finalize the state and return a `Hash`.
     pub(crate) fn finalize(self) -> Blake2b256 {
         let hash = self.0.finalize();
-        Blake2b256::from_bytes(hash.as_bytes())
+        Blake2b256::from_bytes_uncheked(hash.as_bytes())
     }
 }
 
@@ -36,7 +36,7 @@ impl Blake2b256 {
     /// Create a new `Blake2b256` from bytes.
     /// It's not doing any validation of the bytes size, so all checks should be done by
     /// the caller.
-    fn from_bytes(bytes: &[u8]) -> Self {
+    fn from_bytes_uncheked(bytes: &[u8]) -> Self {
         let mut hash_bytes = [0; HASH_SIZE];
         hash_bytes.copy_from_slice(bytes);
 
@@ -49,7 +49,7 @@ impl Blake2b256 {
             .hash_length(HASH_SIZE)
             .hash(bytes);
 
-        Self::from_bytes(hash.as_bytes())
+        Self::from_bytes_uncheked(hash.as_bytes())
     }
 
     /// Convert the hash to a hexadecimal string.
@@ -57,21 +57,27 @@ impl Blake2b256 {
         hex::encode(self.0)
     }
 
+    /// Create a new `Blake2b256` from hex string.
+    pub(crate) fn from_hex(s: &str) -> anyhow::Result<Self> {
+        let bytes = hex::decode(s)?;
+        Self::from_bytes(&bytes)
+    }
+
     /// Return the hash bytes.
     pub(crate) fn to_bytes(&self) -> [u8; HASH_SIZE] {
         self.0
     }
 
-    /// Convert the hash from a hexadecimal string.
-    pub(crate) fn from_hex(s: &str) -> anyhow::Result<Self> {
-        let bytes = hex::decode(s)?;
+    /// Create a new `Blake2b256` from bytes.
+    pub(crate) fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         anyhow::ensure!(
             bytes.len() == HASH_SIZE,
             "Invalid hash length: expected {}, provided {}.",
             HASH_SIZE,
             bytes.len()
         );
-        Ok(Self::from_bytes(&bytes))
+        let hash = Self::from_bytes_uncheked(bytes);
+        Ok(hash)
     }
 }
 

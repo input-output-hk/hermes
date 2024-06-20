@@ -52,6 +52,20 @@ impl<T: serde::Serialize + serde::de::DeserializeOwned> Signature<T> {
         Ok(builder)
     }
 
+    /// Build a `CoseSign` object.
+    fn build_cose_sign(&self) -> anyhow::Result<CoseSign> {
+        let builder = self.prepare_cose_sign_builder()?;
+
+        let res = self
+            .cose_signatures
+            .iter()
+            .fold(builder, |builder, signature| {
+                builder.add_signature(signature.clone())
+            })
+            .build();
+        Ok(res)
+    }
+
     /// Create new `Signature` object.
     pub(crate) fn new(payload: T) -> Self {
         Self {
@@ -98,14 +112,7 @@ impl<T: serde::Serialize + serde::de::DeserializeOwned> Signature<T> {
 
     /// Convert `Signature` object to CBOR decoded bytes.
     pub(crate) fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
-        let builder = self.prepare_cose_sign_builder()?;
-
-        self.cose_signatures
-            .iter()
-            .fold(builder, |builder, signature| {
-                builder.add_signature(signature.clone())
-            })
-            .build()
+        self.build_cose_sign()?
             .to_vec()
             .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
