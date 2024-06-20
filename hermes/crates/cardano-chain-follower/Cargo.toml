@@ -35,6 +35,9 @@ bytesize.workspace = true
 async-compression.workspace = true
 tokio-tar.workspace = true
 humantime.workspace = true
+crossbeam-skiplist.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

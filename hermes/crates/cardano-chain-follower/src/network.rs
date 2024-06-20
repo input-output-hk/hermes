@@ -8,6 +8,8 @@ use pallas::{
     ledger::traverse::wellknown::GenesisValues,
     network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC},
 };
+//use strum::IntoEnumIterator;
+//use strum_macros;
 use tracing::debug;
 
 /// Default name of the executable if we can't derive it.
@@ -18,7 +20,7 @@ pub(crate) const ENVVAR_MITHRIL_DATA_PATH: &str = "MITHRIL_DATA_PATH";
 pub(crate) const ENVVAR_MITHRIL_EXE_NAME: &str = "MITHRIL_EXE_NAME";
 
 /// Enum of possible Cardano networks.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, strum::EnumIter)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,

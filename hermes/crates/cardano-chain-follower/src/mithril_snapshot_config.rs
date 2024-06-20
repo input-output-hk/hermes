@@ -3,7 +3,6 @@
 use std::{
     cmp::Ordering,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use crate::{
@@ -13,10 +12,11 @@ use crate::{
     snapshot_id::SnapshotId,
 };
 
-use dashmap::DashMap;
+use crossbeam_skiplist::SkipMap;
 use futures::future::join_all;
 use once_cell::sync::Lazy;
 use pallas_hardano::storage::immutable::Point;
+use strum::IntoEnumIterator;
 use tokio::{
     fs::{self, remove_file},
     fs::{hard_link, File},
@@ -28,9 +28,15 @@ use tokio::{
 use tracing::{debug, error};
 
 /// Type we use to manage the Sync Task handle map.
-type SyncMap = Arc<Mutex<DashMap<Network, JoinHandle<()>>>>;
-/// Handle to the mithril sync thread.
-static SYNC_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| Arc::new(Mutex::new(DashMap::new())));
+type SyncMap = SkipMap<Network, Mutex<Option<JoinHandle<()>>>>;
+/// Handle to the mithril sync thread. One for each Network ONLY.
+static SYNC_JOIN_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| {
+    let map = SkipMap::new();
+    for network in Network::iter() {
+        map.insert(network, Mutex::new(None));
+    }
+    map
+});
 
 // Mainnet Defaults.
 
@@ -480,15 +486,19 @@ impl MithrilSnapshotConfig {
     pub(crate) async fn run(&self, chain: Network) -> Result<mpsc::Receiver<Point>> {
         debug!("Mithril Autoupdate for {} : Starting", chain);
 
-        // Start the mITHRIL uPDATER - IFF its not already running.
-        // This lock also effectively stops us starting multiple updaters for multiple networks simultaneously.
-        // They will be started one at a time.
-        let sync_map = SYNC_HANDLE_MAP.lock().await;
+        // Start the Mithril Sync - IFF its not already running.
+        let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&chain) {
+            None => {
+                error!("Join Map improperly initialized: Missing {}!!", chain);
+                return Err(Error::Internal); // Should not get here.
+            },
+            Some(entry) => entry,
+        };
+        let mut locked_handle = lock_entry.value().lock().await;
 
-        // If we already have an entry in this map, then we are already running.
-        if sync_map.contains_key(&chain) {
-            error!("Mithril Autoupdate already running for {}", chain);
-            return Err(Error::MithrilSnapshotUpdaterAlreadyRunning(chain));
+        if (*locked_handle).is_some() {
+            debug!("Mithril Already Running for {}", chain);
+            return Err(Error::MithrilSnapshotSyncAlreadyRunning(chain));
         }
 
         self.validate(chain).await?;
@@ -496,11 +506,15 @@ impl MithrilSnapshotConfig {
         // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot TIP has changed.
         let (tx, rx) = mpsc::channel::<Point>(2);
 
-        let handle = tokio::spawn(background_mithril_update(chain, self.clone(), tx));
-        sync_map.insert(chain, handle);
-        debug!("Mithril Autoupdate for {} : Started", chain);
+        //let handle = tokio::spawn(background_mithril_update(chain, self.clone(), tx));
+        *locked_handle = Some(tokio::spawn(background_mithril_update(
+            chain,
+            self.clone(),
+            tx,
+        )));
 
-        drop(sync_map);
+        //sync_map.insert(chain, handle);
+        debug!("Mithril Autoupdate for {} : Started", chain);
 
         Ok(rx)
     }

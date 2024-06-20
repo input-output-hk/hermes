@@ -27,9 +27,12 @@ pub enum Error {
     /// Follower background follow task has stopped.
     #[error("Follower follow task is not running")]
     FollowTaskNotRunning,
+    /// Chain Sync already running error.
+    #[error("Chain Sync already running for network: {0}")]
+    ChainSyncAlreadyRunning(Network),
     /// Mithril snapshot already running error.
-    #[error("Mithril Snapshot Updater already running for network: {0}")]
-    MithrilSnapshotUpdaterAlreadyRunning(Network),
+    #[error("Mithril Snapshot Sync already running for network: {0}")]
+    MithrilSnapshotSyncAlreadyRunning(Network),
     /// Mithril snapshot error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshot(Option<pallas_hardano::storage::immutable::Error>),

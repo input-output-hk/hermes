@@ -4,8 +4,18 @@
 //! Chain Followers use the data supplied by the Chain-Sync.
 //! This module configures the chain sync processes.
 
-use crate::{error::Result, mithril_config::MithrilSnapshotConfig, network::Network};
-use tracing::debug;
+use crate::{
+    chain_sync::chain_sync,
+    error::{Error, Result},
+    mithril_snapshot_config::MithrilSnapshotConfig,
+    network::Network,
+};
+
+use crossbeam_skiplist::SkipMap;
+use once_cell::sync::Lazy;
+use strum::IntoEnumIterator;
+use tokio::{sync::Mutex, task::JoinHandle};
+use tracing::{debug, error};
 
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
@@ -13,13 +23,24 @@ const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
 /// How many slots back from TIP is considered Immutable in the absence of a mithril snapshot.
 const DEFAULT_IMMUTABLE_SLOT_WINDOW: u64 = 12 * 60 * 60;
 
+/// Type we use to manage the Sync Task handle map.
+type SyncMap = SkipMap<Network, Mutex<Option<JoinHandle<()>>>>;
+/// Handle to the mithril sync thread. One for each Network ONLY.
+static SYNC_JOIN_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| {
+    let map = SkipMap::new();
+    for network in Network::iter() {
+        map.insert(network, Mutex::new(None));
+    }
+    map
+});
+
 /// A Follower Connection to the Cardano Network.
 #[derive(Clone, Debug)]
 pub struct ChainSyncConfig {
     /// Chain Network
     pub chain: Network,
     /// Relay Node Address
-    relay_address: String,
+    pub(crate) relay_address: String,
     /// Block buffer size option.
     chain_update_buffer_size: usize,
     /// If we don't have immutable data, how far back from TIP is the data considered Immutable (in slots).
@@ -106,11 +127,29 @@ impl ChainSyncConfig {
     pub async fn run(self) -> Result<()> {
         debug!("Chain Synchronization for {} : Starting", self.chain);
 
-        // Start the Mithril Snapshot Follower
-        let mut rx = self.mithril_cfg.run(self.chain).await?;
+        // Start the Chain Sync - IFF its not already running.
+        let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&self.chain) {
+            None => {
+                error!("Join Map improperly initialized: Missing {}!!", self.chain);
+                return Err(Error::Internal); // Should not get here.
+            },
+            Some(entry) => entry,
+        };
+        let mut locked_handle = lock_entry.value().lock().await;
 
-        // Start the Live Blockchain Follower (uses rx from the mithril follower)
-        let _mithril_updated = rx.recv().await;
+        if (*locked_handle).is_some() {
+            debug!("Chain Sync Already Running for {}", self.chain);
+            return Err(Error::ChainSyncAlreadyRunning(self.chain));
+        }
+
+        // Start the Mithril Snapshot Follower
+        let rx = self.mithril_cfg.run(self.chain).await?;
+
+        // Start Chain Sync
+        *locked_handle = Some(tokio::spawn(chain_sync(self.clone(), rx)));
+
+        //sync_map.insert(chain, handle);
+        debug!("Chain Sync for {} : Started", self.chain);
 
         Ok(())
     }

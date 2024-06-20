@@ -1,11 +1,13 @@
 //! Cardano chain follower.
 
+mod chain_sync;
 mod chain_sync_config;
 mod chain_update;
 mod error;
 mod follow;
-mod mithril_config;
+mod live_block;
 mod mithril_snapshot;
+mod mithril_snapshot_config;
 mod mithril_snapshot_sync;
 mod multi_era_block_data;
 mod network;

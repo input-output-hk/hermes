@@ -6,7 +6,7 @@ use std::{path::Path, process::Stdio, sync::Arc};
 
 use crate::{
     error::{Error, Result},
-    mithril_config::MithrilSnapshotConfig,
+    mithril_snapshot_config::MithrilSnapshotConfig,
     network::Network,
     snapshot_id::SnapshotId,
 };
@@ -457,6 +457,7 @@ async fn check_snapshot_to_download(
 
     SnapshotStatus::Updated((snapshot, certificate))
 }
+
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
 /// This is because there can ONLY be one snapshot for each of the three known Cardano
