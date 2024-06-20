@@ -1,5 +1,7 @@
 //! Hermes COSE signature implementation.
 
+use std::io::Read;
+
 use coset::{
     iana, CborSerializable, CoseSign, CoseSignBuilder, CoseSignature, CoseSignatureBuilder, Header,
     HeaderBuilder,
@@ -16,7 +18,7 @@ pub(crate) struct Signature<T> {
     payload: T,
 }
 
-impl<T: serde::Serialize + serde::de::DeserializeOwned> Signature<T> {
+impl<T: SignaturePayloadEncoding> Signature<T> {
     /// Return a protected header for `CoseSignBuilder`.
     fn build_cose_protected_header() -> Header {
         HeaderBuilder::new()
@@ -43,7 +45,8 @@ impl<T: serde::Serialize + serde::de::DeserializeOwned> Signature<T> {
 
     /// Prepare `CoseSignBuilder` object with necessary data.
     fn prepare_cose_sign_builder(&self) -> anyhow::Result<CoseSignBuilder> {
-        let payload_bytes = serde_json::to_vec(&self.payload)?;
+        let json = self.payload.to_json();
+        let payload_bytes = serde_json::to_vec(&json)?;
         let protected_header = Self::build_cose_protected_header();
 
         let builder = CoseSignBuilder::new()
@@ -117,19 +120,49 @@ impl<T: serde::Serialize + serde::de::DeserializeOwned> Signature<T> {
             .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
-    /// Create new `Signature` object from CBOR decoded bytes.
+    /// Create new `Signature` object from CBOR encoded bytes reader.
+    pub(crate) fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes)?;
+        Self::from_bytes(&bytes)
+    }
+
+    /// Create new `Signature` object from CBOR encoded bytes.
     pub(crate) fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         let cose_sign = CoseSign::from_slice(bytes).map_err(|e| anyhow::anyhow!(e.to_string()))?;
         let payload_bytes = cose_sign
             .payload
             .ok_or(anyhow::anyhow!("Missing signature payload."))?;
 
-        let payload = serde_json::from_slice(payload_bytes.as_slice())?;
+        let json = serde_json::to_value(payload_bytes.as_slice())?;
+        let payload = T::from_json(json)?;
 
         Ok(Self {
             cose_signatures: cose_sign.signatures,
             payload,
         })
+    }
+}
+
+/// Signature payload encoding trait.
+/// Defines how to encode and decode signature payload object from JSON.
+pub(crate) trait SignaturePayloadEncoding {
+    /// Encode signature payload object to bytes.
+    fn to_json(&self) -> serde_json::Value;
+
+    /// Decode signature payload object from bytes.
+    fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
+    where Self: Sized;
+}
+
+impl SignaturePayloadEncoding for serde_json::Value {
+    fn to_json(&self) -> serde_json::Value {
+        self.clone()
+    }
+
+    fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
+    where Self: Sized {
+        Ok(json)
     }
 }
 
