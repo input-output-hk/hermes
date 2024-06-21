@@ -30,7 +30,7 @@ bool exports_hermes_init_event_init(void) {
   return false;
 }
 
-// Exported Functions from `hermes:cron/event`
+// Exported Functions from `hermes:ipfs/event`
 bool exports_hermes_ipfs_event_on_topic(exports_hermes_ipfs_event_pubsub_message_t *message) {
   return false;
 }
