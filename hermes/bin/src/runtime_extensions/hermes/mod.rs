@@ -26,6 +26,7 @@ pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
     crypto::new_context(ctx);
     hash::new_context(ctx);
     init::new_context(ctx);
+    ipfs::new_context(ctx);
     json::new_context(ctx);
     kv_store::new_context(ctx);
     localtime::new_context(ctx);
