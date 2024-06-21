@@ -4,11 +4,12 @@ use crate::{
     runtime_extensions::bindings::hermes::ipfs::api::{PubsubMessage, PubsubTopic},
 };
 
-/// On cron event
-#[derive(Clone, Debug)]
+/// Event handler for the `on-topic` event.
+#[allow(dead_code)]
 pub(crate) struct OnTopicEvent {
-    ///
+    ///  Topic
     pub(crate) topic: PubsubTopic,
+    ///  Message
     pub(crate) message: PubsubMessage,
 }
 
