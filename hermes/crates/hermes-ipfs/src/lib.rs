@@ -2,10 +2,7 @@
 //!
 //! Provides support for storage, and `PubSub` functionality.
 
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 /// IPFS Content Identifier.
 pub use libipld::{self as ipld, Cid};
@@ -13,45 +10,27 @@ pub use libipld::{self as ipld, Cid};
 pub use rust_ipfs::p2p::PeerInfo;
 /// Enum for specifying paths in IPFS.
 pub use rust_ipfs::path::IpfsPath;
+/// Server, Client, or Auto mode
+pub use rust_ipfs::DhtMode;
+/// Server, Client, or Auto mode
+pub use rust_ipfs::Ipfs;
 /// Multiaddr type.
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
-use rust_ipfs::{unixfs::AddOpt, Ipfs};
-
-/// Hermes IPFS Node
-///
-/// Provides the functionality of the inner `IPFS` by de-referencing.
-#[derive(Clone, Debug)]
-pub struct Node(Ipfs);
-
-impl From<Ipfs> for Node {
-    fn from(value: Ipfs) -> Self {
-        Self(value)
-    }
-}
-
-impl Deref for Node {
-    type Target = Ipfs;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Node {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+use rust_ipfs::{
+    libp2p::{futures::stream::BoxStream, kad::Record},
+    unixfs::AddOpt,
+    MessageId, PubsubEvent, Quorum, SubscriptionStream,
+};
 
 /// Hermes IPFS
 #[allow(dead_code)]
 pub struct HermesIpfs {
     /// IPFS node
-    pub node: Node,
+    node: Ipfs,
 }
 
 impl HermesIpfs {
@@ -69,12 +48,10 @@ impl HermesIpfs {
         let node: Ipfs = IpfsBuilder::new()
             .with_default()
             .set_default_listener()
-            //.with_mdns()
-            //.with_upnp()
             .start()
             .await?;
 
-        Ok(HermesIpfs { node: Node(node) })
+        Ok(HermesIpfs { node })
     }
 
     /// Add a file to IPFS.
@@ -167,11 +144,15 @@ impl HermesIpfs {
 
     /// Stop and exit the IPFS node daemon.
     pub async fn stop(self) {
-        self.node.0.exit_daemon().await;
+        self.node.exit_daemon().await;
     }
 
     /// Returns the peer identity information. If no peer id is supplied the local node
     /// identity is used.
+    ///
+    /// ## Parameters
+    ///
+    /// * `peer_id` - `Option<PeerId>`
     ///
     /// ## Errors
     ///
@@ -180,7 +161,12 @@ impl HermesIpfs {
         self.node.identity(peer_id).await
     }
 
-    /// Add peer to address book
+    /// Add peer to address book.
+    ///
+    /// ## Parameters
+    ///
+    /// * `peer_id` - `PeerId`
+    /// * `addr` - `Multiaddr`
     ///
     /// ## Errors
     ///
@@ -189,13 +175,167 @@ impl HermesIpfs {
         self.node.add_peer(peer_id, addr).await
     }
 
-    /// Returns local listening addresses
+    /// List of local listening addresses
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<Vec<Multiaddr>>`
     ///
     /// ## Errors
     ///
     /// Returns error if listening addresses cannot be retrieved.
     pub async fn listening_addresses(&self) -> anyhow::Result<Vec<Multiaddr>> {
         self.node.listening_addresses().await
+    }
+
+    /// Sets DHT mode in the IPFS node.
+    ///
+    /// ## Parameters
+    ///
+    /// * `mode` - `DhtMode`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<()>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to set DHT mode
+    pub async fn dht_mode(&self, mode: DhtMode) -> anyhow::Result<()> {
+        self.node.dht_mode(mode).await
+    }
+
+    /// Add content to DHT.
+    ///
+    /// ## Parameters
+    ///
+    /// * `key` - `impl AsRef<[u8]>`
+    /// * `value` - `impl Into<Vec<u8>>`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<()>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to add content to DHT
+    pub async fn dht_put(
+        &self, key: impl AsRef<[u8]>, value: impl Into<Vec<u8>>,
+    ) -> anyhow::Result<()> {
+        self.node.dht_put(key, value, Quorum::One).await
+    }
+
+    /// Get content from DHT.
+    ///
+    /// ## Parameters
+    ///
+    /// * `key` - `impl AsRef<[u8]>`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<BoxStream<'static, Record>>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to get content from DHT
+    pub async fn dht_get(
+        &self, key: impl AsRef<[u8]>,
+    ) -> anyhow::Result<BoxStream<'static, Record>> {
+        self.node.dht_get(key).await
+    }
+
+    /// Add address to bootstrap nodes.
+    ///
+    /// ## Parameters
+    ///
+    /// * `address` - `Multiaddr`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<Multiaddr>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to add address to bootstrap nodes
+    pub async fn add_bootstrap(&self, address: Multiaddr) -> anyhow::Result<Multiaddr> {
+        self.node.add_bootstrap(address).await
+    }
+
+    /// Bootstrap the IPFS node.
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<()>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to retrieve bootstrap the node.
+    pub async fn bootstrap(&self) -> anyhow::Result<()> {
+        self.node.bootstrap().await
+    }
+
+    /// Returns a stream of pubsub swarm events for a topic.
+    ///
+    /// ## Parameters
+    ///
+    /// * `topic` - `impl Into<String>`
+    ///
+    /// ## Returns
+    ///
+    /// * A result with `BoxStream<'static, PubsubEvent>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to retrieve pubsub swarm events.
+    pub async fn pubsub_events(
+        &self, topic: impl Into<String>,
+    ) -> anyhow::Result<BoxStream<'static, PubsubEvent>> {
+        self.node.pubsub_events(topic).await
+    }
+
+    /// Subscribes to a pubsub topic.
+    ///
+    /// ## Parameters
+    ///
+    /// * `topic` - `impl Into<String>`
+    ///
+    /// ## Returns
+    ///
+    /// * `SubscriptionStream`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to subscribe to pubsub topic.
+    pub async fn pubsub_subscribe(
+        &self, topic: impl Into<String>,
+    ) -> anyhow::Result<SubscriptionStream> {
+        self.node.pubsub_subscribe(topic).await
+    }
+
+    /// Publishes a message to a pubsub topic.
+    ///
+    /// ## Parameters
+    ///
+    /// * `topic` - `impl Into<String>`
+    /// * `message` - `Vec<u8>`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<MessageId>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to publish to a pubsub topic.
+    pub async fn pubsub_publish(
+        &self, topic: impl Into<String>, message: Vec<u8>,
+    ) -> anyhow::Result<MessageId> {
+        self.node.pubsub_publish(topic, message).await
+    }
+}
+
+impl From<Ipfs> for HermesIpfs {
+    fn from(node: Ipfs) -> Self {
+        Self { node }
     }
 }
 

@@ -46,14 +46,14 @@ async fn start_bootstrapped_nodes() -> anyhow::Result<(HermesIpfs, HermesIpfs)> 
     println!("    P2P addr: {b_p2p}");
     println!("***************************************");
     println!("* Bootstrapping node A.");
-    hermes_a.node.dht_mode(rust_ipfs::DhtMode::Server).await?;
-    hermes_a.node.add_bootstrap(b_p2p).await?;
-    hermes_a.node.bootstrap().await?;
+    hermes_a.dht_mode(rust_ipfs::DhtMode::Server).await?;
+    hermes_a.add_bootstrap(b_p2p).await?;
+    hermes_a.bootstrap().await?;
     println!("***************************************");
     println!("* Bootstrapping node B.");
-    hermes_b.node.dht_mode(rust_ipfs::DhtMode::Server).await?;
-    hermes_b.node.add_bootstrap(a_p2p).await?;
-    hermes_b.node.bootstrap().await?;
+    hermes_b.dht_mode(rust_ipfs::DhtMode::Server).await?;
+    hermes_b.add_bootstrap(a_p2p).await?;
+    hermes_b.bootstrap().await?;
     println!("***************************************");
     Ok((hermes_a, hermes_b))
 }
@@ -67,11 +67,11 @@ async fn main() -> anyhow::Result<()> {
     let (hermes_a, hermes_b) = start_bootstrapped_nodes().await?;
     let (mut rl, mut stdout) = Readline::new(format!("{} > ", "Write message to publish"))?;
 
-    let mut event_stream = hermes_a.node.pubsub_events(&topic).await?;
-    let mut event_stream_b = hermes_b.node.pubsub_events(&topic).await?;
+    let mut event_stream = hermes_a.pubsub_events(&topic).await?;
+    let mut event_stream_b = hermes_b.pubsub_events(&topic).await?;
 
-    let stream = hermes_a.node.pubsub_subscribe(topic.to_string()).await?;
-    let stream_b = hermes_b.node.pubsub_subscribe(topic.to_string()).await?;
+    let stream = hermes_a.pubsub_subscribe(topic.to_string()).await?;
+    let stream_b = hermes_b.pubsub_subscribe(topic.to_string()).await?;
 
     pin_mut!(stream);
     pin_mut!(stream_b);
@@ -109,13 +109,13 @@ async fn main() -> anyhow::Result<()> {
                     let topic = topic.clone();
                     match peer_line {
                         PeerLine::A => {
-                            if let Err(e) = hermes_a.node.pubsub_publish(topic, line_bytes).await {
+                            if let Err(e) = hermes_a.pubsub_publish(topic, line_bytes).await {
                                 writeln!(stdout, "Error publishing message: {e}")?;
                                 continue;
                             }
                         }
                         PeerLine::B => {
-                            if let Err(e) = hermes_b.node.pubsub_publish(topic, line_bytes).await {
+                            if let Err(e) = hermes_b.pubsub_publish(topic, line_bytes).await {
                                 writeln!(stdout, "Error publishing message: {e}")?;
                                 continue;
                             }
