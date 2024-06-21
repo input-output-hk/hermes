@@ -223,8 +223,8 @@ impl WasmModulePackage {
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
-            let settigns_schema = SettingsSchema::from_reader(reader)?;
-            Ok(Some(settigns_schema))
+            let settings_schema = SettingsSchema::from_reader(reader)?;
+            Ok(Some(settings_schema))
         } else {
             Ok(None)
         }

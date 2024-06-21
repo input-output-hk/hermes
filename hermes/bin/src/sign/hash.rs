@@ -24,7 +24,7 @@ impl Blake2b256Hasher {
     ///  Finalize the state and return a `Hash`.
     pub(crate) fn finalize(self) -> Blake2b256 {
         let hash = self.0.finalize();
-        Blake2b256::from_bytes_uncheked(hash.as_bytes())
+        Blake2b256::from_bytes_unchecked(hash.as_bytes())
     }
 }
 
@@ -34,9 +34,9 @@ pub(crate) struct Blake2b256([u8; HASH_SIZE]);
 
 impl Blake2b256 {
     /// Create a new `Blake2b256` from bytes.
-    /// It's not doing any validation of the bytes size, so all checks should be done by
+    /// It does not validate the size of the bytes, so all checks should be done by
     /// the caller.
-    fn from_bytes_uncheked(bytes: &[u8]) -> Self {
+    fn from_bytes_unchecked(bytes: &[u8]) -> Self {
         let mut hash_bytes = [0; HASH_SIZE];
         hash_bytes.copy_from_slice(bytes);
 
@@ -49,7 +49,7 @@ impl Blake2b256 {
             .hash_length(HASH_SIZE)
             .hash(bytes);
 
-        Self::from_bytes_uncheked(hash.as_bytes())
+        Self::from_bytes_unchecked(hash.as_bytes())
     }
 
     /// Convert the hash to a hexadecimal string.
@@ -76,7 +76,7 @@ impl Blake2b256 {
             HASH_SIZE,
             bytes.len()
         );
-        let hash = Self::from_bytes_uncheked(bytes);
+        let hash = Self::from_bytes_unchecked(bytes);
         Ok(hash)
     }
 }

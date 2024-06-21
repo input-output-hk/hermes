@@ -1,5 +1,7 @@
 //! Hermes COSE signature implementation.
 
+// cspell: words Coap
+
 use std::io::Read;
 
 use coset::{
