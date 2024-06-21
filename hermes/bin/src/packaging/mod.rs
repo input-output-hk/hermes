@@ -111,9 +111,9 @@ fn get_package_dir_hash(name: &str, package: &hdf5::Group) -> anyhow::Result<Opt
 /// including file contents.
 /// Returns true if hash was calculated successfully and file is present.
 fn calculate_package_dir_hash(
-    name: &str, package: &hdf5::Group, hasher: &mut Blake2b256Hasher,
+    dir_name: &str, package: &hdf5::Group, hasher: &mut Blake2b256Hasher,
 ) -> anyhow::Result<bool> {
-    let dir = package.group(name).ok();
+    let dir = package.group(dir_name).ok();
 
     if let Some(dir) = dir {
         // order all package directory content by names
@@ -124,8 +124,8 @@ fn calculate_package_dir_hash(
             hasher.update(name.as_bytes());
 
             // Returns false if file is not present, which means that it's a directory
-            if !calculate_package_file_hash(&name, package, hasher)? {
-                calculate_package_dir_hash(&name, package, hasher)?;
+            if !calculate_package_file_hash(&name, &dir, hasher)? {
+                calculate_package_dir_hash(&name, &dir, hasher)?;
             }
         }
 
@@ -146,13 +146,14 @@ mod tests {
     #[test]
     fn copy_file_to_package_and_get_package_file_hash_test() {
         let tmp_dir = TempDir::new().expect("cannot create temp dir");
+        let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
         let package = File::create(package_name).expect("cannot create HDF5 file");
 
         let file_1_name = "file_1";
         let file_1 = tmp_dir.child(file_1_name);
-        std::fs::write(&file_1, b"test").expect("Cannot create file_1 file");
+        std::fs::write(&file_1, file_content).expect("Cannot create file_1 file");
 
         copy_resource_to_package(&FsResource::new(file_1), file_1_name, &package)
             .expect("Cannot copy file_1 to package");
@@ -171,29 +172,29 @@ mod tests {
             .expect("Package file hash calculation failed")
             .expect("Cannot get file_1 hash from package");
 
-        assert_eq!(
-            "928b20366943e2afd11ebc0eae2e53a93bf177a4fcf35bcc64d503704e65e202",
-            hash.to_hex()
-        );
+        let expected_hash = Blake2b256::hash(file_content);
+        assert_eq!(expected_hash, hash);
     }
 
     #[test]
     fn copy_dir_recursively_to_package_and_get_package_file_hash_test() {
         let tmp_dir = TempDir::new().expect("cannot create temp dir");
+        let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
         let package = File::create(package_name).expect("cannot create HDF5 package");
 
         let dir_name = "dir";
         let dir = tmp_dir.child(dir_name);
+        std::fs::create_dir(&dir).expect("Cannot create directory");
 
         let file_1_name = "file_1";
         let file_1 = dir.join(file_1_name);
-        std::fs::write(file_1, [0, 1, 2]).expect("Cannot create file_1 file");
+        std::fs::write(file_1, file_content).expect("Cannot create file_1 file");
 
-        let file_2_name = "file_2_name";
+        let file_2_name = "file_2";
         let file_2 = dir.join(file_2_name);
-        std::fs::write(file_2, [0, 1, 2]).expect("Cannot create file_2 file");
+        std::fs::write(file_2, file_content).expect("Cannot create file_2 file");
 
         let child_dir_name = "child_dir";
         let child_dir = dir.join(child_dir_name);
@@ -201,7 +202,7 @@ mod tests {
 
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
-        std::fs::write(file_3, [0, 1, 2]).expect("Cannot create file_3 file");
+        std::fs::write(file_3, file_content).expect("Cannot create file_3 file");
 
         copy_resource_dir_recursively_to_package(&FsResource::new(dir), dir_name, &package)
             .expect("Cannot copy dir to package");
@@ -225,9 +226,16 @@ mod tests {
             .expect("Package file hash calculation failed")
             .expect("Cannot get file_1 hash from package");
 
-        assert_eq!(
-            "e310b80433f172956d3df0c5cf53ed104eefc05aeaa5f9c1ea9202a8bbf471b1",
-            hash.to_hex()
-        );
+        let mut hasher = Blake2b256Hasher::new();
+        hasher.update(child_dir_name.as_bytes());
+        hasher.update(file_3_name.as_bytes());
+        hasher.update(file_content);
+        hasher.update(file_1_name.as_bytes());
+        hasher.update(file_content);
+        hasher.update(file_2_name.as_bytes());
+        hasher.update(file_content);
+        let expected_hash = hasher.finalize();
+
+        assert_eq!(expected_hash, hash);
     }
 }
