@@ -4,6 +4,8 @@
 
 use std::str::FromStr;
 
+/// IPLD
+pub use libipld::Ipld;
 /// IPFS Content Identifier.
 pub use libipld::{self as ipld, Cid};
 /// Peer Info type.
@@ -21,6 +23,7 @@ pub use rust_ipfs::PeerId;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
 use rust_ipfs::{
+    dag::ResolveError,
     libp2p::{futures::stream::BoxStream, kad::Record},
     unixfs::AddOpt,
     MessageId, PubsubEvent, Quorum, SubscriptionStream,
@@ -203,6 +206,40 @@ impl HermesIpfs {
     /// Returns error if unable to set DHT mode
     pub async fn dht_mode(&self, mode: DhtMode) -> anyhow::Result<()> {
         self.node.dht_mode(mode).await
+    }
+
+    /// Add DAG data to IPFS.
+    ///
+    /// ## Parameters
+    ///
+    /// * `ipld` - `Ipld`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<Cid>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to add DAG content.
+    pub async fn dag_put(&self, ipld: Ipld) -> anyhow::Result<Cid> {
+        self.node.put_dag(ipld).await
+    }
+
+    /// Get DAG data from IPFS.
+    ///
+    /// ## Parameters
+    ///
+    /// * `path` - `impl Into<IpfsPath>`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<Ipld>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to get DAG content.
+    pub async fn dag_get<T: Into<IpfsPath>>(&self, path: T) -> Result<Ipld, ResolveError> {
+        self.node.get_dag(path).await
     }
 
     /// Add content to DHT.
