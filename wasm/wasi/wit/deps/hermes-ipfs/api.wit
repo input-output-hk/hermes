@@ -11,7 +11,12 @@ interface api {
     /// A PubSub topic.
     type pubsub-topic = string;
     /// A PubSub message from a topic subscription.
-    type pubsub-message = string;
+    record pubsub-message {
+        /// The topic that the message was received on. 
+        topic: pubsub-topic,
+        /// The contents of the message.
+        message: string,
+    }
 
     /// Errors that occur in IPFS networking.
     enum errno {
