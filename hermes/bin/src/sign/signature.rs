@@ -169,6 +169,7 @@ impl SignaturePayloadEncoding for serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sign::{certificate::tests::certificate_str, keys::tests::private_key_str};
 
     #[test]
     fn signature_serde_test() {
@@ -183,5 +184,51 @@ mod tests {
             .expect("Failed to deserialize signature.");
 
         assert_eq!(signature, decoded_signature);
+    }
+
+    #[test]
+    fn signature_format_test() {
+        let payload = serde_json::json!({ "key": "value" });
+        let mut signature = Signature::new(payload.clone());
+
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let certificate = Certificate::from_str(&certificate_str()).expect("Cannot create cert");
+
+        signature
+            .add_sign(&private_key, &certificate)
+            .expect("Failed to add signature.");
+
+        let bytes = signature
+            .to_bytes()
+            .expect("Failed to serialize signature.");
+        let cose_sign = CoseSign::from_slice(bytes.as_slice()).expect("cannot decode CoseSign");
+
+        assert_eq!(
+            cose_sign.protected.header.alg,
+            Some(coset::RegisteredLabelWithPrivate::Assigned(
+                iana::Algorithm::EdDSA
+            ))
+        );
+        assert_eq!(
+            cose_sign.protected.header.content_type,
+            Some(coset::RegisteredLabel::Assigned(
+                iana::CoapContentFormat::Json
+            ))
+        );
+        assert_eq!(cose_sign.payload, Some(payload.to_string().into_bytes()));
+
+        let first_signature = cose_sign
+            .signatures
+            .get(0)
+            .expect("cannot get first signature");
+        assert_eq!(
+            first_signature.protected.header.key_id,
+            certificate
+                .hash()
+                .expect("cannot get certificate hash")
+                .to_bytes()
+                .to_vec()
+        );
     }
 }
