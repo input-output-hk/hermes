@@ -134,7 +134,7 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
             .payload
             .ok_or(anyhow::anyhow!("Missing signature payload."))?;
 
-        let json = serde_json::to_value(payload_bytes.as_slice())?;
+        let json = serde_json::from_slice(payload_bytes.as_slice())?;
         let payload = T::from_json(json)?;
 
         Ok(Self {

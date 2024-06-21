@@ -104,23 +104,36 @@ impl PublicKey {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
+
+    pub(crate) fn private_key_str() -> String {
+        format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PRIVATE KEY-----",
+            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
+            "-----END PRIVATE KEY-----"
+        )
+    }
+
+    pub(crate) fn public_key_str() -> String {
+        format!(
+            "{}\n{}\n{}",
+            "-----BEGIN PUBLIC KEY-----",
+            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
+            "-----END PUBLIC KEY-----"
+        )
+    }
 
     #[test]
     fn private_key_from_file_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
         let private_key_path = dir.path().join("private.pem");
-        let private_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PRIVATE KEY-----",
-            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
-            "-----END PRIVATE KEY-----"
-        );
-        std::fs::write(&private_key_path, private_key).expect("Cannot create private.pem file");
+        std::fs::write(&private_key_path, private_key_str())
+            .expect("Cannot create private.pem file");
 
         let _key =
             PrivateKey::from_file(private_key_path).expect("Cannot create private key from file");
@@ -131,13 +144,7 @@ mod tests {
         let dir = TempDir::new().expect("cannot create temp dir");
 
         let public_key_path = dir.path().join("public.pem");
-        let public_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PUBLIC KEY-----",
-            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
-            "-----END PUBLIC KEY-----"
-        );
-        std::fs::write(&public_key_path, public_key).expect("Cannot create public.pem file");
+        std::fs::write(&public_key_path, public_key_str()).expect("Cannot create public.pem file");
 
         let _key =
             PublicKey::from_file(public_key_path).expect("Cannot create public key from file");
@@ -145,42 +152,18 @@ mod tests {
 
     #[test]
     fn public_private_key_test() {
-        let private_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PRIVATE KEY-----",
-            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
-            "-----END PRIVATE KEY-----"
-        );
-        let public_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PUBLIC KEY-----",
-            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
-            "-----END PUBLIC KEY-----"
-        );
-
-        let private_key = PrivateKey::from_str(&private_key).expect("Cannot create private key");
-        let public_key = PublicKey::from_str(&public_key).expect("Cannot create public key");
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let public_key = PublicKey::from_str(&public_key_str()).expect("Cannot create public key");
 
         assert_eq!(private_key.public_key(), public_key);
     }
 
     #[test]
     fn sign_test() {
-        let private_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PRIVATE KEY-----",
-            "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTzV",
-            "-----END PRIVATE KEY-----"
-        );
-        let public_key = format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PUBLIC KEY-----",
-            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
-            "-----END PUBLIC KEY-----"
-        );
-
-        let private_key = PrivateKey::from_str(&private_key).expect("Cannot create private key");
-        let public_key = PublicKey::from_str(&public_key).expect("Cannot create public key");
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let public_key = PublicKey::from_str(&public_key_str()).expect("Cannot create public key");
 
         let msg = b"test";
 

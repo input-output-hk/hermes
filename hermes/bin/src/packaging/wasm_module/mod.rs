@@ -323,48 +323,14 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{fs_resource::FsResource, Resource};
+    use crate::{
+        packaging::resources::{fs_resource::FsResource, Resource},
+        sign::{certificate::tests::certificate_str, keys::tests::private_key_str},
+    };
 
-    fn prepare_package_dir(
-        module_name: String, dir: &TempDir, metadata: &[u8], component: &[u8], config: &[u8],
-        config_schema: &[u8], settings_schema: &[u8],
-    ) -> Manifest {
-        let config_path = dir.path().join("config.json");
-        let config_schema_path = dir.path().join("config.schema.json");
-        let metadata_path = dir.path().join("metadata.json");
-        let component_path = dir.path().join("module.wasm");
-        let settings_schema_path = dir.path().join("settings.schema.json");
-
-        std::fs::write(&metadata_path, metadata).expect("Cannot create metadata.json file");
-        std::fs::write(&component_path, component).expect("Cannot create module.wasm file");
-        std::fs::write(&config_path, config).expect("Cannot create config.json file");
-        std::fs::write(&config_schema_path, config_schema)
-            .expect("Cannot create config.schema.json file");
-        std::fs::write(&settings_schema_path, settings_schema)
-            .expect("Cannot create settings.schema.json file");
-
-        Manifest {
-            name: module_name,
-            metadata: Resource::Fs(FsResource::new(metadata_path)),
-            component: Resource::Fs(FsResource::new(component_path)),
-            config: manifest::ManifestConfig {
-                file: Some(Resource::Fs(FsResource::new(config_path))),
-                schema: Resource::Fs(FsResource::new(config_schema_path)),
-            }
-            .into(),
-            settings: manifest::ManifestSettings {
-                schema: Resource::Fs(FsResource::new(settings_schema_path)),
-            }
-            .into(),
-            share: None,
-        }
-    }
-
-    #[test]
-    fn from_dir_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let mut metadata = Metadata::from_reader(
+    fn prepare_default_package_files() -> (Metadata, Vec<u8>, Config, ConfigSchema, SettingsSchema)
+    {
+        let metadata = Metadata::from_reader(
             serde_json::json!(
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
@@ -389,6 +355,7 @@ mod tests {
         let settings_schema =
             SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
                 .expect("Invalid settings schema");
+
         let component = r#"
             (component
                 (core module $Module
@@ -401,27 +368,91 @@ mod tests {
                 (func $foo (result s32) (canon lift (core func $module "foo")))
                 (export "foo" (func $foo))
             )"#;
+        (
+            metadata,
+            component.as_bytes().to_vec(),
+            config,
+            config_schema,
+            settings_schema,
+        )
+    }
 
-        let manifest = prepare_package_dir(
-            "module".to_string(),
-            &dir,
+    fn prepare_package_dir(
+        module_name: String, dir: &TempDir, metadata: &Metadata, component: &[u8], config: &Config,
+        config_schema: &ConfigSchema, settings_schema: &SettingsSchema,
+    ) -> Manifest {
+        let config_path = dir.path().join("config.json");
+        let config_schema_path = dir.path().join("config.schema.json");
+        let metadata_path = dir.path().join("metadata.json");
+        let component_path = dir.path().join("module.wasm");
+        let settings_schema_path = dir.path().join("settings.schema.json");
+
+        std::fs::write(
+            &metadata_path,
             metadata
                 .to_bytes()
                 .expect("cannot decode metadata to bytes")
                 .as_slice(),
-            component.to_string().as_bytes(),
+        )
+        .expect("Cannot create metadata.json file");
+        std::fs::write(&component_path, component).expect("Cannot create module.wasm file");
+        std::fs::write(
+            &config_path,
             config
                 .to_bytes()
                 .expect("cannot decode config to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create config.json file");
+        std::fs::write(
+            &config_schema_path,
             config_schema
                 .to_bytes()
                 .expect("cannot decode config schema to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create config.schema.json file");
+        std::fs::write(
+            &settings_schema_path,
             settings_schema
                 .to_bytes()
                 .expect("cannot decode settings schema to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create settings.schema.json file");
+
+        Manifest {
+            name: module_name,
+            metadata: Resource::Fs(FsResource::new(metadata_path)),
+            component: Resource::Fs(FsResource::new(component_path)),
+            config: manifest::ManifestConfig {
+                file: Some(Resource::Fs(FsResource::new(config_path))),
+                schema: Resource::Fs(FsResource::new(config_schema_path)),
+            }
+            .into(),
+            settings: manifest::ManifestSettings {
+                schema: Resource::Fs(FsResource::new(settings_schema_path)),
+            }
+            .into(),
+            share: None,
+        }
+    }
+
+    #[test]
+    fn from_dir_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let (mut metadata, component, config, config_schema, settings_schema) =
+            prepare_default_package_files();
+
+        let manifest = prepare_package_dir(
+            "module".to_string(),
+            &dir,
+            &metadata,
+            component.as_slice(),
+            &config,
+            &config_schema,
+            &settings_schema,
         );
 
         let build_time = DateTime::default();
@@ -441,9 +472,7 @@ mod tests {
         assert_eq!(metadata, package_metadata);
 
         // check component WASM file
-        let _package_component = package
-            .get_component()
-            .expect("Cannot get component from package");
+        assert!(package.get_component().is_ok());
 
         // check config and config schema JSON files
         let (package_config, package_config_schema) = package
@@ -463,5 +492,42 @@ mod tests {
             settings_schema,
             package_settings_schema.expect("Missing settings schema in package")
         );
+    }
+
+    #[test]
+    fn sign_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let (metadata, component, config, config_schema, settings_schema) =
+            prepare_default_package_files();
+
+        let manifest = prepare_package_dir(
+            "module".to_string(),
+            &dir,
+            &metadata,
+            component.as_slice(),
+            &config,
+            &config_schema,
+            &settings_schema,
+        );
+
+        let build_time = DateTime::default();
+        let package =
+            WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+                .expect("Cannot create module package");
+
+        assert!(package.validate().is_ok());
+
+        assert!(package.get_signature().expect("Package error").is_none());
+
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let certificate =
+            Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
+        package
+            .sign(&private_key, &certificate)
+            .expect("Cannot sign package");
+
+        assert!(package.get_signature().expect("Package error").is_some());
     }
 }

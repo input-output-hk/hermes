@@ -71,17 +71,14 @@ impl Certificate {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
+    use crate::sign::keys::tests::public_key_str;
 
-    #[test]
-    fn certificate_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let private_key_path = dir.path().join("cert.pem");
-        let private_key = format!(
+    pub(crate) fn certificate_str() -> String {
+        format!(
             "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             "-----BEGIN CERTIFICATE-----",
             "MIICCTCCAbugAwIBAgIUfZ0PWPMb4DDteQDZagWn2x+ognEwBQYDK2VwMIGSMQsw",
@@ -96,21 +93,23 @@ mod tests {
             "MBXdOUfcxUmKk9wvcbxYCM8CoTAFBgMrZXADQQBUM4ZxsCuGwPKRrICvlPYBEhtv",
             "h6dzbzu7+YbpdIPV5jS1tufBSyhxRK9YPaXNYeKeNqKQURWDNLiZXJLZq3QL",
             "-----END CERTIFICATE-----",
-        );
-        std::fs::write(&private_key_path, private_key).expect("Cannot create cert.pem file");
+        )
+    }
+
+    #[test]
+    fn certificate_from_file_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let certificate_path = dir.path().join("cert.pem");
+        std::fs::write(&certificate_path, certificate_str()).expect("Cannot create cert.pem file");
 
         let cert =
-            Certificate::from_file(private_key_path).expect("Cannot create certificate from file");
+            Certificate::from_file(certificate_path).expect("Cannot create certificate from file");
 
         let cert_public_key = cert.subject_public_key().expect("Cannot get public key");
 
-        let expected_public_key = PublicKey::from_str(&format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PUBLIC KEY-----",
-            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
-            "-----END PUBLIC KEY-----"
-        ))
-        .expect("Cannot parse public key");
+        let expected_public_key =
+            PublicKey::from_str(&public_key_str()).expect("Cannot parse public key");
 
         assert_eq!(cert_public_key, expected_public_key);
     }
