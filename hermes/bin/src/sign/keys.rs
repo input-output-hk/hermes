@@ -69,6 +69,7 @@ pub(crate) struct PublicKey(VerifyingKey);
 
 impl PublicKey {
     /// Create new public key from file decoded in PEM format.
+    #[allow(dead_code)]
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let str =
             std::fs::read_to_string(&path).map_err(|_| KeyFileError(path.as_ref().into(), None))?;
@@ -76,6 +77,7 @@ impl PublicKey {
     }
 
     /// Create new public key from string decoded in PEM format.
+    #[allow(dead_code)]
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
         let key = VerifyingKey::from_public_key_pem(str).map_err(|_| KeyPemDecodingError)?;
         Ok(Self(key))
@@ -89,6 +91,7 @@ impl PublicKey {
 
     /// Verify signature of the message with the current public key.
     /// Returns `Ok(())` if the signature is valid, `Err` otherwise.
+    #[allow(dead_code)]
     pub(crate) fn verify(&self, msg: &[u8], signature_bytes: &[u8]) -> anyhow::Result<()> {
         let signature_bytes = signature_bytes.try_into().map_err(|_| {
             anyhow::anyhow!(

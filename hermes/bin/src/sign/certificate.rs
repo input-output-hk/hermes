@@ -48,7 +48,8 @@ impl Certificate {
 
     /// Create new certificate from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let cert = x509_cert::Certificate::from_pem(str.as_bytes())?;
+        let cert = x509_cert::Certificate::from_pem(str.as_bytes())
+            .map_err(|_| CertificateDecodingError)?;
         Ok(Self(cert))
     }
 

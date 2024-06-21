@@ -110,11 +110,6 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
         Ok(())
     }
 
-    /// Get signature payload JSON object.
-    pub(crate) fn payload(&self) -> &T {
-        &self.payload
-    }
-
     /// Convert `Signature` object to CBOR decoded bytes.
     pub(crate) fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
         self.build_cose_sign()?
@@ -222,7 +217,7 @@ mod tests {
 
         let first_signature = cose_sign
             .signatures
-            .get(0)
+            .first()
             .expect("cannot get first signature");
         assert_eq!(
             first_signature.protected.header.key_id,
