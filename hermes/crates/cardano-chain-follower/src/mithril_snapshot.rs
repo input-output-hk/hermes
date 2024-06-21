@@ -68,6 +68,7 @@ impl MithrilSnapshot {
     ///
     /// Returns Err if anything fails while reading the block data.
     #[allow(clippy::unnecessary_wraps)]
+    #[allow(dead_code)]
     pub fn try_read_block(_network: Network, _point: &Point) -> Result<Option<MultiEraBlockData>> {
         /* TODO(SJ)  : Fix This
         if let Some(mithril_path) = read_mithril_immutable_path(network) {
@@ -107,6 +108,7 @@ impl MithrilSnapshot {
     ///
     /// Returns Err if anything fails while reading any block's data.
     #[allow(clippy::unnecessary_wraps)]
+    #[allow(dead_code)]
     pub fn try_read_block_range(
         _network: Network, _from: &Point, _to: &Point,
     ) -> Result<Option<(Point, Vec<MultiEraBlockData>)>> {
@@ -167,6 +169,7 @@ impl MithrilSnapshot {
     ///
     /// Returns None if its not possible to iterate a mithril snapshot from the requested
     /// point for ANY reason.
+    #[allow(dead_code)]
     pub fn try_read_blocks_from_point(
         _network: Network, _point: &Point,
     ) -> Option<MithrilSnapshotIterator> {

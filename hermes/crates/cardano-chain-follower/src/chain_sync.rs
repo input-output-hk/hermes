@@ -11,7 +11,7 @@ use crate::{
     ChainSyncConfig, MultiEraBlockData, Network, PointOrTip,
 };
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use crossbeam_skiplist::{SkipMap, SkipSet};
 use once_cell::sync::Lazy;
 use pallas::{
@@ -28,7 +28,7 @@ use pallas::{
 use strum::IntoEnumIterator;
 use tokio::{
     spawn,
-    sync::mpsc,
+    sync::{mpsc, oneshot, RwLock},
     time::{sleep, timeout},
 };
 use tracing::{debug, error};
@@ -43,6 +43,67 @@ static LIVE_CHAINS: Lazy<SkipMap<Network, LiveChainBlockList>> = Lazy::new(|| {
     }
     map
 });
+
+/// Lock to prevent using any blockchain data for a network UNTIL it is synced to TIP.
+static SYNC_READY: Lazy<SkipMap<Network, RwLock<bool>>> = Lazy::new(|| {
+    let map = SkipMap::new();
+    for network in Network::iter() {
+        map.insert(network, RwLock::new(false));
+    }
+    map
+});
+
+/// Write Lock the `SYNC_READY` lock for a network.
+/// When we are signaled to be ready, set it to true and release the lock.
+fn wait_for_sync_ready(chain: Network) -> oneshot::Sender<()> {
+    let (tx, rx) = oneshot::channel::<()>();
+
+    tokio::spawn(async move {
+        // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
+        // Its a Serious BUG if that not True, so panic is OK.
+        #[allow(clippy::expect_used)]
+        let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
+
+        let lock = lock_entry.value();
+
+        let mut status = lock.write().await;
+
+        // If we successfully get told to unlock, we do.
+        if let Ok(()) = rx.await {
+            *status = true;
+        }
+
+        // If the channel closes early, we can NEVER use the Blockchain data.
+    });
+
+    tx
+}
+
+/// Get a Read lock on the Sync State, and return if we are ready or not.
+async fn check_sync_ready(chain: Network) -> bool {
+    // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
+    // Its a Serious BUG if that not True, so panic is OK.
+    #[allow(clippy::expect_used)]
+    let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
+    let lock = lock_entry.value();
+
+    let status = lock.read().await;
+
+    *status
+}
+
+/// Number of seconds to wait if we detect a `SyncReady` race condition.
+const SYNC_READY_RACE_BACKOFF_SECS: u64 = 1;
+
+/// Block until the chain is synced to TIP.
+/// This is necessary to ensure the Blockchain data is fully intact before attempting to consume it.
+pub(crate) async fn block_until_sync_ready(chain: Network) {
+    // There is a potential race where we haven't yet write locked the SYNC_READY lock when we check it.
+    // So, IF the ready state returns as false, sleep a while and try again.
+    while !check_sync_ready(chain).await {
+        sleep(Duration::from_secs(SYNC_READY_RACE_BACKOFF_SECS)).await;
+    }
+}
 
 /// The maximum number of seconds we wait for a node to connect.
 const MAX_NODE_CONNECT_TIME_SECS: u64 = 2;
@@ -253,14 +314,15 @@ async fn get_fill_to_point(live_chain: &SkipSet<LiveBlock>) -> Point {
 /// This only needs to be done once per chain connection.
 async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Result<()> {
     // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its constructed by Lazy.
-    let Some(live_block_list_entry) = LIVE_CHAINS.get(&cfg.chain) else {
-        error!(
+    // This SHOULD always exist, because its initialized exhaustively.
+    // If this FAILS, its a serious UNRECOVERABLE BUG.
+    #[allow(clippy::panic)]
+    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
+        panic!(
             "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
             cfg.chain, cfg.relay_address,
-        );
-        bail!("Internal Error getting live chain.");
-    };
+        )
+    });
     let live_chain = live_block_list_entry.value();
 
     let fill_to = get_fill_to_point(live_chain).await;
@@ -292,49 +354,68 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
 }
 
 /// Backfill and Purge the live chain, based on the Mithril Sync updates.
-async fn live_sync_backfill_and_purge(cfg: ChainSyncConfig, mut rx: mpsc::Receiver<Point>) {
-    let mut backfill: bool = true;
-
+async fn live_sync_backfill_and_purge(
+    cfg: ChainSyncConfig, mut rx: mpsc::Receiver<Point>, tx_ready: oneshot::Sender<()>,
+) {
     // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its constructed by Lazy.
-    let Some(live_block_list_entry) = LIVE_CHAINS.get(&cfg.chain) else {
-        error!(
+    // This SHOULD always exist, because its initialized exhaustively.
+    // If this FAILS, its a serious UNRECOVERABLE BUG.
+    #[allow(clippy::panic)]
+    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
+        panic!(
             "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
             cfg.chain, cfg.relay_address,
-        );
-        return;
-    };
+        )
+    });
     let live_chain = live_block_list_entry.value();
 
-    loop {
-        debug!("Size of the Live Chain is: {} Blocks", live_chain.len());
+    let Some(point) = rx.recv().await else {
+        error!("Mithril Sync Failed, can not continue chain sync either.");
+        return;
+    };
 
+    debug!("Size of the Live Chain is: {} Blocks", live_chain.len());
+
+    // Wait for first Mithril Update advice, which triggers a BACKFILL of the Live Data.
+    debug!("Mithril Tip has advanced to: {point:?} : BACKFILL");
+    while let Err(error) = live_sync_backfill(&cfg, point.clone()).await {
+        error!("Mithril Backfill Sync Failed: {}", error);
+        sleep(Duration::from_secs(10)).await;
+    }
+
+    // Once Backfill is completed OK we can use the Blockchain data for Syncing and Querying
+    if tx_ready.send(()).is_err() {
+        error!("Unable to unlock the the SYNC Lock for {}.", cfg.chain);
+        return;
+    }
+
+    loop {
         let Some(point) = rx.recv().await else {
             error!("Mithril Sync Failed, can not continue chain sync either.");
-            break;
+            return;
         };
 
-        if backfill {
-            backfill = false;
-            debug!("Mithril Tip has advanced to: {point:?} : BACKFILL");
-            while let Err(error) = live_sync_backfill(&cfg, point.clone()).await {
-                error!("Mithril Backfill Sync Failed: {}", error);
-                sleep(Duration::from_secs(10)).await;
-            }
-        } else {
-            debug!("Mithril Tip has advanced to: {point:?} : PURGE NEEDED");
+        let mut purged_blocks: u64 = 0;
 
-            // Purge the live data before this block.
-            while let Some(tip_entry) = live_chain.front() {
-                let oldest_block = tip_entry.value();
-                // If we got back to the rollback position then stop purging.
-                // Next update should be after this block, and arrive automatically.
-                if oldest_block.point == point {
-                    break;
-                }
-                live_chain.remove(oldest_block);
+        debug!("Mithril Tip has advanced to: {point:?} : PURGE NEEDED");
+
+        // Purge the live data before this block.
+        while let Some(tip_entry) = live_chain.front() {
+            let oldest_block = tip_entry.value();
+            // If we got back to the rollback position then stop purging.
+            // Next update should be after this block, and arrive automatically.
+            if oldest_block.point == point {
+                break;
             }
+            live_chain.remove(oldest_block);
+            purged_blocks += 1;
         }
+
+        debug!(
+            "Purged {} Blocks. Size of the Live Chain is: {} Blocks",
+            purged_blocks,
+            live_chain.len()
+        );
     }
 
     // TODO: If the mithril sync dies, sleep for a bit and make sure the live chain doesn't grow
@@ -365,22 +446,27 @@ pub(crate) async fn chain_sync(cfg: ChainSyncConfig, rx: mpsc::Receiver<Point>) 
         cfg.chain, cfg.relay_address,
     );
 
+    // Start the SYNC_READY unlock task.
+    let tx = wait_for_sync_ready(cfg.chain);
+
     // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its constructed by Lazy.
-    let Some(live_block_list_entry) = LIVE_CHAINS.get(&cfg.chain) else {
-        error!(
+    // This SHOULD always exist, because its initialized exhaustively.
+    // If this FAILS, its a serious UNRECOVERABLE BUG.
+    #[allow(clippy::panic)]
+    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
+        panic!(
             "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
             cfg.chain, cfg.relay_address,
-        );
-        return;
-    };
+        )
+    });
+
     let live_chain = live_block_list_entry.value();
 
     let backfill_cfg = cfg.clone();
 
     // Start the Live chain backfill task.
     let _backfill_join_handle =
-        spawn(async move { live_sync_backfill_and_purge(backfill_cfg.clone(), rx).await });
+        spawn(async move { live_sync_backfill_and_purge(backfill_cfg.clone(), rx, tx).await });
 
     loop {
         // We never have a connection if we end up around the loop, so make a new one.

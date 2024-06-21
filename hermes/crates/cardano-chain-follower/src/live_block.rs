@@ -46,16 +46,21 @@ impl Ord for LiveBlock {
     /// Compare two `LiveBlocks` by their points.
     /// Only checks the Slot#.
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.point {
-            Point::Origin => match other.point {
-                Point::Origin => Ordering::Equal,
-                Point::Specific(_, _) => Ordering::Less,
-            },
-            Point::Specific(slot, _) => match other.point {
-                Point::Origin => Ordering::Greater,
-                Point::Specific(other_slot, _) => slot.cmp(&other_slot),
-            },
-        }
+        cmp_point(&self.point, &other.point)
+    }
+}
+
+/// Compare Points, because Pallas does not impl `Ord` for Point.
+pub(crate) fn cmp_point(a: &Point, b: &Point) -> Ordering {
+    match a {
+        Point::Origin => match b {
+            Point::Origin => Ordering::Equal,
+            Point::Specific(_, _) => Ordering::Less,
+        },
+        Point::Specific(slot, _) => match b {
+            Point::Origin => Ordering::Greater,
+            Point::Specific(other_slot, _) => slot.cmp(other_slot),
+        },
     }
 }
 

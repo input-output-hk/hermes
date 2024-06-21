@@ -17,7 +17,7 @@ mod snapshot_id;
 pub use chain_sync_config::ChainSyncConfig;
 pub use chain_update::ChainUpdate;
 pub use error::Result;
-pub use follow::*;
+pub use follow::ChainFollower;
 pub use multi_era_block_data::MultiEraBlockData;
 pub use network::Network;
 pub use pallas::network::miniprotocols::Point;
