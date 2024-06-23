@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use clap::Args;
 use console::Emoji;
 
-use crate::{
-    packaging::wasm_module::WasmModulePackage,
+use crate::packaging::{
     sign::{certificate::Certificate, keys::PrivateKey},
+    wasm_module::WasmModulePackage,
 };
 
 /// WASM module package signing

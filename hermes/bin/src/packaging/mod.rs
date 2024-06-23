@@ -2,6 +2,8 @@
 
 mod compression;
 mod resources;
+mod schema_validation;
+pub(crate) mod sign;
 pub(crate) mod wasm_module;
 
 use std::{collections::BTreeSet, io::Read};
@@ -11,7 +13,7 @@ use resources::ResourceTrait;
 use self::compression::enable_compression;
 use crate::{
     errors::Errors,
-    sign::hash::{Blake2b256, Blake2b256Hasher},
+    packaging::sign::hash::{Blake2b256, Blake2b256Hasher},
 };
 
 /// Copy resource to hdf5 package.

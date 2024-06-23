@@ -22,7 +22,7 @@ use super::{
 };
 use crate::{
     errors::Errors,
-    sign::{certificate::Certificate, keys::PrivateKey, signature::Signature},
+    packaging::sign::{certificate::Certificate, keys::PrivateKey, signature::Signature},
     wasm,
 };
 
@@ -323,8 +323,8 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::{
-        packaging::resources::{fs_resource::FsResource, Resource},
+    use crate::packaging::{
+        resources::{fs_resource::FsResource, Resource},
         sign::{certificate::tests::certificate_str, keys::tests::private_key_str},
     };
 

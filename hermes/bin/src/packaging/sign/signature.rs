@@ -166,7 +166,9 @@ impl SignaturePayloadEncoding for serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sign::{certificate::tests::certificate_str, keys::tests::private_key_str};
+    use crate::packaging::sign::{
+        certificate::tests::certificate_str, keys::tests::private_key_str,
+    };
 
     #[test]
     fn signature_serde_test() {

@@ -76,7 +76,7 @@ pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::sign::keys::tests::public_key_str;
+    use crate::packaging::sign::keys::tests::public_key_str;
 
     pub(crate) fn certificate_str() -> String {
         format!(

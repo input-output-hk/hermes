@@ -2,8 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{
-    packaging::resources::{fs_resource::FsResource, Resource},
+use crate::packaging::{
+    resources::{fs_resource::FsResource, Resource},
     schema_validation::SchemaValidator,
 };
 
