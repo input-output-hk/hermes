@@ -64,7 +64,6 @@
         }
     },
     "required": [
-        "$schema",
         "metadata",
         "component"
     ]
