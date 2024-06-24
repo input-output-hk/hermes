@@ -94,6 +94,11 @@ pub(crate) mod tests {
 
     use super::*;
 
+    /// An Ed25519 private key in PEM format.
+    /// Generated with `openssl` tool:
+    /// ```shell
+    /// openssl genpkey -algorithm=ED25519 -out=private.pem -outpubkey=public.pem
+    /// ```
     pub(crate) fn private_key_str() -> String {
         format!(
             "{}\n{}\n{}",
@@ -103,6 +108,12 @@ pub(crate) mod tests {
         )
     }
 
+    /// An Ed25519 public key in PEM format.
+    /// This public key is corresponding to the `private_key_str()` private key.
+    /// Generated with `openssl` tool:
+    /// ```shell
+    /// openssl genpkey -algorithm=ED25519 -out=private.pem -outpubkey=public.pem
+    /// ```
     pub(crate) fn public_key_str() -> String {
         format!(
             "{}\n{}\n{}",

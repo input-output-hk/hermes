@@ -56,6 +56,13 @@ pub(crate) mod tests {
     use super::*;
     use crate::packaging::sign::keys::tests::public_key_str;
 
+    /// An x.509 certificate in PEM format.
+    /// This certificate is signed with the `private_key_str()` private key
+    /// and subjected to the `public_key_str()` public key (basically it is a self-signed
+    /// cert). Generated with `openssl` tool:
+    /// ```shell
+    /// openssl req -new -x509 -key=private.pem -out=cert.pem -config=x509_cert.config
+    /// ```
     pub(crate) fn certificate_str() -> String {
         format!(
             "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
