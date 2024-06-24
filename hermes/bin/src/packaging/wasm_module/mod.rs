@@ -19,6 +19,7 @@ use super::{
     copy_resource_dir_recursively_to_package, copy_resource_to_package, get_package_dir_hash,
     get_package_file_hash, get_package_file_reader,
     resources::{bytes_resource::BytesResource, ResourceTrait},
+    FileError,
 };
 use crate::{
     errors::Errors,
@@ -30,11 +31,6 @@ use crate::{
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to create WASM module package. Package at {0} could be already exists.")]
 pub(crate) struct CreatePackageError(PathBuf);
-
-/// Invalid file error.
-#[derive(thiserror::Error, Debug)]
-#[error("Invalid file at {0}:\n{1}")]
-pub(crate) struct InvalidFileError(String, String);
 
 /// Missing package file error.
 #[derive(thiserror::Error, Debug)]
@@ -237,12 +233,10 @@ fn validate_and_write_metadata(
     manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &hdf5::File,
 ) -> anyhow::Result<()> {
     let resource = &manifest.metadata;
-    let metadata_reader = resource
-        .get_reader()
-        .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
+    let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::from_reader(metadata_reader)
-        .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
+        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
     metadata.set_build_date(build_date);
     metadata.set_name(name);
 
@@ -255,12 +249,10 @@ fn validate_and_write_metadata(
 fn validate_and_write_component(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
     let resource = &manifest.component;
 
-    let component_reader = resource
-        .get_reader()
-        .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
+    let component_reader = resource.get_reader()?;
 
     wasm::module::Module::from_reader(component_reader)
-        .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
+        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
 
     copy_resource_to_package(resource, WasmModulePackage::COMPONENT_FILE, package)?;
     Ok(())
@@ -269,23 +261,18 @@ fn validate_and_write_component(manifest: &Manifest, package: &hdf5::File) -> an
 /// Validate config file and config schema and write them to the package.
 fn validate_and_write_config(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
     if let Some(config) = &manifest.config {
-        let config_schema_reader = config
-            .schema
-            .get_reader()
-            .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
+        let config_schema_reader = config.schema.get_reader()?;
         let config_schema = ConfigSchema::from_reader(config_schema_reader)
-            .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
+            .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
 
         let resource = BytesResource::new(config.schema.name()?, config_schema.to_bytes()?);
         copy_resource_to_package(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE, package)?;
 
         if let Some(config_file) = &config.file {
-            let config_reader = config_file
-                .get_reader()
-                .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
+            let config_reader = config_file.get_reader()?;
 
             let config = Config::from_reader(config_reader, config_schema.validator())
-                .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
+                .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
 
             let resource = BytesResource::new(config_file.name()?, config.to_bytes()?);
             copy_resource_to_package(&resource, WasmModulePackage::CONFIG_FILE, package)?;
@@ -297,12 +284,9 @@ fn validate_and_write_config(manifest: &Manifest, package: &hdf5::File) -> anyho
 /// Validate settings schema file and it to the package.
 fn validate_and_write_settings(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
     if let Some(settings) = &manifest.settings {
-        let setting_schema_reader = settings
-            .schema
-            .get_reader()
-            .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
+        let setting_schema_reader = settings.schema.get_reader()?;
         let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
-            .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
+            .map_err(|err| FileError::from_string(settings.schema.location(), Some(err)))?;
 
         let resource = BytesResource::new(settings.schema.name()?, settings_schema.to_bytes()?);
         copy_resource_to_package(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE, package)?;

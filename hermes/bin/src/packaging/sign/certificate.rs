@@ -1,31 +1,11 @@
 //! x.509 certificate implementation.
 
-use std::{
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use x509_cert::der::{DecodePem, Encode};
 
 use super::{hash::Blake2b256, keys::PublicKey};
-
-/// Certificate file open and read error.
-#[derive(thiserror::Error, Debug)]
-pub(crate) struct CertificateFileError(PathBuf, Option<anyhow::Error>);
-impl Display for CertificateFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = format!(
-            "Cannot open and read certificate file at {0}.",
-            self.0.display()
-        );
-        let err = self
-            .1
-            .as_ref()
-            .map(|msg| format!("{msg}"))
-            .unwrap_or_default();
-        writeln!(f, "{msg}\n{err}",)
-    }
-}
+use crate::packaging::FileError;
 
 /// Certificate decoding from string error.
 #[derive(thiserror::Error, Debug)]
@@ -39,11 +19,9 @@ pub(crate) struct Certificate(x509_cert::Certificate);
 impl Certificate {
     /// Create new certificate from file decoded in PEM format
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let str = std::fs::read_to_string(&path)
-            .map_err(|_| CertificateFileError(path.as_ref().into(), None))?;
+        let str = std::fs::read_to_string(&path).map_err(|_| FileError::from_path(&path, None))?;
 
-        Ok(Self::from_str(&str)
-            .map_err(|err| CertificateFileError(path.as_ref().into(), Some(err)))?)
+        Ok(Self::from_str(&str).map_err(|err| FileError::from_path(&path, Some(err)))?)
     }
 
     /// Create new certificate from string decoded in PEM format

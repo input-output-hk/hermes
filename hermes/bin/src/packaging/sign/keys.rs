@@ -1,9 +1,6 @@
 //! ED25519 public and private key implementation.
 
-use std::{
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use ed25519_dalek::{
     ed25519::signature::Signer,
@@ -11,20 +8,7 @@ use ed25519_dalek::{
     SigningKey, VerifyingKey,
 };
 
-/// Public or private key file open and read error.
-#[derive(thiserror::Error, Debug)]
-pub(crate) struct KeyFileError(PathBuf, Option<anyhow::Error>);
-impl Display for KeyFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = format!("Cannot open and read key file at {0}.", self.0.display());
-        let err = self
-            .1
-            .as_ref()
-            .map(|msg| format!("{msg}"))
-            .unwrap_or_default();
-        writeln!(f, "{msg}\n{err}",)
-    }
-}
+use crate::packaging::FileError;
 
 /// Public or private key decoding from string error.
 #[derive(thiserror::Error, Debug)]
@@ -39,9 +23,8 @@ pub(crate) struct PrivateKey(SigningKey);
 impl PrivateKey {
     /// Create new private key from file decoded in PEM format
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let str =
-            std::fs::read_to_string(&path).map_err(|_| KeyFileError(path.as_ref().into(), None))?;
-        Ok(Self::from_str(&str).map_err(|err| KeyFileError(path.as_ref().into(), Some(err)))?)
+        let str = std::fs::read_to_string(&path).map_err(|_| FileError::from_path(&path, None))?;
+        Ok(Self::from_str(&str).map_err(|err| FileError::from_path(&path, Some(err)))?)
     }
 
     /// Create new private key from string decoded in PEM format
@@ -71,9 +54,8 @@ impl PublicKey {
     /// Create new public key from file decoded in PEM format.
     #[allow(dead_code)]
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let str =
-            std::fs::read_to_string(&path).map_err(|_| KeyFileError(path.as_ref().into(), None))?;
-        Ok(Self::from_str(&str).map_err(|err| KeyFileError(path.as_ref().into(), Some(err)))?)
+        let str = std::fs::read_to_string(&path).map_err(|_| FileError::from_path(&path, None))?;
+        Ok(Self::from_str(&str).map_err(|err| FileError::from_path(&path, Some(err)))?)
     }
 
     /// Create new public key from string decoded in PEM format.
