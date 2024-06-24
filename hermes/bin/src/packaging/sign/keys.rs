@@ -1,5 +1,7 @@
 //! ED25519 public and private key implementation.
 
+// cspell: words outpubkey genpkey
+
 use std::path::Path;
 
 use ed25519_dalek::{
