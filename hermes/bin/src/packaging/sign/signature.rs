@@ -33,6 +33,11 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
         }
     }
 
+    /// Get the payload object.
+    pub(crate) fn payload(&self) -> &T {
+        &self.payload
+    }
+
     /// Add a new signature to the `CoseSign` object.
     pub(crate) fn add_sign(
         &mut self, private_key: &PrivateKey, certificate: &Certificate,
@@ -54,7 +59,6 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
     /// # Note:
     /// Before verifying, all related to the added signatures should be added to the
     /// certificate storage `certificate::storage::add_certificate()`.
-    #[allow(dead_code)]
     pub(crate) fn verify(&self) -> anyhow::Result<()> {
         let cose_sign = self.build_cose_sign()?;
         anyhow::ensure!(!cose_sign.signatures.is_empty(), "Empty signatures list.");

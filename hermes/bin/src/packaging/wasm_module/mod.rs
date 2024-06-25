@@ -23,7 +23,11 @@ use super::{
 };
 use crate::{
     errors::Errors,
-    packaging::sign::{certificate::Certificate, keys::PrivateKey, signature::Signature},
+    packaging::sign::{
+        certificate::Certificate,
+        keys::PrivateKey,
+        signature::{Signature, SignaturePayloadEncoding},
+    },
     wasm,
 };
 
@@ -99,7 +103,7 @@ impl WasmModulePackage {
         Ok(Self { package })
     }
 
-    /// Validate package.
+    /// Validate package with its signature and other contents.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
@@ -112,16 +116,41 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(|err| errors.add_err(err), |_| ());
 
+        self.verify_sign().unwrap_or_else(|err| errors.add_err(err));
+
         errors.return_result(())
     }
 
+    /// Verify package signature if it exists.
+    fn verify_sign(&self) -> anyhow::Result<()> {
+        if let Some(signature) = self.get_signature()? {
+            let expected_payload = self.get_signature_payload()?;
+            let signature_payload = signature.payload();
+            anyhow::ensure!(
+                &expected_payload == signature_payload,
+                "Signature payload mismatch.
+                \nExpected: {}
+                \nGot: {}",
+                expected_payload.to_json().to_string(),
+                signature_payload.to_json().to_string()
+            );
+            signature.verify()?;
+        }
+        Ok(())
+    }
+
     /// Sign the package and store signature inside it.
+    /// If signature already exists it will be extended with a new signature.
     pub(crate) fn sign(
         &self, private_key: &PrivateKey, certificate: &Certificate,
     ) -> anyhow::Result<()> {
-        let signature_payload = self.get_signature_payload()?;
+        let mut signature = if let Some(existing_signature) = self.get_signature()? {
+            existing_signature
+        } else {
+            let signature_payload = self.get_signature_payload()?;
+            Signature::new(signature_payload)
+        };
 
-        let mut signature = Signature::new(signature_payload);
         signature.add_sign(private_key, certificate)?;
 
         let signature_bytes = signature.to_bytes()?;
@@ -162,36 +191,30 @@ impl WasmModulePackage {
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
-        let reader = get_package_file_reader(Self::METADATA_FILE, &self.package)?
-            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
-        Metadata::from_reader(reader)
+        get_package_file_reader(Self::METADATA_FILE, &self.package)?
+            .map(Metadata::from_reader)
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
 
     /// Get `wasm::module::Module` object from package.
     pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
-        let reader = get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
-            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
-        wasm::module::Module::from_reader(reader)
+        get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
+            .map(wasm::module::Module::from_reader)
+            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?
     }
 
     /// Get `Signature` object from package.
-    #[allow(dead_code)]
     pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
-        if let Some(reader) = get_package_file_reader(Self::AUTHOR_COSE_FILE, &self.package)? {
-            Ok(Some(Signature::<SignaturePayload>::from_reader(reader)?))
-        } else {
-            Ok(None)
-        }
+        get_package_file_reader(Self::AUTHOR_COSE_FILE, &self.package)?
+            .map(Signature::<SignaturePayload>::from_reader)
+            .transpose()
     }
 
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
-        if let Some(reader) = get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)? {
-            let config_schema = ConfigSchema::from_reader(reader)?;
-            Ok(Some(config_schema))
-        } else {
-            Ok(None)
-        }
+        get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)?
+            .map(ConfigSchema::from_reader)
+            .transpose()
     }
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
@@ -213,12 +236,9 @@ impl WasmModulePackage {
 
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
-        if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
-            let settings_schema = SettingsSchema::from_reader(reader)?;
-            Ok(Some(settings_schema))
-        } else {
-            Ok(None)
-        }
+        get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)?
+            .map(SettingsSchema::from_reader)
+            .transpose()
     }
 }
 
@@ -304,7 +324,10 @@ mod tests {
     use super::*;
     use crate::packaging::{
         resources::{fs_resource::FsResource, Resource},
-        sign::{certificate::tests::certificate_str, keys::tests::private_key_str},
+        sign::{
+            certificate::{self, tests::certificate_str},
+            keys::tests::private_key_str,
+        },
     };
 
     fn prepare_default_package_files() -> (Metadata, Vec<u8>, Config, ConfigSchema, SettingsSchema)
@@ -508,5 +531,14 @@ mod tests {
             .expect("Cannot sign package");
 
         assert!(package.get_signature().expect("Package error").is_some());
+
+        assert!(
+            package.validate().is_err(),
+            "Missing certificate in the storage."
+        );
+
+        certificate::storage::add_certificate(certificate)
+            .expect("Failed to add certificate to the storage.");
+        assert!(package.validate().is_ok());
     }
 }
