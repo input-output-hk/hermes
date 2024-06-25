@@ -1,6 +1,7 @@
 //! Hermes packaging.
 
 mod compression;
+pub(crate) mod hash;
 mod resources;
 mod schema_validation;
 pub(crate) mod sign;
@@ -13,7 +14,7 @@ use resources::ResourceTrait;
 use self::compression::enable_compression;
 use crate::{
     errors::Errors,
-    packaging::sign::hash::{Blake2b256, Blake2b256Hasher},
+    packaging::hash::{Blake2b256, Blake2b256Hasher},
 };
 
 /// File open and read error.
