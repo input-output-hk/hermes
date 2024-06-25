@@ -9,18 +9,26 @@ use crate::MultiEraBlockData;
 use pallas::network::miniprotocols::Point;
 
 /// A Live Block from the blockchain.
-#[allow(dead_code)]
+#[derive(Clone)]
 pub(crate) struct LiveBlock {
     /// The Blocks location on the Blockchain
     pub(crate) point: Point,
     /// The data of the block itself.
-    data: MultiEraBlockData,
+    pub(crate) data: MultiEraBlockData,
 }
 
 impl LiveBlock {
     /// Create a new `LiveBlock`.
     pub fn new(point: Point, data: MultiEraBlockData) -> Self {
         Self { point, data }
+    }
+
+    /// Creates a `LiveBlock` without any data for probing
+    pub(crate) fn probe(point: &Point) -> Self {
+        Self {
+            point: point.clone(),
+            data: MultiEraBlockData::default(),
+        }
     }
 }
 

@@ -102,6 +102,7 @@ lintfix
 localizable
 lookaside
 maindbname
+mapref
 mdlint
 miniprotocol
 miniprotocols
@@ -110,6 +111,7 @@ mitigations
 mkcron
 mkdelay
 mkdirat
+mmap
 moderations
 multiera
 nanos
@@ -142,6 +144,7 @@ pubspec
 pwrite
 qpsg
 rapidoc
+Rawhash
 readlinkat
 redoc
 REMOVEDIR
@@ -182,6 +185,7 @@ timespec
 toobig
 toolsets
 Traceback
+txmonitor
 txns
 typenum
 unfinalized

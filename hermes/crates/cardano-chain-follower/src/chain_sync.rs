@@ -53,6 +53,25 @@ static SYNC_READY: Lazy<SkipMap<Network, RwLock<bool>>> = Lazy::new(|| {
     map
 });
 
+/// Get the Live block immediately following the specified block.
+pub(crate) fn get_live_block_after(chain: Network, point: &Point) -> Option<LiveBlock> {
+    debug!(
+        chain = chain.to_string(),
+        "Get Live Block after: {:?}", point
+    );
+
+    if let Some(live_chain_entry) = LIVE_CHAINS.get(&chain) {
+        let live_chain = live_chain_entry.value();
+        let probe_block = LiveBlock::probe(point);
+        let this_block = live_chain.get(&probe_block)?;
+        let next_block = this_block.next()?;
+        let next_block_value = next_block.value().clone();
+
+        return Some(next_block_value);
+    };
+    None
+}
+
 /// Write Lock the `SYNC_READY` lock for a network.
 /// When we are signaled to be ready, set it to true and release the lock.
 fn wait_for_sync_ready(chain: Network) -> oneshot::Sender<()> {
@@ -201,7 +220,7 @@ async fn follow_chain(
     peer: &mut PeerClient, live_chain: &LiveChainBlockList,
 ) -> anyhow::Result<()> {
     loop {
-        debug!("Waiting for data from Cardano Peer Node:");
+        // debug!("Waiting for data from Cardano Peer Node:");
 
         // Check what response type we need to process.
         let response = match peer.chainsync().state() {
@@ -272,7 +291,7 @@ async fn follow_chain(
                 //))))
             },
             chainsync::NextResponse::Await => {
-                debug!("Peer Node says: Await");
+                // debug!("Peer Node says: Await");
             },
         }
     }
@@ -345,7 +364,7 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
         let hash = decoded_block.hash();
         let live_block = LiveBlock::new(Point::new(slot, hash.to_vec()), block);
         live_chain.insert(live_block);
-        debug!("Backfilled Block: {}", slot);
+        //debug!("Backfilled Block: {}", slot);
     }
 
     debug!("Backfilled Range OK: {}", range_msg);
@@ -374,7 +393,10 @@ async fn live_sync_backfill_and_purge(
         return;
     };
 
-    debug!("Size of the Live Chain is: {} Blocks", live_chain.len());
+    debug!(
+        "Before Backfill: Size of the Live Chain is: {} Blocks",
+        live_chain.len()
+    );
 
     // Wait for first Mithril Update advice, which triggers a BACKFILL of the Live Data.
     debug!("Mithril Tip has advanced to: {point:?} : BACKFILL");
@@ -382,6 +404,11 @@ async fn live_sync_backfill_and_purge(
         error!("Mithril Backfill Sync Failed: {}", error);
         sleep(Duration::from_secs(10)).await;
     }
+
+    debug!(
+        "After Backfill: Size of the Live Chain is: {} Blocks",
+        live_chain.len()
+    );
 
     // Once Backfill is completed OK we can use the Blockchain data for Syncing and Querying
     if tx_ready.send(()).is_err() {

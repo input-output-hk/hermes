@@ -4,7 +4,7 @@ use crate::error::{Error, Result};
 use pallas::ledger::traverse::MultiEraBlock;
 
 /// CBOR encoded data of a multi-era block.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
 pub struct MultiEraBlockData(Vec<u8>);
 
 impl MultiEraBlockData {

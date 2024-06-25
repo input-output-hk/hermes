@@ -16,6 +16,7 @@ mithril-client.workspace = true
 #turbo-downloader.workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
+pallas-crypto.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
@@ -38,6 +39,10 @@ humantime.workspace = true
 crossbeam-skiplist.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+blake3.workspace = true
+rayon.workspace = true
+ignore.workspace = true
+hex.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

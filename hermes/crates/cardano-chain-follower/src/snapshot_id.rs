@@ -1,17 +1,30 @@
 //! Simple ID for a mithril snapshot path known by its largest immutable file number
 
+use std::default;
 use std::fmt::Display;
 use std::{
     cmp::Ordering,
     path::{Path, PathBuf},
 };
+
+use pallas::network::miniprotocols::Point;
+use tracing::debug;
+
+use crate::mithril_snapshot_sync::{get_mithril_tip, MITHRIL_IMMUTABLE_SUB_DIRECTORY};
 /// A Representation of a Snapshot Path and its represented Immutable File Number.
 #[derive(Clone, Debug)]
-pub(crate) struct SnapshotId(PathBuf, u64);
+pub(crate) struct SnapshotId {
+    /// The Snapshot Path
+    path: PathBuf,
+    /// The largest Immutable File Number
+    file: u64,
+    /// The Tip of the Snapshot
+    tip: Point,
+}
 
 impl SnapshotId {
-    /// Try and create a new `SnapshotID` from a given path.
-    pub(crate) fn try_new(path: &Path) -> Option<Self> {
+    /// See if we can Parse the path into an immutable file number.
+    pub(crate) fn parse_path(path: &Path) -> Option<u64> {
         // Path must actually exist, and be a directory.
         if !path.is_dir() {
             None
@@ -21,23 +34,78 @@ impl SnapshotId {
             .to_string_lossy()
             .parse::<u64>()
         {
-            Some(SnapshotId(path.to_path_buf(), numeric_name))
+            Some(numeric_name)
         } else {
+            // If we couldn't parse the file name as a number, then it's not an immutable file.
             None
+        }
+    }
+
+    /// Try and create a new `SnapshotID` from a given path.
+    /// Immutable TIP must be provided.
+    pub(crate) fn new(path: &Path, tip: Point) -> Option<Self> {
+        debug!("Trying to Get SnapshotID of: {}", path.to_string_lossy());
+        let immutable_file = SnapshotId::parse_path(path)?;
+        debug!("Immutable File#: {}", immutable_file);
+
+        Some(SnapshotId {
+            path: path.to_path_buf(),
+            file: immutable_file,
+            tip,
+        })
+    }
+
+    /// Try and create a new `SnapshotID` from a given path.
+    /// Includes properly getting the Immutable TIP.
+    pub(crate) fn try_new(path: &Path) -> Option<Self> {
+        let Ok(tip) = get_mithril_tip(path) else {
+            return None;
+        };
+
+        SnapshotId::new(path, tip)
+    }
+
+    /// Get the Immutable Blockchain path from this `SnapshotId`
+    pub(crate) fn immutable_path(&self) -> PathBuf {
+        let mut immutable = self.path.clone();
+        immutable.push(MITHRIL_IMMUTABLE_SUB_DIRECTORY);
+
+        immutable
+    }
+
+    /// Get the Tip of the Immutable Blockchain from this `SnapshotId`
+    pub(crate) fn tip(&self) -> Point {
+        self.tip.clone()
+    }
+}
+
+impl default::Default for SnapshotId {
+    /// Create an empty `SnapshotID`.
+    fn default() -> Self {
+        SnapshotId {
+            path: PathBuf::new(),
+            file: 0,
+            tip: Point::Origin,
         }
     }
 }
 
 impl std::convert::AsRef<std::path::Path> for SnapshotId {
     fn as_ref(&self) -> &std::path::Path {
-        self.0.as_ref()
+        self.path.as_ref()
     }
 }
 
 impl Display for SnapshotId {
     /// Convert this `SnapshotID` to a `String`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{} @ Epoch [{}]", self.0.display(), self.1)
+        write!(
+            f,
+            "{} @ Tip [{} / {:?}]",
+            self.path.display(),
+            self.file,
+            self.tip
+        )
     }
 }
 
@@ -46,7 +114,7 @@ impl PartialEq for SnapshotId {
     // Equality ONLY checks the Immutable File Number, not the path.
     // This is because the Filename is already the ImmutableFileNumber
     fn eq(&self, other: &Self) -> bool {
-        self.1 == other.1
+        self.file == other.file
     }
 }
 
@@ -54,7 +122,7 @@ impl PartialOrd for SnapshotId {
     // Equality ONLY checks the Immutable File Number, not the path.
     // This is because the Filename is already the ImmutableFileNumber
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.1.partial_cmp(&other.1)
+        self.file.partial_cmp(&other.file)
     }
 }
 
@@ -86,7 +154,7 @@ impl PartialEq<u64> for SnapshotId {
     // Equality ONLY checks the Immutable File Number, not the path.
     // This is because the Filename is already the ImmutableFileNumber
     fn eq(&self, other: &u64) -> bool {
-        self.1 == *other
+        self.file == *other
     }
 }
 
@@ -94,6 +162,6 @@ impl PartialOrd<u64> for SnapshotId {
     // Equality ONLY checks the Immutable File Number, not the path.
     // This is because the Filename is already the ImmutableFileNumber
     fn partial_cmp(&self, other: &u64) -> Option<Ordering> {
-        self.1.partial_cmp(other)
+        self.file.partial_cmp(other)
     }
 }

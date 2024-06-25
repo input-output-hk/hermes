@@ -1,12 +1,12 @@
 //! Internal Mithril snapshot functions.
 
-use crate::{error::Result, multi_era_block_data::MultiEraBlockData, network::Network};
+use crate::{
+    mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlockData,
+};
 
-use dashmap::DashMap;
-use once_cell::sync::Lazy;
 use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
-use tracing::debug;
+use tracing::error;
 
 /// Wraps the iterator type returned by Pallas.
 pub(crate) struct MithrilSnapshotIterator {
@@ -15,10 +15,18 @@ pub(crate) struct MithrilSnapshotIterator {
 }
 
 impl Iterator for MithrilSnapshotIterator {
-    type Item = FallibleBlock;
+    type Item = MultiEraBlockData;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        if let Some(maybe_block) = self.inner.next() {
+            match maybe_block {
+                Ok(block) => return Some(MultiEraBlockData::new(block)),
+                Err(error) => {
+                    error!("Error while fetching a block from the snapshot: {error}");
+                },
+            }
+        };
+        None
     }
 }
 
@@ -30,132 +38,32 @@ impl Iterator for MithrilSnapshotIterator {
 // auto-updated, ANY follower which sets this enables this function and it can not be
 // disabled once started without stopping the program.
 
-/// Current TIP of a network.
-static CURRENT_TIPS: Lazy<DashMap<Network, Point>> = Lazy::new(DashMap::new);
-
-/// Try and update the current tip from an existing snapshot.
-#[allow(dead_code)]
-pub(crate) fn update_tip(chain: Network, tip: Point) {
-    debug!(
-        "Updating TIP from Immutable storage for {} to {:?}",
-        chain, tip
-    );
-
-    CURRENT_TIPS.insert(chain, tip);
-}
-
 /// Holds information about a Mithril snapshot.
 #[derive(Clone)]
-pub(crate) struct MithrilSnapshot;
+pub(crate) struct MithrilSnapshot {
+    /// Network that this snapshot is configured for
+    chain: Network,
+}
 
 impl MithrilSnapshot {
-    /// Get the current tip of the configured Mithril Network
-    #[allow(dead_code)]
-    pub fn tip(network: Network) -> Option<Point> {
-        CURRENT_TIPS
-            .get(&network)
-            .map(|entry| entry.value().clone())
+    /// Create a new Mithril Snapshot handler
+    pub(crate) fn new(chain: Network) -> Self {
+        Self { chain }
     }
 
-    /// Tries reading a block from the Mithril snapshot. Returns None if the point
-    /// is not contained in the snapshot.
+    /// Checks if the snapshot contains a given point.
     ///
     /// # Arguments
+    /// * `network`: The network that this function should check against.
+    /// * `point`: The point to be checked for existence within the specified Mithril
+    ///   snapshot.
     ///
-    /// * `point`: Point at which to read the block.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if anything fails while reading the block data.
-    #[allow(clippy::unnecessary_wraps)]
-    #[allow(dead_code)]
-    pub fn try_read_block(_network: Network, _point: &Point) -> Result<Option<MultiEraBlockData>> {
-        /* TODO(SJ)  : Fix This
-        if let Some(mithril_path) = read_mithril_immutable_path(network) {
-            if !MithrilSnapshot::contains_point(network, &point) {
-                return Ok(None);
-            }
+    /// Returns true if the point exists within the Mithril snapshot for the specified
+    /// network, false otherwise.
+    pub(crate) fn contains_point(&self, point: &Point) -> bool {
+        let latest_id = latest_mithril_snapshot_id(self.chain);
 
-            let mut block_data_iter =
-                pallas_hardano::storage::immutable::read_blocks_from_point(&mithril_path, point)
-                    .map_err(|error| Error::MithrilSnapshot(Some(error)))?;
-
-            match block_data_iter.next() {
-                Some(res) => {
-                    let block_data = res.map_err(Error::MithrilSnapshotChunk)?;
-
-                    Ok(Some(MultiEraBlockData::new(block_data)))
-                },
-                None => Ok(None),
-            }
-        } else {  */
-        Ok(None)
-        /*  } */
-    }
-
-    /// Tries reading a range of blocks from the Mithril snapshot.
-    /// Returns None if the range is not contained in the snapshot.
-    ///
-    /// This returns the last point that was read. This is useful to check
-    /// if the range was partially read.
-    ///
-    /// # Arguments
-    ///
-    /// * `from`: Start point.
-    /// * `to`: End point.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if anything fails while reading any block's data.
-    #[allow(clippy::unnecessary_wraps)]
-    #[allow(dead_code)]
-    pub fn try_read_block_range(
-        _network: Network, _from: &Point, _to: &Point,
-    ) -> Result<Option<(Point, Vec<MultiEraBlockData>)>> {
-        /* TODO(SJ)  : Fix This
-        if let Some(mithril_path) = read_mithril_immutable_path(network) {
-            if !MithrilSnapshot::contains_point(network, &from) {
-                return Ok(None);
-            }
-
-            let blocks_iter =
-                pallas_hardano::storage::immutable::read_blocks_from_point(&mithril_path, from)
-                    .map_err(|error| Error::MithrilSnapshot(Some(error)))?;
-
-            let mut block_data_vec = Vec::new();
-            for result in blocks_iter {
-                let block_data =
-                    MultiEraBlockData::new(result.map_err(Error::MithrilSnapshotChunk)?);
-
-                // TODO(fsgr): Should we check the hash as well?
-                //             Maybe throw an error if we don't get the block we were expecting at
-                // that             slot?
-                if block_data.decode()?.slot() > to.slot_or_default() {
-                    break;
-                }
-
-                block_data_vec.push(block_data);
-            }
-
-            // Get the point from last block read.
-            // Pop here to get an owned value (we'll insert it back later).
-            match block_data_vec.pop() {
-                Some(last_block_data) => {
-                    let last_block = last_block_data.decode()?;
-                    let last_block_point =
-                        Point::new(last_block.slot(), last_block.hash().to_vec());
-
-                    // Push the last block data back
-                    block_data_vec.push(last_block_data);
-
-                    Ok(Some((last_block_point, block_data_vec)))
-                },
-                None => Ok(None),
-            }
-        } else {
-            Ok(None)
-        }*/
-        Ok(None)
+        point.slot_or_default() <= latest_id.tip().slot_or_default()
     }
 
     /// Tries get an iterator that reads blocks from the Mithril snapshot from a given
@@ -170,46 +78,25 @@ impl MithrilSnapshot {
     /// Returns None if its not possible to iterate a mithril snapshot from the requested
     /// point for ANY reason.
     #[allow(dead_code)]
-    pub fn try_read_blocks_from_point(
-        _network: Network, _point: &Point,
+    pub(crate) fn try_read_blocks_from_point(
+        &self, point: &Point,
     ) -> Option<MithrilSnapshotIterator> {
-        /* TODO(SJ)  : Fix This
+        let snapshot_id = latest_mithril_snapshot_id(self.chain);
+        let snapshot_path = snapshot_id.immutable_path();
 
-        if let Some(mithril_path) = read_mithril_immutable_path(network) {
-            if MithrilSnapshot::contains_point(network, &point) {
-                let iter = pallas_hardano::storage::immutable::read_blocks_from_point(
-                    &mithril_path,
-                    point,
-                )
-                .map_err(|_| Error::MithrilSnapshot)
-                .ok()?;
-
-                Some(MithrilSnapshotIterator { inner: iter })
-            } else {
-                None
-            }
-        } else {
-            None
-        }*/
-        None
-    }
-
-    /// Checks if the snapshot contains a given point.
-    ///
-    /// # Arguments
-    /// * `network`: The network that this function should check against.
-    /// * `point`: The point to be checked for existence within the specified Mithril
-    ///   snapshot.
-    ///
-    /// Returns true if the point exists within the Mithril snapshot for the specified
-    /// network, false otherwise.
-    #[allow(dead_code)]
-    pub fn contains_point(network: Network, point: &Point) -> bool {
-        if let Some(tip) = MithrilSnapshot::tip(network) {
-            point.slot_or_default() <= tip.slot_or_default()
-        } else {
-            false
+        // Quick check if the block can be within the immutable data.
+        if !self.contains_point(point) {
+            return None;
         }
+
+        let Ok(iter) = pallas_hardano::storage::immutable::read_blocks_from_point(
+            &snapshot_path,
+            point.clone(),
+        ) else {
+            return None;
+        };
+
+        Some(MithrilSnapshotIterator { inner: iter })
     }
 }
 

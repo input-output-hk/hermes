@@ -127,7 +127,11 @@ impl Network {
         // <base path>/<exe name>/<network>
         base_path.push(self.to_string());
 
-        debug!("DEFAULT Mithril Data Path for {} : {:?}", self, &base_path);
+        debug!(
+            chain = self.to_string(),
+            path = base_path.to_string_lossy().to_string(),
+            "DEFAULT Mithril Data Path",
+        );
 
         // Return the final path
         base_path

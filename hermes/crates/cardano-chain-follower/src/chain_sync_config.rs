@@ -46,7 +46,7 @@ pub struct ChainSyncConfig {
     /// If we don't have immutable data, how far back from TIP is the data considered Immutable (in slots).
     immutable_slot_window: u64,
     /// Configuration of Mithril Snapshots.
-    mithril_cfg: MithrilSnapshotConfig,
+    pub mithril_cfg: MithrilSnapshotConfig,
 }
 
 impl ChainSyncConfig {
@@ -125,7 +125,10 @@ impl ChainSyncConfig {
     ///
     /// `Error`: On error.
     pub async fn run(self) -> Result<()> {
-        debug!("Chain Synchronization for {} : Starting", self.chain);
+        debug!(
+            chain = self.chain.to_string(),
+            "Chain Synchronization Starting"
+        );
 
         // Start the Chain Sync - IFF its not already running.
         let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&self.chain) {
@@ -143,7 +146,7 @@ impl ChainSyncConfig {
         }
 
         // Start the Mithril Snapshot Follower
-        let rx = self.mithril_cfg.run(self.chain).await?;
+        let rx = self.mithril_cfg.run().await?;
 
         // Start Chain Sync
         *locked_handle = Some(tokio::spawn(chain_sync(self.clone(), rx)));

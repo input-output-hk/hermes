@@ -2,37 +2,27 @@
 //!
 //! This task is responsible for downloading Mithril snapshot files. It downloads the
 //! latest snapshot file and then sleeps until the next snapshot is available.
-use std::{path::Path, process::Stdio, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use crate::{
     error::{Error, Result},
-    mithril_snapshot_config::MithrilSnapshotConfig,
+    mithril_snapshot_config::{generate_hashes_for_path, MithrilSnapshotConfig},
+    mithril_snapshot_data::{update_latest_mithril_snapshot, FileHashMap},
+    mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
     snapshot_id::SnapshotId,
 };
 
-use anyhow::{anyhow, bail, Context};
-use async_compression::tokio::bufread::ZstdDecoder;
-use async_trait::async_trait;
 use chrono::{TimeDelta, Utc};
-use dashmap::DashMap;
 use humantime::format_duration;
-use mithril_client::{
-    common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, Client, MessageBuilder,
-    MithrilCertificate, MithrilResult, Snapshot, SnapshotListItem,
-};
-use once_cell::sync::Lazy;
+use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
 use pallas_hardano::storage::immutable::Point;
 use tokio::{
-    fs::{create_dir_all, remove_dir_all, File},
-    io::BufReader,
-    process::Command,
+    fs::remove_dir_all,
+    join,
     sync::mpsc::Sender,
     time::{sleep, Duration},
 };
-use tokio_stream::StreamExt;
-use tokio_tar::Archive;
-use tokio_util::codec::{FramedRead, LinesCodec};
 use tracing::{debug, error};
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
@@ -48,9 +38,6 @@ const EXPECTED_MITHRIL_UPDATE_CHECK_INTERVAL: TimeDelta = TimeDelta::hours(6); /
 /// We shouldn't get errors that need to wait for this, but if we do wait this long.
 /// These errors should be transient if they occur.
 const DOWNLOAD_ERROR_RETRY_DURATION: Duration = Duration::from_secs(2 * 60); // 2 Minutes
-
-/// Current TIP of a network.
-static CURRENT_TIPS: Lazy<DashMap<Network, Point>> = Lazy::new(DashMap::new);
 
 /// Returns the Latest and chronologically previous snapshots data from the Aggregator.
 /// Will return None if it can not get the Snapshot list, or there are no entries in it.
@@ -103,11 +90,11 @@ async fn get_snapshot_by_id(
 
 /// Create a client, should never fail, but return None if it does, because we can't
 /// continue.
-fn create_client(network: Network, cfg: &MithrilSnapshotConfig) -> Option<Client> {
-    let downloader = match TurboSnapshotDownloader::new(cfg.clone()) {
+fn create_client(cfg: &MithrilSnapshotConfig) -> Option<(Client, Arc<MithrilTurboDownloader>)> {
+    let downloader = match MithrilTurboDownloader::new(cfg.clone()) {
         Ok(downloader) => Arc::new(downloader),
         Err(err) => {
-            error!("Unexpected Error [{}]: Unable to create Snapshot Downloader for {}. Mithril Snapshots can not update.", err,network);
+            error!(chain = cfg.chain.to_string(), "Unexpected Error [{}]: Unable to create Snapshot Downloader. Mithril Snapshots can not update.", err);
             return None;
         },
     };
@@ -118,17 +105,17 @@ fn create_client(network: Network, cfg: &MithrilSnapshotConfig) -> Option<Client
         &cfg.genesis_key,
     )
     //.add_feedback_receiver(receiver)
-    .with_snapshot_downloader(downloader)
+    .with_snapshot_downloader(downloader.clone())
     .build()
     {
         Ok(c) => c,
-        Err(e) => {
-            error!("Unexpected Error [{}]: Unable to create Mithril Client for {}.  Mithril Snapshots can not update.", network, e);
+        Err(err) => {
+            error!(chain=cfg.chain.to_string(),"Unexpected Error [{}]: Unable to create Mithril Client.  Mithril Snapshots can not update.", err);
             return None;
         },
     };
 
-    Some(client)
+    Some((client, downloader))
 }
 
 /// Calculate how long we should wait before we check for another Mithril snapshot.
@@ -228,11 +215,11 @@ async fn download_and_verify_snapshot_certificate(
 /// URL and creates a client. If it fails, it waits for `DOWNLOAD_ERROR_RETRY_DURATION`
 /// before attempting again. This never times out, as we can not attempt this if the
 /// aggregator was not contactable when the parameters were defined.
-async fn connect_client(network: Network, cfg: &MithrilSnapshotConfig) -> Client {
+async fn connect_client(cfg: &MithrilSnapshotConfig) -> (Client, Arc<MithrilTurboDownloader>) {
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
     loop {
-        if let Some(client) = create_client(network, cfg) {
+        if let Some(client) = create_client(cfg) {
             return client;
         }
 
@@ -242,10 +229,13 @@ async fn connect_client(network: Network, cfg: &MithrilSnapshotConfig) -> Client
     }
 }
 
+/// Relative Directory for Immutable data within a full mithril snapshot.
+pub(crate) const MITHRIL_IMMUTABLE_SUB_DIRECTORY: &str = "immutable";
+
 /// Get the tip from the given path.
-fn get_mithril_tip(path: &Path) -> Result<Point> {
+pub(crate) fn get_mithril_tip(path: &Path) -> Result<Point> {
     let mut path = path.to_path_buf();
-    path.push("immutable");
+    path.push(MITHRIL_IMMUTABLE_SUB_DIRECTORY);
 
     debug!(
         "Calculating TIP from Immutable storage @ {}",
@@ -321,13 +311,13 @@ async fn validate_mithril_snapshot(
 }
 
 /// See if we have a latest snapshot already, and if so, validate it.
-/// 
+///
 /// For a existing mithril snapshot to be valid it has to be:
 /// 1. The actual latest mithril snapshot; AND
-/// 2. It must 
+/// 2. It must
 async fn get_latest_validated_mithril_snapshot(
     chain: Network, client: &Client, cfg: &MithrilSnapshotConfig,
-) -> (Option<SnapshotId>, Option<Point>) {
+) -> Option<(SnapshotId, Arc<FileHashMap>)> {
     /// Purge a bad mithril snapshot from disk.
     async fn purge_bad_mithril_snapshot(chain: Network, latest_mithril: &SnapshotId) {
         if let Err(error) = remove_dir_all(&latest_mithril).await {
@@ -337,25 +327,21 @@ async fn get_latest_validated_mithril_snapshot(
     }
 
     // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is intact.
-    let Some(latest_mithril) = cfg.latest_snapshot_path().await else {
-        return (None, None);
-    };
+    let latest_mithril = cfg.recover_latest_snapshot_id().await?;
 
     // Get the actual latest snapshot, shouldn't fail, but say the current is invalid if it does.
-    let Some((actual_latest, _)) = get_latest_snapshots(client, chain).await else {
-        return (None, None);
-    };
+    let (actual_latest, _) = get_latest_snapshots(client, chain).await?;
 
     // IF the mithril data we have is NOT the current latest, it may as well be invalid.
     if latest_mithril != actual_latest.beacon.immutable_file_number {
-        return (None, None);
+        return None;
     }
 
     let Some(snapshot) = get_snapshot_by_id(client, chain, &latest_mithril).await else {
         // We have a latest snapshot, but the Aggregator does not know it.
         error!("Mithril Snapshot background updater for: {chain}: Latest snapshot {latest_mithril} does not exist on the Aggregator.");
         purge_bad_mithril_snapshot(chain, &latest_mithril).await;
-        return (None, None);
+        return None;
     };
 
     // Download the snapshot/certificate from the aggregator.
@@ -365,48 +351,69 @@ async fn get_latest_validated_mithril_snapshot(
         // If we couldn't get the snapshot then we don't need to do anything else, transient
         // error.
         purge_bad_mithril_snapshot(chain, &latest_mithril).await;
-        return (None, None);
+        return None;
     };
 
-    if !validate_mithril_snapshot(chain, &certificate, latest_mithril.as_ref()).await {
+    let map = Arc::new(FileHashMap::new());
+    let path = latest_mithril.as_ref();
+    let hash_fn = generate_hashes_for_path(path.to_path_buf(), map.clone());
+    let validate_fn = validate_mithril_snapshot(chain, &certificate, path);
+
+    // Do the Validation AND File hashing at the same time to reduce time wasted.
+    let (valid, ()) = join!(validate_fn, hash_fn);
+
+    debug!("Mithril Valid: {}. Hash Entries = {}", valid, map.len());
+    //if valid {
+    //    for entry in map.iter() {
+    //        let path = entry.key().to_string_lossy();
+    //        let value = hex::encode(entry.value());
+
+    //            debug!("Hash Entry: {path}:{value}");
+    //    }
+    //}
+
+    if !valid {
         purge_bad_mithril_snapshot(chain, &latest_mithril).await;
-        return (None, None);
+        return None;
     }
 
-    // Make sure we can actually get a TIP from it
-    let Ok(tip) = get_mithril_tip(latest_mithril.as_ref()) else {
-        purge_bad_mithril_snapshot(chain, &latest_mithril).await;
-        return (None, None);
-    };
-
-    (Some(latest_mithril), Some(tip))
+    Some((latest_mithril, map))
 }
 
 /// Get the Mithril client and recover out existing mithril snapshot data, if any.
 async fn recover_existing_snapshot(
-    chain: Network, cfg: &MithrilSnapshotConfig, tx: &Sender<Point>,
-) -> (Client, Option<SnapshotId>, Option<Point>) {
+    cfg: &MithrilSnapshotConfig, tx: &Sender<Point>,
+) -> (Client, Arc<MithrilTurboDownloader>, Option<SnapshotId>) {
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
-    let client = connect_client(chain, cfg).await;
+    let (client, downloader) = connect_client(cfg).await;
 
-    debug!("Mithril Snapshot background updater for: {chain} : Client connected.");
+    debug!(
+        "Mithril Snapshot background updater for: {} : Client connected.",
+        cfg.chain
+    );
+
+    let mut current_snapshot = None;
 
     // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is intact.
-    let (current_snapshot, current_tip) =
-        get_latest_validated_mithril_snapshot(chain, &client, cfg).await;
+    if let Some((active_snapshot, hash_map)) =
+        get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
+    {
+        current_snapshot = Some(active_snapshot.clone());
+        let tip = active_snapshot.tip();
 
-    if let Some(current_tip) = current_tip.clone() {
-        // Save the current TIP
-        CURRENT_TIPS.insert(chain, current_tip.clone());
+        update_latest_mithril_snapshot(cfg.chain, active_snapshot, hash_map);
 
         // Tell the live sync service the current Mithril TIP.
-        if let Err(error) = tx.send(current_tip).await {
-            error!("Failed to send new tip to the live updater for: {chain}:  {error}");
+        if let Err(error) = tx.send(tip).await {
+            error!(
+                "Failed to send new tip to the live updater for: {}:  {error}",
+                cfg.chain
+            );
         };
     }
 
-    (client, current_snapshot, current_tip)
+    (client, downloader, current_snapshot)
 }
 
 /// Status of checking if we have a new snapshot to get or not.
@@ -458,6 +465,58 @@ async fn check_snapshot_to_download(
     SnapshotStatus::Updated((snapshot, certificate))
 }
 
+/// Downloads and validates a snapshot from the aggregator.
+async fn download_and_validate_snapshot(
+    client: &Client, cfg: &MithrilSnapshotConfig, snapshot: &Snapshot,
+    certificate: &MithrilCertificate,
+) -> bool {
+    debug!(
+        "Mithril Snapshot background updater for: {} : Download and unpack the Mithril snapshot.",
+        cfg.chain
+    );
+
+    // Download and unpack the actual snapshot archive.
+    if let Err(error) = client
+        .snapshot()
+        .download_unpack(snapshot, &cfg.tmp_path())
+        .await
+    {
+        // If we couldn't download and unpack, assume its a transient error,
+        error!("Failed to Download and Unpack snapshot: {error}");
+        return false;
+    }
+
+    debug!(
+        "Mithril Snapshot background updater for: {} : Add statistics for download.",
+        cfg.chain
+    );
+
+    if let Err(error) = client.snapshot().add_statistics(snapshot).await {
+        // Just log not fatal to anything.
+        error!(
+            "Could not increment snapshot download statistics for {}: {error}",
+            cfg.chain
+        );
+        // We can process the download even after this fails.
+    }
+
+    debug!(
+        "Mithril Snapshot background updater for: {} : Check Certificate.",
+        cfg.chain
+    );
+
+    if !validate_mithril_snapshot(cfg.chain, certificate, &cfg.tmp_path()).await {
+        // If we couldn't build the message then assume its a transient error.
+        error!(
+            chain = cfg.chain.to_string(),
+            "Failed to Compute Snapshot Message"
+        );
+        return false;
+    }
+
+    true
+}
+
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
 /// This is because there can ONLY be one snapshot for each of the three known Cardano
@@ -473,31 +532,30 @@ async fn check_snapshot_to_download(
 /// # Returns
 ///
 /// This does not return, it is a background task.
-pub(crate) async fn background_mithril_update(
-    chain: Network, cfg: MithrilSnapshotConfig, tx: Sender<Point>,
-) {
+pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Sender<Point>) {
     debug!(
         "Mithril Snapshot background updater for: {} from {} to {} : Starting",
-        chain,
+        cfg.chain,
         cfg.aggregator_url,
         cfg.path.to_string_lossy()
     );
     let mut next_sleep = Duration::from_secs(0);
 
-    let (client, mut current_snapshot, mut current_tip) =
-        recover_existing_snapshot(chain, &cfg, &tx).await;
+    let (client, downloader, mut current_snapshot) = recover_existing_snapshot(&cfg, &tx).await;
 
     loop {
+        debug!("Background Mithril Updater - New Loop");
         // We can accumulate junk depending on errors or when we terminate, make sure we are always clean.
         if let Err(error) = cfg.cleanup().await {
             error!(
                 "Mithril Snapshot background updater for:  {} : Error cleaning up: {:?}",
-                chain, error
+                cfg.chain, error
             );
         }
 
         debug!(
-            "Mithril Snapshot background updater for: {chain} : Sleeping for {}.",
+            "Mithril Snapshot background updater for: {} : Sleeping for {}.",
+            cfg.chain,
             format_duration(next_sleep)
         );
         // Wait until its likely we have a new snapshot ready to download.
@@ -507,7 +565,7 @@ pub(crate) async fn background_mithril_update(
         next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
 
         let (snapshot, certificate) =
-            match check_snapshot_to_download(chain, &client, &current_snapshot).await {
+            match check_snapshot_to_download(cfg.chain, &client, &current_snapshot).await {
                 SnapshotStatus::Sleep(sleep) => {
                     next_sleep = sleep;
                     continue;
@@ -515,65 +573,33 @@ pub(crate) async fn background_mithril_update(
                 SnapshotStatus::Updated(update) => update,
             };
 
-        debug!("Mithril Snapshot background updater for: {chain} : Download and unpack the Mithril snapshot.");
-
-        // Download and unpack the actual snapshot archive.
-        if let Err(error) = client
-            .snapshot()
-            .download_unpack(&snapshot, &cfg.tmp_path())
-            .await
-        {
-            // If we couldn't download and unpack, assume its a transient error,
-            error!("Failed to Download and Unpack snapshot: {error}");
+        if !download_and_validate_snapshot(&client, &cfg, &snapshot, &certificate).await {
+            error!("Failed to Download or Validate a snapshot.");
             continue;
         }
-
-        debug!("Mithril Snapshot background updater for: {chain} : Add statistics for download.");
-
-        if let Err(error) = client.snapshot().add_statistics(&snapshot).await {
-            // Just log not fatal to anything.
-            error!("Could not increment snapshot download statistics for {chain}: {error}");
-            // We can process the download even after this fails.
-        }
-
-        debug!("Mithril Snapshot background updater for: {chain} : Check Certificate.");
-
-        match MessageBuilder::new()
-            .compute_snapshot_message(&certificate, &cfg.tmp_path())
-            .await
-        {
-            Ok(message) => {
-                if !certificate.match_message(&message) {
-                    // If we couldn't match then assume its a transient error.
-                    error!(
-                        "Failed to Match Certificate and Computed Snapshot Message for {chain}!"
-                    );
-                    continue;
-                }
-            },
-            Err(error) => {
-                // If we couldn't build the message then assume its a transient error.
-                error!("Failed to Compute Snapshot Message: {error}");
-                continue;
-            },
-        }
-
-        debug!("Mithril Snapshot background updater for: {chain} : Updating TIP.");
 
         // Download was A-OK - Update the new immutable tip.
         let tip = match get_mithril_tip(&cfg.tmp_path()) {
             Ok(tip) => tip,
             Err(error) => {
                 // If we couldn't get the tip then assume its a transient error.
-                error!("Failed to Get Tip from Snapshot for {chain}:  {error}");
+                error!(
+                    "Failed to Get Tip from Snapshot for {}:  {error}",
+                    cfg.chain
+                );
                 continue;
             },
         };
 
+        debug!("New Immutable TIP = {:?}", tip);
+
         // Check that the new tip is more advanced than the OLD tip.
-        if let Some(current_tip) = current_tip.clone() {
-            if tip.slot_or_default() <= current_tip.slot_or_default() {
-                error!("New Tip is not more advanced than the old tip for: {chain}");
+        if let Some(active_snapshot) = current_snapshot.clone() {
+            if tip.slot_or_default() <= active_snapshot.tip().slot_or_default() {
+                error!(
+                    "New Tip is not more advanced than the old tip for: {}",
+                    cfg.chain
+                );
                 continue;
             }
         }
@@ -581,174 +607,44 @@ pub(crate) async fn background_mithril_update(
         // Got a good new tip, so switch to the new mithril image.
         match cfg.activate(snapshot.beacon.immutable_file_number).await {
             Ok(new_path) => {
-                debug!("Mithril Snapshot background updater for: {chain} : Updated TIP.");
-                current_tip = Some(tip.clone());
-                current_snapshot = SnapshotId::try_new(&new_path);
-                // Tell the live updater that the Immutable TIP has updated.
-                CURRENT_TIPS.insert(chain, tip.clone());
-                if let Err(error) = tx.send(tip).await {
-                    error!("Failed to send new tip to the live updater for: {chain}:  {error}");
-                };
+                debug!(
+                    "Mithril Snapshot background updater for: {} : Updated TIP.",
+                    cfg.chain
+                );
+                current_snapshot = SnapshotId::new(&new_path, tip);
+
+                if let Some(latest_snapshot) = current_snapshot.clone() {
+                    let latest_tip = latest_snapshot.tip().clone();
+
+                    // Save the new file hash map and update the latest snapshot data record
+                    if let Some(hash_map) = downloader.take_previous_hashmap() {
+                        let hash_map = Arc::new(hash_map);
+                        debug!(
+                            chain = cfg.chain.to_string(),
+                            "File hashmap has {} entries",
+                            hash_map.len()
+                        );
+
+                        update_latest_mithril_snapshot(cfg.chain, latest_snapshot, hash_map);
+                    } else {
+                        error!(chain = cfg.chain.to_string(), "No previous hashmap found");
+                    }
+
+                    // Tell the live updater that the Immutable TIP has updated.
+                    if let Err(error) = tx.send(latest_tip).await {
+                        error!(
+                            "Failed to send new tip to the live updater for: {}:  {error}",
+                            cfg.chain
+                        );
+                    };
+                }
             },
             Err(err) => {
-                error!("Failed to activate new snapshot for: {chain}: {err}");
+                error!(
+                    chain = cfg.chain.to_string(),
+                    "Failed to activate new snapshot : {err}"
+                );
             },
-        }
-    }
-}
-
-/// A snapshot downloader that accelerates Download using `aria2`.
-pub struct TurboSnapshotDownloader {
-    /// Handle to a HTTP client to use for downloading simply.
-    http_client: reqwest::Client,
-    /// Configuration for the snapshot sync.
-    cfg: MithrilSnapshotConfig,
-}
-
-impl TurboSnapshotDownloader {
-    /// Constructs a new `HttpSnapshotDownloader`.
-    pub fn new(cfg: MithrilSnapshotConfig) -> MithrilResult<Self> {
-        let http_client = reqwest::ClientBuilder::new()
-            .build()
-            .with_context(|| "Building http client for TurboSnapshotDownloader failed")?;
-
-        Ok(Self { http_client, cfg })
-    }
-}
-
-/// Use a consistent name for a download archive to simplify processing.
-const DOWNLOAD_FILE_NAME: &str = "latest-mithril.tar.zst";
-
-/// Download a file using `aria2` tool, with maximum number of simultaneous connections.
-async fn aria2_download(dest: &Path, url: &str) -> MithrilResult<()> {
-    let dest = format!("--dir={}", dest.to_string_lossy());
-    let dest_file = format!("--out={DOWNLOAD_FILE_NAME}");
-
-    let mut process = Command::new("aria2c")
-        .args(["-x", "16", "-s", "16", &dest, &dest_file, url])
-        .kill_on_drop(true)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    let Some(stdout) = process.stdout.take() else {
-        bail!("aria2c stdout channel was not readable.");
-    };
-    let Some(stderr) = process.stderr.take() else {
-        bail!("aria2c stdout channel was not readable.");
-    };
-
-    let stdout = FramedRead::with_capacity(stdout, LinesCodec::new(), 32)
-        .map(std::result::Result::unwrap_or_default);
-
-    let stderr = FramedRead::with_capacity(stderr, LinesCodec::new(), 32)
-        .map(std::result::Result::unwrap_or_default);
-
-    let mut stream = stdout.chain(stderr);
-
-    while let Some(msg) = stream.next().await {
-        debug!("{:?}", msg);
-    }
-
-    // wait for the process to complete
-    let result = process.wait().await?;
-    if !result.success() {
-        bail!("aria2c exited with error code {}", result);
-    }
-
-    Ok(())
-}
-
-#[async_trait]
-impl SnapshotDownloader for TurboSnapshotDownloader {
-    async fn download_unpack(
-        &self, location: &str, target_dir: &Path, _compression_algorithm: CompressionAlgorithm,
-        _download_id: &str, _snapshot_size: u64,
-    ) -> MithrilResult<()> {
-        if let Err(error) = create_dir_all(self.cfg.dl_path()).await {
-            let msg = format!(
-                "Download directory {} could not be created: {}",
-                self.cfg.dl_path().to_string_lossy(),
-                error
-            );
-            Err(anyhow!(msg.clone()).context(msg))?;
-        }
-
-        if let Err(error) = create_dir_all(target_dir).await {
-            let msg = format!(
-                "Target directory {} could not be created: {}",
-                target_dir.to_string_lossy(),
-                error
-            );
-            Err(anyhow!(msg.clone()).context(msg))?;
-        }
-
-        debug!("Download and Unpack started='{location}' to '{target_dir:?}'.");
-
-        // First Download the Archive using Aria2 to the `dl` directory.
-        // TODO(SJ): Using `aria2` as a convenience, need to change to a rust native
-        // multi-connection download crate, which needs to be written.
-        aria2_download(&self.cfg.dl_path(), location).await?;
-
-        // Decompress and extract and de-dupe each file in the archive.
-        let mut dst_archive = self.cfg.dl_path();
-        dst_archive.push(DOWNLOAD_FILE_NAME);
-
-        debug!(
-            "Unpacking and extracting '{}' to '{}'.",
-            dst_archive.to_string_lossy(),
-            target_dir.to_string_lossy()
-        );
-
-        let mut archive = Archive::new(ZstdDecoder::new(BufReader::new(
-            File::open(dst_archive).await?,
-        )));
-
-        debug!("Extracting files from compressed archive.");
-
-        let latest_snapshot = self.cfg.latest_snapshot_path().await;
-
-        let mut entries = archive.entries()?;
-        let tmp_dir = self.cfg.tmp_path();
-        while let Some(file) = entries.next().await {
-            let mut file = file?;
-
-            // Unpack the raw file first.
-            file.unpack_in(tmp_dir.clone()).await?;
-
-            // Now attempt to dedup it with the current snapshot.
-            if let Some(latest_snapshot) = &latest_snapshot {
-                let tmp_file = tmp_dir.join(&file.path()?);
-                if !self.cfg.dedup_tmp(&tmp_file, latest_snapshot).await {
-                    debug!("Unique File '{}'.", tmp_file.to_string_lossy());
-                }
-            }
-        }
-
-        debug!("Download and Unpack finished='{location}' to '{target_dir:?}'.");
-
-        Ok(())
-    }
-
-    async fn probe(&self, location: &str) -> MithrilResult<()> {
-        debug!("HEAD Snapshot location='{location}'.");
-
-        let request_builder = self.http_client.head(location);
-        let response = request_builder.send().await.with_context(|| {
-            format!("Cannot perform a HEAD for snapshot at location='{location}'")
-        })?;
-
-        let status = response.status();
-
-        debug!("Probe for '{location}' completed: {status}");
-
-        match response.status() {
-            reqwest::StatusCode::OK => Ok(()),
-            reqwest::StatusCode::NOT_FOUND => {
-                Err(anyhow!("Snapshot location='{location} not found"))
-            },
-            status_code => Err(anyhow!("Unhandled error {status_code}")),
         }
     }
 }

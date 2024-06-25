@@ -1,29 +1,30 @@
 //! Configuration for the Mithril Snapshot used by the follower.
 
 use std::{
-    cmp::Ordering,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use crate::{
     error::{Error, Result},
+    mithril_snapshot_data::{latest_mithril_snapshot_id, FileHashMap, RawHash, SnapshotData},
     mithril_snapshot_sync::background_mithril_update,
     network::Network,
     snapshot_id::SnapshotId,
 };
 
 use crossbeam_skiplist::SkipMap;
+
 use futures::future::join_all;
+use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 use pallas_hardano::storage::immutable::Point;
 use strum::IntoEnumIterator;
 use tokio::{
-    fs::{self, remove_file},
-    fs::{hard_link, File},
-    io::{self, AsyncReadExt},
-    join,
+    fs::{self, hard_link, remove_file},
+    io::{self},
     sync::{mpsc, Mutex},
-    task::JoinHandle,
+    task::{self, JoinHandle},
 };
 use tracing::{debug, error};
 
@@ -38,14 +39,13 @@ static SYNC_JOIN_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| {
     map
 });
 
-// Mainnet Defaults.
-
 /// Subdirectory where we download archives.
 const DL_SUBDIR: &str = "dl";
 
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
 
+/*
 /// Size of the file comparison buffers used for de-duping.
 /// This conversion is safe, buffer size will not be > 2^32.
 #[allow(clippy::cast_possible_truncation)]
@@ -149,10 +149,13 @@ async fn compare_files(src_file: &Path, tmp_file: &Path) -> bool {
 
     true
 }
+*/
 
 /// Configuration used for the Mithril Snapshot downloader.
 #[derive(Clone, Debug)]
 pub struct MithrilSnapshotConfig {
+    /// What Blockchain network are we configured for.
+    pub chain: Network,
     /// Path to the Mithril snapshot the follower should use.
     /// Note: this is a base directory.  The Actual data will be stored under here.
     /// archive downloads -> `<mithril_snapshot_path>/dl`
@@ -173,6 +176,7 @@ impl MithrilSnapshotConfig {
     #[must_use]
     pub fn default_for(chain: Network) -> Self {
         Self {
+            chain,
             path: chain.default_mithril_path(),
             aggregator_url: chain.default_mithril_aggregator(),
             genesis_key: chain.default_mithril_genesis_key(),
@@ -188,10 +192,9 @@ impl MithrilSnapshotConfig {
         dl_path
     }
 
-    /// Returns the path to Latest Mithril Snapshot Data.
-    /// Will use a path relative to mithril data path.
+    /// Try and recover the latest snapshot id from the files on disk.
     #[must_use]
-    pub(crate) async fn latest_snapshot_path(&self) -> Option<SnapshotId> {
+    pub(crate) async fn recover_latest_snapshot_id(&self) -> Option<SnapshotId> {
         // Can we read directory entries from the base path, if not then there is no latest snapshot.
         let Ok(mut entries) = fs::read_dir(&self.path).await else {
             error!(
@@ -201,7 +204,8 @@ impl MithrilSnapshotConfig {
             return None;
         };
 
-        let mut latest_snapshot: Option<SnapshotId> = None;
+        let mut latest_immutable_file: u64 = 0; // Can't have a 0 file.
+        let mut latest_path = PathBuf::new();
 
         loop {
             // Get the next entry, stop on any error, or no entries left.
@@ -209,22 +213,33 @@ impl MithrilSnapshotConfig {
                 break;
             };
 
-            if let Some(snapshot) = SnapshotId::try_new(&entry.path()) {
-                if snapshot > latest_snapshot {
-                    // Found a new latest snapshot
-                    latest_snapshot = Some(snapshot);
+            if let Some(immutable_file) = SnapshotId::parse_path(&entry.path()) {
+                if immutable_file > latest_immutable_file {
+                    latest_immutable_file = immutable_file;
+                    latest_path = entry.path();
                 }
             }
         }
 
-        latest_snapshot
+        if latest_immutable_file > 0 {
+            return SnapshotId::try_new(&latest_path);
+        }
+
+        None
     }
 
     /// Activate the tmp mithril path to a numbered snapshot path.
     /// And then remove any left over files in download or the tmp path, or old snapshots.
     pub(crate) async fn activate(&self, snapshot_number: u64) -> io::Result<PathBuf> {
         let new_path = self.mithril_path(snapshot_number);
-        let latest_path = self.latest_snapshot_path().await;
+        let latest_id = latest_mithril_snapshot_id(self.chain);
+
+        debug!(
+            "Activating snapshot: {} {} {:?}",
+            snapshot_number,
+            new_path.to_string_lossy(),
+            latest_id
+        );
 
         // Can't activate anything if the tmp directory does not exist.
         if !self.tmp_path().is_dir() {
@@ -233,23 +248,16 @@ impl MithrilSnapshotConfig {
         }
 
         // Check if we would actually be making a newer snapshot active. (Should never fail, but check anyway.)
-        if let Some(latest) = latest_path {
-            if latest >= snapshot_number {
-                error!(
-                    "Latest snapshot {latest:?} is >= than requested snapshot {snapshot_number}"
-                );
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "Latest snapshot is newer or equal",
-                ));
-            }
-        };
+        if latest_id >= snapshot_number {
+            error!("Latest snapshot {latest_id:?} is >= than requested snapshot {snapshot_number}");
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Latest snapshot is newer or equal",
+            ));
+        }
 
         // Rename the tmp path to the new numbered path.
         fs::rename(self.tmp_path(), &new_path).await?;
-
-        // Cleanup older snapshots, dl and tmp directories if they exist.
-        self.cleanup().await?;
 
         Ok(new_path)
     }
@@ -282,7 +290,7 @@ impl MithrilSnapshotConfig {
             ),
             Ok(mut entries) => {
                 // Get latest mithril snapshot path and number.
-                let latest_snapshot = self.latest_snapshot_path().await;
+                let latest_snapshot = latest_mithril_snapshot_id(self.chain);
 
                 loop {
                     // Get the next entry, stop on any error, or no entries left.
@@ -291,8 +299,9 @@ impl MithrilSnapshotConfig {
                     };
 
                     // If None, its not a snapshot path, so continue.
-                    if let Some(this_snapshot) = SnapshotId::try_new(&entry.path()) {
+                    if let Some(this_snapshot) = SnapshotId::new(&entry.path(), Point::Origin) {
                         // Don't do anything with the latest snapshot.
+                        // Comparison does NOT use `tip` so we construct a temporary ID without it.
                         if this_snapshot != latest_snapshot {
                             debug!(
                                 "Cleaning up non-latest snapshot @ {}",
@@ -319,38 +328,20 @@ impl MithrilSnapshotConfig {
 
     /// Deduplicate a file in the tmp directory vs its equivalent in the current snapshot.
     ///
-    /// Files are first compared for binary equivalence.
-    /// If they are identical, the `tmp` file is removed and replaced with a hard-link to the file in
-    /// the latest snapshot.
-    ///
-    /// Returns true if de-duped, false otherwise.
-    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotId) -> bool {
-        // We don't want to deduplicate directories or symlinks (or other non-files).
-        // Or files that just don't exist.
-        if !tmp_file.is_file() {
-            return false;
-        }
-
+    /// This does not check if they SHOULD be de-duped, only de-dupes the files specified.
+    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotData) {
         // Get the matching src file in the latest mithril snapshot to compare against.
-        let snapshot_path = latest_snapshot.as_ref();
+        let snapshot_path = latest_snapshot.id().as_ref();
         let tmp_path = self.tmp_path();
+        debug!(
+            "De-duping: {} {}",
+            snapshot_path.to_string_lossy(),
+            tmp_path.to_string_lossy()
+        );
         let Ok(relative_file) = tmp_file.strip_prefix(tmp_path) else {
-            return false;
+            error!("Failed to get relative path of file.");
+            return;
         };
-        let src_file = snapshot_path.join(relative_file);
-        let src_file = src_file.as_path();
-
-        // First check if we even have a snapshot_file to compare with, and that its actually just a file.
-        if !src_file.is_file() {
-            // No snapshot file (or not a file), so nothing to de-dup
-            return false;
-        }
-
-        // Finally ensure they are identical data
-        if !compare_files(src_file, tmp_file).await {
-            // Not identical data, so we can't de-duplicate
-            return false;
-        }
 
         // IF we make it here, the files are identical, so we can de-dup them safely.
         // Remove the tmp file momentarily.
@@ -360,9 +351,11 @@ impl MithrilSnapshotConfig {
                 tmp_file.to_string_lossy(),
                 error
             );
-            return false;
+            return;
         }
 
+        let src_file = snapshot_path.join(relative_file);
+        let src_file = src_file.as_path();
         // Hardlink the src file to the tmp file.
         if let Err(error) = hard_link(src_file, tmp_file).await {
             error!(
@@ -374,7 +367,6 @@ impl MithrilSnapshotConfig {
         }
 
         // And if we made it here, file was successfully de-duped.  YAY.
-        true
     }
 
     /// Returns the path to Latest Tmp Snapshot Data.
@@ -398,7 +390,10 @@ impl MithrilSnapshotConfig {
     /// Check if the Mithril Snapshot Path is valid an usable.
     async fn validate_path(&self) -> Result<()> {
         let path = self.path.clone();
-        debug!("Validating Mithril Snapshot Path: {:?}", path);
+        debug!(
+            path = path.to_string_lossy().to_string(),
+            "Validating Mithril Snapshot Path"
+        );
 
         // If the path does not exist, try and make it.
         if !path.exists() {
@@ -424,72 +419,75 @@ impl MithrilSnapshotConfig {
     }
 
     /// Validate the Genesis VKEY is at least the correct kind of data.
-    fn validate_genesis_vkey(&self, chain: Network) -> Result<()> {
+    fn validate_genesis_vkey(&self) -> Result<()> {
         // First sanitize the vkey by removing all whitespace and make sure its actually valid
         // hex.
         let vkey = remove_whitespace(&self.genesis_key);
         if !is_hex(&vkey) {
-            return Err(Error::MithrilGenesisVKeyNotHex(chain));
+            return Err(Error::MithrilGenesisVKeyNotHex(self.chain));
         }
 
         Ok(())
     }
 
     /// Validate the Aggregator is resolvable and responsive.
-    async fn validate_aggregator_url(&self, chain: Network) -> Result<()> {
+    async fn validate_aggregator_url(&self) -> Result<()> {
         let url = self.aggregator_url.clone();
         let key = self.genesis_key.clone();
 
-        debug!("Validating Aggregator URL: {:?}", url);
+        debug!(url = url, "Validating Aggregator URL");
 
         // Not configured already, and not already in use, so make sure its valid.
         // We do this by trying to use it to get a list of snapshots.
         let client = mithril_client::ClientBuilder::aggregator(&url, &key)
             .build()
-            .map_err(|e| Error::MithrilClient(chain, url.clone(), e))?;
+            .map_err(|e| Error::MithrilClient(self.chain, url.clone(), e))?;
 
         let snapshots = client
             .snapshot()
             .list()
             .await
-            .map_err(|e| Error::MithrilClient(chain, url.clone(), e))?;
+            .map_err(|e| Error::MithrilClient(self.chain, url.clone(), e))?;
 
         // Check we have a snapshot, and its for our network.
         match snapshots.first() {
             Some(snapshot) => {
-                if snapshot.beacon.network != chain.to_string() {
+                if snapshot.beacon.network != self.chain.to_string() {
                     return Err(Error::MithrilClientNetworkMismatch(
-                        chain,
+                        self.chain,
                         snapshot.beacon.network.clone(),
                     ));
                 }
             },
-            None => return Err(Error::MithrilClientNoSnapshots(chain, url)),
+            None => return Err(Error::MithrilClientNoSnapshots(self.chain, url)),
         }
 
         Ok(())
     }
 
     /// Validate the mithril sync configuration is correct.
-    pub(crate) async fn validate(&self, chain: Network) -> Result<()> {
+    pub(crate) async fn validate(&self) -> Result<()> {
         // Validate the path exists and is a directory, and is writable.
         self.validate_path().await?;
         // Validate the genesis vkey is valid.
-        self.validate_genesis_vkey(chain)?;
+        self.validate_genesis_vkey()?;
         // Validate the Aggregator is valid and responsive.
-        self.validate_aggregator_url(chain).await?;
+        self.validate_aggregator_url().await?;
 
         Ok(())
     }
 
     /// Run a Mithril Follower for the given network and configuration.
-    pub(crate) async fn run(&self, chain: Network) -> Result<mpsc::Receiver<Point>> {
-        debug!("Mithril Autoupdate for {} : Starting", chain);
+    pub(crate) async fn run(&self) -> Result<mpsc::Receiver<Point>> {
+        debug!(
+            chain = self.chain.to_string(),
+            "Mithril Autoupdate : Starting"
+        );
 
         // Start the Mithril Sync - IFF its not already running.
-        let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&chain) {
+        let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&self.chain) {
             None => {
-                error!("Join Map improperly initialized: Missing {}!!", chain);
+                error!("Join Map improperly initialized: Missing {}!!", self.chain);
                 return Err(Error::Internal); // Should not get here.
             },
             Some(entry) => entry,
@@ -497,24 +495,23 @@ impl MithrilSnapshotConfig {
         let mut locked_handle = lock_entry.value().lock().await;
 
         if (*locked_handle).is_some() {
-            debug!("Mithril Already Running for {}", chain);
-            return Err(Error::MithrilSnapshotSyncAlreadyRunning(chain));
+            debug!("Mithril Already Running for {}", self.chain);
+            return Err(Error::MithrilSnapshotSyncAlreadyRunning(self.chain));
         }
 
-        self.validate(chain).await?;
+        self.validate().await?;
 
         // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot TIP has changed.
         let (tx, rx) = mpsc::channel::<Point>(2);
 
         //let handle = tokio::spawn(background_mithril_update(chain, self.clone(), tx));
-        *locked_handle = Some(tokio::spawn(background_mithril_update(
-            chain,
-            self.clone(),
-            tx,
-        )));
+        *locked_handle = Some(tokio::spawn(background_mithril_update(self.clone(), tx)));
 
         //sync_map.insert(chain, handle);
-        debug!("Mithril Autoupdate for {} : Started", chain);
+        debug!(
+            chain = self.chain.to_string(),
+            "Mithril Autoupdate : Started"
+        );
 
         Ok(rx)
     }
@@ -558,7 +555,7 @@ fn check_writable(path: &Path) -> bool {
                 }
             }
         } else {
-            // Can't identify the file type, so we can;t dedup it.
+            // Can't identify the file type, so we can't dedup it.
             return false;
         }
     }
@@ -576,6 +573,75 @@ fn remove_whitespace(s: &str) -> String {
 /// Check if a string is an even number of hex digits.
 fn is_hex(s: &str) -> bool {
     s.chars().count() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Generate all file hashes for a path.
+pub(crate) async fn generate_hashes_for_path(path: PathBuf, map: Arc<FileHashMap>) {
+    // We do not want to do this ASYNC, its slow.
+    // Start a SYNC thread to do it, and try and do it in-parallel.
+    //let root_path = path.to_path_buf();
+    let map = map.clone();
+    let _res = task::spawn_blocking(move || {
+        hash_all_files(&path, &path, &map);
+    })
+    .await;
+}
+
+/// Hash all files in a directory, and all its subdirectories.
+fn hash_all_files(dir: &Path, root: &Path, map: &Arc<FileHashMap>) {
+    let walk = WalkBuilder::new(dir)
+        .standard_filters(false)
+        .build_parallel();
+    let map = map.clone();
+
+    walk.run(|| {
+        let map = map.clone();
+        //let root = root;
+        //let map = map.clone();
+        Box::new(move |result| {
+            use ignore::WalkState::Continue;
+
+            if let Ok(entry) = result {
+                let file = entry.path();
+                if file.is_file() {
+                    if let Ok(file_hash) = hash_single_file(file) {
+                        if let Ok(abs_path) = file.strip_prefix(root) {
+                            map.insert(abs_path.to_path_buf(), file_hash);
+                        }
+                    }
+                }
+            }
+            Continue
+        })
+    });
+}
+
+/// Async version of `hash_single_file`
+pub(crate) async fn async_hash_single_file(file: &Path) -> Option<RawHash> {
+    // We do not want to do this ASYNC, its slow.
+    // Start a SYNC thread to do it, and try and do it in-parallel.
+    //let root_path = path.to_path_buf();
+    let file = file.to_path_buf();
+    match task::spawn_blocking(move || hash_single_file(&file)).await {
+        Ok(result) => match result {
+            Ok(hash_value) => Some(hash_value),
+            Err(err) => {
+                error!("Error Hashing a single file: {:?}", err);
+                None
+            },
+        },
+        Err(err) => {
+            error!("Error Hashing a single file: {:?}", err);
+            None
+        },
+    }
+}
+
+/// Hash a single file and return the `RawHash`
+fn hash_single_file(file: &Path) -> io::Result<RawHash> {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update_mmap_rayon(file)?;
+    Ok(*hasher.finalize().as_bytes())
 }
 
 #[cfg(test)]
@@ -637,7 +703,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_working_paths() {
-        async fn test_network(network: Network) {
+        fn test_network(network: Network) {
             let cfg = MithrilSnapshotConfig::default_for(network);
 
             test_paths(
@@ -656,12 +722,12 @@ mod tests {
                 Some(TMP_SUBDIR),
             );
 
-            let latest = cfg.latest_snapshot_path().await;
-            assert!(latest.is_none());
+            let latest = latest_mithril_snapshot_id(network);
+            assert!(latest.tip() != Point::Origin);
         }
 
-        test_network(Network::Mainnet).await;
-        test_network(Network::Preprod).await;
-        test_network(Network::Preview).await;
+        test_network(Network::Mainnet);
+        test_network(Network::Preprod);
+        test_network(Network::Preview);
     }
 }

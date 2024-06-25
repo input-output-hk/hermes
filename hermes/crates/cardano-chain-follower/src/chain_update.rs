@@ -73,4 +73,13 @@ impl ChainUpdate {
             | ChainUpdate::Rollback(block_data) => block_data,
         }
     }
+
+    /// Gets the chain update's block data.
+    #[must_use]
+    pub fn immutable(&self) -> bool {
+        match self {
+            ChainUpdate::ImmutableBlock(_) | ChainUpdate::ImmutableBlockRollback(_) => true,
+            ChainUpdate::Block(_) | ChainUpdate::BlockTip(_) | ChainUpdate::Rollback(_) => false,
+        }
+    }
 }

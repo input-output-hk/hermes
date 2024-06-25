@@ -1,19 +1,30 @@
 //! Cardano chain follow module.
+
 use crate::{
-    chain_sync::block_until_sync_ready, chain_update::ChainUpdate, network::Network,
+    chain_sync::{block_until_sync_ready, get_live_block_after},
+    chain_update::ChainUpdate,
+    mithril_snapshot::{MithrilSnapshot, MithrilSnapshotIterator},
+    network::Network,
     point_or_tip::PointOrTip,
+};
+
+use pallas::network::miniprotocols::{
+    txmonitor::{TxBody, TxId},
+    Point,
 };
 
 /// The Chain Follower
 pub struct ChainFollower {
     /// The Blockchain network we are following.
     chain: Network,
-    /// Where we start following from.
-    start: PointOrTip,
     /// Where we end following.
     end: PointOrTip,
     /// Where we are currently in the following process.
     current: PointOrTip,
+    /// Mithril Snapshot
+    snapshot: MithrilSnapshot,
+    /// Mithril Snapshot Follower
+    mithril_follower: Option<MithrilSnapshotIterator>,
 }
 
 impl ChainFollower {
@@ -22,7 +33,7 @@ impl ChainFollower {
     /// # Arguments
     ///
     /// * `chain` - The blockchain network to follow.
-    /// * `start` - The point or tip to start following from (exclusive).
+    /// * `start` - The point or tip to start following from (inclusive).
     /// * `end` - The point or tip to stop following from (inclusive).
     ///
     /// # Returns
@@ -47,35 +58,135 @@ impl ChainFollower {
     pub fn new(chain: Network, start: PointOrTip, end: PointOrTip) -> Self {
         ChainFollower {
             chain,
-            start: start.clone(),
             end,
             current: start,
+            snapshot: MithrilSnapshot::new(chain),
+            mithril_follower: None,
+        }
+    }
+
+    /// If we can, get the next update from the mithril snapshot.
+    fn next_from_mithril(&mut self, point: &Point) -> Option<ChainUpdate> {
+        if self.mithril_follower.is_none() {
+            self.mithril_follower = self.snapshot.try_read_blocks_from_point(point);
+        }
+
+        if let Some(follower) = self.mithril_follower.as_mut() {
+            if let Some(next) = follower.next() {
+                let multi_era_block = ChainUpdate::ImmutableBlock(next);
+                return Some(multi_era_block);
+            }
+        }
+        None
+    }
+
+    /// If we can, get the next update from the mithril snapshot.
+    #[allow(clippy::unused_self)]
+    fn next_from_live_chain(&mut self, point: &Point) -> Option<ChainUpdate> {
+        let live_block = get_live_block_after(self.chain, point);
+        if let Some(live_block) = live_block {
+            return Some(ChainUpdate::Block(live_block.data));
+        }
+        None
+    }
+
+    /// Update the current Point, and return `false` if this fails.
+    fn update_current(&mut self, update: &ChainUpdate) -> bool {
+        if let Ok(decoded) = update.block_data().decode() {
+            let point = Point::new(decoded.slot(), decoded.hash().to_vec());
+            self.current = PointOrTip::Point(point);
+            return true;
+        }
+        false
+    }
+
+    /// This is an unprotected version of `next()` which can ONLY be used within this crate.
+    /// Its purpose is to allow the chain data to be inspected/validate prior to unlocking it for
+    /// general access.
+    ///
+    /// This function must not be exposed for general use.
+    #[allow(clippy::unused_async)]
+    pub(crate) async fn unprotected_next(&mut self) -> Option<ChainUpdate> {
+        // If we are following TIP, then we just wait for Tip Updates.
+        match &self.current.clone() {
+            PointOrTip::Point(point) => {
+                if let Some(update) = self.next_from_mithril(point) {
+                    if self.update_current(&update) {
+                        return Some(update);
+                    }
+                } else if let Some(update) = self.next_from_live_chain(point) {
+                    if self.update_current(&update) {
+                        return Some(update);
+                    }
+                }
+                None
+            },
+            PointOrTip::Tip => None,
         }
     }
 
     /// Get the next block from the follower.
     /// Returns NONE is there is no block left to return.
-    #[allow(clippy::unused_async)]
     pub async fn next(&mut self) -> Option<ChainUpdate> {
         // If we aren't syncing TIP, and Current >= End, then return None
-        if self.end != PointOrTip::Tip && self.current >= self.end {
+        if self.end != PointOrTip::Tip && self.current > self.end {
             return None;
         }
 
         // Can't follow if SYNC is not ready.
         block_until_sync_ready(self.chain).await;
 
-        let _unused = self.start.clone();
+        // Get next block from the iteration.
+        self.unprotected_next().await
+    }
 
-        // Get the next block after Current
+    /// Get a single block from the chain by its point.
+    ///
+    /// If the Point does not point exactly at a block, it will return the next consecutive block.
+    ///
+    /// This is a convenience function which just used `ChainFollower` to fetch a single block.
+    pub async fn get_block(chain: Network, point: PointOrTip) -> Option<ChainUpdate> {
+        // Get the block from the chain.
+        let mut follower = Self::new(chain, point.clone(), point);
 
-        // Set Current to the next block
-        None
+        follower.next().await
+    }
+
+    /// Schedule a transaction to be posted to the blockchain.
+    ///
+    /// # Arguments
+    ///
+    /// * `chain` - The blockchain to post the transaction on.
+    /// * `txn` - The transaction to be posted.
+    ///
+    /// # Returns
+    ///
+    /// `TxId` - The ID of the transaction that was queued.
+    ///
+    #[allow(clippy::unused_async)]
+    pub async fn post_txn(chain: Network, txn: TxBody) -> TxId {
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = chain;
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = txn;
+
+        "unimplemented".to_string()
+    }
+
+    /// Check if a transaction, known by its `TxId`, has been sent to the Peer Node.
+    ///
+    /// Note, the `TxId` can ONLY be checked for ~6 hrs after it was posted.
+    /// After which, it should be on the blockchain, and its the applications job to track
+    /// if a transaction made it on-chain or not.
+    #[allow(clippy::unused_async)]
+    pub async fn txn_sent(chain: Network, id: TxId) -> bool {
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = chain;
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = id;
+
+        false
     }
 }
-
-// TODO(SJ) - Add function to get a single block from the chain.
-
-// TODO(SJ) - Add a function to post a transaction to the chain.
 
 // TODO(SJ) - Add a function to check if a transaction is pending, or has been sent to the chain.
