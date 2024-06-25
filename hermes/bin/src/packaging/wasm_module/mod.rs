@@ -548,7 +548,7 @@ mod tests {
         copy_resource_to_package(
             &BytesResource::new(
                 WasmModulePackage::METADATA_FILE.to_string(),
-                metadata.to_bytes().expect("Failled to decode metadata."),
+                metadata.to_bytes().expect("Failed to decode metadata."),
             ),
             WasmModulePackage::METADATA_FILE,
             &package.package,
