@@ -68,6 +68,7 @@ blake2b_simd = { workspace = true }
 sha2 = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem"] }
 x509-cert = { workspace = true, features = ["pem"] }
+coset = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }

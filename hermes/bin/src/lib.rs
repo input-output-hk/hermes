@@ -11,7 +11,6 @@ pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
-pub mod sign;
 pub mod wasm;
 
 #[cfg(feature = "bench")]

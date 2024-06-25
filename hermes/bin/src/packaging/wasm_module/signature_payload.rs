@@ -1,7 +1,10 @@
 //! A signature payload object for WASM module package.
 //! Defined at `https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/wasm_modules/#wasm-component-module-signatures`.
 
-use crate::sign::hash::Blake2b256;
+use crate::packaging::{
+    schema_validation::SchemaValidator,
+    sign::{hash::Blake2b256, signature::SignaturePayloadEncoding},
+};
 
 /// A signature payload object.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,27 +67,23 @@ impl SignaturePayloadBuilder {
     }
 
     /// Set the config file hash.
-    pub(crate) fn with_config_file(&mut self, file: Blake2b256) -> &mut Self {
+    pub(crate) fn with_config_file(&mut self, file: Blake2b256) {
         self.config_file = Some(file);
-        self
     }
 
     /// Set the config schema hash.
-    pub(crate) fn with_config_schema(&mut self, schema: Blake2b256) -> &mut Self {
+    pub(crate) fn with_config_schema(&mut self, schema: Blake2b256) {
         self.config_schema = Some(schema);
-        self
     }
 
     /// Set the settings schema hash.
-    pub(crate) fn with_settings_schema(&mut self, schema: Blake2b256) -> &mut Self {
+    pub(crate) fn with_settings_schema(&mut self, schema: Blake2b256) {
         self.settings_schema = Some(schema);
-        self
     }
 
     /// Set the share directory hash.
-    pub(crate) fn with_share(&mut self, share: Blake2b256) -> &mut Self {
+    pub(crate) fn with_share(&mut self, share: Blake2b256) {
         self.share = Some(share);
-        self
     }
 
     /// Create a new `SignaturePayload`.
@@ -106,6 +105,172 @@ impl SignaturePayloadBuilder {
     }
 }
 
-mod serde_def {
-    //! Serde definition of the signature payload objects.
+/// WASM module cose signature payload JSON schema.
+const SIGNATURE_PAYLOAD_SCHEMA: &str =
+    include_str!("../../../../schemas/hermes_module_cose_payload.schema.json");
+
+impl SignaturePayloadEncoding for SignaturePayload {
+    fn to_json(&self) -> serde_json::Value {
+        let mut json = serde_json::Map::new();
+        json.insert("metadata".to_string(), self.metadata.to_hex().into());
+        json.insert("component".to_string(), self.component.to_hex().into());
+        if let Some(config) = &self.config {
+            let mut config_json = serde_json::Map::new();
+
+            config_json.insert("schema".to_string(), config.schema.to_hex().into());
+            if let Some(file) = &config.file {
+                config_json.insert("file".to_string(), file.to_hex().into());
+            }
+
+            json.insert("config".to_string(), config_json.into());
+        }
+        if let Some(settings) = &self.settings {
+            json.insert(
+                "settings".to_string(),
+                serde_json::json!({
+                    "schema": settings.schema.to_hex()
+                }),
+            );
+        }
+        if let Some(share) = &self.share {
+            json.insert("share".to_string(), share.to_hex().into());
+        }
+
+        json.into()
+    }
+
+    fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
+    where Self: Sized {
+        let schema_validator = SchemaValidator::from_str(SIGNATURE_PAYLOAD_SCHEMA)?;
+        schema_validator.validate(&json)?;
+
+        let json = json
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("Signature payload JSON is not an object"))?;
+
+        let metadata = json
+            .get("metadata")
+            .ok_or_else(|| anyhow::anyhow!("Missing metadata field"))?
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid metadata field"))
+            .map(Blake2b256::from_hex)??;
+
+        let component = json
+            .get("component")
+            .ok_or_else(|| anyhow::anyhow!("Missing component field"))?
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid component field"))
+            .map(Blake2b256::from_hex)??;
+
+        let config = json
+            .get("config")
+            .and_then(|val| val.as_object())
+            .map(|config| -> anyhow::Result<_> {
+                let file = config
+                    .get("file")
+                    .map(|file| {
+                        file.as_str()
+                            .ok_or_else(|| anyhow::anyhow!("Invalid file field"))
+                            .map(Blake2b256::from_hex)?
+                    })
+                    .transpose()?;
+                let schema = config
+                    .get("schema")
+                    .ok_or_else(|| anyhow::anyhow!("Missing schema field"))?
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid schema field"))
+                    .map(Blake2b256::from_hex)??;
+                Ok(SignaturePayloadConfig { file, schema })
+            })
+            .transpose()?;
+
+        let settings = json
+            .get("settings")
+            .and_then(|val| val.as_object())
+            .map(|settings| -> anyhow::Result<_> {
+                let schema = settings
+                    .get("schema")
+                    .ok_or_else(|| anyhow::anyhow!("Missing schema field"))?
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid schema field"))
+                    .map(Blake2b256::from_hex)??;
+                Ok(SignaturePayloadSettings { schema })
+            })
+            .transpose()?;
+
+        let share = json
+            .get("share")
+            .and_then(|val| val.as_str())
+            .map(Blake2b256::from_hex)
+            .transpose()?;
+
+        Ok(SignaturePayload {
+            metadata,
+            component,
+            config,
+            settings,
+            share,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signature_payload_encoding_test() {
+        let hash = Blake2b256::hash(b"test");
+        let schema_validator =
+            SchemaValidator::from_str(SIGNATURE_PAYLOAD_SCHEMA).expect("Invalid schema");
+
+        {
+            let payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
+            let payload = payload_builder.build();
+
+            let json = payload.to_json();
+            schema_validator.validate(&json).expect("Invalid JSON");
+
+            let expected_json = serde_json::json!({
+                "metadata": hash.to_hex(),
+                "component": hash.to_hex(),
+            });
+            assert_eq!(json, expected_json);
+
+            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
+            assert_eq!(payload, payload);
+        }
+
+        {
+            let mut payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
+            payload_builder.with_config_file(hash.clone());
+            payload_builder.with_config_schema(hash.clone());
+            payload_builder.with_settings_schema(hash.clone());
+            payload_builder.with_share(hash.clone());
+            let payload = payload_builder.build();
+
+            let json = payload.to_json();
+            schema_validator.validate(&json).expect("Invalid JSON");
+
+            let expected_json = serde_json::json!({
+                "metadata": hash.to_hex(),
+                "component": hash.to_hex(),
+                "config": {
+                    "file": hash.to_hex(),
+                    "schema": hash.to_hex(),
+                },
+                "settings": {
+                    "schema": hash.to_hex(),
+                },
+                "share": hash.to_hex(),
+            });
+            assert_eq!(json, expected_json);
+
+            let payload = SignaturePayload::from_json(json).expect(
+                "Cannot parse
+            JSON",
+            );
+            assert_eq!(payload, payload);
+        }
+    }
 }

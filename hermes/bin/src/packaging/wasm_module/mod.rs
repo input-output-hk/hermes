@@ -12,24 +12,30 @@ use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use metadata::Metadata;
 use settings::SettingsSchema;
-use signature_payload::SignaturePayloadBuilder;
+use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
 use self::manifest::Manifest;
 use super::{
-    copy_dir_recursively_to_package, copy_resource_to_package,
+    copy_resource_dir_recursively_to_package, copy_resource_to_package, get_package_dir_hash,
+    get_package_file_hash, get_package_file_reader,
     resources::{bytes_resource::BytesResource, ResourceTrait},
+    FileError,
 };
-use crate::{errors::Errors, wasm};
+use crate::{
+    errors::Errors,
+    packaging::sign::{certificate::Certificate, keys::PrivateKey, signature::Signature},
+    wasm,
+};
 
 /// Create WASM module package error.
 #[derive(thiserror::Error, Debug)]
 #[error("Failed to create WASM module package. Package at {0} could be already exists.")]
 pub(crate) struct CreatePackageError(PathBuf);
 
-/// Invalid file error.
+/// Missing package file error.
 #[derive(thiserror::Error, Debug)]
-#[error("Invalid file at {0}:\n{1}")]
-pub(crate) struct InvalidFileError(String, String);
+#[error("Missing package file {0}.")]
+pub(crate) struct MissingPackageFileError(String);
 
 /// Wasm module package.
 #[derive(Debug)]
@@ -39,6 +45,8 @@ pub(crate) struct WasmModulePackage {
 }
 
 impl WasmModulePackage {
+    /// WASM module package signature file.
+    const AUTHOR_COSE_FILE: &'static str = "author.cose";
     /// WASM module package component file.
     const COMPONENT_FILE: &'static str = "module.wasm";
     /// WASM module package config file.
@@ -66,15 +74,12 @@ impl WasmModulePackage {
 
         let mut errors = Errors::new();
 
-        Self::validate_and_write_metadata(manifest, build_time, package_name, &package)
+        validate_and_write_metadata(manifest, build_time, package_name, &package)
             .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_component(manifest, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_config(manifest, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-        Self::validate_and_write_settings(manifest, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-        Self::write_share_dir(manifest, &package).unwrap_or_else(|err| {
+        validate_and_write_component(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
+        validate_and_write_config(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
+        validate_and_write_settings(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
+        write_share_dir(manifest, &package).unwrap_or_else(|err| {
             match err.downcast::<Errors>() {
                 Ok(errs) => errors.merge(errs),
                 Err(err) => errors.add_err(err),
@@ -90,53 +95,103 @@ impl WasmModulePackage {
 
     /// Open an existing WASM module package.
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let package = hdf5::File::open_rw(&path).map_err(|_| {
-            anyhow::anyhow!(
-                "Cannot load a WASM module package at {0}.",
-                path.as_ref().display()
-            )
-        })?;
+        let package = hdf5::File::open_rw(&path).map_err(|_| FileError::from_path(&path, None))?;
         Ok(Self { package })
     }
 
+    /// Validate package.
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let mut errors = Errors::new();
+
+        self.get_metadata()
+            .map_or_else(|err| errors.add_err(err), |_| ());
+        self.get_component()
+            .map_or_else(|err| errors.add_err(err), |_| ());
+        self.get_config_with_schema()
+            .map_or_else(|err| errors.add_err(err), |_| ());
+        self.get_settings_schema()
+            .map_or_else(|err| errors.add_err(err), |_| ());
+
+        errors.return_result(())
+    }
+
     /// Sign the package and store signature inside it.
-    pub(crate) fn sign(&self) -> anyhow::Result<()> {
-        let metadata = self.get_metadata()?;
-        let metadata_hash = metadata.hash()?;
+    pub(crate) fn sign(
+        &self, private_key: &PrivateKey, certificate: &Certificate,
+    ) -> anyhow::Result<()> {
+        let signature_payload = self.get_signature_payload()?;
+
+        let mut signature = Signature::new(signature_payload);
+        signature.add_sign(private_key, certificate)?;
+
+        let signature_bytes = signature.to_bytes()?;
+        let signature_resource =
+            BytesResource::new(Self::AUTHOR_COSE_FILE.to_string(), signature_bytes);
+        copy_resource_to_package(&signature_resource, Self::AUTHOR_COSE_FILE, &self.package)
+    }
+
+    /// Build and return `SignaturePayload`.
+    fn get_signature_payload(&self) -> anyhow::Result<SignaturePayload> {
+        let metadata_hash = get_package_file_hash(Self::METADATA_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
+        let component_hash = get_package_file_hash(Self::COMPONENT_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
 
         let mut signature_payload_builder =
-            SignaturePayloadBuilder::new(metadata_hash.clone(), metadata_hash.clone());
-        if let Some(setting_schema) = self.get_settings_schema()? {
-            signature_payload_builder.with_settings_schema(setting_schema.hash()?);
-        }
-        let (config, config_schema) = self.get_config_with_schema()?;
-        if let Some(config) = config {
-            signature_payload_builder.with_config_file(config.hash()?);
-        }
-        if let Some(config_schema) = config_schema {
-            signature_payload_builder.with_config_schema(config_schema.hash()?);
-        }
-        signature_payload_builder.with_share(metadata_hash);
+            SignaturePayloadBuilder::new(metadata_hash.clone(), component_hash.clone());
 
-        let _signature_payload = signature_payload_builder.build();
+        if let Some(config_hash) = get_package_file_hash(Self::CONFIG_FILE, &self.package)? {
+            signature_payload_builder.with_config_file(config_hash);
+        }
+        if let Some(config_schema_hash) =
+            get_package_file_hash(Self::CONFIG_SCHEMA_FILE, &self.package)?
+        {
+            signature_payload_builder.with_config_schema(config_schema_hash);
+        }
+        if let Some(setting_schema_hash) =
+            get_package_file_hash(Self::SETTINGS_SCHEMA_FILE, &self.package)?
+        {
+            signature_payload_builder.with_settings_schema(setting_schema_hash);
+        }
+        if let Some(share_hash) = get_package_dir_hash(Self::SHARE_DIR, &self.package)? {
+            signature_payload_builder.with_share(share_hash);
+        }
 
-        Ok(())
+        Ok(signature_payload_builder.build())
     }
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
-        let ds = self.package.dataset(Self::METADATA_FILE)?;
-        let reader = ds.as_byte_reader()?;
+        let reader = get_package_file_reader(Self::METADATA_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
         Metadata::from_reader(reader)
+    }
+
+    /// Get `wasm::module::Module` object from package.
+    pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
+        let reader = get_package_file_reader(Self::COMPONENT_FILE, &self.package)?
+            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
+        wasm::module::Module::from_reader(reader)
+    }
+
+    /// Get `Signature` object from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
+        if let Some(reader) = get_package_file_reader(Self::AUTHOR_COSE_FILE, &self.package)? {
+            Ok(Some(Signature::<SignaturePayload>::from_reader(reader)?))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
-        let ds = self.package.dataset(Self::CONFIG_SCHEMA_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok(None);
-        };
-        Ok(Some(ConfigSchema::from_reader(reader)?))
+        if let Some(reader) = get_package_file_reader(Self::CONFIG_SCHEMA_FILE, &self.package)? {
+            let config_schema = ConfigSchema::from_reader(reader)?;
+            Ok(Some(config_schema))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
@@ -148,113 +203,98 @@ impl WasmModulePackage {
             return Ok((None, None));
         };
 
-        let ds = self.package.dataset(Self::CONFIG_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok((None, Some(config_schema)));
-        };
-        let config = Config::from_reader(reader, config_schema.validator())?;
-        Ok((Some(config), Some(config_schema)))
+        if let Some(reader) = get_package_file_reader(Self::CONFIG_FILE, &self.package)? {
+            let config_file = Config::from_reader(reader, config_schema.validator())?;
+            Ok((Some(config_file), Some(config_schema)))
+        } else {
+            Ok((None, Some(config_schema)))
+        }
     }
 
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
-        let ds = self.package.dataset(Self::SETTINGS_SCHEMA_FILE)?;
-        let Ok(reader) = ds.as_byte_reader() else {
-            return Ok(None);
-        };
-        Ok(Some(SettingsSchema::from_reader(reader)?))
-    }
-
-    /// Validate metadata.json file and write it to the package.
-    /// Also updates `Metadata` object by setting `build_date` and `name` properties.
-    fn validate_and_write_metadata(
-        manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &hdf5::File,
-    ) -> anyhow::Result<()> {
-        let resource = &manifest.metadata;
-        let metadata_reader = resource
-            .get_reader()
-            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
-
-        let mut metadata = Metadata::from_reader(metadata_reader)
-            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
-        metadata.set_build_date(build_date);
-        metadata.set_name(name);
-
-        let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
-        copy_resource_to_package(&resource, Self::METADATA_FILE, package)?;
-        Ok(())
-    }
-
-    /// Validate WASM component file and write it to the package.
-    fn validate_and_write_component(
-        manifest: &Manifest, package: &hdf5::File,
-    ) -> anyhow::Result<()> {
-        let resource = &manifest.component;
-
-        let component_reader = resource
-            .get_reader()
-            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
-
-        wasm::module::Module::from_reader(component_reader)
-            .map_err(|err| InvalidFileError(resource.location(), err.to_string()))?;
-
-        copy_resource_to_package(resource, Self::COMPONENT_FILE, package)?;
-        Ok(())
-    }
-
-    /// Validate config file and config schema and write them to the package.
-    fn validate_and_write_config(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
-        if let Some(config) = &manifest.config {
-            let config_schema_reader = config
-                .schema
-                .get_reader()
-                .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
-            let config_schema = ConfigSchema::from_reader(config_schema_reader)
-                .map_err(|err| InvalidFileError(config.schema.location(), err.to_string()))?;
-
-            let resource = BytesResource::new(config.schema.name()?, config_schema.to_bytes()?);
-            copy_resource_to_package(&resource, Self::CONFIG_SCHEMA_FILE, package)?;
-
-            if let Some(config_file) = &config.file {
-                let config_reader = config_file
-                    .get_reader()
-                    .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
-
-                let config = Config::from_reader(config_reader, config_schema.validator())
-                    .map_err(|err| InvalidFileError(config_file.location(), err.to_string()))?;
-
-                let resource = BytesResource::new(config_file.name()?, config.to_bytes()?);
-                copy_resource_to_package(&resource, Self::CONFIG_FILE, package)?;
-            }
+        if let Some(reader) = get_package_file_reader(Self::SETTINGS_SCHEMA_FILE, &self.package)? {
+            let settings_schema = SettingsSchema::from_reader(reader)?;
+            Ok(Some(settings_schema))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
+}
 
-    /// Validate settings schema file and it to the package.
-    fn validate_and_write_settings(
-        manifest: &Manifest, package: &hdf5::File,
-    ) -> anyhow::Result<()> {
-        if let Some(settings) = &manifest.settings {
-            let setting_schema_reader = settings
-                .schema
-                .get_reader()
-                .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
-            let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
-                .map_err(|err| InvalidFileError(settings.schema.location(), err.to_string()))?;
+/// Validate metadata.json file and write it to the package.
+/// Also updates `Metadata` object by setting `build_date` and `name` properties.
+fn validate_and_write_metadata(
+    manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &hdf5::File,
+) -> anyhow::Result<()> {
+    let resource = &manifest.metadata;
+    let metadata_reader = resource.get_reader()?;
 
-            let resource = BytesResource::new(settings.schema.name()?, settings_schema.to_bytes()?);
-            copy_resource_to_package(&resource, Self::SETTINGS_SCHEMA_FILE, package)?;
+    let mut metadata = Metadata::from_reader(metadata_reader)
+        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
+    metadata.set_build_date(build_date);
+    metadata.set_name(name);
+
+    let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
+    copy_resource_to_package(&resource, WasmModulePackage::METADATA_FILE, package)?;
+    Ok(())
+}
+
+/// Validate WASM component file and write it to the package.
+fn validate_and_write_component(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
+    let resource = &manifest.component;
+
+    let component_reader = resource.get_reader()?;
+
+    wasm::module::Module::from_reader(component_reader)
+        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
+
+    copy_resource_to_package(resource, WasmModulePackage::COMPONENT_FILE, package)?;
+    Ok(())
+}
+
+/// Validate config file and config schema and write them to the package.
+fn validate_and_write_config(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
+    if let Some(config) = &manifest.config {
+        let config_schema_reader = config.schema.get_reader()?;
+        let config_schema = ConfigSchema::from_reader(config_schema_reader)
+            .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
+
+        let resource = BytesResource::new(config.schema.name()?, config_schema.to_bytes()?);
+        copy_resource_to_package(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE, package)?;
+
+        if let Some(config_file) = &config.file {
+            let config_reader = config_file.get_reader()?;
+
+            let config = Config::from_reader(config_reader, config_schema.validator())
+                .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
+
+            let resource = BytesResource::new(config_file.name()?, config.to_bytes()?);
+            copy_resource_to_package(&resource, WasmModulePackage::CONFIG_FILE, package)?;
         }
-        Ok(())
     }
+    Ok(())
+}
 
-    /// Write share dir to the package.
-    fn write_share_dir(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
-        if let Some(share_dir) = &manifest.share {
-            copy_dir_recursively_to_package(share_dir, Self::SHARE_DIR, package)?;
-        }
-        Ok(())
+/// Validate settings schema file and it to the package.
+fn validate_and_write_settings(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
+    if let Some(settings) = &manifest.settings {
+        let setting_schema_reader = settings.schema.get_reader()?;
+        let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
+            .map_err(|err| FileError::from_string(settings.schema.location(), Some(err)))?;
+
+        let resource = BytesResource::new(settings.schema.name()?, settings_schema.to_bytes()?);
+        copy_resource_to_package(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE, package)?;
     }
+    Ok(())
+}
+
+/// Write share dir to the package.
+fn write_share_dir(manifest: &Manifest, package: &hdf5::File) -> anyhow::Result<()> {
+    if let Some(share_dir) = &manifest.share {
+        copy_resource_dir_recursively_to_package(share_dir, WasmModulePackage::SHARE_DIR, package)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -262,48 +302,14 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{fs_resource::FsResource, Resource};
+    use crate::packaging::{
+        resources::{fs_resource::FsResource, Resource},
+        sign::{certificate::tests::certificate_str, keys::tests::private_key_str},
+    };
 
-    fn prepare_package_dir(
-        module_name: String, dir: &TempDir, metadata: &[u8], component: &[u8], config: &[u8],
-        config_schema: &[u8], settings_schema: &[u8],
-    ) -> Manifest {
-        let config_path = dir.path().join("config.json");
-        let config_schema_path = dir.path().join("config.schema.json");
-        let metadata_path = dir.path().join("metadata.json");
-        let component_path = dir.path().join("module.wasm");
-        let settings_schema_path = dir.path().join("settings.schema.json");
-
-        std::fs::write(&metadata_path, metadata).expect("Cannot create metadata.json file");
-        std::fs::write(&component_path, component).expect("Cannot create module.wasm file");
-        std::fs::write(&config_path, config).expect("Cannot create config.json file");
-        std::fs::write(&config_schema_path, config_schema)
-            .expect("Cannot create config.schema.json file");
-        std::fs::write(&settings_schema_path, settings_schema)
-            .expect("Cannot create settings.schema.json file");
-
-        Manifest {
-            name: module_name,
-            metadata: Resource::Fs(FsResource::new(metadata_path)),
-            component: Resource::Fs(FsResource::new(component_path)),
-            config: manifest::ManifestConfig {
-                file: Some(Resource::Fs(FsResource::new(config_path))),
-                schema: Resource::Fs(FsResource::new(config_schema_path)),
-            }
-            .into(),
-            settings: manifest::ManifestSettings {
-                schema: Resource::Fs(FsResource::new(settings_schema_path)),
-            }
-            .into(),
-            share: None,
-        }
-    }
-
-    #[test]
-    fn from_dir_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let mut metadata = Metadata::from_reader(
+    fn prepare_default_package_files() -> (Metadata, Vec<u8>, Config, ConfigSchema, SettingsSchema)
+    {
+        let metadata = Metadata::from_reader(
             serde_json::json!(
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
@@ -328,6 +334,7 @@ mod tests {
         let settings_schema =
             SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
                 .expect("Invalid settings schema");
+
         let component = r#"
             (component
                 (core module $Module
@@ -340,33 +347,99 @@ mod tests {
                 (func $foo (result s32) (canon lift (core func $module "foo")))
                 (export "foo" (func $foo))
             )"#;
+        (
+            metadata,
+            component.as_bytes().to_vec(),
+            config,
+            config_schema,
+            settings_schema,
+        )
+    }
 
-        let manifest = prepare_package_dir(
-            "module".to_string(),
-            &dir,
+    fn prepare_package_dir(
+        module_name: String, dir: &TempDir, metadata: &Metadata, component: &[u8], config: &Config,
+        config_schema: &ConfigSchema, settings_schema: &SettingsSchema,
+    ) -> Manifest {
+        let config_path = dir.path().join("config.json");
+        let config_schema_path = dir.path().join("config.schema.json");
+        let metadata_path = dir.path().join("metadata.json");
+        let component_path = dir.path().join("module.wasm");
+        let settings_schema_path = dir.path().join("settings.schema.json");
+
+        std::fs::write(
+            &metadata_path,
             metadata
                 .to_bytes()
                 .expect("cannot decode metadata to bytes")
                 .as_slice(),
-            component.to_string().as_bytes(),
+        )
+        .expect("Cannot create metadata.json file");
+        std::fs::write(&component_path, component).expect("Cannot create module.wasm file");
+        std::fs::write(
+            &config_path,
             config
                 .to_bytes()
                 .expect("cannot decode config to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create config.json file");
+        std::fs::write(
+            &config_schema_path,
             config_schema
                 .to_bytes()
                 .expect("cannot decode config schema to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create config.schema.json file");
+        std::fs::write(
+            &settings_schema_path,
             settings_schema
                 .to_bytes()
                 .expect("cannot decode settings schema to bytes")
                 .as_slice(),
+        )
+        .expect("Cannot create settings.schema.json file");
+
+        Manifest {
+            name: module_name,
+            metadata: Resource::Fs(FsResource::new(metadata_path)),
+            component: Resource::Fs(FsResource::new(component_path)),
+            config: manifest::ManifestConfig {
+                file: Some(Resource::Fs(FsResource::new(config_path))),
+                schema: Resource::Fs(FsResource::new(config_schema_path)),
+            }
+            .into(),
+            settings: manifest::ManifestSettings {
+                schema: Resource::Fs(FsResource::new(settings_schema_path)),
+            }
+            .into(),
+            share: None,
+        }
+    }
+
+    #[test]
+    fn from_dir_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let (mut metadata, component, config, config_schema, settings_schema) =
+            prepare_default_package_files();
+
+        let manifest = prepare_package_dir(
+            "module".to_string(),
+            &dir,
+            &metadata,
+            component.as_slice(),
+            &config,
+            &config_schema,
+            &settings_schema,
         );
 
         let build_time = DateTime::default();
         let package =
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
+
+        assert!(package.validate().is_ok());
 
         // check metadata JSON file
         metadata.set_name(&manifest.name);
@@ -376,6 +449,9 @@ mod tests {
             .get_metadata()
             .expect("Cannot get metadata from package");
         assert_eq!(metadata, package_metadata);
+
+        // check component WASM file
+        assert!(package.get_component().is_ok());
 
         // check config and config schema JSON files
         let (package_config, package_config_schema) = package
@@ -395,5 +471,42 @@ mod tests {
             settings_schema,
             package_settings_schema.expect("Missing settings schema in package")
         );
+    }
+
+    #[test]
+    fn sign_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let (metadata, component, config, config_schema, settings_schema) =
+            prepare_default_package_files();
+
+        let manifest = prepare_package_dir(
+            "module".to_string(),
+            &dir,
+            &metadata,
+            component.as_slice(),
+            &config,
+            &config_schema,
+            &settings_schema,
+        );
+
+        let build_time = DateTime::default();
+        let package =
+            WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+                .expect("Cannot create module package");
+
+        assert!(package.validate().is_ok());
+
+        assert!(package.get_signature().expect("Package error").is_none());
+
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let certificate =
+            Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
+        package
+            .sign(&private_key, &certificate)
+            .expect("Cannot sign package");
+
+        assert!(package.get_signature().expect("Package error").is_some());
     }
 }

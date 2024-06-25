@@ -1,21 +1,12 @@
 //! WASM module package manifest.json struct.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::packaging::{
     resources::{fs_resource::FsResource, Resource},
     schema_validation::SchemaValidator,
+    FileError,
 };
-
-/// Manifest file open and read error.
-#[derive(thiserror::Error, Debug)]
-#[error("Cannot open and read WASM module package manifest file at {0}")]
-pub(crate) struct ManifestFileError(PathBuf);
-
-/// WASM module package manifest reading error.
-#[derive(thiserror::Error, Debug)]
-#[error("WASM module manifest json file reading errors:\n{0}")]
-pub(crate) struct ManifestReadingError(String);
 
 /// WASM module package manifest.json definition.
 #[derive(Debug, PartialEq, Eq)]
@@ -73,17 +64,17 @@ impl Manifest {
     /// Create a `Manifest` from a path.
     pub(crate) fn from_file<P: AsRef<Path>>(path_to_manifest: P) -> anyhow::Result<Self> {
         let path = path_to_manifest.as_ref();
-        let file = std::fs::File::open(path).map_err(|_| ManifestFileError(path.into()))?;
+        let file = std::fs::File::open(path).map_err(|_| FileError::from_path(path, None))?;
 
         let schema_validator = SchemaValidator::from_str(Self::MANIFEST_SCHEMA)?;
         let mut manifest: Manifest = schema_validator
             .deserialize_and_validate::<_, serde_def::ManifestSerde>(file)
-            .map_err(|err| ManifestReadingError(err.to_string()))?
+            .map_err(|err| FileError::from_path(path, Some(err)))?
             .into();
 
         let dir_path = path
             .parent()
-            .ok_or_else(|| ManifestFileError(path.into()))?;
+            .ok_or_else(|| FileError::from_path(path, None))?;
         manifest.metadata.make_relative_to(dir_path);
         manifest.component.make_relative_to(dir_path);
         if let Some(config) = &mut manifest.config {

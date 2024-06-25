@@ -27,9 +27,9 @@ In Hermes, the following headers with its values **MUST** be included in the [CO
 `protected`:
 
 * `alg`: `EdDSA`
-  (This parameter is used to indicate the algorithm used for the security processing).
+  (this parameter is used to indicate the algorithm used for the security processing).
 * `content type`: `application/json`
-  (This parameter is used to indicate the content type of the data in the payload or ciphertext fields).
+  (this parameter is used to indicate the content type of the data in the payload or ciphertext fields).
 
 ## Signature type
 
@@ -63,9 +63,9 @@ In Hermes, the following headers with its values **MUST** be included in the [CO
 
 `protected`:
 
-* `kid`: a Blake2B hash of the signer's [x.509] certificate associated with its keys
-  (This parameter identifies one piece of data
-  that can be used as input to find the needed cryptographic key.).
+* `kid`: a Blake2B hash of the signer's [x.509] certificate (DER encoded bytes) associated with its keys
+  (this parameter identifies one piece of data
+  that can be used as input to find the needed cryptographic key).
 
 [COSE]: https://datatracker.ietf.org/doc/html/rfc8152
 [CBOR]: https://datatracker.ietf.org/doc/html/rfc8949

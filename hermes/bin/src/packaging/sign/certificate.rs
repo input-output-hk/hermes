@@ -1,31 +1,11 @@
 //! x.509 certificate implementation.
 
-use std::{
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
-use x509_cert::der::DecodePem;
+use x509_cert::der::{DecodePem, Encode};
 
-use super::keys::PublicKey;
-
-/// Certificate file open and read error.
-#[derive(thiserror::Error, Debug)]
-pub(crate) struct CertificateFileError(PathBuf, Option<anyhow::Error>);
-impl Display for CertificateFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = format!(
-            "Cannot open and read certificate file at {0}.",
-            self.0.display()
-        );
-        let err = self
-            .1
-            .as_ref()
-            .map(|msg| format!("{msg}"))
-            .unwrap_or_default();
-        writeln!(f, "{msg}\n{err}",)
-    }
-}
+use super::{hash::Blake2b256, keys::PublicKey};
+use crate::packaging::FileError;
 
 /// Certificate decoding from string error.
 #[derive(thiserror::Error, Debug)]
@@ -39,15 +19,15 @@ pub(crate) struct Certificate(x509_cert::Certificate);
 impl Certificate {
     /// Create new certificate from file decoded in PEM format
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let str = std::fs::read_to_string(&path)
-            .map_err(|_| CertificateFileError(path.as_ref().into(), None))?;
-        Ok(Self::from_str(&str)
-            .map_err(|err| CertificateFileError(path.as_ref().into(), Some(err)))?)
+        let str = std::fs::read_to_string(&path).map_err(|_| FileError::from_path(&path, None))?;
+
+        Ok(Self::from_str(&str).map_err(|err| FileError::from_path(&path, Some(err)))?)
     }
 
     /// Create new certificate from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let cert = x509_cert::Certificate::from_pem(str.as_bytes())?;
+        let cert = x509_cert::Certificate::from_pem(str.as_bytes())
+            .map_err(|_| CertificateDecodingError)?;
         Ok(Self(cert))
     }
 
@@ -61,20 +41,30 @@ impl Certificate {
 
         PublicKey::from_bytes(subject_public_key.raw_bytes())
     }
+
+    /// `Blake2b256` hash of the certificate DER encoded bytes.
+    pub(crate) fn hash(&self) -> anyhow::Result<Blake2b256> {
+        let der_bytes = self.0.to_der()?;
+        Ok(Blake2b256::hash(&der_bytes))
+    }
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
+    use crate::packaging::sign::keys::tests::public_key_str;
 
-    #[test]
-    fn certificate_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
-
-        let private_key_path = dir.path().join("cert.pem");
-        let private_key = format!(
+    /// An x.509 certificate in PEM format.
+    /// This certificate is signed with the `private_key_str()` private key
+    /// and subjected to the `public_key_str()` public key (basically it is a self-signed
+    /// cert). Generated with `openssl` tool:
+    /// ```shell
+    /// openssl req -new -x509 -key=private.pem -out=cert.pem -config=x509_cert.config
+    /// ```
+    pub(crate) fn certificate_str() -> String {
+        format!(
             "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             "-----BEGIN CERTIFICATE-----",
             "MIICCTCCAbugAwIBAgIUfZ0PWPMb4DDteQDZagWn2x+ognEwBQYDK2VwMIGSMQsw",
@@ -89,21 +79,23 @@ mod tests {
             "MBXdOUfcxUmKk9wvcbxYCM8CoTAFBgMrZXADQQBUM4ZxsCuGwPKRrICvlPYBEhtv",
             "h6dzbzu7+YbpdIPV5jS1tufBSyhxRK9YPaXNYeKeNqKQURWDNLiZXJLZq3QL",
             "-----END CERTIFICATE-----",
-        );
-        std::fs::write(&private_key_path, private_key).expect("Cannot create cert.pem file");
+        )
+    }
+
+    #[test]
+    fn certificate_from_file_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let certificate_path = dir.path().join("cert.pem");
+        std::fs::write(&certificate_path, certificate_str()).expect("Cannot create cert.pem file");
 
         let cert =
-            Certificate::from_file(private_key_path).expect("Cannot create certificate from file");
+            Certificate::from_file(certificate_path).expect("Cannot create certificate from file");
 
         let cert_public_key = cert.subject_public_key().expect("Cannot get public key");
 
-        let expected_public_key = PublicKey::from_str(&format!(
-            "{}\n{}\n{}",
-            "-----BEGIN PUBLIC KEY-----",
-            "MCowBQYDK2VwAyEAtFuCleJwHS28jUCT+ulLl5c1+MXhehhDz2SimOhmWaI=",
-            "-----END PUBLIC KEY-----"
-        ))
-        .expect("Cannot parse public key");
+        let expected_public_key =
+            PublicKey::from_str(&public_key_str()).expect("Cannot parse public key");
 
         assert_eq!(cert_public_key, expected_public_key);
     }

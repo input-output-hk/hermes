@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use clap::Args;
 use console::Emoji;
 
-use crate::{
-    packaging::wasm_module::WasmModulePackage,
+use crate::packaging::{
     sign::{certificate::Certificate, keys::PrivateKey},
+    wasm_module::WasmModulePackage,
 };
 
 /// WASM module package signing
@@ -28,11 +28,12 @@ impl SignCommand {
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{} Sign wasm module package...", Emoji::new("📝", ""));
 
-        let _private_key = PrivateKey::from_file(self.private_key)?;
-        let _cert = Certificate::from_file(self.cert)?;
+        let private_key = PrivateKey::from_file(self.private_key)?;
+        let cert = Certificate::from_file(self.cert)?;
         let package = WasmModulePackage::from_file(self.package)?;
 
-        package.sign()?;
+        package.validate()?;
+        package.sign(&private_key, &cert)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())
