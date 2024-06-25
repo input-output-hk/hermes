@@ -41,7 +41,9 @@ impl Certificate {
             .subject_public_key_info
             .subject_public_key;
 
-        PublicKey::from_bytes(subject_public_key.raw_bytes())
+        PublicKey::from_bytes(subject_public_key.raw_bytes()).map_err(|err| {
+            anyhow::anyhow!("Failed to decode certificate subject public key. {err}")
+        })
     }
 
     /// `Blake2b256` hash of the certificate DER encoded bytes.

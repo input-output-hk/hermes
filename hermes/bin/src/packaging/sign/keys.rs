@@ -167,5 +167,9 @@ pub(crate) mod tests {
 
         let signature = private_key.sign(msg);
         assert!(public_key.verify(msg, &signature).is_ok());
+        assert!(
+            public_key.verify(b"corrupted", &signature).is_err(),
+            "Provided msg is not actually signed."
+        );
     }
 }
