@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.1.7 AS wasm-c-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.1.8 AS wasm-c-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../../catalyst-ci/earthly/wasm/c AS wasm-c-ci
 

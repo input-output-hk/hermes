@@ -79,6 +79,8 @@ highwater
 hmod
 ideascale
 idents
+ipfs
+ipld
 IFMT
 Intellij
 ioerr
@@ -92,12 +94,15 @@ lcov
 Leshiy
 libsqlite
 libtest
+libipld
+libp2p
 linkat
 lintfix
 localizable
 lookaside
 maindbname
 mdlint
+mdns
 miniprotocol
 miniprotocols
 mithril
@@ -106,6 +111,7 @@ mkcron
 mkdelay
 mkdirat
 moderations
+Multiaddr
 multiera
 nanos
 netkey
@@ -150,6 +156,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustyline
 saibatizoku
 sandboxed
 scanorder
@@ -177,7 +184,9 @@ Traceback
 txns
 typenum
 unfinalized
+unixfs
 unlinkat
+upnp
 utimensat
 vitss
 voteplan
