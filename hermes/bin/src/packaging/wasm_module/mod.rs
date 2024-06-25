@@ -128,9 +128,7 @@ impl WasmModulePackage {
             let signature_payload = signature.payload();
             anyhow::ensure!(
                 &expected_payload == signature_payload,
-                "Signature payload mismatch.
-                \nExpected: {}
-                \nGot: {}",
+                "Signature payload mismatch.\nExpected: {}\nGot: {}",
                 expected_payload.to_json().to_string(),
                 signature_payload.to_json().to_string()
             );
@@ -500,7 +498,7 @@ mod tests {
     fn sign_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let (metadata, component, config, config_schema, settings_schema) =
+        let (mut metadata, component, config, config_schema, settings_schema) =
             prepare_default_package_files();
 
         let manifest = prepare_package_dir(
@@ -540,5 +538,23 @@ mod tests {
         certificate::storage::add_certificate(certificate)
             .expect("Failed to add certificate to the storage.");
         assert!(package.validate().is_ok());
+
+        // corrupt payload with the modifying metadata.json file
+        metadata.set_name("New name");
+        package
+            .package
+            .unlink(WasmModulePackage::METADATA_FILE)
+            .expect("Failed to unlink file");
+        copy_resource_to_package(
+            &BytesResource::new(
+                WasmModulePackage::METADATA_FILE.to_string(),
+                metadata.to_bytes().expect("Failled to decode metadata."),
+            ),
+            WasmModulePackage::METADATA_FILE,
+            &package.package,
+        )
+        .expect("Failed to copy resource to the package.");
+
+        assert!(package.validate().is_err(), "Corrupted signature payload.");
     }
 }
