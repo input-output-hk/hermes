@@ -98,8 +98,10 @@ fn copy_resource_dir_recursively_to_package(
 fn remove_file_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
     if package.dataset(name).is_ok() {
         package.unlink(name)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("File {name} not found"))
     }
-    Ok(())
 }
 
 /// Remove directory from the package.
@@ -107,8 +109,10 @@ fn remove_file_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result
 fn remove_dir_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
     if package.group(name).is_ok() {
         package.unlink(name)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Directory {name} not found"))
     }
-    Ok(())
 }
 
 /// Get package file reader if present.
@@ -230,13 +234,10 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove file from package
-        remove_dir_from_package(file_1_name, &package).expect("Cannot remove file from package");
-        assert!(
-            get_package_file_hash(file_1_name, &package)
-                .expect("Package file hash calculation failed")
-                .is_some(),
-            "Calling remove_dir_from_package on file does not make any effect"
-        );
+        assert!(remove_dir_from_package(file_1_name, &package).is_err());
+        assert!(get_package_file_hash(file_1_name, &package)
+            .expect("Package file hash calculation failed")
+            .is_some());
         remove_file_from_package(file_1_name, &package).expect("Cannot remove file from package");
         assert!(get_package_file_hash(file_1_name, &package)
             .expect("Package file hash calculation failed")
@@ -306,13 +307,10 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove directory from package
-        remove_file_from_package(dir_name, &package).expect("Cannot remove file from package");
-        assert!(
-            get_package_dir_hash(dir_name, &package)
-                .expect("Package dir hash calculation failed")
-                .is_some(),
-            "Calling remove_file_from_package on directory does not make any effect"
-        );
+        assert!(remove_file_from_package(dir_name, &package).is_err());
+        assert!(get_package_dir_hash(dir_name, &package)
+            .expect("Package dir hash calculation failed")
+            .is_some());
         remove_dir_from_package(dir_name, &package).expect("Cannot remove dir from package");
         assert!(get_package_dir_hash(dir_name, &package)
             .expect("Package dir hash calculation failed")
