@@ -77,7 +77,6 @@ impl MithrilSnapshot {
     ///
     /// Returns None if its not possible to iterate a mithril snapshot from the requested
     /// point for ANY reason.
-    #[allow(dead_code)]
     pub(crate) fn try_read_blocks_from_point(
         &self, point: &Point,
     ) -> Option<MithrilSnapshotIterator> {
@@ -97,6 +96,15 @@ impl MithrilSnapshot {
         };
 
         Some(MithrilSnapshotIterator { inner: iter })
+    }
+
+    /// Read a single block from a known point.
+    pub(crate) fn read_block_at(&self, point: &Point) -> Option<MultiEraBlockData> {
+        if let Some(mut iterator) = self.try_read_blocks_from_point(point) {
+            let block = iterator.next();
+            return block;
+        }
+        None
     }
 }
 

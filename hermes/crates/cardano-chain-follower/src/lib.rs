@@ -2,6 +2,8 @@
 
 mod chain_sync;
 mod chain_sync_config;
+mod chain_sync_live_chains;
+mod chain_sync_ready;
 mod chain_update;
 mod error;
 mod follow;

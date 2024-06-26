@@ -21,6 +21,9 @@ pub enum Error {
     /// Chainsync protocol error.
     #[error("Chainsync error: {0:?}")]
     Chainsync(chainsync::ClientError),
+    /// Live Sync error.
+    #[error("Live Sync error: {0:?}")]
+    LiveSync(String),
     /// Follower failed to set its read pointer.
     #[error("Failed to set follower read pointer")]
     SetReadPointer,

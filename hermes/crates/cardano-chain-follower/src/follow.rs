@@ -1,16 +1,19 @@
 //! Cardano chain follow module.
 
+use pallas::network::miniprotocols::{
+    txmonitor::{TxBody, TxId},
+    Point,
+};
+use tokio::sync::broadcast;
+use tracing::error;
+
 use crate::{
-    chain_sync::{block_until_sync_ready, get_live_block_after},
+    chain_sync_live_chains::get_live_block_after,
+    chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
     chain_update::ChainUpdate,
     mithril_snapshot::{MithrilSnapshot, MithrilSnapshotIterator},
     network::Network,
     point_or_tip::PointOrTip,
-};
-
-use pallas::network::miniprotocols::{
-    txmonitor::{TxBody, TxId},
-    Point,
 };
 
 /// The Chain Follower
@@ -25,6 +28,8 @@ pub struct ChainFollower {
     snapshot: MithrilSnapshot,
     /// Mithril Snapshot Follower
     mithril_follower: Option<MithrilSnapshotIterator>,
+    /// Live Block Updates
+    sync_updates: broadcast::Receiver<ChainUpdate>,
 }
 
 impl ChainFollower {
@@ -55,13 +60,15 @@ impl ChainFollower {
     ///
     /// To ONLY follow from TIP, set BOTH start and end to TIP.
     #[must_use]
-    pub fn new(chain: Network, start: PointOrTip, end: PointOrTip) -> Self {
+    pub async fn new(chain: Network, start: PointOrTip, end: PointOrTip) -> Self {
+        let rx = get_chain_update_rx_queue(chain).await;
         ChainFollower {
             chain,
             end,
             current: start,
             snapshot: MithrilSnapshot::new(chain),
             mithril_follower: None,
+            sync_updates: rx,
         }
     }
 
@@ -91,13 +98,46 @@ impl ChainFollower {
     }
 
     /// Update the current Point, and return `false` if this fails.
-    fn update_current(&mut self, update: &ChainUpdate) -> bool {
-        if let Ok(decoded) = update.block_data().decode() {
-            let point = Point::new(decoded.slot(), decoded.hash().to_vec());
-            self.current = PointOrTip::Point(point);
-            return true;
+    fn update_current(&mut self, update: &Option<ChainUpdate>) -> bool {
+        if let Some(update) = update {
+            if let Ok(decoded) = update.block_data().decode() {
+                let point = Point::new(decoded.slot(), decoded.hash().to_vec());
+                self.current = PointOrTip::Point(point);
+                return true;
+            }
         }
         false
+    }
+
+    /// Get an update from the live chain status follower.
+    async fn update_live_event(&mut self) -> Option<ChainUpdate> {
+        loop {
+            let update = self.sync_updates.recv().await;
+
+            match update {
+                Ok(update) => match update {
+                    ChainUpdate::ImmutableBlock(_) => error!(
+                        chain = self.chain.to_string(),
+                        "Received an ImmutableBlock update, these are not Live Updates."
+                    ),
+                    ChainUpdate::ImmutableBlockRollForward(_)
+                    | ChainUpdate::Block(_)
+                    | ChainUpdate::BlockTip(_)
+                    | ChainUpdate::Rollback(_) => return Some(update),
+                },
+                Err(error) => {
+                    match error {
+                        broadcast::error::RecvError::Closed => {},
+                        broadcast::error::RecvError::Lagged(_) => continue, // Lagged just means we need to read again.
+                    }
+                    error!(
+                        chain = self.chain.to_string(),
+                        "Live Chain follower error: {error}"
+                    );
+                    return None;
+                },
+            }
+        }
     }
 
     /// This is an unprotected version of `next()` which can ONLY be used within this crate.
@@ -108,21 +148,24 @@ impl ChainFollower {
     #[allow(clippy::unused_async)]
     pub(crate) async fn unprotected_next(&mut self) -> Option<ChainUpdate> {
         // If we are following TIP, then we just wait for Tip Updates.
-        match &self.current.clone() {
+        let update = match &self.current.clone() {
             PointOrTip::Point(point) => {
                 if let Some(update) = self.next_from_mithril(point) {
-                    if self.update_current(&update) {
-                        return Some(update);
-                    }
+                    Some(update)
                 } else if let Some(update) = self.next_from_live_chain(point) {
-                    if self.update_current(&update) {
-                        return Some(update);
-                    }
+                    Some(update)
+                } else {
+                    self.update_live_event().await
                 }
-                None
             },
-            PointOrTip::Tip => None,
+            PointOrTip::Tip => self.update_live_event().await,
+        };
+
+        if !self.update_current(&update) {
+            return None;
         }
+
+        update
     }
 
     /// Get the next block from the follower.
@@ -147,7 +190,7 @@ impl ChainFollower {
     /// This is a convenience function which just used `ChainFollower` to fetch a single block.
     pub async fn get_block(chain: Network, point: PointOrTip) -> Option<ChainUpdate> {
         // Get the block from the chain.
-        let mut follower = Self::new(chain, point.clone(), point);
+        let mut follower = Self::new(chain, point.clone(), point).await;
 
         follower.next().await
     }

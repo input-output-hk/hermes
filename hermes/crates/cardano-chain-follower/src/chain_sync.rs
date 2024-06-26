@@ -6,123 +6,35 @@
 use std::time::Duration;
 
 use crate::{
+    chain_sync_live_chains::{
+        get_fill_to_point, get_live_block_at, latest_live_point, live_chain_insert,
+        live_chain_length, purge_latest_live_point, purge_live_chain, PurgeType,
+    },
+    chain_sync_ready::{get_chain_update_tx_queue, wait_for_sync_ready, SyncReadyWaiter},
     error::{Error, Result},
     live_block::LiveBlock,
-    ChainSyncConfig, MultiEraBlockData, Network, PointOrTip,
+    mithril_snapshot::MithrilSnapshot,
+    ChainSyncConfig, ChainUpdate, MultiEraBlockData, Network, PointOrTip,
 };
 
 use anyhow::Context;
-use crossbeam_skiplist::{SkipMap, SkipSet};
-use once_cell::sync::Lazy;
 use pallas::{
     ledger::traverse::MultiEraHeader,
     network::{
         facades::PeerClient,
         miniprotocols::{
-            chainsync::{self, ClientError},
+            chainsync::{self, ClientError, Tip},
             Point,
         },
     },
 };
 
-use strum::IntoEnumIterator;
 use tokio::{
     spawn,
-    sync::{mpsc, oneshot, RwLock},
+    sync::{broadcast, mpsc},
     time::{sleep, timeout},
 };
 use tracing::{debug, error};
-
-/// Type we use to manage the Sync Task handle map.
-type LiveChainBlockList = SkipSet<LiveBlock>;
-/// Handle to the mithril sync thread. One for each Network ONLY.
-static LIVE_CHAINS: Lazy<SkipMap<Network, LiveChainBlockList>> = Lazy::new(|| {
-    let map = SkipMap::new();
-    for network in Network::iter() {
-        map.insert(network, SkipSet::new());
-    }
-    map
-});
-
-/// Lock to prevent using any blockchain data for a network UNTIL it is synced to TIP.
-static SYNC_READY: Lazy<SkipMap<Network, RwLock<bool>>> = Lazy::new(|| {
-    let map = SkipMap::new();
-    for network in Network::iter() {
-        map.insert(network, RwLock::new(false));
-    }
-    map
-});
-
-/// Get the Live block immediately following the specified block.
-pub(crate) fn get_live_block_after(chain: Network, point: &Point) -> Option<LiveBlock> {
-    debug!(
-        chain = chain.to_string(),
-        "Get Live Block after: {:?}", point
-    );
-
-    if let Some(live_chain_entry) = LIVE_CHAINS.get(&chain) {
-        let live_chain = live_chain_entry.value();
-        let probe_block = LiveBlock::probe(point);
-        let this_block = live_chain.get(&probe_block)?;
-        let next_block = this_block.next()?;
-        let next_block_value = next_block.value().clone();
-
-        return Some(next_block_value);
-    };
-    None
-}
-
-/// Write Lock the `SYNC_READY` lock for a network.
-/// When we are signaled to be ready, set it to true and release the lock.
-fn wait_for_sync_ready(chain: Network) -> oneshot::Sender<()> {
-    let (tx, rx) = oneshot::channel::<()>();
-
-    tokio::spawn(async move {
-        // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-        // Its a Serious BUG if that not True, so panic is OK.
-        #[allow(clippy::expect_used)]
-        let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
-
-        let lock = lock_entry.value();
-
-        let mut status = lock.write().await;
-
-        // If we successfully get told to unlock, we do.
-        if let Ok(()) = rx.await {
-            *status = true;
-        }
-
-        // If the channel closes early, we can NEVER use the Blockchain data.
-    });
-
-    tx
-}
-
-/// Get a Read lock on the Sync State, and return if we are ready or not.
-async fn check_sync_ready(chain: Network) -> bool {
-    // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-    // Its a Serious BUG if that not True, so panic is OK.
-    #[allow(clippy::expect_used)]
-    let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
-    let lock = lock_entry.value();
-
-    let status = lock.read().await;
-
-    *status
-}
-
-/// Number of seconds to wait if we detect a `SyncReady` race condition.
-const SYNC_READY_RACE_BACKOFF_SECS: u64 = 1;
-
-/// Block until the chain is synced to TIP.
-/// This is necessary to ensure the Blockchain data is fully intact before attempting to consume it.
-pub(crate) async fn block_until_sync_ready(chain: Network) {
-    // There is a potential race where we haven't yet write locked the SYNC_READY lock when we check it.
-    // So, IF the ready state returns as false, sleep a while and try again.
-    while !check_sync_ready(chain).await {
-        sleep(Duration::from_secs(SYNC_READY_RACE_BACKOFF_SECS)).await;
-    }
-}
 
 /// The maximum number of seconds we wait for a node to connect.
 const MAX_NODE_CONNECT_TIME_SECS: u64 = 2;
@@ -198,29 +110,67 @@ async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Res
 }
 
 /// Resynchronize to the live tip in memory.
-async fn resync_live_tip(
-    client: &mut PeerClient, live_chain: &LiveChainBlockList,
-) -> Result<Point> {
-    let tip = match live_chain.back() {
-        Some(live_block) => {
-            let latest_block = live_block.value();
-            PointOrTip::Point(latest_block.point.clone())
-        },
-        None => PointOrTip::Tip,
-    };
+async fn resync_live_tip(client: &mut PeerClient, chain: Network) -> Result<Point> {
+    let tip = latest_live_point(chain);
 
     set_client_read_pointer(client, tip).await
+}
+
+/// Sand a chain update to any subscribers that are listening.
+fn send_update(
+    chain: Network, update_sender: &Option<broadcast::Sender<ChainUpdate>>, point: &PointOrTip,
+    update: ChainUpdate,
+) {
+    if let Some(update_sender) = update_sender {
+        if let Err(error) = update_sender.send(update) {
+            error!(
+                chain = chain.to_string(),
+                point = format!("{:?}", point),
+                "Failed to broadcast the Update : {error}"
+            );
+        }
+    }
+}
+
+/// Process a rollback.
+fn process_rollback(chain: Network, point: Point, tip: &Tip) -> anyhow::Result<Option<Point>> {
+    debug!("RollBackward: {:?} {:?}", point, tip);
+
+    purge_live_chain(chain, &point, PurgeType::Newest);
+
+    // If we have ANY live blocks, then we MUST have the rollback to block, or its a fatal sync error.
+    if live_chain_length(chain) > 0 {
+        let rollback_block = get_live_block_at(chain, &point);
+        if rollback_block.is_none() {
+            error!(
+                chain = chain.to_string(),
+                point = format!("{:?}", point),
+                tip = format!("{:?}", tip),
+                "No live block at rollback point, this is a fatal sync error"
+            );
+            return Err(Error::LiveSync("No live block at rollback point".to_string()).into());
+        }
+    }
+
+    // Next block we receive is a rollback.
+    Ok(Some(point))
 }
 
 /// Follows the chain until there is an error.
 /// If this returns it can be assumed the client is disconnected.
 ///
 /// We take ownership of the client because of that.
-async fn follow_chain(
-    peer: &mut PeerClient, live_chain: &LiveChainBlockList,
-) -> anyhow::Result<()> {
+async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<()> {
+    let mut update_sender = get_chain_update_tx_queue(chain).await;
+    let mut block_is_rollback: Option<Point> = None;
+
     loop {
         // debug!("Waiting for data from Cardano Peer Node:");
+
+        // We can't get an update sender UNTIL we have released the sync lock.
+        if update_sender.is_none() {
+            update_sender = get_chain_update_tx_queue(chain).await;
+        }
 
         // Check what response type we need to process.
         let response = match peer.chainsync().state() {
@@ -238,6 +188,7 @@ async fn follow_chain(
                 // We can find if we are AT tip by comparing the current block Point with the tip Point.
                 // We can estimate how far behind we are (in blocks) by subtracting current block
                 // height and the tip block height.
+                // IF the TIP is <= the current block height THEN we are at tip.
                 let decoded_header = MultiEraHeader::decode(
                     header.variant,
                     header.byron_prefix.map(|p| p.0),
@@ -249,9 +200,6 @@ async fn follow_chain(
 
                 debug!("RollForward: {:?} {:?}", point, tip);
 
-                // See if this block is the current nodes TIP.
-                // let _at_tip = point == tip.0;
-
                 let block_data = peer
                     .blockfetch()
                     .fetch_single(point.clone())
@@ -261,34 +209,63 @@ async fn follow_chain(
                 let live_block_data = MultiEraBlockData::new(block_data);
 
                 // Add the live block to the head of the live chain
-                live_chain.insert(LiveBlock::new(point, live_block_data));
+                live_chain_insert(
+                    chain,
+                    LiveBlock::new(point.clone(), live_block_data.clone()),
+                );
 
-                // TODO: Tell a follower the tip updated.
-                //let update = if at_tip {
-                // Then we are at the tip of the blockchain.
-                //    ChainUpdate::BlockTip(MultiEraBlockData::new(block_data))
-                //} else {
-                //    ChainUpdate::Block(MultiEraBlockData::new(block_data))
-                //};
-            },
-            chainsync::NextResponse::RollBackward(point, tip) => {
-                debug!("RollBackward: {:?} {:?}", point, tip);
+                let reported_tip = PointOrTip::Point(tip.0);
+                let block_point = PointOrTip::Point(point.clone());
 
-                // Purge the live data after this block.
-                while let Some(tip_entry) = live_chain.back() {
-                    let tip_block = tip_entry.value();
-                    // If we got back to the rollback position then stop purging.
-                    // Next update should be after this block, and arrive automatically.
-                    if tip_entry.point == point {
-                        break;
+                // IF its a rollback block, report it as such.
+                if let Some(rollback) = block_is_rollback.take() {
+                    // If the live chain is empty, rollback doesn't make sense.
+                    if live_chain_length(chain) > 0 {
+                        // Can't rely on TIP so we need to check the block itself to see if we are intact.
+                        debug!("RollBack: {:?}", rollback);
+                        debug!("Chain Length: {:?}", live_chain_length(chain));
+                        debug!("Previous Hash: {:?}", decoded_header.previous_hash());
+                        if let Point::Specific(_slot, hash) = rollback {
+                            if let Some(previous_hash) = decoded_header.previous_hash() {
+                                if hash != previous_hash.as_ref() {
+                                    return Err(Error::LiveSync(
+                                        "Rollback block previous hash does not match".to_string(),
+                                    )
+                                    .into());
+                                }
+                            } else {
+                                return Err(Error::LiveSync(
+                                    "Rollback block previous hash is missing.".to_string(),
+                                )
+                                .into());
+                            }
+                        } else {
+                            return Err(
+                                Error::LiveSync("Invalid Rollback block".to_string()).into()
+                            );
+                        }
+
+                        let update = ChainUpdate::Rollback(live_block_data);
+                        send_update(chain, &update_sender, &block_point, update);
+
+                        continue;
                     }
-                    live_chain.remove(tip_block);
                 }
 
-                // TODO: Tell a follower we rolled back
-                //Ok(Some(ChainUpdate::Rollback(MultiEraBlockData::new(
-                //    block_data,
-                //))))
+                let update = if reported_tip <= block_point {
+                    // We are behind the tip.
+                    // Tell the follower to roll forward.
+                    ChainUpdate::BlockTip(live_block_data)
+                } else {
+                    // We are ahead of the tip.
+                    // Tell the follower to roll back.
+                    ChainUpdate::Block(live_block_data)
+                };
+
+                send_update(chain, &update_sender, &block_point, update);
+            },
+            chainsync::NextResponse::RollBackward(point, tip) => {
+                block_is_rollback = process_rollback(chain, point, &tip)?;
             },
             chainsync::NextResponse::Await => {
                 // debug!("Peer Node says: Await");
@@ -313,38 +290,13 @@ async fn persistent_reconnect(addr: &str, chain: Network) -> PeerClient {
     }
 }
 
-/// Get the fill tp point for a chain.
-async fn get_fill_to_point(live_chain: &SkipSet<LiveBlock>) -> Point {
-    loop {
-        match live_chain.front() {
-            Some(entry) => return entry.value().point.clone(),
-            None => {
-                // Nothing in the Live chain to sync to, so wait until there is.
-                tokio::time::sleep(Duration::from_secs(10)).await;
-            },
-        }
-    }
-}
-
 /// Backfill the live chain, based on the Mithril Sync updates.
 /// This does NOT return until the live chain has been backfilled from the end of mithril to the
 /// current synced tip blocks.
 ///
 /// This only needs to be done once per chain connection.
 async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Result<()> {
-    // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its initialized exhaustively.
-    // If this FAILS, its a serious UNRECOVERABLE BUG.
-    #[allow(clippy::panic)]
-    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
-        panic!(
-            "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
-            cfg.chain, cfg.relay_address,
-        )
-    });
-    let live_chain = live_block_list_entry.value();
-
-    let fill_to = get_fill_to_point(live_chain).await;
+    let fill_to = get_fill_to_point(cfg.chain).await;
     let range = (from, fill_to);
 
     let range_msg = format!("{range:?}");
@@ -363,7 +315,7 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
         let slot = decoded_block.slot();
         let hash = decoded_block.hash();
         let live_block = LiveBlock::new(Point::new(slot, hash.to_vec()), block);
-        live_chain.insert(live_block);
+        live_chain_insert(cfg.chain, live_block);
         //debug!("Backfilled Block: {}", slot);
     }
 
@@ -374,20 +326,8 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
 
 /// Backfill and Purge the live chain, based on the Mithril Sync updates.
 async fn live_sync_backfill_and_purge(
-    cfg: ChainSyncConfig, mut rx: mpsc::Receiver<Point>, tx_ready: oneshot::Sender<()>,
+    cfg: ChainSyncConfig, mut rx: mpsc::Receiver<Point>, mut sync_ready: SyncReadyWaiter,
 ) {
-    // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its initialized exhaustively.
-    // If this FAILS, its a serious UNRECOVERABLE BUG.
-    #[allow(clippy::panic)]
-    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
-        panic!(
-            "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
-            cfg.chain, cfg.relay_address,
-        )
-    });
-    let live_chain = live_block_list_entry.value();
-
     let Some(point) = rx.recv().await else {
         error!("Mithril Sync Failed, can not continue chain sync either.");
         return;
@@ -395,7 +335,7 @@ async fn live_sync_backfill_and_purge(
 
     debug!(
         "Before Backfill: Size of the Live Chain is: {} Blocks",
-        live_chain.len()
+        live_chain_length(cfg.chain)
     );
 
     // Wait for first Mithril Update advice, which triggers a BACKFILL of the Live Data.
@@ -407,14 +347,13 @@ async fn live_sync_backfill_and_purge(
 
     debug!(
         "After Backfill: Size of the Live Chain is: {} Blocks",
-        live_chain.len()
+        live_chain_length(cfg.chain)
     );
 
     // Once Backfill is completed OK we can use the Blockchain data for Syncing and Querying
-    if tx_ready.send(()).is_err() {
-        error!("Unable to unlock the the SYNC Lock for {}.", cfg.chain);
-        return;
-    }
+    sync_ready.signal();
+
+    let mut update_sender = get_chain_update_tx_queue(cfg.chain).await;
 
     loop {
         let Some(point) = rx.recv().await else {
@@ -422,27 +361,32 @@ async fn live_sync_backfill_and_purge(
             return;
         };
 
-        let mut purged_blocks: u64 = 0;
+        // We can't get an update sender until the sync is released.
+        if update_sender.is_none() {
+            update_sender = get_chain_update_tx_queue(cfg.chain).await;
+        }
 
         debug!("Mithril Tip has advanced to: {point:?} : PURGE NEEDED");
 
-        // Purge the live data before this block.
-        while let Some(tip_entry) = live_chain.front() {
-            let oldest_block = tip_entry.value();
-            // If we got back to the rollback position then stop purging.
-            // Next update should be after this block, and arrive automatically.
-            if oldest_block.point == point {
-                break;
-            }
-            live_chain.remove(oldest_block);
-            purged_blocks += 1;
-        }
+        purge_live_chain(cfg.chain, &point, PurgeType::Oldest);
 
         debug!(
-            "Purged {} Blocks. Size of the Live Chain is: {} Blocks",
-            purged_blocks,
-            live_chain.len()
+            "After Purge: Size of the Live Chain is: {} Blocks",
+            live_chain_length(cfg.chain)
         );
+
+        if let Some(block_data) = MithrilSnapshot::new(cfg.chain).read_block_at(&point) {
+            // Get Immutable block that represents this point
+            let update = ChainUpdate::ImmutableBlockRollForward(block_data);
+            let update_point = PointOrTip::Point(point);
+            send_update(cfg.chain, &update_sender, &update_point, update);
+        } else {
+            error!(
+                chain = cfg.chain.to_string(),
+                point = format!("{:?}", point),
+                "Immutable Chain update, but block not found."
+            );
+        }
     }
 
     // TODO: If the mithril sync dies, sleep for a bit and make sure the live chain doesn't grow
@@ -474,43 +418,34 @@ pub(crate) async fn chain_sync(cfg: ChainSyncConfig, rx: mpsc::Receiver<Point>) 
     );
 
     // Start the SYNC_READY unlock task.
-    let tx = wait_for_sync_ready(cfg.chain);
-
-    // Get a reference to our live chain storage.
-    // This SHOULD always exist, because its initialized exhaustively.
-    // If this FAILS, its a serious UNRECOVERABLE BUG.
-    #[allow(clippy::panic)]
-    let live_block_list_entry = LIVE_CHAINS.get(&cfg.chain).unwrap_or_else(|| {
-        panic!(
-            "Internal Error: Chain Sync for: {} from  {} : Failed to find chain in LIVE_CHAINS",
-            cfg.chain, cfg.relay_address,
-        )
-    });
-
-    let live_chain = live_block_list_entry.value();
+    let sync_waiter = wait_for_sync_ready(cfg.chain);
 
     let backfill_cfg = cfg.clone();
 
     // Start the Live chain backfill task.
-    let _backfill_join_handle =
-        spawn(async move { live_sync_backfill_and_purge(backfill_cfg.clone(), rx, tx).await });
+    let _backfill_join_handle = spawn(async move {
+        live_sync_backfill_and_purge(backfill_cfg.clone(), rx, sync_waiter).await;
+    });
 
     loop {
         // We never have a connection if we end up around the loop, so make a new one.
         let mut peer = persistent_reconnect(&cfg.relay_address, cfg.chain).await;
 
-        if let Err(error) = resync_live_tip(&mut peer, live_chain).await {
+        if let Err(error) = resync_live_tip(&mut peer, cfg.chain).await {
             // If we fail to resync the tip, then we should stop trying to sync.
             // We'll try again next time.
             error!(
                 "Cardano Client {} failed to resync Tip: {}",
                 cfg.relay_address, error
             );
+
+            // Couldn't sync to last known block, so purge it.
+            purge_latest_live_point(cfg.chain);
             continue;
         };
 
         // Note: This can ONLY return with an error, otherwise it will sync indefinitely.
-        if let Err(error) = follow_chain(&mut peer, live_chain).await {
+        if let Err(error) = follow_chain(&mut peer, cfg.chain).await {
             error!(
                 "Cardano Client {} failed to follow chain: {}: Reconnecting.",
                 cfg.relay_address, error

@@ -5,12 +5,12 @@ use std::fmt::Display;
 use crate::multi_era_block_data::MultiEraBlockData;
 
 /// Enum of chain updates received by the follower.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ChainUpdate {
     /// Immutable Block from the immutable part of the blockchain.
     ImmutableBlock(MultiEraBlockData),
-    /// Immutable Block from the immutable part of the blockchain (Rollback).
-    ImmutableBlockRollback(MultiEraBlockData),
+    /// A new part of the chain has become immutable (Roll-forward).
+    ImmutableBlockRollForward(MultiEraBlockData),
     /// New block inserted on chain.
     Block(MultiEraBlockData),
     /// New block inserted on chain.
@@ -23,7 +23,7 @@ impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let block_type = match self {
             Self::ImmutableBlock(_) => "Immutable",
-            Self::ImmutableBlockRollback(_) => "Immutable Rollback",
+            Self::ImmutableBlockRollForward(_) => "Immutable Chain Roll Forward",
             Self::Block(_) => "Live",
             Self::BlockTip(_) => "Tip",
             Self::Rollback(_) => "Rollback",
@@ -67,7 +67,7 @@ impl ChainUpdate {
     pub fn block_data(&self) -> &MultiEraBlockData {
         match self {
             ChainUpdate::ImmutableBlock(block_data)
-            | ChainUpdate::ImmutableBlockRollback(block_data)
+            | ChainUpdate::ImmutableBlockRollForward(block_data)
             | ChainUpdate::Block(block_data)
             | ChainUpdate::BlockTip(block_data)
             | ChainUpdate::Rollback(block_data) => block_data,
@@ -78,7 +78,7 @@ impl ChainUpdate {
     #[must_use]
     pub fn immutable(&self) -> bool {
         match self {
-            ChainUpdate::ImmutableBlock(_) | ChainUpdate::ImmutableBlockRollback(_) => true,
+            ChainUpdate::ImmutableBlock(_) | ChainUpdate::ImmutableBlockRollForward(_) => true,
             ChainUpdate::Block(_) | ChainUpdate::BlockTip(_) | ChainUpdate::Rollback(_) => false,
         }
     }

@@ -11,7 +11,7 @@ use cardano_chain_follower::{
 };
 use clap::{arg, ArgAction, Command};
 use tokio::time::sleep;
-use tracing::{error, info, level_filters::LevelFilter};
+use tracing::{debug, error, info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 /// Process our CLI Arguments
@@ -58,19 +58,33 @@ async fn follow_for(network: Network) {
     //loop {
     info!(chain = network.to_string(), "Following");
     let mut follower =
-        ChainFollower::new(network, PointOrTip::Point(Point::Origin), PointOrTip::Tip);
+        ChainFollower::new(network, PointOrTip::Point(Point::Origin), PointOrTip::Tip).await;
 
     let mut current_era = String::new();
     let mut last_update: Option<ChainUpdate> = None;
     let mut prev_hash: Option<pallas_crypto::hash::Hash<32>> = None;
+    let mut last_immutable: bool = false;
+    let mut at_tip: bool = false;
+
     while let Some(chain_update) = follower.next().await {
+        match chain_update {
+            ChainUpdate::ImmutableBlock(_)
+            | ChainUpdate::ImmutableBlockRollForward(_)
+            | ChainUpdate::Block(_) => {},
+            ChainUpdate::BlockTip(_) | ChainUpdate::Rollback(_) => at_tip = true,
+        }
         match chain_update.block_data().decode() {
             Ok(block) => {
                 let this_era = block.era().to_string();
-                if current_era != this_era || !chain_update.immutable() {
+                if (current_era != this_era)
+                    || (chain_update.immutable() != last_immutable)
+                    || at_tip
+                {
                     current_era = this_era;
+                    last_immutable = chain_update.immutable();
                     info!(chain = network.to_string(), "{}", chain_update);
                 }
+
                 let this_prev_hash = match block {
                     pallas::ledger::traverse::MultiEraBlock::EpochBoundary(ref block) => {
                         Some(block.header.prev_block)
@@ -90,6 +104,9 @@ async fn follow_for(network: Network) {
                     _ => None,
                 };
                 if last_update.is_some() && prev_hash != this_prev_hash {
+                    debug!("last_update = {:?}", last_update);
+                    debug!("prev_hash = {:?}", prev_hash);
+                    debug!("this_prev_hash = {:?}", this_prev_hash);
                     error!(
                         chain = network.to_string(),
                         "Chain is broken: {}", chain_update
