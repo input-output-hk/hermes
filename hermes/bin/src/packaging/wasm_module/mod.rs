@@ -17,7 +17,7 @@ use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 use self::manifest::Manifest;
 use super::{
     copy_resource_dir_recursively_to_package, copy_resource_to_package, get_package_dir_hash,
-    get_package_file_hash, get_package_file_reader,
+    get_package_file_hash, get_package_file_reader, remove_item_from_package,
     resources::{bytes_resource::BytesResource, ResourceTrait},
     FileError,
 };
@@ -143,6 +143,7 @@ impl WasmModulePackage {
         &self, private_key: &PrivateKey, certificate: &Certificate,
     ) -> anyhow::Result<()> {
         let mut signature = if let Some(existing_signature) = self.get_signature()? {
+            remove_item_from_package(Self::AUTHOR_COSE_FILE, &self.package)?;
             existing_signature
         } else {
             let signature_payload = self.get_signature_payload()?;
@@ -527,6 +528,9 @@ mod tests {
         package
             .sign(&private_key, &certificate)
             .expect("Cannot sign package");
+        package
+            .sign(&private_key, &certificate)
+            .expect("Cannot sign package twice");
 
         assert!(package.get_signature().expect("Package error").is_some());
 

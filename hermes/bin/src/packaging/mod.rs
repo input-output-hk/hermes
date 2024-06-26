@@ -94,6 +94,12 @@ fn copy_resource_dir_recursively_to_package(
     errors.return_result(())
 }
 
+/// Remove file or the whole directory from the package.
+fn remove_item_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
+    package.unlink(name)?;
+    Ok(())
+}
+
 /// Get package file reader if present.
 /// Return error if not possible get a byte reader.
 fn get_package_file_reader(name: &str, package: &hdf5::Group) -> anyhow::Result<Option<impl Read>> {
@@ -211,6 +217,12 @@ mod tests {
 
         let expected_hash = Blake2b256::hash(file_content);
         assert_eq!(expected_hash, hash);
+
+        // Remove file from package
+        remove_item_from_package(file_1_name, &package).expect("Cannot remove file from package");
+        assert!(get_package_file_hash(file_1_name, &package)
+            .expect("Package file hash calculation failed")
+            .is_none());
     }
 
     #[test]
@@ -260,8 +272,8 @@ mod tests {
             .is_some());
 
         let hash = get_package_dir_hash(dir_name, &package)
-            .expect("Package file hash calculation failed")
-            .expect("Cannot get file_1 hash from package");
+            .expect("Package dir hash calculation failed")
+            .expect("Cannot get dir hash from package");
 
         let mut hasher = Blake2b256Hasher::new();
         hasher.update(child_dir_name.as_bytes());
@@ -274,5 +286,11 @@ mod tests {
         let expected_hash = hasher.finalize();
 
         assert_eq!(expected_hash, hash);
+
+        // Remove directory from package
+        remove_item_from_package(dir_name, &package).expect("Cannot remove dir from package");
+        assert!(get_package_dir_hash(dir_name, &package)
+            .expect("Package dir hash calculation failed")
+            .is_none());
     }
 }

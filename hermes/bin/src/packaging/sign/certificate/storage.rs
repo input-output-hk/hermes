@@ -1,29 +1,22 @@
 //! A concurrent certificates storage.
 
-use std::sync::OnceLock;
-
 use dashmap::DashMap;
+use once_cell::sync::Lazy;
 
 use crate::packaging::{hash::Blake2b256, sign::certificate::Certificate};
 
 /// Singleton `CertificateStorage` instance.
-static STORAGE: OnceLock<CertificateStorage> = OnceLock::new();
-
-/// Get singleton `CertificateStorage` instance.
-fn get() -> &'static CertificateStorage {
-    STORAGE.get_or_init(CertificateStorage::new)
-}
+static STORAGE: Lazy<CertificateStorage> = Lazy::new(CertificateStorage::new);
 
 /// Add new `Certificate` to the storage.
 #[allow(dead_code)]
 pub(crate) fn add_certificate(certificate: Certificate) -> anyhow::Result<()> {
-    get().insert(certificate)
+    STORAGE.insert(certificate)
 }
 
 /// Get `Certificate` from the storage.
-#[allow(dead_code)]
 pub(crate) fn get_certificate(hash: &Blake2b256) -> Option<Certificate> {
-    get().get(hash)
+    STORAGE.get(hash)
 }
 
 /// `Certificate`'s storage, implemented as a key-value store.
