@@ -230,9 +230,12 @@ mod tests {
 
         // Remove file from package
         remove_dir_from_package(file_1_name, &package).expect("Cannot remove file from package");
-        assert!(get_package_file_hash(file_1_name, &package)
-            .expect("Package file hash calculation failed")
-            .is_some());
+        assert!(
+            get_package_file_hash(file_1_name, &package)
+                .expect("Package file hash calculation failed")
+                .is_some(),
+            "Calling remove_dir_from_package on file does not make any effect"
+        );
         remove_file_from_package(file_1_name, &package).expect("Cannot remove file from package");
         assert!(get_package_file_hash(file_1_name, &package)
             .expect("Package file hash calculation failed")
@@ -307,7 +310,7 @@ mod tests {
             get_package_dir_hash(dir_name, &package)
                 .expect("Package dir hash calculation failed")
                 .is_some(),
-            "remove_file_from_package"
+            "Calling remove_file_from_package on directory does not make any effect"
         );
         remove_dir_from_package(dir_name, &package).expect("Cannot remove dir from package");
         assert!(get_package_dir_hash(dir_name, &package)
