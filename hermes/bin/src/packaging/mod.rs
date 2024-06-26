@@ -96,15 +96,16 @@ fn copy_resource_dir_recursively_to_package(
 
 /// Remove file from the package of.
 fn remove_file_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
-    if let Ok(_) = package.dataset(name) {
+    if package.dataset(name).is_ok() {
         package.unlink(name)?;
     }
     Ok(())
 }
 
 /// Remove directory from the package.
+#[allow(dead_code)]
 fn remove_dir_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
-    if let Ok(_) = package.group(name) {
+    if package.group(name).is_ok() {
         package.unlink(name)?;
     }
     Ok(())
