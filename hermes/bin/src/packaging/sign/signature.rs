@@ -147,24 +147,21 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
     ) -> anyhow::Result<()> {
         let empty_signature = Self::build_empty_cose_signature(certificate)?;
 
-        // sign with private key
-        let Some(new_signature) = self
-            .prepare_cose_sign_builder()?
-            .add_created_signature(empty_signature, &[], |data| private_key.sign(data))
-            .build()
-            .signatures
-            .into_iter()
-            .next()
-        else {
-            return Ok(());
-        };
-
         // check for duplicate
-        if !self
+        if self
             .cose_signatures
             .iter()
-            .any(|sign| sign.protected.header.key_id == new_signature.protected.header.key_id)
+            .any(|sign| sign.protected.header.key_id == empty_signature.protected.header.key_id)
         {
+            return Ok(());
+        }
+
+        // sign with private key
+        let cose_sign = self
+            .prepare_cose_sign_builder()?
+            .add_created_signature(empty_signature, &[], |data| private_key.sign(data))
+            .build();
+        if let Some(new_signature) = cose_sign.signatures.into_iter().next() {
             self.cose_signatures.push(new_signature);
         }
 
