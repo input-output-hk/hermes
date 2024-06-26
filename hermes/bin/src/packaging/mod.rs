@@ -94,9 +94,19 @@ fn copy_resource_dir_recursively_to_package(
     errors.return_result(())
 }
 
-/// Remove file or the whole directory from the package.
-fn remove_item_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
-    package.unlink(name)?;
+/// Remove file from the package of.
+fn remove_file_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
+    if let Ok(_) = package.dataset(name) {
+        package.unlink(name)?;
+    }
+    Ok(())
+}
+
+/// Remove directory from the package.
+fn remove_dir_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
+    if let Ok(_) = package.group(name) {
+        package.unlink(name)?;
+    }
     Ok(())
 }
 
@@ -219,7 +229,7 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove file from package
-        remove_item_from_package(file_1_name, &package).expect("Cannot remove file from package");
+        remove_file_from_package(file_1_name, &package).expect("Cannot remove file from package");
         assert!(get_package_file_hash(file_1_name, &package)
             .expect("Package file hash calculation failed")
             .is_none());
@@ -288,7 +298,7 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove directory from package
-        remove_item_from_package(dir_name, &package).expect("Cannot remove dir from package");
+        remove_dir_from_package(dir_name, &package).expect("Cannot remove dir from package");
         assert!(get_package_dir_hash(dir_name, &package)
             .expect("Package dir hash calculation failed")
             .is_none());
