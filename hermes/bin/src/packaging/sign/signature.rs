@@ -148,13 +148,26 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
         let empty_signature = Self::build_empty_cose_signature(certificate)?;
 
         // sign with private key
-        let signature = self
+        let Some(new_signature) = self
             .prepare_cose_sign_builder()?
             .add_created_signature(empty_signature, &[], |data| private_key.sign(data))
             .build()
-            .signatures;
+            .signatures
+            .into_iter()
+            .next()
+        else {
+            return Ok(());
+        };
 
-        self.cose_signatures.extend(signature);
+        // check for duplicate
+        if !self
+            .cose_signatures
+            .iter()
+            .any(|sign| sign.protected.header.key_id == new_signature.protected.header.key_id)
+        {
+            self.cose_signatures.push(new_signature);
+        }
+
         Ok(())
     }
 
@@ -323,6 +336,11 @@ mod tests {
         signature
             .add_sign(&private_key, &certificate)
             .expect("Failed to add signature.");
+        assert_eq!(signature.cose_signatures.len(), 1);
+        signature
+            .add_sign(&private_key, &certificate)
+            .expect("Failed to add signature twice.");
+        assert_eq!(signature.cose_signatures.len(), 1);
 
         let another_private_key = PrivateKey::from_str(&format!(
             "{}\n{}\n{}",
