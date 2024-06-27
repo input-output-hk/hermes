@@ -3,6 +3,7 @@ abnf
 ABNF
 addrr
 adminer
+alpn
 apskhem
 asyncio
 auditability
@@ -166,6 +167,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed
@@ -212,6 +214,7 @@ WASI
 wasmtime
 webasm
 webassembly
+webpki
 WORKDIR
 xprivate
 xprv
