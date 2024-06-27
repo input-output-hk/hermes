@@ -272,7 +272,7 @@ fn process_block_chain_update(
     block_data: &cardano_chain_follower::MultiEraBlockData,
     event_subscriptions: &EventSubscriptions, immutable: bool, rollback: bool, tip: bool,
 ) -> anyhow::Result<u64> {
-    let decoded_block_data = block_data.decode().context("Decode block")?;
+    let decoded_block_data = block_data.decode();
     let block_number = decoded_block_data.number();
 
     // We send block data first.

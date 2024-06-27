@@ -272,6 +272,6 @@ mod test {
         )
         .expect("read");
 
-        assert_eq!(block_data.decode().expect("valid block").slot(), 49_075_522);
+        assert_eq!(block_data.decode().slot(), 49_075_522);
     }
 }

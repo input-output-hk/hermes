@@ -170,10 +170,7 @@ impl Host for HermesRuntimeContext {
 
         match super::read_block(net, at) {
             Ok(block_data) => {
-                let Ok(decoded_block) = block_data.decode() else {
-                    // Shouldn't happen, but if it does say the Slot is invalid.
-                    return Ok(Err(FetchError::InvalidSlot));
-                };
+                let decoded_block = block_data.decode();
                 let txs = decoded_block.txs();
                 let Some(txn) = txs.get(offset as usize) else {
                     return Ok(Err(FetchError::InvalidTxn));
