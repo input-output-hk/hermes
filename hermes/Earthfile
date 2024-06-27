@@ -16,7 +16,12 @@ builder:
 
     RUN mkdir /wasm
     COPY --dir wasm+wasi-src/wasi /wasm/wasi
-    # Compiled WASM component for benchmarks
+
+# benchmark-builder : Builder that includes built WASM Modules for benchmarks to run against.
+benchmark-builder:
+    FROM +builder
+
+    # Compiled WASM component for benchmarks - Should not be in the base builder.
     COPY stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
 
 # bindings-expand : Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
@@ -51,7 +56,7 @@ all-hosts-check:
 # build : Run build using the most efficient host tooling
 # CI Automated Entry point.
 build:
-    FROM +builder
+    FROM +benchmark-builder
 
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
