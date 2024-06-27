@@ -12,7 +12,7 @@ use crate::network::Network;
 pub enum Error {
     /// Data encoding/decoding error.
     #[error("Codec error: {0:?}")]
-    Codec(String),
+    Codec(pallas::ledger::traverse::Error),
     /// Client connection error.
     #[error("Client error: {0:?}")]
     Client(pallas::network::facades::Error),
