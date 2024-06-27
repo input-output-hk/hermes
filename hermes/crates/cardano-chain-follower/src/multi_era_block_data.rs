@@ -12,41 +12,35 @@ pub struct MultiEraBlockData {
 
 impl MultiEraBlockData {
     /// Creates a new `MultiEraBlockData` from the given bytes.
-    #[must_use]
-    pub fn new(data: Vec<u8>) -> Self {
-        MultiEraBlockData { data }
+    ///
+    /// # Errors
+    ///
+    /// If the given bytes cannot be decoded as a multi-era block, an error is returned.
+    ///
+    pub fn new(data: Vec<u8>) -> Result<Self> {
+        let tmp_block = MultiEraBlock::decode(&data).map_err(Error::Codec)?;
+        drop(tmp_block);
+        Ok(MultiEraBlockData { data })
     }
 
     /// Decodes the data into a multi-era block.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns Err if the block's era couldn't be decided or if the encoded data is
-    /// invalid.
-    pub fn decode(&self) -> Result<MultiEraBlock> {
-        let block = MultiEraBlock::decode(&self.data).map_err(Error::Codec)?;
+    /// If the data has changed between the creation of this `MultiEraBlockData` and now, it may panic.
+    pub fn decode(&self) -> MultiEraBlock {
+        #[allow(clippy::unwrap_used)]
+        let block = MultiEraBlock::decode(&self.data)
+            .map_err(Error::Codec)
+            .unwrap();
 
-        Ok(block)
+        block
     }
 
     /// Consumes the [`MultiEraBlockData`] returning the block data raw bytes.
     #[must_use]
     pub fn into_raw_data(self) -> Vec<u8> {
         self.data
-    }
-
-    /// Validate a multi-era block.
-    ///
-    /// This does not execute Plutus scripts nor validates ledger state.
-    /// It only checks that the block is correctly formatted for its era.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if the block's era couldn't be decided or if the encoded data is invalid.
-    pub fn validate(&self) -> Result<()> {
-        self.decode()?;
-
-        Ok(())
     }
 }
 

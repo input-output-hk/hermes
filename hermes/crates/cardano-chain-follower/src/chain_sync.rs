@@ -207,7 +207,7 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                     .await
                     .with_context(|| "Fetching block data")?;
 
-                let live_block_data = MultiEraBlockData::new(block_data);
+                let live_block_data = MultiEraBlockData::new(block_data)?;
 
                 // Add the live block to the head of the live chain
                 live_chain_insert(
@@ -306,8 +306,8 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
         .with_context(|| "Requesting Block Range")?;
 
     while let Some(block_data) = peer.blockfetch().recv_while_streaming().await? {
-        let block = MultiEraBlockData::new(block_data);
-        let decoded_block = block.decode().with_context(|| "Decoding Block")?;
+        let block = MultiEraBlockData::new(block_data)?;
+        let decoded_block = block.decode();
         let slot = decoded_block.slot();
         let hash = decoded_block.hash();
         let live_block = LiveBlock::new(Point::new(slot, hash.to_vec()), block);

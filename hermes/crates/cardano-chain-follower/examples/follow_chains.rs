@@ -70,53 +70,46 @@ async fn follow_for(network: Network) {
         if chain_update.tip {
             reached_tip = true;
         }
-        match chain_update.block_data().decode() {
-            Ok(block) => {
-                let this_era = block.era().to_string();
-                if (current_era != this_era)
-                    || (chain_update.immutable() != last_immutable)
-                    || reached_tip
-                {
-                    current_era = this_era;
-                    last_immutable = chain_update.immutable();
-                    info!(chain = network.to_string(), "{}", chain_update);
-                }
 
-                let this_prev_hash = match block {
-                    pallas::ledger::traverse::MultiEraBlock::EpochBoundary(ref block) => {
-                        Some(block.header.prev_block)
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(ref block, _) => {
-                        block.header.header_body.prev_hash
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::Babbage(ref block) => {
-                        block.header.header_body.prev_hash
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::Byron(ref block) => {
-                        Some(block.header.prev_block)
-                    },
-                    pallas::ledger::traverse::MultiEraBlock::Conway(ref block) => {
-                        block.header.header_body.prev_hash
-                    },
-                    _ => None,
-                };
-                if last_update.is_some() && prev_hash != this_prev_hash {
-                    debug!("last_update = {}", last_update.unwrap());
-                    debug!("prev_hash = {:?}", prev_hash);
-                    debug!("this_prev_hash = {:?}", this_prev_hash);
-                    error!(
-                        chain = network.to_string(),
-                        "Chain is broken: {}", chain_update
-                    );
-                    panic!("DEAD");
-                }
-
-                prev_hash = Some(block.hash());
-            },
-            Err(error) => {
-                error!("Failed to decode block data : {}", error);
-            },
+        let block = chain_update.block_data().decode();
+        let this_era = block.era().to_string();
+        if (current_era != this_era) || (chain_update.immutable() != last_immutable) || reached_tip
+        {
+            current_era = this_era;
+            last_immutable = chain_update.immutable();
+            info!(chain = network.to_string(), "{}", chain_update);
         }
+
+        let this_prev_hash = match block {
+            pallas::ledger::traverse::MultiEraBlock::EpochBoundary(ref block) => {
+                Some(block.header.prev_block)
+            },
+            pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(ref block, _) => {
+                block.header.header_body.prev_hash
+            },
+            pallas::ledger::traverse::MultiEraBlock::Babbage(ref block) => {
+                block.header.header_body.prev_hash
+            },
+            pallas::ledger::traverse::MultiEraBlock::Byron(ref block) => {
+                Some(block.header.prev_block)
+            },
+            pallas::ledger::traverse::MultiEraBlock::Conway(ref block) => {
+                block.header.header_body.prev_hash
+            },
+            _ => None,
+        };
+        if last_update.is_some() && prev_hash != this_prev_hash {
+            debug!("last_update = {}", last_update.unwrap());
+            debug!("prev_hash = {:?}", prev_hash);
+            debug!("this_prev_hash = {:?}", this_prev_hash);
+            error!(
+                chain = network.to_string(),
+                "Chain is broken: {}", chain_update
+            );
+            panic!("DEAD");
+        }
+
+        prev_hash = Some(block.hash());
         last_update = Some(chain_update);
     }
 

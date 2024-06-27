@@ -80,14 +80,11 @@ impl ChainFollower {
 
         if let Some(follower) = self.mithril_follower.as_mut() {
             if let Some(next) = follower.next() {
-                if let Ok(decoded_block) = next.decode() {
-                    let point = Point::new(decoded_block.slot(), decoded_block.hash().to_vec());
-                    let update =
-                        ChainUpdate::new(chain_update::Type::ImmutableBlock, point, false, next);
-                    return Some(update);
-                }
-                error!("Failed to decode block after: {:?}", point);
-                return None;
+                let decoded_block = next.decode();
+                let point = Point::new(decoded_block.slot(), decoded_block.hash().to_vec());
+                let update =
+                    ChainUpdate::new(chain_update::Type::ImmutableBlock, point, false, next);
+                return Some(update);
             }
         }
         None
@@ -109,11 +106,10 @@ impl ChainFollower {
     /// Update the current Point, and return `false` if this fails.
     fn update_current(&mut self, update: &Option<ChainUpdate>) -> bool {
         if let Some(update) = update {
-            if let Ok(decoded) = update.block_data().decode() {
-                let point = Point::new(decoded.slot(), decoded.hash().to_vec());
-                self.current = PointOrTip::Point(point);
-                return true;
-            }
+            let decoded = update.block_data().decode();
+            let point = Point::new(decoded.slot(), decoded.hash().to_vec());
+            self.current = PointOrTip::Point(point);
+            return true;
         }
         false
     }

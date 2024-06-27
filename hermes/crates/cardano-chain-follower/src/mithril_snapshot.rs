@@ -18,14 +18,14 @@ impl Iterator for MithrilSnapshotIterator {
     type Item = MultiEraBlockData;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(maybe_block) = self.inner.next() {
-            match maybe_block {
-                Ok(block) => return Some(MultiEraBlockData::new(block)),
-                Err(error) => {
-                    error!("Error while fetching a block from the snapshot: {error}");
-                },
+        if let Some(Ok(block)) = self.inner.next() {
+            if let Ok(block_data) = MultiEraBlockData::new(block) {
+                return Some(block_data);
             }
         };
+
+        error!("Error while fetching a block from the snapshot");
+
         None
     }
 }
