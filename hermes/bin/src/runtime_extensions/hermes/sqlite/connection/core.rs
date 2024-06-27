@@ -5,7 +5,7 @@
 use std::ptr::null_mut;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close_v2, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
+    sqlite3, sqlite3_close, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
     sqlite3_stmt, SQLITE_OK,
 };
 use stringzilla::StringZilla;
@@ -20,7 +20,7 @@ pub(crate) fn validate_sql(sql: &str) -> bool {
 
 /// Closes a database connection, destructor for `sqlite3`.
 pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
-    let rc = unsafe { sqlite3_close_v2(db_ptr) };
+    let rc = unsafe { sqlite3_close(db_ptr) };
 
     if rc == SQLITE_OK {
         Ok(())
@@ -44,11 +44,9 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
             .ok()
     };
 
-    message.map(|message| {
-        ErrorInfo {
-            code: error_code,
-            message,
-        }
+    message.map(|message| ErrorInfo {
+        code: error_code,
+        message,
     })
 }
 
