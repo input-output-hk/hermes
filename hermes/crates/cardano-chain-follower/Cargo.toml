@@ -37,6 +37,7 @@ crossbeam-skiplist.workspace = true
 strum.workspace = true
 blake3.workspace = true
 ignore.workspace = true
+ouroboros.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

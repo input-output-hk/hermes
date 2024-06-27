@@ -5,7 +5,7 @@ use std::fmt::Display;
 use pallas::network::miniprotocols::Point;
 use strum::Display;
 
-use crate::multi_era_block_data::MultiEraBlockData;
+use crate::multi_era_block_data::MultiEraBlock;
 
 /// Enum of chain updates received by the follower.
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -30,13 +30,13 @@ pub struct ChainUpdate {
     /// Is this the tip of the chain?
     pub tip: bool,
     /// What is the new data?
-    pub data: MultiEraBlockData,
+    pub data: MultiEraBlock,
 }
 
 impl ChainUpdate {
     /// Creates a new chain update.
     #[must_use]
-    pub fn new(update: Type, point: Point, tip: bool, data: MultiEraBlockData) -> Self {
+    pub fn new(update: Type, point: Point, tip: bool, data: MultiEraBlock) -> Self {
         Self {
             point,
             update,
@@ -47,7 +47,7 @@ impl ChainUpdate {
 
     /// Gets the chain update's block data.
     #[must_use]
-    pub fn block_data(&self) -> &MultiEraBlockData {
+    pub fn block_data(&self) -> &MultiEraBlock {
         &self.data
     }
 

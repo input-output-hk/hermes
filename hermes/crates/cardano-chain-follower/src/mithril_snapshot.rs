@@ -4,9 +4,7 @@ use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
 use tracing::error;
 
-use crate::{
-    mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlockData,
-};
+use crate::{mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlock};
 
 /// Wraps the iterator type returned by Pallas.
 pub(crate) struct MithrilSnapshotIterator {
@@ -15,13 +13,13 @@ pub(crate) struct MithrilSnapshotIterator {
 }
 
 impl Iterator for MithrilSnapshotIterator {
-    type Item = MultiEraBlockData;
+    type Item = MultiEraBlock;
 
     #[allow(clippy::panic)]
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(maybe_block) = self.inner.next() {
             if let Ok(block) = maybe_block {
-                if let Ok(block_data) = MultiEraBlockData::new(block) {
+                if let Ok(block_data) = MultiEraBlock::new(block) {
                     return Some(block_data);
                 }
                 error!("Error decoding a block from the snapshot");
@@ -103,7 +101,7 @@ impl MithrilSnapshot {
     }
 
     /// Read a single block from a known point.
-    pub(crate) fn read_block_at(&self, point: &Point) -> Option<MultiEraBlockData> {
+    pub(crate) fn read_block_at(&self, point: &Point) -> Option<MultiEraBlock> {
         if let Some(mut iterator) = self.try_read_blocks_from_point(point) {
             let block = iterator.next();
             return block;
