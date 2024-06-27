@@ -17,14 +17,18 @@ pub(crate) struct MithrilSnapshotIterator {
 impl Iterator for MithrilSnapshotIterator {
     type Item = MultiEraBlockData;
 
+    #[allow(clippy::panic)]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(Ok(block)) = self.inner.next() {
-            if let Ok(block_data) = MultiEraBlockData::new(block) {
-                return Some(block_data);
+        if let Some(maybe_block) = self.inner.next() {
+            if let Ok(block) = maybe_block {
+                if let Ok(block_data) = MultiEraBlockData::new(block) {
+                    return Some(block_data);
+                }
+                error!("Error decoding a block from the snapshot");
+            } else {
+                error!("Error while fetching a block from the snapshot");
             }
         };
-
-        error!("Error while fetching a block from the snapshot");
 
         None
     }
