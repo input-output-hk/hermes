@@ -1,11 +1,12 @@
 //! x.509 certificate implementation.
 
+pub(crate) mod storage;
+
 use std::path::Path;
 
 use x509_cert::der::{DecodePem, Encode};
 
-use super::{hash::Blake2b256, keys::PublicKey};
-use crate::packaging::FileError;
+use crate::packaging::{hash::Blake2b256, sign::keys::PublicKey, FileError};
 
 /// Certificate decoding from string error.
 #[derive(thiserror::Error, Debug)]
@@ -14,6 +15,7 @@ pub(crate) struct CertificateDecodingError;
 
 /// x.509 cert instance.
 /// Wrapper over `x509_cert::Certificate`
+#[derive(Clone, Debug)]
 pub(crate) struct Certificate(x509_cert::Certificate);
 
 impl Certificate {
@@ -39,7 +41,9 @@ impl Certificate {
             .subject_public_key_info
             .subject_public_key;
 
-        PublicKey::from_bytes(subject_public_key.raw_bytes())
+        PublicKey::from_bytes(subject_public_key.raw_bytes()).map_err(|err| {
+            anyhow::anyhow!("Failed to decode certificate subject public key. {err}")
+        })
     }
 
     /// `Blake2b256` hash of the certificate DER encoded bytes.
