@@ -5,12 +5,12 @@ use pallas::network::miniprotocols::{
     Point,
 };
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     chain_sync_live_chains::get_live_block_after,
     chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
-    chain_update::ChainUpdate,
+    chain_update::{self, ChainUpdate},
     mithril_snapshot::{MithrilSnapshot, MithrilSnapshotIterator},
     network::Network,
     point_or_tip::PointOrTip,
@@ -80,8 +80,14 @@ impl ChainFollower {
 
         if let Some(follower) = self.mithril_follower.as_mut() {
             if let Some(next) = follower.next() {
-                let multi_era_block = ChainUpdate::ImmutableBlock(next);
-                return Some(multi_era_block);
+                if let Ok(decoded_block) = next.decode() {
+                    let point = Point::new(decoded_block.slot(), decoded_block.hash().to_vec());
+                    let update =
+                        ChainUpdate::new(chain_update::Type::ImmutableBlock, point, false, next);
+                    return Some(update);
+                }
+                error!("Failed to decode block after: {:?}", point);
+                return None;
             }
         }
         None
@@ -90,11 +96,14 @@ impl ChainFollower {
     /// If we can, get the next update from the mithril snapshot.
     #[allow(clippy::unused_self)]
     fn next_from_live_chain(&mut self, point: &Point) -> Option<ChainUpdate> {
-        let live_block = get_live_block_after(self.chain, point);
-        if let Some(live_block) = live_block {
-            return Some(ChainUpdate::Block(live_block.data));
-        }
-        None
+        get_live_block_after(self.chain, point).map(|live_block| {
+            ChainUpdate::new(
+                chain_update::Type::Block,
+                live_block.point,
+                false,
+                live_block.data,
+            )
+        })
     }
 
     /// Update the current Point, and return `false` if this fails.
@@ -112,18 +121,32 @@ impl ChainFollower {
     /// Get an update from the live chain status follower.
     async fn update_live_event(&mut self) -> Option<ChainUpdate> {
         loop {
+            debug!(
+                "Waiting for update from blockchain. Last Block: {:?}",
+                self.current
+            );
             let update = self.sync_updates.recv().await;
 
             match update {
-                Ok(update) => match update {
-                    ChainUpdate::ImmutableBlock(_) => error!(
-                        chain = self.chain.to_string(),
-                        "Received an ImmutableBlock update, these are not Live Updates."
-                    ),
-                    ChainUpdate::ImmutableBlockRollForward(_)
-                    | ChainUpdate::Block(_)
-                    | ChainUpdate::BlockTip(_)
-                    | ChainUpdate::Rollback(_) => return Some(update),
+                Ok(update) => {
+                    if update.update == chain_update::Type::ImmutableBlock {
+                        // Shouldn't happen, log if it does, but otherwise ignore it.
+                        error!(
+                            chain = self.chain.to_string(),
+                            "Received an ImmutableBlock update, these are not Live Updates.  Ignored."
+                        );
+                    } else {
+                        // Due to the small buffering window, its possible we already processed a block
+                        // in the live queue from the live in-memory chain.
+                        // This is not an error, so just ignore that entry in the queue.
+                        if update.update != chain_update::Type::Rollback
+                            && self.current >= update.point
+                        {
+                            debug!("Discarding: {}", update);
+                            continue;
+                        }
+                        return Some(update);
+                    }
                 },
                 Err(error) => {
                     match error {

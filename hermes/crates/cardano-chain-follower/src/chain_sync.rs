@@ -11,6 +11,7 @@ use crate::{
         live_chain_length, purge_latest_live_point, purge_live_chain, PurgeType,
     },
     chain_sync_ready::{get_chain_update_tx_queue, wait_for_sync_ready, SyncReadyWaiter},
+    chain_update,
     error::{Error, Result},
     live_block::LiveBlock,
     mithril_snapshot::MithrilSnapshot,
@@ -39,7 +40,7 @@ use tracing::{debug, error};
 /// The maximum number of seconds we wait for a node to connect.
 const MAX_NODE_CONNECT_TIME_SECS: u64 = 2;
 
-/// The maximum number of times we wait for a node to connect.
+/// The maximum number of times we wait for a nodeChainUpdate to connect.
 /// Currently set to never give up.
 const MAX_NODE_CONNECT_RETRIES: u64 = 5;
 
@@ -217,6 +218,8 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 let reported_tip = PointOrTip::Point(tip.0);
                 let block_point = PointOrTip::Point(point.clone());
 
+                let mut update_type = chain_update::Type::Block;
+
                 // IF its a rollback block, report it as such.
                 if let Some(rollback) = block_is_rollback.take() {
                     // If the live chain is empty, rollback doesn't make sense.
@@ -245,23 +248,16 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                             );
                         }
 
-                        let update = ChainUpdate::Rollback(live_block_data);
-                        send_update(chain, &update_sender, &block_point, update);
-
-                        continue;
+                        update_type = chain_update::Type::Rollback;
                     }
                 }
 
-                let update = if reported_tip <= block_point {
-                    // We are behind the tip.
-                    // Tell the follower to roll forward.
-                    ChainUpdate::BlockTip(live_block_data)
-                } else {
-                    // We are ahead of the tip.
-                    // Tell the follower to roll back.
-                    ChainUpdate::Block(live_block_data)
-                };
-
+                let update = ChainUpdate::new(
+                    update_type,
+                    point,
+                    reported_tip <= block_point,
+                    live_block_data,
+                );
                 send_update(chain, &update_sender, &block_point, update);
             },
             chainsync::NextResponse::RollBackward(point, tip) => {
@@ -377,7 +373,12 @@ async fn live_sync_backfill_and_purge(
 
         if let Some(block_data) = MithrilSnapshot::new(cfg.chain).read_block_at(&point) {
             // Get Immutable block that represents this point
-            let update = ChainUpdate::ImmutableBlockRollForward(block_data);
+            let update = ChainUpdate::new(
+                chain_update::Type::ImmutableBlockRollForward,
+                point.clone(),
+                true,
+                block_data,
+            );
             let update_point = PointOrTip::Point(point);
             send_update(cfg.chain, &update_sender, &update_point, update);
         } else {

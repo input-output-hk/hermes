@@ -2,32 +2,68 @@
 
 use std::fmt::Display;
 
+use pallas::network::miniprotocols::Point;
+use strum::Display;
+
 use crate::multi_era_block_data::MultiEraBlockData;
 
 /// Enum of chain updates received by the follower.
-#[derive(Debug, Clone)]
-pub enum ChainUpdate {
+#[derive(Debug, Clone, Display, PartialEq)]
+pub enum Type {
     /// Immutable Block from the immutable part of the blockchain.
-    ImmutableBlock(MultiEraBlockData),
+    ImmutableBlock,
     /// A new part of the chain has become immutable (Roll-forward).
-    ImmutableBlockRollForward(MultiEraBlockData),
+    ImmutableBlockRollForward,
     /// New block inserted on chain.
-    Block(MultiEraBlockData),
-    /// New block inserted on chain.
-    BlockTip(MultiEraBlockData),
+    Block,
     /// Chain rollback to the given block.
-    Rollback(MultiEraBlockData),
+    Rollback,
+}
+
+/// Actual Chain Update itself.
+#[derive(Clone)]
+pub struct ChainUpdate {
+    /// What point is this chain update for?
+    pub point: Point,
+    /// What kind of update is this?
+    pub update: Type,
+    /// Is this the tip of the chain?
+    pub tip: bool,
+    /// What is the new data?
+    pub data: MultiEraBlockData,
+}
+
+impl ChainUpdate {
+    /// Creates a new chain update.
+    #[must_use]
+    pub fn new(update: Type, point: Point, tip: bool, data: MultiEraBlockData) -> Self {
+        Self {
+            point,
+            update,
+            tip,
+            data,
+        }
+    }
+
+    /// Gets the chain update's block data.
+    #[must_use]
+    pub fn block_data(&self) -> &MultiEraBlockData {
+        &self.data
+    }
+
+    /// Gets the chain update's block data.
+    #[must_use]
+    pub fn immutable(&self) -> bool {
+        match self.update {
+            Type::ImmutableBlock | Type::ImmutableBlockRollForward => true,
+            Type::Block | Type::Rollback => false,
+        }
+    }
 }
 
 impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let block_type = match self {
-            Self::ImmutableBlock(_) => "Immutable",
-            Self::ImmutableBlockRollForward(_) => "Immutable Chain Roll Forward",
-            Self::Block(_) => "Live",
-            Self::BlockTip(_) => "Tip",
-            Self::Rollback(_) => "Rollback",
-        };
+        let block_type = self.update.to_string();
 
         let decoded_block = self.block_data().decode();
         match decoded_block {
@@ -58,28 +94,5 @@ impl Display for ChainUpdate {
             },
         }
         Ok(())
-    }
-}
-
-impl ChainUpdate {
-    /// Gets the chain update's block data.
-    #[must_use]
-    pub fn block_data(&self) -> &MultiEraBlockData {
-        match self {
-            ChainUpdate::ImmutableBlock(block_data)
-            | ChainUpdate::ImmutableBlockRollForward(block_data)
-            | ChainUpdate::Block(block_data)
-            | ChainUpdate::BlockTip(block_data)
-            | ChainUpdate::Rollback(block_data) => block_data,
-        }
-    }
-
-    /// Gets the chain update's block data.
-    #[must_use]
-    pub fn immutable(&self) -> bool {
-        match self {
-            ChainUpdate::ImmutableBlock(_) | ChainUpdate::ImmutableBlockRollForward(_) => true,
-            ChainUpdate::Block(_) | ChainUpdate::BlockTip(_) | ChainUpdate::Rollback(_) => false,
-        }
     }
 }

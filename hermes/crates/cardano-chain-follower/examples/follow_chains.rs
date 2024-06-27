@@ -64,21 +64,18 @@ async fn follow_for(network: Network) {
     let mut last_update: Option<ChainUpdate> = None;
     let mut prev_hash: Option<pallas_crypto::hash::Hash<32>> = None;
     let mut last_immutable: bool = false;
-    let mut at_tip: bool = false;
+    let mut reached_tip = false; // After we reach TIP we show all block we process.
 
     while let Some(chain_update) = follower.next().await {
-        match chain_update {
-            ChainUpdate::ImmutableBlock(_)
-            | ChainUpdate::ImmutableBlockRollForward(_)
-            | ChainUpdate::Block(_) => {},
-            ChainUpdate::BlockTip(_) | ChainUpdate::Rollback(_) => at_tip = true,
+        if chain_update.tip {
+            reached_tip = true;
         }
         match chain_update.block_data().decode() {
             Ok(block) => {
                 let this_era = block.era().to_string();
                 if (current_era != this_era)
                     || (chain_update.immutable() != last_immutable)
-                    || at_tip
+                    || reached_tip
                 {
                     current_era = this_era;
                     last_immutable = chain_update.immutable();
@@ -104,7 +101,7 @@ async fn follow_for(network: Network) {
                     _ => None,
                 };
                 if last_update.is_some() && prev_hash != this_prev_hash {
-                    debug!("last_update = {:?}", last_update);
+                    debug!("last_update = {}", last_update.unwrap());
                     debug!("prev_hash = {:?}", prev_hash);
                     debug!("this_prev_hash = {:?}", this_prev_hash);
                     error!(

@@ -29,6 +29,22 @@ impl PartialOrd for PointOrTip {
     }
 }
 
+// Allows us to compare a PointOrTip against a Point directly (Just the slot#).
+impl PartialEq<Point> for PointOrTip {
+    // Equality ONLY checks the Slot#
+    fn eq(&self, other: &Point) -> bool {
+        Some(Ordering::Equal) == self.partial_cmp(other)
+    }
+}
+
+impl PartialOrd<Point> for PointOrTip {
+    /// Compare a `PointOrTip` to a `Point` by their points.
+    /// Only checks the Slot#.
+    fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
+        self.partial_cmp(&PointOrTip::Point(other.clone()))
+    }
+}
+
 impl Ord for PointOrTip {
     /// Compare two `PointOrTips` by their points.
     /// Only checks the Slot#.

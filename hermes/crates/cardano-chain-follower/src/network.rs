@@ -4,6 +4,7 @@ use std::{ffi::OsStr, path::PathBuf, str::FromStr};
 
 use crate::error::Error;
 
+use chrono::{DateTime, Utc};
 use pallas::{
     ledger::traverse::wellknown::GenesisValues,
     network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC},
@@ -139,12 +140,33 @@ impl Network {
 
     /// Return genesis values for given network
     #[must_use]
-    pub fn genesis_values(self) -> Option<GenesisValues> {
+    pub fn genesis_values(self) -> GenesisValues {
         match self {
-            Network::Mainnet => GenesisValues::from_magic(MAINNET_MAGIC),
-            Network::Preprod => GenesisValues::from_magic(PRE_PRODUCTION_MAGIC),
-            Network::Preview => GenesisValues::from_magic(PREVIEW_MAGIC),
+            Network::Mainnet => GenesisValues::mainnet(),
+            Network::Preprod => GenesisValues::preprod(),
+            Network::Preview => GenesisValues::preview(),
         }
+    }
+
+    /// Convert a given slot# to its Wall Time for a Blockchain network.
+    #[must_use]
+    pub fn slot_to_time(&self, slot: u64) -> DateTime<Utc> {
+        let genesis = self.genesis_values();
+        let wall_clock = genesis.slot_to_wallclock(slot);
+
+        let raw_time: i64 = wall_clock.try_into().unwrap_or(std::i64::MAX);
+        DateTime::from_timestamp(raw_time, 0).unwrap_or(DateTime::<Utc>::MAX_UTC)
+    }
+
+    /// Convert an arbitrary time to a slot.
+    ///
+    /// If the given time predates the blockchain, will return None.
+    ///
+    /// The Slot does not have to be a valid slot present in the blockchain.
+    #[must_use]
+    pub fn time_to_slot(&self, _time: DateTime<Utc>) -> Option<u64> {
+        // TODO: Implement this, for now just return None.
+        None
     }
 }
 
