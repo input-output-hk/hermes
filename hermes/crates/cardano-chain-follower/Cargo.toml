@@ -43,6 +43,7 @@ blake3.workspace = true
 rayon.workspace = true
 ignore.workspace = true
 hex.workspace = true
+ouroboros.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

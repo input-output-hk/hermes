@@ -1,51 +1,56 @@
 //! Multi Era CBOR Encoded Block Data
 
-use crate::error::{Error, Result};
-use pallas::ledger::traverse::MultiEraBlock;
+use std::sync::Arc;
 
-/// CBOR encoded data of a multi-era block.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
-pub struct MultiEraBlockData {
+use ouroboros::self_referencing;
+
+use crate::error::Error;
+
+/// Self-referencing CBOR encoded data of a multi-era block.
+#[self_referencing]
+#[derive(Debug)]
+struct SelfReferencedMultiEraBlock {
     /// The CBOR encoded data of a multi-era block.
-    data: Vec<u8>,
+    raw_data: Vec<u8>,
+
+    /// The decoded multi-era block.
+    /// References the `raw_data` field.
+    #[borrows(raw_data)]
+    #[covariant]
+    block: Result<pallas::ledger::traverse::MultiEraBlock<'this>, pallas::ledger::traverse::Error>,
 }
 
-impl MultiEraBlockData {
+/// Multi-era block.
+#[derive(Clone, Debug)]
+pub struct MultiEraBlock(Arc<SelfReferencedMultiEraBlock>);
+
+impl MultiEraBlock {
     /// Creates a new `MultiEraBlockData` from the given bytes.
     ///
     /// # Errors
     ///
     /// If the given bytes cannot be decoded as a multi-era block, an error is returned.
-    ///
-    pub fn new(data: Vec<u8>) -> Result<Self> {
-        let tmp_block = MultiEraBlock::decode(&data).map_err(Error::Codec)?;
-        drop(tmp_block);
-        Ok(MultiEraBlockData { data })
+    pub fn new<'a>(raw_data: Vec<u8>) -> Result<Self, Error> {
+        let builder = SelfReferencedMultiEraBlockBuilder {
+            raw_data,
+            block_builder: |raw_data| pallas::ledger::traverse::MultiEraBlock::decode(raw_data),
+        };
+        let self_ref_block = builder.build();
+        if let Err(err) = &self_ref_block.borrow_block() {
+            return Err(Error::Codec(err.to_string()));
+        }
+        Ok(Self(Arc::new(self_ref_block)))
     }
 
     /// Decodes the data into a multi-era block.
     ///
     /// # Panics
     ///
-    /// If the data has changed between the creation of this `MultiEraBlockData` and now, it may panic.
-    pub fn decode(&self) -> MultiEraBlock {
+    /// If the data has changed between the creation of this `MultiEraBlockData` and now,
+    /// it may panic.
+    pub fn decode(&self) -> &pallas::ledger::traverse::MultiEraBlock {
         #[allow(clippy::unwrap_used)]
-        let block = MultiEraBlock::decode(&self.data)
-            .map_err(Error::Codec)
-            .unwrap();
-
-        block
-    }
-
-    /// Consumes the [`MultiEraBlockData`] returning the block data raw bytes.
-    #[must_use]
-    pub fn into_raw_data(self) -> Vec<u8> {
-        self.data
-    }
-}
-
-impl AsRef<[u8]> for MultiEraBlockData {
-    fn as_ref(&self) -> &[u8] {
-        &self.data
+        // We checked the block before during construction, so it is safe to unwrap.
+        self.0.borrow_block().as_ref().unwrap()
     }
 }

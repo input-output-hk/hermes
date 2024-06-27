@@ -4,7 +4,7 @@
 
 use std::cmp::Ordering;
 
-use crate::MultiEraBlockData;
+use crate::MultiEraBlock;
 
 use pallas::network::miniprotocols::Point;
 
@@ -14,12 +14,12 @@ pub(crate) struct LiveBlock {
     /// The Blocks location on the Blockchain
     pub(crate) point: Point,
     /// The data of the block itself.
-    pub(crate) data: MultiEraBlockData,
+    pub(crate) data: MultiEraBlock,
 }
 
 impl LiveBlock {
     /// Create a new `LiveBlock`.
-    pub fn new(point: Point, data: MultiEraBlockData) -> Self {
+    pub fn new(point: Point, data: MultiEraBlock) -> Self {
         Self { point, data }
     }
 
@@ -27,7 +27,7 @@ impl LiveBlock {
     pub(crate) fn probe(point: &Point) -> Self {
         Self {
             point: point.clone(),
-            data: MultiEraBlockData::default(),
+            data: MultiEraBlock::default(),
         }
     }
 }
@@ -75,30 +75,30 @@ pub(crate) fn cmp_point(a: &Point, b: &Point) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::LiveBlock;
-    use crate::MultiEraBlockData;
+    use crate::MultiEraBlock;
 
     use pallas::network::miniprotocols::Point;
 
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_comparisons() {
-        let origin1 = LiveBlock::new(Point::Origin, MultiEraBlockData::new(vec![]).unwrap());
-        let origin2 = LiveBlock::new(Point::Origin, MultiEraBlockData::new(vec![]).unwrap());
+        let origin1 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
+        let origin2 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
         let early_block = LiveBlock::new(
             Point::Specific(100u64, vec![]),
-            MultiEraBlockData::new(vec![1, 2, 3]).unwrap(),
+            MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
         );
         let early_block2 = LiveBlock::new(
             Point::Specific(100u64, vec![]),
-            MultiEraBlockData::new(vec![4, 5, 6]).unwrap(),
+            MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
         );
         let late_block = LiveBlock::new(
             Point::Specific(10000u64, vec![]),
-            MultiEraBlockData::new(vec![1, 2, 3]).unwrap(),
+            MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
         );
         let late_block2 = LiveBlock::new(
             Point::Specific(10000u64, vec![]),
-            MultiEraBlockData::new(vec![4, 5, 6]).unwrap(),
+            MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
         );
 
         assert!(origin1 == origin2);

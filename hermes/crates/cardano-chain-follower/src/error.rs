@@ -2,16 +2,17 @@
 
 use std::{io, path::PathBuf};
 
-use crate::network::Network;
 use pallas::network::miniprotocols::chainsync;
 use thiserror::Error;
+
+use crate::network::Network;
 
 /// Crate error type.
 #[derive(Debug, Error)]
 pub enum Error {
     /// Data encoding/decoding error.
     #[error("Codec error: {0:?}")]
-    Codec(pallas::ledger::traverse::Error),
+    Codec(String),
     /// Client connection error.
     #[error("Client error: {0:?}")]
     Client(pallas::network::facades::Error),
