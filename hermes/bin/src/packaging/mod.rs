@@ -1,6 +1,7 @@
 //! Hermes packaging.
 
 mod compression;
+pub(crate) mod hash;
 mod resources;
 mod schema_validation;
 pub(crate) mod sign;
@@ -13,7 +14,7 @@ use resources::ResourceTrait;
 use self::compression::enable_compression;
 use crate::{
     errors::Errors,
-    packaging::sign::hash::{Blake2b256, Blake2b256Hasher},
+    packaging::hash::{Blake2b256, Blake2b256Hasher},
 };
 
 /// File open and read error.
@@ -91,6 +92,27 @@ fn copy_resource_dir_recursively_to_package(
         }
     }
     errors.return_result(())
+}
+
+/// Remove file from the package of.
+fn remove_file_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
+    if package.dataset(name).is_ok() {
+        package.unlink(name)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("File {name} not found"))
+    }
+}
+
+/// Remove directory from the package.
+#[allow(dead_code)]
+fn remove_dir_from_package(name: &str, package: &hdf5::Group) -> anyhow::Result<()> {
+    if package.group(name).is_ok() {
+        package.unlink(name)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Directory {name} not found"))
+    }
 }
 
 /// Get package file reader if present.
@@ -210,6 +232,16 @@ mod tests {
 
         let expected_hash = Blake2b256::hash(file_content);
         assert_eq!(expected_hash, hash);
+
+        // Remove file from package
+        assert!(remove_dir_from_package(file_1_name, &package).is_err());
+        assert!(get_package_file_hash(file_1_name, &package)
+            .expect("Package file hash calculation failed")
+            .is_some());
+        remove_file_from_package(file_1_name, &package).expect("Cannot remove file from package");
+        assert!(get_package_file_hash(file_1_name, &package)
+            .expect("Package file hash calculation failed")
+            .is_none());
     }
 
     #[test]
@@ -259,8 +291,8 @@ mod tests {
             .is_some());
 
         let hash = get_package_dir_hash(dir_name, &package)
-            .expect("Package file hash calculation failed")
-            .expect("Cannot get file_1 hash from package");
+            .expect("Package dir hash calculation failed")
+            .expect("Cannot get dir hash from package");
 
         let mut hasher = Blake2b256Hasher::new();
         hasher.update(child_dir_name.as_bytes());
@@ -273,5 +305,15 @@ mod tests {
         let expected_hash = hasher.finalize();
 
         assert_eq!(expected_hash, hash);
+
+        // Remove directory from package
+        assert!(remove_file_from_package(dir_name, &package).is_err());
+        assert!(get_package_dir_hash(dir_name, &package)
+            .expect("Package dir hash calculation failed")
+            .is_some());
+        remove_dir_from_package(dir_name, &package).expect("Cannot remove dir from package");
+        assert!(get_package_dir_hash(dir_name, &package)
+            .expect("Package dir hash calculation failed")
+            .is_none());
     }
 }
