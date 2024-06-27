@@ -43,15 +43,10 @@ impl MultiEraBlock {
     }
 
     /// Decodes the data into a multi-era block.
-    ///
-    /// # Panics
-    ///
-    /// If the data has changed between the creation of this `MultiEraBlockData` and now,
-    /// it may panic.
     #[must_use]
     pub fn decode(&self) -> &pallas::ledger::traverse::MultiEraBlock {
+        // We checked the block before, during construction, so it is safe to unwrap.
         #[allow(clippy::unwrap_used)]
-        // We checked the block before during construction, so it is safe to unwrap.
         self.0.borrow_block().as_ref().unwrap()
     }
 }
