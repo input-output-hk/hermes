@@ -5,6 +5,24 @@
 
 use std::time::Duration;
 
+use anyhow::Context;
+use pallas::{
+    ledger::traverse::MultiEraHeader,
+    network::{
+        facades::PeerClient,
+        miniprotocols::{
+            chainsync::{self, ClientError, Tip},
+            Point,
+        },
+    },
+};
+use tokio::{
+    spawn,
+    sync::{broadcast, mpsc},
+    time::{sleep, timeout},
+};
+use tracing::{debug, error};
+
 use crate::{
     chain_sync_live_chains::{
         get_fill_to_point, get_live_block_at, latest_live_point, live_chain_insert,
@@ -17,25 +35,6 @@ use crate::{
     mithril_snapshot::MithrilSnapshot,
     ChainSyncConfig, ChainUpdate, MultiEraBlock, Network, PointOrTip,
 };
-
-use anyhow::Context;
-use pallas::{
-    ledger::traverse::MultiEraHeader,
-    network::{
-        facades::PeerClient,
-        miniprotocols::{
-            chainsync::{self, ClientError, Tip},
-            Point,
-        },
-    },
-};
-
-use tokio::{
-    spawn,
-    sync::{broadcast, mpsc},
-    time::{sleep, timeout},
-};
-use tracing::{debug, error};
 
 /// The maximum number of seconds we wait for a node to connect.
 const MAX_NODE_CONNECT_TIME_SECS: u64 = 2;
@@ -59,15 +58,17 @@ async fn retry_connect(
         )
         .await
         {
-            Ok(peer) => match peer {
-                Ok(peer) => return Ok(peer),
-                Err(err) => {
-                    retries -= 1;
-                    if retries == 0 {
-                        return Err(err);
-                    }
-                    debug!("retrying {retries} connect to {addr} : {err:?}");
-                },
+            Ok(peer) => {
+                match peer {
+                    Ok(peer) => return Ok(peer),
+                    Err(err) => {
+                        retries -= 1;
+                        if retries == 0 {
+                            return Err(err);
+                        }
+                        debug!("retrying {retries} connect to {addr} : {err:?}");
+                    },
+                }
             },
             Err(error) => {
                 retries -= 1;
@@ -88,21 +89,27 @@ async fn retry_connect(
 /// Set the Client Read Pointer for this connection with the Node
 async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Result<Point> {
     match at {
-        PointOrTip::Point(Point::Origin) => client
-            .chainsync()
-            .intersect_origin()
-            .await
-            .map_err(Error::Chainsync),
-        PointOrTip::Tip => client
-            .chainsync()
-            .intersect_tip()
-            .await
-            .map_err(Error::Chainsync),
+        PointOrTip::Point(Point::Origin) => {
+            client
+                .chainsync()
+                .intersect_origin()
+                .await
+                .map_err(Error::Chainsync)
+        },
+        PointOrTip::Tip => {
+            client
+                .chainsync()
+                .intersect_tip()
+                .await
+                .map_err(Error::Chainsync)
+        },
         PointOrTip::Point(p @ Point::Specific(..)) => {
             match client.chainsync().find_intersect(vec![p]).await {
-                Ok((point, _)) => match point {
-                    Some(point) => Ok(point),
-                    None => Err(Error::Chainsync(ClientError::IntersectionNotFound)),
+                Ok((point, _)) => {
+                    match point {
+                        Some(point) => Ok(point),
+                        None => Err(Error::Chainsync(ClientError::IntersectionNotFound)),
+                    }
                 },
                 Err(error) => Err(Error::Chainsync(error)),
             }
@@ -139,7 +146,8 @@ fn process_rollback(chain: Network, point: Point, tip: &Tip) -> anyhow::Result<O
 
     purge_live_chain(chain, &point, PurgeType::Newest);
 
-    // If we have ANY live blocks, then we MUST have the rollback to block, or its a fatal sync error.
+    // If we have ANY live blocks, then we MUST have the rollback to block, or its a fatal
+    // sync error.
     if live_chain_length(chain) > 0 {
         let rollback_block = get_live_block_at(chain, &point);
         if rollback_block.is_none() {
@@ -186,9 +194,9 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 // Note: Tip is poorly documented.
                 // It is a tuple with the following structure:
                 // ((Slot#, BlockHash), Block# ).
-                // We can find if we are AT tip by comparing the current block Point with the tip Point.
-                // We can estimate how far behind we are (in blocks) by subtracting current block
-                // height and the tip block height.
+                // We can find if we are AT tip by comparing the current block Point with the tip
+                // Point. We can estimate how far behind we are (in blocks) by
+                // subtracting current block height and the tip block height.
                 // IF the TIP is <= the current block height THEN we are at tip.
                 let decoded_header = MultiEraHeader::decode(
                     header.variant,
@@ -224,7 +232,8 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 if let Some(rollback) = block_is_rollback.take() {
                     // If the live chain is empty, rollback doesn't make sense.
                     if live_chain_length(chain) > 0 {
-                        // Can't rely on TIP so we need to check the block itself to see if we are intact.
+                        // Can't rely on TIP so we need to check the block itself to see if we are
+                        // intact.
                         debug!("RollBack: {:?}", rollback);
                         debug!("Chain Length: {:?}", live_chain_length(chain));
                         debug!("Previous Hash: {:?}", decoded_header.previous_hash());
@@ -287,8 +296,8 @@ async fn persistent_reconnect(addr: &str, chain: Network) -> PeerClient {
 }
 
 /// Backfill the live chain, based on the Mithril Sync updates.
-/// This does NOT return until the live chain has been backfilled from the end of mithril to the
-/// current synced tip blocks.
+/// This does NOT return until the live chain has been backfilled from the end of mithril
+/// to the current synced tip blocks.
 ///
 /// This only needs to be done once per chain connection.
 async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Result<()> {
@@ -312,7 +321,7 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
         let hash = decoded_block.hash();
         let live_block = LiveBlock::new(Point::new(slot, hash.to_vec()), block);
         live_chain_insert(cfg.chain, live_block);
-        //debug!("Backfilled Block: {}", slot);
+        // debug!("Backfilled Block: {}", slot);
     }
 
     debug!("Backfilled Range OK: {}", range_msg);
@@ -390,10 +399,10 @@ async fn live_sync_backfill_and_purge(
         }
     }
 
-    // TODO: If the mithril sync dies, sleep for a bit and make sure the live chain doesn't grow
-    // indefinitely.
-    // We COULD move the spawn of mithril following into here, and if the rx dies, kill that task,
-    // and restart it.
+    // TODO: If the mithril sync dies, sleep for a bit and make sure the live chain
+    // doesn't grow indefinitely.
+    // We COULD move the spawn of mithril following into here, and if the rx dies, kill
+    // that task, and restart it.
     // In reality, the mithril sync should never die and drop the queue.
 }
 

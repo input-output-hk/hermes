@@ -2,11 +2,6 @@
 
 use std::{path::Path, process::Stdio, sync::Mutex};
 
-use crate::{
-    mithril_snapshot_config::{async_hash_single_file, MithrilSnapshotConfig},
-    mithril_snapshot_data::{latest_mithril_snapshot_data, FileHashMap},
-};
-
 use anyhow::{anyhow, bail, Context};
 use async_compression::tokio::bufread::ZstdDecoder;
 use async_trait::async_trait;
@@ -22,6 +17,11 @@ use tokio_stream::StreamExt;
 use tokio_tar::Archive;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use tracing::debug;
+
+use crate::{
+    mithril_snapshot_config::{async_hash_single_file, MithrilSnapshotConfig},
+    mithril_snapshot_data::{latest_mithril_snapshot_data, FileHashMap},
+};
 
 /// A snapshot downloader that accelerates Download using `aria2`.
 pub struct MithrilTurboDownloader {
@@ -159,7 +159,7 @@ impl SnapshotDownloader for MithrilTurboDownloader {
         let mut entries = archive.entries()?;
         let tmp_dir = self.cfg.tmp_path();
         let latest_snapshot = latest_mithril_snapshot_data(self.cfg.chain);
-        //let latest_snapshot = self.cfg.latest_snapshot_id().await;
+        // let latest_snapshot = self.cfg.latest_snapshot_id().await;
         while let Some(file) = entries.next().await {
             let mut file = file?;
 

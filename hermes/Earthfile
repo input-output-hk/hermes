@@ -1,13 +1,11 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.7 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.8 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 IMPORT ../wasm AS wasm
 IMPORT ../wasm/stub-module AS stub-module
-
-#cspell: words rustfmt
 
 # builder : Set up our target toolchains, and copy our files.
 builder:
@@ -18,7 +16,12 @@ builder:
 
     RUN mkdir /wasm
     COPY --dir wasm+wasi-src/wasi /wasm/wasi
-    # Compiled WASM component for benchmarks
+
+# benchmark-builder : Builder that includes built WASM Modules for benchmarks to run against.
+benchmark-builder:
+    FROM +builder
+
+    # Compiled WASM component for benchmarks - Should not be in the base builder.
     COPY stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
 
 # bindings-expand : Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
@@ -53,7 +56,7 @@ all-hosts-check:
 # build : Run build using the most efficient host tooling
 # CI Automated Entry point.
 build:
-    FROM +builder
+    FROM +benchmark-builder
 
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
@@ -84,6 +87,7 @@ test-wasm-integration:
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.

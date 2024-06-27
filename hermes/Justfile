@@ -2,7 +2,7 @@
 #
 # Hermes developer convenience functions
 
-# cspell: words prereqs, commitlog
+# cspell: words prereqs, commitlog, rustls, nocapture
 
 default:
     @just --list --unsorted

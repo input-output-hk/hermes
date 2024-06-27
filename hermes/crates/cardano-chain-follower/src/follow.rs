@@ -53,10 +53,10 @@ impl ChainFollower {
     ///
     /// Also, UNLIKE the blockchain itself, the only relevant information is the Slot#.
     /// The Block hash is not considered.
-    /// If start is not an exact Slot#, then the NEXT Slot immediately following will be the
-    /// first block returned.
-    /// If the end is also not an exact Slot# with a block, then the last block will be the one
-    /// immediately proceeding it.
+    /// If start is not an exact Slot#, then the NEXT Slot immediately following will be
+    /// the first block returned.
+    /// If the end is also not an exact Slot# with a block, then the last block will be
+    /// the one immediately proceeding it.
     ///
     /// To ONLY follow from TIP, set BOTH start and end to TIP.
     #[must_use]
@@ -132,9 +132,10 @@ impl ChainFollower {
                             "Received an ImmutableBlock update, these are not Live Updates.  Ignored."
                         );
                     } else {
-                        // Due to the small buffering window, its possible we already processed a block
-                        // in the live queue from the live in-memory chain.
-                        // This is not an error, so just ignore that entry in the queue.
+                        // Due to the small buffering window, its possible we already processed a
+                        // block in the live queue from the live in-memory
+                        // chain. This is not an error, so just ignore that
+                        // entry in the queue.
                         if update.update != chain_update::Type::Rollback
                             && self.current >= update.point
                         {
@@ -147,7 +148,9 @@ impl ChainFollower {
                 Err(error) => {
                     match error {
                         broadcast::error::RecvError::Closed => {},
-                        broadcast::error::RecvError::Lagged(_) => continue, // Lagged just means we need to read again.
+                        broadcast::error::RecvError::Lagged(_) => continue, /* Lagged just means
+                                                                             * we need to read
+                                                                             * again. */
                     }
                     error!(
                         chain = self.chain.to_string(),
@@ -159,9 +162,9 @@ impl ChainFollower {
         }
     }
 
-    /// This is an unprotected version of `next()` which can ONLY be used within this crate.
-    /// Its purpose is to allow the chain data to be inspected/validate prior to unlocking it for
-    /// general access.
+    /// This is an unprotected version of `next()` which can ONLY be used within this
+    /// crate. Its purpose is to allow the chain data to be inspected/validate prior
+    /// to unlocking it for general access.
     ///
     /// This function must not be exposed for general use.
     #[allow(clippy::unused_async)]
@@ -204,9 +207,11 @@ impl ChainFollower {
 
     /// Get a single block from the chain by its point.
     ///
-    /// If the Point does not point exactly at a block, it will return the next consecutive block.
+    /// If the Point does not point exactly at a block, it will return the next
+    /// consecutive block.
     ///
-    /// This is a convenience function which just used `ChainFollower` to fetch a single block.
+    /// This is a convenience function which just used `ChainFollower` to fetch a single
+    /// block.
     pub async fn get_block(chain: Network, point: PointOrTip) -> Option<ChainUpdate> {
         // Get the block from the chain.
         let mut follower = Self::new(chain, point.clone(), point).await;
@@ -224,7 +229,6 @@ impl ChainFollower {
     /// # Returns
     ///
     /// `TxId` - The ID of the transaction that was queued.
-    ///
     #[allow(clippy::unused_async)]
     pub async fn post_txn(chain: Network, txn: TxBody) -> TxId {
         #[allow(clippy::no_effect_underscore_binding)]
@@ -251,4 +255,5 @@ impl ChainFollower {
     }
 }
 
-// TODO(SJ) - Add a function to check if a transaction is pending, or has been sent to the chain.
+// TODO(SJ) - Add a function to check if a transaction is pending, or has been sent to the
+// chain.

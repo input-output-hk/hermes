@@ -32,11 +32,7 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
     } else if outlen > 64 {
         return Err(Errno::HashTooBig);
     }
-    let hash = Params::new()
-        .hash_length(outlen)
-        .to_state()
-        .update(buf)
-        .finalize();
+    let hash = Params::new().hash_length(outlen).hash(buf);
 
     return Ok(hash.as_bytes().into());
 }
@@ -100,9 +96,7 @@ pub(crate) fn blake2bmac_impl(
         .key(key)
         .salt(&salt)
         .personal(&personal)
-        .to_state()
-        .update(buf)
-        .finalize();
+        .hash(buf);
 
     return Ok(hash.as_bytes().into());
 }

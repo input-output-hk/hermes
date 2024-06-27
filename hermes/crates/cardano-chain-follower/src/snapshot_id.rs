@@ -1,9 +1,9 @@
 //! Simple ID for a mithril snapshot path known by its largest immutable file number
 
-use std::default;
-use std::fmt::Display;
 use std::{
     cmp::Ordering,
+    default,
+    fmt::Display,
     path::{Path, PathBuf},
 };
 

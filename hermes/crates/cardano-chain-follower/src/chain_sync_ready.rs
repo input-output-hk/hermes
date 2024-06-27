@@ -3,8 +3,6 @@
 
 use std::time::Duration;
 
-use crate::{ChainUpdate, Network};
-
 use crossbeam_skiplist::SkipMap;
 use once_cell::sync::Lazy;
 use strum::IntoEnumIterator;
@@ -13,6 +11,8 @@ use tokio::{
     time::sleep,
 };
 use tracing::error;
+
+use crate::{ChainUpdate, Network};
 
 /// Data we hold related to sync being ready or not.
 struct SyncReady {
@@ -57,7 +57,8 @@ impl SyncReadyWaiter {
 }
 
 /// Lock to prevent using any blockchain data for a network UNTIL it is synced to TIP.
-/// Pre-initialized for all possible blockchains, so it's safe to use `expect` to access a value.
+/// Pre-initialized for all possible blockchains, so it's safe to use `expect` to access a
+/// value.
 static SYNC_READY: Lazy<SkipMap<Network, RwLock<SyncReady>>> = Lazy::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
@@ -72,8 +73,8 @@ pub(crate) fn wait_for_sync_ready(chain: Network) -> SyncReadyWaiter {
     let (tx, rx) = oneshot::channel::<()>();
 
     tokio::spawn(async move {
-        // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-        // Its a Serious BUG if that not True, so panic is OK.
+        // We are safe to use `expect` here because the SYNC_READY list is exhaustively
+        // initialized. Its a Serious BUG if that not True, so panic is OK.
         #[allow(clippy::expect_used)]
         let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
 
@@ -94,8 +95,8 @@ pub(crate) fn wait_for_sync_ready(chain: Network) -> SyncReadyWaiter {
 
 /// Get a Read lock on the Sync State, and return if we are ready or not.
 async fn check_sync_ready(chain: Network) -> bool {
-    // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-    // Its a Serious BUG if that not True, so panic is OK.
+    // We are safe to use `expect` here because the SYNC_READY list is exhaustively
+    // initialized. Its a Serious BUG if that not True, so panic is OK.
     #[allow(clippy::expect_used)]
     let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
     let lock = lock_entry.value();
@@ -110,10 +111,11 @@ async fn check_sync_ready(chain: Network) -> bool {
 const SYNC_READY_RACE_BACKOFF_SECS: u64 = 1;
 
 /// Block until the chain is synced to TIP.
-/// This is necessary to ensure the Blockchain data is fully intact before attempting to consume it.
+/// This is necessary to ensure the Blockchain data is fully intact before attempting to
+/// consume it.
 pub(crate) async fn block_until_sync_ready(chain: Network) {
-    // There is a potential race where we haven't yet write locked the SYNC_READY lock when we check it.
-    // So, IF the ready state returns as false, sleep a while and try again.
+    // There is a potential race where we haven't yet write locked the SYNC_READY lock when we
+    // check it. So, IF the ready state returns as false, sleep a while and try again.
     while !check_sync_ready(chain).await {
         sleep(Duration::from_secs(SYNC_READY_RACE_BACKOFF_SECS)).await;
     }
@@ -121,8 +123,8 @@ pub(crate) async fn block_until_sync_ready(chain: Network) {
 
 /// Get the Broadcast Receive queue for the given chain updates.
 pub(crate) async fn get_chain_update_rx_queue(chain: Network) -> broadcast::Receiver<ChainUpdate> {
-    // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-    // Its a Serious BUG if that not True, so panic is OK.
+    // We are safe to use `expect` here because the SYNC_READY list is exhaustively
+    // initialized. Its a Serious BUG if that not True, so panic is OK.
     #[allow(clippy::expect_used)]
     let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
 
@@ -137,8 +139,8 @@ pub(crate) async fn get_chain_update_rx_queue(chain: Network) -> broadcast::Rece
 pub(crate) async fn get_chain_update_tx_queue(
     chain: Network,
 ) -> Option<broadcast::Sender<ChainUpdate>> {
-    // We are safe to use `expect` here because the SYNC_READY list is exhaustively initialized.
-    // Its a Serious BUG if that not True, so panic is OK.
+    // We are safe to use `expect` here because the SYNC_READY list is exhaustively
+    // initialized. Its a Serious BUG if that not True, so panic is OK.
     #[allow(clippy::expect_used)]
     let lock_entry = SYNC_READY.get(&chain).expect("network should exist");
 

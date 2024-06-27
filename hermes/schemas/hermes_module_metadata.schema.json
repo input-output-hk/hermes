@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
-    "title": "Module Metadata Schema",
+    "title": "WASM Module Metadata Schema",
     "description": "Metadata which defines a Hermes WASM Component Module and is carried inside the Hermes Module itself.",
     "type": "object",
     "additionalProperties": false,
@@ -15,24 +15,24 @@
         },
         "name": {
             "type": "string",
-            "title": "WASM Component default name",
+            "title": "WASM module default name",
             "description": "Default Name of the WASM Component Module."
         },
         "version": {
             "type": "string",
-            "title": "Application Version",
-            "description": "Version of the Application",
+            "title": "WASM module version",
+            "description": "Version of the WASM module",
             "pattern": "^V[0-9]+\\.[0-9]+\\.[0-9]+( .*$)?"
         },
         "description": {
             "type": "string",
-            "title": "Application Description",
-            "description": "Short Description of the Application"
+            "title": "WASM module description",
+            "description": "Short description of the WASM module"
         },
         "src": {
             "type": "array",
-            "title": "Links to the source of this application.",
-            "description": "Can be links to code repositories or the Authors website.\nSpecifying any `src` is Optional, however if defined, then these URLs must be reachable when the Application is packaged.",
+            "title": "Links to the source of this WASM module.",
+            "description": "Can be links to code repositories or the Authors website.\nSpecifying any `src` is Optional, however if defined, then these URLs must be reachable when the WASM module is packaged.",
             "items": {
                 "type": "string",
                 "format": "uri",
@@ -43,8 +43,8 @@
         },
         "copyright": {
             "type": "array",
-            "title": "Application Copyright",
-            "description": "List of Copyright Notices/Claims over the Application.\nIf no copyright is claimed then there should be an explicit statement about the Application being in the public domain.",
+            "title": "WASM Module Copyright",
+            "description": "List of Copyright Notices/Claims over the WASM module.\nIf no copyright is claimed then there should be an explicit statement about the WASM module being in the public domain.",
             "items": {
                 "type": "string"
             },
@@ -53,8 +53,8 @@
         },
         "license": {
             "type": "array",
-            "title": "Application License",
-            "description": "List of Licenses/Claims over the Application.\nMust declare at least `spdx` or `file`, `note` is Optional.\nIf `file` is specified it must exist within the Package for the Application to be valid.",
+            "title": "WASM Module License",
+            "description": "List of Licenses/Claims over the WASM module.\nMust declare at least `spdx` or `file`, `note` is Optional.\nIf `file` is specified it must exist within the Package for the WASM module to be valid.",
             "uniqueItems": true,
             "minItems": 1,
             "items": {
@@ -77,25 +77,25 @@
                     "note": {
                         "type": "string",
                         "title": "License Note",
-                        "description": "Note about the License.\nFor Example: Could limit the license to a particular aspect of the Application or part of the code."
+                        "description": "Note about the License.\nFor Example: Could limit the license to a particular aspect of the WASM module or part of the code."
                     }
                 }
             }
         },
         "build_date": {
             "type": "integer",
-            "title": "Application Build Date",
-            "description": "Unix Epoch Timestamp of when the Application was packaged or built.\nThis field will be overwritten if present, by the hermes packaging system.\nThe field is required, but this will be checked when the package is validated.",
+            "title": "WASM module Build Date",
+            "description": "Unix Epoch Timestamp of when the WASM module was packaged or built.\nThis field will be overwritten if present, by the hermes packaging system.\nThe field is required, but this will be checked when the package is validated.",
             "default": 0
         },
         "developer": {
             "type": "object",
-            "title": "Application Developer",
+            "title": "WASM Module Developer",
             "additionalProperties": true,
             "properties": {
                 "name": {
                     "type": "string",
-                    "title": "Application Developer Name",
+                    "title": "WASM Module Developer Name",
                     "description": "Name of the Developer"
                 }
             },

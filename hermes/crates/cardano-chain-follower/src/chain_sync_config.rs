@@ -1,8 +1,14 @@
 //! Cardano chain sync configuration.
 //!
-//! Independent of ANY followers, we allow a maximum of 3 Chains being updated, one for each network.
-//! Chain Followers use the data supplied by the Chain-Sync.
+//! Independent of ANY followers, we allow a maximum of 3 Chains being updated, one for
+//! each network. Chain Followers use the data supplied by the Chain-Sync.
 //! This module configures the chain sync processes.
+
+use crossbeam_skiplist::SkipMap;
+use once_cell::sync::Lazy;
+use strum::IntoEnumIterator;
+use tokio::{sync::Mutex, task::JoinHandle};
+use tracing::{debug, error};
 
 use crate::{
     chain_sync::chain_sync,
@@ -11,16 +17,11 @@ use crate::{
     network::Network,
 };
 
-use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
-use strum::IntoEnumIterator;
-use tokio::{sync::Mutex, task::JoinHandle};
-use tracing::{debug, error};
-
 /// Default [`Follower`] block buffer size.
 const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
 
-/// How many slots back from TIP is considered Immutable in the absence of a mithril snapshot.
+/// How many slots back from TIP is considered Immutable in the absence of a mithril
+/// snapshot.
 const DEFAULT_IMMUTABLE_SLOT_WINDOW: u64 = 12 * 60 * 60;
 
 /// Type we use to manage the Sync Task handle map.
@@ -43,7 +44,8 @@ pub struct ChainSyncConfig {
     pub(crate) relay_address: String,
     /// Block buffer size option.
     chain_update_buffer_size: usize,
-    /// If we don't have immutable data, how far back from TIP is the data considered Immutable (in slots).
+    /// If we don't have immutable data, how far back from TIP is the data considered
+    /// Immutable (in slots).
     immutable_slot_window: u64,
     /// Configuration of Mithril Snapshots.
     pub mithril_cfg: MithrilSnapshotConfig,
@@ -151,7 +153,7 @@ impl ChainSyncConfig {
         // Start Chain Sync
         *locked_handle = Some(tokio::spawn(chain_sync(self.clone(), rx)));
 
-        //sync_map.insert(chain, handle);
+        // sync_map.insert(chain, handle);
         debug!("Chain Sync for {} : Started", self.chain);
 
         Ok(())
