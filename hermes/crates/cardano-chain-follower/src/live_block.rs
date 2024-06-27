@@ -4,9 +4,9 @@
 
 use std::cmp::Ordering;
 
-use crate::MultiEraBlockData;
-
 use pallas::network::miniprotocols::Point;
+
+use crate::MultiEraBlockData;
 
 /// A Live Block from the blockchain.
 #[derive(Clone)]
@@ -61,23 +61,27 @@ impl Ord for LiveBlock {
 /// Compare Points, because Pallas does not impl `Ord` for Point.
 pub(crate) fn cmp_point(a: &Point, b: &Point) -> Ordering {
     match a {
-        Point::Origin => match b {
-            Point::Origin => Ordering::Equal,
-            Point::Specific(_, _) => Ordering::Less,
+        Point::Origin => {
+            match b {
+                Point::Origin => Ordering::Equal,
+                Point::Specific(..) => Ordering::Less,
+            }
         },
-        Point::Specific(slot, _) => match b {
-            Point::Origin => Ordering::Greater,
-            Point::Specific(other_slot, _) => slot.cmp(other_slot),
+        Point::Specific(slot, _) => {
+            match b {
+                Point::Origin => Ordering::Greater,
+                Point::Specific(other_slot, _) => slot.cmp(other_slot),
+            }
         },
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use pallas::network::miniprotocols::Point;
+
     use super::LiveBlock;
     use crate::MultiEraBlockData;
-
-    use pallas::network::miniprotocols::Point;
 
     #[test]
     #[allow(clippy::unwrap_used)]

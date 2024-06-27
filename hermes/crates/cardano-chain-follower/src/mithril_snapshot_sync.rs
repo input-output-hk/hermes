@@ -4,15 +4,6 @@
 //! latest snapshot file and then sleeps until the next snapshot is available.
 use std::{path::Path, sync::Arc};
 
-use crate::{
-    error::{Error, Result},
-    mithril_snapshot_config::{generate_hashes_for_path, MithrilSnapshotConfig},
-    mithril_snapshot_data::{update_latest_mithril_snapshot, FileHashMap},
-    mithril_turbo_downloader::MithrilTurboDownloader,
-    network::Network,
-    snapshot_id::SnapshotId,
-};
-
 use chrono::{TimeDelta, Utc};
 use humantime::format_duration;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
@@ -24,6 +15,15 @@ use tokio::{
     time::{sleep, Duration},
 };
 use tracing::{debug, error};
+
+use crate::{
+    error::{Error, Result},
+    mithril_snapshot_config::{generate_hashes_for_path, MithrilSnapshotConfig},
+    mithril_snapshot_data::{update_latest_mithril_snapshot, FileHashMap},
+    mithril_turbo_downloader::MithrilTurboDownloader,
+    network::Network,
+    snapshot_id::SnapshotId,
+};
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
 /// `MINIMUM_MITHRIL_UPDATE_CHECK_DURATION`)
@@ -326,10 +326,12 @@ async fn get_latest_validated_mithril_snapshot(
         }
     }
 
-    // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is intact.
+    // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is
+    // intact.
     let latest_mithril = cfg.recover_latest_snapshot_id().await?;
 
-    // Get the actual latest snapshot, shouldn't fail, but say the current is invalid if it does.
+    // Get the actual latest snapshot, shouldn't fail, but say the current is invalid if it
+    // does.
     let (actual_latest, _) = get_latest_snapshots(client, chain).await?;
 
     // IF the mithril data we have is NOT the current latest, it may as well be invalid.
@@ -363,7 +365,7 @@ async fn get_latest_validated_mithril_snapshot(
     let (valid, ()) = join!(validate_fn, hash_fn);
 
     debug!("Mithril Valid: {}. Hash Entries = {}", valid, map.len());
-    //if valid {
+    // if valid {
     //    for entry in map.iter() {
     //        let path = entry.key().to_string_lossy();
     //        let value = hex::encode(entry.value());
@@ -395,7 +397,8 @@ async fn recover_existing_snapshot(
 
     let mut current_snapshot = None;
 
-    // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is intact.
+    // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is
+    // intact.
     if let Some((active_snapshot, hash_map)) =
         get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
     {
@@ -545,7 +548,8 @@ pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Se
 
     loop {
         debug!("Background Mithril Updater - New Loop");
-        // We can accumulate junk depending on errors or when we terminate, make sure we are always clean.
+        // We can accumulate junk depending on errors or when we terminate, make sure we are
+        // always clean.
         if let Err(error) = cfg.cleanup().await {
             error!(
                 "Mithril Snapshot background updater for:  {} : Error cleaning up: {:?}",

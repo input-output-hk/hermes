@@ -214,41 +214,51 @@ fn process_chain_update(
     chain_id: CardanoBlockchainId, event_subscriptions: &EventSubscriptions,
 ) -> anyhow::Result<u64> {
     let (block_data, immutable, rollback, tip, context) = match chain_update {
-        ChainUpdate::ImmutableBlock(block_data) => (
-            block_data,
-            true,
-            false,
-            false, // There are always live blocks in front of immutable ones.
-            "Processing block chain update (Immutable)",
-        ),
-        ChainUpdate::ImmutableBlockRollback(block_data) => (
-            block_data,
-            true,
-            true,
-            false, // There are always live blocks in front of immutable ones.
-            "Processing block chain update (Immutable Rollback)",
-        ),
-        ChainUpdate::Block(block_data) => (
-            block_data,
-            false,
-            false,
-            false,
-            "Processing block chain update (Live Block)",
-        ),
-        ChainUpdate::BlockTip(block_data) => (
-            block_data,
-            false,
-            false,
-            true,
-            "Processing block chain update (Live Block @ Tip)",
-        ),
-        ChainUpdate::Rollback(rollback_data) => (
-            rollback_data,
-            false,
-            true,
-            false, // By definition there are always blocks in front of a rollback.
-            "Processing rollback chain update",
-        ),
+        ChainUpdate::ImmutableBlock(block_data) => {
+            (
+                block_data,
+                true,
+                false,
+                false, // There are always live blocks in front of immutable ones.
+                "Processing block chain update (Immutable)",
+            )
+        },
+        ChainUpdate::ImmutableBlockRollback(block_data) => {
+            (
+                block_data,
+                true,
+                true,
+                false, // There are always live blocks in front of immutable ones.
+                "Processing block chain update (Immutable Rollback)",
+            )
+        },
+        ChainUpdate::Block(block_data) => {
+            (
+                block_data,
+                false,
+                false,
+                false,
+                "Processing block chain update (Live Block)",
+            )
+        },
+        ChainUpdate::BlockTip(block_data) => {
+            (
+                block_data,
+                false,
+                false,
+                true,
+                "Processing block chain update (Live Block @ Tip)",
+            )
+        },
+        ChainUpdate::Rollback(rollback_data) => {
+            (
+                rollback_data,
+                false,
+                true,
+                false, // By definition there are always blocks in front of a rollback.
+                "Processing rollback chain update",
+            )
+        },
     };
 
     process_block_chain_update(

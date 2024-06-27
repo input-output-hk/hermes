@@ -124,7 +124,8 @@ pub(super) fn unsubscribe(
             txn_stopped = true;
         }
 
-        // If we changed the subscription state, and ended up subscribed to nothing, then just STOP.
+        // If we changed the subscription state, and ended up subscribed to nothing, then just
+        // STOP.
         if (block_stopped || txn_stopped)
             && !sub_state.subscribed_to_blocks
             && !sub_state.subscribed_to_txns

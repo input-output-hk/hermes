@@ -1,12 +1,12 @@
 //! Internal Mithril snapshot functions.
 
-use crate::{
-    mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlockData,
-};
-
 use pallas::network::miniprotocols::Point;
 use pallas_hardano::storage::immutable::FallibleBlock;
 use tracing::error;
+
+use crate::{
+    mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlockData,
+};
 
 /// Wraps the iterator type returned by Pallas.
 pub(crate) struct MithrilSnapshotIterator {

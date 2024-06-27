@@ -2,16 +2,16 @@
 
 use std::{ffi::OsStr, path::PathBuf, str::FromStr};
 
-use crate::error::Error;
-
 use chrono::{DateTime, Utc};
 use pallas::{
     ledger::traverse::wellknown::GenesisValues,
     network::miniprotocols::{MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC},
 };
-//use strum::IntoEnumIterator;
-//use strum_macros;
+// use strum::IntoEnumIterator;
+// use strum_macros;
 use tracing::debug;
+
+use crate::error::Error;
 
 /// Default name of the executable if we can't derive it.
 pub(crate) const DEFAULT_EXE_NAME: &str = "cardano_chain_follower";

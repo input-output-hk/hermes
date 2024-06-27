@@ -1,7 +1,8 @@
 //! Multi Era CBOR Encoded Block Data
 
-use crate::error::{Error, Result};
 use pallas::ledger::traverse::MultiEraBlock;
+
+use crate::error::{Error, Result};
 
 /// CBOR encoded data of a multi-era block.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
@@ -16,7 +17,6 @@ impl MultiEraBlockData {
     /// # Errors
     ///
     /// If the given bytes cannot be decoded as a multi-era block, an error is returned.
-    ///
     pub fn new(data: Vec<u8>) -> Result<Self> {
         let tmp_block = MultiEraBlock::decode(&data).map_err(Error::Codec)?;
         drop(tmp_block);
@@ -27,7 +27,8 @@ impl MultiEraBlockData {
     ///
     /// # Panics
     ///
-    /// If the data has changed between the creation of this `MultiEraBlockData` and now, it may panic.
+    /// If the data has changed between the creation of this `MultiEraBlockData` and now,
+    /// it may panic.
     pub fn decode(&self) -> MultiEraBlock {
         #[allow(clippy::unwrap_used)]
         let block = MultiEraBlock::decode(&self.data)

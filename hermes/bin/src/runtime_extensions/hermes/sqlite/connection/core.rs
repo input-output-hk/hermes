@@ -44,9 +44,11 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
             .ok()
     };
 
-    message.map(|message| ErrorInfo {
-        code: error_code,
-        message,
+    message.map(|message| {
+        ErrorInfo {
+            code: error_code,
+            message,
+        }
     })
 }
 

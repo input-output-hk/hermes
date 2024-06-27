@@ -2,9 +2,10 @@
 
 use std::{io, path::PathBuf};
 
-use crate::network::Network;
 use pallas::network::miniprotocols::chainsync;
 use thiserror::Error;
+
+use crate::network::Network;
 
 /// Crate error type.
 #[derive(Debug, Error)]

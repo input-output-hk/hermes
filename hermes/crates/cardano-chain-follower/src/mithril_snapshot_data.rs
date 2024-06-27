@@ -5,11 +5,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::{network::Network, snapshot_id::SnapshotId};
-
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use pallas_hardano::storage::immutable::Point;
+
+use crate::{network::Network, snapshot_id::SnapshotId};
 
 /// Raw Blake3 hash of a file. (Don't need constant time comparison)
 pub(crate) type RawHash = [u8; 32];
@@ -41,7 +41,8 @@ impl SnapshotData {
         &self.id
     }
 
-    /// Get a current hash for a known file in this snapshot data (or None if its not known).
+    /// Get a current hash for a known file in this snapshot data (or None if its not
+    /// known).
     pub(crate) fn current_hash(&self, filename: &Path) -> Option<RawHash> {
         let entry = self.hash_map.get(filename)?;
         Some(*entry.value())

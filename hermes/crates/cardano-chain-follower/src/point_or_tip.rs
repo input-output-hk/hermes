@@ -50,13 +50,17 @@ impl Ord for PointOrTip {
     /// Only checks the Slot#.
     fn cmp(&self, other: &Self) -> Ordering {
         match self {
-            Self::Point(a) => match other {
-                Self::Point(b) => cmp_point(a, b),
-                Self::Tip => Ordering::Less,
+            Self::Point(a) => {
+                match other {
+                    Self::Point(b) => cmp_point(a, b),
+                    Self::Tip => Ordering::Less,
+                }
             },
-            Self::Tip => match other {
-                Self::Point(_) => Ordering::Greater,
-                Self::Tip => Ordering::Equal,
+            Self::Tip => {
+                match other {
+                    Self::Point(_) => Ordering::Greater,
+                    Self::Tip => Ordering::Equal,
+                }
             },
         }
     }
@@ -64,9 +68,9 @@ impl Ord for PointOrTip {
 
 #[cfg(test)]
 mod tests {
-    use super::PointOrTip;
-
     use pallas::network::miniprotocols::Point;
+
+    use super::PointOrTip;
 
     #[test]
     fn test_comparisons() {

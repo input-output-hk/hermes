@@ -55,7 +55,8 @@ pub(crate) fn get_live_block_at(chain: Network, point: &Point) -> Option<LiveBlo
 fn get_live_chain(chain: Network) -> Entry<'static, Network, LiveChainBlockList> {
     // Get a reference to our live chain storage.
     // This SHOULD always exist, because its initialized exhaustively.
-    // If this FAILS, Recreate a blank chain, but log an error as its a serious UNRECOVERABLE BUG.
+    // If this FAILS, Recreate a blank chain, but log an error as its a serious UNRECOVERABLE
+    // BUG.
     if let Some(entry) = LIVE_CHAINS.get(&chain) {
         return entry;
     }

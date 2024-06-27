@@ -1,5 +1,6 @@
-//! This example shows how to use the chain follower to follow all chains, until they have all reached tip.
-//! It will report on how many blocks for each chain exist between eras, and also how long each chain took to reach its tip.
+//! This example shows how to use the chain follower to follow all chains, until they have
+//! all reached tip. It will report on how many blocks for each chain exist between eras,
+//! and also how long each chain took to reach its tip.
 
 // Allowing since this is example code.
 #![allow(clippy::unwrap_used)]
@@ -55,7 +56,7 @@ async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
 /// Try and follow a chain continuously, from Genesis until Tip.
 #[allow(clippy::panic)]
 async fn follow_for(network: Network) {
-    //loop {
+    // loop {
     info!(chain = network.to_string(), "Following");
     let mut follower =
         ChainFollower::new(network, PointOrTip::Point(Point::Origin), PointOrTip::Tip).await;
