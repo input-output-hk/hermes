@@ -8,8 +8,8 @@ use self::compression::enable_compression;
 use crate::{
     errors::Errors,
     packaging::{
+        hash::{Blake2b256, Blake2b256Hasher},
         resources::ResourceTrait,
-        sign::hash::{Blake2b256, Blake2b256Hasher},
     },
 };
 
@@ -54,11 +54,29 @@ impl Package {
         copy_dir_recursively_to_package(dir, name, &self.0)
     }
 
-    /// Remove file or dir from `Package`.
-    pub(crate) fn remove_item(&self, name: &str) -> anyhow::Result<()> {
-        self.0
-            .unlink(name)
-            .map_err(|_| anyhow::anyhow!("Failed to remove {name} from package"))
+    /// Remove file from `Package`.
+    pub(crate) fn remove_file(&self, name: &str) -> anyhow::Result<()> {
+        if self.0.dataset(name).is_ok() {
+            self.0
+                .unlink(name)
+                .map_err(|_| anyhow::anyhow!("Failed to remove file '{name}' from package"))?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("File '{name}' not found"))
+        }
+    }
+
+    /// Remove directory from `Package`.
+    #[allow(dead_code)]
+    pub(crate) fn remove_dir(&self, name: &str) -> anyhow::Result<()> {
+        if self.0.group(name).is_ok() {
+            self.0
+                .unlink(name)
+                .map_err(|_| anyhow::anyhow!("Failed to remove directory '{name}' from package"))?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Directory '{name}' not found"))
+        }
     }
 
     /// Get package file reader if present.
@@ -236,8 +254,16 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove file from package
+        assert!(
+            package.remove_dir(file_1_name).is_err(),
+            "Cannot remove file from package using remove_dir."
+        );
+        assert!(package
+            .get_file_hash(file_1_name)
+            .expect("Failed to calculate file hash.")
+            .is_some());
         package
-            .remove_item(file_1_name)
+            .remove_file(file_1_name)
             .expect("Failed to remove file from package.");
         assert!(package
             .get_file_hash(file_1_name)
@@ -313,8 +339,16 @@ mod tests {
         assert_eq!(expected_hash, hash);
 
         // Remove directory from package
+        assert!(
+            package.remove_file(dir_name).is_err(),
+            "Cannot remove dir from package using remove_file."
+        );
+        assert!(package
+            .get_dir_hash(dir_name)
+            .expect("Failed to calculate dir hash.")
+            .is_some());
         package
-            .remove_item(dir_name)
+            .remove_dir(dir_name)
             .expect("Failed to remove dir from package.");
         assert!(package
             .get_dir_hash(dir_name)

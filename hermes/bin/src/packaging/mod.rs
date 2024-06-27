@@ -1,5 +1,6 @@
 //! Hermes packaging.
 
+pub(crate) mod hash;
 pub(crate) mod package;
 mod resources;
 mod schema_validation;

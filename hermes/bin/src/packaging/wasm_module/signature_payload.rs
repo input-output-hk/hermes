@@ -2,8 +2,7 @@
 //! Defined at `https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/wasm_modules/#wasm-component-module-signatures`.
 
 use crate::packaging::{
-    schema_validation::SchemaValidator,
-    sign::{hash::Blake2b256, signature::SignaturePayloadEncoding},
+    hash::Blake2b256, schema_validation::SchemaValidator, sign::signature::SignaturePayloadEncoding,
 };
 
 /// A signature payload object.

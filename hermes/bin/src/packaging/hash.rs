@@ -29,7 +29,7 @@ impl Blake2b256Hasher {
 }
 
 /// Blake2b-256 hash instance.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Blake2b256([u8; HASH_SIZE]);
 
 impl Blake2b256 {
