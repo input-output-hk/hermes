@@ -35,8 +35,8 @@ coti
 cpus
 crontabs
 crontagged
-cryptoxide
 cstring
+dalek
 dashmap
 Datelike
 DBSTATUS
@@ -84,6 +84,8 @@ humansize
 humantime
 ideascale
 idents
+ipfs
+ipld
 IFMT
 Intellij
 ioerr
@@ -97,6 +99,8 @@ lcov
 Leshiy
 libsqlite
 libtest
+libipld
+libp2p
 linkat
 lintfix
 localizable
@@ -104,6 +108,7 @@ lookaside
 maindbname
 mapref
 mdlint
+mdns
 miniprotocol
 miniprotocols
 mithril
@@ -114,6 +119,7 @@ mkdirat
 mmap
 moderations
 MPMC
+Multiaddr
 multiera
 nanos
 netkey
@@ -160,6 +166,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustyline
 saibatizoku
 sandboxed
 scanorder
@@ -190,7 +197,9 @@ txmonitor
 txns
 typenum
 unfinalized
+unixfs
 unlinkat
+upnp
 utimensat
 vitss
 vkey

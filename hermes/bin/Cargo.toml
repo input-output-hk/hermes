@@ -30,14 +30,12 @@ cardano-chain-follower = { workspace = true }
 wasmtime = { workspace = true, features = ["component-model"] }
 rusty_ulid = { workspace = true }
 anyhow = { workspace = true }
-blake2b_simd = { workspace = true }
 hex-literal = { workspace = true }
 thiserror = { workspace = true }
 criterion = { workspace = true, optional = true }
 libtest-mimic = { workspace = true }
 crossbeam-queue = { workspace = true }
 bip39 = { workspace = true, features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
-cryptoxide = { workspace = true }
 rand = { workspace = true }
 bip32 = { workspace = true }
 ed25519-bip32 = { workspace = true }
@@ -63,12 +61,19 @@ console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 jsonschema = { workspace = true }
+hex = { workspace = true }
+hmac = { workspace = true }
+pbkdf2 = { workspace = true }
+blake2b_simd = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["pem"] }
+x509-cert = { workspace = true, features = ["pem"] }
+coset = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }
 
 [dev-dependencies]
-hex = { workspace = true }
 tracing-subscriber = { workspace = true }
 serial_test = { workspace = true }
 temp-dir = "0.1.13"

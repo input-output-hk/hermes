@@ -7,11 +7,6 @@ use serde::de::DeserializeOwned;
 
 use crate::errors::Errors;
 
-/// Invalid JSON schema error.
-#[derive(thiserror::Error, Debug)]
-#[error("Invalid draft 7 JSON schema, err: {0}")]
-pub(crate) struct InvalidJsonSchema(String);
-
 /// JSON Schema Draft 7 Validator.
 #[derive(Debug)]
 pub(crate) struct SchemaValidator {
@@ -20,31 +15,48 @@ pub(crate) struct SchemaValidator {
 }
 
 impl SchemaValidator {
-    /// Create a new json schema validator from string.
-    pub(crate) fn from_str(schema_str: &str) -> anyhow::Result<Self> {
-        let schema =
-            serde_json::from_str(schema_str).map_err(|err| InvalidJsonSchema(err.to_string()))?;
+    /// Create a new json schema validator from reader.
+    #[allow(dead_code)]
+    pub(crate) fn from_reader<R: Read>(reader: R) -> anyhow::Result<Self> {
+        let schema = serde_json::from_reader(reader)?;
+        Self::from_json(&schema)
+    }
 
+    /// Create a new json schema validator from string.
+    pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
+        let schema = serde_json::from_str(str)?;
+        Self::from_json(&schema)
+    }
+
+    /// Create a new json schema validator from JSON value.
+    pub(crate) fn from_json(json: &serde_json::Value) -> anyhow::Result<Self> {
         let schema = JSONSchema::options()
             .with_draft(Draft::Draft7)
-            .compile(&schema)
-            .map_err(|err| InvalidJsonSchema(err.to_string()))?;
+            .compile(json)
+            .map_err(|err| anyhow::anyhow!("Invalid draft 7 JSON schema:\n {err}"))?;
 
         Ok(Self { schema })
     }
 
-    /// Validate json instance against current schema.
-    pub(crate) fn deserialize_and_validate<R: Read, T: DeserializeOwned>(
-        &self, reader: R,
-    ) -> anyhow::Result<T> {
-        let json_val = serde_json::from_reader(reader)?;
-        self.schema.validate(&json_val).map_err(|err| {
+    /// Validate JSON value against current schema.
+    pub(crate) fn validate(&self, json: &serde_json::Value) -> anyhow::Result<()> {
+        self.schema.validate(json).map_err(|err| {
             let mut errors = Errors::new();
             for e in err {
                 errors.add_err(anyhow::anyhow!("{e}"));
             }
             errors
         })?;
+
+        Ok(())
+    }
+
+    /// Validate and deserialize JSON value from reader against current schema.
+    pub(crate) fn deserialize_and_validate<R: Read, T: DeserializeOwned>(
+        &self, reader: R,
+    ) -> anyhow::Result<T> {
+        let json_val = serde_json::from_reader(reader)?;
+        self.validate(&json_val)?;
         let val = serde_json::from_value(json_val)?;
         Ok(val)
     }

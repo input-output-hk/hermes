@@ -3,14 +3,11 @@
 use std::vec;
 
 use bip39::{Language, Mnemonic};
-use cryptoxide::{
-    digest::Digest,
-    hmac::Hmac,
-    pbkdf2::pbkdf2,
-    sha2::{Sha256, Sha512},
-};
 use ed25519_bip32::XPrv;
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
 use rand::RngCore;
+use sha2::{Digest, Sha256, Sha512};
 
 use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 
@@ -36,9 +33,7 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 
     // Parse will detect language and check mnemonic valid length
     // 12, 15, 18, 21, 24 are valid mnemonic length
-    let Ok(mnemonic) = Mnemonic::parse(mnemonic) else {
-        return Err(Errno::InvalidMnemonic);
-    };
+    let mnemonic = Mnemonic::parse(mnemonic).map_err(|_| Errno::InvalidMnemonic)?;
 
     let entropy = mnemonic.to_entropy();
 
@@ -46,17 +41,15 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
     // from a master seed.
     // https://github.com/satoshilabs/slips/blob/master/slip-0023.md
     let mut pbkdf2_result = [0; 96];
-    let passphrase_byte: &[u8] = passphrase.as_bytes();
-    let mut mac = Hmac::new(Sha512::new(), passphrase_byte);
-    pbkdf2(&mut mac, &entropy, ITER, &mut pbkdf2_result);
+    let _ = pbkdf2::<Hmac<Sha512>>(passphrase.as_bytes(), &entropy, ITER, &mut pbkdf2_result);
 
     Ok(XPrv::normalize_bytes_force3rd(pbkdf2_result))
 }
 
 /// Generate a new mnemonic.
-/// Number of entropy required is calculated by `word_count` / 3 * 4.
-/// eg. 24 words will have 32 entropy or 256 bits entropy.
-/// Number of checksum required is calculated by `word_count` / 3 * 4 * 8 / 32.
+/// Number of bytes entropy required is calculated by `word_count` / 3 * 4.
+/// eg. 24 words will have 32 bytes entropy or 256 bits entropy.
+/// Number of checksum required is calculated by `word_count` / 3.
 /// eg. 24 words will have 8 checksum bits.
 ///
 /// # Arguments
@@ -96,29 +89,23 @@ pub(crate) fn generate_new_mnemonic(
         |lang| string_to_language(&lang),
     )?;
 
-    let prefix_index_bits = match get_prefix_index_bits(prefix, language) {
-        Ok(prefix_index_bits) => prefix_index_bits,
-        Err(e) => return Err(e),
-    };
+    let prefix_index_bits = get_prefix_index_bits(prefix, language)?;
 
     // Create an vec that will hold binary conversion of entropy.
-    let mut bits_entropy = Vec::new();
+    let mut entropy_bits = Vec::new();
     // Add the prefix index bit to the bit entropy.
-    bits_entropy.extend_from_slice(&prefix_index_bits);
+    entropy_bits.extend_from_slice(&prefix_index_bits);
 
-    let entropy = match generate_entropy(word_count) {
-        Ok(entropy) => entropy,
-        Err(e) => return Err(e),
-    };
+    let entropy = generate_entropy(word_count)?;
 
     // Convert bytes entropy to bits.
-    byte_to_bit(entropy, &mut bits_entropy, word_count);
+    byte_to_bit(entropy, &mut entropy_bits, word_count);
 
-    let check_sum_bits = get_check_sum_bits(&bits_entropy, word_count);
+    let check_sum_bits = get_check_sum_bits(&entropy_bits, word_count);
     // Add the checksum bits to the end of bit entropy.
-    bits_entropy.extend_from_slice(&check_sum_bits);
+    entropy_bits.extend_from_slice(&check_sum_bits);
 
-    let word_indices = get_word_indices(&bits_entropy, word_count);
+    let word_indices = get_word_indices(&entropy_bits, word_count);
     let mnemonic_list = get_mnemonic_from_indices(word_indices, language);
 
     Ok(mnemonic_list)
@@ -147,20 +134,65 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
     Ok(prefix_index)
 }
 
-/// Generate entropies and return the value.
+/// Generate entropy bytes and return the value.
+///
+/// Calculation:
+/// Each word in a BIP39 mnemonic phrase represents 11 bits of information. The total
+/// number of bits in the mnemonic phrase (including both entropy and checksum) is
+/// therefore:
+///
+/// `total_bits` = `word_count` * 11
+///
+/// The total number of bits includes both the entropy bits and the checksum bits. The
+/// length of the checksum is defined as:
+///
+/// `checksum_len` = `entropy_bits` / 32
+///
+/// Therefore, the total number of bits can be written as:
+///
+/// `total_bits` = `entropy_bits` + `checksum_len`
+///              = `entropy_bits` + `entropy_bits` / 32
+///              = `entropy_bits` * (1 + 1/32)
+///              = `entropy_bits` * 33 / 32
+///
+/// Since `total_bits` is also equal to `word_count * 11`, we have:
+///
+/// `word_count` * 11 = `entropy_bits` * 33 / 32
+///
+/// Solving for `entropy_bits`, we get:
+///
+/// `entropy_bits` = `word_count` * 11 * 32 / 33
+///
+/// To find the number of entropy bytes, we need to divide the entropy bits by 8:
+///
+/// `total_entropy_bytes` = `entropy_bits` / 8
+///
+/// Simplifying further, we get:
+///
+/// `total_entropy_bytes` = (`word_count` * 11 * 32 / 33) / 8
+///                       = `word_count` * 11 * 4 / 33
+///                       = `word_count` * 4 / 3
+///
+/// However, since the number of mnemonic words is always a multiple of 3
+/// (in BIP39, valid word counts are 12, 15, 18, 21, or 24),
+/// we can simplify this to:
+///
+/// `total_entropy_bytes` = `word_count` * 4 / 3
+///
+/// Note that if entropy bits is needed, multiply the `total_entropy_bytes` by 8.
 fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
-    // Number of entropy calculate from mnemonic word.
-    let entropy_num = (word_count / 3) * 4;
-    // Maximum length of mnemonic is 24 words which is 32 entropy.
-    let mut entropy_num_max = [0u8; 32];
+    // Number of bytes entropy calculate from mnemonic word.
+    let total_entropy_bytes = word_count * 4 / 3;
+    // Maximum length of mnemonic is 24 words which is 32 bytes entropy.
+    let mut total_entropy_bytes_max = [0u8; 32];
     // Random number
     let mut rng = rand::thread_rng();
-    // Fill the random number into entropy_num.
-    if let Some(slice) = entropy_num_max.get_mut(0..entropy_num) {
+    // Fill the random number into total_entropy_bytes.
+    if let Some(slice) = total_entropy_bytes_max.get_mut(0..total_entropy_bytes) {
         rng.fill_bytes(slice);
     }
 
-    if let Some(slice) = entropy_num_max.get(0..entropy_num) {
+    if let Some(slice) = total_entropy_bytes_max.get(0..total_entropy_bytes) {
         Ok(slice.to_vec())
     } else {
         Err(Errno::GenerateEntropyFailed)
@@ -168,27 +200,24 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
 }
 
 /// Generate checksum bits from entropy bits.
+#[allow(clippy::indexing_slicing)]
 fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
-    // Number of checksum bits to be added.
-    let check_sum_num = word_count / 3 * 4 * 8 / 32;
-    let mut hash_result = [0u8; 32];
-    let mut hasher = Sha256::new();
-    // Convert bits_entropy to bytes, so it works with SHA256 hasher.
-    let bytes_entropy = bits_to_bytes(entropy_bits);
-    hasher.input(&bytes_entropy);
+    let checksum_len = word_count / 3;
+    // Convert entropy_bits to bytes, so it works with SHA256 hasher.
+    let entropy_bytes = bits_to_bytes(entropy_bits);
 
-    hasher.result(&mut hash_result);
+    let hash_result = Sha256::digest(entropy_bytes);
 
-    // Retrieve the first `check_sum_num` check sum bits from the hash result.
-    let mut check_sum_bits = Vec::new();
-    for i in 0..check_sum_num {
-        check_sum_bits.push(hash_result[0] >> (7 - i) & 1);
+    // Retrieve the first `checksum_len` checksum bits from the hash result.
+    let mut checksum_bits = Vec::new();
+    for i in 0..checksum_len {
+        checksum_bits.push(hash_result[0] >> (7 - i) & 1);
     }
-    check_sum_bits
+    checksum_bits
 }
 
 /// Get the word indices from the entropy bits.
-fn get_word_indices(bits_entropy: &[u8], word_count: usize) -> Vec<u16> {
+fn get_word_indices(entropy_bits: &[u8], word_count: usize) -> Vec<u16> {
     let mut word_index_vec = Vec::new();
 
     // Separate entropy bits into 11 bits and convert to decimal.
@@ -196,7 +225,7 @@ fn get_word_indices(bits_entropy: &[u8], word_count: usize) -> Vec<u16> {
     for i in 0..word_count {
         let mut idx = 0;
         for j in 0..11 {
-            if let Some(value) = bits_entropy.get(i * 11 + j) {
+            if let Some(value) = entropy_bits.get(i * 11 + j) {
                 if *value > 0 {
                     idx += 1 << (10 - j);
                 }
@@ -274,15 +303,15 @@ fn string_to_language(s: &str) -> Result<Language, Errno> {
 }
 
 /// Convert bytes entropy to bits.
-fn byte_to_bit(entropy: Vec<u8>, bits_entropy: &mut Vec<u8>, word_count: usize) {
+fn byte_to_bit(entropy: Vec<u8>, entropy_bits: &mut Vec<u8>, word_count: usize) {
     for byte in entropy {
         for j in (0..8).rev() {
-            // Should not exceed the word_count / 3 * 4 * 8
+            // Should not exceed the word_count / 3 * 32
             // which is number of entropy bits for the mnemonic word count.
-            if bits_entropy.len() >= word_count / 3 * 4 * 8 {
+            if entropy_bits.len() >= word_count / 3 * 32 {
                 break;
             }
-            bits_entropy.push((byte >> j) & 1);
+            entropy_bits.push((byte >> j) & 1);
         }
     }
 }
