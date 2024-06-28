@@ -32,42 +32,40 @@
             "description": "List of WASM Component Library Module Files.",
             "items": {
                 "type": "object",
-                "title": "Application Module File",
+                "title": "Application WASM Module Package definition",
                 "description": "Prepackaged Hermes WASM Component Module.",
                 "additionalProperties": false,
                 "properties": {
                     "file": {
                         "type": "string",
-                        "title": "Application Module File",
-                        "description": "Path to the WASM Component Library Module File.",
-                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+\\.hmod$",
-                        "format": "uri"
+                        "title": "Application WASM Module Package File",
+                        "description": "Path to the WASM Component Library Module Package File.",
+                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+\\.hmod$"
                     },
                     "name": {
                         "type": "string",
-                        "title": "Application Module Name",
+                        "title": "Application WASM Module Name",
                         "description": "Name of the WASM Component Library Module.\nMust be unique within the Application.\nIf not defined is extracted from the WASM Module itself."
                     },
                     "config": {
                         "type": "string",
-                        "title": "Application Module Config",
+                        "title": "Application WASM Module Config",
                         "description": "Path to the WASM Component Library Module Config File.\nThis will replace any `config.json` inside the module.\nIf defined it must be valid according to the modules `config.schema.json` file.",
-                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-                        "format": "uri"
+                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                     },
                     "share": {
                         "type": "string",
-                        "title": "Application Module Share Dataset.",
+                        "title": "Application WASM Module Package Share Dataset.",
                         "description": "Path to the WASM Component Library Module Shareable Data.\nWill replace or augment any data defined within the module itself.",
-                        "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-                        "format": "uri"
+                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                     }
                 },
                 "required": [
                     "file"
                 ]
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "minItems": 1
         },
         "srv": {
             "type": "object",
@@ -91,6 +89,7 @@
         }
     },
     "required": [
-        "$schema"
+        "$schema",
+        "modules"
     ]
 }

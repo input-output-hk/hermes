@@ -15,8 +15,23 @@ pub(crate) struct Manifest {
     pub(crate) name: String,
     /// Path to the metadata JSON file.
     pub(crate) metadata: Resource,
+    /// Application WASM Modules.
+    pub(crate) modules: Vec<ManifestModule>,
     /// Definition of the srv directory.
     pub(crate) srv: Option<ManifestSrv>,
+}
+
+/// `Manifest` `modules` item field definition.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ManifestModule {
+    /// Path to the WASM module package file.
+    pub(crate) file: Resource,
+    /// Application WASM module name.
+    pub(crate) name: Option<String>,
+    /// Path to the WASM module config JSON file.
+    pub(crate) config: Option<Resource>,
+    /// Path to the WASM module share directory.
+    pub(crate) share: Option<Resource>,
 }
 
 /// `Manifest` `srv` field definition.
@@ -58,6 +73,15 @@ impl Manifest {
             .parent()
             .ok_or_else(|| FileError::from_path(path, None))?;
         manifest.metadata.make_relative_to(dir_path);
+        manifest.modules.iter_mut().for_each(|m| {
+            m.file.make_relative_to(dir_path);
+            if let Some(config) = m.config.as_mut() {
+                config.make_relative_to(dir_path);
+            }
+            if let Some(share) = m.share.as_mut() {
+                share.make_relative_to(dir_path);
+            }
+        });
         if let Some(srv) = manifest.srv.as_mut() {
             if let Some(www) = srv.www.as_mut() {
                 www.make_relative_to(dir_path);
@@ -85,7 +109,16 @@ mod serde_def {
         name: String,
         #[serde(default = "super::Manifest::default_metadata_path")]
         metadata: Resource,
+        modules: Vec<ManifestModuleSerde>,
         srv: Option<ManifestSrvSerde>,
+    }
+
+    #[derive(Deserialize)]
+    struct ManifestModuleSerde {
+        file: Resource,
+        name: Option<String>,
+        config: Option<Resource>,
+        share: Option<Resource>,
     }
 
     #[derive(Deserialize)]
@@ -99,6 +132,18 @@ mod serde_def {
             Self {
                 name: def.name,
                 metadata: def.metadata,
+                modules: def
+                    .modules
+                    .into_iter()
+                    .map(|der| {
+                        super::ManifestModule {
+                            file: der.file,
+                            name: der.name,
+                            config: der.config,
+                            share: der.share,
+                        }
+                    })
+                    .collect(),
                 srv: def.srv.map(|der| {
                     super::ManifestSrv {
                         www: der.www,
@@ -124,9 +169,15 @@ mod tests {
         {
             let path = dir_path.join("manifest.json");
             let manifest_json_data = serde_json::json!({
-                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
                     "name": "app_name",
                     "metadata": "metadata.json",
+                    "modules": [{
+                        "file": "module.hmod",
+                        "name": "module_name",
+                        "config": "config.json",
+                        "share": "share"
+                    }],
                     "srv": {
                         "www": "www",
                         "share": "share"
@@ -137,10 +188,74 @@ mod tests {
             assert_eq!(manifest, Manifest {
                 name: "app_name".to_string(),
                 metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                modules: vec![ManifestModule {
+                    file: Resource::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    name: Some("module_name".to_string()),
+                    config: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
+                    share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+                }],
                 srv: Some(ManifestSrv {
                     www: Some(Resource::Fs(FsResource::new(dir_path.join("www")))),
                     share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
                 }),
+            });
+        }
+
+        {
+            let path = dir_path.join("manifest.json");
+            let manifest_json_data = serde_json::json!({
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+                    "name": "app_name",
+                    "metadata": "/metadata.json",
+                    "modules": [{
+                        "file": "/module.hmod",
+                        "name": "module_name",
+                        "config": "/config.json",
+                        "share": "/share"
+                    }],
+                    "srv": {
+                        "www": "/www",
+                        "share": "/share"
+                    }
+                }).to_string();
+            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            assert_eq!(manifest, Manifest {
+                name: "app_name".to_string(),
+                metadata: Resource::Fs(FsResource::new("/metadata.json")),
+                modules: vec![ManifestModule {
+                    file: Resource::Fs(FsResource::new("/module.hmod")),
+                    name: Some("module_name".to_string()),
+                    config: Some(Resource::Fs(FsResource::new("/config.json"))),
+                    share: Some(Resource::Fs(FsResource::new("/share"))),
+                }],
+                srv: Some(ManifestSrv {
+                    www: Some(Resource::Fs(FsResource::new("/www"))),
+                    share: Some(Resource::Fs(FsResource::new("/share"))),
+                }),
+            });
+        }
+
+        {
+            let path = dir_path.join("manifest.json");
+            let manifest_json_data = serde_json::json!({
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+                    "modules": [{
+                        "file": "module.hmod",
+                    }]
+                }).to_string();
+            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            assert_eq!(manifest, Manifest {
+                name: "app".to_string(),
+                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                modules: vec![ManifestModule {
+                    file: Resource::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    name: None,
+                    config: None,
+                    share: None,
+                }],
+                srv: None,
             });
         }
     }
