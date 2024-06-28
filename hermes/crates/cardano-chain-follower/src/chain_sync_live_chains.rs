@@ -8,10 +8,10 @@ use pallas::network::miniprotocols::Point;
 use strum::{Display, IntoEnumIterator};
 use tracing::{debug, error};
 
-use crate::{live_block::LiveBlock, Network, PointOrTip};
+use crate::{MultiEraBlock, Network, PointOrTip};
 
 /// Type we use to manage the Sync Task handle map.
-pub(crate) type LiveChainBlockList = SkipSet<LiveBlock>;
+pub(crate) type LiveChainBlockList = SkipSet<MultiEraBlock>;
 /// Handle to the mithril sync thread. One for each Network ONLY.
 static LIVE_CHAINS: Lazy<SkipMap<Network, LiveChainBlockList>> = Lazy::new(|| {
     let map = SkipMap::new();
@@ -25,10 +25,10 @@ static LIVE_CHAINS: Lazy<SkipMap<Network, LiveChainBlockList>> = Lazy::new(|| {
 const DATA_RACE_BACKOFF_SECS: u64 = 2;
 
 /// Get the Live block immediately following the specified block.
-pub(crate) fn get_live_block_after(chain: Network, point: &Point) -> Option<LiveBlock> {
+pub(crate) fn get_live_block_after(chain: Network, point: &Point) -> Option<MultiEraBlock> {
     if let Some(live_chain_entry) = LIVE_CHAINS.get(&chain) {
         let live_chain = live_chain_entry.value();
-        let probe_block = LiveBlock::probe(point);
+        let probe_block = MultiEraBlock::probe(chain, point);
         let this_block = live_chain.get(&probe_block)?;
         let next_block = this_block.next()?;
         let next_block_value = next_block.value().clone();
@@ -39,14 +39,29 @@ pub(crate) fn get_live_block_after(chain: Network, point: &Point) -> Option<Live
 }
 
 /// Get the Live block at a particular point.
-pub(crate) fn get_live_block_at(chain: Network, point: &Point) -> Option<LiveBlock> {
+pub(crate) fn get_live_block_at(chain: Network, point: &Point) -> Option<MultiEraBlock> {
     if let Some(live_chain_entry) = LIVE_CHAINS.get(&chain) {
         let live_chain = live_chain_entry.value();
-        let probe_block = LiveBlock::probe(point);
+        let probe_block = MultiEraBlock::probe(chain, point);
         let this_block = live_chain.get(&probe_block)?;
         let this_block_value = this_block.value().clone();
 
         return Some(this_block_value);
+    };
+    None
+}
+
+/// Get the Live block before a particular point.
+#[allow(dead_code)]
+pub(crate) fn get_live_block_before(chain: Network, point: &Point) -> Option<MultiEraBlock> {
+    if let Some(live_chain_entry) = LIVE_CHAINS.get(&chain) {
+        let live_chain = live_chain_entry.value();
+        let probe_block = MultiEraBlock::probe(chain, point);
+        let this_block = live_chain.get(&probe_block)?;
+        let previous_block = this_block.prev()?;
+        let previous_block_value = previous_block.value().clone();
+
+        return Some(previous_block_value);
     };
     None
 }
@@ -82,7 +97,7 @@ pub(crate) async fn get_fill_to_point(chain: Network) -> Point {
 
     loop {
         match live_chain.front() {
-            Some(entry) => return entry.value().point.clone(),
+            Some(entry) => return entry.value().point(),
             None => {
                 // Nothing in the Live chain to sync to, so wait until there is.
                 tokio::time::sleep(Duration::from_secs(DATA_RACE_BACKOFF_SECS)).await;
@@ -92,7 +107,7 @@ pub(crate) async fn get_fill_to_point(chain: Network) -> Point {
 }
 
 /// Insert a block into the live chain (in-order).
-pub(crate) fn live_chain_insert(chain: Network, block: LiveBlock) {
+pub(crate) fn live_chain_insert(chain: Network, block: MultiEraBlock) {
     let live_chain_entry = get_live_chain(chain);
     let live_chain = live_chain_entry.value();
 
@@ -138,13 +153,13 @@ pub(crate) fn purge_live_chain(chain: Network, point: &Point, purge_type: PurgeT
         };
 
         if let Some(tip_entry) = next_entry {
-            let oldest_block = tip_entry.value();
+            let next_block = tip_entry.value();
             // If we got to the purge position then stop purging.
             // Next update should be after this block, and arrive automatically.
-            if oldest_block.point == *point {
+            if next_block.point() == *point {
                 break;
             }
-            live_chain.remove(oldest_block);
+            live_chain.remove(next_block);
             purged_blocks += 1;
         } else {
             break;
@@ -165,7 +180,7 @@ pub(crate) fn latest_live_point(chain: Network) -> PointOrTip {
 
     if let Some(live_block) = live_chain.back() {
         let latest_block = live_block.value();
-        let latest_point = latest_block.point.clone();
+        let latest_point = latest_block.point();
 
         return PointOrTip::Point(latest_point);
     }

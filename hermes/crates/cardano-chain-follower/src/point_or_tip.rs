@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 
 pub use pallas::network::miniprotocols::Point;
 
-use crate::live_block::cmp_point;
+use crate::multi_era_block_data::cmp_point;
 
 /// A point in the chain or the tip.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

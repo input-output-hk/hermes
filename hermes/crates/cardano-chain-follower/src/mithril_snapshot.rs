@@ -1,36 +1,11 @@
 //! Internal Mithril snapshot functions.
 
 use pallas::network::miniprotocols::Point;
-use pallas_hardano::storage::immutable::FallibleBlock;
-use tracing::error;
 
-use crate::{mithril_snapshot_data::latest_mithril_snapshot_id, network::Network, MultiEraBlock};
-
-/// Wraps the iterator type returned by Pallas.
-pub(crate) struct MithrilSnapshotIterator {
-    /// Inner iterator.
-    inner: Box<dyn Iterator<Item = FallibleBlock> + Send + Sync>,
-}
-
-impl Iterator for MithrilSnapshotIterator {
-    type Item = MultiEraBlock;
-
-    #[allow(clippy::panic)]
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(maybe_block) = self.inner.next() {
-            if let Ok(block) = maybe_block {
-                if let Ok(block_data) = MultiEraBlock::new(block) {
-                    return Some(block_data);
-                }
-                error!("Error decoding a block from the snapshot");
-            } else {
-                error!("Error while fetching a block from the snapshot");
-            }
-        };
-
-        None
-    }
-}
+use crate::{
+    mithril_snapshot_data::latest_mithril_snapshot_id,
+    mithril_snapshot_iterator::MithrilSnapshotIterator, network::Network, MultiEraBlock,
+};
 
 // Any single program using this crate can have EXACTLY THREE Mithril snapshots.
 // One, for each of the known networks.
@@ -90,14 +65,8 @@ impl MithrilSnapshot {
             return None;
         }
 
-        let Ok(iter) = pallas_hardano::storage::immutable::read_blocks_from_point(
-            &snapshot_path,
-            point.clone(),
-        ) else {
-            return None;
-        };
-
-        Some(MithrilSnapshotIterator { inner: iter })
+        // We don't know the previous block, so we need to find it.
+        MithrilSnapshotIterator::new(self.chain, &snapshot_path, point, None).ok()
     }
 
     /// Read a single block from a known point.

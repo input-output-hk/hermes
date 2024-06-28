@@ -2,16 +2,13 @@
 
 use std::fmt::Display;
 
-use pallas::network::miniprotocols::Point;
 use strum::Display;
 
 use crate::multi_era_block_data::MultiEraBlock;
 
 /// Enum of chain updates received by the follower.
 #[derive(Debug, Clone, Display, PartialEq)]
-pub enum Type {
-    /// Immutable Block from the immutable part of the blockchain.
-    ImmutableBlock,
+pub enum Kind {
     /// A new part of the chain has become immutable (Roll-forward).
     ImmutableBlockRollForward,
     /// New block inserted on chain.
@@ -23,10 +20,8 @@ pub enum Type {
 /// Actual Chain Update itself.
 #[derive(Clone)]
 pub struct ChainUpdate {
-    /// What point is this chain update for?
-    pub point: Point,
     /// What kind of update is this?
-    pub update: Type,
+    pub kind: Kind,
     /// Is this the tip of the chain?
     pub tip: bool,
     /// What is the new data?
@@ -36,13 +31,8 @@ pub struct ChainUpdate {
 impl ChainUpdate {
     /// Creates a new chain update.
     #[must_use]
-    pub fn new(update: Type, point: Point, tip: bool, data: MultiEraBlock) -> Self {
-        Self {
-            point,
-            update,
-            tip,
-            data,
-        }
+    pub fn new(kind: Kind, tip: bool, data: MultiEraBlock) -> Self {
+        Self { kind, tip, data }
     }
 
     /// Gets the chain update's block data.
@@ -54,16 +44,13 @@ impl ChainUpdate {
     /// Gets the chain update's block data.
     #[must_use]
     pub fn immutable(&self) -> bool {
-        match self.update {
-            Type::ImmutableBlock | Type::ImmutableBlockRollForward => true,
-            Type::Block | Type::Rollback => false,
-        }
+        self.data.immutable()
     }
 }
 
 impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let block_type = self.update.to_string();
+        let block_type = self.kind.to_string();
 
         let block = self.block_data().decode();
         let block_number = block.number();

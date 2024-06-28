@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use cardano_chain_follower::{ChainUpdate, MultiEraBlockData};
+use cardano_chain_follower::ChainUpdate;
 use pallas::ledger::traverse::{wellknown::GenesisValues, MultiEraBlock, MultiEraTx};
 use tracing::{error, instrument, trace, warn};
 

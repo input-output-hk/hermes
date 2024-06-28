@@ -44,109 +44,14 @@ const DL_SUBDIR: &str = "dl";
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
 
-// Size of the file comparison buffers used for de-duping.
-// This conversion is safe, buffer size will not be > 2^32.
-// #[allow(clippy::cast_possible_truncation)]
-// const FILE_COMPARE_BUFFER_SIZE: usize = bytesize::MIB as usize;
-//
-// Check if the src file and tmp file are identical.
-// async fn compare_files(src_file: &Path, tmp_file: &Path) -> bool {
-// Get data describing both files.
-// let Ok(src_file_data) = src_file.metadata() else {
-// return false;
-// };
-// let Ok(tmp_file_data) = tmp_file.metadata() else {
-// return false;
-// };
-//
-// if they are different sizes, no way we can de-duplicate them.
-// if src_file_data.len() != tmp_file_data.len() {
-// return false;
-// }
-//
-// Finally ensure they are identical data
-// let mut src = match File::open(src_file).await {
-// Ok(f) => f,
-// Err(err) => {
-// error!(
-// "Failed to open src {} for de-duping: {}",
-// src_file.to_string_lossy(),
-// err
-// );
-// return false;
-// },
-// };
-//
-// let mut tmp = match File::open(tmp_file).await {
-// Ok(f) => f,
-// Err(err) => {
-// error!(
-// "Failed to open tmp {} for de-duping: {}",
-// tmp_file.to_string_lossy(),
-// err
-// );
-// return false;
-// },
-// };
-//
-// let mut src_buffer = vec![0; FILE_COMPARE_BUFFER_SIZE].into_boxed_slice();
-// let mut tmp_buffer = vec![0; FILE_COMPARE_BUFFER_SIZE].into_boxed_slice();
-//
-// loop {
-// let (src_res, tmp_res) =
-// join!(src.read(&mut src_buffer[..]), tmp.read(&mut tmp_buffer[..]));
-// Any IO error means we can not dedup the files. (We shouldn't get them...)
-// let src_size = match src_res {
-// Ok(size) => size,
-// Err(err) => {
-// error!(
-// "IO Error de-duping {} : {}",
-// src_file.to_string_lossy(),
-// err
-// );
-// return false;
-// },
-// };
-// let tmp_size = match tmp_res {
-// Ok(size) => size,
-// Err(err) => {
-// error!(
-// "IO Error de-duping {} : {}",
-// tmp_file.to_string_lossy(),
-// err
-// );
-// return false;
-// },
-// };
-//
-// Not the same size read from file (Shouldn't happen but check anyway).
-// if src_size != tmp_size {
-// error!("Size of buffered data src {src_size} and tmp {tmp_size} do not match",);
-// return false;
-// }
-//
-// Read 0 bytes, then we are finished.
-// if src_size == 0 {
-// break;
-// }
-//
-// let Some(src_cmp) = src_buffer.get(..src_size) else {
-// error!("Unreachable, Can't read more than the src buffer size ???");
-// return false;
-// };
-// let Some(tmp_cmp) = tmp_buffer.get(..tmp_size) else {
-// error!("Unreachable, Can't read more than the tmp buffer size ???");
-// return false;
-// };
-//
-// Compare the two buffers, if they differ we will not dedup.
-// if src_cmp.cmp(tmp_cmp) != Ordering::Equal {
-// return false;
-// }
-// }
-//
-// true
-// }
+/// Message we send when Mithril Snapshot updates
+#[derive(Debug)]
+pub(crate) struct MithrilUpdateMessage {
+    /// The largest block on the mithril snapshot.
+    pub tip: Point,
+    /// The block immediately before it.
+    pub previous: Point,
+}
 
 /// Configuration used for the Mithril Snapshot downloader.
 #[derive(Clone, Debug)]
@@ -220,7 +125,7 @@ impl MithrilSnapshotConfig {
         }
 
         if latest_immutable_file > 0 {
-            return SnapshotId::try_new(&latest_path);
+            return SnapshotId::try_new(self.chain, &latest_path);
         }
 
         None
@@ -287,7 +192,7 @@ impl MithrilSnapshotConfig {
                     "Unexpected failure reading entries in the mithril path {} : {}",
                     self.path.to_string_lossy(),
                     err
-                )
+                );
             },
             Ok(mut entries) => {
                 // Get latest mithril snapshot path and number.
@@ -479,7 +384,7 @@ impl MithrilSnapshotConfig {
     }
 
     /// Run a Mithril Follower for the given network and configuration.
-    pub(crate) async fn run(&self) -> Result<mpsc::Receiver<Point>> {
+    pub(crate) async fn run(&self) -> Result<mpsc::Receiver<MithrilUpdateMessage>> {
         debug!(
             chain = self.chain.to_string(),
             "Mithril Autoupdate : Starting"
@@ -504,7 +409,9 @@ impl MithrilSnapshotConfig {
 
         // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot
         // TIP has changed.
-        let (tx, rx) = mpsc::channel::<Point>(2);
+        // Given how long even the smallest blockchains take to download, a queue depth of 2 is
+        // plenty.
+        let (tx, rx) = mpsc::channel::<MithrilUpdateMessage>(2);
 
         // let handle = tokio::spawn(background_mithril_update(chain, self.clone(), tx));
         *locked_handle = Some(tokio::spawn(background_mithril_update(self.clone(), tx)));

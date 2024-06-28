@@ -7,7 +7,6 @@ use std::{path::Path, sync::Arc};
 use chrono::{TimeDelta, Utc};
 use humantime::format_duration;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
-use pallas_hardano::storage::immutable::Point;
 use tokio::{
     fs::remove_dir_all,
     join,
@@ -18,11 +17,15 @@ use tracing::{debug, error};
 
 use crate::{
     error::{Error, Result},
-    mithril_snapshot_config::{generate_hashes_for_path, MithrilSnapshotConfig},
+    mithril_snapshot_config::{
+        generate_hashes_for_path, MithrilSnapshotConfig, MithrilUpdateMessage,
+    },
     mithril_snapshot_data::{update_latest_mithril_snapshot, FileHashMap},
+    mithril_snapshot_iterator::MithrilSnapshotIterator,
     mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
     snapshot_id::SnapshotId,
+    MultiEraBlock,
 };
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
@@ -232,8 +235,17 @@ async fn connect_client(cfg: &MithrilSnapshotConfig) -> (Client, Arc<MithrilTurb
 /// Relative Directory for Immutable data within a full mithril snapshot.
 pub(crate) const MITHRIL_IMMUTABLE_SUB_DIRECTORY: &str = "immutable";
 
-/// Get the tip from the given path.
-pub(crate) fn get_mithril_tip(path: &Path) -> Result<Point> {
+/// Get the tip block from the Immutable chain, and the block immediately proceeding it.
+///
+/// # Arguments
+///
+/// * `path` - The path where the immutable chain is stored.
+///
+/// # Returns
+///
+/// This function returns the tip block point, and the block point immediately proceeding
+/// it in a tuple.
+pub(crate) fn get_mithril_tip(chain: Network, path: &Path) -> Result<MultiEraBlock> {
     let mut path = path.to_path_buf();
     path.push(MITHRIL_IMMUTABLE_SUB_DIRECTORY);
 
@@ -242,15 +254,22 @@ pub(crate) fn get_mithril_tip(path: &Path) -> Result<Point> {
         path.to_string_lossy()
     );
 
-    // Read the Tip, and if we don;t get one, or we error, its an error.
+    // Read the Tip, and if we don't get one, or we error, its an error.
     let Some(tip) = pallas_hardano::storage::immutable::get_tip(&path)
         .map_err(|error| Error::MithrilSnapshot(Some(error)))?
     else {
         return Err(Error::MithrilSnapshot(None));
     };
 
+    // Decode and read the tip from the Immutable chain.
+    let mut tip_iterator = MithrilSnapshotIterator::new(chain, &path, &tip, None)?;
+    let Some(tip_block) = tip_iterator.next() else {
+        error!("Failed to fetch the TIP block from the immutable chain.");
+        return Err(Error::MithrilSnapshot(None));
+    };
+
     // Yay, we got a tip, so return it.
-    Ok(tip)
+    Ok(tip_block)
 }
 
 /// Get the Snapshot Data itself from the Aggregator, and a validate Certificate.
@@ -382,9 +401,9 @@ async fn get_latest_validated_mithril_snapshot(
     Some((latest_mithril, map))
 }
 
-/// Get the Mithril client and recover out existing mithril snapshot data, if any.
+/// Get the Mithril client and recover our existing mithril snapshot data, if any.
 async fn recover_existing_snapshot(
-    cfg: &MithrilSnapshotConfig, tx: &Sender<Point>,
+    cfg: &MithrilSnapshotConfig, tx: &Sender<MithrilUpdateMessage>,
 ) -> (Client, Arc<MithrilTurboDownloader>, Option<SnapshotId>) {
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
@@ -402,18 +421,37 @@ async fn recover_existing_snapshot(
     if let Some((active_snapshot, hash_map)) =
         get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
     {
-        current_snapshot = Some(active_snapshot.clone());
-        let tip = active_snapshot.tip();
+        // Read the actual TIP block from the Mithril chain.
+        match get_mithril_tip(cfg.chain, &active_snapshot.immutable_path()) {
+            Ok(tip_block) => {
+                // Validate the Snapshot ID matches the true TIP.
+                if active_snapshot.tip() == tip_block.point() {
+                    current_snapshot = Some(active_snapshot.clone());
+                    update_latest_mithril_snapshot(cfg.chain, active_snapshot, hash_map);
 
-        update_latest_mithril_snapshot(cfg.chain, active_snapshot, hash_map);
-
-        // Tell the live sync service the current Mithril TIP.
-        if let Err(error) = tx.send(tip).await {
-            error!(
-                "Failed to send new tip to the live updater for: {}:  {error}",
-                cfg.chain
-            );
-        };
+                    // Tell the live sync service the current Mithril TIP.
+                    let update = MithrilUpdateMessage {
+                        tip: tip_block.point(),
+                        previous: tip_block.previous(),
+                    };
+                    if let Err(error) = tx.send(update).await {
+                        error!(
+                            "Failed to send new tip to the live updater for: {}:  {error}",
+                            cfg.chain
+                        );
+                    };
+                } else {
+                    error!(
+                        "Actual Tip Block and Active SnapshotID Point Mismatch. {:?} != {:?}",
+                        active_snapshot.tip(),
+                        tip_block.point()
+                    );
+                }
+            },
+            Err(error) => {
+                error!("Mithril snapshot validation failed for: {}.  Could not read the TIP Block : {}.", cfg.chain, error);
+            },
+        }
     }
 
     (client, downloader, current_snapshot)
@@ -535,7 +573,9 @@ async fn download_and_validate_snapshot(
 /// # Returns
 ///
 /// This does not return, it is a background task.
-pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Sender<Point>) {
+pub(crate) async fn background_mithril_update(
+    cfg: MithrilSnapshotConfig, tx: Sender<MithrilUpdateMessage>,
+) {
     debug!(
         "Mithril Snapshot background updater for: {} from {} to {} : Starting",
         cfg.chain,
@@ -583,7 +623,7 @@ pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Se
         }
 
         // Download was A-OK - Update the new immutable tip.
-        let tip = match get_mithril_tip(&cfg.tmp_path()) {
+        let tip = match get_mithril_tip(cfg.chain, &cfg.tmp_path()) {
             Ok(tip) => tip,
             Err(error) => {
                 // If we couldn't get the tip then assume its a transient error.
@@ -599,7 +639,7 @@ pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Se
 
         // Check that the new tip is more advanced than the OLD tip.
         if let Some(active_snapshot) = current_snapshot.clone() {
-            if tip.slot_or_default() <= active_snapshot.tip().slot_or_default() {
+            if tip <= active_snapshot.tip() {
                 error!(
                     "New Tip is not more advanced than the old tip for: {}",
                     cfg.chain
@@ -615,11 +655,9 @@ pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Se
                     "Mithril Snapshot background updater for: {} : Updated TIP.",
                     cfg.chain
                 );
-                current_snapshot = SnapshotId::new(&new_path, tip);
+                current_snapshot = SnapshotId::new(&new_path, tip.point());
 
                 if let Some(latest_snapshot) = current_snapshot.clone() {
-                    let latest_tip = latest_snapshot.tip().clone();
-
                     // Save the new file hash map and update the latest snapshot data record
                     if let Some(hash_map) = downloader.take_previous_hashmap() {
                         let hash_map = Arc::new(hash_map);
@@ -635,7 +673,13 @@ pub(crate) async fn background_mithril_update(cfg: MithrilSnapshotConfig, tx: Se
                     }
 
                     // Tell the live updater that the Immutable TIP has updated.
-                    if let Err(error) = tx.send(latest_tip).await {
+                    if let Err(error) = tx
+                        .send(MithrilUpdateMessage {
+                            tip: tip.point(),
+                            previous: tip.previous(),
+                        })
+                        .await
+                    {
                         error!(
                             "Failed to send new tip to the live updater for: {}:  {error}",
                             cfg.chain

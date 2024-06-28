@@ -10,7 +10,10 @@ use std::{
 use pallas::network::miniprotocols::Point;
 use tracing::debug;
 
-use crate::mithril_snapshot_sync::{get_mithril_tip, MITHRIL_IMMUTABLE_SUB_DIRECTORY};
+use crate::{
+    mithril_snapshot_sync::{get_mithril_tip, MITHRIL_IMMUTABLE_SUB_DIRECTORY},
+    Network,
+};
 /// A Representation of a Snapshot Path and its represented Immutable File Number.
 #[derive(Clone, Debug)]
 pub(crate) struct SnapshotId {
@@ -57,12 +60,12 @@ impl SnapshotId {
 
     /// Try and create a new `SnapshotID` from a given path.
     /// Includes properly getting the Immutable TIP.
-    pub(crate) fn try_new(path: &Path) -> Option<Self> {
-        let Ok(tip) = get_mithril_tip(path) else {
+    pub(crate) fn try_new(chain: Network, path: &Path) -> Option<Self> {
+        let Ok(tip) = get_mithril_tip(chain, path) else {
             return None;
         };
 
-        SnapshotId::new(path, tip)
+        SnapshotId::new(path, tip.point())
     }
 
     /// Get the Immutable Blockchain path from this `SnapshotId`

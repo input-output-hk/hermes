@@ -31,8 +31,9 @@ use crate::{
     chain_sync_ready::{get_chain_update_tx_queue, wait_for_sync_ready, SyncReadyWaiter},
     chain_update,
     error::{Error, Result},
-    live_block::LiveBlock,
     mithril_snapshot::MithrilSnapshot,
+    mithril_snapshot_config::MithrilUpdateMessage,
+    multi_era_block_data::UNKNOWN_POINT,
     ChainSyncConfig, ChainUpdate, MultiEraBlock, Network, PointOrTip,
 };
 
@@ -173,6 +174,8 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
     let mut update_sender = get_chain_update_tx_queue(chain).await;
     let mut block_is_rollback: Option<Point> = None;
 
+    let mut previous_point = UNKNOWN_POINT;
+
     loop {
         // debug!("Waiting for data from Cardano Peer Node:");
 
@@ -215,18 +218,25 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                     .await
                     .with_context(|| "Fetching block data")?;
 
-                let live_block_data = MultiEraBlock::new(block_data)?;
+                let live_block_data =
+                    MultiEraBlock::new(chain, block_data, &previous_point, false)?;
 
+                // We can't store this block because we don't know the previous one so the chain
+                // would break, so just use it for previous.
+                if previous_point == UNKNOWN_POINT {
+                    previous_point = live_block_data.point();
+                    // Nothing else we can do with the first block when we don't know the previous
+                    // one.
+                    continue;
+                }
                 // Add the live block to the head of the live chain
-                live_chain_insert(
-                    chain,
-                    LiveBlock::new(point.clone(), live_block_data.clone()),
-                );
+                live_chain_insert(chain, live_block_data.clone());
+                previous_point = point.clone();
 
                 let reported_tip = PointOrTip::Point(tip.0);
                 let block_point = PointOrTip::Point(point.clone());
 
-                let mut update_type = chain_update::Type::Block;
+                let mut update_type = chain_update::Kind::Block;
 
                 // IF its a rollback block, report it as such.
                 if let Some(rollback) = block_is_rollback.take() {
@@ -257,16 +267,12 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                             );
                         }
 
-                        update_type = chain_update::Type::Rollback;
+                        update_type = chain_update::Kind::Rollback;
                     }
                 }
 
-                let update = ChainUpdate::new(
-                    update_type,
-                    point,
-                    reported_tip <= block_point,
-                    live_block_data,
-                );
+                let update =
+                    ChainUpdate::new(update_type, reported_tip <= block_point, live_block_data);
                 send_update(chain, &update_sender, &block_point, update);
             },
             chainsync::NextResponse::RollBackward(point, tip) => {
@@ -300,9 +306,12 @@ async fn persistent_reconnect(addr: &str, chain: Network) -> PeerClient {
 /// to the current synced tip blocks.
 ///
 /// This only needs to be done once per chain connection.
-async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Result<()> {
+async fn live_sync_backfill(
+    cfg: &ChainSyncConfig, update: &MithrilUpdateMessage,
+) -> anyhow::Result<()> {
     let fill_to = get_fill_to_point(cfg.chain).await;
-    let range = (from, fill_to);
+    let range = (update.tip.clone(), fill_to);
+    let mut previous_point = update.previous.clone();
 
     let range_msg = format!("{range:?}");
 
@@ -315,12 +324,15 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
         .with_context(|| "Requesting Block Range")?;
 
     while let Some(block_data) = peer.blockfetch().recv_while_streaming().await? {
-        let block = MultiEraBlock::new(block_data)?;
-        let decoded_block = block.decode();
-        let slot = decoded_block.slot();
-        let hash = decoded_block.hash();
-        let live_block = LiveBlock::new(Point::new(slot, hash.to_vec()), block);
-        live_chain_insert(cfg.chain, live_block);
+        let block = MultiEraBlock::new(cfg.chain, block_data, &previous_point, false)
+            .with_context(|| {
+                format!(
+                    "Failed to decode block data. previous: {previous_point:?}, range: {range_msg}"
+                )
+            })?;
+
+        previous_point = block.point();
+        live_chain_insert(cfg.chain, block);
         // debug!("Backfilled Block: {}", slot);
     }
 
@@ -331,9 +343,10 @@ async fn live_sync_backfill(cfg: &ChainSyncConfig, from: Point) -> anyhow::Resul
 
 /// Backfill and Purge the live chain, based on the Mithril Sync updates.
 async fn live_sync_backfill_and_purge(
-    cfg: ChainSyncConfig, mut rx: mpsc::Receiver<Point>, mut sync_ready: SyncReadyWaiter,
+    cfg: ChainSyncConfig, mut rx: mpsc::Receiver<MithrilUpdateMessage>,
+    mut sync_ready: SyncReadyWaiter,
 ) {
-    let Some(point) = rx.recv().await else {
+    let Some(update) = rx.recv().await else {
         error!("Mithril Sync Failed, can not continue chain sync either.");
         return;
     };
@@ -344,8 +357,8 @@ async fn live_sync_backfill_and_purge(
     );
 
     // Wait for first Mithril Update advice, which triggers a BACKFILL of the Live Data.
-    debug!("Mithril Tip has advanced to: {point:?} : BACKFILL");
-    while let Err(error) = live_sync_backfill(&cfg, point.clone()).await {
+    debug!("Mithril Tip has advanced to: {update:?} : BACKFILL");
+    while let Err(error) = live_sync_backfill(&cfg, &update).await {
         error!("Mithril Backfill Sync Failed: {}", error);
         sleep(Duration::from_secs(10)).await;
     }
@@ -361,7 +374,7 @@ async fn live_sync_backfill_and_purge(
     let mut update_sender = get_chain_update_tx_queue(cfg.chain).await;
 
     loop {
-        let Some(point) = rx.recv().await else {
+        let Some(update) = rx.recv().await else {
             error!("Mithril Sync Failed, can not continue chain sync either.");
             return;
         };
@@ -371,29 +384,28 @@ async fn live_sync_backfill_and_purge(
             update_sender = get_chain_update_tx_queue(cfg.chain).await;
         }
 
-        debug!("Mithril Tip has advanced to: {point:?} : PURGE NEEDED");
+        debug!("Mithril Tip has advanced to: {update:?} : PURGE NEEDED");
 
-        purge_live_chain(cfg.chain, &point, PurgeType::Oldest);
+        purge_live_chain(cfg.chain, &update.tip, PurgeType::Oldest);
 
         debug!(
             "After Purge: Size of the Live Chain is: {} Blocks",
             live_chain_length(cfg.chain)
         );
 
-        if let Some(block_data) = MithrilSnapshot::new(cfg.chain).read_block_at(&point) {
+        if let Some(block_data) = MithrilSnapshot::new(cfg.chain).read_block_at(&update.tip) {
+            let update_point = PointOrTip::Point(block_data.point());
             // Get Immutable block that represents this point
             let update = ChainUpdate::new(
-                chain_update::Type::ImmutableBlockRollForward,
-                point.clone(),
-                true,
+                chain_update::Kind::ImmutableBlockRollForward,
+                true, // Tip of the immutable blockchain
                 block_data,
             );
-            let update_point = PointOrTip::Point(point);
             send_update(cfg.chain, &update_sender, &update_point, update);
         } else {
             error!(
                 chain = cfg.chain.to_string(),
-                point = format!("{:?}", point),
+                point = format!("{:?}", update.tip),
                 "Immutable Chain update, but block not found."
             );
         }
@@ -421,7 +433,7 @@ async fn live_sync_backfill_and_purge(
 /// # Returns
 ///
 /// This does not return, it is a background task.
-pub(crate) async fn chain_sync(cfg: ChainSyncConfig, rx: mpsc::Receiver<Point>) {
+pub(crate) async fn chain_sync(cfg: ChainSyncConfig, rx: mpsc::Receiver<MithrilUpdateMessage>) {
     debug!(
         "Chain Sync for: {} from {} : Starting",
         cfg.chain, cfg.relay_address,

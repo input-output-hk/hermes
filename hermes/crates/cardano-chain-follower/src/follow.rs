@@ -11,7 +11,8 @@ use crate::{
     chain_sync_live_chains::get_live_block_after,
     chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
     chain_update::{self, ChainUpdate},
-    mithril_snapshot::{MithrilSnapshot, MithrilSnapshotIterator},
+    mithril_snapshot::MithrilSnapshot,
+    mithril_snapshot_iterator::MithrilSnapshotIterator,
     network::Network,
     point_or_tip::PointOrTip,
 };
@@ -80,10 +81,7 @@ impl ChainFollower {
 
         if let Some(follower) = self.mithril_follower.as_mut() {
             if let Some(next) = follower.next() {
-                let decoded_block = next.decode();
-                let point = Point::new(decoded_block.slot(), decoded_block.hash().to_vec());
-                let update =
-                    ChainUpdate::new(chain_update::Type::ImmutableBlock, point, false, next);
+                let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
                 return Some(update);
             }
         }
@@ -93,14 +91,8 @@ impl ChainFollower {
     /// If we can, get the next update from the mithril snapshot.
     #[allow(clippy::unused_self)]
     fn next_from_live_chain(&mut self, point: &Point) -> Option<ChainUpdate> {
-        get_live_block_after(self.chain, point).map(|live_block| {
-            ChainUpdate::new(
-                chain_update::Type::Block,
-                live_block.point,
-                false,
-                live_block.data,
-            )
-        })
+        get_live_block_after(self.chain, point)
+            .map(|live_block| ChainUpdate::new(chain_update::Kind::Block, false, live_block))
     }
 
     /// Update the current Point, and return `false` if this fails.
@@ -125,7 +117,7 @@ impl ChainFollower {
 
             match update {
                 Ok(update) => {
-                    if update.update == chain_update::Type::ImmutableBlock {
+                    if update.kind == chain_update::Kind::Block && update.immutable() {
                         // Shouldn't happen, log if it does, but otherwise ignore it.
                         error!(
                             chain = self.chain.to_string(),
@@ -136,8 +128,8 @@ impl ChainFollower {
                         // block in the live queue from the live in-memory
                         // chain. This is not an error, so just ignore that
                         // entry in the queue.
-                        if update.update != chain_update::Type::Rollback
-                            && self.current >= update.point
+                        if update.kind != chain_update::Kind::Rollback
+                            && self.current >= update.data.point()
                         {
                             debug!("Discarding: {}", update);
                             continue;
