@@ -2,9 +2,16 @@
 
 pub(crate) mod queue;
 
+use crossbeam_channel::{unbounded, Receiver, Sender};
+
 use crate::{
     app::HermesAppName,
     wasm::module::{ModuleId, ModuleInstance},
+};
+
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
 };
 
 /// A trait for defining the behavior of a Hermes event.
@@ -25,6 +32,7 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
 }
 
 /// Target Hermes app to execute the event
+#[derive(Clone)]
 pub(crate) enum TargetApp {
     /// Execute for all available apps
     #[allow(dead_code)]
@@ -51,6 +59,12 @@ pub(crate) struct HermesEvent {
 
     /// Target module
     target_module: TargetModule,
+
+    /// Signalling queue which tracks event deps
+    completion_queue: Option<Sender<Box<dyn HermesEventPayload>>>,
+
+    /// Event lifecycle tracker
+    event_lifetimes: Arc<AtomicU64>,
 }
 
 impl HermesEvent {
@@ -62,7 +76,39 @@ impl HermesEvent {
             payload: Box::new(payload),
             target_app,
             target_module,
+            completion_queue: None,
+            event_lifetimes: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    /// Create event completion queue
+    pub(crate) fn make_waiter(&mut self) -> Receiver<Box<dyn HermesEventPayload>> {
+        let (tx, rx) = unbounded();
+        self.completion_queue = Some(tx);
+        rx
+    }
+
+    /// Event invocation on module
+    pub(crate) fn add_processor(&self) {
+        self.event_lifetimes.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Event invocation on module complete
+    pub(crate) fn subtract_processor(&self) {
+        self.event_lifetimes.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    /// Event lifecycle finished. Return self back to event completion queue.
+    pub(crate) fn finished(self) {
+        // Subtracts from the current value, returning the previous value.
+        if self.event_lifetimes.load(Ordering::SeqCst) == 0 {
+            if let Some(q) = self.completion_queue {
+                match q.send(self.payload) {
+                    Ok(_) => (),
+                    Err(_) => (),
+                };
+            }
+        };
     }
 
     /// Get event's payload

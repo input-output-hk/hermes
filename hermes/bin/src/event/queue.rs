@@ -174,19 +174,37 @@ pub(crate) fn event_dispatch(
 }
 
 /// Executes provided Hermes event filtering by target app and target module.
-fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
+fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
     let execution_contexts =
         get_execution_context(event.target_app(), event.target_module(), indexed_apps);
 
     // Event dispatch
     for (app_name, module_id, module) in execution_contexts {
+        event.add_processor();
+
+        //   TODO!
+        //   parallelize
+        //   m = module
+        //
+        //      event
+        //    / \  / \
+        //   m1 m2 m3 mN
+        //   |   | |   |
+        //   |   |     |
+        //   ____|_____|__
+        //   \  /   \ /
+        //   event finished
         event_dispatch(app_name.clone(), module_id.clone(), module, event.payload());
+
+        event.subtract_processor();
     }
+
+    event.finished();
 }
 
 /// Executes Hermes events from the provided receiver .
 fn event_execution_loop(indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>) {
     for event in receiver {
-        targeted_event_execution(indexed_apps, &event);
+        targeted_event_execution(indexed_apps, event);
     }
 }
