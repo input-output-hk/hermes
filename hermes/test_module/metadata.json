@@ -1,0 +1,17 @@
+{
+    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+    "name": "Test module",
+    "version": "V1.0.0",
+    "description": "Some description",
+    "src": [
+        "https://github.com/input-output-hk/hermes"
+    ],
+    "license": [
+        {
+            "spdx": "Apache-2.0"
+        }
+    ],
+    "copyright": [
+        "Copyright Ⓒ 2024, IOG Singapore."
+    ]
+}

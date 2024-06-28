@@ -1,0 +1,12 @@
+{
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "name": {
+            "type": "string",
+            "title": "Module Name",
+            "description": "Name of the Module",
+            "default": "test"
+        }
+    }
+}
