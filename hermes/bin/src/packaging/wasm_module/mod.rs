@@ -1,4 +1,4 @@
-//! Wasm module package.
+//! Hermes WASM module package.
 
 mod config;
 pub(crate) mod manifest;
@@ -35,7 +35,7 @@ use crate::{
 #[error("Missing package file {0}.")]
 pub(crate) struct MissingPackageFileError(String);
 
-/// Wasm module package.
+/// Hermes WASM module package.
 pub(crate) struct WasmModulePackage(Package);
 
 impl WasmModulePackage {

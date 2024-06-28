@@ -13,13 +13,18 @@
             "pattern": "^(https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/)|(.*/)hermes_app_manifest.schema.json$",
             "description": "Reference to the Application Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
         },
+        "name": {
+            "type": "string",
+            "title": "Hermes Application Package name.",
+            "description": "Name of the Hermes application package with which it will be created.",
+            "default": "app"
+        },
         "metadata": {
             "type": "string",
             "title": "Application Metadata File",
-            "description": "Link to the Application Metadata json file.\nWill be renamed to `metadata.json` inside the package.",
-            "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-            "format": "uri",
-            "default": "file://metadata.json"
+            "description": "Link to the Hermes application metadata JSON file.\nWill be renamed to `metadata.json` inside the package.\nIt Could be a valid URI or regular local path on your system.",
+            "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
+            "default": "metadata.json"
         },
         "modules": {
             "type": "array",
@@ -73,16 +78,14 @@
                 "www": {
                     "type": "string",
                     "title": "Data to be served to a browser at the applications URL from /",
-                    "description": "A Directory or archive of data to be served to a browser for the App.",
-                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-                    "format": "uri"
+                    "description": "A Directory or archive of data to be served to a browser for the App.\nIt Could be a valid URI or regular local path on your system.",
+                    "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 },
                 "share": {
                     "type": "string",
                     "title": "Data to be shared amongst all modules within the application.",
-                    "description": "A Directory or archive of data to be shared with all Modules in the application.",
-                    "pattern": "^file://(/?([a-zA-Z0-9-_\\.]+))+$",
-                    "format": "uri"
+                    "description": "A Directory or archive of data to be shared with all Modules in the application.\nIt Could be a valid URI or regular local path on your system.",
+                    "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 }
             }
         }
