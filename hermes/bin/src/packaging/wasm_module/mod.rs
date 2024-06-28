@@ -10,11 +10,11 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
+use manifest::Manifest;
 use metadata::Metadata;
 use settings::SettingsSchema;
 use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
-use self::manifest::Manifest;
 use crate::{
     errors::Errors,
     packaging::{

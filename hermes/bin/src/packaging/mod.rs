@@ -1,6 +1,5 @@
 //! Hermes packaging.
 
-#[allow(dead_code)]
 pub(crate) mod app;
 pub(crate) mod hash;
 pub(crate) mod package;

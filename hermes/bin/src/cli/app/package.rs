@@ -1,4 +1,4 @@
-//! cli module package command
+//! cli app package command
 
 use std::path::PathBuf;
 
@@ -6,9 +6,9 @@ use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
-use crate::packaging::wasm_module::{manifest::Manifest, WasmModulePackage};
+use crate::packaging::app::{manifest::Manifest, ApplicationPackage};
 
-/// Hermes WASM module packaging
+/// Hermes application packaging
 #[derive(Args)]
 pub(crate) struct PackageCommand {
     /// Defines the location of all the src artifacts needed to build the package. This
@@ -49,7 +49,7 @@ impl PackageCommand {
         let manifest = Manifest::from_file(&self.manifest)?;
         let package_name = self.name.as_deref();
         let build_time = Utc::now();
-        WasmModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
+        ApplicationPackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())

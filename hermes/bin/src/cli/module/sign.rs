@@ -1,4 +1,4 @@
-//! WASM module sign command
+//! cli module sign command
 
 use std::path::PathBuf;
 
