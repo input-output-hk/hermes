@@ -10,7 +10,7 @@ use manifest::Manifest;
 use crate::packaging::package::Package;
 
 /// Hermes application package.
-pub(crate) struct ApplicationPackage(Package);
+pub(crate) struct ApplicationPackage(#[allow(dead_code)] Package);
 
 impl ApplicationPackage {
     /// Hermes application package file extension.
@@ -29,6 +29,7 @@ impl ApplicationPackage {
     }
 
     /// Open an existing application package.
+    #[allow(dead_code)]
     pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let package = Package::open(path)?;
         Ok(Self(package))
