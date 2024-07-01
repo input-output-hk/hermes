@@ -128,18 +128,12 @@ fn copy_dir_recursively_to_package(
     let mut errors = Errors::new();
     for resource in resource.get_directory_content()? {
         if resource.is_dir() {
-            copy_dir_recursively_to_package(&resource, &resource.name()?, &package).unwrap_or_else(
-                |err| {
-                    match err.downcast::<Errors>() {
-                        Ok(errs) => errors.merge(errs),
-                        Err(err) => errors.add_err(err),
-                    }
-                },
-            );
+            copy_dir_recursively_to_package(&resource, &resource.name()?, &package)
+                .unwrap_or_else(errors.get_add_err_fn());
         }
         if resource.is_file() {
             copy_file_to_package(&resource, &resource.name()?, &package)
-                .unwrap_or_else(|err| errors.add_err(err));
+                .unwrap_or_else(errors.get_add_err_fn());
         }
     }
     errors.return_result(())

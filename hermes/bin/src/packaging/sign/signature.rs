@@ -66,7 +66,7 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
         let mut errors = Errors::new();
         for (i, cose_signature) in cose_sign.signatures.iter().enumerate() {
             Self::verify_cose_sign(&cose_sign, i, cose_signature)
-                .unwrap_or_else(|err| errors.add_err(err));
+                .unwrap_or_else(errors.get_add_err_fn());
         }
         errors.return_result(())
     }

@@ -68,19 +68,14 @@ impl WasmModulePackage {
         let mut errors = Errors::new();
 
         validate_and_write_metadata(manifest, build_time, package_name, &package)
-            .unwrap_or_else(|err| errors.add_err(err));
-        validate_and_write_component(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
-        validate_and_write_config(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
-        validate_and_write_settings(manifest, &package).unwrap_or_else(|err| errors.add_err(err));
-        write_share_dir(manifest, &package).unwrap_or_else(|err| {
-            match err.downcast::<Errors>() {
-                Ok(errs) => errors.merge(errs),
-                Err(err) => errors.add_err(err),
-            }
-        });
+            .unwrap_or_else(errors.get_add_err_fn());
+        validate_and_write_component(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
+        validate_and_write_config(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
+        validate_and_write_settings(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
+        write_share_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
 
         if !errors.is_empty() {
-            std::fs::remove_file(package_path).unwrap_or_else(|err| errors.add_err(err.into()));
+            std::fs::remove_file(package_path).unwrap_or_else(errors.get_add_err_fn());
         }
 
         errors.return_result(Self(package))
@@ -97,15 +92,15 @@ impl WasmModulePackage {
         let mut errors = Errors::new();
 
         self.get_metadata()
-            .map_or_else(|err| errors.add_err(err), |_| ());
+            .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_component()
-            .map_or_else(|err| errors.add_err(err), |_| ());
+            .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_config_with_schema()
-            .map_or_else(|err| errors.add_err(err), |_| ());
+            .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_settings_schema()
-            .map_or_else(|err| errors.add_err(err), |_| ());
+            .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        self.verify_sign().unwrap_or_else(|err| errors.add_err(err));
+        self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
 
         errors.return_result(())
     }
