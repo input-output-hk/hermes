@@ -46,8 +46,4 @@ impl Host for HermesRuntimeContext {
     fn peer_evict(&mut self, peer: PeerId) -> wasmtime::Result<Result<bool, Errno>> {
         Ok(hermes_ipfs_evict_peer(peer))
     }
-
-    fn peer_evict(&mut self, _peer: PeerId) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!();
-    }
 }
