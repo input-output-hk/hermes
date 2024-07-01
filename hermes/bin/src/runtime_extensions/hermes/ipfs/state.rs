@@ -36,42 +36,6 @@ static HERMES_IPFS_STATE: Lazy<HermesIpfsState> = Lazy::new(|| {
     HermesIpfsState::new(sender)
 });
 
-/// Add File to IPFS
-pub(crate) fn hermes_ipfs_add_file(contents: IpfsContent) -> Result<IpfsPath, Errno> {
-    HERMES_IPFS_STATE.file_add(contents)
-}
-
-/// Get File from Ipfs
-pub(crate) fn hermes_ipfs_get_file(path: IpfsPath) -> Result<IpfsContent, Errno> {
-    HERMES_IPFS_STATE.file_get(path)
-}
-
-/// Pin IPFS File
-pub(crate) fn hermes_ipfs_pin_file(path: IpfsPath) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.file_pin(path)
-}
-
-/// Get DHT Value
-pub(crate) fn hermes_ipfs_get_dht_value(key: DhtKey) -> Result<DhtValue, Errno> {
-    HERMES_IPFS_STATE.dht_get(key)
-}
-
-/// Put DHT Value
-pub(crate) fn hermes_ipfs_put_dht_value(key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.dht_put(key, value)
-}
-
-/// Subscribe to a topic
-pub(crate) fn hermes_ipfs_subscribe(topic: PubsubTopic) -> Result<bool, Errno> {
-    let _stream = HERMES_IPFS_STATE.pubsub_subscribe(topic)?;
-    Ok(true)
-}
-
-/// Evict Peer from node
-pub(crate) fn hermes_ipfs_evict_peer(peer: PeerId) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.peer_evict(peer)
-}
-
 /// Hermes IPFS Internal State
 struct HermesIpfsState {
     /// State related to `HermesAppName`
@@ -277,4 +241,40 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
     }
     hermes_node.stop().await;
     Ok(())
+}
+
+/// Add File to IPFS
+pub(crate) fn hermes_ipfs_add_file(contents: IpfsContent) -> Result<IpfsPath, Errno> {
+    HERMES_IPFS_STATE.file_add(contents)
+}
+
+/// Get File from Ipfs
+pub(crate) fn hermes_ipfs_get_file(path: IpfsPath) -> Result<IpfsContent, Errno> {
+    HERMES_IPFS_STATE.file_get(path)
+}
+
+/// Pin IPFS File
+pub(crate) fn hermes_ipfs_pin_file(path: IpfsPath) -> Result<bool, Errno> {
+    HERMES_IPFS_STATE.file_pin(path)
+}
+
+/// Get DHT Value
+pub(crate) fn hermes_ipfs_get_dht_value(key: DhtKey) -> Result<DhtValue, Errno> {
+    HERMES_IPFS_STATE.dht_get(key)
+}
+
+/// Put DHT Value
+pub(crate) fn hermes_ipfs_put_dht_value(key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
+    HERMES_IPFS_STATE.dht_put(key, value)
+}
+
+/// Subscribe to a topic
+pub(crate) fn hermes_ipfs_subscribe(topic: PubsubTopic) -> Result<bool, Errno> {
+    let _stream = HERMES_IPFS_STATE.pubsub_subscribe(topic)?;
+    Ok(true)
+}
+
+/// Evict Peer from node
+pub(crate) fn hermes_ipfs_evict_peer(peer: PeerId) -> Result<bool, Errno> {
+    HERMES_IPFS_STATE.peer_evict(peer)
 }
