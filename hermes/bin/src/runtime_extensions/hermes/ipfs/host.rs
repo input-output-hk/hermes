@@ -3,7 +3,7 @@
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsPath, PubsubTopic,
+        DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsPath, PeerId, PubsubTopic,
     },
 };
 
@@ -16,7 +16,7 @@ impl Host for HermesRuntimeContext {
         todo!();
     }
 
-    fn file_pin(&mut self, ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
+    fn file_pin(&mut self, _ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 
@@ -31,6 +31,10 @@ impl Host for HermesRuntimeContext {
     }
 
     fn pubsub_subscribe(&mut self, _topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {
+        todo!();
+    }
+
+    fn peer_evict(&mut self, _peer: PeerId) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 }
