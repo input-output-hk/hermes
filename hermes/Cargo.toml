@@ -58,6 +58,8 @@ pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git
 
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
 
+hermes-ipfs = { path = "crates/hermes-ipfs", version = "0.0.1" }
+
 wasmtime = "20.0.2"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
