@@ -1,13 +1,15 @@
 /// Interface to local `IPFS` instance.
 interface api {
-    /// The binary contents of an IPFS file.
-    type ipfs-content = list<u8>;
-    /// A path to an IPFS file.
-    type ipfs-path = string;
     /// A DHT key.
     type dht-key = list<u8>;
     /// A DHT value.
     type dht-value = list<u8>;
+    /// The binary contents of an IPFS file.
+    type ipfs-content = list<u8>;
+    /// A path to an IPFS file.
+    type ipfs-path = string;
+    /// The ID of a peer.
+    type peer-id = string;
     /// A PubSub topic.
     type pubsub-topic = string;
     /// A PubSub message from a topic subscription.
@@ -16,22 +18,34 @@ interface api {
         topic: pubsub-topic,
         /// The contents of the message.
         message: string,
+        /// Peer ID that sent the message.
+        peer: peer-id,
     }
 
     /// Errors that occur in IPFS networking.
     enum errno {
+        /// Unable to get DHT value.
+        dht-get-error,
+        /// Unable to put DHT value.
+        dht-put-error,
         /// Unable to publish file to IPFS.
         file-add-error,
         /// Unable to get file from IPFS.
         file-get-error,
         /// Unable to pin file.
         file-pin-error,
-        /// Unable to get DHT value,
-        dht-get-error,
         /// Unable to parse a valid IPFS path.
         invalid-ipfs-path,
         /// Invalid CID.
         invalid-cid,
+        /// Invalid Peer ID.
+        invalid-peer-id,
+        /// Unable to evict peer.
+        peer-eviction-error,
+        /// Unable to publish to IPFS topic.
+        pubsub-publish-error,
+        /// Unable to subscripe to IPFS topic.
+        pubsub-subscribe-error,
     }
 
     /// Uploads a file to IPFS.
@@ -46,6 +60,8 @@ interface api {
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
+    /// Evict peer from network.
+    peer-evict: func(peer: peer-id) -> result<bool, errno>;
 }
 
 world ipfs-api {

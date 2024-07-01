@@ -8,7 +8,7 @@
 
 /// IPFS API Interface - Export ONLY
 interface event {
-    use api.{pubsub-message};
+    use api.{pubsub-message, peer-id};
 
     /// Triggers when a message is received on a topic.
     on-topic: func(message: pubsub-message) -> bool;
