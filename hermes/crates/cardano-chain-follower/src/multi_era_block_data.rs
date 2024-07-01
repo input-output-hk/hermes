@@ -21,7 +21,7 @@ struct SelfReferencedMultiEraBlock {
     /// References the `raw_data` field.
     #[borrows(raw_data)]
     #[covariant]
-    block: Result<pallas::ledger::traverse::MultiEraBlock<'this>, pallas::ledger::traverse::Error>,
+    block: pallas::ledger::traverse::MultiEraBlock<'this>,
 }
 
 /// Multi-era block - inner.
@@ -38,7 +38,7 @@ pub struct MultiEraBlockInner {
     /// Is the block considered immutable, or could it be effected by rollback?
     immutable: bool,
     /// The decoded multi-era block.
-    data: SelfReferencedMultiEraBlock,
+    data: Option<SelfReferencedMultiEraBlock>,
 }
 
 /// A special point which means we do not know the point, and its NOT the origin.
@@ -58,18 +58,15 @@ impl MultiEraBlock {
     fn new_block(
         chain: Network, raw_data: Vec<u8>, previous: &Point, immutable: bool,
     ) -> anyhow::Result<Self, Error> {
-        let builder = SelfReferencedMultiEraBlockBuilder {
+        let builder = SelfReferencedMultiEraBlockTryBuilder {
             raw_data,
-            block_builder: |raw_data| pallas::ledger::traverse::MultiEraBlock::decode(raw_data),
-        };
-        let self_ref_block = builder.build();
-        let decoded_block = self_ref_block.borrow_block();
-        let decoded_block: &pallas::ledger::traverse::MultiEraBlock = match decoded_block {
-            Ok(block) => block,
-            Err(err) => {
-                return Err(Error::Codec(err.to_string()));
+            block_builder: |raw_data| -> Result<_, Error> {
+                pallas::ledger::traverse::MultiEraBlock::decode(raw_data)
+                    .map_err(|err| Error::Codec(err.to_string()))
             },
         };
+        let self_ref_block = builder.try_build()?;
+        let decoded_block = self_ref_block.borrow_block();
 
         let slot = decoded_block.slot();
 
@@ -115,7 +112,7 @@ impl MultiEraBlock {
             point,
             previous: previous.clone(),
             immutable,
-            data: self_ref_block,
+            data: Some(self_ref_block),
         })))
     }
 
@@ -140,18 +137,12 @@ impl MultiEraBlock {
     /// Probe blocks can ONLY be used to search for blocks in the Live Chain.
     /// Trying to read their data will Panic.
     pub(crate) fn probe(chain: Network, point: &Point) -> Self {
-        let builder = SelfReferencedMultiEraBlockBuilder {
-            raw_data: Vec::new(),
-            block_builder: |raw_data| pallas::ledger::traverse::MultiEraBlock::decode(raw_data),
-        };
-        let self_ref_block = builder.build();
-
         Self(Arc::new(MultiEraBlockInner {
             chain,
             point: point.clone(),
             previous: point.clone(),
             immutable: false,
-            data: self_ref_block,
+            data: None,
         }))
     }
 
@@ -161,14 +152,16 @@ impl MultiEraBlock {
     pub fn decode(&self) -> &pallas::ledger::traverse::MultiEraBlock {
         // We checked the block before, during construction, so it is safe to unwrap.
         #[allow(clippy::unwrap_used)]
-        self.0.data.borrow_block().as_ref().unwrap()
+        self.0.data.as_ref().unwrap().borrow_block()
     }
 
     /// Decodes the data into a multi-era block.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn raw(&self) -> &Vec<u8> {
         // We checked the block before, during construction, so it is safe to unwrap.
-        self.0.data.borrow_raw_data()
+        #[allow(clippy::unwrap_used)]
+        self.0.data.as_ref().unwrap().borrow_raw_data()
     }
 
     /// Returns the block point of this block.
@@ -195,7 +188,8 @@ impl MultiEraBlock {
 
 impl Display for MultiEraBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Ok(block) = self.0.data.borrow_block() {
+        if let Some(block_data) = self.0.data.as_ref() {
+            let block = block_data.borrow_block();
             let block_number = block.number();
             let slot = block.slot();
             let size = block.size();
@@ -214,12 +208,10 @@ impl Display for MultiEraBlock {
                 pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
                 _ => "Unknown".to_string(),
             };
-
             write!(f, "{block_era} block : Slot# {slot} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
         } else {
             write!(f, "PROBE BLOCK @ {:?}", self.0.point)?;
         }
-
         Ok(())
     }
 }
@@ -269,17 +261,13 @@ impl PartialOrd<Point> for MultiEraBlock {
 /// Compare Points, because Pallas does not impl `Ord` for Point.
 pub(crate) fn cmp_point(a: &Point, b: &Point) -> Ordering {
     match a {
-        Point::Origin => {
-            match b {
-                Point::Origin => Ordering::Equal,
-                Point::Specific(..) => Ordering::Less,
-            }
+        Point::Origin => match b {
+            Point::Origin => Ordering::Equal,
+            Point::Specific(..) => Ordering::Less,
         },
-        Point::Specific(slot, _) => {
-            match b {
-                Point::Origin => Ordering::Greater,
-                Point::Specific(other_slot, _) => slot.cmp(other_slot),
-            }
+        Point::Specific(slot, _) => match b {
+            Point::Origin => Ordering::Greater,
+            Point::Specific(other_slot, _) => slot.cmp(other_slot),
         },
     }
 }
