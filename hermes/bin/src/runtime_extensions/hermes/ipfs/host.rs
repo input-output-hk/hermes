@@ -16,11 +16,11 @@ impl Host for HermesRuntimeContext {
         todo!();
     }
 
-    fn file_pin(&mut self, _path: IpfsPath) -> wasmtime::Result<bool> {
+    fn file_pin(&mut self, ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 
-    fn dht_put(&mut self, _key: DhtKey, _contents: IpfsContent) -> wasmtime::Result<bool> {
+    fn dht_put(&mut self, _key: DhtKey, _contents: IpfsContent) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 
@@ -28,7 +28,7 @@ impl Host for HermesRuntimeContext {
         todo!();
     }
 
-    fn pubsub_subscribe(&mut self, _topic: PubsubTopic) -> wasmtime::Result<bool> {
+    fn pubsub_subscribe(&mut self, _topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 }

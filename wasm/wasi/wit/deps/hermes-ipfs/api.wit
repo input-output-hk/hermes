@@ -20,9 +20,18 @@ interface api {
 
     /// Errors that occur in IPFS networking.
     enum errno {
+        /// Unable to publish file to IPFS.
         file-add-error,
+        /// Unable to get file from IPFS.
         file-get-error,
+        /// Unable to pin file.
+        file-pin-error,
+        /// Unable to get DHT value,
         dht-get-error,
+        /// Unable to parse a valid IPFS path.
+        invalid-ipfs-path,
+        /// Invalid CID.
+        invalid-cid,
     }
 
     /// Uploads a file to IPFS.
@@ -30,13 +39,13 @@ interface api {
     /// Retrieves a file from IPFS.
     file-get: func(path: ipfs-path) -> result<ipfs-content, errno>;
     /// Pins a file by path to IPFS.
-    file-pin: func(path: ipfs-path) -> bool;
+    file-pin: func(path: ipfs-path) -> result<bool, errno>;
     /// Puts a DHT key-value into IPFS.
-    dht-put: func(key: dht-key, contents: ipfs-content) -> bool;
+    dht-put: func(key: dht-key, contents: ipfs-content) -> result<bool, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
     /// Subscribes to a PubSub topic.
-    pubsub-subscribe: func(topic: pubsub-topic) -> bool;
+    pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }
 
 world ipfs-api {
