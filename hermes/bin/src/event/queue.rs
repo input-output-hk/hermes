@@ -168,6 +168,7 @@ pub(crate) fn event_dispatch(
     // Advise Runtime Extensions of a new context
     new_context(&runtime_context);
 
+    // WE KNOW MODULE EXECUTES EVENT HERE
     if let Err(err) = module.execute_event(event, runtime_context) {
         tracing::error!("Error executing event, err: {err}");
     }

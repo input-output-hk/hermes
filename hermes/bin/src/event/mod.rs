@@ -103,7 +103,7 @@ impl HermesEvent {
         // Subtracts from the current value, returning the previous value.
         if self.event_lifetimes.load(Ordering::SeqCst) == 0 {
             if let Some(q) = self.completion_queue {
-                match q.send(self.payload) {
+                match q.try_send(self.payload) {
                     Ok(_) => (),
                     Err(_) => (),
                 };

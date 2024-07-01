@@ -1,4 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr, result::Result::Ok as OkResp, sync::Arc};
+use std::{
+    collections::HashMap, net::SocketAddr, result::Result::Ok as OkResp, sync::Arc, thread::sleep,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Ok};
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
@@ -166,6 +169,8 @@ async fn compose_http_event(
             OkResp(http_event) => match http_event{
                 // Event has been sent to all WASM, first to respond with Some(response) causes a response.
                 HTTPEventMsg::HttpEventResponse(resp) => {
+
+                    sleep(Duration::from_millis(1));
                     Ok(Response::new(serde_json::to_string(&resp)?.into()))
                 },
                 _ => Ok(error_response("HTTP event msg error".to_owned())),
@@ -173,7 +178,7 @@ async fn compose_http_event(
             Err(_) => Ok(not_found()),
         },
         recv(event_completion_queue) -> _msg =>{
-        // All WASM asscoiated with event have run, No response was yet sent, send 404.
+            // All WASM asscoiated with event have run, No response was yet sent, send 404.
             Ok(error_response("404".to_owned()))
         },
     }

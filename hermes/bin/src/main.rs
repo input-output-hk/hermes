@@ -59,11 +59,14 @@ fn main() {
     let module_bytes3 =
         include_bytes!("/home/soze/hermes-http-test-module/http-test-module/http_good_reply.wasm");
 
-    let hermes_app = crate::app::HermesApp::new(app_name.clone(), vec![
-        module_bytes.to_vec(),
-        module_bytes2.to_vec(),
-        module_bytes3.to_vec(),
-    ])
+    let hermes_app = crate::app::HermesApp::new(
+        app_name.clone(),
+        vec![
+            module_bytes.to_vec(),
+            module_bytes2.to_vec(),
+            module_bytes3.to_vec(),
+        ],
+    )
     .expect("app");
 
     // Create a new reactor instance.
