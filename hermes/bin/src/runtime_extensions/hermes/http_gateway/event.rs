@@ -3,7 +3,6 @@
 use crossbeam_channel::Sender;
 use hyper::{self, body::Bytes};
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::event::HermesEventPayload;
 
@@ -25,8 +24,7 @@ type Body = Vec<u8>;
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum HTTPEventMsg {
     HTTPEventReceiver,
-    HttpEventResponseSome((Code, HeadersKV, Body)),
-    HttpEventResponseNone(),
+    HttpEventResponse((Code, HeadersKV, Body)),
 }
 
 /// HTTP Event
@@ -53,19 +51,14 @@ impl HermesEventPayload for HTTPEvent {
             &self.method,
         )?;
 
-        info!(
-            "Module propagation instance {:?}",
-            rusty_ulid::generate_ulid_string()
-        );
-
         if let Some(resp) = event_response {
-            Ok(self.sender.send(HTTPEventMsg::HttpEventResponseSome((
+            Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((
                 resp.code,
                 resp.headers,
                 resp.body,
             )))?)
         } else {
-            Ok(self.sender.send(HTTPEventMsg::HttpEventResponseNone())?)
+            Ok(())
         }
     }
 }

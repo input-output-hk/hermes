@@ -51,13 +51,13 @@ fn main() {
     logger::init(&log_config).unwrap_or_else(|err| errors.add_err(err));
 
     let module_bytes =
-        include_bytes!("/home/soze/hermes-cardano-rte-test-module/my-component.wasm");
+        include_bytes!("/home/soze/hermes-http-test-module/http-test-module/http_good_reply.wasm");
 
     let module_bytes2 =
-        include_bytes!("/home/soze/hermes-cardano-rte-test-module/my-component.wasm");
+        include_bytes!("/home/soze/hermes-http-test-module/http-test-module/http_good_reply.wasm");
 
     let module_bytes3 =
-        include_bytes!("/home/soze/hermes-cardano-rte-test-module/my-component.wasm");
+        include_bytes!("/home/soze/hermes-http-test-module/http-test-module/http_good_reply.wasm");
 
     let hermes_app = crate::app::HermesApp::new(
         app_name.clone(),

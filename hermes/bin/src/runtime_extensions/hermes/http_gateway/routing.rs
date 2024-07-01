@@ -1,13 +1,12 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc, thread, time};
+use std::{collections::HashMap, net::SocketAddr, result::Result::Ok as OkResp, sync::Arc};
 
 use anyhow::{anyhow, Ok};
-use crossbeam_channel::{unbounded, Receiver, Select, Sender};
+use crossbeam_channel::{select, unbounded, Receiver, Sender};
 use hyper::{
     self,
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
-
 use tracing::info;
 
 use super::{
@@ -145,7 +144,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
 /// waiting receiver channel for HTTP response
 async fn compose_http_event(
     method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
-    receiver: Receiver<HTTPEventMsg>,
+    http_event_queue: Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<Body>> {
     let on_http_event = HTTPEvent {
         headers,
@@ -162,32 +161,20 @@ async fn compose_http_event(
 
     crate::event::queue::send(event)?;
 
-    let mut sel = Select::new();
-    let event_completion_queue = sel.recv(&event_completion_queue);
-    let event_invocation = sel.recv(&receiver);
-
-    let event_status = sel.select();
-
-    match event_status.index() {
-        resp if resp == event_completion_queue => {
-            // All WASM asscoiated with event have run, No response was yet sent, send 404.
-            Ok(error_response("404".to_owned()))
-        },
-        resp if resp == event_invocation => {
-            // Event has been sent to all WASM, first to respond with Some(response) causes a response.
-            match &event_status.recv(&receiver)? {
-                HTTPEventMsg::HttpEventResponseSome(resp) => {
-                    // TODO! events have not finished, currently we get errors from event dispatch since channel is now closed
-                    let ten_millis = time::Duration::from_millis(100);
-                    thread::sleep(ten_millis);
-
+    select! {
+        recv(http_event_queue) -> msg => match msg{
+            OkResp(http_event) => match http_event{
+                // Event has been sent to all WASM, first to respond with Some(response) causes a response.
+                HTTPEventMsg::HttpEventResponse(resp) => {
                     Ok(Response::new(serde_json::to_string(&resp)?.into()))
                 },
-                HTTPEventMsg::HttpEventResponseNone() => Ok(not_found()),
-
                 _ => Ok(error_response("HTTP event msg error".to_owned())),
-            }
+            },
+            Err(_) => Ok(not_found()),
         },
-        _ => Ok(error_response("Fatal error with events engine".to_owned())),
+        recv(event_completion_queue) -> _msg =>{
+        // All WASM asscoiated with event have run, No response was yet sent, send 404.
+            Ok(error_response("404".to_owned()))
+        },
     }
 }

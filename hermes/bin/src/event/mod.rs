@@ -2,16 +2,16 @@
 
 pub(crate) mod queue;
 
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::{
     app::HermesAppName,
     wasm::module::{ModuleId, ModuleInstance},
-};
-
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
 };
 
 /// A trait for defining the behavior of a Hermes event.
