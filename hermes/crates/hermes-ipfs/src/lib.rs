@@ -1,6 +1,37 @@
 //! Hermes IPFS
 //!
 //! Provides support for storage, and `PubSub` functionality.
+//!
+//! ```no_run
+//! use hermes_ipfs::HermesIpfs;
+//!
+//! #[tokio::main]
+//! #[allow(clippy::println_empty_string)]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Start with default options
+//!     let node = HermesIpfs::start().await?;
+//!     node.stop().await;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ```no_run
+//! use hermes_ipfs::{HermesIpfs, IpfsBuilder};
+//!
+//! #[tokio::main]
+//! #[allow(clippy::println_empty_string)]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Start with default options
+//!     let node: HermesIpfs = IpfsBuilder::new()
+//!         .with_default()
+//!         .set_default_listener()
+//!         .start()
+//!         .await?
+//!         .into();
+//!     node.stop().await;
+//!     Ok(())
+//! }
+//! ```
 
 use std::str::FromStr;
 
@@ -20,13 +51,15 @@ pub use rust_ipfs::Ipfs;
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
+/// Stream for `PubSub` Topic Subscriptions.
+pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
 use rust_ipfs::{
     dag::ResolveError,
     libp2p::{futures::stream::BoxStream, kad::Record},
     unixfs::AddOpt,
-    MessageId, PubsubEvent, Quorum, SubscriptionStream,
+    MessageId, PubsubEvent, Quorum,
 };
 
 /// Hermes IPFS
