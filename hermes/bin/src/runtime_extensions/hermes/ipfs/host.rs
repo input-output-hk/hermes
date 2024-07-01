@@ -20,7 +20,9 @@ impl Host for HermesRuntimeContext {
         todo!();
     }
 
-    fn dht_put(&mut self, _key: DhtKey, _contents: IpfsContent) -> wasmtime::Result<Result<bool, Errno>> {
+    fn dht_put(
+        &mut self, _key: DhtKey, _contents: IpfsContent,
+    ) -> wasmtime::Result<Result<bool, Errno>> {
         todo!();
     }
 
