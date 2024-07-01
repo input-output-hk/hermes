@@ -8,7 +8,7 @@
 use std::{error::Error, time::Duration};
 
 use cardano_chain_follower::{
-    ChainFollower, ChainSyncConfig, ChainUpdate, Network, Point, PointOrTip,
+    ChainFollower, ChainSyncConfig, ChainUpdate, Network, ORIGIN_POINT, TIP_POINT,
 };
 use clap::{arg, ArgAction, Command};
 use tokio::time::sleep;
@@ -58,8 +58,7 @@ async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
 async fn follow_for(network: Network) {
     // loop {
     info!(chain = network.to_string(), "Following");
-    let mut follower =
-        ChainFollower::new(network, PointOrTip::Point(Point::Origin), PointOrTip::Tip).await;
+    let mut follower = ChainFollower::new(network, ORIGIN_POINT, TIP_POINT).await;
 
     let mut current_era = String::new();
     let mut last_update: Option<ChainUpdate> = None;

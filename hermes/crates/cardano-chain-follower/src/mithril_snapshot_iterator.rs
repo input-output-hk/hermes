@@ -1,15 +1,18 @@
 //! Internal Mithril snapshot iterator functions.
 
-use std::path::Path;
-
-use pallas::network::miniprotocols::Point;
-use pallas_hardano::storage::immutable::FallibleBlock;
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
+use tokio::task;
 use tracing::error;
 
 use crate::{
-    error::{Error, Result},
+    error::Result,
+    mithril_query::{make_mithril_iterator, ImmutableBlockIterator},
     network::Network,
-    MultiEraBlock,
+    point::ORIGIN_POINT,
+    MultiEraBlock, Point,
 };
 
 /// Search backwards by 120 slots (seconds) looking for a previous block.
@@ -17,8 +20,8 @@ use crate::{
 /// reasonable window to search of ~6 blocks.
 const BACKWARD_SEARCH_SLOT_INTERVAL: u64 = 120;
 
-/// Wraps the iterator type returned by Pallas.
-pub(crate) struct MithrilSnapshotIterator {
+/// Synchronous Inner Iterator state
+struct MithrilSnapshotIteratorInner {
     /// The chain being iterated
     chain: Network,
     /// Where we really want to start iterating from
@@ -26,7 +29,13 @@ pub(crate) struct MithrilSnapshotIterator {
     /// Previous iteration point.
     previous: Option<Point>,
     /// Inner iterator.
-    inner: Box<dyn Iterator<Item = FallibleBlock> + Send + Sync>,
+    inner: ImmutableBlockIterator,
+}
+
+/// Wraps the iterator type returned by Pallas.
+pub(crate) struct MithrilSnapshotIterator {
+    /// Inner Mutable Synchronous Iterator State
+    inner: Arc<Mutex<MithrilSnapshotIteratorInner>>,
 }
 
 /// Create a probe point used in iterations to find the start when its not exactly known.
@@ -37,11 +46,11 @@ pub(crate) fn probe_point(point: &Point, distance: u64) -> Point {
 
     // We stepped back to the origin, so just return Origin
     if step_back_search == 0 {
-        return Point::Origin;
+        return ORIGIN_POINT;
     }
 
     // Create a fuzzy search probe by making the hash zero length.
-    Point::Specific(step_back_search, Vec::new())
+    Point::fuzzy(step_back_search)
 }
 
 impl MithrilSnapshotIterator {
@@ -54,7 +63,7 @@ impl MithrilSnapshotIterator {
     /// hash, the iteration start is fuzzy. `previous`: The previous point we are
     /// iterating, if known.    If the previous is NOT known, then the first block
     /// yielded by the iterator is discarded and becomes the known previous.
-    pub(crate) fn new(
+    pub(crate) async fn new(
         chain: Network, path: &Path, from: &Point, previous_point: Option<Point>,
     ) -> Result<Self> {
         let actual_start = match previous_point {
@@ -62,19 +71,38 @@ impl MithrilSnapshotIterator {
             None => probe_point(from, BACKWARD_SEARCH_SLOT_INTERVAL),
         };
 
-        let iterator =
-            pallas_hardano::storage::immutable::read_blocks_from_point(path, actual_start)
-                .map_err(|error| Error::MithrilSnapshot(Some(error)))?;
+        let iterator = make_mithril_iterator(path, &actual_start).await?;
+
         Ok(MithrilSnapshotIterator {
-            chain,
-            start: from.clone(),
-            previous: previous_point,
-            inner: iterator,
+            inner: Arc::new(Mutex::new(MithrilSnapshotIteratorInner {
+                chain,
+                start: from.clone(),
+                previous: previous_point,
+                inner: iterator,
+            })),
         })
+    }
+
+    /// Get the next block, in a way that is Async friendly.
+    /// Returns the next block, or None if there are no more blocks.
+    pub(crate) async fn next(&self) -> Option<MultiEraBlock> {
+        let inner = self.inner.clone();
+
+        let res = task::spawn_blocking(move || {
+            #[allow(clippy::unwrap_used)] // Unwrap is safe here because the lock can't be poisoned.
+            let mut inner_iterator = inner.lock().unwrap();
+            inner_iterator.next()
+        })
+        .await;
+
+        match res {
+            Ok(res) => res,
+            Err(_error) => None,
+        }
     }
 }
 
-impl Iterator for MithrilSnapshotIterator {
+impl Iterator for MithrilSnapshotIteratorInner {
     type Item = MultiEraBlock;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -103,7 +131,7 @@ impl Iterator for MithrilSnapshotIterator {
                 if let Ok(raw_decoded_block) =
                     pallas::ledger::traverse::MultiEraBlock::decode(&block)
                 {
-                    self.previous = Some(Point::Specific(
+                    self.previous = Some(Point::new(
                         raw_decoded_block.slot(),
                         raw_decoded_block.hash().to_vec(),
                     ));

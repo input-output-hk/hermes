@@ -9,7 +9,6 @@ use crossbeam_skiplist::SkipMap;
 use futures::future::join_all;
 use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
-use pallas_hardano::storage::immutable::Point;
 use strum::IntoEnumIterator;
 use tokio::{
     fs::{self, hard_link, remove_file},
@@ -24,7 +23,9 @@ use crate::{
     mithril_snapshot_data::{latest_mithril_snapshot_id, FileHashMap, RawHash, SnapshotData},
     mithril_snapshot_sync::background_mithril_update,
     network::Network,
+    point::ORIGIN_POINT,
     snapshot_id::SnapshotId,
+    Point,
 };
 
 /// Type we use to manage the Sync Task handle map.
@@ -125,7 +126,7 @@ impl MithrilSnapshotConfig {
         }
 
         if latest_immutable_file > 0 {
-            return SnapshotId::try_new(self.chain, &latest_path);
+            return SnapshotId::try_new(self.chain, &latest_path).await;
         }
 
         None
@@ -205,7 +206,7 @@ impl MithrilSnapshotConfig {
                     };
 
                     // If None, its not a snapshot path, so continue.
-                    if let Some(this_snapshot) = SnapshotId::new(&entry.path(), Point::Origin) {
+                    if let Some(this_snapshot) = SnapshotId::new(&entry.path(), ORIGIN_POINT) {
                         // Don't do anything with the latest snapshot.
                         // Comparison does NOT use `tip` so we construct a temporary ID without it.
                         if this_snapshot != latest_snapshot {
@@ -532,14 +533,12 @@ pub(crate) async fn async_hash_single_file(file: &Path) -> Option<RawHash> {
     // let root_path = path.to_path_buf();
     let file = file.to_path_buf();
     match task::spawn_blocking(move || hash_single_file(&file)).await {
-        Ok(result) => {
-            match result {
-                Ok(hash_value) => Some(hash_value),
-                Err(err) => {
-                    error!("Error Hashing a single file: {:?}", err);
-                    None
-                },
-            }
+        Ok(result) => match result {
+            Ok(hash_value) => Some(hash_value),
+            Err(err) => {
+                error!("Error Hashing a single file: {:?}", err);
+                None
+            },
         },
         Err(err) => {
             error!("Error Hashing a single file: {:?}", err);
@@ -634,7 +633,7 @@ mod tests {
             );
 
             let latest = latest_mithril_snapshot_id(network);
-            assert!(latest.tip() != Point::Origin);
+            assert!(latest.tip() != ORIGIN_POINT);
         }
 
         test_network(Network::Mainnet);

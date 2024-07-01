@@ -1,10 +1,8 @@
 //! Internal Mithril snapshot functions.
 
-use pallas::network::miniprotocols::Point;
-
 use crate::{
     mithril_snapshot_data::latest_mithril_snapshot_id,
-    mithril_snapshot_iterator::MithrilSnapshotIterator, network::Network, MultiEraBlock,
+    mithril_snapshot_iterator::MithrilSnapshotIterator, network::Network, MultiEraBlock, Point,
 };
 
 // Any single program using this crate can have EXACTLY THREE Mithril snapshots.
@@ -54,7 +52,7 @@ impl MithrilSnapshot {
     ///
     /// Returns None if its not possible to iterate a mithril snapshot from the requested
     /// point for ANY reason.
-    pub(crate) fn try_read_blocks_from_point(
+    pub(crate) async fn try_read_blocks_from_point(
         &self, point: &Point,
     ) -> Option<MithrilSnapshotIterator> {
         let snapshot_id = latest_mithril_snapshot_id(self.chain);
@@ -66,13 +64,15 @@ impl MithrilSnapshot {
         }
 
         // We don't know the previous block, so we need to find it.
-        MithrilSnapshotIterator::new(self.chain, &snapshot_path, point, None).ok()
+        MithrilSnapshotIterator::new(self.chain, &snapshot_path, point, None)
+            .await
+            .ok()
     }
 
     /// Read a single block from a known point.
-    pub(crate) fn read_block_at(&self, point: &Point) -> Option<MultiEraBlock> {
-        if let Some(mut iterator) = self.try_read_blocks_from_point(point) {
-            let block = iterator.next();
+    pub(crate) async fn read_block_at(&self, point: &Point) -> Option<MultiEraBlock> {
+        if let Some(iterator) = self.try_read_blocks_from_point(point).await {
+            let block = iterator.next().await;
             return block;
         }
         None

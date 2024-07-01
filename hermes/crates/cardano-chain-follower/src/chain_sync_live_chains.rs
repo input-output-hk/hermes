@@ -4,11 +4,10 @@ use std::time::Duration;
 
 use crossbeam_skiplist::{map::Entry, SkipMap, SkipSet};
 use once_cell::sync::Lazy;
-use pallas::network::miniprotocols::Point;
 use strum::{Display, IntoEnumIterator};
 use tracing::{debug, error};
 
-use crate::{MultiEraBlock, Network, PointOrTip};
+use crate::{point::TIP_POINT, MultiEraBlock, Network, Point};
 
 /// Type we use to manage the Sync Task handle map.
 pub(crate) type LiveChainBlockList = SkipSet<MultiEraBlock>;
@@ -174,7 +173,7 @@ pub(crate) fn purge_live_chain(chain: Network, point: &Point, purge_type: PurgeT
 }
 
 /// Get the latest point recorded in the live chain, or TIP if nothing is recorded.
-pub(crate) fn latest_live_point(chain: Network) -> PointOrTip {
+pub(crate) fn latest_live_point(chain: Network) -> Point {
     let live_chain_entry = get_live_chain(chain);
     let live_chain = live_chain_entry.value();
 
@@ -182,10 +181,10 @@ pub(crate) fn latest_live_point(chain: Network) -> PointOrTip {
         let latest_block = live_block.value();
         let latest_point = latest_block.point();
 
-        return PointOrTip::Point(latest_point);
+        return latest_point;
     }
 
-    PointOrTip::Tip
+    TIP_POINT
 }
 
 /// If we fail to sync on our last known tip, we use this to purge it, and try again.

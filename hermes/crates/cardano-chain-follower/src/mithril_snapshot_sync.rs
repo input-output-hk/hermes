@@ -17,6 +17,7 @@ use tracing::{debug, error};
 
 use crate::{
     error::{Error, Result},
+    mithril_query::get_mithril_tip_point,
     mithril_snapshot_config::{
         generate_hashes_for_path, MithrilSnapshotConfig, MithrilUpdateMessage,
     },
@@ -245,7 +246,7 @@ pub(crate) const MITHRIL_IMMUTABLE_SUB_DIRECTORY: &str = "immutable";
 ///
 /// This function returns the tip block point, and the block point immediately proceeding
 /// it in a tuple.
-pub(crate) fn get_mithril_tip(chain: Network, path: &Path) -> Result<MultiEraBlock> {
+pub(crate) async fn get_mithril_tip(chain: Network, path: &Path) -> Result<MultiEraBlock> {
     let mut path = path.to_path_buf();
     path.push(MITHRIL_IMMUTABLE_SUB_DIRECTORY);
 
@@ -255,15 +256,11 @@ pub(crate) fn get_mithril_tip(chain: Network, path: &Path) -> Result<MultiEraBlo
     );
 
     // Read the Tip, and if we don't get one, or we error, its an error.
-    let Some(tip) = pallas_hardano::storage::immutable::get_tip(&path)
-        .map_err(|error| Error::MithrilSnapshot(Some(error)))?
-    else {
-        return Err(Error::MithrilSnapshot(None));
-    };
+    let tip = get_mithril_tip_point(&path).await?;
 
     // Decode and read the tip from the Immutable chain.
-    let mut tip_iterator = MithrilSnapshotIterator::new(chain, &path, &tip, None)?;
-    let Some(tip_block) = tip_iterator.next() else {
+    let tip_iterator = MithrilSnapshotIterator::new(chain, &path, &tip, None).await?;
+    let Some(tip_block) = tip_iterator.next().await else {
         error!("Failed to fetch the TIP block from the immutable chain.");
         return Err(Error::MithrilSnapshot(None));
     };
@@ -422,7 +419,7 @@ async fn recover_existing_snapshot(
         get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
     {
         // Read the actual TIP block from the Mithril chain.
-        match get_mithril_tip(cfg.chain, &active_snapshot.immutable_path()) {
+        match get_mithril_tip(cfg.chain, &active_snapshot.immutable_path()).await {
             Ok(tip_block) => {
                 // Validate the Snapshot ID matches the true TIP.
                 if active_snapshot.tip() == tip_block.point() {
@@ -623,7 +620,7 @@ pub(crate) async fn background_mithril_update(
         }
 
         // Download was A-OK - Update the new immutable tip.
-        let tip = match get_mithril_tip(cfg.chain, &cfg.tmp_path()) {
+        let tip = match get_mithril_tip(cfg.chain, &cfg.tmp_path()).await {
             Ok(tip) => tip,
             Err(error) => {
                 // If we couldn't get the tip then assume its a transient error.

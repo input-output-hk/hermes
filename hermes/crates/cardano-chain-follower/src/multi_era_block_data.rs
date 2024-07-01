@@ -3,9 +3,13 @@
 use std::{cmp::Ordering, fmt::Display, sync::Arc};
 
 use ouroboros::self_referencing;
-use pallas::network::miniprotocols::Point;
 
-use crate::{error::Error, stats::stats_invalid_block, Network};
+use crate::{
+    error::Error,
+    point::{ORIGIN_POINT, UNKNOWN_POINT},
+    stats::stats_invalid_block,
+    Network, Point,
+};
 
 /// Self-referencing CBOR encoded data of a multi-era block.
 /// Note: The fields in the original struct can not be accessed directly
@@ -41,10 +45,6 @@ pub struct MultiEraBlockInner {
     data: Option<SelfReferencedMultiEraBlock>,
 }
 
-/// A special point which means we do not know the point, and its NOT the origin.
-/// Used for previous point when its truly unknown.
-pub(crate) const UNKNOWN_POINT: Point = Point::Specific(0, Vec::new());
-
 /// Multi-era block.
 #[derive(Clone, Debug)]
 pub struct MultiEraBlock(Arc<MultiEraBlockInner>);
@@ -73,38 +73,28 @@ impl MultiEraBlock {
         let point = Point::new(slot, decoded_block.hash().to_vec());
 
         // Validate that the Block point is valid.
-        match previous.clone() {
-            Point::Specific(prev_slot, prev_hash) => {
-                // The ONLY validation we can do on previous slot is that its less than current
-                // slot.
-                if slot < prev_slot {
-                    return Err(Error::Codec(
-                        "Previous slot is not less than current slot".to_string(),
-                    ));
-                }
+        if *previous == ORIGIN_POINT {
+            if decoded_block.header().previous_hash().is_some() {
+                return Err(Error::Codec(
+                    "Previous block must not be Origin, for any other block than Origin"
+                        .to_string(),
+                ));
+            }
+        } else {
+            if *previous > slot {
+                return Err(Error::Codec(
+                    "Previous slot is not less than current slot".to_string(),
+                ));
+            }
 
-                // Check that the previous block hash is consistent with the block itself.
-                if let Some(prev_block_hash) = decoded_block.header().previous_hash() {
-                    // Special case, when the previous block is actually UNKNOWN, we can't check it.
-                    if *previous != UNKNOWN_POINT && (*prev_hash != *prev_block_hash) {
-                        return Err(Error::Codec(
-                            "Previous Block Hash mismatch with block".to_string(),
-                        ));
-                    }
-                } else {
-                    return Err(Error::Codec(
-                        "Previous Slot Hash missing from block".to_string(),
-                    ));
-                }
-            },
-            Point::Origin => {
-                if decoded_block.header().previous_hash().is_some() {
-                    return Err(Error::Codec(
-                        "Previous block must not be Origin, for any other block than Origin"
-                            .to_string(),
-                    ));
-                }
-            },
+            // Special case, when the previous block is actually UNKNOWN, we can't check it.
+            if *previous != UNKNOWN_POINT
+                && previous.cmp_hash(&decoded_block.header().previous_hash())
+            {
+                return Err(Error::Codec(
+                    "Previous Block Hash mismatch with block".to_string(),
+                ));
+            }
         }
 
         Ok(Self(Arc::new(MultiEraBlockInner {
@@ -238,7 +228,7 @@ impl Ord for MultiEraBlock {
     /// Compare two `LiveBlocks` by their points.
     /// Only checks the Slot#.
     fn cmp(&self, other: &Self) -> Ordering {
-        cmp_point(&self.0.point, &other.0.point)
+        self.0.point.cmp(&other.0.point)
     }
 }
 
@@ -254,29 +244,13 @@ impl PartialOrd<Point> for MultiEraBlock {
     /// Compare a `MultiEraBlock` to a `Point` by their points.
     /// Only checks the Slot#.
     fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
-        Some(cmp_point(&self.0.point, other))
-    }
-}
-
-/// Compare Points, because Pallas does not impl `Ord` for Point.
-pub(crate) fn cmp_point(a: &Point, b: &Point) -> Ordering {
-    match a {
-        Point::Origin => match b {
-            Point::Origin => Ordering::Equal,
-            Point::Specific(..) => Ordering::Less,
-        },
-        Point::Specific(slot, _) => match b {
-            Point::Origin => Ordering::Greater,
-            Point::Specific(other_slot, _) => slot.cmp(other_slot),
-        },
+        Some(self.0.point.cmp(other))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use pallas::network::miniprotocols::Point;
-
-    use crate::{MultiEraBlock, Network};
+    use crate::{point::ORIGIN_POINT, MultiEraBlock, Network, Point};
 
     struct TestRecord {
         raw: Vec<u8>,
@@ -317,23 +291,23 @@ mod tests {
         vec![
             TestRecord {
                 raw: byron_block(),
-                previous: Point::Origin,
+                previous: ORIGIN_POINT,
             },
             TestRecord {
                 raw: shelley_block(),
-                previous: Point::Origin,
+                previous: ORIGIN_POINT,
             },
             TestRecord {
                 raw: mary_block(),
-                previous: Point::Origin,
+                previous: ORIGIN_POINT,
             },
             TestRecord {
                 raw: allegra_block(),
-                previous: Point::Origin,
+                previous: ORIGIN_POINT,
             },
             TestRecord {
                 raw: alonzo_block(),
-                previous: Point::Origin,
+                previous: ORIGIN_POINT,
             },
         ]
     }

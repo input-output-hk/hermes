@@ -7,9 +7,8 @@ use std::{
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use pallas_hardano::storage::immutable::Point;
 
-use crate::{network::Network, snapshot_id::SnapshotId};
+use crate::{network::Network, point::ORIGIN_POINT, snapshot_id::SnapshotId};
 
 /// Raw Blake3 hash of a file. (Don't need constant time comparison)
 pub(crate) type RawHash = [u8; 32];
@@ -33,7 +32,7 @@ impl SnapshotData {
 
     /// Does this snapshot ID actually exist.
     pub(crate) fn exists(&self) -> bool {
-        self.id.tip() != Point::Origin
+        self.id.tip() != ORIGIN_POINT
     }
 
     /// Get the snapshot ID of this Snapshot Data.

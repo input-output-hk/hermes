@@ -7,12 +7,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pallas::network::miniprotocols::Point;
 use tracing::debug;
 
 use crate::{
     mithril_snapshot_sync::{get_mithril_tip, MITHRIL_IMMUTABLE_SUB_DIRECTORY},
-    Network,
+    point::ORIGIN_POINT,
+    Network, Point,
 };
 /// A Representation of a Snapshot Path and its represented Immutable File Number.
 #[derive(Clone, Debug)]
@@ -60,8 +60,8 @@ impl SnapshotId {
 
     /// Try and create a new `SnapshotID` from a given path.
     /// Includes properly getting the Immutable TIP.
-    pub(crate) fn try_new(chain: Network, path: &Path) -> Option<Self> {
-        let Ok(tip) = get_mithril_tip(chain, path) else {
+    pub(crate) async fn try_new(chain: Network, path: &Path) -> Option<Self> {
+        let Ok(tip) = get_mithril_tip(chain, path).await else {
             return None;
         };
 
@@ -88,7 +88,7 @@ impl default::Default for SnapshotId {
         SnapshotId {
             path: PathBuf::new(),
             file: 0,
-            tip: Point::Origin,
+            tip: ORIGIN_POINT,
         }
     }
 }

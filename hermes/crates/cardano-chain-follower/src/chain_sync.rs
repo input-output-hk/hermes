@@ -10,10 +10,7 @@ use pallas::{
     ledger::traverse::MultiEraHeader,
     network::{
         facades::PeerClient,
-        miniprotocols::{
-            chainsync::{self, ClientError, Tip},
-            Point,
-        },
+        miniprotocols::chainsync::{self, ClientError, Tip},
     },
 };
 use tokio::{
@@ -33,8 +30,8 @@ use crate::{
     error::{Error, Result},
     mithril_snapshot::MithrilSnapshot,
     mithril_snapshot_config::MithrilUpdateMessage,
-    multi_era_block_data::UNKNOWN_POINT,
-    ChainSyncConfig, ChainUpdate, MultiEraBlock, Network, PointOrTip,
+    point::{ORIGIN_POINT, TIP_POINT, UNKNOWN_POINT},
+    ChainSyncConfig, ChainUpdate, MultiEraBlock, Network, Point,
 };
 
 /// The maximum number of seconds we wait for a node to connect.
@@ -59,17 +56,15 @@ async fn retry_connect(
         )
         .await
         {
-            Ok(peer) => {
-                match peer {
-                    Ok(peer) => return Ok(peer),
-                    Err(err) => {
-                        retries -= 1;
-                        if retries == 0 {
-                            return Err(err);
-                        }
-                        debug!("retrying {retries} connect to {addr} : {err:?}");
-                    },
-                }
+            Ok(peer) => match peer {
+                Ok(peer) => return Ok(peer),
+                Err(err) => {
+                    retries -= 1;
+                    if retries == 0 {
+                        return Err(err);
+                    }
+                    debug!("retrying {retries} connect to {addr} : {err:?}");
+                },
             },
             Err(error) => {
                 retries -= 1;
@@ -88,34 +83,30 @@ async fn retry_connect(
 }
 
 /// Set the Client Read Pointer for this connection with the Node
-async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Result<Point> {
-    match at {
-        PointOrTip::Point(Point::Origin) => {
-            client
-                .chainsync()
-                .intersect_origin()
-                .await
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Tip => {
-            client
-                .chainsync()
-                .intersect_tip()
-                .await
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Point(p @ Point::Specific(..)) => {
-            match client.chainsync().find_intersect(vec![p]).await {
-                Ok((point, _)) => {
-                    match point {
-                        Some(point) => Ok(point),
-                        None => Err(Error::Chainsync(ClientError::IntersectionNotFound)),
-                    }
-                },
-                Err(error) => Err(Error::Chainsync(error)),
-            }
-        },
-    }
+async fn set_client_read_pointer(client: &mut PeerClient, at: Point) -> Result<Point> {
+    let point = if at == ORIGIN_POINT {
+        client
+            .chainsync()
+            .intersect_origin()
+            .await
+            .map_err(Error::Chainsync)?
+    } else if at == TIP_POINT {
+        client
+            .chainsync()
+            .intersect_tip()
+            .await
+            .map_err(Error::Chainsync)?
+    } else {
+        match client.chainsync().find_intersect(vec![at.into()]).await {
+            Ok((point, _)) => match point {
+                Some(point) => point,
+                None => return Err(Error::Chainsync(ClientError::IntersectionNotFound)),
+            },
+            Err(error) => return Err(Error::Chainsync(error)),
+        }
+    };
+
+    Ok(point.into())
 }
 
 /// Resynchronize to the live tip in memory.
@@ -127,7 +118,7 @@ async fn resync_live_tip(client: &mut PeerClient, chain: Network) -> Result<Poin
 
 /// Sand a chain update to any subscribers that are listening.
 fn send_update(
-    chain: Network, update_sender: &Option<broadcast::Sender<ChainUpdate>>, point: &PointOrTip,
+    chain: Network, update_sender: &Option<broadcast::Sender<ChainUpdate>>, point: &Point,
     update: ChainUpdate,
 ) {
     if let Some(update_sender) = update_sender {
@@ -208,13 +199,13 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 )
                 .with_context(|| "Decoding Block Header")?;
 
-                let point = Point::Specific(decoded_header.slot(), decoded_header.hash().to_vec());
+                let point = Point::new(decoded_header.slot(), decoded_header.hash().to_vec());
 
                 debug!("RollForward: {:?} {:?}", point, tip);
 
                 let block_data = peer
                     .blockfetch()
-                    .fetch_single(point.clone())
+                    .fetch_single(point.clone().into())
                     .await
                     .with_context(|| "Fetching block data")?;
 
@@ -233,8 +224,8 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 live_chain_insert(chain, live_block_data.clone());
                 previous_point = point.clone();
 
-                let reported_tip = PointOrTip::Point(tip.0);
-                let block_point = PointOrTip::Point(point.clone());
+                let reported_tip: Point = tip.0.into();
+                let block_point = point.clone();
 
                 let mut update_type = chain_update::Kind::Block;
 
@@ -247,24 +238,11 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                         debug!("RollBack: {:?}", rollback);
                         debug!("Chain Length: {:?}", live_chain_length(chain));
                         debug!("Previous Hash: {:?}", decoded_header.previous_hash());
-                        if let Point::Specific(_slot, hash) = rollback {
-                            if let Some(previous_hash) = decoded_header.previous_hash() {
-                                if hash != previous_hash.as_ref() {
-                                    return Err(Error::LiveSync(
-                                        "Rollback block previous hash does not match".to_string(),
-                                    )
-                                    .into());
-                                }
-                            } else {
-                                return Err(Error::LiveSync(
-                                    "Rollback block previous hash is missing.".to_string(),
-                                )
-                                .into());
-                            }
-                        } else {
-                            return Err(
-                                Error::LiveSync("Invalid Rollback block".to_string()).into()
-                            );
+                        if !rollback.cmp_hash(&decoded_header.previous_hash()) {
+                            return Err(Error::LiveSync(
+                                "Rollback block previous hash does not match".to_string(),
+                            )
+                            .into());
                         }
 
                         update_type = chain_update::Kind::Rollback;
@@ -276,7 +254,7 @@ async fn follow_chain(peer: &mut PeerClient, chain: Network) -> anyhow::Result<(
                 send_update(chain, &update_sender, &block_point, update);
             },
             chainsync::NextResponse::RollBackward(point, tip) => {
-                block_is_rollback = process_rollback(chain, point, &tip)?;
+                block_is_rollback = process_rollback(chain, point.into(), &tip)?;
             },
             chainsync::NextResponse::Await => {
                 // debug!("Peer Node says: Await");
@@ -310,7 +288,7 @@ async fn live_sync_backfill(
     cfg: &ChainSyncConfig, update: &MithrilUpdateMessage,
 ) -> anyhow::Result<()> {
     let fill_to = get_fill_to_point(cfg.chain).await;
-    let range = (update.tip.clone(), fill_to);
+    let range = (update.tip.clone().into(), fill_to.into());
     let mut previous_point = update.previous.clone();
 
     let range_msg = format!("{range:?}");
@@ -386,15 +364,21 @@ async fn live_sync_backfill_and_purge(
 
         debug!("Mithril Tip has advanced to: {update:?} : PURGE NEEDED");
 
-        purge_live_chain(cfg.chain, &update.tip, PurgeType::Oldest);
+        let update_point: Point = update.tip.clone();
+
+        purge_live_chain(cfg.chain, &update_point, PurgeType::Oldest);
 
         debug!(
             "After Purge: Size of the Live Chain is: {} Blocks",
             live_chain_length(cfg.chain)
         );
 
-        if let Some(block_data) = MithrilSnapshot::new(cfg.chain).read_block_at(&update.tip) {
-            let update_point = PointOrTip::Point(block_data.point());
+        let update_point: Point = update.tip.clone();
+        if let Some(block_data) = MithrilSnapshot::new(cfg.chain)
+            .read_block_at(&update_point)
+            .await
+        {
+            let update_point = block_data.point();
             // Get Immutable block that represents this point
             let update = ChainUpdate::new(
                 chain_update::Kind::ImmutableBlockRollForward,
