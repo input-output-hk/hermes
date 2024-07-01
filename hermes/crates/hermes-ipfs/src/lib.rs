@@ -424,6 +424,23 @@ impl HermesIpfs {
     ) -> anyhow::Result<MessageId> {
         self.node.pubsub_publish(topic, message).await
     }
+
+    /// Ban peer from node.
+    ///
+    /// ## Parameters
+    ///
+    /// * `peer` - `PeerId`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<()>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to ban peer.
+    pub async fn ban_peer(&self, peer: PeerId) -> anyhow::Result<()> {
+        self.node.ban_peer(peer).await
+    }
 }
 
 impl From<Ipfs> for HermesIpfs {

@@ -4,9 +4,13 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsPath, PubsubTopic,
+            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsPath, PeerId, PubsubTopic,
         },
-        hermes::ipfs::state::{hermes_ipfs_add_file, hermes_ipfs_get_file, hermes_ipfs_pin_file},
+        hermes::ipfs::state::{
+            hermes_ipfs_add_file, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
+            hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_put_dht_value,
+            hermes_ipfs_subscribe,
+        },
     },
 };
 
@@ -22,20 +26,24 @@ impl Host for HermesRuntimeContext {
     }
 
     fn file_pin(&mut self, ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(hermes_ipfs_pin_file(ipfs_path)?)
+        Ok(hermes_ipfs_pin_file(ipfs_path))
     }
 
     fn dht_put(
-        &mut self, _key: DhtKey, _contents: IpfsContent,
+        &mut self, key: DhtKey, contents: IpfsContent,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!();
+        Ok(hermes_ipfs_put_dht_value(key, contents))
     }
 
-    fn dht_get(&mut self, _key: DhtKey) -> wasmtime::Result<Result<DhtValue, Errno>> {
-        todo!();
+    fn dht_get(&mut self, key: DhtKey) -> wasmtime::Result<Result<DhtValue, Errno>> {
+        Ok(hermes_ipfs_get_dht_value(key))
     }
 
-    fn pubsub_subscribe(&mut self, _topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!();
+    fn pubsub_subscribe(&mut self, topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {
+        Ok(hermes_ipfs_subscribe(topic))
+    }
+
+    fn peer_evict(&mut self, peer: PeerId) -> wasmtime::Result<Result<bool, Errno>> {
+        Ok(hermes_ipfs_evict_peer(peer))
     }
 }
