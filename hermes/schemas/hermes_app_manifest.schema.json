@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
     "title": "Hermes Application Package Manifest Schema",
-    "description": "Defines the src packages which are used to build a Hermes Application.",
+    "description": "Defines the src packages which are used to build a Hermes Application.\nIt is important that one of the properties `www` or `share` is set or `module` array has at least one item.\nIf all of them are not set and `modules` array is empty, an application cannot be built.",
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -64,32 +64,22 @@
                     "file"
                 ]
             },
-            "uniqueItems": true,
-            "minItems": 1
+            "uniqueItems": true
         },
-        "srv": {
-            "type": "object",
-            "title": "Application Data",
-            "description": "Data bundled with the application.",
-            "additionalProperties": false,
-            "properties": {
-                "www": {
-                    "type": "string",
-                    "title": "Data to be served to a browser at the applications URL from /",
-                    "description": "A Directory or archive of data to be served to a browser for the App.\nIt Could be a valid URI or regular local path on your system.",
-                    "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
-                },
-                "share": {
-                    "type": "string",
-                    "title": "Data to be shared amongst all modules within the application.",
-                    "description": "A Directory or archive of data to be shared with all Modules in the application.\nIt Could be a valid URI or regular local path on your system.",
-                    "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
-                }
-            }
+        "www": {
+            "type": "string",
+            "title": "Data to be served to a browser at the applications URL from /",
+            "description": "A Directory or archive of data to be served to a browser for the App.\nIt Could be a valid URI or regular local path on your system.",
+            "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
+        },
+        "share": {
+            "type": "string",
+            "title": "Data to be shared amongst all modules within the application.",
+            "description": "A Directory or archive of data to be shared with all Modules in the application.\nIt Could be a valid URI or regular local path on your system.",
+            "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
         }
     },
     "required": [
-        "$schema",
-        "modules"
+        "$schema"
     ]
 }

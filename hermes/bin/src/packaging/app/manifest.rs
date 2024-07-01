@@ -17,8 +17,10 @@ pub(crate) struct Manifest {
     pub(crate) metadata: Resource,
     /// Application WASM Modules.
     pub(crate) modules: Vec<ManifestModule>,
-    /// Definition of the srv directory.
-    pub(crate) srv: Option<ManifestSrv>,
+    /// Path to the www directory.
+    pub(crate) www: Option<Resource>,
+    /// Path to the share directory.
+    pub(crate) share: Option<Resource>,
 }
 
 /// `Manifest` `modules` item field definition.
@@ -31,15 +33,6 @@ pub(crate) struct ManifestModule {
     /// Path to the WASM module config JSON file.
     pub(crate) config: Option<Resource>,
     /// Path to the WASM module share directory.
-    pub(crate) share: Option<Resource>,
-}
-
-/// `Manifest` `srv` field definition.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct ManifestSrv {
-    /// Path to the www directory.
-    pub(crate) www: Option<Resource>,
-    /// Path to the share directory.
     pub(crate) share: Option<Resource>,
 }
 
@@ -69,6 +62,12 @@ impl Manifest {
             .map_err(|err| FileError::from_path(path, Some(err)))?
             .into();
 
+        if manifest.www.is_none() && manifest.share.is_none() && manifest.modules.is_empty() {
+            anyhow::bail!(
+                "Invalid manifest, must contain at least one module or www or share directory"
+            );
+        }
+
         let dir_path = path
             .parent()
             .ok_or_else(|| FileError::from_path(path, None))?;
@@ -82,13 +81,11 @@ impl Manifest {
                 share.make_relative_to(dir_path);
             }
         });
-        if let Some(srv) = manifest.srv.as_mut() {
-            if let Some(www) = srv.www.as_mut() {
-                www.make_relative_to(dir_path);
-            }
-            if let Some(share) = srv.share.as_mut() {
-                share.make_relative_to(dir_path);
-            }
+        if let Some(www) = manifest.www.as_mut() {
+            www.make_relative_to(dir_path);
+        }
+        if let Some(share) = manifest.share.as_mut() {
+            share.make_relative_to(dir_path);
         }
 
         Ok(manifest)
@@ -109,8 +106,10 @@ mod serde_def {
         name: String,
         #[serde(default = "super::Manifest::default_metadata_path")]
         metadata: Resource,
+        #[serde(default)]
         modules: Vec<ManifestModuleSerde>,
-        srv: Option<ManifestSrvSerde>,
+        www: Option<Resource>,
+        share: Option<Resource>,
     }
 
     #[derive(Deserialize)]
@@ -118,12 +117,6 @@ mod serde_def {
         file: Resource,
         name: Option<String>,
         config: Option<Resource>,
-        share: Option<Resource>,
-    }
-
-    #[derive(Deserialize)]
-    struct ManifestSrvSerde {
-        www: Option<Resource>,
         share: Option<Resource>,
     }
 
@@ -144,12 +137,8 @@ mod serde_def {
                         }
                     })
                     .collect(),
-                srv: def.srv.map(|der| {
-                    super::ManifestSrv {
-                        www: der.www,
-                        share: der.share,
-                    }
-                }),
+                www: def.www,
+                share: def.share,
             }
         }
     }
@@ -178,10 +167,8 @@ mod tests {
                         "config": "config.json",
                         "share": "share"
                     }],
-                    "srv": {
-                        "www": "www",
-                        "share": "share"
-                    }
+                    "www": "www",
+                    "share": "share"
                 }).to_string();
             std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
@@ -194,10 +181,8 @@ mod tests {
                     config: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
                     share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
                 }],
-                srv: Some(ManifestSrv {
-                    www: Some(Resource::Fs(FsResource::new(dir_path.join("www")))),
-                    share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
-                }),
+                www: Some(Resource::Fs(FsResource::new(dir_path.join("www")))),
+                share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
             });
         }
 
@@ -213,10 +198,8 @@ mod tests {
                         "config": "/config.json",
                         "share": "/share"
                     }],
-                    "srv": {
-                        "www": "/www",
-                        "share": "/share"
-                    }
+                    "www": "/www",
+                    "share": "/share"
                 }).to_string();
             std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
@@ -229,10 +212,8 @@ mod tests {
                     config: Some(Resource::Fs(FsResource::new("/config.json"))),
                     share: Some(Resource::Fs(FsResource::new("/share"))),
                 }],
-                srv: Some(ManifestSrv {
-                    www: Some(Resource::Fs(FsResource::new("/www"))),
-                    share: Some(Resource::Fs(FsResource::new("/share"))),
-                }),
+                www: Some(Resource::Fs(FsResource::new("/www"))),
+                share: Some(Resource::Fs(FsResource::new("/share"))),
             });
         }
 
@@ -240,23 +221,9 @@ mod tests {
             let path = dir_path.join("manifest.json");
             let manifest_json_data = serde_json::json!({
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
-                    "modules": [{
-                        "file": "module.hmod",
-                    }]
                 }).to_string();
             std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
-            assert_eq!(manifest, Manifest {
-                name: "app".to_string(),
-                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
-                modules: vec![ManifestModule {
-                    file: Resource::Fs(FsResource::new(dir_path.join("module.hmod"))),
-                    name: None,
-                    config: None,
-                    share: None,
-                }],
-                srv: None,
-            });
+            assert!(Manifest::from_file(&path).is_err());
         }
     }
 }

@@ -29,7 +29,7 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
-        println!("{} Build wasm module package...", Emoji::new("📦", ""));
+        println!("{} Build application package...", Emoji::new("📦", ""));
 
         let manifest_dir = self
             .manifest
