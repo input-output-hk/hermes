@@ -1,17 +1,11 @@
 [workspace]
 resolver = "2"
-members = [
-    "bin",
-    "crates/cardano-chain-follower",
-    "crates/hermes-ipfs",
-]
+members = ["bin", "crates/cardano-chain-follower", "crates/hermes-ipfs"]
 
 [workspace.package]
 edition = "2021"
 version = "0.0.1"
-authors = [
-    "Steven Johnson <steven.johnson@iohk.io>"
-]
+authors = ["Steven Johnson <steven.johnson@iohk.io>"]
 homepage = "https://input-output-hk.github.io/hermes"
 repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
@@ -52,20 +46,25 @@ missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
 # specific commit from the `catalyst` branch
-pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
 # specific commit from the `catalyst` branch
-pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
-
-cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.0.1" }
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
+pallas-crypto = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
+cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
 
 wasmtime = "20.0.2"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
+blake2b_simd = "1.0.2"
+blake3 = { version = "1.5.1", features = ["rayon", "mmap"] }
 hex-literal = "0.4.1"
 thiserror = "1.0.56"
 hex = "0.4.3"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+test-log = { version = "0.2.16", default-features = false, features = [
+    "trace",
+] }
 criterion = "0.5.1"
 libtest-mimic = "0.7.0"
 crossbeam-queue = "0.3.11"
@@ -74,20 +73,31 @@ iana-time-zone = "0.1.60"
 rand = "0.8.5"
 bip32 = "0.5.1"
 ed25519-bip32 = "0.4.1"
-dashmap = "5.5.3"
+dashmap = "6.0.1"
 once_cell = "1.19.0"
 clap = "4.5.3"
-build-info = "0.0.36"
-build-info-build = "0.0.36"
+build-info = "0.0.37"
+build-info-build = "0.0.37"
 derive_more = "0.99.17"
 chrono = "0.4.35"
 chrono-tz = "0.9.0"
 saffron = "0.1.0"
-tokio = "1.36.0"
-libsqlite3-sys = "0.28.0"
+tokio = { version = "1.36.0", features = [
+    "macros",
+    "rt",
+    "net",
+    "rt-multi-thread",
+    "process",
+] }
+tokio-util = { version = "0.7.11", features = ["codec"] }
+tokio-stream = "0.1.15"
+libsqlite3-sys = "0.29.0"
 stringzilla = "3.8.4"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
-hdf5 = { git="https://github.com/aldanor/hdf5-rust.git", rev="694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version="0.8.1", features = [ "static", "blosc" ]}
+hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", rev = "694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version = "0.8.1", features = [
+    "static",
+    "blosc",
+] }
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.0", features = ["lz4", "zlib", "zstd"] }
 num_cpus = "1.16.0"
@@ -95,9 +105,48 @@ console = "0.15.8"
 serde = "1.0"
 serde_json = "1.0"
 jsonschema = "0.18.0"
+url = "2.5.0"
+regex = "1.10.4"
+humansize = { version = "^2.1.2", default-features = false, features = [
+    "no_alloc",
+] }
+reqwest = { version = ">=0.0.0, 0.12.5", default-features = false, features = [
+    "rustls-tls-native-roots",
+    "http2",
+    "blocking",
+    "charset",
+    "gzip",
+    "brotli",
+    "zstd",
+    "deflate",
+    "hickory-dns",
+    "macos-system-configuration",
+] }
+mithril-client = { git = "https://github.com/input-output-hk/mithril.git", rev = "5ae2a7c7b0e977627edead521807b374d869ed84", version = "0.8.4", default-features = false, features = [
+    "full",
+] }
+# This crate pulls in the LGPL-3.0+ Rug Library.  If this is a problem we need to modify it upstream to allow selection of numeric backend.
+#mithril-stm = { git = "https://github.com/input-output-hk/mithril.git", rev = "5ae2a7c7b0e977627edead521807b374d869ed84", version = ">=0.0.0, 0.3.22", default-features = false, features = [
+#    "num-integer-backend",
+#] }
+
+bytes = "1.6.0"
+tar = "0.4.41"
+zstd = "0.13.1"
+async-trait = "0.1.80"
+dirs = "5.0.1"
+futures = "0.3.30"
+bytesize = "1.3.0"
+async-compression = { version = "0.4.11", features = ["tokio", "zstd"] }
+tokio-tar = "0.3.1"
+humantime = "2.1.0"
+crossbeam-skiplist = "0.1.3"
+strum = "0.26.2"
+strum_macros = "0.26.2"
+rayon = "1.10.0"
+ignore = "0.4.22"
 hmac = "0.12.1"
 pbkdf2 = "0.12.2"
-blake2b_simd = "1.0.2"
 sha2 = "0.10"
 ed25519-dalek = "2.1.1"
 x509-cert = "0.2.5"
@@ -105,3 +154,4 @@ coset = "0.3.7"
 libipld = "0.16.0"
 rust-ipfs = "0.11.19"
 rustyline-async = "0.4.2"
+ouroboros = "0.18.4"

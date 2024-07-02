@@ -167,15 +167,10 @@ async fn spawn_follower(
 )> {
     trace!("Spawning chain follower executor");
 
-    let config = cardano_chain_follower::FollowerConfigBuilder::default().build();
-    let network = chain_id.into();
-
-    let follower = cardano_chain_follower::Follower::connect(
-        follower_connect_address(network),
-        network,
-        config,
-    )
-    .await?;
+    let follower = cardano_chain_follower::FollowerConfigBuilder::default_for(chain_id.into())
+        .build()
+        .connect()
+        .await?;
 
     trace!("Started chain follower");
 
@@ -208,29 +203,14 @@ async fn read_block(
         // since we'll not poll the
         // follower's future so the following process will
         // not be executed.
-        let cfg = cardano_chain_follower::FollowerConfigBuilder::default()
+        let reader = cardano_chain_follower::FollowerConfigBuilder::default_for(network)
             .chain_update_buffer_size(1)
-            .build();
-
-        let reader = cardano_chain_follower::Follower::connect(
-            follower_connect_address(network),
-            network,
-            cfg,
-        )
-        .await?;
+            .build()
+            .connect()
+            .await?;
 
         let block_data = reader.read_block(at).await?;
 
         Ok(block_data)
-    }
-}
-
-/// Returns the peer address used to connect to each Cardano network.
-const fn follower_connect_address(network: cardano_chain_follower::Network) -> &'static str {
-    match network {
-        cardano_chain_follower::Network::Mainnet => "backbone.cardano-mainnet.iohk.io:3001",
-        cardano_chain_follower::Network::Preprod => "preprod-node.play.dev.cardano.org:3001",
-        cardano_chain_follower::Network::Preview => "preview-node.play.dev.cardano.org:3001",
-        cardano_chain_follower::Network::Testnet => todo!(),
     }
 }

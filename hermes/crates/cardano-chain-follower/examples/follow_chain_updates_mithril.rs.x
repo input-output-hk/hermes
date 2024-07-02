@@ -6,8 +6,8 @@
 
 use std::{error::Error, path::PathBuf};
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network, Point};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a follower config specifying the Mithril snapshot path and
     // to follow from block 1794552 (preprod).
-    let config = FollowerConfigBuilder::default()
+    let mut follower = FollowerConfigBuilder::default_for(Network::Preprod)
         .follow_from(Point::Specific(
             49_075_262,
             hex::decode("e929cd1bf8ec78844ec9ea450111aaf55fbf17540db4b633f27d4503eebf2218")?,
@@ -30,25 +30,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .mithril_snapshot_path(
             PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("examples/snapshot_data"),
+            false,
         )
-        .build();
-
-    let mut follower = Follower::connect(
-        "preprod-node.play.dev.cardano.org:3001",
-        Network::Preprod,
-        config,
-    )
-    .await?;
+        .build()
+        .connect()
+        .await?;
 
     // Wait for some chain updates and shutdown.
     for _ in 0..10 {
         let chain_update = follower.next().await?;
 
         match chain_update {
-            ChainUpdate::Block(data) => {
+            ChainUpdate::ImmutableBlock(data) | ChainUpdate::ImmutableBlockRollback(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
+                    "New IMMUTABLE block NUMBER={} SLOT={} HASH={}",
+                    block.number(),
+                    block.slot(),
+                    hex::encode(block.hash()),
+                );
+            },
+            ChainUpdate::Block(data) | ChainUpdate::BlockTip(data) => {
+                let block = data.decode()?;
+
+                info!(
                     "New block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),
@@ -58,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ChainUpdate::Rollback(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
                     "Rollback block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),

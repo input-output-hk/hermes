@@ -6,8 +6,8 @@
 
 use std::{error::Error, path::PathBuf};
 
-use cardano_chain_follower::{Follower, FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use cardano_chain_follower::{FollowerConfigBuilder, Network, Point};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -21,19 +21,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default()
+    let follower = FollowerConfigBuilder::default_for(Network::Preprod)
         .mithril_snapshot_path(
             PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("examples/snapshot_data"),
+            false,
         )
-        .build();
-
-    let follower = Follower::connect(
-        "preprod-node.play.dev.cardano.org:3001",
-        Network::Preprod,
-        config,
-    )
-    .await?;
+        .build()
+        .connect()
+        .await?;
 
     let data = follower
         .read_block(Point::Specific(
@@ -50,8 +46,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|tx| tx.fee().unwrap_or_default())
         .sum::<u64>();
 
-    println!("Block number: {}", block.number());
-    println!("Total fee: {total_fee}");
+    info!("Block number: {}", block.number());
+    info!("Total fee: {total_fee}");
 
     Ok(())
 }

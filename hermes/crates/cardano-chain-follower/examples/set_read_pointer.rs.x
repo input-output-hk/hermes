@@ -2,8 +2,8 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network, Point};
-use tracing::level_filters::LevelFilter;
+use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network, Point};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -17,14 +17,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default().build();
-
-    let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        config,
-    )
-    .await?;
+    let mut follower = FollowerConfigBuilder::default_for(Network::Mainnet)
+        .build()
+        .connect()
+        .await?;
 
     let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
     let mut pointer_set = false;
@@ -40,17 +36,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     110_908_236,
                     hex::decode("ad3798a1db2b6097c71f35609399e4b2ff834f0f45939803d563bf9d660df2f2")?,
                 )).await?;
-                println!("set read pointer");
+                info!("set read pointer");
 
                 pointer_set = true;
             }
 
             chain_update = follower.next() => {
                 match chain_update? {
-                    ChainUpdate::Block(data) => {
+                    ChainUpdate::ImmutableBlock(data) | ChainUpdate::ImmutableBlockRollback(data) => {
                         let block = data.decode()?;
 
-                        println!(
+                        info!(
+                            "New IMMUTABLE block NUMBER={} SLOT={} HASH={}",
+                            block.number(),
+                            block.slot(),
+                            hex::encode(block.hash()),
+                        );
+                    },
+                    ChainUpdate::Block(data) | ChainUpdate::BlockTip(data) => {
+                        let block = data.decode()?;
+
+                        info!(
                             "New block NUMBER={} SLOT={} HASH={}",
                             block.number(),
                             block.slot(),
@@ -60,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ChainUpdate::Rollback(data) => {
                         let block = data.decode()?;
 
-                        println!(
+                        info!(
                             "Rollback block NUMBER={} SLOT={} HASH={}",
                             block.number(),
                             block.slot(),

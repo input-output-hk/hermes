@@ -3,8 +3,8 @@
 
 use std::error::Error;
 
-use cardano_chain_follower::{ChainUpdate, Follower, FollowerConfigBuilder, Network};
-use tracing::level_filters::LevelFilter;
+use cardano_chain_follower::{ChainUpdate, FollowerConfigBuilder, Network};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -18,24 +18,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Defaults to start following from the tip.
-    let config = FollowerConfigBuilder::default().build();
-
-    let mut follower = Follower::connect(
-        "relays-new.cardano-mainnet.iohk.io:3001",
-        Network::Mainnet,
-        config,
-    )
-    .await?;
+    let mut follower = FollowerConfigBuilder::default_for(Network::Mainnet)
+        .build()
+        .connect()
+        .await?;
 
     // Wait for 3 chain updates and shutdown.
     for _ in 0..3 {
         let chain_update = follower.next().await?;
 
         match chain_update {
-            ChainUpdate::Block(data) => {
+            ChainUpdate::ImmutableBlock(data) | ChainUpdate::ImmutableBlockRollback(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
+                    "New IMMUTABLE block NUMBER={} SLOT={} HASH={}",
+                    block.number(),
+                    block.slot(),
+                    hex::encode(block.hash()),
+                );
+            },
+            ChainUpdate::Block(data) | ChainUpdate::BlockTip(data) => {
+                let block = data.decode()?;
+
+                info!(
                     "New block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),
@@ -45,7 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ChainUpdate::Rollback(data) => {
                 let block = data.decode()?;
 
-                println!(
+                info!(
                     "Rollback block NUMBER={} SLOT={} HASH={}",
                     block.number(),
                     block.slot(),
