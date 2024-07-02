@@ -151,6 +151,7 @@
         "inval",
         "Iovec",
         "iovs",
+        "ipfs",
         "IPPROTO",
         "ISDIR",
         "isdir",

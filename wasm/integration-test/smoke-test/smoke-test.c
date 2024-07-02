@@ -32,6 +32,11 @@ bool exports_hermes_init_event_init(void)
   return false;
 }
 
+// Exported Functions from `hermes:ipfs/event`
+bool exports_hermes_ipfs_event_on_topic(exports_hermes_ipfs_event_pubsub_message_t *message) {
+  return false;
+}
+
 // Exported Functions from `hermes:kv-store/event`
 void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_hermes_kv_store_event_kv_values_t *value)
 {

@@ -1,0 +1,19 @@
+/// # IPFS API
+///
+/// Event triggered on receiving a message on a PubSub topic.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// IPFS API Interface - Export ONLY
+interface event {
+    use api.{pubsub-message};
+
+    /// Triggers when a message is received on a topic.
+    on-topic: func(message: pubsub-message) -> bool;
+}
+
+world ipfs-event {
+    export event;
+}
