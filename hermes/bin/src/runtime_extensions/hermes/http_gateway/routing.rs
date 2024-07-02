@@ -5,6 +5,7 @@ use std::{
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
+    time::Duration,
 };
 
 use anyhow::{anyhow, Ok};
@@ -23,6 +24,11 @@ use crate::event::{HermesEvent, TargetApp, TargetModule};
 
 /// Everything that hits /api should route to hermes
 const HERMES_ROUTE: &str = "/api";
+
+/// Attempts to wait for a value on this receiver,
+/// returning an error if the corresponding channel has hung up,
+/// or if it waits more than timeout of arbitrary 1 second
+const EVENT_TIMEOUT: u64 = 1;
 
 #[derive(Debug)]
 /// Application name
@@ -164,7 +170,7 @@ async fn compose_http_event(
 
     crate::event::queue::send(event)?;
 
-    match &receiver.recv()? {
+    match &receiver.recv_timeout(Duration::from_secs(EVENT_TIMEOUT))? {
         HTTPEventMsg::HttpEventResponse(resp) => {
             Ok(Response::new(serde_json::to_string(&resp)?.into()))
         },
