@@ -1,8 +1,11 @@
 //! Implementation of the generalized Hermes package struct as a HDF5 package.
 
 mod compression;
+pub(crate) mod path;
 
 use std::{collections::BTreeSet, io::Read, path::Path};
+
+use path::PackagePath;
 
 use self::compression::enable_compression;
 use crate::{
@@ -43,8 +46,8 @@ impl Package {
     }
 
     /// Copy file to `Package`
-    pub(crate) fn copy_file(&self, file: &impl ResourceTrait, name: &str) -> anyhow::Result<()> {
-        copy_file_to_package(file, name, &self.0)
+    pub(crate) fn copy_file(&self, file: &impl ResourceTrait, path: &str) -> anyhow::Result<()> {
+        copy_file_to_root(file, path, &self.0)
     }
 
     /// Copy dir to `Package` recursively.
@@ -100,9 +103,35 @@ impl Package {
     }
 }
 
-/// Copy resource to hdf5 package.
-fn copy_file_to_package(
-    resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
+/// Create package dirs recursively from path in provided root dir.
+/// If some dir already exists it will be skipped.
+fn create_dir_in_root(
+    path: &PackagePath, root: &hdf5::Group,
+) -> anyhow::Result<Option<hdf5::Group>> {
+    let mut dir: Option<hdf5::Group> = None;
+
+    let get_or_create = |dir: &hdf5::Group, name| {
+        if let Ok(dir) = dir.group(name) {
+            Ok(dir)
+        } else {
+            dir.create_group(name)
+        }
+    };
+
+    for path_element in path.iter() {
+        if let Some(dir) = &mut dir {
+            *dir = get_or_create(dir, path_element)?;
+        } else {
+            dir = Some(get_or_create(root, path_element)?);
+        }
+    }
+
+    Ok(dir)
+}
+
+/// Copy resource to hdf5 package into provided root dir.
+fn copy_file_to_root(
+    resource: &impl ResourceTrait, name: &str, root: &hdf5::Group,
 ) -> anyhow::Result<()> {
     let mut reader = resource.get_reader()?;
     let mut resource_data = Vec::new();
@@ -111,7 +140,7 @@ fn copy_file_to_package(
         return Err(anyhow::anyhow!("Resource {} is empty", resource.name()?));
     }
 
-    let ds_builder = package.new_dataset_builder();
+    let ds_builder = root.new_dataset_builder();
     enable_compression(ds_builder)
         .with_data(&resource_data)
         .create(name)?;
@@ -132,7 +161,7 @@ fn copy_dir_recursively_to_package(
                 .unwrap_or_else(errors.get_add_err_fn());
         }
         if resource.is_file() {
-            copy_file_to_package(&resource, &resource.name()?, &package)
+            copy_file_to_root(&resource, &resource.name()?, &package)
                 .unwrap_or_else(errors.get_add_err_fn());
         }
     }
@@ -211,6 +240,27 @@ mod tests {
 
     use super::*;
     use crate::packaging::resources::fs_resource::FsResource;
+
+    #[test]
+    fn create_dir_in_root_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let package_name = tmp_dir.child("test.hdf5");
+        let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
+
+        let path = PackagePath::new("dir_1/dir_2/dir_3/dir_4");
+        assert!(create_dir_in_root(&path, &package)
+            .expect("Failed to create directories in package.")
+            .is_some());
+
+        let dir_1 = package.group("dir_1").expect("Failed to get group.");
+        let dir_2 = dir_1.group("dir_2").expect("Failed to get group.");
+        let dir_3 = dir_2.group("dir_3").expect("Failed to get group.");
+        let _dir_4 = dir_3.group("dir_4").expect("Failed to get group.");
+
+        assert!(create_dir_in_root(&path, &package)
+            .expect("Failed to create directories in package.")
+            .is_some());
+    }
 
     #[test]
     fn copy_file_to_package_and_get_package_file_hash_test() {
