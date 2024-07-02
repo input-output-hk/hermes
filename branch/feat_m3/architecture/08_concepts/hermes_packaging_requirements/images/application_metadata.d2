@@ -1,0 +1,61 @@
+app_metadata: {
+  label: metadata.json
+  grid-columns: 1
+  grid-gap: 5
+  shape: page
+
+  text: {
+    style: {
+      font-size: 18
+    }
+    label: |json
+      {
+        "name": "Athena - Project Catalyst Voting",
+        "icon": "/srv/www/icons/athena.svg",
+        "version" : "V2.7.3",
+        "description" : "Project Catalyst Innovation Platform",
+        "about": "About Project Catalyst, long form.\nMulti line.",
+        "src": [
+          "https://github.com/input-output-hk/hermes",
+          "https://github.com/input-output-hk/catalyst-voices"
+        ],
+        "copyright": [
+          "Copyright Ⓒ 2024, IOG Singapore."
+        ],
+        "license": [
+          {
+            "spdx": "Apache-2.0", 
+            "file": "/srv/data/apache2.txt"
+          },
+          {
+            "spdx": "MIT",
+            "file": "/srv/data/mit.txt"
+          }
+        ],
+        "build_date": 1709041814,
+        "developer" : {
+          "name": "IOG Singapore.",
+          "contact": "Contact details.",
+          "payment": "wallet address"
+        }
+        "resources" : {
+          "minimum" : {
+            "filestorage": 100,
+            "sqlite": 1024,
+          },
+          "requested" : {
+            "filestorage": 300,
+            "sqlite": 4096,          
+          },
+          "maximum": {
+            "filestorage": 1024,
+            "sqlite": 32768,
+          }
+        }
+        "permissions": {
+          "admin": true
+        }
+      }
+    |
+  }
+}

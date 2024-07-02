@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["write_share_dir","write_www_dir"],"mod":["manifest"],"struct":["ApplicationPackage"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["IpfsCommand"],"fn":["hermes_ipfs_add_file","hermes_ipfs_evict_peer","hermes_ipfs_get_dht_value","hermes_ipfs_get_file","hermes_ipfs_pin_file","hermes_ipfs_put_dht_value","hermes_ipfs_subscribe","ipfs_task"],"static":["HERMES_IPFS_STATE"],"struct":["AppIpfsState","HermesIpfsState"]};

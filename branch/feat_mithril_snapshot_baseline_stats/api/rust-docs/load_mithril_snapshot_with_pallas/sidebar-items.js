@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_BLOCK_INTERVAL_IN_SECS"],"fn":["main","print_snapshot_header","print_snapshot_separating_line","print_summary_header","print_summary_table_row_line","process_block_data"],"struct":["BlockTimer"]};

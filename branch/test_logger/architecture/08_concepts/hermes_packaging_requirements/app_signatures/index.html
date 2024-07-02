@@ -1,0 +1,4068 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="The Project Catalyst Team">
+      
+      
+        <link rel="canonical" href="https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/app_signatures/">
+      
+      
+        <link rel="prev" href="../wasm_modules/">
+      
+      
+        <link rel="next" href="../app_loading/">
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.13">
+    
+    
+      
+        <title>Hermes Application Signatures - Project Catalyst - Hermes</title>
+      
+    
+    
+
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.7e359304.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+  
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+    
+    
+      
+    
+    
+  
+  
+  <style>.md-tag.md-tag--html{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="m0 32 34.9 395.8L191.5 480l157.6-52.2L384 32H0zm308.2 127.9H124.4l4.1 49.4h175.6l-13.6 148.4-97.9 27v.3h-1.1l-98.7-27.3-6-75.8h47.7L138 320l53.5 14.5 53.7-14.5 6-62.2H84.3L71.5 112.2h241.1l-4.4 47.7z"/></svg>');}.md-tag.md-tag--js{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M0 32v448h448V32H0zm243.8 349.4c0 43.6-25.6 63.5-62.9 63.5-33.7 0-53.2-17.4-63.2-38.5l34.3-20.7c6.6 11.7 12.6 21.6 27.1 21.6 13.8 0 22.6-5.4 22.6-26.5V237.7h42.1v143.7zm99.6 63.5c-39.1 0-64.4-18.6-76.7-43l34.3-19.8c9 14.7 20.8 25.6 41.5 25.6 17.4 0 28.6-8.7 28.6-20.8 0-14.4-11.4-19.5-30.7-28l-10.5-4.5c-30.4-12.9-50.5-29.2-50.5-63.5 0-31.6 24.1-55.6 61.6-55.6 26.8 0 46 9.3 59.8 33.7L368 290c-7.2-12.9-15-18-27.1-18-12.3 0-20.1 7.8-20.1 18 0 12.6 7.8 17.7 25.9 25.6l10.5 4.5c35.8 15.3 55.9 31 55.9 66.2 0 37.8-29.8 58.6-69.7 58.6z"/></svg>');}.md-tag.md-tag--css{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="m480 32-64 368-223.3 80L0 400l19.6-94.8h82l-8 40.6L210 390.2l134.1-44.4 18.8-97.1H29.5l16-82h333.7l10.5-52.7H56.3l16.3-82H480z"/></svg>');}.md-tag.md-tag--rust{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m23.835 11.703-1.008-.623a13.727 13.727 0 0 0-.028-.294l.866-.807a.348.348 0 0 0-.116-.578l-1.106-.414a8.496 8.496 0 0 0-.087-.285l.69-.96a.346.346 0 0 0-.226-.544l-1.166-.19a9.357 9.357 0 0 0-.14-.261l.49-1.076a.344.344 0 0 0-.028-.336.349.349 0 0 0-.3-.154l-1.185.041a6.744 6.744 0 0 0-.188-.227l.273-1.153a.347.347 0 0 0-.417-.417l-1.153.273a14.018 14.018 0 0 0-.228-.188l.041-1.184a.344.344 0 0 0-.49-.328l-1.076.49-.262-.14-.19-1.167a.348.348 0 0 0-.545-.226l-.96.69a8.487 8.487 0 0 0-.285-.086L14.597.453a.348.348 0 0 0-.578-.116l-.807.867a9.294 9.294 0 0 0-.294-.028L12.295.168a.346.346 0 0 0-.59 0l-.623 1.008a13.738 13.738 0 0 0-.294.028L9.98.337a.346.346 0 0 0-.578.116l-.414 1.106-.285.086-.959-.69a.348.348 0 0 0-.545.226l-.19 1.167a9.357 9.357 0 0 0-.262.14l-1.076-.49a.346.346 0 0 0-.49.328l.041 1.184a7.983 7.983 0 0 0-.228.187l-1.153-.272a.347.347 0 0 0-.417.417l.271 1.153-.186.227-1.184-.042a.346.346 0 0 0-.328.49l.49 1.077a9.167 9.167 0 0 0-.14.262l-1.166.19a.348.348 0 0 0-.226.544l.69.958a13.303 13.303 0 0 0-.087.286l-1.106.414a.348.348 0 0 0-.116.578l.866.807a9.294 9.294 0 0 0-.028.294l-1.008.623a.344.344 0 0 0 0 .59l1.008.623c.008.098.018.196.028.294l-.866.807a.346.346 0 0 0 .116.578l1.106.415c.028.096.057.191.087.285l-.69.959a.345.345 0 0 0 .227.544l1.166.19c.046.088.092.175.14.262l-.49 1.076a.346.346 0 0 0 .328.49l1.183-.041c.062.077.124.152.187.227l-.27 1.154a.346.346 0 0 0 .416.417l1.153-.272c.075.064.151.126.228.187l-.041 1.184a.344.344 0 0 0 .49.327l1.076-.49c.087.049.174.095.262.14l.19 1.167a.348.348 0 0 0 .545.227l.959-.69a9.299 9.299 0 0 0 .285.086l.414 1.107a.345.345 0 0 0 .578.115l.808-.865.294.03.623 1.006a.347.347 0 0 0 .59 0l.623-1.007c.098-.009.197-.018.294-.03l.807.866a.348.348 0 0 0 .578-.115l.414-1.107a8.463 8.463 0 0 0 .285-.087l.959.69a.345.345 0 0 0 .545-.226l.19-1.166.262-.14 1.076.49a.347.347 0 0 0 .49-.328l-.041-1.184a6.727 6.727 0 0 0 .227-.187l1.153.272a.347.347 0 0 0 .417-.416l-.272-1.155c.063-.075.126-.15.187-.227l1.184.041a.344.344 0 0 0 .328-.49l-.49-1.076c.048-.087.095-.174.141-.262l1.166-.19a.348.348 0 0 0 .226-.544l-.69-.959.087-.285 1.106-.414a.346.346 0 0 0 .116-.579l-.866-.807c.01-.098.02-.196.028-.294l1.008-.624a.344.344 0 0 0 0-.589zm-6.742 8.355a.714.714 0 0 1 .299-1.396.714.714 0 1 1-.3 1.396zm-.342-2.314a.649.649 0 0 0-.771.5l-.358 1.669a8.73 8.73 0 0 1-3.619.78 8.737 8.737 0 0 1-3.695-.815L7.95 18.21a.648.648 0 0 0-.772-.5l-1.473.317a8.722 8.722 0 0 1-.761-.898h7.167c.081 0 .136-.014.136-.088v-2.536c0-.074-.054-.088-.136-.088h-2.096v-1.608h2.268c.206 0 1.106.059 1.393 1.209.09.353.288 1.504.424 1.873.134.413.683 1.238 1.268 1.238h3.572a.75.75 0 0 0 .13-.013 8.787 8.787 0 0 1-.813.952zm-9.914 2.28a.714.714 0 1 1-.3-1.396.714.714 0 0 1 .3 1.396zM4.117 8.997a.714.714 0 1 1-1.303.58.714.714 0 0 1 1.304-.58zm-.834 1.981 1.534-.682a.65.65 0 0 0 .33-.858l-.316-.715h1.244v5.602H3.567a8.775 8.775 0 0 1-.284-3.348zm6.734-.543V8.784h2.96c.153 0 1.08.177 1.08.87 0 .574-.712.78-1.296.78zm10.757 1.486c0 .219-.008.436-.024.651h-.9c-.09 0-.127.059-.127.148v.413c0 .973-.548 1.184-1.03 1.238-.457.052-.964-.191-1.027-.472-.27-1.518-.72-1.843-1.43-2.403.882-.56 1.799-1.386 1.799-2.492 0-1.193-.82-1.945-1.377-2.315-.783-.516-1.65-.62-1.883-.62H5.468a8.765 8.765 0 0 1 4.907-2.77l1.098 1.152a.648.648 0 0 0 .918.02l1.227-1.173a8.775 8.775 0 0 1 6.004 4.276l-.84 1.898a.652.652 0 0 0 .33.859l1.618.718c.028.288.042.577.042.872zm-9.3-9.6a.713.713 0 1 1 .984 1.032.714.714 0 0 1-.984-1.031zm8.339 6.71a.71.71 0 0 1 .939-.362.714.714 0 1 1-.94.364z"/></svg>');}.md-tag.md-tag--flutter{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.314 0 2.3 12 6 15.7 21.684.013h-7.357zm.014 11.072L7.857 17.53l6.47 6.47H21.7l-6.46-6.468 6.46-6.46h-7.37z"/></svg>');}.md-tag.md-tag--dart{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4.105 4.105S9.158 1.58 11.684.316a3.079 3.079 0 0 1 1.481-.315c.766.047 1.677.788 1.677.788L24 9.948v9.789h-4.263V24H9.789l-9-9C.303 14.5 0 13.795 0 13.105c0-.319.18-.818.316-1.105l3.789-7.895zm.679.679v11.787c.002.543.021 1.024.498 1.508L10.204 23h8.533v-4.263L4.784 4.784zm12.055-.678c-.899-.896-1.809-1.78-2.74-2.643-.302-.267-.567-.468-1.07-.462-.37.014-.87.195-.87.195L6.341 4.105l10.498.001z"/></svg>');}.md-tag.md-tag--python{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg>');}.md-tag.md-tag--earthly{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 14h2v3h3v2h-3v3h-2v-3h-3v-2h3v-3m3-2c0-3.36-2.07-6.23-5-7.41V5c0 1.1-.9 2-2 2h-2v2c0 .55-.45 1-1 1H8v2h6c.5 0 .9.35 1 .81-1.8 1.04-3 2.98-3 5.19 0 1.5.54 2.85 1.44 3.9L12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10l-.1 1.44c-.56-.48-1.2-.85-1.9-1.1V12m-9 7.93V18c-1.1 0-2-.9-2-2v-1l-4.79-4.79C4.08 10.78 4 11.38 4 12c0 4.08 3.06 7.44 7 7.93Z"/></svg>');}.md-tag.md-tag--github{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>');}.md-tag.md-tag--docker{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 0 0 .186-.185V9.006a.186.186 0 0 0-.186-.186h-2.119a.185.185 0 0 0-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 0 0 .186-.186V3.574a.186.186 0 0 0-.186-.185h-2.118a.185.185 0 0 0-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 0 0 .186-.186V6.29a.186.186 0 0 0-.186-.185h-2.118a.185.185 0 0 0-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 0 0 .184-.186V6.29a.185.185 0 0 0-.185-.185H8.1a.185.185 0 0 0-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 0 0 .185-.186V6.29a.185.185 0 0 0-.185-.185H5.136a.186.186 0 0 0-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 0 0 .186-.185V9.006a.186.186 0 0 0-.186-.186h-2.118a.185.185 0 0 0-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 0 0 .184-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.185.185 0 0 0-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 0 0 .185-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.186.186 0 0 0-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 0 0 .184-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.185.185 0 0 0-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 0 0-.75.748 11.376 11.376 0 0 0 .692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137a15.74 15.74 0 0 0 2.93-.266 12.248 12.248 0 0 0 3.823-1.389 10.51 10.51 0 0 0 2.61-2.136c1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></svg>');}.md-tag.md-tag--arc42{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25m19.61 1.11-4.25 4.25-5.2-5.2 1.77-1.77 1 1 2.47-2.48 1.42 1.42L18.36 17l1.06 1 1.42-1.4 1.77 1.76m-16-7.53L1.39 5.64l4.25-4.25L7.4 3.16 4.93 5.64 6 6.7l2.46-2.48 1.42 1.42-1.42 1.41 1 1-2.85 2.78M20.71 7c.39-.39.39-1 0-1.41l-2.34-2.3c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75L20.71 7Z"/></svg>');}.md-tag.md-tag--adr{--md-tag-icon:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5H9l4-4 4 4h-3v4.43c-.75.46-1.42 1.03-2 1.69V5m-1.6 10H8.5l-.7-2H4.6l-.7 2H2l3.2-9h2l3.2 9m-3.05-3.35L6.2 8l-1.15 3.65h2.3M23 11l-4-4v3a6.747 6.747 0 0 0-7 6.17A3.006 3.006 0 0 0 10.17 20 3.006 3.006 0 0 0 14 21.83 3.01 3.01 0 0 0 15.83 18c-.3-.86-.98-1.53-1.83-1.83.47-4 4.47-4.2 4.95-4.2v3L23 11Z"/></svg>');}</style>
+
+    
+<link rel="stylesheet" href="../../../../stylesheets/adr.css">
+
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+   <link href="../../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }</style> <script src="../../../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hermes-application-signatures" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Project Catalyst - Hermes" class="md-header__button md-logo" aria-label="Project Catalyst - Hermes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Project Catalyst - Hermes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Hermes Application Signatures
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/input-output-hk/hermes" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    input-output-hk/hermes
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../getting-started/" class="md-tabs__link">
+          
+  
+    
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2h2v20H7V2m12 7-8 5.6V3.4L19 9Z"/></svg>
+    
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../api/" class="md-tabs__link">
+          
+  
+    
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 7H5a2 2 0 0 0-2 2v8h2v-4h2v4h2V9a2 2 0 0 0-2-2m0 4H5V9h2m7-2h-4v10h2v-4h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2m0 4h-2V9h2m6 0v6h1v2h-4v-2h1V9h-1V7h4v2Z"/></svg>
+    
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../../" class="md-tabs__link">
+          
+  
+    
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25m19.61 1.11-4.25 4.25-5.2-5.2 1.77-1.77 1 1 2.47-2.48 1.42 1.42L18.36 17l1.06 1 1.42-1.4 1.77 1.76m-16-7.53L1.39 5.64l4.25-4.25L7.4 3.16 4.93 5.64 6 6.7l2.46-2.48 1.42 1.42-1.42 1.41 1 1-2.85 2.78M20.71 7c.39-.39.39-1 0-1.41l-2.34-2.3c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75L20.71 7Z"/></svg>
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../appendix/" class="md-tabs__link">
+          
+  
+    
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M23 18h-3v-3h-2v3h-3v2h3v3h2v-3h3M6 2a2 2 0 0 0-2 2v16c0 1.11.89 2 2 2h7.81c-.36-.62-.61-1.3-.73-2H6V4h7v5h5v4.08c.33-.05.67-.08 1-.08.34 0 .67.03 1 .08V8l-6-6M8 12v2h8v-2m-8 4v2h5v-2Z"/></svg>
+    
+  
+  Appendix
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Project Catalyst - Hermes" class="md-nav__button md-logo" aria-label="Project Catalyst - Hermes" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Project Catalyst - Hermes
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/input-output-hk/hermes" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    input-output-hk/hermes
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../getting-started/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2h2v20H7V2m12 7-8 5.6V3.4L19 9Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/advanced/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 14.25 4.75 11H7c.25-5.61 2.39-10 5-10 2 0 3.77 2.64 4.55 6.45C20.36 8.23 23 10 23 12c0 1.83-2.17 3.43-5.4 4.3l.29-2.03C19.8 13.72 21 12.91 21 12c0-1.06-1.65-2-4.13-2.5.08.79.13 1.63.13 2.5 0 6.08-2.24 11-5 11-1.83 0-3.43-2.17-4.3-5.4l2.03.29C10.28 19.8 11.09 21 12 21c1.66 0 3-4.03 3-9 0-1-.05-1.95-.15-2.85C13.95 9.05 13 9 12 9l-1.86.06.29-2.01L12 7c.87 0 1.71.05 2.5.13C14 4.65 13.06 3 12 3c-1.54 0-2.82 3.5-3 8h2.25L8 14.25M14.25 16 11 19.25V17c-5.61-.25-10-2.39-10-5 0-1.83 2.17-3.43 5.4-4.3l-.29 2.03C4.2 10.28 3 11.09 3 12c0 1.54 3.5 2.82 8 3v-2.25L14.25 16Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Advanced
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/development/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.78 15.3 6 6 2.11-2.16-6-6-2.11 2.16m3.72-5.2c-.39 0-.81-.05-1.14-.19L4.97 21.25l-2.11-2.11 7.41-7.4L8.5 9.96l-.72.7-1.45-1.41v2.86l-.7.7-3.52-3.56.7-.7h2.81l-1.4-1.41 3.56-3.56a2.976 2.976 0 0 1 4.22 0L9.89 5.74l1.41 1.4-.71.71 1.79 1.78 1.82-1.88c-.14-.33-.2-.75-.2-1.12a3.49 3.49 0 0 1 3.5-3.52c.59 0 1.11.14 1.58.42L16.41 6.2l1.5 1.5 2.67-2.67c.28.47.42.97.42 1.6 0 1.92-1.55 3.47-3.5 3.47Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Development
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/quick-start/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M23 8v8l-3 1-3.09-5.5c-.26-.46-.99-.23-.91.31L17 21 7 17l1.15-8.06A6.923 6.923 0 0 1 15 3h8l-1.58 2.37C22.36 5.88 23 6.86 23 8M4 5h3.58c.5-.76 1.12-1.43 1.83-2H4c-.55 0-1 .45-1 1s.45 1 1 1m1.84 6H2c-.55 0-1 .45-1 1s.45 1 1 1h3.55l.29-2M3 9h3.12l.05-.34c.08-.58.22-1.13.41-1.66H3c-.55 0-1 .45-1 1s.45 1 1 1Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Quick Start
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../api/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 7H5a2 2 0 0 0-2 2v8h2v-4h2v4h2V9a2 2 0 0 0-2-2m0 4H5V9h2m7-2h-4v10h2v-4h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2m0 4h-2V9h2m6 0v6h1v2h-4v-2h1V9h-1V7h4v2Z"/></svg>
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hermes-WASI API
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Hermes-WASI API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hermes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hermes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Hermes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/binary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Binary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/cardano/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cardano
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/cbor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cbor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/cron/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cron
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/crypto/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Crypto
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/hash/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hash
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/init/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Init
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/json/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Json
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/kv-store/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kv store
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/localtime/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Localtime
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/hermes/logging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Wasi
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Wasi
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cli
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/clock/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Clock
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/filesystem/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Filesystem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Http
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/io/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Io
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/wasi-hermes/wasi/random/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Random
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25m19.61 1.11-4.25 4.25-5.2-5.2 1.77-1.77 1 1 2.47-2.48 1.42 1.42L18.36 17l1.06 1 1.42-1.4 1.77 1.76m-16-7.53L1.39 5.64l4.25-4.25L7.4 3.16 4.93 5.64 6 6.7l2.46-2.48 1.42 1.42-1.42 1.41 1 1-2.85 2.78M20.71 7c.39-.39.39-1 0-1.41l-2.34-2.3c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75L20.71 7Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../01_introduction_and_goals/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.172 6.75h-1.861l-4.566 4.564a1.874 1.874 0 1 1-1.06-1.06l4.565-4.565V3.828a.94.94 0 0 1 .275-.664l1.73-1.73a.249.249 0 0 1 .25-.063c.089.026.155.1.173.191l.46 2.301 2.3.46c.09.018.164.084.19.173a.25.25 0 0 1-.062.249l-1.731 1.73a.937.937 0 0 1-.663.275Z"/><path d="M2.625 12A9.375 9.375 0 0 0 12 21.375 9.375 9.375 0 0 0 21.375 12c0-.898-.126-1.766-.361-2.587A.75.75 0 0 1 22.455 9c.274.954.42 1.96.42 3 0 6.006-4.869 10.875-10.875 10.875S1.125 18.006 1.125 12 5.994 1.125 12 1.125c1.015-.001 2.024.14 3 .419a.75.75 0 1 1-.413 1.442A9.39 9.39 0 0 0 12 2.625 9.375 9.375 0 0 0 2.625 12Z"/><path d="M7.125 12a4.874 4.874 0 1 0 9.717-.569.748.748 0 0 1 1.047-.798c.251.112.42.351.442.625a6.373 6.373 0 0 1-10.836 5.253 6.376 6.376 0 0 1 5.236-10.844.75.75 0 1 1-.17 1.49A4.876 4.876 0 0 0 7.125 12Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Introduction and Goals
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../02_architecture_constraints/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.24 6.76c-1.84-1.85-4.59-2.23-6.82-1.17l-.96-.96a.996.996 0 0 0-1.41 0l-.08.09C10.83 3.75 10 3 9 3c-1.1 0-2 .9-2 2 0 .09 0 .18.03.26C6.42 5.61 6 6.25 6 7c0 .46.16.87.42 1.21A.97.97 0 0 0 6 9v1.35c-2.33.82-4 3.04-4 5.65 0 3.31 2.69 6 6 6s6-2.69 6-6a5.99 5.99 0 0 0-4-5.65V9a.97.97 0 0 0-.42-.79c.26-.34.42-.75.42-1.21 0-.09 0-.18-.03-.26.18-.1.33-.24.46-.36C11.36 6.88 12 7.86 12 9v.08c.13.07.25.17.38.25.19-.42.45-.83.79-1.16a4.008 4.008 0 0 1 5.66 0 4.008 4.008 0 0 1 0 5.66c-.8.8-1.83 1.17-2.9 1.17.07.32.07.66.07 1 0 .34-.03.67-.07 1 1.57 0 3.12-.57 4.31-1.76a5.981 5.981 0 0 0 0-8.48M9 4c.55 0 1 .45 1 1 0 .33-.17.61-.42.79C9.22 5.31 8.65 5 8 5c0-.55.45-1 1-1M7.42 6.21c.36.48.93.79 1.58.79 0 .55-.45 1-1 1s-1-.45-1-1c0-.33.17-.61.42-.79M12 16c0 2.21-1.79 4-4 4s-4-1.79-4-4 1.79-4 4-4 4 1.79 4 4Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Architecture Constraints
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../03_system_scope_and_context/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1 4 6.9m-12.1-1 3 5.2 6.1-3.5-3-5.2-6.1 3.5m1.6 4.8-2-3.5-4.3 2.5 2 3.5 4.3-2.5m-9.3 1.9 1 1.7 2.6-1.5-1-1.7-2.6 1.5m10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4Z"/></svg>
+  
+  <span class="md-ellipsis">
+    System Scope and Context
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../04_solution_strategy/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m6.91 5.5 2.3 2.29-1.42 1.42-2.29-2.3-2.29 2.3-1.42-1.42 2.3-2.29-2.3-2.29 1.42-1.42 2.29 2.3 2.29-2.3 1.42 1.42m13 13-1.42-1.42-2.29 2.3-2.29-2.3-1.42 1.42 2.3 2.29-2.3 2.29 1.42 1.42 2.29-2.3 2.29 2.3 1.42-1.42-2.3-2.29m.49-11.67L17.18 11 15.6 9.73l1.17-1.5a9.08 9.08 0 0 0-6.66 5.62A4.5 4.5 0 1 1 7.5 13a4 4 0 0 1 .78.08 11.27 11.27 0 0 1 8.15-6.82L15 5.18l1.27-1.58M10 17.5A2.5 2.5 0 1 0 7.5 20a2.5 2.5 0 0 0 2.5-2.5Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Solution Strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../05_building_block_view/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1h-2V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v1H3v14h8.81A6.5 6.5 0 0 1 21 10.81V6m-.69 11.9a4.5 4.5 0 1 0-1.43 1.42L22 22.39 23.39 21m-6.89-3a2.5 2.5 0 1 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Building Blocks
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            Building Blocks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../05_building_block_view/hermes_engine/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 4v2h3v2H7l-2 2v3H3v-3H1v8h2v-3h2v3h3l2 2h8v-4h2v3h3V9h-3v3h-2V8h-6V6h3V4H7Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Hermes engine
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../06_runtime_view/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 5.5a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m-3.6 13.9 1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.298 7.298 0 0 0 22 13v-2c-1.76.03-3.4-.89-4.3-2.4l-1-1.6c-.36-.6-1-1-1.7-1-.3 0-.5.1-.8.1L9 8.3V13h2V9.6l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4M4 9a1 1 0 0 1-1-1 1 1 0 0 1 1-1h3v2H4m1-4a1 1 0 0 1-1-1 1 1 0 0 1 1-1h5v2H5m-2 8a1 1 0 0 1-1-1 1 1 0 0 1 1-1h4v2H3Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Runtime View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../07_deployment_view/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 19h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-7v2M4 3h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1m5 4h1V5H9v2m0 8h1v-2H9v2M5 5v2h2V5H5m0 8v2h2v-2H5Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Deployment View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3.5 19A1.5 1.5 0 0 1 5 20.5 1.5 1.5 0 0 1 3.5 22 1.5 1.5 0 0 1 2 20.5 1.5 1.5 0 0 1 3.5 19m5-3a2.5 2.5 0 0 1 2.5 2.5A2.5 2.5 0 0 1 8.5 21 2.5 2.5 0 0 1 6 18.5 2.5 2.5 0 0 1 8.5 16m6-1c-1.19 0-2.27-.5-3-1.35-.73.85-1.81 1.35-3 1.35-1.96 0-3.59-1.41-3.93-3.26A4.02 4.02 0 0 1 2 8a4 4 0 0 1 4-4c.26 0 .5.03.77.07C7.5 3.41 8.45 3 9.5 3c1.19 0 2.27.5 3 1.35.73-.85 1.81-1.35 3-1.35 1.96 0 3.59 1.41 3.93 3.26A4.02 4.02 0 0 1 22 10a4 4 0 0 1-4 4l-.77-.07c-.73.66-1.68 1.07-2.73 1.07Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Cross Cutting Concepts
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            Cross Cutting Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9_1" id="__nav_3_9_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hermes Runtime Engine
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_9_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9_1">
+            <span class="md-nav__icon md-icon"></span>
+            Hermes Runtime Engine
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/hre_structure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HRE structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/hre_state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HRE state management
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/hre_init_setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HRE initial setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/h_app_struct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hermes application structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/h_app_exec/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hermes application execution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/h_events_queue/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hermes events queue implementation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hermes_runtime_engine/wasm_parallel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WASM execution parallelization
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_9_2" id="__nav_3_9_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hermes Application Packaging Requirements
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_9_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_9_2">
+            <span class="md-nav__icon md-icon"></span>
+            Hermes Application Packaging Requirements
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app_package/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Packaging A Hermes Application
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app_metadata/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Application Metadata
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app_srv_www/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP Served Application Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app_data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hermes Application Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wasm_modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Packaging WebAssembly (WASM) modules in a Hermes Application
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Hermes Application Signatures
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app_loading/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    The Application Loading Process
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9_4" id="__nav_3_9_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Cardano Chain Follower
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9_4">
+            <span class="md-nav__icon md-icon"></span>
+            Cardano Chain Follower
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cardano_chain_follower/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    1. Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cardano_chain_follower/follower_instances/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cardano Chain Follower Instances
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../09_architecture_decisions/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5H9l4-4 4 4h-3v4.43c-.75.46-1.42 1.03-2 1.69V5m-1.6 10H8.5l-.7-2H4.6l-.7 2H2l3.2-9h2l3.2 9m-3.05-3.35L6.2 8l-1.15 3.65h2.3M23 11l-4-4v3a6.747 6.747 0 0 0-7 6.17A3.006 3.006 0 0 0 10.17 20 3.006 3.006 0 0 0 14 21.83 3.01 3.01 0 0 0 15.83 18c-.3-.86-.98-1.53-1.83-1.83.47-4 4.47-4.2 4.95-4.2v3L23 11Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Architecture Decisions
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture Decisions
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../09_architecture_decisions/0001-arch-std/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0001 Architecture Documentation Standard
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../09_architecture_decisions/0002-adr/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0002 Architecture Decision Records
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../09_architecture_decisions/0003-app-ver-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    0003 Hermes runtime extensions api version control
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../10_quality_requirements/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.5 13.5h2v-3h-2M18 14a1 1 0 0 1-1 1h-.75v1.5h-1.5V15H14a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1m-7 5H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11m8-5H5c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Quality Requirements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../11_technical_risks/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M173.2 0c-1.8 0-3.5.7-4.8 2C138.5 32.3 120 74 120 120c0 26.2 6 50.9 16.6 73-22 2.4-43.8 9.1-64.2 20.5-34.5 19.3-59.1 48.9-72 82.5-.7 1.7-.5 3.7.5 5.2 2.2 3.7 7.4 4.3 10.6 1.3C64.2 254.3 158 245.1 205 324s-8.1 153.1-77.6 173.2c-4.2 1.2-6.3 5.9-4.1 9.6 1 1.6 2.6 2.7 4.5 3 36.5 5.9 75.2.1 109.7-19.2 20.4-11.4 37.4-26.5 50.5-43.8 13.1 17.3 30.1 32.4 50.5 43.8 34.5 19.3 73.3 25.2 109.7 19.2 1.9-.3 3.5-1.4 4.5-3 2.2-3.7.1-8.4-4.1-9.6C379.1 477.1 324 403 371 324s140.7-69.8 193.5-21.4c3.2 2.9 8.4 2.3 10.6-1.3 1-1.6 1.1-3.5.5-5.2-12.9-33.6-37.5-63.2-72.1-82.5a168.77 168.77 0 0 0-64.2-20.5C450 170.9 456 146.2 456 120c0-46-18.5-87.7-48.4-118-1.3-1.3-3-2-4.8-2-5 0-8.4 5.2-6.7 9.9C421.7 80.5 385.6 176 288 176S154.3 80.5 179.9 9.9c1.7-4.7-1.6-9.9-6.7-9.9zM240 272a48 48 0 1 1 96 0 48 48 0 1 1-96 0zm-58.3 145.6c6.3-11.8 9.8-25.1 8.6-39.8-19.5-18-34-41.4-41.2-67.8-12.5-8.1-26.2-11.8-40-12.4-9-.4-18.1.6-27.1 2.7 7.8 57.1 38.7 106.8 82.9 139.4 6.8-6.7 12.6-14.1 16.8-22.1zM288 64c-28.8 0-56.3 5.9-81.2 16.5 2 8.3 5 16.2 9 23.5 6.8 12.4 16.7 23.1 30.1 30.3 13.3-4.1 27.5-6.3 42.2-6.3s28.8 2.2 42.2 6.3c13.4-7.2 23.3-17.9 30.1-30.3 4-7.3 7-15.2 9-23.5C344.3 69.9 316.8 64 288 64zm138.9 246c-7.2 26.4-21.7 49.7-41.2 67.8-1.2 14.7 2.2 28.1 8.6 39.8 4.3 8 10 15.4 16.8 22.1 44.3-32.6 75.2-82.3 82.9-139.4-9-2.2-18.1-3.1-27.1-2.7-13.8.6-27.5 4.4-40 12.4z"/></svg>
+  
+  <span class="md-ellipsis">
+    Risks and Technical Debts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../12_glossary/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 14v3h-3v2h3v3h2v-3h3v-2h-3v-3m1-3v1.3c-.6-.2-1.3-.3-2-.3-1.2 0-2.4.4-3.3 1H7v-2h13m-7.9 6H7v-2h5.8c-.3.6-.6 1.3-.7 2M7 7h13v2H7V7M5 19h2v2H3V3h4v2H5v14Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../appendix/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M23 18h-3v-3h-2v3h-3v2h3v3h2v-3h3M6 2a2 2 0 0 0-2 2v16c0 1.11.89 2 2 2h7.81c-.36-.62-.61-1.3-.73-2H6V4h7v5h5v4.08c.33-.05.67-.08 1-.08.34 0 .67.03 1 .08V8l-6-6M8 12v2h8v-2m-8 4v2h5v-2Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Appendix
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Appendix
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../appendix/tags/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="m345 39.1 127.8 129.3c52.4 53 52.4 138.2 0 191.2l-112 113.3c-9.3 9.4-24.5 9.5-33.9.2s-9.5-24.5-.2-33.9l111.9-113.3c33.9-34.3 33.9-89.4 0-123.7L310.9 72.9c-9.3-9.4-9.2-24.6.2-33.9s24.6-9.2 33.9.2zM0 229.5V80c0-26.5 21.5-48 48-48h149.5c17 0 33.3 6.7 45.3 18.7l168 168c25 25 25 65.5 0 90.5L277.3 442.7c-25 25-65.5 25-90.5 0l-168-168C6.7 262.7 0 246.5 0 229.5zM144 144a32 32 0 1 0-64 0 32 32 0 1 0 64 0z"/></svg>
+  
+  <span class="md-ellipsis">
+    Tag Index
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../appendix/important/" class="md-nav__link ">
+              
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m23 12-2.44 2.78.34 3.68-3.61.82-1.89 3.18L12 21l-3.4 1.47-1.89-3.18-3.61-.82.34-3.69L1 12l2.44-2.79-.34-3.68 3.61-.81L8.6 1.54 12 3l3.4-1.46 1.89 3.18 3.61.82-.34 3.68L23 12m-2.67 0L18.5 9.89l.24-2.79L16 6.5l-1.42-2.43L12 5.18 9.42 4.07 8 6.5l-2.74.59.24 2.79L3.67 12l1.83 2.1-.24 2.8 2.74.6 1.42 2.43L12 18.81l2.58 1.11L16 17.5l2.74-.61-.24-2.79 1.83-2.1M11 15h2v2h-2v-2m0-8h2v6h-2V7"/></svg>
+  
+  <span class="md-ellipsis">
+    Important
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Important
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../appendix/important/coc/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.7 12.9 14 18.6h-2.3v-2.3l5.7-5.7 2.3 2.3m3.4-.8c0 .3-.3.6-.6.9L20 15.5l-.9-.9 2.6-2.6-.6-.6-.7.7-2.3-2.3 2.2-2.1c.2-.2.6-.2.9 0l1.4 1.4c.2.2.2.6 0 .9-.2.2-.4.4-.4.6 0 .2.2.4.4.6.3.3.6.6.5.9M3 20V4h7v5h5v1.5l2-2V8l-6-6H3c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2H3m8-2.9c-.2 0-.4.1-.5.1L10 15H8.5l-2.1 1.7L7 14H5.5l-1 5H6l2.9-2.6.6 2.3h1l.5-.1v-1.5Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Coc
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../appendix/important/contributing/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.7 7c-.3.4-.7.7-.7 1 0 .3.3.6.6 1 .5.5 1 .9.9 1.4 0 .5-.5 1-1 1.5L16.4 16 15 14.7l4.2-4.2-1-1-1.4 1.4L13 7.1l4-3.8c.4-.4 1-.4 1.4 0l2.3 2.3c.4.4.4 1.1 0 1.4M3 17.2l9.6-9.6 3.7 3.8L6.8 21H3v-3.8M7 2v3h3v2H7v3H5V7H2V5h3V2h2Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../appendix/important/license/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 10a3.04 3.04 0 0 1 3-3 3.04 3.04 0 0 1 3 3 3.04 3.04 0 0 1-3 3 3.04 3.04 0 0 1-3-3m3 9 4 1v-3.08A7.54 7.54 0 0 1 12 18a7.54 7.54 0 0 1-4-1.08V20m4-16a5.78 5.78 0 0 0-4.24 1.74A5.78 5.78 0 0 0 6 10a5.78 5.78 0 0 0 1.76 4.23A5.78 5.78 0 0 0 12 16a5.78 5.78 0 0 0 4.24-1.77A5.78 5.78 0 0 0 18 10a5.78 5.78 0 0 0-1.76-4.26A5.78 5.78 0 0 0 12 4m8 6a8.04 8.04 0 0 1-.57 2.8A7.84 7.84 0 0 1 18 15.28V23l-6-2-6 2v-7.72A7.9 7.9 0 0 1 4 10a7.68 7.68 0 0 1 2.33-5.64A7.73 7.73 0 0 1 12 2a7.73 7.73 0 0 1 5.67 2.36A7.68 7.68 0 0 1 20 10Z"/></svg>
+  
+  <span class="md-ellipsis">
+    License
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../appendix/important/security/" class="md-nav__link">
+        
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12h7c-.53 4.11-3.28 7.78-7 8.92V12H5V6.3l7-3.11M12 1 3 5v6c0 5.55 3.84 10.73 9 12 5.16-1.27 9-6.45 9-12V5l-9-4Z"/></svg>
+  
+  <span class="md-ellipsis">
+    Security
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<nav class="md-tags" >
+  
+</nav>
+
+
+  
+  
+
+
+
+
+
+
+<h1 id="hermes-application-signatures">Hermes Application Signatures<a class="headerlink" href="#hermes-application-signatures" title="Permanent link">&para;</a></h1>
+<p>Signatures in Hermes Applications are created by Authors of the application.</p>
+<p>If there is an independent Publisher/s of the application they too can attach a signature to the application.</p>
+<p>Signatures are generated on a hash of the Applications contents from the root.</p>
+<p>HDF5 filesystem is internally hierarchical.<br />
+What this means is that it is possible to get the entire contents of a group as binary data.
+This significantly simplifies hashing of the filesystem contents in a controlled way,
+without needing to traverse the filesystem tree.</p>
+<p>Recall the Package Filesystem hierarchy:</p>
+<p><div><svg d2Version="v0.6.3" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1608 965"><svg class="d2-3283797290" height="965" id="d2-svg" viewBox="-101 -101 1608 965" width="1608"><rect class=" fill-N7" height="965.000000" rx="0.000000" stroke-width="0" width="1608.000000" x="-101.000000" y="-101.000000"></rect><style type="text/css">
+.d2-3283797290 .text {
+	font-family: "d2-3283797290-font-regular";
+}
+@font-face {
+	font-family: d2-3283797290-font-regular;
+	src: url("data:application/font-woff;base64,d09GRgABAAAAABZQAAoAAAAAIYAAAguFAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAAA9AAAAGAAAABgXd/Vo2NtYXAAAAFUAAAA1wAAAUQIFAoeZ2x5ZgAAAiwAAA7fAAAUyE4ilitoZWFkAAARDAAAADYAAAA2G4Ue32hoZWEAABFEAAAAJAAAACQKhAYLaG10eAAAEWgAAADwAAABJIQIDXtsb2NhAAASWAAAAJQAAACUxELJxG1heHAAABLsAAAAIAAAACAAYQD2bmFtZQAAEwwAAAMjAAAIFAbDVU1wb3N0AAAWMAAAAB0AAAAg/9EAMgADAgkBkAAFAAACigJYAAAASwKKAlgAAAFeADIBIwAAAgsFAwMEAwICBGAAAvcAAAADAAAAAAAAAABBREJPAEAAIP//Au7/BgAAA9gBESAAAZ8AAAAAAeYClAAAACAAA3icjM5JTmJhAIXR84pHFVRRYN+iotiA2Ld0gkhiNHFgnDjFZbgupxp1KcZlGP1NGDD2jk9yP0QSImTEURUlBbGUgqKyik1bttU0NLW0dZy7dO1Wz30I9GVpIHfUB7LrwpUbPXchhDd5Y8ZlpeXCZ/iSFIeP8BpewnN4Co/hPTz0W362SFvTiVMNx1qD/1179h04dKSqpuNM3S8JsaTf/khJ++ufjP+ycoYMGzGq2++bMGnKtBmz8ubMW1CwaEnRshWr1pSUravY4BsAAP//AQAA//+ThyshAHicjFh9cBvlmX/eV2uvHckfsiSvZEuWtGtr9WnZWq1WtmQplvVlx7ZkyY5jO3G+nDgfJA2hQAMhoZeQ5IByumsYOAg0bbkpdMg1XGeSMkzvgxw59wjkCj0KpclwvRmXKbS9+ty7QvHqZley4kD/uD882tE8ep/n/f1+z+951lAFUwCYx2dBAbXQAE2gA+DUVnWHlWUZUuAEgaEUAovU5BT6uVhAaNBPBAJEd+yj2JHjx9GmY/jsyh29J+fnX5u9917xa4sfij705oeAQQGATbgAtaAG0JAca7OxTHW1QsNpGJYhXze/Zm6yNBINlp/dnL05FfltFH1pbk440NNzQJzGhZVDCwsAAAj8xWXcis+BCaCKttl4fyDA+Zop0mZj6Opqnba5mfMFBKq6GuVyX90wfDIf3mz0tMSckS2cbybiHTJ3sjtUY0/u3/dkrtsSMNL99+RyR2J22u/xAQCGaQDsxwWokerk1JyvWaetZljOF+D9NoaZfu7JZ595fGLDXXfdddcGXHjh3DN/G3/k6NGH5NqmAdBNXACljJnOquN0jM6qm0b3ie998gnqxoXkm6nfpCqxP5HxuBWrliM//RQXkjeT4s9W47Bv9UyJCU7NqK3q6TzqHh8Xr+OC+GukWTmEePH11Xi4gAsS3lL8dF4Cr5zvGi5AVfkc3XQemXFh5XIKKnkewAUJV07NaZqbKS4QEDRSNn9AYEgFo2CZ5madenrumIpSESqd6uiu0RoF4T8qHPUTChIXxG/RCZpO0Gh25RDa697velx8EY0/7trvFp+o5PDgAmhKOSjOZuOl+6yevPHXKUJBZjb+JkUQ0nlzZ3z7/Si/cgg9c7p7j198AbDM/y58Dho+pwCJpmrWF5BpomUhoOHc8VTqeC5/LJ0+lg9Ndu3btGlf1ybV+FN79z4xNvbE3r1PjQ8OHMnd99hj9+WODECFf6WMt7bMvywARq2uSOCVoYORU3fcsWNjfnLjLC60T6Tn58TPULo/mRIqZ1hwAeqBWnMGqWEUa495Y2BPKBv/zuyz9x4cyeVGDuICMxYf3qIWf4F04kdoKrq+31/ixllcRr/F58Aj35gVZI3zfpuNZTvx7R0g3Zui2rCEBmpM3OPyMVu5/rSp2zxr7nPws6HQHONpG+wUBqy+li22vvbAnIp393Z4Ql203VjvqHPGunwZj6c9YLL63WZHi9Le6Onv9k/4AIERAH2GC0BKt2J4q45R/+Iq+uAqHkomVy6Vap0sLuNOXJB8Q2ZHzalLPRmQH6ur0cDA/kjekXC5k45sZJ8qcHQv+qr4QGbGZpvJoBPi8b1HA4BkMhS4AHUAnGKNHhVvvTW1t6lVQzQZ1Xsn/g0XxGd7d/X27upFO2SdUwD4U1wA6+d+t+YERlHyHlLxrUc2Jmq1tYRSr5wZnlHpVURt07pE9szcztqGGoJsqtmOC+LT/D6e3+9Hu8Sn/ftLTyuH0CO2QZtt0CbeXdIkegktQQu0A1C0JEnBL9NBsjI5OjUjJWR9AYGXTerVvrG/eFrtsjuHTBZ6Z+9UNk4q6LFmJsIc2e5TDfZnJ9TmIGPR9jQ7DsyI7/QanTHafLoh7HV0AIZccRn9ES+ABiwlRTAko+Z0ZClXqQ9KbUDqmpuRgx60KMhYDlsz9q07QluT4UwoYV7PWKIqq8mHF17dZGJP3Zm/J5KYn87upC1FI1XisrO4jL6HliTe/7TXrlpt0/o94f79ka6EwanzmtwJNj9A9za3W7Oq8OFs7nCYpgIavXcimJ83aQWTVeoRb3EZvbd6hxJm8uEsz62CJfCVRH+YORjaLjgjFiIfJxXGYcP6sLmnjY3akqqHjmTuirS15F9ZCfYYHYkB0Uh588HJnYDl+v8VLYEezLfdQGpGa2VQKKwyVIjq3xeJzglbdiEs/qBqMsmEWk3mzOuIiPZwY6q+w5ns4cjRPXWG2pHNOnVA24ZsQyMZGac2ABTFPynNSoYXeH8ZJ4bWyb6+LRZLDFLOxqZWY3x+Hn07UjUyNFlLRlWzIwPiFgBQgKdoQR+jJeiGPhipqIi3rfmQD+V0TMnrGJotcVDmXOG7ZX2assfQtlLM/0wdslmbDLRGz/rGu7XtdS/MqamurI+l65o6umcnJsIHh519YZcr3BdIjnPe8XprY4t+wwfxqLmnmVDajebOOkIbd/GjTrIq2sib/cMOtbJVS7UJfZ5hL3opyvPhMM9HxTN9NrqFIDROHdspY5MDQD/FC2U3XdWoNFVkfapzOQUz4htJ5dxdHaEOvPDqnNW7fYt4DTniEVuHeB6KRUgAwPfxJWyDOABUQ+IoABSLxXeLLPyd/H2y9P39UMm5iBdAVZp1nIYjNQxL6nJjiusz3355+rEZvCC2Ibgi3vjVvgfLvykuw7t4ARpK2Mu2VRbIC52OXH0tQZLKmmZVD493r5zVqBGKEEQpF/4dWpL9Rs1JFiOxdNstycpnLk4qLMOuYLTBNureMJhzdwbiObc3EEeLScbb7Xb4V6++QTxf/ljFEC2VMSznWIthnFQwoxUQ5cNuw7DcC/+FlqABWv/k3KxoBzWE5qPR+VB4dzS6OxwdGYlGRkfLfRw+nMseDsfn8+N79ozn50H2Ig79ES2V+/hWdbJCbSyl06z1IqlSa8Y1uyO0NUgP0Phe2Yqi7dbIG/j7QaP99J25eyJtLRPPoerbvEjyCw69t5qnihfk4ytNIXBqxVq/QKcI0wZnyTTWW3FN7HrFMN64sMlol03DZOpcGUHVtxxjVTuzaKm8/ZVuU3a8EtCGtMNENaq0DeYBA1rc1BlYlyYIX0Qs76fG4jI6gZbAKeto7ayWR/XnJnVpUP/YP8s4LHFXV5eVa6VjzqmMZ9RoNwQsna62rlYm7nFkVKxRMFg9ZgNNrauz8o5QxkL5NXqnkTLplHVWoZON2eX8+uIySuCD0hyUdczwgsDJJlTR80ejfenhdYkTJ6zOujZVo9armk6jukjVmTMD4pKnu5aIkEr5rA3FZfQmWpR0d1tPqMsW/cFIOu/qsoVoCRd6WLV9C/KLP41HWBeaEluG7V2ApB5E/4IWvzjHX/nexGYlpSSU1LrNYy+iRfHj9jTDpNuRVmyR7gGAL6HF/98c/8bp8XRNPUnUNNZuyA7XqmuImgYyNfpnc8nahlqipnFdHC2Kv6QHaHqARoY1Ty2oiol3dCQY8TNAUA+ALqJFMABwAstR5VQCR1JM+X2FJOu/8fWpfqW+jlA2K0Mbv/7sVKqupZ6o06ti4of7NU6t1qnZ/7vf39ns1ulc1J0yjqqiV8agda0mBOE2OOrxdKNJ1VijrXUEGpRXJnYqDUpCqV03mb2s9iZ+XE3046qQpx39Uvxvc5q2pi2obmWpa9gj9Ya7uIxeww+DcpV1f7kF1/b1J9sOHNi29cCBrcF4PBhMJFQXzn/z+ee/ef5C7Pijj95//6OPHpdrzQCgy/iY7J3SKOYDAUEy7sxffdnd3xI9GUfv8DVU48rVeEnv7QDon/HD0t04PoLLrc5WTEAyfE5n33YqGe6zx41e+0xkavfA3cMtQcPL3dv+8m5OSHosXjc/PxG+/3QGEylA0FJcRn+PH/5iDzF8ZcG/lULyFSnTx8O7LU7TaLB3iJ0ajmfoEGcfMLk7poP5O9b7e7PBrSqBCbR1rudtPZaoJWD1BtpNfsYzMdI7pCXq8rFgzg1Y6nv07/gY1EqqFzhp+kq0a3grjyQcGN2eBQIRqpZ6TvwPpN48Obn0ckvaQLkp0X8xgJ4Uvxy7KOFiKC6jf8LHytvNrTvIpWusOoa8Zb+/Gp6z2k3DwdDYUMTqNbl1KPq/aqrTJEwF+naoAtaA0ZMZiA1pNUbEpX6oqndtSiS2+0q+2FVcRj+SubcDILqaXE2k+OLGdmtBRFXmdFtNqs+7PuSPzPUmvhT1b2jt1ATbPENe3JZl8zv9Eyhtd2/ZMRKNDIovxv9894PnUqyJo1q5e3d1uHbu6Nvsl/l3S/2Nj8n9HcGClbfq6hXkS9XsSFR8FT3dk7Zria/8wwuTKS790OmnSruOo7iMFvDDYAY39Mj4yJWuWXNk5ehK7qhY+06nKJup7PKfhmcFRmhjAl05Lr/daNeafBZui9rC9PLukCNeFUx0ZTptXEblyfqc/d2NhCHt6x5ybBuyhrwNRKO7z+Ud9aA9pvWMNxb02nyMeDXa7fDbmgxJN58o4WsvLqN/XMVXU/I/GU1NhdXAbcNIrv3uUMiSMtek+zr7N3EjLZ1aoU3ak9qy9txO/wQXnetJHEQ/jAzaPVu2j6z8gTX6KaP/K7ttbhnY+Jn5B8+V38v7i8vwAzgsvf+v7ewHDAxj0DOMimk1MYyplZH2JDkWvY9ZEADQXqiWPotF8BY3wtXbvk/Jd7MVl9ER/F0wQAeAYIsoPtda9QqKXJPzPKl3eSzdXdYQ5bVMCMMzFq+7tYo20LTBwDBXvelwIGCx95hbXe3ejUNsNNgbc75VqQ8QOOB91IBaQAEg8JzOsfh+NFravbKoFv9c0hBVWngpmV/qnUgyGeF6e3p6L+66cfLkzTn91huHD9/YCghsxSzcKP+GlRUisaHTVk/J8VwkmbxYjtbP3Tx58gYgWFfchsbwVSk/hTi0DinD4u/PK3Z/9lSJa6nIt2UvM0sTgOFLfxwp/+kY+Y8RGFLDCcy0ITvZNLGZ4qmH9Lx+THo28PqTBsvJppPXes72Xr58+XLv2Z5r166hqrMlLmnYg65jt8SlwDM8x8uDWffupUv9ly7tuRK5ciVypRR3Al3HOqgF6OjgO3QkqaModF3Mowtvnzr19onnY8+nRn2Eb/T2WIEXBJ5l+SodLYWhCydKUannY/K+DA/iPpRS1AEJadQAlV0ZnkOLq/8vyuXQojR/iz/CQyDgS1Kt6jUa0JvNer3ZjIdMBn1bm95gAkDyHv43aLG8O696nfy6b2nuqFPX6uva9bnwezVVEUUV58amlf8c2gSopEs4DE0lDtlqmlmTakDr6kK4GuuZdoOlI/ndLk3UjkzGVrPfs367VHvxTtwHQUWdVLuGFaj6Z3q/hvv+WvgO/B8AAAD//wEAAP//twV0CgAAAQAAAAILhVLYRPFfDzz1AAMD6AAAAADYXaChAAAAAN1mLzb+Ov7bCG8DyAAAAAMAAgAAAAAAAAABAAAD2P7vAAAImP46/joIbwABAAAAAAAAAAAAAAAAAAAASXicNI69SjNRAETPzBYffIiihUYJIZgQXH+yFosiYmFhZSHcRryCrbVvYCM22ttb+RLWsbGx0CewVG8TY7WyIRYHBmYOjG85YQBuk3mX0udEzxD1QfQNUf+Ieif6lehrou8ovUX0DtHzrLpB01ccO4NsjgWNKJ0TNKDvNQp90VeXlkZsuE1gyAHf1Zs+CVSEbI/gDsGt8T6MnVOC7mkq0HCbQ70w5WcaemS6zkqsK3GkRFeJJSVmlVhUYnPS5Uqs8MP+hEIP9LRNroKggp7O+K9ER4nlP9zikiEBqqf6Y+1BdfELAAD//wEAAP//gFc/1gAAACwALABQAIAAngC0AMgA4ADsAPwBLgFQAYABogHKAg4CIAJEAmACmgLSAwYDNANmA5oDvAQoBEoEVgRiBHwEmATKBOwFGAVMBYAFoAXgBgYGKAZEBn4GqgbaBwAHGAdCB4AHpAfYCBgIMgiICMgI3gjqCPYJLgk6CVQJbgl+Ca4JwgnYCe4J+AoEChoKNgpWCmQAAQAAAEkAjAAMAGYABwABAAAAAAAAAAAAAAAAAAQAA3icnJTdThtXFIU/B9ttVDUXFYrIDTqXbZWM3QiiBK5MCYpVhFOP0x+pqjR4xj9iPDPyDFCqPkCv+xZ9i1z1OfoQVa+rs7wNNqoUgRCwzpy991lnr7UPsMm/bFCrPwT+av5guMZ2c8/wAx41nxre4Ljxt+H6SkyDuPGb4SZfNvqGP+J9/Q/DH7NT/9nwQ7bqR4Y/4Xl90/CnG45/DD9ih/cLXIOX/G64xhaF4Qds8pPhDR5jNWt1HtM23OAztg032QYGTKlImZIxxjFiyphz5iSUhCTMmTIiIcbRpUNKpa8ZkZBj/L9fI0Iq5kSqOKHCkRKSElEysYq/KivnrU4caTW3vQ4VEyJOlXFGRIYjZ0xORsKZ6lRUFOzRokXJUHwLKkoCSqakBOTMGdOixxHHDJgwpcRxpEqeWUjOiIpLIp3vLMJ3ZkhCRmmszsmIxdOJX6LsLsc4ehSKXa18vFbhKY7vlO255Yr9ikC/boXZ+rlLNhEX6meqrqTauZSCE+36czt8K1yxh7tXf9aZfLhHsf5XqnzKufSPpVQmJhnObdEhlINC9wTHgdZdQnXke7oMeEOPdwy07tCnT4cTBnR5rdwefRxf0+OEQ2V0hRd7R3LMCT/i+IauYnztxPqzUCzhFwpzdymOc91jRqGee+aB7prohndX2M9QvuaOUjlDzZGPdNIv05xFjM0VhRjO1MulN0rrX2yOmOkuXtubfT8NFzZ7yym+ItcMe7cuOHnlFow+pGpwyzOX+gmIiMk5VcSQnBktKq7E+y0R56Q4DtW9N5qSis51jj/nSi5JmIlBl0x15hT6G5lvQuM+XPO9s7ckVr5nenZ9q/uc4tSrG43eqXvLvdC6nKwo0DJV8xU3DcU1M+8nmqlV/qFyS71uOc/ok0j1VDe4/Q48J6DNDrvsM9E5Q+1c2BvR1jvR5hX76sEZiaJGcnViFXYJeMEuu7zixVrNDocc0GP/DhwXWT0OeH1rZ12nZRVndf4Um7b4Op5dr17eW6/P7+DLLzRRNy9jX9r4bl9YtRv/nxAx81zc1uqd3BOC/wAAAP//AQAA//8HW0wwAHicYmBmAIP/5xiMGLAAAAAAAP//AQAA//8vAQIDAAAA");
+}
+@font-face {
+	font-family: d2-3283797290-font-semibold;
+	src: url("data:application/font-woff;base64,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&#8540;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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-3283797290 .text-bold {
+	font-family: "d2-3283797290-font-bold";
+}
+@font-face {
+	font-family: d2-3283797290-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-3283797290 .text-mono {
+	font-family: "d2-3283797290-font-mono";
+}
+@font-face {
+	font-family: d2-3283797290-font-mono;
+	src: url("data:application/font-woff;base64,d09GRgABAAAAABo8AAoAAAAAKpwAAgm6AAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAAA9AAAAGAAAABgld/X+GNtYXAAAAFUAAAA1wAAAUQIFAoeZ2x5ZgAAAiwAAA9kAAAVIMakUfFoZWFkAAARkAAAADYAAAA2GanOOmhoZWEAABHIAAAAJAAAACQGMwDRaG10eAAAEewAAAC9AAABKK1wGe1sb2NhAAASrAAAAJYAAACW0TTMLm1heHAAABNEAAAAIAAAACAAfgJhbmFtZQAAE2QAAAa4AAAQztydAx9wb3N0AAAaHAAAACAAAAAg/7gAMwADAlgBkAAFAAACigJYAAAASwKKAlgAAAFeADIBIwAAAgsFCQMEAwICBCAAAvcCADgDAAAAAAAAAABBREJPAEAAIP//Au7/BgAAA9gBEWAAAZ8AAAAAAeYClAAAACAAA3icjM5JTmJhAIXR84pHFVRRYN+iotiA2Ld0gkhiNHFgnDjFZbgupxp1KcZlGP1NGDD2jk9yP0QSImTEURUlBbGUgqKyik1bttU0NLW0dZy7dO1Wz30I9GVpIHfUB7LrwpUbPXchhDd5Y8ZlpeXCZ/iSFIeP8BpewnN4Co/hPTz0W362SFvTiVMNx1qD/1179h04dKSqpuNM3S8JsaTf/khJ++ufjP+ycoYMGzGq2++bMGnKtBmz8ubMW1CwaEnRshWr1pSUravY4BsAAP//AQAA//+ThyshAHicjHh/UBvnmf/zvitpDciAEIssEPq10i4gLQKtVisE6DcSYDBCIIMxYBwwyPhHME7iOHHcNF87P5x8e3LPk1910vacmSTXSyaZzsXp3fRuLrnLOBMn16bXTHNNehk3Qz3tJb3jSKedmtXNrsQP9/7pMKvd2X3f533ez/N5Ps/zAmoIAeB6fAkIKAMt1AAFwOtsOqeNZWmSFFkDL4q0BetC6BMpj1CfT+W/+8EHv6dqj/0mdvBr+NL60eC5hYX0ys0fTJ869f9X0AeAwQqAAzgPZaAD0JM8yzAsrdEQel5PszR50/LPFp2tSlVt/fjT6U/HQ1+G0Z1zc+Kxjo5j0gTOry9duwYAgCBaWMMt+DI0AqjtDCP4/H7eW2cgGYa2azRUbV0d7/WLBo0GHRj++sDA+WznpMljjDWHp3y+qTDXa/Gws9rhp48sPp1pswoNtug9mczpGEPznBcAMIwB4Gachx2yn7yO99ZRtRqa5b1+wcfQ9NhfXbr8rYsjfSfuvPNEH86/fPm5VxOPnzlzXvFtGQDX4DxUKHhRG3/L6EnpH1C19F9oAOeTH6S+TAGC8wB4l4LH1ljdefSX0j+hSmkV55O/SEr/DgiGAHDZhk05CryO1tl0Q6OoZnRU+hLnpS+Qfn0JCdJ7ig8HANAfSuMFXkcLNorW8dSBK1fQs1eupDCRTK6vp4pYPgyAG3Ee1CXb1MMZ1IPz61dL33sBcDXOQ4PyXW/gRb28us/vF2mSoAmWNmNK1zs/aVVZpubTahITzumuSQYTGjXOSzcXF9Gu9SXUax3Lmh6UJIQfNGXHrNKbsu0MANbgPOg3bDOMIO+NYOm6OkqXmfwwjHFZunjDeWnu0fYjPjS6voQuP+rN8dLLgKGtsIab8GWokj3cxgY5ZBq2GDG7zAnk7l+ORJb7i7+79+/fvXv/fm3mmaOLT6XTTy0efSbTlz975oknzpzNyxyYB8AWnAdtkfkbFmlap9vgwfw7fce6u4/3njy8d2Q0exjnHdnengm3dAv1RpMpERQuzZW4VAmGbXZIPU1sszR3Pb7QmY6/eOD5u48NDg8PHsN5ejgxMKWTbiBK+g3aF45EfcV4xAtr2IgvA6fslhUVrgs+hmHZVnx7JsiJYDCYsew3au+9z+11zgYSuy2CfdoWdYsHw6Gcw23dw3ckab9psjnKBnJawR10csFWusVU2byzJdbmHeI4h7/R5nNbmuq1TdVctN2X9QKCFgDcivNAAthKDEP4Z1j1M9yfTK6/ofg6VFhTeEuVIqPjdcXc9CuPGg3iIoc6Rh1htinkHO6Y1fqWp9HT0nxi2OEYTqBnpdz0sg8QuAAwh/OwE4AneH1dnYH3+0U9T9z68fiizlSjqmmsPpz9Ec5LzwcPBYOHguiO9SVAUA6A9+CL4CzOM2MDH8KiyBtKT3qeoImiBpHE8bnpNkKtQoSmvFwTSYfI8jKNChMqonViJhchtWpCXb4jgi9Kcw2cx2bzuBvW1hrcxSf03PqdaIc5aDYHzdLvlbgPF9YwgVbBBCyAocRLsRXTdg3JKlGidLS8Muv1i0Ilpmrrfsft5lKXH0DGgMezz251nozMHYyTRNOcuXmkOXeqPaq1hVxin7vcJtqdVGBX67H90kcxiyfG2B/cYWu3NjsBw1RhDZvwNagFW5EhNCnnPskX19yeFCRVV4ci9DBNkLEMQdjGXHfkQnOpyGikz9rH0CktbfHja29N25sePjFyT6hnYSI9SzOrlno5tunCGm5Aq3+GBk8M3JvsP9PXOW5uNkeZQLbNMxrgdpudTbParuV0ZrmrpVGoN3uyAXHU4zAKjiYFv67CGvrjtn1sLMCzsqIVgROFzdVQ1YG7woc63EkLocokSMI8YuqN2sLWlp7mAe3500MnQzbzxN+vByIWrqdv1VLvGQmMzcrrJApruB6tggYsAMiuIW0MQ2xtSM5V29ZeQl3TFciv3uPtO5VMnogevhtj6es7Dg+4UzazYwq9Pti7u1+Kd50cHlrufmChsr48M2qk/LvsxdxdAMAx/G9QJysBLYiCz897N5KV4ilat/r44zNzvQm9mbdGg9evoyshdfO+o6ZQZVmi0x2XpmQ7BPQWrNiPVqENumCghI6MheDzl26yXZ6iS5plZ1gFJL7EAGKbLOpLErQxBjUt3pPWW8wmIy2M8c2Wd8/qdnmzgt5VW1MrtB2b3h87Pe6JRj2tsVhH9g4xcIByVttNw5+lIqFWVQVjMbTrVfqIS9jj0sZ1vkbf7qaysgqTzmTyhbg9HvR62MeHw7wvLD3e5aR3qVT6ZorhAMEUAK7A10pqu8lXudQoXNVNZdQEM9axN5PxdbkSLnztrZPN/rkZ6UNE98TdbukVACgUYAIAPY+vYwYSAKCBnrbie7HAlt4nt94DgkUAHMLXQFusfzziST3NktRiRoU00299Mvn9k/iaZEbwj9LHX504p8zpVzT4GlQXsdfRgixsvFehyFODI68UBJerjbIHtPv2ohvx9Z8KbXXdlVXK3KCsm2hVZjWv4w3KNg1be1W2urnnYIzEem9LiqL4Fr4j4zPaagcMDUZnDVqJ2FtGWW6wT3oB7c06Gek7aG+LS75vYIlWoXbbGrdBmSBVzPgmlGhl5E+RVPIPm9Dqn1NXI8fi8WOR4m8ym00ms9lSZnctZ9LLXYmFkdFcbnREpj9MFXjFrpLXhi3vSjylDZR+uz5NJUjCvo+7YyE012kfshKqh6LZojwl38ffD1lbHjmRuSdkM0++gDTb9En2n0d/3FhHLYi0Yn9TRUReR9ymHy+rCPMwN62ISK+dIGM/39SP91+fsLgUDbFb/euDSLMlIAi+CYCNaBVqtmNdymlS980ESTBL8QZPnd7oaBQPudHKyc5EWUWqbEd4QPolIEgV1nAlWoWm/1PPFchvq+YbtdyfOuNmWubjoW4qGpuemZ8L5BxN9own5I33D4/ZvDNazuI3OziL3mzaWRsXO4ecRsFgajFZ7NW6Fr+TjTUpXOwprGE7fgh2lSIs0IIo8rIQyWJRkrwLqQz92BMVid/+VkjSgfoaW5+Wn+haCakvX47/KprQlndpdYBgsLCG/oBWZM4Z7KVSL5vQldT6d2OZEb67pacpEydVznHt3AxqlT7tibs8aFiqz7r8gIAHwE60Itd52211HsH7I0tVDTtVO41VS0PvohXpP50pmk45Ua1UX8zjHQA4jVZkFd/WI4i8YcsKzcqlniSXFzNBskKlUlft6MoEd9SoVJoyMjiQWwxotSqt1o9WpBV7lKaj9lu3indUL9Xf5Kem+JvKWhEAbEArYATgRXZzCZEnDXTpTEOSkR98b//gzsYqVaVpZ9/YK383ka2yVauqzFXpW78+onfV1rprD//3V0tUK1XnMiwpdtsLHsyiFaiXMSxRQRRvQ6IS/z+HSVduqOAjNVW/HDlVaalS7WzQLu75qMY/9OPyKKHq5BzoV9L/WPtpus+Gdq6vtg1wQCg80+ELUAEGoDcqajHxtmezuO09ci/ef//ikfvuOxLPZuPyZXQ6jUanU/vqt7/70kvf/farsYceu/DAAxcee+hfHRYLTVssDmUfB5Uz0FlFU5Xzh98vyqJ+8M2/CAxaul9MoI+EHYbq9XcSxdj1AOByfEE5YwghXMp+dlMYSL+f56m+o08OJlLcoMXjmovPLPWfHzN3mz5sn8nfJYhJzupxCwvZrvsfGcIq+WzVUVjDGnxB7lNvyyta2JQXdlPQSKqUWZbMCbrFOtEdHV88e2Im1cmlre6mhe6uA4HBTlfKHc5pRdpvbo0IHclwj9fjdzT6aI7p9QX7a1Vlrpg7kHEDljs+bMNnoUzOBpGXty9TQi/YBCTjQFMPfYkIpK6yV0elqyg8Pju7+k59d73BY5B8r4noKemu2GuAIFBYw+X47EYnJ5Z655L3ehtlI7c0GZmzR53N1tEI1+/am2oK2N0UOix9pjMJzu7ZzvhRrd/mN3GOmDvWX6s3IT71Q22la7yn52DxzDtYWMN1Cj+ai33QBmDFZiiEt3V35GZkUIQZY8qyyY49yWjPnRH37hlf57il1Rhz8GMiZqfb9h3vPIh6m1onDw6Go0npbxKPzc88kmXZRt7Q4Du1wHCzd3RPyj1+EgDX4rNQCcCHCNEm2KhKgryhamgfFKU8+iA80mYg9j957mvxFN977tFnpoFQejc9vgBmaAFxq0pt9UDbY0tskbyOKElsUfpbew93NIXtTR38vo7pXEcT3WHzzxvSsbAQ5wZRalDYH2gNj2u5tNcdaa1WGfu97f3NM/3ckEmlc3W1evZwKBdMemIBD+OlpXfC7Rxv1xtjbUIPYOW8pt3AVV/URAVF/VZExe21qY6qrcQXe+LMXrZ8JNWxZyk4bm3dFXPye0XMTrWPH+88GEgej7p3z6AfRpNN3NTBwfXfsyafweS7d55xK3gmHl2QUZZz6+eFNfQAPAcVt+c8cts9Hrvd49F6nIzHwzg9hUJxLCYwK6OJ5kEj3wsF+JeCCz1x2/uUwpljhTX0H/ivwSifsEQmRPxJ5lYSBnLbmqtkQzvvEEUm2tBunwyOLDgEr1ndaHa5zGaX66YrwnvaLc0BSwNHt2ZTzZ3tbUF2rcVBNzfTjhbZjyxyYQIdxhroVXTjR4U0+gX+RK4X6mL3a1AiakCv506fznFzMzNzrw1/fvHi58Mt2XfPnn03W9Sb+wpp9GhxnoFVEkqOBFWreZE7dODAIS53+vRrpQktynRAMFuYQV/hd4AAMCAezaLefunN7xDzt56Fzf8ZkfgCEHIF0vMiTYi0wCsXTyoXRSsXLdLk5+dqzuWM6bGa7KRBqDtnEOqUZ6PfeM6I1Jekhesdl4JXr169GrzUcf36ddnnLOQwgd1yHJ0CLfBCsU6jijfeiL3xRu7t0Ntvh94GBPdCG/oC5+RzudMpOCk1pUZfSI+ju6WfIK5tPbQ+9J7qPUBwBNrQZ8VxouAUnIKaOoI46Sfo7jZ5xNB6qNg3v4AD6ChRhjXQp2An99ffQCugLp37dajrBvKhK3GlECP4NR5Ax/F12U90G99MDGMyMQweoBsbafkqxkLuy2V7NUrfsKHTiuVajeYtprexob7D1Oe9gXzO8Y/1ld07K5Mh9LdxqbJrUgBU5CZ8S5nPbkul4rKfGEIhrCpXW1vbrO7WqZ/6TOlOhBink+3pHD+t4FrklBxXvWCjsuhV5AqFir6V9i5/Q6xoQNHngt/AgWcCL/0vAAAA//8BAAD//2qkh4MAAQAAAAIJuuW94+1fDzz1AAMD6AAAAADcHQ33AAAAANwcc0v/P/46AxkEJAAAAAMAAgAAAAAAAAABAAAD2P7vAAACWP8//z8DGQABAAAAAAAAAAAAAAAAAAAASnicTI87SiRQFAWLioZZxWQDM8kMBn5oRPGLIH5ALAQRURQUEyMx1wW4ht5K5+buwFVIwwsMHg9Oncuta6waGL+MdePUeDRejAPjwng1do1j459xY1wbG8af0ftr/DSOjHPj0JgYm8btmJ/nZ8aicWfsGSsjn3z734wdY8vYNxaMH8aa8X+wy8GXjd/G0uhuj51zt4/xZsaDcWK8G8/G1bh1nj0Z98Z0+H0Ox9ng0y8AAAD//wEAAP//K6Ez8gAAAAAAACoAKgBOAH4AnACyAMYA3gD0AQQBMgFUAYABpAHMAhACIgJGAmICoALcAxADQAN0A6oDzgQ4BFwEaAR0BI4ErATeBQAFLAVgBZQFtAXyBhgGOgZYBo4GugboBx4HNgdgB54Hwgf4CDgIUgikCOQI+gkGCRIJSglSCW4JiAmYCcgJ3AnwCgQKDAocCjQKVAp0CoIKkAAAAAEAAABKAfgAKgBlAAYAAQAAAAAAAAAAAAAAAAADAAN4nJyWS2yT2RXHf865Ab94GVQNCFVXI4SmCIydScBNIOCQAcIgQklm2gpR1STGsUjsyHZg6GIWXVZddV11M120ErQKJWomgUIgpGoFqtRFNauuuqi66KqaRVfVd77jxHESOoOQyO8+zv+e173+gItyCyHiohFIgnGEJEnjDg7xjrGQ5JSxI8lF406SjBpvI8kPjbeTYtI4ymE+NY5xmF8axznCn40TnOA/xkkGI0eMd9IbqRjv4mDkV8a76YosG+9p8TPFwciXxntXdWLASkfKOMI3O74w7mBnx5fGwmVxxq5lTyfjctV4G0fkkfF2nsnfjaN0u18Yx+h2fzVO0NW5zXiH+M6c8U66o98LOQK7oz81jrA7+nPjDg5E7xsLyeiKsSMVNf1IJ6noP4y3kYpaLEH+Y1HjKIdiB4xj+Fi/cZyjsR8YJ8jEfmKcJB1bMN5BV+yfxjvJxZs6uzgcv2a8m1PxT4z3tPic4t245Sqyt0Vz36rm/gik4n8zjpCKN+c7eDf+X2NhX+KgseNAImPcyYHEJeNtHEiMG29nX+JT4yiZxM+MY7yXeG4c52jiX8YJupPfME6SSzY1d3Iq+WPjXWSSfzDezcXkv433tPiZomvHCeO9gY7MyjNZlFd4Ci1cooznMJ5JvDyWObzMyoIsyZw8llfyRObkuXwm9+Wx/B4fuSRL8kD+JE/w8rCF51t4RT6TB7IkD+VzWZCneJeVBXkpS/K5LMqizr4y+1n5o7zGc73jC24EZ8gjeaAqoS8Lcl/mZU6WAx2uk+GGLMtLeSZP5Xdqv6J6v8HLM5mV17Ios7rz2BY7n8pzjfGFLMucLMlv5UVzlusc4Ya8kNfyWB7KU1kMTg3Olpd4eaQzs2oTzmzu46EtTr6Plzl5IrOahSDLy8159feont6SX46qp2t1a8l321pJxxvz3lIV27FaSX6Np4sMWTJ4jtmoS0d5xqlykyKeEe5Rp0GRKep4hqgwRpUa0/p/QdfG8bzHBA0aTNPLcY5zV/+lKayqpdVyiuN8K/CHu5RpMIHnGkXqFKlxx9TOU6VCA88VCkwFvvh3GKHKDDXGKPr9pFvHeM5RZVzpKjWqqlpihkkK1OgiTYb3ydFHnkEGGKZvnULTPrQ+1mYfWg0zwAd8rL7WKauXfp32BFUaGmmFO3iyupYmS5YT9DFFgdsUddctinyiHgcKPaQ5QQ8ntC5f3bP1WShrnQp4Glqfca1dsO82niq33rrCZY01qFhg9xEVrV+4NkLDdoanVxjnuNp7jXRCM+ZVeUYrW6Osu9Nv5c1VChq/Z5A0noumGvTVqGY3+Duj/Rb4XaTyNfqzwT2mKTLKhOVzrR9HNIcN7mpO1zI+SVkrUNFODnIyo1kI425mbYQhLuMZVv3KOuXL6xSCSNr7LKt9lNbYJjY9d63+dyhQ1g65yaSurN23gp6b5zvKDXrxbdmpM6YVmqahNaqrVlprUOI4w5zncpsn/z9H4/o3rP1NZla7J4wu6JrglucZ0cqP+P14BnQ8xIhm5LsMMcpFhvmIUR3nucY18lxhlCE+UNthrul7MMwVBtViSDlcO6834Arfx/MhQ7on0C5afsKKBTdzWr2vq+9hL5eZYlpzHnie1liLGuHXr7Dnlqk2betqM0aZW7rTa/0qetcLlKwrptXDKc1lszfWbl3YEVMaS1DbtfUSVX1fa3pzA1XPPXs7gm4NfQpfiMZXqGr6rXqmvprDovq8flyy34Gyvo3hq9P8RhnRX4Ky/n6NqdeBbRBR8HvZPjO/YWZFa1XjJuWw12SFc9zT0ybtHnluamxqEX6ZUNcq1LVGgUc/UpVq85vEXosqJX2fpjVzY3qj7uko7AL9Ktlyb8FevZpm/Xbze2TD2cFbNWnvvtfYSqZ+iBsUmDSVir2Ungoz+vtZ09XwrmlsZN/oT7tSvfVLZUMVj+rb3l6T9tputku/Ztor47Lrqr2Z3Yo74866fpd3A67ffRvvMu0zlNzHeJfDu7/gXR7vTrqMy7sed8H1uow75XIu7zJKedfrcoFV5JJyv2qd0R2n3YfBijzccmV+y5UVPe+sy66d4LJKZ13O9bk+l3MXXI+uZtww3vW6sy7jBoJxswfV7wuq0+tOu3NuIFR3p12/63OXm73oBlzOnXH97n3VGGw5s9v1uMHAs2Yvbro39OCk63I97qTrdv1hppr9uKUfJ91pl3G9ek6/RpUJVJuduYVfPVaRUxp/sGfA9QQZae21jXUO+uGNNdqQb7XY0B1v1JnfrDPeaLHyPwAAAP//AQAA//+blbgHAAMAAAAAAAD/tQAyAAAAAQAAAAAAAAAAAAAAAAAAAAA=");
+}
+.d2-3283797290 .text-mono-bold {
+	font-family: "d2-3283797290-font-mono-bold";
+}
+@font-face {
+	font-family: d2-3283797290-font-mono-bold;
+	src: url("data:application/font-woff;base64,d09GRgABAAAAABjMAAwAAAAAKEgAAQScAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABHAAAAGAAAABgmKbWhWNtYXAAAAF8AAAA1wAAAUQIFAoeZ2FzcAAAAlQAAAAIAAAACAAAABBnbHlmAAACXAAAD5QAABXA9hN+WGhlYWQAABHwAAAANgAAADYbI9ohaGhlYQAAEigAAAAkAAAAJAYzAN5obXR4AAASTAAAAK0AAAEorXAUw2xvY2EAABL8AAAAlgAAAJbXmNKCbWF4cAAAE5QAAAAgAAAAIAB+AmpuYW1lAAATtAAABO8AAA2sAwZtKnBvc3QAABikAAAAIAAAACD/uAAzcHJlcAAAGMQAAAAHAAAAB2gGjIUABAJYArwABQAAAooCWAAAAEsCigJYAAABXgAyAR4AAAILAwkDBAMCAgQgAAL3AgA4AwAAAAAAAAAAQURCTwCgACD//wPY/u8AAAQkAcZgAAGfAAAAAAHeApQAAAAgAAN4nIzOSU5iYQCF0fOKRxVUUWDfoqLYgNi3dIJIYjRxYJw4xWW4LqcadSnGZRj9TRgw9o5Pcj9EEiJkxFEVJQWxlIKisopNW7bVNDS1tHWcu3TtVs99CPRlaSB31Aey68KVGz13IYQ3eWPGZaXlwmf4khSHj/AaXsJzeAqP4T089Ft+tkhb04lTDcdag/9de/YdOHSkqqbjTN0vCbGk&#8535;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");
+}</style><style type="text/css">.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-3283797290 .fill-N1{fill:#0A0F25;}
+		.d2-3283797290 .fill-N2{fill:#676C7E;}
+		.d2-3283797290 .fill-N3{fill:#9499AB;}
+		.d2-3283797290 .fill-N4{fill:#CFD2DD;}
+		.d2-3283797290 .fill-N5{fill:#DEE1EB;}
+		.d2-3283797290 .fill-N6{fill:#EEF1F8;}
+		.d2-3283797290 .fill-N7{fill:#FFFFFF;}
+		.d2-3283797290 .fill-B1{fill:#0D32B2;}
+		.d2-3283797290 .fill-B2{fill:#0D32B2;}
+		.d2-3283797290 .fill-B3{fill:#E3E9FD;}
+		.d2-3283797290 .fill-B4{fill:#E3E9FD;}
+		.d2-3283797290 .fill-B5{fill:#EDF0FD;}
+		.d2-3283797290 .fill-B6{fill:#F7F8FE;}
+		.d2-3283797290 .fill-AA2{fill:#4A6FF3;}
+		.d2-3283797290 .fill-AA4{fill:#EDF0FD;}
+		.d2-3283797290 .fill-AA5{fill:#F7F8FE;}
+		.d2-3283797290 .fill-AB4{fill:#EDF0FD;}
+		.d2-3283797290 .fill-AB5{fill:#F7F8FE;}
+		.d2-3283797290 .stroke-N1{stroke:#0A0F25;}
+		.d2-3283797290 .stroke-N2{stroke:#676C7E;}
+		.d2-3283797290 .stroke-N3{stroke:#9499AB;}
+		.d2-3283797290 .stroke-N4{stroke:#CFD2DD;}
+		.d2-3283797290 .stroke-N5{stroke:#DEE1EB;}
+		.d2-3283797290 .stroke-N6{stroke:#EEF1F8;}
+		.d2-3283797290 .stroke-N7{stroke:#FFFFFF;}
+		.d2-3283797290 .stroke-B1{stroke:#0D32B2;}
+		.d2-3283797290 .stroke-B2{stroke:#0D32B2;}
+		.d2-3283797290 .stroke-B3{stroke:#E3E9FD;}
+		.d2-3283797290 .stroke-B4{stroke:#E3E9FD;}
+		.d2-3283797290 .stroke-B5{stroke:#EDF0FD;}
+		.d2-3283797290 .stroke-B6{stroke:#F7F8FE;}
+		.d2-3283797290 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-3283797290 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-3283797290 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-3283797290 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-3283797290 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-3283797290 .background-color-N1{background-color:#0A0F25;}
+		.d2-3283797290 .background-color-N2{background-color:#676C7E;}
+		.d2-3283797290 .background-color-N3{background-color:#9499AB;}
+		.d2-3283797290 .background-color-N4{background-color:#CFD2DD;}
+		.d2-3283797290 .background-color-N5{background-color:#DEE1EB;}
+		.d2-3283797290 .background-color-N6{background-color:#EEF1F8;}
+		.d2-3283797290 .background-color-N7{background-color:#FFFFFF;}
+		.d2-3283797290 .background-color-B1{background-color:#0D32B2;}
+		.d2-3283797290 .background-color-B2{background-color:#0D32B2;}
+		.d2-3283797290 .background-color-B3{background-color:#E3E9FD;}
+		.d2-3283797290 .background-color-B4{background-color:#E3E9FD;}
+		.d2-3283797290 .background-color-B5{background-color:#EDF0FD;}
+		.d2-3283797290 .background-color-B6{background-color:#F7F8FE;}
+		.d2-3283797290 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-3283797290 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-3283797290 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-3283797290 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-3283797290 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-3283797290 .color-N1{color:#0A0F25;}
+		.d2-3283797290 .color-N2{color:#676C7E;}
+		.d2-3283797290 .color-N3{color:#9499AB;}
+		.d2-3283797290 .color-N4{color:#CFD2DD;}
+		.d2-3283797290 .color-N5{color:#DEE1EB;}
+		.d2-3283797290 .color-N6{color:#EEF1F8;}
+		.d2-3283797290 .color-N7{color:#FFFFFF;}
+		.d2-3283797290 .color-B1{color:#0D32B2;}
+		.d2-3283797290 .color-B2{color:#0D32B2;}
+		.d2-3283797290 .color-B3{color:#E3E9FD;}
+		.d2-3283797290 .color-B4{color:#E3E9FD;}
+		.d2-3283797290 .color-B5{color:#EDF0FD;}
+		.d2-3283797290 .color-B6{color:#F7F8FE;}
+		.d2-3283797290 .color-AA2{color:#4A6FF3;}
+		.d2-3283797290 .color-AA4{color:#EDF0FD;}
+		.d2-3283797290 .color-AA5{color:#F7F8FE;}
+		.d2-3283797290 .color-AB4{color:#EDF0FD;}
+		.d2-3283797290 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}@media screen and (prefers-color-scheme:dark){
+		.d2-3283797290 .fill-N1{fill:#0A0F25;}
+		.d2-3283797290 .fill-N2{fill:#676C7E;}
+		.d2-3283797290 .fill-N3{fill:#9499AB;}
+		.d2-3283797290 .fill-N4{fill:#CFD2DD;}
+		.d2-3283797290 .fill-N5{fill:#DEE1EB;}
+		.d2-3283797290 .fill-N6{fill:#EEF1F8;}
+		.d2-3283797290 .fill-N7{fill:#FFFFFF;}
+		.d2-3283797290 .fill-B1{fill:#000536;}
+		.d2-3283797290 .fill-B2{fill:#0F66B7;}
+		.d2-3283797290 .fill-B3{fill:#4393DD;}
+		.d2-3283797290 .fill-B4{fill:#87BFF3;}
+		.d2-3283797290 .fill-B5{fill:#BCDDFB;}
+		.d2-3283797290 .fill-B6{fill:#E5F3FF;}
+		.d2-3283797290 .fill-AA2{fill:#076F6F;}
+		.d2-3283797290 .fill-AA4{fill:#77DEDE;}
+		.d2-3283797290 .fill-AA5{fill:#C3F8F8;}
+		.d2-3283797290 .fill-AB4{fill:#C1A2F3;}
+		.d2-3283797290 .fill-AB5{fill:#DACEFB;}
+		.d2-3283797290 .stroke-N1{stroke:#0A0F25;}
+		.d2-3283797290 .stroke-N2{stroke:#676C7E;}
+		.d2-3283797290 .stroke-N3{stroke:#9499AB;}
+		.d2-3283797290 .stroke-N4{stroke:#CFD2DD;}
+		.d2-3283797290 .stroke-N5{stroke:#DEE1EB;}
+		.d2-3283797290 .stroke-N6{stroke:#EEF1F8;}
+		.d2-3283797290 .stroke-N7{stroke:#FFFFFF;}
+		.d2-3283797290 .stroke-B1{stroke:#000536;}
+		.d2-3283797290 .stroke-B2{stroke:#0F66B7;}
+		.d2-3283797290 .stroke-B3{stroke:#4393DD;}
+		.d2-3283797290 .stroke-B4{stroke:#87BFF3;}
+		.d2-3283797290 .stroke-B5{stroke:#BCDDFB;}
+		.d2-3283797290 .stroke-B6{stroke:#E5F3FF;}
+		.d2-3283797290 .stroke-AA2{stroke:#076F6F;}
+		.d2-3283797290 .stroke-AA4{stroke:#77DEDE;}
+		.d2-3283797290 .stroke-AA5{stroke:#C3F8F8;}
+		.d2-3283797290 .stroke-AB4{stroke:#C1A2F3;}
+		.d2-3283797290 .stroke-AB5{stroke:#DACEFB;}
+		.d2-3283797290 .background-color-N1{background-color:#0A0F25;}
+		.d2-3283797290 .background-color-N2{background-color:#676C7E;}
+		.d2-3283797290 .background-color-N3{background-color:#9499AB;}
+		.d2-3283797290 .background-color-N4{background-color:#CFD2DD;}
+		.d2-3283797290 .background-color-N5{background-color:#DEE1EB;}
+		.d2-3283797290 .background-color-N6{background-color:#EEF1F8;}
+		.d2-3283797290 .background-color-N7{background-color:#FFFFFF;}
+		.d2-3283797290 .background-color-B1{background-color:#000536;}
+		.d2-3283797290 .background-color-B2{background-color:#0F66B7;}
+		.d2-3283797290 .background-color-B3{background-color:#4393DD;}
+		.d2-3283797290 .background-color-B4{background-color:#87BFF3;}
+		.d2-3283797290 .background-color-B5{background-color:#BCDDFB;}
+		.d2-3283797290 .background-color-B6{background-color:#E5F3FF;}
+		.d2-3283797290 .background-color-AA2{background-color:#076F6F;}
+		.d2-3283797290 .background-color-AA4{background-color:#77DEDE;}
+		.d2-3283797290 .background-color-AA5{background-color:#C3F8F8;}
+		.d2-3283797290 .background-color-AB4{background-color:#C1A2F3;}
+		.d2-3283797290 .background-color-AB5{background-color:#DACEFB;}
+		.d2-3283797290 .color-N1{color:#0A0F25;}
+		.d2-3283797290 .color-N2{color:#676C7E;}
+		.d2-3283797290 .color-N3{color:#9499AB;}
+		.d2-3283797290 .color-N4{color:#CFD2DD;}
+		.d2-3283797290 .color-N5{color:#DEE1EB;}
+		.d2-3283797290 .color-N6{color:#EEF1F8;}
+		.d2-3283797290 .color-N7{color:#FFFFFF;}
+		.d2-3283797290 .color-B1{color:#000536;}
+		.d2-3283797290 .color-B2{color:#0F66B7;}
+		.d2-3283797290 .color-B3{color:#4393DD;}
+		.d2-3283797290 .color-B4{color:#87BFF3;}
+		.d2-3283797290 .color-B5{color:#BCDDFB;}
+		.d2-3283797290 .color-B6{color:#E5F3FF;}
+		.d2-3283797290 .color-AA2{color:#076F6F;}
+		.d2-3283797290 .color-AA4{color:#77DEDE;}
+		.d2-3283797290 .color-AA5{color:#C3F8F8;}
+		.d2-3283797290 .color-AB4{color:#C1A2F3;}
+		.d2-3283797290 .color-AB5{color:#DACEFB;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#000536;--color-border-muted:#0F66B7;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0F66B7;--color-accent-emphasis:#0F66B7;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-B3{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-B4{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-B5{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-B6{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-AA5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-AB5{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-N1{fill:url(#streaks-darker);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}}</style><style type="text/css">.d2-3283797290 .md em,
+.d2-3283797290 .md dfn {
+  font-family: "d2-3283797290-font-italic";
+}
+
+.d2-3283797290 .md b,
+.d2-3283797290 .md strong {
+  font-family: "d2-3283797290-font-bold";
+}
+
+.d2-3283797290 .md code,
+.d2-3283797290 .md kbd,
+.d2-3283797290 .md pre,
+.d2-3283797290 .md samp {
+  font-family: "d2-3283797290-font-mono";
+  font-size: 1em;
+}
+
+.d2-3283797290 .md {
+  tab-size: 4;
+}
+
+/* variables are provided in d2renderers/d2svg/d2svg.go */
+
+.d2-3283797290 .md {
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  margin: 0;
+  color: var(--color-fg-default);
+  background-color: transparent; /* we don't want to define the background color */
+  font-family: "d2-3283797290-font-regular";
+  font-size: 16px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.d2-3283797290 .md details,
+.d2-3283797290 .md figcaption,
+.d2-3283797290 .md figure {
+  display: block;
+}
+
+.d2-3283797290 .md summary {
+  display: list-item;
+}
+
+.d2-3283797290 .md [hidden] {
+  display: none !important;
+}
+
+.d2-3283797290 .md a {
+  background-color: transparent;
+  color: var(--color-accent-fg);
+  text-decoration: none;
+}
+
+.d2-3283797290 .md a:active,
+.d2-3283797290 .md a:hover {
+  outline-width: 0;
+}
+
+.d2-3283797290 .md abbr[title] {
+  border-bottom: none;
+  text-decoration: underline dotted;
+}
+
+.d2-3283797290 .md dfn {
+  font-style: italic;
+}
+
+.d2-3283797290 .md h1 {
+  margin: 0.67em 0;
+  padding-bottom: 0.3em;
+  font-size: 2em;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.d2-3283797290 .md mark {
+  background-color: var(--color-attention-subtle);
+  color: var(--color-text-primary);
+}
+
+.d2-3283797290 .md small {
+  font-size: 90%;
+}
+
+.d2-3283797290 .md sub,
+.d2-3283797290 .md sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.d2-3283797290 .md sub {
+  bottom: -0.25em;
+}
+
+.d2-3283797290 .md sup {
+  top: -0.5em;
+}
+
+.d2-3283797290 .md img {
+  border-style: none;
+  max-width: 100%;
+  box-sizing: content-box;
+  background-color: var(--color-canvas-default);
+}
+
+.d2-3283797290 .md figure {
+  margin: 1em 40px;
+}
+
+.d2-3283797290 .md hr {
+  box-sizing: content-box;
+  overflow: hidden;
+  background: transparent;
+  border-bottom: 1px solid var(--color-border-muted);
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: var(--color-border-default);
+  border: 0;
+}
+
+.d2-3283797290 .md input {
+  font: inherit;
+  margin: 0;
+  overflow: visible;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.d2-3283797290 .md [type="button"],
+.d2-3283797290 .md [type="reset"],
+.d2-3283797290 .md [type="submit"] {
+  -webkit-appearance: button;
+}
+
+.d2-3283797290 .md [type="button"]::-moz-focus-inner,
+.d2-3283797290 .md [type="reset"]::-moz-focus-inner,
+.d2-3283797290 .md [type="submit"]::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+
+.d2-3283797290 .md [type="button"]:-moz-focusring,
+.d2-3283797290 .md [type="reset"]:-moz-focusring,
+.d2-3283797290 .md [type="submit"]:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+
+.d2-3283797290 .md [type="checkbox"],
+.d2-3283797290 .md [type="radio"] {
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.d2-3283797290 .md [type="number"]::-webkit-inner-spin-button,
+.d2-3283797290 .md [type="number"]::-webkit-outer-spin-button {
+  height: auto;
+}
+
+.d2-3283797290 .md [type="search"] {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+
+.d2-3283797290 .md [type="search"]::-webkit-search-cancel-button,
+.d2-3283797290 .md [type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+.d2-3283797290 .md ::-webkit-input-placeholder {
+  color: inherit;
+  opacity: 0.54;
+}
+
+.d2-3283797290 .md ::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  font: inherit;
+}
+
+.d2-3283797290 .md a:hover {
+  text-decoration: underline;
+}
+
+.d2-3283797290 .md hr::before {
+  display: table;
+  content: "";
+}
+
+.d2-3283797290 .md hr::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.d2-3283797290 .md table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.d2-3283797290 .md td,
+.d2-3283797290 .md th {
+  padding: 0;
+}
+
+.d2-3283797290 .md details summary {
+  cursor: pointer;
+}
+
+.d2-3283797290 .md details:not([open]) > *:not(summary) {
+  display: none !important;
+}
+
+.d2-3283797290 .md kbd {
+  display: inline-block;
+  padding: 3px 5px;
+  color: var(--color-fg-default);
+  vertical-align: middle;
+  background-color: var(--color-canvas-subtle);
+  border: solid 1px var(--color-neutral-muted);
+  border-bottom-color: var(--color-neutral-muted);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 var(--color-neutral-muted);
+}
+
+.d2-3283797290 .md h1,
+.d2-3283797290 .md h2,
+.d2-3283797290 .md h3,
+.d2-3283797290 .md h4,
+.d2-3283797290 .md h5,
+.d2-3283797290 .md h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 400;
+  line-height: 1.25;
+  font-family: "d2-3283797290-font-semibold";
+}
+
+.d2-3283797290 .md h2 {
+  padding-bottom: 0.3em;
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.d2-3283797290 .md h3 {
+  font-size: 1.25em;
+}
+
+.d2-3283797290 .md h4 {
+  font-size: 1em;
+}
+
+.d2-3283797290 .md h5 {
+  font-size: 0.875em;
+}
+
+.d2-3283797290 .md h6 {
+  font-size: 0.85em;
+  color: var(--color-fg-muted);
+}
+
+.d2-3283797290 .md p {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.d2-3283797290 .md blockquote {
+  margin: 0;
+  padding: 0 1em;
+  color: var(--color-fg-muted);
+  border-left: 0.25em solid var(--color-border-default);
+}
+
+.d2-3283797290 .md ul,
+.d2-3283797290 .md ol {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 2em;
+}
+
+.d2-3283797290 .md ol ol,
+.d2-3283797290 .md ul ol {
+  list-style-type: lower-roman;
+}
+
+.d2-3283797290 .md ul ul ol,
+.d2-3283797290 .md ul ol ol,
+.d2-3283797290 .md ol ul ol,
+.d2-3283797290 .md ol ol ol {
+  list-style-type: lower-alpha;
+}
+
+.d2-3283797290 .md dd {
+  margin-left: 0;
+}
+
+.d2-3283797290 .md pre {
+  margin-top: 0;
+  margin-bottom: 0;
+  word-wrap: normal;
+}
+
+.d2-3283797290 .md ::placeholder {
+  color: var(--color-fg-subtle);
+  opacity: 1;
+}
+
+.d2-3283797290 .md input::-webkit-outer-spin-button,
+.d2-3283797290 .md input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.d2-3283797290 .md::before {
+  display: table;
+  content: "";
+}
+
+.d2-3283797290 .md::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.d2-3283797290 .md > *:first-child {
+  margin-top: 0 !important;
+}
+
+.d2-3283797290 .md > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.d2-3283797290 .md a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+}
+
+.d2-3283797290 .md .absent {
+  color: var(--color-danger-fg);
+}
+
+.d2-3283797290 .md .anchor {
+  float: left;
+  padding-right: 4px;
+  margin-left: -20px;
+  line-height: 1;
+}
+
+.d2-3283797290 .md .anchor:focus {
+  outline: none;
+}
+
+.d2-3283797290 .md p,
+.d2-3283797290 .md blockquote,
+.d2-3283797290 .md ul,
+.d2-3283797290 .md ol,
+.d2-3283797290 .md dl,
+.d2-3283797290 .md table,
+.d2-3283797290 .md pre,
+.d2-3283797290 .md details {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.d2-3283797290 .md blockquote > :first-child {
+  margin-top: 0;
+}
+
+.d2-3283797290 .md blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.d2-3283797290 .md sup > a::before {
+  content: "[";
+}
+
+.d2-3283797290 .md sup > a::after {
+  content: "]";
+}
+
+.d2-3283797290 .md h1:hover .anchor,
+.d2-3283797290 .md h2:hover .anchor,
+.d2-3283797290 .md h3:hover .anchor,
+.d2-3283797290 .md h4:hover .anchor,
+.d2-3283797290 .md h5:hover .anchor,
+.d2-3283797290 .md h6:hover .anchor {
+  text-decoration: none;
+}
+
+.d2-3283797290 .md h1 tt,
+.d2-3283797290 .md h1 code,
+.d2-3283797290 .md h2 tt,
+.d2-3283797290 .md h2 code,
+.d2-3283797290 .md h3 tt,
+.d2-3283797290 .md h3 code,
+.d2-3283797290 .md h4 tt,
+.d2-3283797290 .md h4 code,
+.d2-3283797290 .md h5 tt,
+.d2-3283797290 .md h5 code,
+.d2-3283797290 .md h6 tt,
+.d2-3283797290 .md h6 code {
+  padding: 0 0.2em;
+  font-size: inherit;
+}
+
+.d2-3283797290 .md ul.no-list,
+.d2-3283797290 .md ol.no-list {
+  padding: 0;
+  list-style-type: none;
+}
+
+.d2-3283797290 .md ol[type="1"] {
+  list-style-type: decimal;
+}
+
+.d2-3283797290 .md ol[type="a"] {
+  list-style-type: lower-alpha;
+}
+
+.d2-3283797290 .md ol[type="i"] {
+  list-style-type: lower-roman;
+}
+
+.d2-3283797290 .md div > ol:not([type]) {
+  list-style-type: decimal;
+}
+
+.d2-3283797290 .md ul ul,
+.d2-3283797290 .md ul ol,
+.d2-3283797290 .md ol ol,
+.d2-3283797290 .md ol ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.d2-3283797290 .md li > p {
+  margin-top: 16px;
+}
+
+.d2-3283797290 .md li + li {
+  margin-top: 0.25em;
+}
+
+.d2-3283797290 .md dl {
+  padding: 0;
+}
+
+.d2-3283797290 .md dl dt {
+  padding: 0;
+  margin-top: 16px;
+  font-size: 1em;
+  font-style: italic;
+  font-family: "d2-3283797290-font-semibold";
+}
+
+.d2-3283797290 .md dl dd {
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+
+.d2-3283797290 .md table th {
+  font-family: "d2-3283797290-font-semibold";
+}
+
+.d2-3283797290 .md table th,
+.d2-3283797290 .md table td {
+  padding: 6px 13px;
+  border: 1px solid var(--color-border-default);
+}
+
+.d2-3283797290 .md table tr {
+  background-color: var(--color-canvas-default);
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.d2-3283797290 .md table tr:nth-child(2n) {
+  background-color: var(--color-canvas-subtle);
+}
+
+.d2-3283797290 .md table img {
+  background-color: transparent;
+}
+
+.d2-3283797290 .md img[align="right"] {
+  padding-left: 20px;
+}
+
+.d2-3283797290 .md img[align="left"] {
+  padding-right: 20px;
+}
+
+.d2-3283797290 .md span.frame {
+  display: block;
+  overflow: hidden;
+}
+
+.d2-3283797290 .md span.frame > span {
+  display: block;
+  float: left;
+  width: auto;
+  padding: 7px;
+  margin: 13px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+}
+
+.d2-3283797290 .md span.frame span img {
+  display: block;
+  float: left;
+}
+
+.d2-3283797290 .md span.frame span span {
+  display: block;
+  padding: 5px 0 0;
+  clear: both;
+  color: var(--color-fg-default);
+}
+
+.d2-3283797290 .md span.align-center {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.d2-3283797290 .md span.align-center > span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.d2-3283797290 .md span.align-center span img {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.d2-3283797290 .md span.align-right {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.d2-3283797290 .md span.align-right > span {
+  display: block;
+  margin: 13px 0 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.d2-3283797290 .md span.align-right span img {
+  margin: 0;
+  text-align: right;
+}
+
+.d2-3283797290 .md span.float-left {
+  display: block;
+  float: left;
+  margin-right: 13px;
+  overflow: hidden;
+}
+
+.d2-3283797290 .md span.float-left span {
+  margin: 13px 0 0;
+}
+
+.d2-3283797290 .md span.float-right {
+  display: block;
+  float: right;
+  margin-left: 13px;
+  overflow: hidden;
+}
+
+.d2-3283797290 .md span.float-right > span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.d2-3283797290 .md code,
+.d2-3283797290 .md tt {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--color-neutral-muted);
+  border-radius: 6px;
+}
+
+.d2-3283797290 .md code br,
+.d2-3283797290 .md tt br {
+  display: none;
+}
+
+.d2-3283797290 .md del code {
+  text-decoration: inherit;
+}
+
+.d2-3283797290 .md pre code {
+  font-size: 100%;
+}
+
+.d2-3283797290 .md pre > code {
+  padding: 0;
+  margin: 0;
+  word-break: normal;
+  white-space: pre;
+  background: transparent;
+  border: 0;
+}
+
+.d2-3283797290 .md .highlight {
+  margin-bottom: 16px;
+}
+
+.d2-3283797290 .md .highlight pre {
+  margin-bottom: 0;
+  word-break: normal;
+}
+
+.d2-3283797290 .md .highlight pre,
+.d2-3283797290 .md pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--color-canvas-subtle);
+  border-radius: 6px;
+}
+
+.d2-3283797290 .md pre code,
+.d2-3283797290 .md pre tt {
+  display: inline;
+  max-width: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+}
+
+.d2-3283797290 .md .csv-data td,
+.d2-3283797290 .md .csv-data th {
+  padding: 5px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.d2-3283797290 .md .csv-data .blob-num {
+  padding: 10px 8px 9px;
+  text-align: right;
+  background: var(--color-canvas-default);
+  border: 0;
+}
+
+.d2-3283797290 .md .csv-data tr {
+  border-top: 0;
+}
+
+.d2-3283797290 .md .csv-data th {
+  font-family: "d2-3283797290-font-semibold";
+  background: var(--color-canvas-subtle);
+  border-top: 0;
+}
+
+.d2-3283797290 .md .footnotes {
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.d2-3283797290 .md .footnotes ol {
+  padding-left: 16px;
+}
+
+.d2-3283797290 .md .footnotes li {
+  position: relative;
+}
+
+.d2-3283797290 .md .footnotes li:target::before {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  bottom: -8px;
+  left: -24px;
+  pointer-events: none;
+  content: "";
+  border: 2px solid var(--color-accent-emphasis);
+  border-radius: 6px;
+}
+
+.d2-3283797290 .md .footnotes li:target {
+  color: var(--color-fg-default);
+}
+
+.d2-3283797290 .md .task-list-item {
+  list-style-type: none;
+}
+
+.d2-3283797290 .md .task-list-item label {
+  font-weight: 400;
+}
+
+.d2-3283797290 .md .task-list-item.enabled label {
+  cursor: pointer;
+}
+
+.d2-3283797290 .md .task-list-item + .task-list-item {
+  margin-top: 3px;
+}
+
+.d2-3283797290 .md .task-list-item .handle {
+  display: none;
+}
+
+.d2-3283797290 .md .task-list-item-checkbox {
+  margin: 0 0.2em 0.25em -1.6em;
+  vertical-align: middle;
+}
+
+.d2-3283797290 .md .contains-task-list:dir(rtl) .task-list-item-checkbox {
+  margin: 0 -1.6em 0.25em 0.2em;
+}
+</style><g id="root group"><g class="shape"><path class=" stroke-B1 fill-AA4" d="M 0 0 L 150 0 L 150 55 L 1406 55 L 1406 763 L 0 763 Z" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:28px" x="703.000000" y="88.000000">/ (root)</text></g><g id="root group.group" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-B5" height="642.000000" style="stroke-width:2;" width="330.000000" x="20.000000" y="101.000000"></rect></g><text class="text fill-N1" style="text-anchor:middle;font-size:24px" x="185.000000" y="130.000000">group</text></g><g id="root group.srv group"><g class="shape"><path class=" stroke-B1 fill-AA5" d="M 370 101 L 457 101 L 457 156 L 543 156 L 543 743 L 370 743 Z" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:24px" x="456.500000" y="185.000000">/srv</text><title>Conditionally Optional:
+
+Data for the service provided by this Application.
+
+An Application MUST have at least:
+
+- one `/srv/www` file set; or
+- one `/lib/&lt;module-name&gt;` WASM package.</title></g><g id="root group.usr lib group" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AA5" d="M 563 101 L 689 101 L 689 156 L 814 156 L 814 743 L 563 743 Z" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:24px" x="688.500000" y="185.000000">/usr/lib</text><title>OPTIONAL: 
+
+Data overrides for the Application.</title></g><g id="root group.lib group"><g class="shape"><path class=" stroke-B1 fill-AA5" d="M 834 101 L 984 101 L 984 156 L 1386 156 L 1386 743 L 834 743 Z" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:24px" x="1110.000000" y="185.000000">/lib</text><title>Conditionally Optional:
+
+WASM Component Module Library.
+
+An Application MUST have at least:
+
+- one `/srv/www` file set; or
+- one `/lib/&lt;module-name&gt;` WASM package.</title></g><g id="root group.group.explanation"><g class="shape"></g><g><foreignObject height="51" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" width="210" x="80.000000" y="161.000000"><div class="md"><h1 id="hdf5-file">HDF5 File<a class="headerlink" href="#hdf5-file" title="Permanent link">&para;</a></h1>
+</div></foreignObject></g></g><g id="root group.group.root metadata object"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 81 252 H 269 C 270 252 271 252 272 253 L 289 269 C 290 270 290 271 290 272 V 339 C 290 339 290 339 290 339 H 81 C 80 339 80 339 80 339 V 253 C 80 252 80 252 81 252 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 289 339 H 81 C 80 339 80 339 80 338 V 253 C 80 252 80 252 81 252 H 268 C 269 252 269 252 269 253 V 270 C 269 271 270 272 271 272 H 289 C 290 272 290 272 290 273 V 338 C 289 339 290 339 289 339 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="185.000000" y="301.000000">metadata.json</text><title>Defines the application.
+
++ Application Name
++ Version
++ Description
+? Source Repo
++ License/s
++ Link to icon in http served files.
+? Link to an OpenAPI Document in http served files.
++ Minimum Resource requirements
+? Optimum Resource requirements
+? Maximum Resource requirements
+? Requested Permissions</title></g><g id="root group.group.root author signature object"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 80 444 L 80 379 L 290 379 L 290 444 C 255 430 220 430 185 444 C 150 459 115 459 80 444 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="185.000000" y="412.610964">author.cose</text><title>Authors identity and Signature over the complete package.
+May be multiple signatures for multiple authors.</title></g><g id="root group.group.root publisher signature object" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 80 560 L 80 495 L 290 495 L 290 560 C 255 546 220 546 185 560 C 150 575 115 575 80 560 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="185.000000" y="528.610964">publisher.cose</text><title>OPTIONAL:
+
+Publisher identity and Signature over the complete package.
+May be multiple signatures for multiple publishers.</title></g><g id="root group.srv group.gap" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-B6" height="56.000000" style="stroke-width:2;" width="133.000000" x="390.000000" y="197.000000"></rect></g><text class="text-bold fill-N1" style="text-anchor:middle;font-size:8px" x="456.500000" y="227.500000">gap</text></g><g id="root group.srv group.srv www group" style="opacity:0.600000"><g class="shape"><path d="M 390 273 L 457 273 L 457 288 L 523 288 L 523 346 L 390 346 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="456.500000" y="322.300000">/www</text><title>OPTIONAL: 
+
+Data served on HTTP automatically for the application.</title></g><g id="root group.srv group.srv share group" style="opacity:0.600000"><g class="shape"><path d="M 390 366 L 457 366 L 457 381 L 523 381 L 523 439 L 390 439 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="456.500000" y="415.300000">/share</text><title>OPTIONAL: 
+
+Data sharable by all Modules in the application.</title></g><g id="root group.usr lib group.usr lib module1 group" style="opacity:0.600000"><g class="shape"><path d="M 593 197 L 694 197 L 694 252 L 794 252 L 794 666 L 593 666 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path><path d="M 583 207 L 684 207 L 684 262 L 784 262 L 784 676 L 583 676 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:20px" x="683.500000" y="287.000000">/&lt;module-name-1&gt;</text><title>OPTIONAL:
+
+Override individual module contents at application level.</title></g><g id="root group.lib group.lib module1 group"><g class="shape"><path d="M 864 197 L 1014 197 L 1014 252 L 1366 252 L 1366 713 L 864 713 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path><path d="M 854 207 L 1004 207 L 1004 262 L 1356 262 L 1356 723 L 854 723 Z" fill="#ffebeb" stroke="#ffc0cb" style="stroke-width:2;"></path></g><text class="text-mono fill-N1" style="text-anchor:middle;font-size:20px" x="1105.000000" y="287.000000">/&lt;module-name-1&gt;</text><title>WASM Components are individually packaged and signed
+before inclusion into an application.</title></g><g id="root group.usr lib group.usr lib module1 group.gap" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-N7" height="56.000000" style="stroke-width:2;" width="181.000000" x="593.000000" y="298.000000"></rect></g><text class="text-bold fill-N1" style="text-anchor:middle;font-size:8px" x="683.500000" y="328.500000">gap</text></g><g id="root group.usr lib group.usr lib module1 group.component config override json object" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 594 364 H 753 C 754 364 755 364 756 365 L 773 381 C 774 382 774 383 774 384 V 451 C 774 451 774 451 774 451 H 594 C 593 451 593 451 593 451 V 365 C 593 364 593 364 594 364 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 773 451 H 594 C 593 451 593 451 593 450 V 365 C 593 364 593 364 594 364 H 752 C 753 364 753 364 753 365 V 382 C 753 383 754 384 755 384 H 773 C 774 384 774 384 774 385 V 450 C 773 451 774 451 773 451 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="683.500000" y="413.000000">config.json</text><title>OPTIONAL:
+
+Modules runtime config file.</title></g><g id="root group.usr lib group.usr lib module1 group.gap2" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-N7" height="56.000000" style="stroke-width:2;" width="181.000000" x="593.000000" y="461.000000"></rect></g><text class="text-bold fill-N1" style="text-anchor:middle;font-size:8px" x="683.500000" y="491.500000">gap</text></g><g id="root group.usr lib group.usr lib module1 group.usr lib module share group" style="opacity:0.600000"><g class="shape"><path d="M 593 527 L 684 527 L 684 542 L 774 542 L 774 600 L 593 600 Z" fill="#E6FFED" stroke="#98FB98" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="683.500000" y="576.300000">/share</text><title>Override/Add Data files specific to this Module.</title></g><g id="root group.usr lib group.usr lib module1 group.gap3" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-N7" height="56.000000" style="stroke-width:2;" width="181.000000" x="593.000000" y="610.000000"></rect></g><text class="text-bold fill-N1" style="text-anchor:middle;font-size:8px" x="683.500000" y="640.500000">gap</text></g><g id="root group.lib group.lib module1 group.component files" style="opacity:0.000000"><g class="shape"><rect class=" stroke-B1 fill-N7" height="332.000000" style="stroke-width:2;" width="482.000000" x="864.000000" y="298.000000"></rect></g><text class="text fill-N1" style="text-anchor:middle;font-size:16px" x="1105.000000" y="319.000000">component files</text></g><g id="root group.lib group.lib module1 group.lib module share group" style="opacity:0.600000"><g class="shape"><path d="M 864 640 L 1014 640 L 1014 655 L 1346 655 L 1346 713 L 864 713 Z" fill="#E6FFED" stroke="#98FB98" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1105.000000" y="689.300000">/share</text><title>OPTIONAL: 
+
+Data files specific to this Module.</title></g><g id="root group.lib group.lib module1 group.component files.component metadata object"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 875 329 H 1122 C 1123 329 1124 329 1125 330 L 1142 346 C 1143 347 1143 348 1143 349 V 416 C 1143 416 1143 416 1143 416 H 875 C 874 416 874 416 874 416 V 330 C 874 329 874 329 875 329 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 1142 416 H 875 C 874 416 874 416 874 415 V 330 C 874 329 874 329 875 329 H 1121 C 1122 329 1122 329 1122 330 V 347 C 1122 348 1123 349 1124 349 H 1142 C 1143 349 1143 349 1143 350 V 415 C 1142 416 1143 416 1142 416 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1008.500000" y="378.000000">metadata.json</text><title>Defines the module.
+
++ Module Name
++ Version
++ Description
+? Source Repo
++ License/s</title></g><g id="root group.lib group.lib module1 group.component files.component wasm module object"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 1154 329 H 1315 C 1316 329 1317 329 1318 330 L 1335 346 C 1336 347 1336 348 1336 349 V 416 C 1336 416 1336 416 1336 416 H 1154 C 1153 416 1153 416 1153 416 V 330 C 1153 329 1153 329 1154 329 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 1335 416 H 1154 C 1153 416 1153 416 1153 415 V 330 C 1153 329 1153 329 1154 329 H 1314 C 1315 329 1315 329 1315 330 V 347 C 1315 348 1316 349 1317 349 H 1335 C 1336 349 1336 349 1336 350 V 415 C 1335 416 1336 416 1335 416 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1244.500000" y="378.000000">module.wasm</text><title>Compiled WASM Component Module.</title></g><g id="root group.lib group.lib module1 group.component files.component config json schema object" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 875 426 H 1122 C 1123 426 1124 426 1125 427 L 1142 443 C 1143 444 1143 445 1143 446 V 513 C 1143 513 1143 513 1143 513 H 875 C 874 513 874 513 874 513 V 427 C 874 426 874 426 875 426 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 1142 513 H 875 C 874 513 874 513 874 512 V 427 C 874 426 874 426 875 426 H 1121 C 1122 426 1122 426 1122 427 V 444 C 1122 445 1123 446 1124 446 H 1142 C 1143 446 1143 446 1143 447 V 512 C 1142 513 1143 513 1142 513 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1008.500000" y="475.000000">config.schema.json</text><title>OPTIONAL:
+
+Schema for the config.json file.</title></g><g id="root group.lib group.lib module1 group.component files.component config json object" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 1154 426 H 1315 C 1316 426 1317 426 1318 427 L 1335 443 C 1336 444 1336 445 1336 446 V 513 C 1336 513 1336 513 1336 513 H 1154 C 1153 513 1153 513 1153 513 V 427 C 1153 426 1153 426 1154 426 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 1335 513 H 1154 C 1153 513 1153 513 1153 512 V 427 C 1153 426 1153 426 1154 426 H 1314 C 1315 426 1315 426 1315 427 V 444 C 1315 445 1316 446 1317 446 H 1335 C 1336 446 1336 446 1336 447 V 512 C 1335 513 1336 513 1335 513 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1244.500000" y="475.000000">config.json</text><title>Conditionally Optional:
+
+Modules runtime config file.
+
+MUST Exist if `config.schema.json` exists.</title></g><g id="root group.lib group.lib module1 group.component files.component settings json schema object" style="opacity:0.600000"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 875 523 H 1122 C 1123 523 1124 523 1125 524 L 1142 540 C 1143 541 1143 542 1143 543 V 610 C 1143 610 1143 610 1143 610 H 875 C 874 610 874 610 874 610 V 524 C 874 523 874 523 875 523 Z" style="stroke-width:2;"></path><path class=" stroke-B1 fill-AB5" d="M 1142 610 H 875 C 874 610 874 610 874 609 V 524 C 874 523 874 523 875 523 H 1121 C 1122 523 1122 523 1122 524 V 541 C 1122 542 1123 543 1124 543 H 1142 C 1143 543 1143 543 1143 544 V 609 C 1142 610 1143 610 1142 610 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1008.500000" y="572.000000">settings.schema.json</text><title>OPTIONAL:
+
+Schema for the user option settings.json file.</title></g><g id="root group.lib group.lib module1 group.component files.component author signature object"><g class="shape"><path class=" stroke-B1 fill-AB5" d="M 1153 598 L 1153 523 L 1336 523 L 1336 598 C 1306 582 1275 582 1245 598 C 1214 614 1184 614 1153 598 Z" style="stroke-width:2;"></path></g><text class="text-mono-bold fill-N1" style="text-anchor:middle;font-size:16px" x="1244.500000" y="560.679657">author.cose</text><title>Authors signature over the wasm module.</title></g><g class="appendix-icon" transform="translate(527 140)"><title>Conditionally Optional:
+
+Data for the service provided by this Application.
+
+An Application MUST have at least:
+
+- one `/srv/www` file set; or
+- one `/lib/&lt;module-name&gt;` WASM package.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(798 140)"><title>OPTIONAL: 
+
+Data overrides for the Application.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1370 140)"><title>Conditionally Optional:
+
+WASM Component Module Library.
+
+An Application MUST have at least:
+
+- one `/srv/www` file set; or
+- one `/lib/&lt;module-name&gt;` WASM package.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(253 236)"><title>Defines the application.
+
++ Application Name
++ Version
++ Description
+? Source Repo
++ License/s
++ Link to icon in http served files.
+? Link to an OpenAPI Document in http served files.
++ Minimum Resource requirements
+? Optimum Resource requirements
+? Maximum Resource requirements
+? Requested Permissions</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(79 434)"><title>Authors identity and Signature over the complete package.
+May be multiple signatures for multiple authors.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(79 550)"><title>OPTIONAL:
+
+Publisher identity and Signature over the complete package.
+May be multiple signatures for multiple publishers.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(507 272)"><title>OPTIONAL: 
+
+Data served on HTTP automatically for the application.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(507 365)"><title>OPTIONAL: 
+
+Data sharable by all Modules in the application.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(768 246)"><title>OPTIONAL:
+
+Override individual module contents at application level.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1340 246)"><title>WASM Components are individually packaged and signed
+before inclusion into an application.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(737 348)"><title>OPTIONAL:
+
+Modules runtime config file.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(758 526)"><title>Override/Add Data files specific to this Module.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1330 639)"><title>OPTIONAL: 
+
+Data files specific to this Module.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1106 313)"><title>Defines the module.
+
++ Module Name
++ Version
++ Description
+? Source Repo
++ License/s</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1299 313)"><title>Compiled WASM Component Module.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1106 410)"><title>OPTIONAL:
+
+Schema for the config.json file.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1299 410)"><title>Conditionally Optional:
+
+Modules runtime config file.
+
+MUST Exist if `config.schema.json` exists.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1106 507)"><title>OPTIONAL:
+
+Schema for the user option settings.json file.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><g class="appendix-icon" transform="translate(1320 507)"><title>Authors signature over the wasm module.</title><svg fill="none" height="32" viewBox="0 0 32 32" width="32">
+<g clip-path="url(#clip0_3427_35082111)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"></path>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111">
+<rect fill="white" height="32" width="32"></rect>
+</clipPath>
+</defs>
+</svg>
+</g><mask height="965" id="d2-3283797290" maskUnits="userSpaceOnUse" width="1608" x="-101" y="-101">
+<rect fill="white" height="965" width="1608" x="-101" y="-101"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="36" width="127" x="639.500000" y="60.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="31" width="59" x="155.500000" y="106.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="31" width="56" x="428.500000" y="161.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="31" width="112" x="632.500000" y="161.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="31" width="55" x="1082.500000" y="161.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="51" width="130" x="80.000000" y="161.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="125" x="122.500000" y="285.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="105" x="132.500000" y="396.610964"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="133" x="118.500000" y="512.610964"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="11" width="14" x="449.500000" y="219.500000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="38" x="437.500000" y="306.300000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="56" x="428.500000" y="399.300000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="26" width="189" x="589.000000" y="267.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="26" width="189" x="1010.500000" y="267.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="11" width="14" x="676.500000" y="320.500000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="104" x="631.500000" y="397.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="11" width="14" x="676.500000" y="483.500000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="56" x="655.500000" y="560.300000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="11" width="14" x="676.500000" y="632.500000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="109" x="1050.500000" y="303.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="56" x="1077.000000" y="673.300000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="125" x="946.000000" y="362.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="106" x="1191.500000" y="362.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="172" x="922.500000" y="459.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="104" x="1192.500000" y="459.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="192" x="912.500000" y="556.000000"></rect>
+<rect fill="rgba(0,0,0,0.75)" height="21" width="105" x="1192.000000" y="544.679657"></rect>
+</mask></svg></svg></div></p>
+<p>We can generate a complete hash of the entire Application with the following procedure:</p>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">hasher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Hash</span>::<span class="n">new</span><span class="p">();</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="c1">// Update the hasher with each of the binary buffers</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="n">hasher</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bytes_of</span><span class="p">(</span><span class="err">`</span><span class="n">metadata</span><span class="p">.</span><span class="n">json</span><span class="err">`</span><span class="p">));</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">exists</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">srv</span><span class="err">`</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">hasher</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bytes_of</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">srv</span><span class="err">`</span><span class="p">));</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">exists</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">usr</span><span class="err">`</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="err">`</span><span class="n">hasher</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bytes_of</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">usr</span><span class="err">`</span><span class="p">));</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">exists</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">lib</span><span class="err">`</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="n">hasher</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bytes_of</span><span class="p">(</span><span class="err">`</span><span class="o">/</span><span class="n">lib</span><span class="err">`</span><span class="p">));</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="n">digest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hasher</span><span class="p">.</span><span class="n">finalize</span><span class="p">()</span>
+</span></code></pre></div>
+<p>In addition the following checks are made:</p>
+<ol>
+<li>
+<p>Has the bare minimum to be a viable application:</p>
+<ul>
+<li>Is there a <code>/srv/www</code> group with at least 1 file in it; OR</li>
+<li>Is there a <code>/lib</code> group with at least 1 validly signed Module in it.</li>
+</ul>
+</li>
+<li>
+<p>Does the Application ONLY contain the groups and files as described in the Hierarchy diagram.</p>
+</li>
+</ol>
+<p>If either of these fails, the package is Invalid and can not be signed.
+These checks are also made when any Application is loaded, to ensure it has not been tampered with.</p>
+<p>Once the hash of the root groups is known, and the structure is validated,
+it is a simple matter of generating or validating a signature from the Hash.</p>
+<p>This method protects any Application from being tampered with once released by the Author,
+and also allows it to be safely co-signed by a Publisher.</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      (c) 2023 Input Output Global Ltd.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+      <div class="md-consent" data-md-component="consent" id="__consent" hidden>
+        <div class="md-consent__overlay"></div>
+        <aside class="md-consent__inner">
+          <form class="md-consent__form md-grid md-typeset" name="consent">
+            
+
+
+  
+    
+  
+
+
+
+  
+
+
+<h4>Cookie consent</h4>
+<p>
+We use cookies to recognize your repeated visits and preferences, as well as to measure the effectiveness of our documentation and whether users find what they're searching for. With your consent, you're helping us to make our documentation better.</p>
+<input class="md-toggle" type="checkbox" id="__settings" >
+<div class="md-consent__settings">
+  <ul class="task-list">
+    
+      
+      
+        
+        
+      
+      <li class="task-list-item">
+        <label class="task-list-control">
+          <input type="checkbox" name="github" checked>
+          <span class="task-list-indicator"></span>
+          GitHub
+        </label>
+      </li>
+    
+  </ul>
+</div>
+<div class="md-consent__controls">
+  
+    
+      <button class="md-button md-button--primary">Accept</button>
+    
+    
+    
+  
+    
+    
+    
+      <label class="md-button" for="__settings">Manage settings</label>
+    
+  
+</div>
+          </form>
+        </aside>
+      </div>
+      <script>var consent=__md_get("__consent");if(consent)for(var input of document.forms.consent.elements)input.name&&(input.checked=consent[input.name]||!1);else"file:"!==location.protocol&&setTimeout(function(){document.querySelector("[data-md-component=consent]").hidden=!1},250);var action,form=document.forms.consent;for(action of["submit","reset"])form.addEventListener(action,function(e){if(e.preventDefault(),"reset"===e.type)for(var n of document.forms.consent.elements)n.name&&(n.checked=!1);__md_set("__consent",Object.fromEntries(Array.from(new FormData(form).keys()).map(function(e){return[e,!0]}))),location.hash="",location.reload()})</script>
+    
+    <script id="__config" type="application/json">{"base": "../../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.path", "navigation.indexes", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.b8dbb3d2.min.js", "tags": {"ADR": "adr", "CSS": "css", "Dart": "dart", "Docker": "docker", "Earthly": "earthly", "Flutter": "flutter", "Github": "github", "HTML5": "html", "JavaScript": "js", "Python": "python", "Rust": "rust", "arc42": "arc42"}, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.c8d2eff1.min.js"></script>
+      
+        <script src="../../../../javascript/massillia-graphviz.js"></script>
+      
+        <script src="../../../../search/main.js"></script>
+      
+    
+  <script>document$.subscribe(() => {const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});})</script></body>
+</html>

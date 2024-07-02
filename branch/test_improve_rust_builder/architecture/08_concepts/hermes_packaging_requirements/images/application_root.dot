@@ -1,0 +1,8 @@
+app_root: {
+  label: Application Root
+  shape: class
+
+  modules: HDF5 Group
+  "var/data": HDF5 Group
+  "var/www": HDF5 Group
+}

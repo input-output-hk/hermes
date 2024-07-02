@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["basic","cardano_chain_follower","hermes"];

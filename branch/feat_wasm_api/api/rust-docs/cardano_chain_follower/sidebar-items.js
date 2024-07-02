@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ChainUpdate","Error","Network","Point","PointOrTip"],"fn":["validate_multiera_block"],"mod":["follow","mithril_snapshot","read"],"struct":["Follower","FollowerConfig","FollowerConfigBuilder","MultiEraBlockData","Reader"],"type":["Result"]};

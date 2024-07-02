@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Request"],"fn":["handle_read_block_range_request","handle_read_block_request","handle_request","handle_set_read_pointer_request","next_from_client","read_block_from_network","read_block_range_from_network","resolve_tip","run","send_next_chain_update","set_client_read_pointer"],"struct":["MithrilSnapshotState","TaskState"]};
