@@ -16,6 +16,7 @@ pub(crate) struct SchemaValidator {
 
 impl SchemaValidator {
     /// Create a new json schema validator from reader.
+    #[allow(dead_code)]
     pub(crate) fn from_reader<R: Read>(reader: R) -> anyhow::Result<Self> {
         let schema = serde_json::from_reader(reader)?;
         Self::from_json(&schema)
@@ -37,18 +38,25 @@ impl SchemaValidator {
         Ok(Self { schema })
     }
 
-    /// Validate json instance against current schema.
-    pub(crate) fn deserialize_and_validate<R: Read, T: DeserializeOwned>(
-        &self, reader: R,
-    ) -> anyhow::Result<T> {
-        let json_val = serde_json::from_reader(reader)?;
-        self.schema.validate(&json_val).map_err(|err| {
+    /// Validate JSON value against current schema.
+    pub(crate) fn validate(&self, json: &serde_json::Value) -> anyhow::Result<()> {
+        self.schema.validate(json).map_err(|err| {
             let mut errors = Errors::new();
             for e in err {
                 errors.add_err(anyhow::anyhow!("{e}"));
             }
             errors
         })?;
+
+        Ok(())
+    }
+
+    /// Validate and deserialize JSON value from reader against current schema.
+    pub(crate) fn deserialize_and_validate<R: Read, T: DeserializeOwned>(
+        &self, reader: R,
+    ) -> anyhow::Result<T> {
+        let json_val = serde_json::from_reader(reader)?;
+        self.validate(&json_val)?;
         let val = serde_json::from_value(json_val)?;
         Ok(val)
     }

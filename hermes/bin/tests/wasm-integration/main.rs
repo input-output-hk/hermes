@@ -95,7 +95,7 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
         // Execute the wasm tests to get their name
         // Load WASM module in the executor.
         let wasm_buf = fs::read(file_path)?;
-        let mut module = Module::new(&wasm_buf)?;
+        let mut module = Module::from_bytes(&wasm_buf)?;
 
         let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
             // Collect the cases in a loop until no more cases.
@@ -163,7 +163,7 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    let mut module = Module::new(&wasm_buf)?;
+    let mut module = Module::from_bytes(&wasm_buf)?;
 
     match execute_event(&mut module, test_case, true, event_type)? {
         Some(result) => {

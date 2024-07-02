@@ -1,27 +1,27 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
-    "title": "Hermes Application WASM Component Module Manifest Schema",
+    "title": "Hermes WASM Module Manifest Schema",
     "description": "Defines the src packages which are used to build a Hermes WASM Component Module.",
     "type": "object",
     "additionalProperties": false,
     "properties": {
         "$schema": {
             "type": "string",
-            "title": "Application Package Manifest Schema Reference",
+            "title": "WASM Module Package Manifest Schema Reference",
             "default": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
             "pattern": "^(https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/)|(.*/)hermes_module_manifest.schema.json$",
-            "description": "Reference to the Application Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
+            "description": "Reference to the WASM Manifest Schema.\nShould be to https:// this will be validated.\nLocal references are only to simplify development."
         },
         "name": {
             "type": "string",
-            "title": "Hermes Module Package name.",
+            "title": "Hermes WASM Module Package name.",
             "description": "Name of the Hermes WASM Module Package with which it will be created.",
             "default": "module"
         },
         "metadata": {
             "type": "string",
-            "title": "Hermes Module Metadata File",
+            "title": "Hermes WASM Module Metadata File",
             "description": "Link to the Hermes Module Metadata json file.\nWill be renamed to `metadata.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
             "default": "metadata.json"
@@ -35,39 +35,45 @@
         },
         "config": {
             "type": "object",
-            "title": "Application Module Config Object.",
-            "description": "Object representing the Application Module Config File.",
+            "title": "WASM Module Config Object.",
+            "description": "Object representing the WASM Module Config File.",
             "properties": {
                 "file": {
                     "type": "string",
-                    "title": "Application Module Config File Location",
+                    "title": "WASM Module Config File Location",
                     "description": "Path to the WASM Component Library Module Config File.\nThis will be renamed to `config.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 },
                 "schema": {
                     "type": "string",
-                    "title": "Application Module Config Schema Location",
+                    "title": "WASM Module Config Schema Location",
                     "description": "Path to the WASM Component Module Config Schema File.\nThis will be renamed to `config.schema.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 }
-            }
+            },
+            "required": [
+                "schema"
+            ]
         },
         "settings": {
             "type": "object",
-            "title": "Application Module Settings Object.",
-            "description": "Object representing the Application Module Settings.",
+            "title": "WASM Module Settings Object.",
+            "description": "Object representing the WASM Module Settings.",
             "properties": {
                 "schema": {
                     "type": "string",
-                    "title": "Application Module Settings Schema Location",
+                    "title": "WASM Module Settings Schema Location",
                     "description": "Path to the WASM Component Module Settings Schema File.\nThis will be renamed to `settings.schema.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
                     "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
                 }
-            }
+            },
+            "required": [
+                "schema"
+            ]
         },
         "share": {
             "type": "string",
-            "title": "Application Module Share Dataset.",
+            "title": "WASM Module Share Dataset.",
             "description": "Path to the WASM Component Library Module Shareable Data.\nWill set the default data defined for the module itself.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$"
         }
