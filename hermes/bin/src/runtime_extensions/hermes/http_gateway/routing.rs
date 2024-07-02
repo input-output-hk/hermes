@@ -35,7 +35,7 @@ const EVENT_TIMEOUT: u64 = 1;
 pub(crate) struct AppName(pub String);
 
 #[derive(Debug)]
-/// hostname (nodename)
+/// hostname (node name)
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator

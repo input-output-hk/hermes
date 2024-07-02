@@ -20,7 +20,7 @@ use super::routing::router;
 const GATEWAY_PORT: u16 = 5000;
 
 #[derive(Debug, Clone)]
-/// hostname (nodename)
+/// hostname (node name)
 pub(crate) struct Hostname(pub String);
 
 /// Config for gateway setup
@@ -50,8 +50,6 @@ impl Default for Config {
 pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
-/// The evolution of event tracking and management will utilise this in more depth in the
-/// future.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct ClientIPAddr(pub SocketAddr);
