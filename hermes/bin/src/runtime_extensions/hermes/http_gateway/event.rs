@@ -29,7 +29,6 @@ pub(crate) enum HTTPEventMsg {
 }
 
 /// HTTP Event
-#[derive(Clone)]
 pub(crate) struct HTTPEvent {
     pub(crate) headers: HeadersKV,
     pub(crate) method: Method,
