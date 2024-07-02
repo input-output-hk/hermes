@@ -2,6 +2,7 @@
 
 use std::str::FromStr;
 
+use dashmap::{DashMap, DashSet};
 use hermes_ipfs::{
     AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     SubscriptionStream,
@@ -12,8 +13,11 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-use crate::runtime_extensions::bindings::hermes::ipfs::api::{
-    DhtKey, DhtValue, Errno, IpfsContent, IpfsPath, PeerId, PubsubTopic,
+use crate::{
+    app::HermesAppName,
+    runtime_extensions::bindings::hermes::ipfs::api::{
+        DhtKey, DhtValue, Errno, IpfsContent, IpfsPath, PeerId, PubsubTopic,
+    },
 };
 
 /// Hermes IPFS Internal State
@@ -46,7 +50,7 @@ impl HermesIpfsState {
     /// Create a new `HermesIpfsState`
     fn new(sender: Option<mpsc::Sender<IpfsCommand>>) -> Self {
         Self {
-            apps: AppIpfsState { sender },
+            apps: AppIpfsState::new(sender),
         }
     }
 
@@ -65,8 +69,8 @@ impl HermesIpfsState {
         cmd_rx.blocking_recv().map_err(|_| Errno::FileAddError)?
     }
 
-    /// Get file
     #[allow(clippy::needless_pass_by_value)]
+    /// Get file
     fn file_get(&self, ipfs_path: IpfsPath) -> Result<IpfsContent, Errno> {
         let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -79,8 +83,8 @@ impl HermesIpfsState {
         cmd_rx.blocking_recv().map_err(|_| Errno::FileGetError)?
     }
 
-    /// Pin file
     #[allow(clippy::needless_pass_by_value)]
+    /// Pin file
     fn file_pin(&self, ipfs_path: IpfsPath) -> Result<bool, Errno> {
         let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
@@ -153,6 +157,32 @@ impl HermesIpfsState {
 struct AppIpfsState {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
+    /// List of uploaded files for each app.
+    files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+}
+
+impl AppIpfsState {
+    /// Create new `AppIpfsState`
+    fn new(sender: Option<mpsc::Sender<IpfsCommand>>) -> Self {
+        Self {
+            sender,
+            files: DashMap::default(),
+        }
+    }
+
+    /// Add `ipfs_path` from file added by an app.
+    fn added_file(&self, app_name: HermesAppName, ipfs_path: IpfsPath) {
+        self.files
+            .entry(app_name)
+            .and_modify(|paths| {
+                paths.insert(ipfs_path.clone());
+            })
+            .or_insert_with(|| {
+                let paths = DashSet::new();
+                paths.insert(ipfs_path);
+                paths
+            });
+    }
 }
 
 /// IPFS Command
@@ -244,37 +274,55 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
 }
 
 /// Add File to IPFS
-pub(crate) fn hermes_ipfs_add_file(contents: IpfsContent) -> Result<IpfsPath, Errno> {
-    HERMES_IPFS_STATE.file_add(contents)
+pub(crate) fn hermes_ipfs_add_file(
+    app_name: &HermesAppName, contents: IpfsContent,
+) -> Result<IpfsPath, Errno> {
+    let ipfs_path = HERMES_IPFS_STATE.file_add(contents)?;
+    HERMES_IPFS_STATE
+        .apps
+        .added_file(app_name.clone(), ipfs_path.clone());
+    Ok(ipfs_path)
 }
 
 /// Get File from Ipfs
-pub(crate) fn hermes_ipfs_get_file(path: IpfsPath) -> Result<IpfsContent, Errno> {
+pub(crate) fn hermes_ipfs_get_file(
+    _app_name: &HermesAppName, path: IpfsPath,
+) -> Result<IpfsContent, Errno> {
     HERMES_IPFS_STATE.file_get(path)
 }
 
 /// Pin IPFS File
-pub(crate) fn hermes_ipfs_pin_file(path: IpfsPath) -> Result<bool, Errno> {
+pub(crate) fn hermes_ipfs_pin_file(
+    _app_name: &HermesAppName, path: IpfsPath,
+) -> Result<bool, Errno> {
     HERMES_IPFS_STATE.file_pin(path)
 }
 
 /// Get DHT Value
-pub(crate) fn hermes_ipfs_get_dht_value(key: DhtKey) -> Result<DhtValue, Errno> {
+pub(crate) fn hermes_ipfs_get_dht_value(
+    _app_name: &HermesAppName, key: DhtKey,
+) -> Result<DhtValue, Errno> {
     HERMES_IPFS_STATE.dht_get(key)
 }
 
 /// Put DHT Value
-pub(crate) fn hermes_ipfs_put_dht_value(key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
+pub(crate) fn hermes_ipfs_put_dht_value(
+    _app_name: &HermesAppName, key: DhtKey, value: DhtValue,
+) -> Result<bool, Errno> {
     HERMES_IPFS_STATE.dht_put(key, value)
 }
 
 /// Subscribe to a topic
-pub(crate) fn hermes_ipfs_subscribe(topic: PubsubTopic) -> Result<bool, Errno> {
+pub(crate) fn hermes_ipfs_subscribe(
+    _app_name: &HermesAppName, topic: PubsubTopic,
+) -> Result<bool, Errno> {
     let _stream = HERMES_IPFS_STATE.pubsub_subscribe(topic)?;
     Ok(true)
 }
 
 /// Evict Peer from node
-pub(crate) fn hermes_ipfs_evict_peer(peer: PeerId) -> Result<bool, Errno> {
+pub(crate) fn hermes_ipfs_evict_peer(
+    _app_name: &HermesAppName, peer: PeerId,
+) -> Result<bool, Errno> {
     HERMES_IPFS_STATE.peer_evict(peer)
 }
