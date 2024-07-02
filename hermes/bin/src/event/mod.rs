@@ -25,7 +25,6 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
 }
 
 /// Target Hermes app to execute the event
-#[derive(Clone)]
 pub(crate) enum TargetApp {
     /// Execute for all available apps
     #[allow(dead_code)]
