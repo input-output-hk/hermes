@@ -181,26 +181,8 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
 
     // Event dispatch
     for (app_name, module_id, module) in execution_contexts {
-        event.add_processor();
-
-        //   TODO!
-        //   parallelize
-        //   m = module
-        //
-        //      event
-        //    / \  / \
-        //   m1 m2 m3 mN
-        //   |   | |   |
-        //   |   |     |
-        //   ____|_____|__
-        //   \  /   \ /
-        //   event finished
         event_dispatch(app_name.clone(), module_id.clone(), module, event.payload());
-
-        event.subtract_processor();
     }
-
-    event.finished();
 }
 
 /// Executes Hermes events from the provided receiver .

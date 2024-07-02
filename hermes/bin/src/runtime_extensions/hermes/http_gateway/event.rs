@@ -1,9 +1,9 @@
 //! HTTP-Gateway handler implementation.
 
-use crossbeam_channel::Sender;
+use std::sync::mpsc::Sender;
+
 use hyper::{self, body::Bytes};
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::event::HermesEventPayload;
 
@@ -51,11 +51,6 @@ impl HermesEventPayload for HTTPEvent {
             &self.path,
             &self.method,
         )?;
-
-        info!(
-            "Module propagation instance {:?}",
-            rusty_ulid::generate_ulid_string()
-        );
 
         if let Some(resp) = event_response {
             Ok(self.sender.send(HTTPEventMsg::HttpEventResponse((

@@ -1,10 +1,13 @@
 use std::{
-    collections::HashMap, net::SocketAddr, result::Result::Ok as OkResp, sync::Arc, thread::sleep,
-    time::Duration,
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc,
+    },
 };
 
 use anyhow::{anyhow, Ok};
-use crossbeam_channel::{select, unbounded, Receiver, Sender};
 use hyper::{
     self,
     body::{Bytes, HttpBody},
@@ -38,7 +41,7 @@ pub(crate) fn error_response(err: String) -> Response<Body> {
 }
 
 /// HTTP not found response generator
-pub(crate) fn not_found() -> Response<Body> {
+pub(crate) fn _not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())
@@ -89,7 +92,7 @@ pub async fn router(
     {
         route_to_hermes(req).await?
     } else {
-        return Ok(error_response("hostname not valid".to_owned()));
+        return Ok(error_response("Hostname not valid".to_owned()));
     };
 
     connection_manager
@@ -112,7 +115,7 @@ pub async fn router(
 /// Route single request to hermes backend
 async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
-        unbounded();
+        channel();
 
     let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
@@ -147,7 +150,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
 /// waiting receiver channel for HTTP response
 async fn compose_http_event(
     method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
-    http_event_queue: Receiver<HTTPEventMsg>,
+    receiver: Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<Body>> {
     let on_http_event = HTTPEvent {
         headers,
@@ -157,29 +160,14 @@ async fn compose_http_event(
         sender,
     };
 
-    // Send to all WASM, first to respond with Some(response) causes a response.
-    let mut event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
-
-    let event_completion_queue = event.make_waiter();
+    let event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
 
     crate::event::queue::send(event)?;
 
-    select! {
-        recv(http_event_queue) -> msg => match msg{
-            OkResp(http_event) => match http_event{
-                // Event has been sent to all WASM, first to respond with Some(response) causes a response.
-                HTTPEventMsg::HttpEventResponse(resp) => {
-
-                    sleep(Duration::from_millis(1));
-                    Ok(Response::new(serde_json::to_string(&resp)?.into()))
-                },
-                _ => Ok(error_response("HTTP event msg error".to_owned())),
-            },
-            Err(_) => Ok(not_found()),
+    match &receiver.recv()? {
+        HTTPEventMsg::HttpEventResponse(resp) => {
+            Ok(Response::new(serde_json::to_string(&resp)?.into()))
         },
-        recv(event_completion_queue) -> _msg =>{
-            // All WASM asscoiated with event have run, No response was yet sent, send 404.
-            Ok(error_response("404".to_owned()))
-        },
+        _ => Ok(error_response("HTTP event msg error".to_owned())),
     }
 }
