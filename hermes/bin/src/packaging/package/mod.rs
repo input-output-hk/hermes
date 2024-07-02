@@ -68,8 +68,7 @@ impl Package {
     pub(crate) fn remove_file(&self, mut path: PackagePath) -> anyhow::Result<()> {
         let file_name = path.pop_last_elem()?;
         let dir = get_dir_from_package(&path, &self.0).ok_or(DirNotFoundError(path.clone()))?;
-
-        if dir.group(file_name.as_str()).is_ok() {
+        if dir.dataset(file_name.as_str()).is_ok() {
             dir.unlink(file_name.as_str()).map_err(|_| {
                 anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
             })?;
