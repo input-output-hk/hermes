@@ -1,4 +1,4 @@
-//! Wasm module package.
+//! Hermes WASM module package.
 
 mod config;
 pub(crate) mod manifest;
@@ -10,11 +10,11 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
+use manifest::Manifest;
 use metadata::Metadata;
 use settings::SettingsSchema;
 use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
-use self::manifest::Manifest;
 use crate::{
     errors::Errors,
     packaging::{
@@ -35,7 +35,7 @@ use crate::{
 #[error("Missing package file {0}.")]
 pub(crate) struct MissingPackageFileError(String);
 
-/// Wasm module package.
+/// Hermes WASM module package.
 pub(crate) struct WasmModulePackage(Package);
 
 impl WasmModulePackage {
