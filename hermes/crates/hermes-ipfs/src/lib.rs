@@ -1,6 +1,37 @@
 //! Hermes IPFS
 //!
 //! Provides support for storage, and `PubSub` functionality.
+//!
+//! ```no_run
+//! use hermes_ipfs::HermesIpfs;
+//!
+//! #[tokio::main]
+//! #[allow(clippy::println_empty_string)]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Start with default options
+//!     let node = HermesIpfs::start().await?;
+//!     node.stop().await;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ```no_run
+//! use hermes_ipfs::{HermesIpfs, IpfsBuilder};
+//!
+//! #[tokio::main]
+//! #[allow(clippy::println_empty_string)]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Start with default options
+//!     let node: HermesIpfs = IpfsBuilder::new()
+//!         .with_default()
+//!         .set_default_listener()
+//!         .start()
+//!         .await?
+//!         .into();
+//!     node.stop().await;
+//!     Ok(())
+//! }
+//! ```
 
 use std::str::FromStr;
 
@@ -8,6 +39,8 @@ use std::str::FromStr;
 pub use libipld::Ipld;
 /// IPFS Content Identifier.
 pub use libipld::{self as ipld, Cid};
+/// libp2p re-export.
+pub use rust_ipfs::libp2p;
 /// Peer Info type.
 pub use rust_ipfs::p2p::PeerInfo;
 /// Enum for specifying paths in IPFS.
@@ -20,13 +53,15 @@ pub use rust_ipfs::Ipfs;
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
+/// Stream for `PubSub` Topic Subscriptions.
+pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
 use rust_ipfs::{
     dag::ResolveError,
-    libp2p::{futures::stream::BoxStream, kad::Record},
+    libp2p::futures::{pin_mut, stream::BoxStream, StreamExt},
     unixfs::AddOpt,
-    MessageId, PubsubEvent, Quorum, SubscriptionStream,
+    MessageId, PubsubEvent, Quorum,
 };
 
 /// Hermes IPFS
@@ -160,8 +195,8 @@ impl HermesIpfs {
     /// ## Errors
     ///
     /// Returns error if peer info cannot be retrieved.
-    pub async fn identity(&self, peer_id: Option<PeerId>) -> anyhow::Result<PeerInfo> {
-        self.node.identity(peer_id).await
+    pub async fn identity(&self, peer_id: Option<PeerId>) -> anyhow::Result<PeerId> {
+        self.node.identity(peer_id).await.map(|p| p.peer_id)
     }
 
     /// Add peer to address book.
@@ -270,15 +305,19 @@ impl HermesIpfs {
     ///
     /// ## Returns
     ///
-    /// * `Result<BoxStream<'static, Record>>`
+    /// * `Result<Vec<u8>>`
     ///
     /// ## Errors
     ///
     /// Returns error if unable to get content from DHT
-    pub async fn dht_get(
-        &self, key: impl AsRef<[u8]>,
-    ) -> anyhow::Result<BoxStream<'static, Record>> {
-        self.node.dht_get(key).await
+    pub async fn dht_get(&self, key: impl AsRef<[u8]>) -> anyhow::Result<Vec<u8>> {
+        let record_stream = self.node.dht_get(key).await?;
+        pin_mut!(record_stream);
+        let record = record_stream
+            .next()
+            .await
+            .ok_or(anyhow::anyhow!("No record found"))?;
+        Ok(record.value)
     }
 
     /// Add address to bootstrap nodes.
@@ -349,6 +388,23 @@ impl HermesIpfs {
         self.node.pubsub_subscribe(topic).await
     }
 
+    /// Unsubscribes from a pubsub topic.
+    ///
+    /// ## Parameters
+    ///
+    /// * `topic` - `impl Into<String>`
+    ///
+    /// ## Returns
+    ///
+    /// * `bool`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to unsubscribe from pubsub topic.
+    pub async fn pubsub_unsubscribe(&self, topic: impl Into<String>) -> anyhow::Result<bool> {
+        self.node.pubsub_unsubscribe(topic).await
+    }
+
     /// Publishes a message to a pubsub topic.
     ///
     /// ## Parameters
@@ -367,6 +423,23 @@ impl HermesIpfs {
         &self, topic: impl Into<String>, message: Vec<u8>,
     ) -> anyhow::Result<MessageId> {
         self.node.pubsub_publish(topic, message).await
+    }
+
+    /// Ban peer from node.
+    ///
+    /// ## Parameters
+    ///
+    /// * `peer` - `PeerId`
+    ///
+    /// ## Returns
+    ///
+    /// * `Result<()>`
+    ///
+    /// ## Errors
+    ///
+    /// Returns error if unable to ban peer.
+    pub async fn ban_peer(&self, peer: PeerId) -> anyhow::Result<()> {
+        self.node.ban_peer(peer).await
     }
 }
 

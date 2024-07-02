@@ -1,14 +1,11 @@
 //! Hermes IPFS runtime extension event handler implementation.
 use crate::{
-    event::HermesEventPayload,
-    runtime_extensions::bindings::hermes::ipfs::api::{PubsubMessage, PubsubTopic},
+    event::HermesEventPayload, runtime_extensions::bindings::hermes::ipfs::api::PubsubMessage,
 };
 
 /// Event handler for the `on-topic` event.
 #[allow(dead_code)]
 pub(crate) struct OnTopicEvent {
-    ///  Topic
-    pub(crate) topic: PubsubTopic,
     ///  Message
     pub(crate) message: PubsubMessage,
 }

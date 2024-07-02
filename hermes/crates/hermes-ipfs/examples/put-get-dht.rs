@@ -2,7 +2,6 @@
 #![allow(clippy::println_empty_string)]
 
 use hermes_ipfs::HermesIpfs;
-use rust_ipfs::libp2p::futures::{pin_mut, StreamExt};
 
 #[allow(clippy::indexing_slicing)]
 /// Connect Node A, upload file and provide CID by adding to DHT
@@ -10,8 +9,7 @@ async fn start_bootstrapped_nodes() -> anyhow::Result<(HermesIpfs, HermesIpfs)> 
     let hermes_a = HermesIpfs::start().await?;
     println!("***************************************");
     println!("* Hermes IPFS node A has started.");
-    let peer_info = hermes_a.identity(None).await?;
-    let peer_id_a = peer_info.peer_id;
+    let peer_id_a = hermes_a.identity(None).await?;
     println!("    Peer ID: {peer_id_a}");
     let addresses = hermes_a.listening_addresses().await?;
     let a_address = addresses[0].clone();
@@ -20,8 +18,7 @@ async fn start_bootstrapped_nodes() -> anyhow::Result<(HermesIpfs, HermesIpfs)> 
     println!("***************************************");
     println!("* Hermes IPFS node B has started.");
     let hermes_b = HermesIpfs::start().await?;
-    let peer_info = hermes_b.identity(None).await?;
-    let peer_id_b = peer_info.peer_id;
+    let peer_id_b = hermes_b.identity(None).await?;
     println!("    Peer ID: {peer_id_b}");
     let addresses = hermes_b.listening_addresses().await?;
     let b_address = addresses[0].clone();
@@ -51,13 +48,8 @@ async fn main() -> anyhow::Result<()> {
     println!("* Hermes IPFS node A is publishing 'my_key' to DHT.");
     hermes_ipfs_a.dht_put(b"my_key", ipfs_file).await?;
     println!("* Hermes IPFS node B is getting 'my_key' from DHT.");
-    let records = hermes_ipfs_b.dht_get(b"my_key").await?;
-    pin_mut!(records);
-    let data_retrieved = records
-        .next()
-        .await
-        .ok_or_else(|| anyhow::anyhow!("Unable to fetch content from DHT"))?;
-    let data = String::from_utf8(data_retrieved.value)?;
+    let data_retrieved = hermes_ipfs_b.dht_get(b"my_key").await?;
+    let data = String::from_utf8(data_retrieved)?;
     println!("  Got data: {data:?}");
     // Stop the nodes and exit.
     hermes_ipfs_a.stop().await;
