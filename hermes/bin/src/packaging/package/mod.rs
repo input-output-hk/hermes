@@ -16,17 +16,10 @@ use crate::{
     },
 };
 
-/// Directory not found error.
-#[derive(thiserror::Error, Debug)]
-#[error("Failed to find directory at {0}.")]
-pub(crate) struct DirNotFoundError(PackagePath);
-
 /// Hermes package object.
 /// Wrapper over HDF5 file object.
-#[allow(dead_code)]
 pub(crate) struct Package(hdf5::File);
 
-#[allow(dead_code)]
 impl Package {
     /// Create new `Package` instance from path.
     pub(crate) fn create<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
@@ -67,7 +60,7 @@ impl Package {
     /// Remove file from `Package`.
     pub(crate) fn remove_file(&self, mut path: PackagePath) -> anyhow::Result<()> {
         let file_name = path.pop_last_elem()?;
-        let dir = get_dir_from_package(&path, &self.0).ok_or(DirNotFoundError(path.clone()))?;
+        let dir = get_dir_from_package(&path, &self.0)?;
         if dir.dataset(file_name.as_str()).is_ok() {
             dir.unlink(file_name.as_str()).map_err(|_| {
                 anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
@@ -82,7 +75,7 @@ impl Package {
     #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: PackagePath) -> anyhow::Result<()> {
         let dir_name = path.pop_last_elem()?;
-        let dir = get_dir_from_package(&path, &self.0).ok_or(DirNotFoundError(path.clone()))?;
+        let dir = get_dir_from_package(&path, &self.0)?;
 
         if dir.group(dir_name.as_str()).is_ok() {
             dir.unlink(dir_name.as_str()).map_err(|_| {
@@ -131,14 +124,16 @@ fn create_dir_to_package(path: &PackagePath, root: &hdf5::Group) -> anyhow::Resu
 }
 
 /// Get package dir from path related to the root dir.
-/// Return None if some dir does not exist.
+/// Return error if some dir does not exist.
 /// If path is empty it will return root dir.
-fn get_dir_from_package(path: &PackagePath, root: &hdf5::Group) -> Option<hdf5::Group> {
+fn get_dir_from_package(path: &PackagePath, root: &hdf5::Group) -> anyhow::Result<hdf5::Group> {
     let mut dir = root.clone();
     for path_element in path.iter() {
-        dir = dir.group(path_element).ok()?;
+        dir = dir
+            .group(path_element)
+            .map_err(|_| anyhow::anyhow!("Dir {path} not found"))?;
     }
-    Some(dir)
+    Ok(dir)
 }
 
 /// Copy resource to hdf5 package to the provided path related to the root dir.
@@ -190,9 +185,7 @@ fn get_package_file_reader(
     mut path: PackagePath, root: &hdf5::Group,
 ) -> anyhow::Result<Option<impl Read>> {
     let file_name = path.pop_last_elem()?;
-    let Some(dir) = get_dir_from_package(&path, root) else {
-        return Err(DirNotFoundError(path.clone()).into());
-    };
+    let dir = get_dir_from_package(&path, root)?;
 
     let reader = dir
         .dataset(file_name.as_str())
@@ -237,7 +230,7 @@ fn calculate_package_file_hash(
 fn calculate_package_dir_hash(
     path: &PackagePath, root: &hdf5::Group, hasher: &mut Blake2b256Hasher,
 ) -> anyhow::Result<bool> {
-    if let Some(dir) = get_dir_from_package(path, root) {
+    if let Ok(dir) = get_dir_from_package(path, root) {
         // order all package directory content by names
         // to have consistent hash result not depending on the order.
         let content_names: BTreeSet<_> = dir.member_names()?.into_iter().collect();
@@ -273,10 +266,10 @@ mod tests {
         let path = PackagePath::new("dir_1/dir_2/dir_3/dir_4");
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
 
-        assert!(get_dir_from_package(&PackagePath::new("dir_1"), &package).is_some());
-        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2"), &package).is_some());
-        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2/dir_3"), &package).is_some());
-        assert!(get_dir_from_package(&path, &package).is_some());
+        assert!(get_dir_from_package(&PackagePath::new("dir_1"), &package).is_ok());
+        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2"), &package).is_ok());
+        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2/dir_3"), &package).is_ok());
+        assert!(get_dir_from_package(&path, &package).is_err());
 
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
     }
