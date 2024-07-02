@@ -168,14 +168,13 @@ pub(crate) fn event_dispatch(
     // Advise Runtime Extensions of a new context
     new_context(&runtime_context);
 
-    // WE KNOW MODULE EXECUTES EVENT HERE
     if let Err(err) = module.execute_event(event, runtime_context) {
         tracing::error!("Error executing event, err: {err}");
     }
 }
 
 /// Executes provided Hermes event filtering by target app and target module.
-fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
+fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
     let execution_contexts =
         get_execution_context(event.target_app(), event.target_module(), indexed_apps);
 
@@ -188,6 +187,6 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
 /// Executes Hermes events from the provided receiver .
 fn event_execution_loop(indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>) {
     for event in receiver {
-        targeted_event_execution(indexed_apps, event);
+        targeted_event_execution(indexed_apps, &event);
     }
 }
