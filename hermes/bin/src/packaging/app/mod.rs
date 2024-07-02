@@ -15,13 +15,10 @@ pub(crate) struct ApplicationPackage(#[allow(dead_code)] Package);
 impl ApplicationPackage {
     /// Hermes application package file extension.
     const FILE_EXTENSION: &'static str = "happ";
-    /// Application package share directory.
-    const SHARE_DIR: &'static str = "share";
-    /// Application package srv directory.
-    #[allow(dead_code)]
-    const SRV_DIR: &'static str = "srv";
-    /// Application package www directory.
-    const WWW_DIR: &'static str = "www";
+    /// Application package share directory path.
+    const SHARE_DIR: &'static str = "srv/share";
+    /// Application package www directory path.
+    const WWW_DIR: &'static str = "srv/www";
 
     /// Create a new Hermes application package package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<Path>>(
@@ -55,7 +52,7 @@ impl ApplicationPackage {
 /// Write www dir to the package.
 fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir, ApplicationPackage::WWW_DIR)?;
+        package.copy_dir_recursively(share_dir, &ApplicationPackage::WWW_DIR.into())?;
     }
     Ok(())
 }
@@ -63,7 +60,7 @@ fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
 /// Write share dir to the package.
 fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir, ApplicationPackage::SHARE_DIR)?;
+        package.copy_dir_recursively(share_dir, &ApplicationPackage::SHARE_DIR.into())?;
     }
     Ok(())
 }
