@@ -47,7 +47,7 @@ pub(crate) fn error_response(err: String) -> Response<Body> {
 }
 
 /// HTTP not found response generator
-pub(crate) fn _not_found() -> Response<Body> {
+pub(crate) fn not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())
@@ -148,7 +148,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             )
             .await
         },
-        _ => todo!(),
+        _ => Ok(not_found()),
     }
 }
 
