@@ -77,16 +77,16 @@ impl Manifest {
             .ok_or_else(|| FileError::from_path(path, None))?;
         manifest.metadata.make_relative_to(dir_path);
         manifest.component.make_relative_to(dir_path);
-        if let Some(config) = &mut manifest.config {
-            if let Some(config_file) = &mut config.file {
+        if let Some(config) = manifest.config.as_mut() {
+            if let Some(config_file) = config.file.as_mut() {
                 config_file.make_relative_to(dir_path);
             }
             config.schema.make_relative_to(dir_path);
         }
-        if let Some(settings) = &mut manifest.settings {
+        if let Some(settings) = manifest.settings.as_mut() {
             settings.schema.make_relative_to(dir_path);
         }
-        if let Some(share) = &mut manifest.share {
+        if let Some(share) = manifest.share.as_mut() {
             share.make_relative_to(dir_path);
         }
 
@@ -94,6 +94,7 @@ impl Manifest {
     }
 }
 
+#[allow(missing_docs, clippy::missing_docs_in_private_items)]
 mod serde_def {
     //! Serde definition of the manifest objects.
 
@@ -101,39 +102,27 @@ mod serde_def {
 
     use crate::packaging::resources::Resource;
 
-    /// Serde definition of the `Manifest` object.
     #[derive(Deserialize)]
     pub(crate) struct ManifestSerde {
-        /// Package name.
         #[serde(default = "super::Manifest::default_package_name")]
         name: String,
-        /// Path to the metadata JSON file.
         #[serde(default = "super::Manifest::default_metadata_path")]
         metadata: Resource,
-        /// Path to the  WASM component file.
         #[serde(default = "super::Manifest::default_component_path")]
         component: Resource,
-        /// WASM module config.
         config: Option<ConfigSerde>,
-        /// WASM module settings.
         settings: Option<SettingsSerde>,
-        /// Path to the share directory.
         share: Option<Resource>,
     }
 
-    /// Serde definition of the `Config` object.
     #[derive(Deserialize)]
-    pub(crate) struct ConfigSerde {
-        /// Path to the config JSON file.
+    struct ConfigSerde {
         file: Option<Resource>,
-        /// Path to the config schema JSON file.
         schema: Resource,
     }
 
-    /// Serde definition of the `Settings` object.
     #[derive(Deserialize)]
-    pub(crate) struct SettingsSerde {
-        /// Path to the settings schema JSON file.
+    struct SettingsSerde {
         schema: Resource,
     }
 
@@ -173,6 +162,7 @@ mod tests {
             let path = dir_path.join("manifest.json");
             let manifest_json_data = serde_json::json!({
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+                    "name": "module_name",
                     "metadata": "metadata.json",
                     "component": "module.wasm",
                     "config": {
@@ -187,7 +177,7 @@ mod tests {
             std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
-                name: "module".to_string(),
+                name: "module_name".to_string(),
                 metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
                 component: Resource::Fs(FsResource::new(dir_path.join("module.wasm"))),
                 config: ManifestConfig {
