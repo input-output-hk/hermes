@@ -37,6 +37,7 @@ impl<T> Debug for Metadata<T> {
 
 /// Traits defines a specific metadata schema specified for some type.
 pub(crate) trait MetadataSchema {
+    /// Metadata schema JSON string definition.
     const METADATA_SCHEMA: &'static str;
 }
 
