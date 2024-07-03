@@ -16,13 +16,13 @@
         "name": {
             "type": "string",
             "title": "Hermes WASM Module Package name.",
-            "description": "Name of the Hermes WASM Module Package with which it will be created.",
+            "description": "Name of the Hermes WASM module package with which it will be created.",
             "default": "module"
         },
         "metadata": {
             "type": "string",
             "title": "Hermes WASM Module Metadata File",
-            "description": "Link to the Hermes Module Metadata json file.\nWill be renamed to `metadata.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
+            "description": "Link to the Hermes WASM module metadata JSON file.\nWill be renamed to `metadata.json` inside the module.\nIt Could be a valid URI or regular local path on your system.",
             "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
             "default": "metadata.json"
         },
