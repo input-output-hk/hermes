@@ -11,6 +11,7 @@ pub(crate) mod hash;
 pub(crate) mod http_gateway;
 pub(crate) mod init;
 pub mod integration_test;
+pub(crate) mod ipfs;
 pub(crate) mod json;
 pub(crate) mod kv_store;
 pub(crate) mod localtime;
@@ -26,6 +27,7 @@ pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
     crypto::new_context(ctx);
     hash::new_context(ctx);
     init::new_context(ctx);
+    ipfs::new_context(ctx);
     json::new_context(ctx);
     kv_store::new_context(ctx);
     localtime::new_context(ctx);

@@ -10,6 +10,7 @@ use hermes::{
             api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
         },
         cron::api::CronTagged,
+        ipfs::api::PubsubMessage,
         kv_store::api::KvValues,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
@@ -86,6 +87,12 @@ impl hermes::exports::hermes::cron::event::Guest for TestComponent {
 impl hermes::exports::hermes::init::event::Guest for TestComponent {
     fn init() -> bool {
         true
+    }
+}
+
+impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
+    fn on_topic(message: PubsubMessage) -> bool {
+        false
     }
 }
 
