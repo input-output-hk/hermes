@@ -24,15 +24,10 @@ use crate::{
             keys::PrivateKey,
             signature::{Signature, SignaturePayloadEncoding},
         },
-        FileError,
+        FileError, MissingPackageFileError,
     },
     wasm,
 };
-
-/// Missing package file error.
-#[derive(thiserror::Error, Debug)]
-#[error("Missing package file {0}.")]
-pub(crate) struct MissingPackageFileError(String);
 
 /// Hermes WASM module package.
 pub(crate) struct WasmModulePackage(Package);

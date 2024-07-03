@@ -13,7 +13,7 @@ use crate::{
         metadata::{Metadata, MetadataSchema},
         package::Package,
         resources::{bytes_resource::BytesResource, ResourceTrait},
-        FileError,
+        FileError, MissingPackageFileError,
     },
 };
 
@@ -64,6 +64,25 @@ impl ApplicationPackage {
         let package = Package::open(path)?;
         Ok(Self(package))
     }
+
+    /// Validate package with its signature and other contents.
+    #[allow(dead_code)]
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let mut errors = Errors::new();
+
+        self.get_metadata()
+            .map_or_else(errors.get_add_err_fn(), |_| ());
+
+        errors.return_result(())
+    }
+
+    /// Get `Metadata` object from package.
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
+        self.0
+            .get_file_reader(Self::METADATA_FILE.into())?
+            .map(Metadata::<Self>::from_reader)
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
+    }
 }
 
 /// Validate metadata.json file and write it to the package.
@@ -101,4 +120,76 @@ fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()>
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use temp_dir::TempDir;
+
+    use super::*;
+    use crate::packaging::resources::{fs_resource::FsResource, Resource};
+
+    fn prepare_default_package_files() -> Metadata<ApplicationPackage> {
+        let metadata = Metadata::<ApplicationPackage>::from_reader(
+            serde_json::json!(
+                {
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+                    "name": "Test app",
+                    "icon": "test_icon.svg",
+                    "version": "V1.0.0",
+                    "description": "Some description",
+                    "src": ["https://github.com/input-output-hk/hermes"],
+                    "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+                    "license": [{"spdx": "MIT"}]
+                }
+            ).to_string().as_bytes(),
+        ).expect("Invalid metadata");
+
+        metadata
+    }
+
+    fn prepare_package_dir(
+        app_name: String, dir: &TempDir, metadata: &Metadata<ApplicationPackage>,
+    ) -> Manifest {
+        let metadata_path = dir.path().join("metadata.json");
+
+        std::fs::write(
+            &metadata_path,
+            metadata
+                .to_bytes()
+                .expect("cannot decode metadata to bytes")
+                .as_slice(),
+        )
+        .expect("Cannot create metadata.json file");
+
+        Manifest {
+            name: app_name,
+            metadata: Resource::Fs(FsResource::new(metadata_path)),
+            modules: vec![],
+            www: None,
+            share: None,
+        }
+    }
+
+    #[test]
+    fn from_dir_test() {
+        let dir = TempDir::new().expect("cannot create temp dir");
+
+        let mut metadata = prepare_default_package_files();
+
+        let manifest = prepare_package_dir("app".to_string(), &dir, &metadata);
+
+        let build_time = DateTime::default();
+        let package =
+            ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+                .expect("Cannot create module package");
+
+        assert!(package.validate().is_ok());
+
+        // check metadata JSON file
+        metadata.set_name(&manifest.name);
+        metadata.set_build_date(build_time);
+
+        let package_metadata = package
+            .get_metadata()
+            .expect("Cannot get metadata from package");
+        assert_eq!(metadata, package_metadata);
+    }
+}

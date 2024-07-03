@@ -40,7 +40,7 @@
                         "type": "string",
                         "title": "Application WASM Module Package File",
                         "description": "Path to the WASM Component Library Module Package File.",
-                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+\\.hmod$"
+                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+[.]hmod$"
                     },
                     "name": {
                         "type": "string",
