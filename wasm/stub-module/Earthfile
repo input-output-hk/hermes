@@ -17,7 +17,7 @@ build:
 
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="stub.wasm"
 
-    SAVE ARTIFACT AS LOCAL stub.wasm
+    SAVE ARTIFACT stub.wasm
 
 # Build and locally save an output artifact
 save-local:
