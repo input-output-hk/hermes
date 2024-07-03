@@ -1,5 +1,6 @@
 //! CLI interpreter for the service
 
+mod app;
 mod build_info;
 mod module;
 mod run;
@@ -36,6 +37,9 @@ enum Commands {
     /// module commands
     #[command(subcommand)]
     Module(module::Commands),
+    /// app commands
+    #[command(subcommand)]
+    App(app::Commands),
 }
 
 impl Cli {
@@ -61,6 +65,7 @@ impl Cli {
         match self.command {
             None => run::Run::exec(),
             Some(Commands::Module(cmd)) => cmd.exec(),
+            Some(Commands::App(cmd)) => cmd.exec(),
         }
         .unwrap_or_else(|err| {
             match err.downcast::<Errors>() {
