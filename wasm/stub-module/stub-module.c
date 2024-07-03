@@ -26,8 +26,8 @@ bool exports_hermes_cron_event_on_cron(exports_hermes_cron_event_cron_tagged_t *
 }
 
 // Exported Functions from `hermes:http-gateway/event`
-bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_body_t body,exports_hermes_http_gateway_event_headers_t headers,exports_hermes_http_gateway_event_path_t path,
-exports_hermes_http_gateway_event_method_t method) {
+bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t body,exports_hermes_http_gateway_event_headers_t headers,exports_hermes_http_gateway_event_bstr_t path,
+exports_hermes_http_gateway_event_bstr_t method) {
   return false;
 }
 
