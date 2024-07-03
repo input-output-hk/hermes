@@ -26,9 +26,9 @@ pub(crate) struct Hostname(pub String);
 /// Config for gateway setup
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
-    /// Valid hostnames
+    /// Valid host names
     pub(crate) valid_hosts: Vec<Hostname>,
-    /// Local addr for boostrap
+    /// Local address for boot strap
     pub(crate) local_addr: SocketAddr,
 }
 
