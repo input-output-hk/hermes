@@ -84,12 +84,6 @@ fn validate_and_write_metadata(
     Ok(())
 }
 
-// fn validate_and_write_modules(
-//     manifest_module: &ManifestModule, package: &Package,
-// ) -> anyhow::Result<()> {
-//     let module_package_reader = manifest_module.file.get_reader()?;
-// }
-
 /// Write www dir to the package.
 fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
