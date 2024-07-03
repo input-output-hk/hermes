@@ -25,11 +25,9 @@ bool exports_hermes_cron_event_on_cron(exports_hermes_cron_event_cron_tagged_t *
   return false;
 }
 
+
 // Exported Functions from `hermes:http-gateway/event`
-exports_hermes_http_gateway_event_http_response_t exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t body,exports_hermes_http_gateway_event_headers_t headers,exports_hermes_http_gateway_event_bstr_t path,
-exports_hermes_http_gateway_event_bstr_t method) {
- 
-}
+exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_response_t *ret)
 
 // Exported Functions from `hermes:init/event`
 bool exports_hermes_init_event_init(void) {
