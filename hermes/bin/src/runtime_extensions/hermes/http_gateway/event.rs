@@ -23,17 +23,26 @@ type Method = String;
 type Body = Vec<u8>;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Msg type for MPSC
 pub(crate) enum HTTPEventMsg {
+    /// Receiver
     HTTPEventReceiver,
+    /// Event response
     HttpEventResponse((Code, HeadersKV, Body)),
 }
 
 /// HTTP Event
 pub(crate) struct HTTPEvent {
+    /// HTTP Headers
     pub(crate) headers: HeadersKV,
+    /// HTTP Method
     pub(crate) method: Method,
+    /// HTTP Path
     pub(crate) path: Path,
+    /// HTTP Body
     pub(crate) body: Bytes,
+    /// Waits for wasm modules to complete and sends the response back to the waiting
+    /// receiver.
     pub(crate) sender: Sender<HTTPEventMsg>,
 }
 

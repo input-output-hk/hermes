@@ -26,7 +26,9 @@ pub(crate) struct Hostname(pub String);
 /// Config for gateway setup
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
+    /// Valid hostnames
     pub(crate) valid_hosts: Vec<Hostname>,
+    /// Local addr for boostrap
     pub(crate) local_addr: SocketAddr,
 }
 
@@ -67,6 +69,7 @@ pub(crate) struct LiveConnection(pub bool);
 /// Manages and tracks client connections
 #[derive(Debug)]
 pub(crate) struct ConnectionManager {
+    /// Connection metadata
     connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
 }
 
@@ -122,9 +125,16 @@ fn executor() {
             }
         });
 
-        Server::bind(&config.local_addr)
+        match Server::bind(&config.local_addr)
             .serve(gateway_service)
             .await
-            .expect("Failing to start HTTP gateway server is not recoverable");
+        {
+            Ok(()) => (),
+            Err(err) => {
+                error!("Failing to start HTTP gateway server: {:?}", err);
+                error!("Retrying!");
+                executor();
+            },
+        }
     });
 }

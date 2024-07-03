@@ -5,10 +5,12 @@ use rusty_ulid::Ulid;
 
 mod event;
 mod gateway_task;
+/// Gateway routing logic
 mod routing;
 
 /// State.
 pub(crate) struct State {
+    /// UID for wasm instance
     pub instance: Ulid,
 }
 

@@ -39,19 +39,17 @@ pub(crate) struct AppName(pub String);
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
-pub(crate) fn error_response(err: String) -> Response<Body> {
-    Response::builder()
+pub(crate) fn error_response(err: String) -> anyhow::Result<Response<Body>> {
+    Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(err.into())
-        .expect("Infallible")
+        .body(err.into())?)
 }
 
 /// HTTP not found response generator
-pub(crate) fn not_found() -> Response<Body> {
-    Response::builder()
+pub(crate) fn not_found() -> anyhow::Result<Response<Body>> {
+    Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body("Not Found".into())
-        .expect("Infallible")
+        .body("Not Found".into())?)
 }
 
 /// Extractor that resolves the hostname of the request.
@@ -98,7 +96,7 @@ pub async fn router(
     {
         route_to_hermes(req).await?
     } else {
-        return Ok(error_response("Hostname not valid".to_owned()));
+        return Ok(error_response("Hostname not valid".to_owned())?);
     };
 
     connection_manager
@@ -144,19 +142,18 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
                 req.collect().await?.to_bytes(), // body
                 path,
                 lambda_send,
-                lambda_recv_answer,
+                &lambda_recv_answer,
             )
-            .await
         },
-        _ => Ok(not_found()),
+        _ => Ok(not_found()?),
     }
 }
 
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
-async fn compose_http_event(
+fn compose_http_event(
     method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
-    receiver: Receiver<HTTPEventMsg>,
+    receiver: &Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<Body>> {
     let on_http_event = HTTPEvent {
         headers,
@@ -174,6 +171,6 @@ async fn compose_http_event(
         HTTPEventMsg::HttpEventResponse(resp) => {
             Ok(Response::new(serde_json::to_string(&resp)?.into()))
         },
-        _ => Ok(error_response("HTTP event msg error".to_owned())),
+        HTTPEventMsg::HTTPEventReceiver => Ok(error_response("HTTP event msg error".to_owned())?),
     }
 }
