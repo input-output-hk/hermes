@@ -269,7 +269,8 @@ mod tests {
         assert!(get_dir_from_package(&PackagePath::new("dir_1"), &package).is_ok());
         assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2"), &package).is_ok());
         assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2/dir_3"), &package).is_ok());
-        assert!(get_dir_from_package(&path, &package).is_err());
+        assert!(get_dir_from_package(&path, &package).is_ok());
+        assert!(get_dir_from_package(&PackagePath::new("not_created_dir"), &package).is_err());
 
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
     }

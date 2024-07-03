@@ -2,7 +2,6 @@
 
 mod config;
 pub(crate) mod manifest;
-mod metadata;
 mod settings;
 mod signature_payload;
 
@@ -11,13 +10,13 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use manifest::Manifest;
-use metadata::Metadata;
 use settings::SettingsSchema;
 use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
 use crate::{
     errors::Errors,
     packaging::{
+        metadata::{Metadata, MetadataSchema},
         package::Package,
         resources::{bytes_resource::BytesResource, ResourceTrait},
         sign::{
@@ -37,6 +36,11 @@ pub(crate) struct MissingPackageFileError(String);
 
 /// Hermes WASM module package.
 pub(crate) struct WasmModulePackage(Package);
+
+impl MetadataSchema for WasmModulePackage {
+    const METADATA_SCHEMA: &'static str =
+        include_str!("../../../../schemas/hermes_module_metadata.schema.json");
+}
 
 impl WasmModulePackage {
     /// WASM module package signature file path.
@@ -177,10 +181,10 @@ impl WasmModulePackage {
     }
 
     /// Get `Metadata` object from package.
-    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata> {
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         self.0
             .get_file_reader(Self::METADATA_FILE.into())?
-            .map(Metadata::from_reader)
+            .map(Metadata::<Self>::from_reader)
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
 
@@ -242,7 +246,7 @@ fn validate_and_write_metadata(
     let resource = &manifest.metadata;
     let metadata_reader = resource.get_reader()?;
 
-    let mut metadata = Metadata::from_reader(metadata_reader)
+    let mut metadata = Metadata::<WasmModulePackage>::from_reader(metadata_reader)
         .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
     metadata.set_build_date(build_date);
     metadata.set_name(name);
@@ -322,9 +326,14 @@ mod tests {
         },
     };
 
-    fn prepare_default_package_files() -> (Metadata, Vec<u8>, Config, ConfigSchema, SettingsSchema)
-    {
-        let metadata = Metadata::from_reader(
+    fn prepare_default_package_files() -> (
+        Metadata<WasmModulePackage>,
+        Vec<u8>,
+        Config,
+        ConfigSchema,
+        SettingsSchema,
+    ) {
+        let metadata = Metadata::<WasmModulePackage>::from_reader(
             serde_json::json!(
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
@@ -335,7 +344,7 @@ mod tests {
                     "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
                     "license": [{"spdx": "MIT"}]
                 }
-            ).to_string().as_bytes()
+            ).to_string().as_bytes(),
         ).expect("Invalid metadata");
         let config_schema = ConfigSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
             .expect("Invalid config schema");
@@ -372,8 +381,9 @@ mod tests {
     }
 
     fn prepare_package_dir(
-        module_name: String, dir: &TempDir, metadata: &Metadata, component: &[u8], config: &Config,
-        config_schema: &ConfigSchema, settings_schema: &SettingsSchema,
+        module_name: String, dir: &TempDir, metadata: &Metadata<WasmModulePackage>,
+        component: &[u8], config: &Config, config_schema: &ConfigSchema,
+        settings_schema: &SettingsSchema,
     ) -> Manifest {
         let config_path = dir.path().join("config.json");
         let config_schema_path = dir.path().join("config.schema.json");
