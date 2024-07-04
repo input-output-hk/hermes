@@ -19,8 +19,8 @@ use super::routing::router;
 /// HTTP Gateway port
 const GATEWAY_PORT: u16 = 5000;
 
-#[derive(Debug, Clone)]
 /// hostname (node name)
+#[derive(Debug, Clone)]
 pub(crate) struct Hostname(pub String);
 
 /// Config for gateway setup

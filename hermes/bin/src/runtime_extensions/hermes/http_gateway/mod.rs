@@ -11,7 +11,7 @@ mod routing;
 /// State.
 pub(crate) struct State {
     /// UID for wasm instance
-    pub instance: Ulid,
+    pub(crate) instance: Ulid,
 }
 
 ///  State.

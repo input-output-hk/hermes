@@ -22,8 +22,8 @@ type Method = String;
 /// Req body
 type Body = Vec<u8>;
 
-#[derive(Serialize, Deserialize, Debug)]
 /// Msg type for MPSC
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum HTTPEventMsg {
     /// Receiver
     HTTPEventReceiver,

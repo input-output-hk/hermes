@@ -30,12 +30,12 @@ const HERMES_ROUTE: &str = "/api";
 /// or if it waits more than timeout of arbitrary 1 second
 const EVENT_TIMEOUT: u64 = 1;
 
-#[derive(Debug)]
 /// Application name
+#[derive(Debug)]
 pub(crate) struct AppName(pub String);
 
-#[derive(Debug)]
 /// hostname (node name)
+#[derive(Debug)]
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
@@ -71,7 +71,7 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hos
 
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
-pub async fn router(
+pub(crate) async fn router(
     req: Request<Body>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr, config: Config,
 ) -> anyhow::Result<Response<Body>> {
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
