@@ -1,22 +1,28 @@
 //! Hermes IPFS Internal State
 
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use dashmap::{DashMap, DashSet};
 use hermes_ipfs::{
+    libp2p::futures::{pin_mut, StreamExt},
     AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    SubscriptionStream,
 };
 use once_cell::sync::Lazy;
 use tokio::{
     runtime::Builder,
     sync::{mpsc, oneshot},
+    task::JoinHandle,
 };
 
 use crate::{
     app::HermesAppName,
-    runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsContent, IpfsPath, PeerId, PubsubTopic,
+    event::{queue::send, HermesEvent},
+    runtime_extensions::{
+        bindings::hermes::ipfs::api::{
+            DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, PeerId, PubsubMessage,
+            PubsubTopic,
+        },
+        hermes::ipfs::event::OnTopicEvent,
     },
 };
 
@@ -55,7 +61,7 @@ impl HermesIpfsState {
     }
 
     /// Add file
-    fn file_add(&self, contents: IpfsContent) -> Result<IpfsPath, Errno> {
+    fn file_add(&self, contents: IpfsFile) -> Result<IpfsPath, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
@@ -71,7 +77,7 @@ impl HermesIpfsState {
 
     #[allow(clippy::needless_pass_by_value)]
     /// Get file
-    fn file_get(&self, ipfs_path: IpfsPath) -> Result<IpfsContent, Errno> {
+    fn file_get(&self, ipfs_path: IpfsPath) -> Result<IpfsFile, Errno> {
         let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
@@ -99,13 +105,13 @@ impl HermesIpfsState {
     }
 
     /// Put DHT Key-Value
-    fn dht_put(&self, key: DhtKey, contents: IpfsContent) -> Result<bool, Errno> {
+    fn dht_put(&self, key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
             .as_ref()
             .ok_or(Errno::DhtPutError)?
-            .blocking_send(IpfsCommand::PutDhtValue(key, contents, cmd_tx))
+            .blocking_send(IpfsCommand::PutDhtValue(key, value, cmd_tx))
             .map_err(|_| Errno::DhtPutError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::DhtPutError)?
     }
@@ -124,7 +130,7 @@ impl HermesIpfsState {
 
     #[allow(clippy::needless_pass_by_value)]
     /// Subscribe to a `PubSub` topic
-    fn pubsub_subscribe(&self, topic: PubsubTopic) -> Result<SubscriptionStream, Errno> {
+    fn pubsub_subscribe(&self, topic: PubsubTopic) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
@@ -157,8 +163,18 @@ impl HermesIpfsState {
 struct AppIpfsState {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
-    /// List of uploaded files for each app.
-    files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+    /// List of uploaded files per app.
+    published_files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+    /// List of pinned files per app.
+    pinned_files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+    /// List of DHT values per app.
+    dht_keys: DashMap<HermesAppName, DashSet<DhtKey>>,
+    /// List of subscriptions per app.
+    topic_subscriptions: DashMap<PubsubTopic, HashSet<HermesAppName>>,
+    /// Collection of stream join handles per topic subscription.
+    subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
+    /// List of evicted peers per app.
+    evicted_peers: DashMap<HermesAppName, DashSet<PeerId>>,
 }
 
 impl AppIpfsState {
@@ -166,22 +182,75 @@ impl AppIpfsState {
     fn new(sender: Option<mpsc::Sender<IpfsCommand>>) -> Self {
         Self {
             sender,
-            files: DashMap::default(),
+            published_files: DashMap::default(),
+            pinned_files: DashMap::default(),
+            dht_keys: DashMap::default(),
+            topic_subscriptions: DashMap::default(),
+            subscriptions_streams: DashMap::default(),
+            evicted_peers: DashMap::default(),
         }
     }
 
-    /// Add `ipfs_path` from file added by an app.
+    /// Keep track of `ipfs_path` from file added by an app.
     fn added_file(&self, app_name: HermesAppName, ipfs_path: IpfsPath) {
-        self.files
+        self.published_files
             .entry(app_name)
-            .and_modify(|paths| {
-                paths.insert(ipfs_path.clone());
-            })
-            .or_insert_with(|| {
-                let paths = DashSet::new();
-                paths.insert(ipfs_path);
-                paths
-            });
+            .or_default()
+            .value_mut()
+            .insert(ipfs_path);
+    }
+
+    /// Keep track of `ipfs_path` of file pinned by an app.
+    fn pinned_file(&self, app_name: HermesAppName, ipfs_path: IpfsPath) {
+        self.pinned_files
+            .entry(app_name)
+            .or_default()
+            .value_mut()
+            .insert(ipfs_path);
+    }
+
+    /// Keep track of `dht_key` of DHT value added by an app.
+    fn added_dht_key(&self, app_name: HermesAppName, dht_key: DhtKey) {
+        self.dht_keys
+            .entry(app_name)
+            .or_default()
+            .value_mut()
+            .insert(dht_key);
+    }
+
+    /// Keep track of `topic` subscription added by an app.
+    fn added_app_topic_subscription(&self, app_name: HermesAppName, topic: PubsubTopic) {
+        self.topic_subscriptions
+            .entry(topic)
+            .or_default()
+            .value_mut()
+            .insert(app_name);
+    }
+
+    /// Keep track of `topic` stream handle.
+    fn added_topic_stream(&self, topic: PubsubTopic, handle: JoinHandle<()>) {
+        self.subscriptions_streams.entry(topic).insert(handle);
+    }
+
+    /// Check if a topic subscription already exists.
+    fn topic_subscriptions_contains(&self, topic: &PubsubTopic) -> bool {
+        self.topic_subscriptions.contains_key(topic)
+    }
+
+    /// Returns a list of apps subscribed to a topic.
+    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<HermesAppName> {
+        self.topic_subscriptions
+            .get(topic)
+            .map_or(vec![], |apps| apps.value().iter().cloned().collect())
+    }
+
+    /// Add `peer_id` of evicted peer by an app.
+    fn evicted_peer(&self, app_name: HermesAppName, peer_id: PeerId) {
+        self.evicted_peers
+            .entry(app_name)
+            .or_default()
+            .value_mut()
+            .insert(peer_id);
     }
 }
 
@@ -198,12 +267,28 @@ enum IpfsCommand {
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
     /// Subscribe to a topic
-    Subscribe(
-        PubsubTopic,
-        oneshot::Sender<Result<SubscriptionStream, Errno>>,
-    ),
+    Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
     /// Evict Peer from node
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
+}
+
+/// A valid DHT Value.
+struct ValidDhtValue {}
+
+impl ValidDhtValue {
+    /// Checks for `DhtValue` validity.
+    fn is_valid(value: &DhtValue) -> bool {
+        !value.is_empty()
+    }
+}
+/// A valid `PubsubMessage`
+struct ValidPubsubMessage {}
+
+impl ValidPubsubMessage {
+    /// Checks for `PubsubMessage` validity.
+    fn is_valid(message: &PubsubMessage) -> bool {
+        !message.message.is_empty()
+    }
 }
 
 #[allow(dead_code)]
@@ -252,11 +337,32 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
                 }
             },
             IpfsCommand::Subscribe(topic, tx) => {
-                let status = hermes_node
+                let stream = hermes_node
                     .pubsub_subscribe(topic)
                     .await
-                    .map_err(|_| Errno::PubsubSubscribeError);
-                if let Err(_err) = tx.send(status) {
+                    .map_err(|_| Errno::PubsubSubscribeError)?;
+                let handle = tokio::spawn(async move {
+                    pin_mut!(stream);
+                    while let Some(msg) = stream.next().await {
+                        let msg_topic = msg.topic.into_string();
+                        let on_topic_event = OnTopicEvent {
+                            message: PubsubMessage {
+                                topic: msg_topic.clone(),
+                                message: String::from_utf8_lossy(&msg.data).to_string(),
+                                peer: msg.source.map(|p| p.to_string()),
+                            },
+                        };
+                        let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
+                        if let Err(err) = send(HermesEvent::new(
+                            on_topic_event.clone(),
+                            crate::event::TargetApp::List(app_names),
+                            crate::event::TargetModule::All,
+                        )) {
+                            tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+                        }
+                    }
+                });
+                if let Err(_err) = tx.send(Ok(handle)) {
                     tracing::error!("Failed to subscribe to topic");
                 }
             },
@@ -275,54 +381,109 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
 
 /// Add File to IPFS
 pub(crate) fn hermes_ipfs_add_file(
-    app_name: &HermesAppName, contents: IpfsContent,
+    app_name: &HermesAppName, contents: IpfsFile,
 ) -> Result<IpfsPath, Errno> {
+    tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs_path = HERMES_IPFS_STATE.file_add(contents)?;
+    tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
     HERMES_IPFS_STATE
         .apps
         .added_file(app_name.clone(), ipfs_path.clone());
     Ok(ipfs_path)
 }
 
+/// Validate IPFS Content from DHT or `PubSub`
+pub(crate) fn hermes_ipfs_content_validate(
+    app_name: &HermesAppName, content: &IpfsContent,
+) -> bool {
+    match content {
+        IpfsContent::Dht((key, v)) => {
+            // TODO(@saibatizoku): Implement types and validation
+            let key_str = format!("{key:x?}");
+            let is_valid = ValidDhtValue::is_valid(v);
+            tracing::debug!(app_name = %app_name, dht_key = %key_str, is_valid = %is_valid, "DHT value validation");
+            is_valid
+        },
+        IpfsContent::Pubsub(m) => {
+            // TODO(@saibatizoku): Implement types and validation
+            let is_valid = ValidPubsubMessage::is_valid(m);
+            tracing::debug!(app_name = %app_name, topic = %m.topic, is_valid = %is_valid, "PubSub message validation");
+            is_valid
+        },
+    }
+}
+
 /// Get File from Ipfs
 pub(crate) fn hermes_ipfs_get_file(
-    _app_name: &HermesAppName, path: IpfsPath,
-) -> Result<IpfsContent, Errno> {
-    HERMES_IPFS_STATE.file_get(path)
+    app_name: &HermesAppName, path: &IpfsPath,
+) -> Result<IpfsFile, Errno> {
+    tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
+    let content = HERMES_IPFS_STATE.file_get(path.to_string())?;
+    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file");
+    Ok(content)
 }
 
 /// Pin IPFS File
 pub(crate) fn hermes_ipfs_pin_file(
-    _app_name: &HermesAppName, path: IpfsPath,
+    app_name: &HermesAppName, path: IpfsPath,
 ) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.file_pin(path)
+    tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
+    let status = HERMES_IPFS_STATE.file_pin(path.clone())?;
+    tracing::debug!(app_name = %app_name, path = %path, "pinned IPFS file");
+    HERMES_IPFS_STATE.apps.pinned_file(app_name.clone(), path);
+    Ok(status)
 }
 
 /// Get DHT Value
 pub(crate) fn hermes_ipfs_get_dht_value(
-    _app_name: &HermesAppName, key: DhtKey,
+    app_name: &HermesAppName, key: DhtKey,
 ) -> Result<DhtValue, Errno> {
-    HERMES_IPFS_STATE.dht_get(key)
+    let key_str = format!("{key:x?}");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "get DHT value");
+    let value = HERMES_IPFS_STATE.dht_get(key)?;
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "got DHT value");
+    Ok(value)
 }
 
 /// Put DHT Value
 pub(crate) fn hermes_ipfs_put_dht_value(
-    _app_name: &HermesAppName, key: DhtKey, value: DhtValue,
+    app_name: &HermesAppName, key: DhtKey, value: DhtValue,
 ) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.dht_put(key, value)
+    let key_str = format!("{key:x?}");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "putting DHT value");
+    let status = HERMES_IPFS_STATE.dht_put(key.clone(), value)?;
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "have put DHT value");
+    HERMES_IPFS_STATE.apps.added_dht_key(app_name.clone(), key);
+    Ok(status)
 }
 
 /// Subscribe to a topic
 pub(crate) fn hermes_ipfs_subscribe(
-    _app_name: &HermesAppName, topic: PubsubTopic,
+    app_name: &HermesAppName, topic: PubsubTopic,
 ) -> Result<bool, Errno> {
-    let _stream = HERMES_IPFS_STATE.pubsub_subscribe(topic)?;
+    tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
+    if HERMES_IPFS_STATE.apps.topic_subscriptions_contains(&topic) {
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
+    } else {
+        let handle = HERMES_IPFS_STATE.pubsub_subscribe(topic.to_string())?;
+        HERMES_IPFS_STATE
+            .apps
+            .added_topic_stream(topic.clone(), handle);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
+    }
+    HERMES_IPFS_STATE
+        .apps
+        .added_app_topic_subscription(app_name.clone(), topic);
     Ok(true)
 }
 
 /// Evict Peer from node
 pub(crate) fn hermes_ipfs_evict_peer(
-    _app_name: &HermesAppName, peer: PeerId,
+    app_name: &HermesAppName, peer: PeerId,
 ) -> Result<bool, Errno> {
-    HERMES_IPFS_STATE.peer_evict(peer)
+    tracing::debug!(app_name = %app_name, peer_id = %peer, "evicting peer");
+    let status = HERMES_IPFS_STATE.peer_evict(peer.to_string())?;
+    tracing::debug!(app_name = %app_name, peer_id = %peer, "evicted peer");
+    HERMES_IPFS_STATE.apps.evicted_peer(app_name.clone(), peer);
+    Ok(status)
 }
