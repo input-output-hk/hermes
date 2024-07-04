@@ -18,6 +18,7 @@ world hermes {
   include hermes:crypto/all;
   include hermes:hash/all;
   include hermes:init/all;
+  include hermes:ipfs/all;
   include hermes:json/all;
   include hermes:kv-store/all;
   include hermes:localtime/all;
