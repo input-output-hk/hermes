@@ -4,8 +4,15 @@ interface api {
     type dht-key = list<u8>;
     /// A DHT value.
     type dht-value = list<u8>;
+    /// IPFS Content.
+    /// This is content that can be validated.
+    variant ipfs-content {
+        /// DHT value
+        dht(tuple<dht-key,dht-value>),
+        pubsub(pubsub-message),
+    }
     /// The binary contents of an IPFS file.
-    type ipfs-content = list<u8>;
+    type ipfs-file = list<u8>;
     /// A path to an IPFS file.
     type ipfs-path = string;
     /// The ID of a peer.
@@ -19,9 +26,8 @@ interface api {
         /// The contents of the message.
         message: string,
         /// Peer ID that sent the message.
-        peer: peer-id,
+        peer: option<peer-id>,
     }
-
     /// Errors that occur in IPFS networking.
     enum errno {
         /// Unable to get DHT value.
@@ -34,12 +40,18 @@ interface api {
         file-get-error,
         /// Unable to pin file.
         file-pin-error,
-        /// Unable to parse a valid IPFS path.
-        invalid-ipfs-path,
         /// Invalid CID.
         invalid-cid,
+        /// Invalid DHT key.
+        invalid-dht-key,
+        /// Invalid DHT value.
+        invalid-dht-value,
+        /// Unable to parse a valid IPFS path.
+        invalid-ipfs-path,
         /// Invalid Peer ID.
         invalid-peer-id,
+        /// Invalid PubSub message.
+        invalid-pubsub-message,
         /// Unable to evict peer.
         peer-eviction-error,
         /// Unable to publish to IPFS topic.
@@ -48,20 +60,22 @@ interface api {
         pubsub-subscribe-error,
     }
 
-    /// Uploads a file to IPFS.
-    file-add: func(contents: ipfs-content) -> result<ipfs-path, errno>;
-    /// Retrieves a file from IPFS.
-    file-get: func(path: ipfs-path) -> result<ipfs-content, errno>;
-    /// Pins a file by path to IPFS.
-    file-pin: func(path: ipfs-path) -> result<bool, errno>;
     /// Puts a DHT key-value into IPFS.
-    dht-put: func(key: dht-key, contents: ipfs-content) -> result<bool, errno>;
+    dht-put: func(key: dht-key, value: dht-value) -> result<bool, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
-    /// Subscribes to a PubSub topic.
-    pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
+    /// Validates IPFS content from DHT or PubSub.
+    ipfs-content-validate: func(content: ipfs-content) -> result<bool, errno>;
+    /// Uploads a file to IPFS.
+    file-add: func(contents: ipfs-file) -> result<ipfs-path, errno>;
+    /// Retrieves a file from IPFS.
+    file-get: func(path: ipfs-path) -> result<ipfs-file, errno>;
+    /// Pins a file by path to IPFS.
+    file-pin: func(path: ipfs-path) -> result<bool, errno>;
     /// Evict peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
+    /// Subscribes to a PubSub topic.
+    pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }
 
 world ipfs-api {
