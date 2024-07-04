@@ -28,6 +28,8 @@ impl MetadataSchema for ApplicationPackage {
 impl ApplicationPackage {
     /// Hermes application package file extension.
     const FILE_EXTENSION: &'static str = "happ";
+    /// Hermes application package icon file path.
+    const ICON_FILE: &'static str = "icon.svg";
     /// Hermes application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
     /// Application package share directory path.
@@ -46,6 +48,7 @@ impl ApplicationPackage {
 
         let mut errors = Errors::new();
 
+        validate_and_write_icon(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
         validate_and_write_metadata(manifest, build_time, package_name, &package)
             .unwrap_or_else(errors.get_add_err_fn());
         write_www_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
@@ -83,6 +86,13 @@ impl ApplicationPackage {
             .map(Metadata::<Self>::from_reader)
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
+}
+
+/// Validate icon.svg file and write it to the package.
+fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
+    // TODO: https://github.com/input-output-hk/hermes/issues/282
+    package.copy_file(&manifest.icon, ApplicationPackage::ICON_FILE.into())?;
+    Ok(())
 }
 
 /// Validate metadata.json file and write it to the package.
@@ -158,6 +168,9 @@ mod tests {
                 .as_slice(),
         )
         .expect("Cannot create metadata.json file");
+
+        std::fs::write(&icon_path, b"icon_image_svg_content")
+            .expect("Cannot create metadata.json file");
 
         Manifest {
             name: app_name,
