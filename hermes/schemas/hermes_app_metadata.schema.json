@@ -18,12 +18,6 @@
             "title": "Application Name",
             "description": "Name of the Application"
         },
-        "icon": {
-            "type": "string",
-            "title": "Application Icon",
-            "description": "Path inside the Application to its Icon.\nMust be a `.svg` file.",
-            "pattern": "^.+[.]svg$"
-        },
         "version": {
             "type": "string",
             "title": "Application Version",
@@ -191,7 +185,6 @@
     "required": [
         "$schema",
         "name",
-        "icon",
         "version",
         "description",
         "copyright",

@@ -132,7 +132,6 @@ mod tests {
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
                     "name": "Test app",
-                    "icon": "test_icon.svg",
                     "version": "V1.0.0",
                     "description": "Some description",
                     "src": ["https://github.com/input-output-hk/hermes"],
@@ -149,6 +148,7 @@ mod tests {
         app_name: String, dir: &TempDir, metadata: &Metadata<ApplicationPackage>,
     ) -> Manifest {
         let metadata_path = dir.path().join("metadata.json");
+        let icon_path = dir.path().join("icon.png");
 
         std::fs::write(
             &metadata_path,
@@ -161,6 +161,7 @@ mod tests {
 
         Manifest {
             name: app_name,
+            icon: Resource::Fs(FsResource::new(icon_path)),
             metadata: Resource::Fs(FsResource::new(metadata_path)),
             modules: vec![],
             www: None,
