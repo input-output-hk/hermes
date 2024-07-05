@@ -1,5 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+    "icon": "file://icon.svg",
     "metadata": "file://metadata.json",
     "modules": [
         {

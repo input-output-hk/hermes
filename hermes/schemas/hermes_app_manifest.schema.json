@@ -19,6 +19,13 @@
             "description": "Name of the Hermes application package with which it will be created.",
             "default": "app"
         },
+        "icon": {
+            "type": "string",
+            "title": "Application Icon",
+            "description": "Link to the Hermes application icon svg file.\nWill be renamed to `icon.svg` inside the package.\nIt Could be a valid URI or regular local path on your system.",
+            "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+$",
+            "default": "icon.svg"
+        },
         "metadata": {
             "type": "string",
             "title": "Application Metadata File",
@@ -40,7 +47,7 @@
                         "type": "string",
                         "title": "Application WASM Module Package File",
                         "description": "Path to the WASM Component Library Module Package File.",
-                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+\\.hmod$"
+                        "pattern": "^([a-z0-9-_\\.+]+://)?(/?([a-zA-Z0-9-_\\.]+))+[.]hmod$"
                     },
                     "name": {
                         "type": "string",
