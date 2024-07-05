@@ -35,15 +35,17 @@ To get a list of options related to packaging:
 ### Creating the unsigned Application Package
 
 ```sh
-./hermes package app <manifest.json> <app_package_name>
+./hermes app package <manifest.json> [<optional output path>] [--name <app name override>]
 ```
 
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
   This file must conform to the manifests [json schema](#manifest-schema).
   An example manifest of this [json schema](#manifest-schema) if [here](#manifest-example).
-* `app_package_name` - The name to give the application file.
+* `[<optional output path>]` - By default the application will be created in the same directory where manifest placed.
+  This option allows the path of the generated application to be set, it can be absolute or relative to the manifest directory.
+* `--name app name override` - The name to give the application, instead of taking it from the manifest file.
 
-*Note: the extension `.happ` will automatically be added to the `<app_package_name>` to signify this is a Hermes App.*
+*Note: the extension `.happ` will automatically be added to the `app name` to signify this is a Hermes Application.*
 
 ### Signing the Application Package
 
