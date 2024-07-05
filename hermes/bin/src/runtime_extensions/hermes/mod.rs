@@ -8,6 +8,7 @@ pub(crate) mod cbor;
 pub(crate) mod cron;
 pub(crate) mod crypto;
 pub(crate) mod hash;
+pub(crate) mod http_gateway;
 pub(crate) mod init;
 pub mod integration_test;
 pub(crate) mod ipfs;
@@ -32,4 +33,5 @@ pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
     localtime::new_context(ctx);
     logging::new_context(ctx);
     sqlite::new_context(ctx);
+    http_gateway::new_context(ctx);
 }
