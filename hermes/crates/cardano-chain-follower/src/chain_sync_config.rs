@@ -15,6 +15,7 @@ use crate::{
     error::{Error, Result},
     mithril_snapshot_config::MithrilSnapshotConfig,
     network::Network,
+    stats,
 };
 
 /// Default [`Follower`] block buffer size.
@@ -131,6 +132,8 @@ impl ChainSyncConfig {
             chain = self.chain.to_string(),
             "Chain Synchronization Starting"
         );
+
+        stats::sync_started(self.chain);
 
         // Start the Chain Sync - IFF its not already running.
         let lock_entry = match SYNC_JOIN_HANDLE_MAP.get(&self.chain) {

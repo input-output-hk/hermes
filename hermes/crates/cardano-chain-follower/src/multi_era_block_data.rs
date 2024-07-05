@@ -30,24 +30,41 @@ struct SelfReferencedMultiEraBlock {
 
 /// Multi-era block - inner.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct MultiEraBlockInner {
     /// What blockchain was the block produced on.
-    chain: Network,
+    pub chain: Network,
     /// The Point on the blockchain this block can be found.
     point: Point,
     /// The previous point on the blockchain before this block.
     /// When the current point is Genesis, so is the previous.
     previous: Point,
-    /// Is the block considered immutable, or could it be effected by rollback?
-    immutable: bool,
     /// The decoded multi-era block.
-    data: Option<SelfReferencedMultiEraBlock>,
+    data: SelfReferencedMultiEraBlock,
 }
 
 /// Multi-era block.
 #[derive(Clone, Debug)]
-pub struct MultiEraBlock(Arc<MultiEraBlockInner>);
+pub struct MultiEraBlock {
+    /// What fork is the block on?
+    /// This is NOT part of the inner block, because it is not to be protected by the Arc.
+    /// It can change at any time due to rollbacks detected on the live-chain.
+    /// This means that any holder of a `MultiEraBlock` will have the actual fork their block was on
+    /// when they read it, the live-chain code can modify the actual fork count at any time without
+    /// that impacting consumers processing the data.
+    /// The fork count itself is used so an asynchronous follower can properly work out how far to
+    /// roll back on the live-chain in order to resynchronize, without keeping a full state of
+    /// processed blocks.
+    /// Followers, simply need to step backwards on the live chain until they find the previous block
+    /// they followed, or reach a fork that is <= the fork of the previous block they followed.
+    /// They can then safely re-follow from that earlier point, with full integrity.
+    /// fork is 0 on any immutable block.
+    /// It starts at 1 for live blocks, and is only incremented if the live-chain tip is purged because
+    /// of a detected fork based on data received from the peer node.
+    /// It does NOT count the strict number of forks reported by the peer node.
+    fork: u64,
+    /// The Immutable decoded data about the block itself.
+    inner: Arc<MultiEraBlockInner>,
+}
 
 impl MultiEraBlock {
     /// Creates a new `MultiEraBlockData` from the given bytes.
@@ -56,7 +73,7 @@ impl MultiEraBlock {
     ///
     /// If the given bytes cannot be decoded as a multi-era block, an error is returned.
     fn new_block(
-        chain: Network, raw_data: Vec<u8>, previous: &Point, immutable: bool,
+        chain: Network, raw_data: Vec<u8>, previous: &Point, fork: u64,
     ) -> anyhow::Result<Self, Error> {
         let builder = SelfReferencedMultiEraBlockTryBuilder {
             raw_data,
@@ -89,6 +106,7 @@ impl MultiEraBlock {
 
             // Special case, when the previous block is actually UNKNOWN, we can't check it.
             if *previous != UNKNOWN_POINT
+                // Otherwise, we make sure the hash chain is intact
                 && previous.cmp_hash(&decoded_block.header().previous_hash())
             {
                 return Err(Error::Codec(
@@ -97,13 +115,15 @@ impl MultiEraBlock {
             }
         }
 
-        Ok(Self(Arc::new(MultiEraBlockInner {
-            chain,
-            point,
-            previous: previous.clone(),
-            immutable,
-            data: Some(self_ref_block),
-        })))
+        Ok(Self {
+            fork,
+            inner: Arc::new(MultiEraBlockInner {
+                chain,
+                point,
+                previous: previous.clone(),
+                data: self_ref_block,
+            }),
+        })
     }
 
     /// Creates a new `MultiEraBlockData` from the given bytes.
@@ -112,96 +132,84 @@ impl MultiEraBlock {
     ///
     /// If the given bytes cannot be decoded as a multi-era block, an error is returned.
     pub fn new(
-        chain: Network, raw_data: Vec<u8>, previous: &Point, immutable: bool,
+        chain: Network, raw_data: Vec<u8>, previous: &Point, fork: u64,
     ) -> anyhow::Result<Self, Error> {
         // This lets us reliably count any bad block arising from deserialization.
-        let block = MultiEraBlock::new_block(chain, raw_data, previous, immutable);
+        let block = MultiEraBlock::new_block(chain, raw_data, previous, fork);
         if block.is_err() {
-            stats_invalid_block(chain, immutable);
+            stats_invalid_block(chain, fork == 0);
         }
         block
     }
 
-    /// Creates a special Probing `MultiEraBlock` from a point.
-    ///
-    /// Probe blocks can ONLY be used to search for blocks in the Live Chain.
-    /// Trying to read their data will Panic.
-    pub(crate) fn probe(chain: Network, point: &Point) -> Self {
-        Self(Arc::new(MultiEraBlockInner {
-            chain,
-            point: point.clone(),
-            previous: point.clone(),
-            immutable: false,
-            data: None,
-        }))
+    /// Remake the block on a new fork.
+    pub fn set_fork(&mut self, fork: u64) {
+        self.fork = fork;
     }
 
     /// Decodes the data into a multi-era block.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn decode(&self) -> &pallas::ledger::traverse::MultiEraBlock {
-        // We checked the block before, during construction, so it is safe to unwrap.
-        #[allow(clippy::unwrap_used)]
-        self.0.data.as_ref().unwrap().borrow_block()
+        self.inner.data.borrow_block()
     }
 
     /// Decodes the data into a multi-era block.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn raw(&self) -> &Vec<u8> {
-        // We checked the block before, during construction, so it is safe to unwrap.
-        #[allow(clippy::unwrap_used)]
-        self.0.data.as_ref().unwrap().borrow_raw_data()
+        self.inner.data.borrow_raw_data()
     }
 
     /// Returns the block point of this block.
     #[must_use]
     pub fn point(&self) -> Point {
-        // We checked the block before, during construction, so it is safe to unwrap.
-        self.0.point.clone()
+        self.inner.point.clone()
     }
 
     /// Returns the block point of the previous block.
     #[must_use]
     pub fn previous(&self) -> Point {
-        // We checked the block before, during construction, so it is safe to unwrap.
-        self.0.previous.clone()
+        self.inner.previous.clone()
     }
 
     /// Is the block data immutable on-chain.
     #[must_use]
     pub fn immutable(&self) -> bool {
-        // We checked the block before, during construction, so it is safe to unwrap.
-        self.0.immutable
+        self.fork == 0
+    }
+
+    /// Is the block data immutable on-chain.
+    #[must_use]
+    pub fn fork(&self) -> u64 {
+        self.fork
     }
 }
 
 impl Display for MultiEraBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(block_data) = self.0.data.as_ref() {
-            let block = block_data.borrow_block();
-            let block_number = block.number();
-            let slot = block.slot();
-            let size = block.size();
-            let txns = block.tx_count();
-            let aux_data = block.has_aux_data();
+        let fork = self.fork;
+        let block_data = &self.inner.data;
+        let block = block_data.borrow_block();
+        let block_number = block.number();
+        let slot = block.slot();
+        let size = block.size();
+        let txns = block.tx_count();
+        let aux_data = block.has_aux_data();
 
-            let block_era = match block {
-                pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
-                    "Byron Epoch Boundary".to_string()
-                },
-                pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(_, era) => {
-                    format!("{era}")
-                },
-                pallas::ledger::traverse::MultiEraBlock::Babbage(_) => "Babbage".to_string(),
-                pallas::ledger::traverse::MultiEraBlock::Byron(_) => "Byron".to_string(),
-                pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
-                _ => "Unknown".to_string(),
-            };
-            write!(f, "{block_era} block : Slot# {slot} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
-        } else {
-            write!(f, "PROBE BLOCK @ {:?}", self.0.point)?;
-        }
+        let block_era = match block {
+            pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
+                "Byron Epoch Boundary".to_string()
+            },
+            pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(_, era) => {
+                format!("{era}")
+            },
+            pallas::ledger::traverse::MultiEraBlock::Babbage(_) => "Babbage".to_string(),
+            pallas::ledger::traverse::MultiEraBlock::Byron(_) => "Byron".to_string(),
+            pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
+            _ => "Unknown".to_string(),
+        };
+        write!(f, "{block_era} block : Slot# {slot} : Fork# {fork} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
         Ok(())
     }
 }
@@ -228,7 +236,7 @@ impl Ord for MultiEraBlock {
     /// Compare two `LiveBlocks` by their points.
     /// Only checks the Slot#.
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.point.cmp(&other.0.point)
+        self.inner.point.cmp(&other.inner.point)
     }
 }
 
@@ -244,7 +252,7 @@ impl PartialOrd<Point> for MultiEraBlock {
     /// Compare a `MultiEraBlock` to a `Point` by their points.
     /// Only checks the Slot#.
     fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
-        Some(self.0.point.cmp(other))
+        Some(self.inner.point.cmp(other))
     }
 }
 
@@ -320,7 +328,7 @@ mod tests {
                 Network::Preprod,
                 block_bytes.clone(),
                 &test_block.previous,
-                false,
+                1,
             )
             .expect("Failed to decode block.");
             let pallas_block =

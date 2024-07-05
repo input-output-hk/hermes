@@ -110,7 +110,7 @@ impl Iterator for MithrilSnapshotIteratorInner {
             if let Ok(block) = maybe_block {
                 if let Some(previous) = self.previous.clone() {
                     // We can safely fully decode this block.
-                    if let Ok(block_data) = MultiEraBlock::new(self.chain, block, &previous, true) {
+                    if let Ok(block_data) = MultiEraBlock::new(self.chain, block, &previous, 0) {
                         // Update the previous point
                         self.previous = Some(block_data.point());
 

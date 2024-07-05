@@ -2,17 +2,18 @@
 
 use pallas::network::miniprotocols::txmonitor::{TxBody, TxId};
 use tokio::sync::broadcast;
-use tracing::{debug, error};
 
 use crate::{
-    chain_sync_live_chains::get_live_block_after,
+    chain_sync::point_at_tip,
+    chain_sync_live_chains::{find_best_fork_block, get_live_block},
     chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
-    chain_update::{self, ChainUpdate},
+    chain_update::{self, ChainUpdate, Kind},
     mithril_snapshot::MithrilSnapshot,
+    mithril_snapshot_data::latest_mithril_snapshot_id,
     mithril_snapshot_iterator::MithrilSnapshotIterator,
     network::Network,
-    point::TIP_POINT,
-    Point,
+    point::{TIP_POINT, UNKNOWN_POINT},
+    MultiEraBlock, Point,
 };
 
 /// The Chain Follower
@@ -21,14 +22,18 @@ pub struct ChainFollower {
     chain: Network,
     /// Where we end following.
     end: Point,
+    /// Block we processed most recently.
+    previous: Point,
     /// Where we are currently in the following process.
     current: Point,
+    /// What fork were we last on
+    fork: u64,
     /// Mithril Snapshot
     snapshot: MithrilSnapshot,
     /// Mithril Snapshot Follower
     mithril_follower: Option<MithrilSnapshotIterator>,
     /// Live Block Updates
-    sync_updates: broadcast::Receiver<ChainUpdate>,
+    sync_updates: broadcast::Receiver<chain_update::Kind>,
 }
 
 impl ChainFollower {
@@ -64,7 +69,9 @@ impl ChainFollower {
         ChainFollower {
             chain,
             end,
+            previous: UNKNOWN_POINT,
             current: start,
+            fork: 1,
             snapshot: MithrilSnapshot::new(chain),
             mithril_follower: None,
             sync_updates: rx,
@@ -72,13 +79,19 @@ impl ChainFollower {
     }
 
     /// If we can, get the next update from the mithril snapshot.
-    async fn next_from_mithril(&mut self, point: &Point) -> Option<ChainUpdate> {
+    async fn next_from_mithril(&mut self) -> Option<ChainUpdate> {
         if self.mithril_follower.is_none() {
-            self.mithril_follower = self.snapshot.try_read_blocks_from_point(point).await;
+            self.mithril_follower = self
+                .snapshot
+                .try_read_blocks_from_point(&self.current)
+                .await;
         }
 
         if let Some(follower) = self.mithril_follower.as_mut() {
             if let Some(next) = follower.next().await {
+                self.previous = self.current.clone();
+                self.current = next.point();
+                self.fork = 0; // Mithril Immutable data is always Fork 0.
                 let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
                 return Some(update);
             }
@@ -87,10 +100,55 @@ impl ChainFollower {
     }
 
     /// If we can, get the next update from the mithril snapshot.
-    #[allow(clippy::unused_self)]
-    fn next_from_live_chain(&mut self, point: &Point) -> Option<ChainUpdate> {
-        get_live_block_after(self.chain, point)
-            .map(|live_block| ChainUpdate::new(chain_update::Kind::Block, false, live_block))
+    async fn next_from_live_chain(&mut self) -> Option<ChainUpdate> {
+        let mut next_block: Option<MultiEraBlock> = None;
+        let mut update_type = chain_update::Kind::Block;
+
+        // Special Case: point = TIP_POINT.  Just return the latest block in the live chain.
+        if self.current == TIP_POINT {
+            next_block = {
+                let block = get_live_block(self.chain, &self.current, -1, false)?;
+                Some(block)
+            };
+        }
+
+        // In most cases we will be able to get the next block.
+        if next_block.is_none() {
+            next_block = get_live_block(self.chain, &self.current, 1, true);
+        }
+
+        // If we can't get the next consecutive block, then
+        // Get the best previous block.
+        if next_block.is_none() {
+            update_type = chain_update::Kind::Rollback;
+            next_block = if let Some(block) =
+                find_best_fork_block(self.chain, &self.current, &self.previous, self.fork)
+            {
+                Some(block)
+            } else {
+                let latest_mithril_point = latest_mithril_snapshot_id(self.chain).tip();
+                if let Some(block) = MithrilSnapshot::new(self.chain)
+                    .read_block_at(&latest_mithril_point)
+                    .await
+                {
+                    Some(block)
+                } else {
+                    return None;
+                }
+            }
+        }
+
+        if let Some(next_block) = next_block {
+            self.previous = self.current.clone();
+            self.current = next_block.point().clone();
+            self.fork = next_block.fork();
+
+            let tip = point_at_tip(self.chain, &self.current).await;
+            let update = ChainUpdate::new(update_type, tip, next_block);
+            return Some(update);
+        }
+
+        None
     }
 
     /// Update the current Point, and return `false` if this fails.
@@ -103,72 +161,43 @@ impl ChainFollower {
         false
     }
 
-    /// Get an update from the live chain status follower.
-    async fn update_live_event(&mut self) -> Option<ChainUpdate> {
-        loop {
-            debug!(
-                "Waiting for update from blockchain. Last Block: {:?}",
-                self.current
-            );
-            let update = self.sync_updates.recv().await;
-
-            match update {
-                Ok(update) => {
-                    if update.kind == chain_update::Kind::Block && update.immutable() {
-                        // Shouldn't happen, log if it does, but otherwise ignore it.
-                        error!(
-                            chain = self.chain.to_string(),
-                            "Received an ImmutableBlock update, these are not Live Updates.  Ignored."
-                        );
-                    } else {
-                        // Due to the small buffering window, its possible we already processed a
-                        // block in the live queue from the live in-memory
-                        // chain. This is not an error, so just ignore that
-                        // entry in the queue.
-                        if update.kind != chain_update::Kind::Rollback
-                            && self.current >= update.data.point()
-                        {
-                            debug!("Discarding: {}", update);
-                            continue;
-                        }
-                        return Some(update);
-                    }
-                },
-                Err(error) => {
-                    match error {
-                        broadcast::error::RecvError::Closed => {},
-                        broadcast::error::RecvError::Lagged(_) => continue, /* Lagged just means
-                                                                             * we need to read
-                                                                             * again. */
-                    }
-                    error!(
-                        chain = self.chain.to_string(),
-                        "Live Chain follower error: {error}"
-                    );
-                    return None;
-                },
-            }
-        }
-    }
-
     /// This is an unprotected version of `next()` which can ONLY be used within this
     /// crate. Its purpose is to allow the chain data to be inspected/validate prior
     /// to unlocking it for general access.
     ///
+    /// This function can NOT return None, but that state is used to help process data.
+    ///
     /// This function must not be exposed for general use.
     #[allow(clippy::unused_async)]
     pub(crate) async fn unprotected_next(&mut self) -> Option<ChainUpdate> {
-        // If we are following TIP, then we just wait for Tip Updates.
-        let update = if self.current == TIP_POINT {
-            self.update_live_event().await
-        } else if let Some(update) = self.next_from_mithril(&self.current.clone()).await {
-            Some(update)
-        } else if let Some(update) = self.next_from_live_chain(&self.current.clone()) {
-            Some(update)
-        } else {
-            self.update_live_event().await
-        };
+        let mut update;
 
+        // We will loop here until we can successfully return a new block
+        loop {
+            // Try and get the next update from the mithril chain, and return it if we are successful.
+            update = self.next_from_mithril().await;
+            if update.is_some() {
+                break;
+            }
+
+            // No update from Mithril Data, so try and get one from the live chain.
+            update = self.next_from_live_chain().await;
+            if update.is_some() {
+                break;
+            }
+
+            // IF we can't get a new block directly from the mithril data, or the live chain, then
+            // wait for something to change which might mean we can get the next block.
+            let update = self.sync_updates.recv().await.ok()?;
+            if update == Kind::ImmutableBlockRollForward {
+                // TODO: Advise that the Immutable part of the chain advanced.
+                // Actually we probably just want to probe it and not rely on the alert, as its async
+                // and could be dropped.
+                break;
+            }
+        }
+
+        // Update the current block, so we know which one to get next.
         if !self.update_current(&update) {
             return None;
         }
@@ -180,7 +209,7 @@ impl ChainFollower {
     /// Returns NONE is there is no block left to return.
     pub async fn next(&mut self) -> Option<ChainUpdate> {
         // If we aren't syncing TIP, and Current >= End, then return None
-        if self.end != TIP_POINT && self.current > self.end {
+        if self.end != TIP_POINT && self.current >= self.end {
             return None;
         }
 

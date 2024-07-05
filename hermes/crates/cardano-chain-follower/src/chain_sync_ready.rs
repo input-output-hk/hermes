@@ -12,14 +12,14 @@ use tokio::{
 };
 use tracing::error;
 
-use crate::{ChainUpdate, Network};
+use crate::{chain_update, Network};
 
 /// Data we hold related to sync being ready or not.
 struct SyncReady {
     /// MPMC Receive queue for Blockchain Updates
-    rx: broadcast::Receiver<ChainUpdate>,
+    rx: broadcast::Receiver<chain_update::Kind>,
     /// MPMC Transmit queue for Blockchain Updates
-    tx: broadcast::Sender<ChainUpdate>,
+    tx: broadcast::Sender<chain_update::Kind>,
     /// Sync is ready flag. (Prevents data race conditions)
     ready: bool,
 }
@@ -28,11 +28,26 @@ impl SyncReady {
     /// Create a new `SyncReady` state.
     fn new() -> Self {
         // Can buffer up to 3 update messages before lagging.
-        let (tx, rx) = broadcast::channel::<ChainUpdate>(3);
+        let (tx, rx) = broadcast::channel::<chain_update::Kind>(3);
         Self {
             tx,
             rx,
             ready: false,
+        }
+    }
+}
+
+/// Sand a chain update to any subscribers that are listening.
+pub(crate) fn notify_follower(
+    chain: Network, update_sender: &Option<broadcast::Sender<chain_update::Kind>>,
+    kind: &chain_update::Kind,
+) {
+    if let Some(update_sender) = update_sender {
+        if let Err(error) = update_sender.send(kind.clone()) {
+            error!(
+                chain = chain.to_string(),
+                "Failed to broadcast the Update {kind} : {error}"
+            );
         }
     }
 }
@@ -122,7 +137,9 @@ pub(crate) async fn block_until_sync_ready(chain: Network) {
 }
 
 /// Get the Broadcast Receive queue for the given chain updates.
-pub(crate) async fn get_chain_update_rx_queue(chain: Network) -> broadcast::Receiver<ChainUpdate> {
+pub(crate) async fn get_chain_update_rx_queue(
+    chain: Network,
+) -> broadcast::Receiver<chain_update::Kind> {
     // We are safe to use `expect` here because the SYNC_READY list is exhaustively
     // initialized. Its a Serious BUG if that not True, so panic is OK.
     #[allow(clippy::expect_used)]
@@ -138,7 +155,7 @@ pub(crate) async fn get_chain_update_rx_queue(chain: Network) -> broadcast::Rece
 /// Get the Broadcast Transmit queue for the given chain updates.
 pub(crate) async fn get_chain_update_tx_queue(
     chain: Network,
-) -> Option<broadcast::Sender<ChainUpdate>> {
+) -> Option<broadcast::Sender<chain_update::Kind>> {
     // We are safe to use `expect` here because the SYNC_READY list is exhaustively
     // initialized. Its a Serious BUG if that not True, so panic is OK.
     #[allow(clippy::expect_used)]

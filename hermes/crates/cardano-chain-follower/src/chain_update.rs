@@ -52,27 +52,7 @@ impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let block_type = self.kind.to_string();
 
-        let block = self.block_data().decode();
-        let block_number = block.number();
-        let slot = block.slot();
-        let size = block.size();
-        let txns = block.tx_count();
-        let aux_data = block.has_aux_data();
-
-        let block_era = match block {
-            pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
-                "Byron Epoch Boundary".to_string()
-            },
-            pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(_, era) => {
-                format!("{era}")
-            },
-            pallas::ledger::traverse::MultiEraBlock::Babbage(_) => "Babbage".to_string(),
-            pallas::ledger::traverse::MultiEraBlock::Byron(_) => "Byron".to_string(),
-            pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
-            _ => "Unknown".to_string(),
-        };
-
-        write!(f, "{block_type} {block_era} block : Slot# {slot} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
+        write!(f, "ChainUpdate: {block_type}")?;
 
         Ok(())
     }

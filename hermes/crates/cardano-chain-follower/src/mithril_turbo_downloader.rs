@@ -1,6 +1,10 @@
 //! Turbo Downloads for Mithril Snapshots.
 
-use std::{path::Path, process::Stdio, sync::Mutex};
+use std::{
+    path::{Path, PathBuf},
+    process::Stdio,
+    sync::Mutex,
+};
 
 use anyhow::{anyhow, bail, Context};
 use async_compression::tokio::bufread::ZstdDecoder;
@@ -21,6 +25,7 @@ use tracing::debug;
 use crate::{
     mithril_snapshot_config::{async_hash_single_file, MithrilSnapshotConfig},
     mithril_snapshot_data::{latest_mithril_snapshot_data, FileHashMap},
+    stats::{self},
 };
 
 /// A snapshot downloader that accelerates Download using `aria2`.
@@ -107,6 +112,23 @@ async fn aria2_download(dest: &Path, url: &str) -> MithrilResult<()> {
     Ok(())
 }
 
+/// Get the size of a particular file.  None = failed to get size.
+async fn get_file_size(file: PathBuf) -> Option<u64> {
+    let result = tokio::task::spawn_blocking(move || {
+        let Ok(metadata) = file.metadata() else {
+            return None;
+        };
+        Some(metadata.len())
+    })
+    .await;
+
+    if let Ok(size) = result {
+        size
+    } else {
+        None
+    }
+}
+
 #[async_trait]
 impl SnapshotDownloader for MithrilTurboDownloader {
     async fn download_unpack(
@@ -135,14 +157,25 @@ impl SnapshotDownloader for MithrilTurboDownloader {
 
         debug!("Download and Unpack started='{location}' to '{target_dir:?}'.");
 
+        stats::mithril_dl_started(self.cfg.chain);
+
         // First Download the Archive using Aria2 to the `dl` directory.
         // TODO(SJ): Using `aria2` as a convenience, need to change to a rust native
         // multi-connection download crate, which needs to be written.
-        aria2_download(&self.cfg.dl_path(), location).await?;
+        if let Err(error) = aria2_download(&self.cfg.dl_path(), location).await {
+            // Record failed download stats
+            stats::mithril_dl_finished(self.cfg.chain, None);
+            return Err(error);
+        }
 
-        // Decompress and extract and de-dupe each file in the archive.
         let mut dst_archive = self.cfg.dl_path();
         dst_archive.push(DOWNLOAD_FILE_NAME);
+
+        // Record successful download stats
+        stats::mithril_dl_finished(self.cfg.chain, get_file_size(dst_archive.clone()).await);
+
+        // Decompress and extract and de-dupe each file in the archive.
+        stats::mithril_extract_started(self.cfg.chain);
 
         debug!(
             "Unpacking and extracting '{}' to '{}'.",
@@ -159,6 +192,13 @@ impl SnapshotDownloader for MithrilTurboDownloader {
         let mut entries = archive.entries()?;
         let tmp_dir = self.cfg.tmp_path();
         let latest_snapshot = latest_mithril_snapshot_data(self.cfg.chain);
+
+        let mut new_files: u64 = 0;
+        let mut changed_files: u64 = 0;
+        let mut total_files: u64 = 0;
+        let mut extract_size: u64 = 0;
+        let mut deduplicated_size: u64 = 0;
+
         // let latest_snapshot = self.cfg.latest_snapshot_id().await;
         while let Some(file) = entries.next().await {
             let mut file = file?;
@@ -179,6 +219,11 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                 continue;
             }
 
+            total_files += 1;
+
+            let file_size = get_file_size(abs_file.clone()).await.unwrap_or(0);
+            extract_size += file_size;
+
             // Hash the new file.
             if let Some(file_hash) = async_hash_single_file(&abs_file).await {
                 let _unused = hashmap.insert(relative_file.clone(), file_hash);
@@ -189,9 +234,13 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                             self.cfg.dedup_tmp(&abs_file, &latest_snapshot).await;
                         } else {
                             debug!("Changed File '{}'.", relative_file.to_string_lossy());
+                            changed_files += 1;
+                            deduplicated_size += file_size;
                         }
                     } else {
                         debug!("New File '{}'.", relative_file.to_string_lossy());
+                        new_files += 1;
+                        deduplicated_size += file_size;
                     }
                 }
             }
@@ -200,6 +249,15 @@ impl SnapshotDownloader for MithrilTurboDownloader {
         // Set the hashmap of the previous download.
         debug!("Hashmap entries = {}", hashmap.len());
         self.set_hashmap(hashmap);
+
+        stats::mithril_extract_finished(
+            self.cfg.chain,
+            Some(extract_size),
+            deduplicated_size,
+            total_files - (changed_files + new_files),
+            changed_files,
+            new_files,
+        );
 
         debug!("Download and Unpack finished='{location}' to '{target_dir:?}'.");
 

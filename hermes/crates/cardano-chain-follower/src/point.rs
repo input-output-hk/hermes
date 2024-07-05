@@ -3,7 +3,10 @@
 //! Wrapped version of the Pallas primitive.
 //! We only use this version unless talking to Pallas.
 
-use std::cmp::Ordering;
+use std::{
+    cmp::Ordering,
+    fmt::{Debug, Display, Formatter},
+};
 
 use pallas::crypto::hash::Hash;
 
@@ -68,6 +71,42 @@ impl Point {
     #[must_use]
     pub fn slot_or_default(&self) -> u64 {
         self.0.slot_or_default()
+    }
+
+    /// Get the slot, or a default if its the Origin.
+    #[must_use]
+    pub fn hash_or_default(&self) -> Vec<u8> {
+        match &self.0 {
+            pallas::network::miniprotocols::Point::Specific(_, hash) => hash.clone(),
+            pallas::network::miniprotocols::Point::Origin => Vec::new(),
+        }
+    }
+
+    /// Strict Equality.
+    ///
+    /// This checks BOTH the Slot# and Hash are identical.
+    #[must_use]
+    pub fn strict_eq(&self, b: &Self) -> bool {
+        self.0 == b.0
+    }
+}
+
+impl Display for Point {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        if *self == ORIGIN_POINT {
+            return write!(f, "Point @ Origin");
+        } else if *self == TIP_POINT {
+            return write!(f, "Point @ Tip");
+        } else if *self == UNKNOWN_POINT {
+            return write!(f, "Point @ Unknown");
+        }
+
+        let slot = self.slot_or_default();
+        let hash = self.hash_or_default();
+        if hash.is_empty() {
+            return write!(f, "Point @ Probe:{slot}");
+        }
+        write!(f, "Point @ {slot}:{}", hex::encode_upper(hash))
     }
 }
 

@@ -26,7 +26,7 @@ use crate::{
     mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
     snapshot_id::SnapshotId,
-    MultiEraBlock,
+    stats, MultiEraBlock,
 };
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
@@ -543,7 +543,10 @@ async fn download_and_validate_snapshot(
         cfg.chain
     );
 
+    stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
+
     if !validate_mithril_snapshot(cfg.chain, certificate, &cfg.tmp_path()).await {
+        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Failed);
         // If we couldn't build the message then assume its a transient error.
         error!(
             chain = cfg.chain.to_string(),
@@ -551,6 +554,7 @@ async fn download_and_validate_snapshot(
         );
         return false;
     }
+    stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
 
     true
 }

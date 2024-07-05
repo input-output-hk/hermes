@@ -22,6 +22,9 @@ pub enum Error {
     /// Chainsync protocol error.
     #[error("Chainsync error: {0:?}")]
     Chainsync(chainsync::ClientError),
+    /// Backfill Synch error.
+    #[error("Backfill Sync error: {0}")]
+    BackfillSync(String),
     /// Live Sync error.
     #[error("Live Sync error: {0:?}")]
     LiveSync(String),
