@@ -238,7 +238,7 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                             deduplicated_size += file_size;
                         }
                     } else {
-                        debug!("New File '{}'.", relative_file.to_string_lossy());
+                        // debug!("New File '{}'.", relative_file.to_string_lossy());
                         new_files += 1;
                         deduplicated_size += file_size;
                     }

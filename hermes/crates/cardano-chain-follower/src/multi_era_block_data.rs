@@ -3,6 +3,7 @@
 use std::{cmp::Ordering, fmt::Display, sync::Arc};
 
 use ouroboros::self_referencing;
+use tracing::debug;
 
 use crate::{
     error::Error,
@@ -92,6 +93,12 @@ impl MultiEraBlock {
         // Validate that the Block point is valid.
         if *previous == ORIGIN_POINT {
             if decoded_block.header().previous_hash().is_some() {
+                // or forcibly capture the backtrace regardless of environment variable configuration
+                debug!(
+                    "Bad Previous Block: {}",
+                    std::backtrace::Backtrace::force_capture()
+                );
+
                 return Err(Error::Codec(
                     "Previous block must not be Origin, for any other block than Origin"
                         .to_string(),
@@ -107,8 +114,10 @@ impl MultiEraBlock {
             // Special case, when the previous block is actually UNKNOWN, we can't check it.
             if *previous != UNKNOWN_POINT
                 // Otherwise, we make sure the hash chain is intact
-                && previous.cmp_hash(&decoded_block.header().previous_hash())
+                && !previous.cmp_hash(&decoded_block.header().previous_hash())
             {
+                debug!("{}, {:?}", previous, decoded_block.header().previous_hash());
+
                 return Err(Error::Codec(
                     "Previous Block Hash mismatch with block".to_string(),
                 ));

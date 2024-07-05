@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::task;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     error::Result,
@@ -15,10 +15,9 @@ use crate::{
     MultiEraBlock, Point,
 };
 
-/// Search backwards by 120 slots (seconds) looking for a previous block.
-/// The previous block should be approximately 20 slots earlier, this gives us a
-/// reasonable window to search of ~6 blocks.
-const BACKWARD_SEARCH_SLOT_INTERVAL: u64 = 120;
+/// Search backwards by 60 slots (seconds) looking for a previous block.
+/// This search window is doubled until the search succeeds.
+const BACKWARD_SEARCH_SLOT_INTERVAL: u64 = 60;
 
 /// Synchronous Inner Iterator state
 struct MithrilSnapshotIteratorInner {
@@ -54,6 +53,83 @@ pub(crate) fn probe_point(point: &Point, distance: u64) -> Point {
 }
 
 impl MithrilSnapshotIterator {
+    /// Try and probe to establish the iterator from the desired point.
+    async fn try_fuzzy_iterator(
+        chain: Network, path: &Path, from: &Point, search_interval: u64,
+    ) -> Option<MithrilSnapshotIterator> {
+        let point = probe_point(from, search_interval);
+        let Ok(mut iterator) = make_mithril_iterator(path, &point).await else {
+            return None;
+        };
+
+        let mut previous = None;
+        let mut this = None;
+
+        loop {
+            let next = iterator.next();
+
+            match next {
+                Some(Ok(raw_block)) => {
+                    let Ok(block) = pallas::ledger::traverse::MultiEraBlock::decode(&raw_block)
+                    else {
+                        return None;
+                    };
+
+                    let point = Point::new(block.slot(), block.hash().to_vec());
+                    previous = this;
+                    this = Some(point.clone());
+
+                    debug!("Searching for {from}. {this:?} > {previous:?}");
+
+                    // Stop as soon as we find the point, or exceed it.
+                    if point >= *from {
+                        break;
+                    }
+                },
+                Some(Err(err)) => {
+                    error!("Error while iterating fuzzy mithril data: {}", err);
+                    return None;
+                },
+                None => break,
+            };
+        }
+
+        debug!("Best Found for {from}. {this:?} > {previous:?}");
+
+        // Fail if we didn't find the destination block, or its immediate predecessor.
+        previous.as_ref()?;
+        let this = this?;
+
+        // Remake the iterator, based on the new known point.
+        let Ok(iterator) = make_mithril_iterator(path, &this).await else {
+            return None;
+        };
+
+        Some(MithrilSnapshotIterator {
+            inner: Arc::new(Mutex::new(MithrilSnapshotIteratorInner {
+                chain,
+                start: this,
+                previous,
+                inner: iterator,
+            })),
+        })
+    }
+
+    /// Do a fuzzy search to establish the iterator.
+    /// We use this when we don;t know the previous point, and need to find it.
+    async fn fuzzy_iterator(chain: Network, path: &Path, from: &Point) -> MithrilSnapshotIterator {
+        let mut backwards_search = BACKWARD_SEARCH_SLOT_INTERVAL;
+        loop {
+            if let Some(iterator) =
+                Self::try_fuzzy_iterator(chain, path, from, backwards_search).await
+            {
+                return iterator;
+            }
+
+            backwards_search *= 2;
+        }
+    }
+
     /// Create a mithril iterator, optionally where we know the previous point.
     ///
     /// # Arguments
@@ -66,12 +142,13 @@ impl MithrilSnapshotIterator {
     pub(crate) async fn new(
         chain: Network, path: &Path, from: &Point, previous_point: Option<Point>,
     ) -> Result<Self> {
-        let actual_start = match previous_point {
-            Some(_) => from.clone(),
-            None => probe_point(from, BACKWARD_SEARCH_SLOT_INTERVAL),
-        };
+        if previous_point.is_none() {
+            return Ok(Self::fuzzy_iterator(chain, path, from).await);
+        }
 
-        let iterator = make_mithril_iterator(path, &actual_start).await?;
+        debug!("Actual Mithril Iterator Start: {}", from);
+
+        let iterator = make_mithril_iterator(path, from).await?;
 
         Ok(MithrilSnapshotIterator {
             inner: Arc::new(Mutex::new(MithrilSnapshotIteratorInner {
@@ -91,7 +168,9 @@ impl MithrilSnapshotIterator {
         let res = task::spawn_blocking(move || {
             #[allow(clippy::unwrap_used)] // Unwrap is safe here because the lock can't be poisoned.
             let mut inner_iterator = inner.lock().unwrap();
-            inner_iterator.next()
+            let next_block = inner_iterator.next();
+            debug!("next block: {:?}", next_block);
+            next_block
         })
         .await;
 

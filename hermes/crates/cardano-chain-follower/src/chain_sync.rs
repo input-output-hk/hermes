@@ -128,6 +128,7 @@ async fn fetch_block_from_peer(
         .await
         .with_context(|| "Fetching block data")?;
 
+    debug!("{chain}, {previous_point}, {fork_count}");
     let live_block_data = MultiEraBlock::new(chain, block_data, &previous_point, fork_count)?;
 
     Ok(live_block_data)
@@ -160,14 +161,17 @@ async fn process_rollback_actual(
     let previous_block = get_live_block(chain, &point, -1, false);
     let previous_point = if let Some(previous_block) = previous_block {
         let previous = previous_block.previous();
+        debug!("Previous block: {:?}", previous);
         if previous == ORIGIN_POINT {
             latest_mithril_snapshot_id(chain).tip()
         } else {
             previous
         }
     } else {
+        debug!("Using Mithril Tip as rollback previous point.");
         latest_mithril_snapshot_id(chain).tip()
     };
+    debug!("Previous point: {:?}", previous_point);
     let block =
         fetch_block_from_peer(peer, chain, point.clone(), previous_point, *fork_count).await?;
     live_chain_add_block_to_tip(chain, block, fork_count, tip.0.clone().into())?;

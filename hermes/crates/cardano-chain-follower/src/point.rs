@@ -155,6 +155,12 @@ impl PartialOrd<u64> for Point {
     }
 }
 
+impl Default for Point {
+    fn default() -> Self {
+        UNKNOWN_POINT
+    }
+}
+
 /// Compare Points, because Pallas does not impl `Ord` for Point.
 pub(crate) fn cmp_point(
     a: &pallas::network::miniprotocols::Point, b: &pallas::network::miniprotocols::Point,

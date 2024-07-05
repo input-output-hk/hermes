@@ -257,11 +257,19 @@ pub(crate) async fn get_mithril_tip(chain: Network, path: &Path) -> Result<Multi
 
     // Read the Tip, and if we don't get one, or we error, its an error.
     let tip = get_mithril_tip_point(&path).await?;
+    debug!("Mithril Tip: {tip}");
 
     // Decode and read the tip from the Immutable chain.
     let tip_iterator = MithrilSnapshotIterator::new(chain, &path, &tip, None).await?;
     let Some(tip_block) = tip_iterator.next().await else {
         error!("Failed to fetch the TIP block from the immutable chain.");
+
+        // or forcibly capture the backtrace regardless of environment variable configuration
+        debug!(
+            "Custom backtrace: {}",
+            std::backtrace::Backtrace::force_capture()
+        );
+
         return Err(Error::MithrilSnapshot(None));
     };
 

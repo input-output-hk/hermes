@@ -46,6 +46,9 @@ pub enum Error {
     /// Mithril snapshot chunk error.
     #[error("Failed to read block(s) from Mithril snapshot")]
     MithrilSnapshotChunk(pallas_hardano::storage::immutable::chunk::Error),
+    /// Mithril snapshot traversal error.
+    #[error("Failed to traverse block(s) from Mithril snapshot")]
+    MithrilSnapshotTraverse(pallas::ledger::traverse::Error),
     /// Failed to parse
     #[error("Failed to parse network")]
     ParseNetwork,

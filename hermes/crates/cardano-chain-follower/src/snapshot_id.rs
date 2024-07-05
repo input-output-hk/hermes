@@ -11,7 +11,7 @@ use tracing::debug;
 
 use crate::{
     mithril_snapshot_sync::{get_mithril_tip, MITHRIL_IMMUTABLE_SUB_DIRECTORY},
-    point::ORIGIN_POINT,
+    point::UNKNOWN_POINT,
     Network, Point,
 };
 /// A Representation of a Snapshot Path and its represented Immutable File Number.
@@ -88,7 +88,7 @@ impl default::Default for SnapshotId {
         SnapshotId {
             path: PathBuf::new(),
             file: 0,
-            tip: ORIGIN_POINT,
+            tip: UNKNOWN_POINT,
         }
     }
 }

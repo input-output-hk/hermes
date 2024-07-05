@@ -46,10 +46,10 @@ missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
 # specific commit from the `catalyst` branch
-pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
 # specific commit from the `catalyst` branch
-pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
-pallas-crypto = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "946d45e956d6dbafe20907b792c55d219a5bb4ce", version = "0.27.0" }
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
+pallas-crypto = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
 
 wasmtime = "20.0.2"
