@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::packaging::{
-    resources::{fs_resource::FsResource, Resource},
+    resources::{fs::FsResource, Resource},
     schema_validation::SchemaValidator,
     FileError,
 };

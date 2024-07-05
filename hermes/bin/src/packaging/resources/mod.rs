@@ -1,12 +1,16 @@
 //! Resources module functionality.
 
-pub(crate) mod bytes_resource;
-pub(crate) mod fs_resource;
+pub(crate) mod bytes;
+pub(crate) mod fs;
 mod uri;
 
-use std::{fmt::Debug, io::Read, path::Path};
+use std::{
+    fmt::Debug,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
-use fs_resource::FsResource;
+use fs::FsResource;
 use serde::{Deserialize, Deserializer};
 use uri::Uri;
 
@@ -104,6 +108,13 @@ impl Resource {
                 }
             },
             Some(schema) => Err(anyhow::anyhow!("Unsupported URI schema {schema}")),
+        }
+    }
+
+    /// Upload resource to the file system, returning its path.
+    pub(crate) fn upload_to_fs(&self) -> PathBuf {
+        match self {
+            Resource::Fs(fs) => fs.get_path(),
         }
     }
 

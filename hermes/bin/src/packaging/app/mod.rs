@@ -5,14 +5,15 @@ pub(crate) mod manifest;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use manifest::Manifest;
+use manifest::{Manifest, ManifestModule};
 
+use super::wasm_module::WasmModulePackage;
 use crate::{
     errors::Errors,
     packaging::{
         metadata::{Metadata, MetadataSchema},
         package::Package,
-        resources::{bytes_resource::BytesResource, ResourceTrait},
+        resources::{bytes::BytesResource, ResourceTrait},
         FileError, MissingPackageFileError,
     },
 };
@@ -51,6 +52,9 @@ impl ApplicationPackage {
         validate_and_write_icon(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
         validate_and_write_metadata(manifest, build_time, package_name, &package)
             .unwrap_or_else(errors.get_add_err_fn());
+        for module in &manifest.modules {
+            validate_and_write_module(module, &package).unwrap_or_else(errors.get_add_err_fn());
+        }
         write_www_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
         write_share_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
 
@@ -113,6 +117,15 @@ fn validate_and_write_metadata(
     Ok(())
 }
 
+/// Validate WASM module package and write it to the package.
+fn validate_and_write_module(manifest: &ManifestModule, _package: &Package) -> anyhow::Result<()> {
+    let module_file_path = manifest.file.upload_to_fs();
+    let module_package = WasmModulePackage::from_file(module_file_path)?;
+    module_package.validate()?;
+
+    Ok(())
+}
+
 /// Write www dir to the package.
 fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
@@ -134,7 +147,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{fs_resource::FsResource, Resource};
+    use crate::packaging::resources::{fs::FsResource, Resource};
 
     fn prepare_default_package_files() -> Metadata<ApplicationPackage> {
         let metadata = Metadata::<ApplicationPackage>::from_reader(

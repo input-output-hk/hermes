@@ -18,7 +18,7 @@ use crate::{
     packaging::{
         metadata::{Metadata, MetadataSchema},
         package::Package,
-        resources::{bytes_resource::BytesResource, ResourceTrait},
+        resources::{bytes::BytesResource, ResourceTrait},
         sign::{
             certificate::Certificate,
             keys::PrivateKey,
@@ -314,7 +314,7 @@ mod tests {
 
     use super::*;
     use crate::packaging::{
-        resources::{fs_resource::FsResource, Resource},
+        resources::{fs::FsResource, Resource},
         sign::{
             certificate::{self, tests::certificate_str},
             keys::tests::private_key_str,

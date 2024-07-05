@@ -18,7 +18,7 @@ use crate::{
 
 /// Hermes package object.
 /// Wrapper over HDF5 file object.
-pub(crate) struct Package(hdf5::File);
+pub(crate) struct Package(hdf5::Group);
 
 impl Package {
     /// Create new `Package` instance from path.
@@ -29,7 +29,8 @@ impl Package {
                 path.as_ref().display()
             )
         })?;
-        Ok(Self(package))
+
+        Ok(Self(package.as_group()?))
     }
 
     /// Open existing `Package` instance from path.
@@ -40,7 +41,15 @@ impl Package {
                 path.as_ref().display()
             )
         })?;
-        Ok(Self(package))
+        Ok(Self(package.as_group()?))
+    }
+
+    /// Copy other `Package` content to the current one
+    #[allow(dead_code)]
+    pub(crate) fn copy_package(&self, _package: &Package) -> anyhow::Result<()> {
+        let _contents = self.0.member_names()?;
+
+        Ok(())
     }
 
     /// Copy file to `Package`
@@ -255,7 +264,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::fs_resource::FsResource;
+    use crate::packaging::resources::fs::FsResource;
 
     #[test]
     fn create_dir_in_root_test() {
