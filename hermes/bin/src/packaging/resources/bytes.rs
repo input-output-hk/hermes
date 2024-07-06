@@ -1,6 +1,9 @@
 //! Raw bytes resource implementation.
 
-use std::{fmt::Debug, io::Read};
+use std::{
+    fmt::{Debug, Display},
+    io::Read,
+};
 
 use super::ResourceTrait;
 
@@ -11,6 +14,12 @@ pub(crate) struct BytesResource {
     name: String,
     /// raw bytes
     data: Vec<u8>,
+}
+
+impl Display for BytesResource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl BytesResource {

@@ -7,13 +7,13 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
-use super::wasm_module::WasmModulePackage;
+use super::{resources::ResourceTrait, wasm_module::WasmModulePackage};
 use crate::{
     errors::Errors,
     packaging::{
         metadata::{Metadata, MetadataSchema},
         package::Package,
-        resources::{bytes::BytesResource, ResourceTrait},
+        resources::BytesResource,
         FileError, MissingPackageFileError,
     },
 };
@@ -95,7 +95,10 @@ impl ApplicationPackage {
 /// Validate icon.svg file and write it to the package.
 fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
-    package.copy_file(&manifest.icon, ApplicationPackage::ICON_FILE.into())?;
+    package.copy_file(
+        manifest.icon.resource(),
+        ApplicationPackage::ICON_FILE.into(),
+    )?;
     Ok(())
 }
 
@@ -104,11 +107,11 @@ fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Re
 fn validate_and_write_metadata(
     manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &Package,
 ) -> anyhow::Result<()> {
-    let resource = &manifest.metadata;
+    let resource = manifest.metadata.resource();
     let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::<ApplicationPackage>::from_reader(metadata_reader)
-        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
     metadata.set_build_date(build_date);
     metadata.set_name(name);
 
@@ -129,7 +132,7 @@ fn validate_and_write_module(manifest: &ManifestModule, _package: &Package) -> a
 /// Write www dir to the package.
 fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir, &ApplicationPackage::WWW_DIR.into())?;
+        package.copy_dir_recursively(share_dir.resource(), &ApplicationPackage::WWW_DIR.into())?;
     }
     Ok(())
 }
@@ -137,7 +140,8 @@ fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
 /// Write share dir to the package.
 fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir, &ApplicationPackage::SHARE_DIR.into())?;
+        package
+            .copy_dir_recursively(share_dir.resource(), &ApplicationPackage::SHARE_DIR.into())?;
     }
     Ok(())
 }
@@ -147,7 +151,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{fs::FsResource, Resource};
+    use crate::packaging::resources::{FsResource, ManifestResource};
 
     fn prepare_default_package_files() -> Metadata<ApplicationPackage> {
         let metadata = Metadata::<ApplicationPackage>::from_reader(
@@ -187,8 +191,8 @@ mod tests {
 
         Manifest {
             name: app_name,
-            icon: Resource::Fs(FsResource::new(icon_path)),
-            metadata: Resource::Fs(FsResource::new(metadata_path)),
+            icon: ManifestResource::Fs(FsResource::new(icon_path)),
+            metadata: ManifestResource::Fs(FsResource::new(metadata_path)),
             modules: vec![],
             www: None,
             share: None,

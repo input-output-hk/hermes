@@ -238,11 +238,11 @@ impl WasmModulePackage {
 fn validate_and_write_metadata(
     manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &Package,
 ) -> anyhow::Result<()> {
-    let resource = &manifest.metadata;
+    let resource = manifest.metadata.resource();
     let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::<WasmModulePackage>::from_reader(metadata_reader)
-        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
     metadata.set_build_date(build_date);
     metadata.set_name(name);
 
@@ -253,12 +253,12 @@ fn validate_and_write_metadata(
 
 /// Validate WASM component file and write it to the package.
 fn validate_and_write_component(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
-    let resource = &manifest.component;
+    let resource = manifest.component.resource();
 
     let component_reader = resource.get_reader()?;
 
     wasm::module::Module::from_reader(component_reader)
-        .map_err(|err| FileError::from_string(resource.location(), Some(err)))?;
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     package.copy_file(resource, WasmModulePackage::COMPONENT_FILE.into())?;
     Ok(())
@@ -267,20 +267,24 @@ fn validate_and_write_component(manifest: &Manifest, package: &Package) -> anyho
 /// Validate config file and config schema and write them to the package.
 fn validate_and_write_config(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(config) = &manifest.config {
-        let config_schema_reader = config.schema.get_reader()?;
+        let config_schema_resource = config.schema.resource();
+        let config_schema_reader = config_schema_resource.get_reader()?;
         let config_schema = ConfigSchema::from_reader(config_schema_reader)
-            .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
+            .map_err(|err| FileError::from_string(config_schema_resource.to_string(), Some(err)))?;
 
-        let resource = BytesResource::new(config.schema.name()?, config_schema.to_bytes()?);
+        let resource =
+            BytesResource::new(config_schema_resource.name()?, config_schema.to_bytes()?);
         package.copy_file(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE.into())?;
 
         if let Some(config_file) = &config.file {
-            let config_reader = config_file.get_reader()?;
+            let config_resource = config_file.resource();
+
+            let config_reader = config_resource.get_reader()?;
 
             let config = Config::from_reader(config_reader, config_schema.validator())
-                .map_err(|err| FileError::from_string(config.schema.location(), Some(err)))?;
+                .map_err(|err| FileError::from_string(config_resource.to_string(), Some(err)))?;
 
-            let resource = BytesResource::new(config_file.name()?, config.to_bytes()?);
+            let resource = BytesResource::new(config_resource.name()?, config.to_bytes()?);
             package.copy_file(&resource, WasmModulePackage::CONFIG_FILE.into())?;
         }
     }
@@ -290,11 +294,17 @@ fn validate_and_write_config(manifest: &Manifest, package: &Package) -> anyhow::
 /// Validate settings schema file and it to the package.
 fn validate_and_write_settings(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(settings) = &manifest.settings {
-        let setting_schema_reader = settings.schema.get_reader()?;
-        let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
-            .map_err(|err| FileError::from_string(settings.schema.location(), Some(err)))?;
+        let settings_schema_resource = settings.schema.resource();
+        let setting_schema_reader = settings_schema_resource.get_reader()?;
+        let settings_schema =
+            SettingsSchema::from_reader(setting_schema_reader).map_err(|err| {
+                FileError::from_string(settings_schema_resource.to_string(), Some(err))
+            })?;
 
-        let resource = BytesResource::new(settings.schema.name()?, settings_schema.to_bytes()?);
+        let resource = BytesResource::new(
+            settings_schema_resource.name()?,
+            settings_schema.to_bytes()?,
+        );
         package.copy_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
     }
     Ok(())
@@ -303,7 +313,7 @@ fn validate_and_write_settings(manifest: &Manifest, package: &Package) -> anyhow
 /// Write share dir to the package.
 fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir, &WasmModulePackage::SHARE_DIR.into())?;
+        package.copy_dir_recursively(share_dir.resource(), &WasmModulePackage::SHARE_DIR.into())?;
     }
     Ok(())
 }
@@ -314,7 +324,7 @@ mod tests {
 
     use super::*;
     use crate::packaging::{
-        resources::{fs::FsResource, Resource},
+        resources::{FsResource, ManifestResource},
         sign::{
             certificate::{self, tests::certificate_str},
             keys::tests::private_key_str,
@@ -422,15 +432,15 @@ mod tests {
 
         Manifest {
             name: module_name,
-            metadata: Resource::Fs(FsResource::new(metadata_path)),
-            component: Resource::Fs(FsResource::new(component_path)),
+            metadata: ManifestResource::Fs(FsResource::new(metadata_path)),
+            component: ManifestResource::Fs(FsResource::new(component_path)),
             config: manifest::ManifestConfig {
-                file: Some(Resource::Fs(FsResource::new(config_path))),
-                schema: Resource::Fs(FsResource::new(config_schema_path)),
+                file: Some(ManifestResource::Fs(FsResource::new(config_path))),
+                schema: ManifestResource::Fs(FsResource::new(config_schema_path)),
             }
             .into(),
             settings: manifest::ManifestSettings {
-                schema: Resource::Fs(FsResource::new(settings_schema_path)),
+                schema: ManifestResource::Fs(FsResource::new(settings_schema_path)),
             }
             .into(),
             share: None,

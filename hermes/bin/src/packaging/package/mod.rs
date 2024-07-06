@@ -264,7 +264,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::fs::FsResource;
+    use crate::packaging::resources::FsResource;
 
     #[test]
     fn create_dir_in_root_test() {
