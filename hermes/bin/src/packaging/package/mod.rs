@@ -8,6 +8,7 @@ use std::{collections::BTreeSet, io::Read, path::Path};
 use path::PackagePath;
 
 use self::compression::enable_compression;
+use super::resources::Hdf5Resource;
 use crate::{
     errors::Errors,
     packaging::{
@@ -46,9 +47,9 @@ impl Package {
 
     /// Copy other `Package` content to the current one
     #[allow(dead_code)]
-    pub(crate) fn copy_package(&self, _package: &Package) -> anyhow::Result<()> {
-        let _contents = self.0.member_names()?;
-
+    pub(crate) fn copy_package(&self, package: &Package, path: &PackagePath) -> anyhow::Result<()> {
+        let resource = Hdf5Resource::Group(package.0.clone());
+        copy_dir_recursively_to_package(&resource, path, &self.0)?;
         Ok(())
     }
 
@@ -155,7 +156,7 @@ fn copy_file_to_package(
     let mut resource_data = Vec::new();
     reader.read_to_end(&mut resource_data)?;
     if resource_data.is_empty() {
-        anyhow::bail!("Resource {} is empty", resource.name()?);
+        anyhow::bail!("Resource {} is empty", resource.to_string());
     }
 
     let dir = create_dir_to_package(&path, root)?;

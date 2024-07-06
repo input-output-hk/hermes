@@ -13,11 +13,12 @@ use std::{
 
 pub(crate) use bytes::BytesResource;
 pub(crate) use fs::FsResource;
+pub(crate) use hdf5::Hdf5Resource;
 pub(crate) use manifest::ManifestResource;
 
 /// Resource trait definition.
 pub(crate) trait ResourceTrait: Display {
-    /// Get resource name.
+    /// Get resource name (e.g. file name or dir name).
     fn name(&self) -> anyhow::Result<String>;
 
     /// Check if resource is a directory.
