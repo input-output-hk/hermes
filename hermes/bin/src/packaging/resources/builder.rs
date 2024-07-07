@@ -1,4 +1,4 @@
-//! Manifest resource type implementation.
+//! Resource builder type implementation.
 //! This type defines only serde logic and does not implement `ResourceTrait` trait
 //! directly.
 
@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer};
 
 use super::{fs::FsResource, uri::Uri, ResourceTrait};
 
-/// Manifest resource definition with the `serde::Deserialize` implementation.
+/// Resource builder definition with the `serde::Deserialize` implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ResourceBuilder {
     /// File system resource.
