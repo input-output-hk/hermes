@@ -10,12 +10,12 @@ use super::{fs::FsResource, uri::Uri, ResourceTrait};
 
 /// Manifest resource definition with the `serde::Deserialize` implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ManifestResource {
+pub(crate) enum ResourceBuilder {
     /// File system resource.
     Fs(FsResource),
 }
 
-impl ManifestResource {
+impl ResourceBuilder {
     /// Upload resource to the file system, returning its path.
     pub(crate) fn upload_to_fs(&self) -> PathBuf {
         match self {
@@ -31,7 +31,7 @@ impl ManifestResource {
     }
 
     /// Get `ResourceTrait` obj.
-    pub(crate) fn resource(&self) -> &impl ResourceTrait {
+    pub(crate) fn build(&self) -> &impl ResourceTrait {
         match self {
             Self::Fs(fs) => fs,
         }
@@ -69,7 +69,7 @@ impl ManifestResource {
     }
 }
 
-impl<'de> Deserialize<'de> for ManifestResource {
+impl<'de> Deserialize<'de> for ResourceBuilder {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where D: Deserializer<'de> {
         let s = String::deserialize(deserializer)?;
@@ -89,29 +89,29 @@ mod tests {
             host: None,
             path: Some("file.txt".to_string()),
         };
-        let resource = ManifestResource::from_uri(uri).expect("Cannot create resource from uri");
-        assert_eq!(resource, ManifestResource::Fs(FsResource::new("file.txt")));
+        let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
+        assert_eq!(resource, ResourceBuilder::Fs(FsResource::new("file.txt")));
 
         let uri = Uri {
             schema: Some("file".to_string()),
             host: None,
             path: Some("file.txt".to_string()),
         };
-        let resource = ManifestResource::from_uri(uri).expect("Cannot create resource from uri");
-        assert_eq!(resource, ManifestResource::Fs(FsResource::new("file.txt")));
+        let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
+        assert_eq!(resource, ResourceBuilder::Fs(FsResource::new("file.txt")));
 
         let uri = Uri {
             schema: Some("file".to_string()),
             host: Some("www.google.com".to_string()),
             path: Some("file.txt".to_string()),
         };
-        assert!(ManifestResource::from_uri(uri).is_err());
+        assert!(ResourceBuilder::from_uri(uri).is_err());
 
         let uri = Uri {
             schema: None,
             host: None,
             path: None,
         };
-        assert!(ManifestResource::from_uri(uri).is_err());
+        assert!(ResourceBuilder::from_uri(uri).is_err());
     }
 }

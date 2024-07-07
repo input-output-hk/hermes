@@ -95,10 +95,7 @@ impl ApplicationPackage {
 /// Validate icon.svg file and write it to the package.
 fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
-    package.copy_file(
-        manifest.icon.resource(),
-        ApplicationPackage::ICON_FILE.into(),
-    )?;
+    package.copy_file(manifest.icon.build(), ApplicationPackage::ICON_FILE.into())?;
     Ok(())
 }
 
@@ -107,7 +104,7 @@ fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Re
 fn validate_and_write_metadata(
     manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &Package,
 ) -> anyhow::Result<()> {
-    let resource = manifest.metadata.resource();
+    let resource = manifest.metadata.build();
     let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::<ApplicationPackage>::from_reader(metadata_reader)
@@ -132,7 +129,7 @@ fn validate_and_write_module(manifest: &ManifestModule, _package: &Package) -> a
 /// Write www dir to the package.
 fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir.resource(), &ApplicationPackage::WWW_DIR.into())?;
+        package.copy_dir_recursively(share_dir.build(), &ApplicationPackage::WWW_DIR.into())?;
     }
     Ok(())
 }
@@ -140,8 +137,7 @@ fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
 /// Write share dir to the package.
 fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
     if let Some(share_dir) = &manifest.share {
-        package
-            .copy_dir_recursively(share_dir.resource(), &ApplicationPackage::SHARE_DIR.into())?;
+        package.copy_dir_recursively(share_dir.build(), &ApplicationPackage::SHARE_DIR.into())?;
     }
     Ok(())
 }
@@ -151,7 +147,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{FsResource, ManifestResource};
+    use crate::packaging::resources::{FsResource, ResourceBuilder};
 
     fn prepare_default_package_files() -> Metadata<ApplicationPackage> {
         let metadata = Metadata::<ApplicationPackage>::from_reader(
@@ -191,8 +187,8 @@ mod tests {
 
         Manifest {
             name: app_name,
-            icon: ManifestResource::Fs(FsResource::new(icon_path)),
-            metadata: ManifestResource::Fs(FsResource::new(metadata_path)),
+            icon: ResourceBuilder::Fs(FsResource::new(icon_path)),
+            metadata: ResourceBuilder::Fs(FsResource::new(metadata_path)),
             modules: vec![],
             www: None,
             share: None,

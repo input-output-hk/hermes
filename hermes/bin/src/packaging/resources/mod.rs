@@ -1,9 +1,9 @@
 //! Resources module functionality.
 
+mod builder;
 pub(crate) mod bytes;
 mod fs;
 mod hdf5;
-mod manifest;
 mod uri;
 
 use std::{
@@ -11,10 +11,10 @@ use std::{
     io::Read,
 };
 
+pub(crate) use builder::ResourceBuilder;
 pub(crate) use bytes::BytesResource;
 pub(crate) use fs::FsResource;
 pub(crate) use hdf5::Hdf5Resource;
-pub(crate) use manifest::ManifestResource;
 
 /// Resource trait definition.
 pub(crate) trait ResourceTrait: Display {
