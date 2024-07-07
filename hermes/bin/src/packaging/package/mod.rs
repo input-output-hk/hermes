@@ -265,7 +265,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::FsResource;
+    use crate::packaging::resources::{BytesResource, FsResource};
 
     #[test]
     fn create_dir_in_root_test() {
@@ -283,6 +283,40 @@ mod tests {
         assert!(get_dir_from_package(&PackagePath::new("not_created_dir"), &package).is_err());
 
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
+    }
+
+    #[test]
+    fn copy_package_to_package_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+
+        // prepare fist package
+        let content_name = "file_1";
+        let content_data = b"test_content".to_vec();
+        let content = BytesResource::new(content_name.to_string(), content_data);
+
+        let package_1_name = tmp_dir.child("test1.hdf5");
+        let package_1 = Package::create(package_1_name).expect("Failed to create a new package.");
+
+        package_1
+            .copy_file(&content, content_name.into())
+            .expect("Failed to copy file to package.");
+        assert!(package_1
+            .get_file_reader(content_name.into())
+            .expect("Failed to get file reader.")
+            .is_some());
+
+        // prepare second package
+        let package_2_name = tmp_dir.child("test2.hdf5");
+        let package_2 = Package::create(package_2_name).expect("Failed to create a new package.");
+
+        // copy content from first package to second package root dir
+        package_2
+            .copy_package(&package_1, &"".into())
+            .expect("Failed to copy package to package.");
+        assert!(package_2
+            .get_file_reader(content_name.into())
+            .expect("Failed to get file reader.")
+            .is_some());
     }
 
     #[test]
