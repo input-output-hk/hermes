@@ -1,11 +1,11 @@
 //! Implementation of the generalized Hermes package struct as a HDF5 package.
 
 mod compression;
-pub(crate) mod path;
+pub mod path;
 
 use std::{collections::BTreeSet, io::Read, path::Path};
 
-use path::PackagePath;
+pub(crate) use path::PackagePath;
 
 use self::compression::enable_compression;
 use super::resources::Hdf5Resource;
@@ -273,14 +273,16 @@ mod tests {
         let package_name = tmp_dir.child("test.hdf5");
         let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
 
-        let path = PackagePath::new("dir_1/dir_2/dir_3/dir_4");
+        let path = PackagePath::from_str("dir_1/dir_2/dir_3/dir_4");
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
 
-        assert!(get_dir_from_package(&PackagePath::new("dir_1"), &package).is_ok());
-        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2"), &package).is_ok());
-        assert!(get_dir_from_package(&PackagePath::new("dir_1/dir_2/dir_3"), &package).is_ok());
+        assert!(get_dir_from_package(&PackagePath::from_str("dir_1"), &package).is_ok());
+        assert!(get_dir_from_package(&PackagePath::from_str("dir_1/dir_2"), &package).is_ok());
+        assert!(
+            get_dir_from_package(&PackagePath::from_str("dir_1/dir_2/dir_3"), &package).is_ok()
+        );
         assert!(get_dir_from_package(&path, &package).is_ok());
-        assert!(get_dir_from_package(&PackagePath::new("not_created_dir"), &package).is_err());
+        assert!(get_dir_from_package(&PackagePath::from_str("not_created_dir"), &package).is_err());
 
         create_dir_to_package(&path, &package).expect("Failed to create directories in package.");
     }

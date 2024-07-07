@@ -7,7 +7,7 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
-use super::{resources::ResourceTrait, wasm_module::WasmModulePackage};
+use super::{package::PackagePath, resources::ResourceTrait, wasm_module::WasmModulePackage};
 use crate::{
     errors::Errors,
     packaging::{
@@ -33,8 +33,13 @@ impl ApplicationPackage {
     const ICON_FILE: &'static str = "icon.svg";
     /// Hermes application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
+    /// Application WASM modules directory path.
+    const MODULES_DIR: &'static str = "lib";
     /// Application package share directory path.
     const SHARE_DIR: &'static str = "srv/share";
+    /// Application shareable directory path.
+    #[allow(dead_code)]
+    const USERS_DIR: &'static str = "usr";
     /// Application package www directory path.
     const WWW_DIR: &'static str = "srv/www";
 
@@ -118,10 +123,18 @@ fn validate_and_write_metadata(
 }
 
 /// Validate WASM module package and write it to the package.
-fn validate_and_write_module(manifest: &ManifestModule, _package: &Package) -> anyhow::Result<()> {
+fn validate_and_write_module(manifest: &ManifestModule, package: &Package) -> anyhow::Result<()> {
     let module_file_path = manifest.file.upload_to_fs();
     let module_package = WasmModulePackage::from_file(module_file_path)?;
     module_package.validate()?;
+
+    let module_name = manifest.name.clone().unwrap_or_default();
+
+    let module_path = PackagePath::new(vec![
+        ApplicationPackage::MODULES_DIR.to_string(),
+        module_name,
+    ]);
+    module_package.copy_to_package(package, &module_path)?;
 
     Ok(())
 }

@@ -17,7 +17,7 @@ use crate::{
     errors::Errors,
     packaging::{
         metadata::{Metadata, MetadataSchema},
-        package::Package,
+        package::{Package, PackagePath},
         resources::{bytes::BytesResource, ResourceTrait},
         sign::{
             certificate::Certificate,
@@ -43,7 +43,7 @@ impl WasmModulePackage {
     /// WASM module package component file path.
     const COMPONENT_FILE: &'static str = "module.wasm";
     /// WASM module package config file path.
-    const CONFIG_FILE: &'static str = "config.json";
+    pub(crate) const CONFIG_FILE: &'static str = "config.json";
     /// WASM module package config schema file path.
     const CONFIG_SCHEMA_FILE: &'static str = "config.schema.json";
     /// WASM module package file extension.
@@ -53,7 +53,7 @@ impl WasmModulePackage {
     /// WASM module package settings schema file path.
     const SETTINGS_SCHEMA_FILE: &'static str = "settings.schema.json";
     /// WASM module package share directory path.
-    const SHARE_DIR: &'static str = "share";
+    pub(crate) const SHARE_DIR: &'static str = "share";
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<Path>>(
@@ -230,6 +230,13 @@ impl WasmModulePackage {
             .get_file_reader(Self::SETTINGS_SCHEMA_FILE.into())?
             .map(SettingsSchema::from_reader)
             .transpose()
+    }
+
+    /// Copy all content of the `WasmModulePackage` to the provided `package`.
+    pub(crate) fn copy_to_package(
+        &self, package: &Package, path: &PackagePath,
+    ) -> anyhow::Result<()> {
+        package.copy_package(&self.0, path)
     }
 }
 
