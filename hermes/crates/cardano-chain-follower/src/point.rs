@@ -181,10 +181,6 @@ pub(crate) fn cmp_point(
 mod tests {
     use crate::*;
 
-    use cardano_chain_follower::PointOrTip;
-
-    // use pallas::network::miniprotocols::Point as PallasPoint;
-
     #[test]
     fn test_comparisons() {
         let origin1 = ORIGIN_POINT;
@@ -194,63 +190,45 @@ mod tests {
         let early_block = Point::new(100u64, vec![]);
         let late_block1 = Point::new(5000u64, vec![]);
         let late_block2 = Point::new(5000u64, vec![]);
+
+        assert!(origin1 == origin2);
+        assert!(origin1 < early_block);
+        assert!(origin1 <= early_block);
+        assert!(origin1 != early_block);
+        assert!(origin1 < late_block1);
+        assert!(origin1 <= late_block1);
+        assert!(origin1 != late_block1);
+        assert!(origin1 < tip1);
+        assert!(origin1 <= tip1);
+        assert!(origin1 != tip1);
+
+        assert!(tip1 > origin1);
+        assert!(tip1 >= origin1);
+        assert!(tip1 != origin1);
+        assert!(tip1 > early_block);
+        assert!(tip1 >= late_block1);
+        assert!(tip1 != late_block1);
+        assert!(tip1 == tip2);
+
+        assert!(early_block > origin1);
+        assert!(early_block >= origin1);
+        assert!(early_block != origin1);
+        assert!(early_block < late_block1);
+        assert!(early_block <= late_block1);
+        assert!(early_block != late_block1);
+        assert!(early_block < tip1);
+        assert!(early_block <= tip1);
+        assert!(early_block != tip1);
+
+        assert!(late_block1 == late_block2);
+        assert!(late_block1 > origin1);
+        assert!(late_block1 >= origin1);
+        assert!(late_block1 != origin1);
+        assert!(late_block1 > early_block);
+        assert!(late_block1 >= early_block);
+        assert!(late_block1 != early_block);
+        assert!(late_block1 < tip1);
+        assert!(late_block1 <= tip1);
+        assert!(late_block1 != tip1);
     }
-
-
-    /* TODO: Fix this
-    use pallas::network::miniprotocols::Point;
-
-    use super::Point;
-
-    #[test]
-    fn test_comparisons() {
-        let origin = Point::Point(Point::Origin);
-        let origin2 = Point::Point(Point::Origin);
-        let tip = PointOrTip::Tip;
-        let tip2 = PointOrTip::Tip;
-        let early_block = PointOrTip::Point(Point::Specific(100u64, vec![]));
-        let late_block = PointOrTip::Point(Point::Specific(5000u64, vec![]));
-        let late_block2 = PointOrTip::Point(Point::Specific(5000u64, vec![]));
-
-        assert!(origin == origin2);
-        assert!(origin < early_block);
-        assert!(origin <= early_block);
-        assert!(origin != early_block);
-        assert!(origin < late_block);
-        assert!(origin <= late_block);
-        assert!(origin != late_block);
-        assert!(origin < tip);
-        assert!(origin <= tip);
-        assert!(origin != tip);
-
-        assert!(tip > origin);
-        assert!(tip >= origin);
-        assert!(tip != origin);
-        assert!(tip > early_block);
-        assert!(tip >= late_block);
-        assert!(tip != late_block);
-        assert!(tip == tip2);
-
-        assert!(early_block > origin);
-        assert!(early_block >= origin);
-        assert!(early_block != origin);
-        assert!(early_block < late_block);
-        assert!(early_block <= late_block);
-        assert!(early_block != late_block);
-        assert!(early_block < tip);
-        assert!(early_block <= tip);
-        assert!(early_block != tip);
-
-        assert!(late_block == late_block2);
-        assert!(late_block > origin);
-        assert!(late_block >= origin);
-        assert!(late_block != origin);
-        assert!(late_block > early_block);
-        assert!(late_block >= early_block);
-        assert!(late_block != early_block);
-        assert!(late_block < tip);
-        assert!(late_block <= tip);
-        assert!(late_block != tip);
-    }
-    */
 }
