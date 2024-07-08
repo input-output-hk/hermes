@@ -26,7 +26,8 @@ use crate::{
     mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
     snapshot_id::SnapshotId,
-    stats, MultiEraBlock,
+    stats::{self, mithril_validation_state},
+    MultiEraBlock,
 };
 
 /// The minimum duration between checks for a new Mithril Snapshot. (Must be same as
@@ -344,6 +345,7 @@ async fn get_latest_validated_mithril_snapshot(
 ) -> Option<(SnapshotId, Arc<FileHashMap>)> {
     /// Purge a bad mithril snapshot from disk.
     async fn purge_bad_mithril_snapshot(chain: Network, latest_mithril: &SnapshotId) {
+        debug!("Purging Bad Mithril Snapshot: {latest_mithril}");
         if let Err(error) = remove_dir_all(&latest_mithril).await {
             // This should NOT happen because we already checked the Mithril path is fully writable.
             error!("Mithril Snapshot background updater for: {chain}: Failed to remove old snapshot {latest_mithril}: {error}");
@@ -353,6 +355,8 @@ async fn get_latest_validated_mithril_snapshot(
     // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is
     // intact.
     let latest_mithril = cfg.recover_latest_snapshot_id().await?;
+
+    debug!("Latest Recovered Mithril ID = {latest_mithril}");
 
     // Get the actual latest snapshot, shouldn't fail, but say the current is invalid if it
     // does.
@@ -374,9 +378,11 @@ async fn get_latest_validated_mithril_snapshot(
     let Some((_, certificate)) =
         get_mithril_snapshot_and_certificate(chain, client, &snapshot).await
     else {
+        error!("Mithril Snapshot : Failed to get Snapshot and certificate (Transient Error).");
+
         // If we couldn't get the snapshot then we don't need to do anything else, transient
         // error.
-        purge_bad_mithril_snapshot(chain, &latest_mithril).await;
+        // purge_bad_mithril_snapshot(chain, &latest_mithril).await;
         return None;
     };
 
@@ -399,6 +405,7 @@ async fn get_latest_validated_mithril_snapshot(
     //}
 
     if !valid {
+        error!("Mithril Snapshot : Snapshot fails to validate, can not be recovered.");
         purge_bad_mithril_snapshot(chain, &latest_mithril).await;
         return None;
     }
@@ -410,6 +417,9 @@ async fn get_latest_validated_mithril_snapshot(
 async fn recover_existing_snapshot(
     cfg: &MithrilSnapshotConfig, tx: &Sender<MithrilUpdateMessage>,
 ) -> (Client, Arc<MithrilTurboDownloader>, Option<SnapshotId>) {
+    // This is a Mithril Validation, so record it.
+    mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
+
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
     let (client, downloader) = connect_client(cfg).await;
@@ -427,7 +437,7 @@ async fn recover_existing_snapshot(
         get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
     {
         // Read the actual TIP block from the Mithril chain.
-        match get_mithril_tip(cfg.chain, &active_snapshot.immutable_path()).await {
+        match get_mithril_tip(cfg.chain, &active_snapshot.path()).await {
             Ok(tip_block) => {
                 // Validate the Snapshot ID matches the true TIP.
                 if active_snapshot.tip() == tip_block.point() {
@@ -457,6 +467,14 @@ async fn recover_existing_snapshot(
                 error!("Mithril snapshot validation failed for: {}.  Could not read the TIP Block : {}.", cfg.chain, error);
             },
         }
+    } else {
+        debug!("No latest validated snapshot for: {}", cfg.chain);
+    }
+
+    if current_snapshot.is_none() {
+        mithril_validation_state(cfg.chain, stats::MithrilValidationState::Failed);
+    } else {
+        mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
     }
 
     (client, downloader, current_snapshot)
@@ -484,7 +502,7 @@ async fn check_snapshot_to_download(
         return SnapshotStatus::Sleep(DOWNLOAD_ERROR_RETRY_DURATION);
     };
 
-    debug!("Mithril Snapshot background updater for: {chain} : Checking if we are up-to-date.");
+    debug!("Mithril Snapshot background updater for: {chain} : Checking if we are up-to-date {current_snapshot:?}.");
 
     // Check if the latest snapshot is different from our actual previous one.
     if let Some(current_mithril_snapshot) = &current_snapshot {
@@ -644,7 +662,7 @@ pub(crate) async fn background_mithril_update(
             },
         };
 
-        debug!("New Immutable TIP = {:?}", tip);
+        debug!("New Immutable TIP = {}", tip);
 
         // Check that the new tip is more advanced than the OLD tip.
         if let Some(active_snapshot) = current_snapshot.clone() {

@@ -187,8 +187,10 @@ async fn process_rollback(
 ) -> anyhow::Result<Point> {
     let rollback_slot = point.slot_or_default();
     let head_slot = previous_point.slot_or_default();
+    debug!("Head slot: {}", head_slot);
+    debug!("Rollback slot: {}", rollback_slot);
     let slot_rollback_size = if head_slot > rollback_slot {
-        rollback_slot - head_slot
+        head_slot - rollback_slot
     } else {
         0
     };
@@ -341,7 +343,7 @@ async fn live_sync_backfill(
 ) -> anyhow::Result<()> {
     stats::backfill_started(cfg.chain);
 
-    let (fill_to, oldest_fork) = get_fill_to_point(cfg.chain).await;
+    let (fill_to, _oldest_fork) = get_fill_to_point(cfg.chain).await;
     let range = (update.tip.clone().into(), fill_to.clone().into());
     let mut previous_point = update.previous.clone();
 
@@ -359,16 +361,21 @@ async fn live_sync_backfill(
 
     while let Some(block_data) = peer.blockfetch().recv_while_streaming().await? {
         // Backfilled blocks get placed in the oldest fork currently on the live-chain.
-        let block = MultiEraBlock::new(cfg.chain, block_data, &previous_point, oldest_fork)
-            .with_context(|| {
+        let block =
+            MultiEraBlock::new(cfg.chain, block_data, &previous_point, 1).with_context(|| {
                 format!(
                     "Failed to decode block data. previous: {previous_point:?}, range: {range_msg}"
                 )
             })?;
 
         // Check we get the first block in the range properly.
-        if backfill_blocks.is_empty() && block.point().strict_eq(&update.tip) {
-            return Err(Error::BackfillSync("First Block is invalid.".to_string()).into());
+        if backfill_blocks.is_empty() && !block.point().strict_eq(&update.tip) {
+            return Err(Error::BackfillSync(format!(
+                "First Block is invalid: Block {:?} != Range Start {:?}.",
+                block.point(),
+                update.tip
+            ))
+            .into());
         }
 
         previous_point = block.point();
@@ -377,8 +384,11 @@ async fn live_sync_backfill(
     }
 
     // Check we get the last block in the range properly.
-    if backfill_blocks.is_empty() || previous_point.strict_eq(&fill_to) {
-        return Err(Error::BackfillSync("Last Block is invalid.".to_string()).into());
+    if backfill_blocks.is_empty() || !previous_point.strict_eq(&fill_to) {
+        return Err(Error::BackfillSync(format!(
+            "Last Block is invalid. Block {previous_point:?} != Range End {fill_to:?}"
+        ))
+        .into());
     }
 
     // Report how many backfill blocks we received.
@@ -514,7 +524,10 @@ pub(crate) async fn chain_sync(cfg: ChainSyncConfig, rx: mpsc::Receiver<MithrilU
         live_sync_backfill_and_purge(backfill_cfg.clone(), rx, sync_waiter).await;
     });
 
-    let mut fork_count: u64 = 1;
+    // Live Fill data starts at fork 1.
+    // Immutable data from a mithril snapshot is fork 0.
+    // Live backfill is always Fork 1.
+    let mut fork_count: u64 = 2;
 
     loop {
         // We never have a connection if we end up around the loop, so make a new one.

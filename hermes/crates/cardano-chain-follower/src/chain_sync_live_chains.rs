@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 
 use rayon::prelude::*;
 use strum::IntoEnumIterator;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     error::{Error, Result},
@@ -199,11 +199,12 @@ impl ProtectedLiveChainBlockList {
         let previous_point = block.previous();
         let last_live_point = Self::get_last_live_point(&live_chain);
         if !previous_point.strict_eq(&last_live_point) {
-            // We are NOT contiguous, so check if we can become contiguous with a rollback.
-
             // Detected a rollback, so increase the fork count.
             *fork_count += 1;
             let mut rollback_size: u64 = 0;
+
+            // We are NOT contiguous, so check if we can become contiguous with a rollback.
+            debug!("Detected non-contiguous block, rolling back. Fork: {fork_count}");
 
             // First check if the previous is >= the earliest block in the live chain.
             // This is because when we start syncing we could rollback earlier than our
@@ -214,6 +215,7 @@ impl ProtectedLiveChainBlockList {
             if (block.point() < check_first_live_point)
                 || !Self::strict_block_lookup(&live_chain, &previous_point)
             {
+                debug!("Rollback before live chain, clear it.");
                 // We rolled back earlier than the current live chain.
                 // Purge the entire chain, and just add this one block as the new tip.
                 rollback_size = live_chain.len() as u64;
@@ -224,6 +226,7 @@ impl ProtectedLiveChainBlockList {
                 // connection with the chain sequence.
                 // We search backwards because a rollback is more likely in the newest blocks than the oldest.
                 while let Some(popped) = live_chain.pop_back() {
+                    
                     rollback_size += 1;
                     if previous_point.strict_eq(&popped.value().previous()) {
                         // We are now contiguous, so stop purging.

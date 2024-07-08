@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Utc};
 use crossbeam_skiplist::SkipMap;
 use once_cell::sync::Lazy;
+use serde::Serialize;
 use strum::{EnumIter, IntoEnumIterator};
 use tracing::error;
 
@@ -13,7 +14,7 @@ use crate::Network;
 /* -------- GENERAL STATISTIC TRACKING -----------------------------------------------------------*/
 
 /// Statistics related to Mithril Snapshots
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Mithril {
     /// Number of Mithril Snapshots that have downloaded successfully.
     pub updates: u64,
@@ -73,7 +74,7 @@ impl Mithril {
 }
 
 /// Statistics related to a single depth of rollback
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Rollback {
     /// How deep was the rollback from tip.
     pub depth: u64,
@@ -83,7 +84,7 @@ pub struct Rollback {
 
 /// Statistics for all our known rollback types
 /// Rollback Vec is sorted by depth, ascending.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Rollbacks {
     /// These are the ACTUAL rollbacks we did on our live-chain in memory.
     pub live: Vec<Rollback>,
@@ -95,7 +96,7 @@ pub struct Rollbacks {
 }
 
 /// Individual Follower stats
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Follower {
     /// Synthetic follower connection ID
     pub id: u64,
@@ -112,7 +113,7 @@ pub struct Follower {
 }
 
 /// Statistics related to the live blockchain
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Live {
     /// The Time that synchronization to this blockchain started
     pub sync_start: DateTime<Utc>,
@@ -167,7 +168,7 @@ impl Live {
 }
 
 /// Statistics for a single follower network.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Statistics {
     /// Statistics related to the live connection to the blockchain.
     pub live: Live,
@@ -247,6 +248,23 @@ impl Statistics {
         this_stats.live.rollbacks.follower = rollbacks_reset(chain, &RollbackType::Follower);
 
         this_stats
+    }
+
+    /// Return the statistics formatted as JSON
+    #[must_use]
+    pub fn as_json(&self, pretty: bool) -> String {
+        let json = if pretty {
+            serde_json::to_string_pretty(self)
+        } else {
+            serde_json::to_string(self)
+        };
+        match json {
+            Ok(json) => json,
+            Err(error) => {
+                error!("{:?}", error);
+                String::new()
+            },
+        }
     }
 }
 

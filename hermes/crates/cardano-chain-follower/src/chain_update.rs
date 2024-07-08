@@ -18,7 +18,7 @@ pub enum Kind {
 }
 
 /// Actual Chain Update itself.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ChainUpdate {
     /// What kind of update is this?
     pub kind: Kind,
@@ -51,8 +51,12 @@ impl ChainUpdate {
 impl Display for ChainUpdate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let block_type = self.kind.to_string();
+        let mut tip: String = String::new();
+        if self.tip {
+            tip = " @ Tip".to_string();
+        }
 
-        write!(f, "ChainUpdate: {block_type}")?;
+        write!(f, "{block_type}{tip} : {}", self.data)?;
 
         Ok(())
     }

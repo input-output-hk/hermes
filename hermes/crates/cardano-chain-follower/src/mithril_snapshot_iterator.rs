@@ -142,7 +142,7 @@ impl MithrilSnapshotIterator {
     pub(crate) async fn new(
         chain: Network, path: &Path, from: &Point, previous_point: Option<Point>,
     ) -> Result<Self> {
-        if previous_point.is_none() {
+        if previous_point.is_none() && *from != ORIGIN_POINT {
             return Ok(Self::fuzzy_iterator(chain, path, from).await);
         }
 
@@ -168,9 +168,7 @@ impl MithrilSnapshotIterator {
         let res = task::spawn_blocking(move || {
             #[allow(clippy::unwrap_used)] // Unwrap is safe here because the lock can't be poisoned.
             let mut inner_iterator = inner.lock().unwrap();
-            let next_block = inner_iterator.next();
-            debug!("next block: {:?}", next_block);
-            next_block
+            inner_iterator.next()
         })
         .await;
 
