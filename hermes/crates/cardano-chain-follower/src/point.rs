@@ -41,7 +41,7 @@ impl Point {
         Self(pallas::network::miniprotocols::Point::Specific(slot, hash))
     }
 
-    /// Create a new specific point.
+    /// Create a new specific point where hash is unknown.
     #[must_use]
     pub fn fuzzy(slot: u64) -> Self {
         Self(pallas::network::miniprotocols::Point::Specific(
@@ -179,6 +179,24 @@ pub(crate) fn cmp_point(
 
 #[cfg(test)]
 mod tests {
+    use crate::*;
+
+    use cardano_chain_follower::PointOrTip;
+
+    // use pallas::network::miniprotocols::Point as PallasPoint;
+
+    #[test]
+    fn test_comparisons() {
+        let origin1 = ORIGIN_POINT;
+        let origin2 = ORIGIN_POINT;
+        let tip1 = TIP_POINT;
+        let tip2 = TIP_POINT;
+        let early_block = Point::new(100u64, vec![]);
+        let late_block1 = Point::new(5000u64, vec![]);
+        let late_block2 = Point::new(5000u64, vec![]);
+    }
+
+
     /* TODO: Fix this
     use pallas::network::miniprotocols::Point;
 
