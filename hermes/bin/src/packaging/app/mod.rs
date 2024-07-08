@@ -45,7 +45,7 @@ impl ApplicationPackage {
 
     /// Create a new Hermes application package package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_time: DateTime<Utc>,
+        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -53,18 +53,9 @@ impl ApplicationPackage {
         let package = Package::create(&package_path)?;
 
         let mut errors = Errors::new();
-
-        validate_and_write_icon(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-        validate_and_write_metadata(manifest, build_time, package_name, &package)
-            .unwrap_or_else(errors.get_add_err_fn());
-        for module in &manifest.modules {
-            validate_and_write_module(module, &package).unwrap_or_else(errors.get_add_err_fn());
-        }
-        write_www_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-        write_share_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-
+        validate_and_write_from_manifest(manifest, &package, build_date, package_name, &mut errors);
         if !errors.is_empty() {
-            std::fs::remove_file(package_path).unwrap_or_else(errors.get_add_err_fn());
+            std::fs::remove_file(package_path)?;
         }
 
         errors.return_result(Self(package))
@@ -95,6 +86,21 @@ impl ApplicationPackage {
             .map(Metadata::<Self>::from_reader)
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
+}
+
+/// Validate and write all content of the `Manifest` to the provided `package`.
+fn validate_and_write_from_manifest(
+    manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
+    errors: &mut Errors,
+) {
+    validate_and_write_icon(manifest, package).unwrap_or_else(errors.get_add_err_fn());
+    validate_and_write_metadata(manifest, build_date, package_name, package)
+        .unwrap_or_else(errors.get_add_err_fn());
+    for module in &manifest.modules {
+        validate_and_write_module(module, package).unwrap_or_else(errors.get_add_err_fn());
+    }
+    write_www_dir(manifest, package).unwrap_or_else(errors.get_add_err_fn());
+    write_share_dir(manifest, package).unwrap_or_else(errors.get_add_err_fn());
 }
 
 /// Validate icon.svg file and write it to the package.

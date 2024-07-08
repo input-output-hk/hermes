@@ -9,7 +9,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
-use manifest::Manifest;
+use manifest::{Manifest, ManifestConfig};
 use settings::SettingsSchema;
 use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
@@ -57,7 +57,7 @@ impl WasmModulePackage {
 
     /// Create a new WASM module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_time: DateTime<Utc>,
+        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -65,16 +65,9 @@ impl WasmModulePackage {
         let package = Package::create(&package_path)?;
 
         let mut errors = Errors::new();
-
-        validate_and_write_metadata(manifest, build_time, package_name, &package)
-            .unwrap_or_else(errors.get_add_err_fn());
-        validate_and_write_component(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-        validate_and_write_config(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-        validate_and_write_settings(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-        write_share_dir(manifest, &package).unwrap_or_else(errors.get_add_err_fn());
-
+        validate_and_write_from_manifest(manifest, &package, build_date, package_name, &mut errors);
         if !errors.is_empty() {
-            std::fs::remove_file(package_path).unwrap_or_else(errors.get_add_err_fn());
+            std::fs::remove_file(package_path)?;
         }
 
         errors.return_result(Self(package))
@@ -240,12 +233,34 @@ impl WasmModulePackage {
     }
 }
 
+/// Validate and write all content of the `Manifest` to the provided `package`.
+fn validate_and_write_from_manifest(
+    manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
+    errors: &mut Errors,
+) {
+    validate_and_write_metadata(manifest.metadata.build(), build_date, package_name, package)
+        .unwrap_or_else(errors.get_add_err_fn());
+
+    validate_and_write_component(manifest.component.build(), package)
+        .unwrap_or_else(errors.get_add_err_fn());
+
+    if let Some(config) = &manifest.config {
+        validate_and_write_config(config, package).unwrap_or_else(errors.get_add_err_fn());
+    }
+
+    if let Some(settings) = &manifest.settings {
+        validate_and_write_settings_schema(settings.schema.build(), package)
+            .unwrap_or_else(errors.get_add_err_fn());
+    }
+
+    write_share_dir(manifest, package).unwrap_or_else(errors.get_add_err_fn());
+}
+
 /// Validate metadata.json file and write it to the package.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &Package,
+    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
 ) -> anyhow::Result<()> {
-    let resource = manifest.metadata.build();
     let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::<WasmModulePackage>::from_reader(metadata_reader)
@@ -259,9 +274,9 @@ fn validate_and_write_metadata(
 }
 
 /// Validate WASM component file and write it to the package.
-fn validate_and_write_component(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
-    let resource = manifest.component.build();
-
+fn validate_and_write_component(
+    resource: &impl ResourceTrait, package: &Package,
+) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
     wasm::module::Module::from_reader(component_reader)
@@ -271,49 +286,53 @@ fn validate_and_write_component(manifest: &Manifest, package: &Package) -> anyho
     Ok(())
 }
 
-/// Validate config file and config schema and write them to the package.
-fn validate_and_write_config(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
-    if let Some(config) = &manifest.config {
-        let config_schema_resource = config.schema.build();
-        let config_schema_reader = config_schema_resource.get_reader()?;
-        let config_schema = ConfigSchema::from_reader(config_schema_reader)
-            .map_err(|err| FileError::from_string(config_schema_resource.to_string(), Some(err)))?;
-
-        let resource =
-            BytesResource::new(config_schema_resource.name()?, config_schema.to_bytes()?);
-        package.copy_file(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE.into())?;
-
-        if let Some(config_file) = &config.file {
-            let config_resource = config_file.build();
-
-            let config_reader = config_resource.get_reader()?;
-
-            let config = Config::from_reader(config_reader, config_schema.validator())
-                .map_err(|err| FileError::from_string(config_resource.to_string(), Some(err)))?;
-
-            let resource = BytesResource::new(config_resource.name()?, config.to_bytes()?);
-            package.copy_file(&resource, WasmModulePackage::CONFIG_FILE.into())?;
-        }
+/// Validate config schema and config file and write them to the package.
+fn validate_and_write_config(manifest: &ManifestConfig, package: &Package) -> anyhow::Result<()> {
+    let config_schema = validate_and_write_config_schema(manifest.schema.build(), package)?;
+    if let Some(config_file) = &manifest.file {
+        validate_and_write_config_file(config_file.build(), &config_schema, package)?;
     }
     Ok(())
 }
 
-/// Validate settings schema file and it to the package.
-fn validate_and_write_settings(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
-    if let Some(settings) = &manifest.settings {
-        let settings_schema_resource = settings.schema.build();
-        let setting_schema_reader = settings_schema_resource.get_reader()?;
-        let settings_schema =
-            SettingsSchema::from_reader(setting_schema_reader).map_err(|err| {
-                FileError::from_string(settings_schema_resource.to_string(), Some(err))
-            })?;
+/// Validate config schema and write it to the package.
+fn validate_and_write_config_schema(
+    resource: &impl ResourceTrait, package: &Package,
+) -> anyhow::Result<ConfigSchema> {
+    let config_schema_reader = resource.get_reader()?;
+    let config_schema = ConfigSchema::from_reader(config_schema_reader)
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
-        let resource = BytesResource::new(
-            settings_schema_resource.name()?,
-            settings_schema.to_bytes()?,
-        );
-        package.copy_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
-    }
+    let resource = BytesResource::new(resource.name()?, config_schema.to_bytes()?);
+    package.copy_file(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE.into())?;
+
+    Ok(config_schema)
+}
+
+/// Validate config file and write it to the package.
+fn validate_and_write_config_file(
+    resource: &impl ResourceTrait, config_schema: &ConfigSchema, package: &Package,
+) -> anyhow::Result<()> {
+    let config_reader = resource.get_reader()?;
+
+    let config = Config::from_reader(config_reader, config_schema.validator())
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
+
+    let resource = BytesResource::new(resource.name()?, config.to_bytes()?);
+    package.copy_file(&resource, WasmModulePackage::CONFIG_FILE.into())?;
+    Ok(())
+}
+
+/// Validate settings schema file and it to the package.
+fn validate_and_write_settings_schema(
+    resource: &impl ResourceTrait, package: &Package,
+) -> anyhow::Result<()> {
+    let setting_schema_reader = resource.get_reader()?;
+    let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
+        .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
+
+    let resource = BytesResource::new(resource.name()?, settings_schema.to_bytes()?);
+    package.copy_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
     Ok(())
 }
 
