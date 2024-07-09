@@ -100,6 +100,9 @@ impl MithrilSnapshotConfig {
     pub(crate) async fn recover_latest_snapshot_id(&self) -> Option<SnapshotId> {
         // Can we read directory entries from the base path, if not then there is no latest
         // snapshot.
+        let path = self.path.clone();
+        debug!("Recovering latest snapshot id from {:?}", &path);
+
         let Ok(mut entries) = fs::read_dir(&self.path).await else {
             error!(
                 "Getting latest snapshot failed: Can't read entries from {}",

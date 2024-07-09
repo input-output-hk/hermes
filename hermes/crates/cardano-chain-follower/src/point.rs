@@ -106,7 +106,7 @@ impl Display for Point {
         if hash.is_empty() {
             return write!(f, "Point @ Probe:{slot}");
         }
-        write!(f, "Point @ {slot}:{}", hex::encode_upper(hash))
+        write!(f, "Point @ {slot}:{}", hex::encode(hash))
     }
 }
 

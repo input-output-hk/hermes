@@ -2,12 +2,13 @@
 
 use pallas::network::miniprotocols::txmonitor::{TxBody, TxId};
 use tokio::sync::broadcast;
+use tracing::debug;
 
 use crate::{
     chain_sync::point_at_tip,
     chain_sync_live_chains::{find_best_fork_block, get_live_block},
     chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
-    chain_update::{self, ChainUpdate, Kind},
+    chain_update::{self, ChainUpdate},
     mithril_snapshot::MithrilSnapshot,
     mithril_snapshot_data::latest_mithril_snapshot_id,
     mithril_snapshot_iterator::MithrilSnapshotIterator,
@@ -120,12 +121,23 @@ impl ChainFollower {
         // If we can't get the next consecutive block, then
         // Get the best previous block.
         if next_block.is_none() {
+            debug!("No blocks left in live chain.");
+
+            // IF this is an update still, and not us having caught up, then it WILL be a rollback.
             update_type = chain_update::Kind::Rollback;
             next_block = if let Some(block) =
                 find_best_fork_block(self.chain, &self.current, &self.previous, self.fork)
             {
-                Some(block)
+                debug!("Found fork block: {block}");
+                // IF the block is the same as our current previous, there has been no chain advancement,
+                // so just return None.
+                if block.point().strict_eq(&self.current) {
+                    None
+                } else {
+                    Some(block)
+                }
             } else {
+                debug!("No block to find, rewinding to latest mithril tip.");
                 let latest_mithril_point = latest_mithril_snapshot_id(self.chain).tip();
                 if let Some(block) = MithrilSnapshot::new(self.chain)
                     .read_block_at(&latest_mithril_point)
@@ -174,6 +186,10 @@ impl ChainFollower {
 
         // We will loop here until we can successfully return a new block
         loop {
+            // Check if Immutable TIP has advanced, and if so, send a ChainUpdate about it.
+            // Should only happen once every ~6hrs.
+            // TODO.
+
             // Try and get the next update from the mithril chain, and return it if we are successful.
             update = self.next_from_mithril().await;
             if update.is_some() {
@@ -188,12 +204,19 @@ impl ChainFollower {
 
             // IF we can't get a new block directly from the mithril data, or the live chain, then
             // wait for something to change which might mean we can get the next block.
-            let update = self.sync_updates.recv().await.ok()?;
-            if update == Kind::ImmutableBlockRollForward {
-                // TODO: Advise that the Immutable part of the chain advanced.
-                // Actually we probably just want to probe it and not rely on the alert, as its async
-                // and could be dropped.
-                break;
+            let update = self.sync_updates.recv().await;
+            match update {
+                Ok(kind) => {
+                    debug!("Update kind: {kind}");
+                },
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(distance)) => {
+                    debug!("Lagged by {} updates", distance);
+                },
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    // We are closed, so we need to wait for the next update.
+                    // This is not an error.
+                    return None;
+                },
             }
         }
 

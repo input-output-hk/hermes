@@ -206,6 +206,12 @@ impl Display for MultiEraBlock {
         let txns = block.tx_count();
         let aux_data = block.has_aux_data();
 
+        let fork = if self.immutable() {
+            "Immutable".to_string()
+        } else {
+            format!("Fork: {fork}")
+        };
+
         let block_era = match block {
             pallas::ledger::traverse::MultiEraBlock::EpochBoundary(_) => {
                 "Byron Epoch Boundary".to_string()
@@ -218,7 +224,8 @@ impl Display for MultiEraBlock {
             pallas::ledger::traverse::MultiEraBlock::Conway(_) => "Conway".to_string(),
             _ => "Unknown".to_string(),
         };
-        write!(f, "{block_era} block : Slot# {slot} : Fork# {fork} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}")?;
+        write!(f, "{block_era} block : {}, Previous {} : Slot# {slot} : {fork} : Block# {block_number} : Size {size} : Txns {txns} : AuxData? {aux_data}",
+    self.point(), self.previous())?;
         Ok(())
     }
 }

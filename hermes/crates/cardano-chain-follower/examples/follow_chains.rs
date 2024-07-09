@@ -8,10 +8,10 @@
 use std::{error::Error, time::Duration};
 
 use cardano_chain_follower::{
-    ChainFollower, ChainSyncConfig, ChainUpdate, Network, ORIGIN_POINT, TIP_POINT,
+    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Network, Statistics, ORIGIN_POINT, TIP_POINT,
 };
 use clap::{arg, ArgAction, Command};
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
@@ -65,19 +65,35 @@ async fn follow_for(network: Network) {
     let mut prev_hash: Option<pallas_crypto::hash::Hash<32>> = None;
     let mut last_immutable: bool = false;
     let mut reached_tip = false; // After we reach TIP we show all block we process.
+    let mut updates: u64 = 0;
+    let mut last_fork = 0;
+
+    let mut last_metrics_time = Instant::now();
 
     while let Some(chain_update) = follower.next().await {
+        updates += 1;
+
         if chain_update.tip {
             reached_tip = true;
         }
 
         let block = chain_update.block_data().decode();
         let this_era = block.era().to_string();
-        if (current_era != this_era) || (chain_update.immutable() != last_immutable) || reached_tip
+        if (current_era != this_era)
+            || (chain_update.immutable() != last_immutable)
+            || reached_tip
+            //|| !chain_update.immutable()
+            || chain_update.data.fork() > 1
+            || (updates % 100_000 == 0)
+            || (last_fork != chain_update.data.fork())
         {
             current_era = this_era;
             last_immutable = chain_update.immutable();
-            info!(chain = network.to_string(), "{}", chain_update);
+            last_fork = chain_update.data.fork();
+            info!(
+                chain = network.to_string(),
+                "Chain Update {updates}:{}", chain_update
+            );
         }
 
         let this_prev_hash = match block {
@@ -98,7 +114,12 @@ async fn follow_for(network: Network) {
             },
             _ => None,
         };
-        if last_update.is_some() && prev_hash != this_prev_hash {
+
+        // We have no state, so can only check consistency with block updates.
+        // But thats OK, the chain follower itself is also checking chain consistency.
+        // This is just an example.
+        if chain_update.kind == Kind::Block && last_update.is_some() && prev_hash != this_prev_hash
+        {
             debug!("last_update = {}", last_update.unwrap());
             debug!("prev_hash = {:?}", prev_hash);
             debug!("this_prev_hash = {:?}", this_prev_hash);
@@ -111,6 +132,16 @@ async fn follow_for(network: Network) {
 
         prev_hash = Some(block.hash());
         last_update = Some(chain_update);
+
+        let check_time = Instant::now();
+        if check_time.duration_since(last_metrics_time).as_secs() >= 60 {
+            last_metrics_time = check_time;
+
+            let stats = Statistics::new(network);
+
+            // info!("Json Metrics:  {}", stats.as_json(false));
+            info!("Json Metrics:  {}", stats.as_json(true));
+        }
     }
 
     if let Some(last_update) = last_update {

@@ -76,6 +76,11 @@ impl SnapshotId {
         immutable
     }
 
+    /// Get the Blockchain path from this `SnapshotId`
+    pub(crate) fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
     /// Get the Tip of the Immutable Blockchain from this `SnapshotId`
     pub(crate) fn tip(&self) -> Point {
         self.tip.clone()
