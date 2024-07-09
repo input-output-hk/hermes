@@ -4,8 +4,8 @@ use std::{collections::HashSet, str::FromStr};
 
 use dashmap::{DashMap, DashSet};
 use hermes_ipfs::{
-    libp2p::futures::{pin_mut, StreamExt},
-    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    pin_mut, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    StreamExt,
 };
 use once_cell::sync::Lazy;
 use tokio::{

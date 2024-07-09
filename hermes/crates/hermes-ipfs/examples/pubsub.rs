@@ -14,11 +14,8 @@
 //! * The task that reads lines from stdin and publishes them as either node.
 use std::io::Write;
 
-use hermes_ipfs::HermesIpfs;
-use rust_ipfs::{
-    libp2p::futures::{pin_mut, FutureExt, StreamExt},
-    PubsubEvent,
-};
+use hermes_ipfs::{pin_mut, FutureExt, HermesIpfs, StreamExt};
+use rust_ipfs::PubsubEvent;
 use rustyline_async::Readline;
 
 #[allow(clippy::indexing_slicing)]

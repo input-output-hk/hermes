@@ -35,12 +35,12 @@
 
 use std::str::FromStr;
 
+/// IPFS Content Identifier.
+pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
-/// IPFS Content Identifier.
-pub use libipld::{self as ipld, Cid};
 /// libp2p re-export.
-pub use rust_ipfs::libp2p;
+pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
 pub use rust_ipfs::p2p::PeerInfo;
 /// Enum for specifying paths in IPFS.
@@ -57,12 +57,7 @@ pub use rust_ipfs::PeerId;
 pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
-use rust_ipfs::{
-    dag::ResolveError,
-    libp2p::futures::{pin_mut, stream::BoxStream, StreamExt},
-    unixfs::AddOpt,
-    MessageId, PubsubEvent, Quorum,
-};
+use rust_ipfs::{dag::ResolveError, unixfs::AddOpt, MessageId, PubsubEvent, Quorum};
 
 /// Hermes IPFS
 #[allow(dead_code)]
