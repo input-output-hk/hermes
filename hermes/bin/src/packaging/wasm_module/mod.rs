@@ -5,8 +5,6 @@ mod config;
 pub(crate) mod manifest;
 mod settings;
 
-use std::path::Path;
-
 use author_payload::{SignaturePayload, SignaturePayloadBuilder};
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
@@ -17,7 +15,7 @@ use crate::{
     errors::Errors,
     packaging::{
         metadata::{Metadata, MetadataSchema},
-        package::{Package, PackagePath},
+        package::{Package, Path},
         resources::{bytes::BytesResource, ResourceTrait},
         sign::{
             certificate::Certificate,
@@ -56,7 +54,7 @@ impl WasmModulePackage {
     pub(crate) const SHARE_DIR: &'static str = "share";
 
     /// Create a new WASM module package from a manifest file.
-    pub(crate) fn build_from_manifest<P: AsRef<Path>>(
+    pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
         manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
@@ -74,7 +72,7 @@ impl WasmModulePackage {
     }
 
     /// Open an existing WASM module package.
-    pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub(crate) fn from_file<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
         let package = Package::open(path)?;
         Ok(Self(package))
     }
@@ -231,9 +229,7 @@ impl WasmModulePackage {
     }
 
     /// Copy all content of the `WasmModulePackage` to the provided `package`.
-    pub(crate) fn copy_to_package(
-        &self, package: &Package, path: &PackagePath,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn copy_to_package(&self, package: &Package, path: &Path) -> anyhow::Result<()> {
         package.copy_package(&self.0, path)
     }
 }
@@ -248,11 +244,11 @@ fn validate_and_write_from_manifest(
         build_date,
         package_name,
         package,
-        PackagePath::default(),
+        Path::default(),
     )
     .unwrap_or_else(errors.get_add_err_fn());
 
-    validate_and_write_component(manifest.component.build(), package, PackagePath::default())
+    validate_and_write_component(manifest.component.build(), package, Path::default())
         .unwrap_or_else(errors.get_add_err_fn());
 
     if let Some(config) = &manifest.config {
@@ -265,7 +261,7 @@ fn validate_and_write_from_manifest(
     }
 
     if let Some(share_dir) = &manifest.share {
-        write_share_dir(share_dir.build(), package, PackagePath::default())
+        write_share_dir(share_dir.build(), package, Path::default())
             .unwrap_or_else(errors.get_add_err_fn());
     }
 }
@@ -274,7 +270,7 @@ fn validate_and_write_from_manifest(
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
     resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
-    mut path: PackagePath,
+    mut path: Path,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -291,7 +287,7 @@ fn validate_and_write_metadata(
 
 /// Validate WASM component file and write it to the package to the provided dir path.
 fn validate_and_write_component(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
@@ -306,13 +302,13 @@ fn validate_and_write_component(
 /// Validate config schema and config file and write them to the package.
 fn validate_and_write_config(manifest: &ManifestConfig, package: &Package) -> anyhow::Result<()> {
     let config_schema =
-        validate_and_write_config_schema(manifest.schema.build(), package, PackagePath::default())?;
+        validate_and_write_config_schema(manifest.schema.build(), package, Path::default())?;
     if let Some(config_file) = &manifest.file {
         validate_and_write_config_file(
             config_file.build(),
             &config_schema,
             package,
-            PackagePath::default(),
+            Path::default(),
         )?;
     }
     Ok(())
@@ -320,7 +316,7 @@ fn validate_and_write_config(manifest: &ManifestConfig, package: &Package) -> an
 
 /// Validate config schema and write it to the package to the provided dir path.
 fn validate_and_write_config_schema(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<ConfigSchema> {
     let config_schema_reader = resource.get_reader()?;
     let config_schema = ConfigSchema::from_reader(config_schema_reader)
@@ -335,8 +331,7 @@ fn validate_and_write_config_schema(
 
 /// Validate config file and write it to the package.
 pub(crate) fn validate_and_write_config_file(
-    resource: &impl ResourceTrait, config_schema: &ConfigSchema, package: &Package,
-    mut path: PackagePath,
+    resource: &impl ResourceTrait, config_schema: &ConfigSchema, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     let config_reader = resource.get_reader()?;
 
@@ -364,7 +359,7 @@ fn validate_and_write_settings_schema(
 
 /// Write share dir to the package.
 pub(crate) fn write_share_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(WasmModulePackage::SHARE_DIR.into());
     package.copy_dir_recursively(resource, &path)?;

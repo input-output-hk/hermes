@@ -4,9 +4,9 @@ use std::fmt::Display;
 
 /// Package path.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct PackagePath(Vec<String>);
+pub(crate) struct Path(Vec<String>);
 
-impl PackagePath {
+impl Path {
     /// Create new `PackagePath` from path components.
     #[allow(dead_code)]
     pub(crate) fn new(path_components: Vec<String>) -> Self {
@@ -42,14 +42,14 @@ impl PackagePath {
     }
 }
 
-impl Display for PackagePath {
+impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let path = self.0.join("/");
         write!(f, "{path}")
     }
 }
 
-impl IntoIterator for PackagePath {
+impl IntoIterator for Path {
     type IntoIter = std::vec::IntoIter<String>;
     type Item = String;
 
@@ -58,13 +58,13 @@ impl IntoIterator for PackagePath {
     }
 }
 
-impl From<String> for PackagePath {
+impl From<String> for Path {
     fn from(path: String) -> Self {
         Self::from_str(path.as_str())
     }
 }
 
-impl From<&str> for PackagePath {
+impl From<&str> for Path {
     fn from(path: &str) -> Self {
         Self::from_str(path)
     }
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn package_path_test() {
         {
-            let mut path = PackagePath::from_str("/a/b/c");
+            let mut path = Path::from_str("/a/b/c");
             assert_eq!(
                 path.pop_elem().expect("Failed to pop last element"),
                 "c".to_string()
@@ -93,7 +93,7 @@ mod tests {
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::from_str("a/b/c");
+            let mut path = Path::from_str("a/b/c");
             assert_eq!(
                 path.pop_elem().expect("Failed to pop last element"),
                 "c".to_string()
@@ -109,7 +109,7 @@ mod tests {
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::from_str("/a");
+            let mut path = Path::from_str("/a");
             assert_eq!(
                 path.pop_elem().expect("Failed to pop last element"),
                 "a".to_string()
@@ -117,7 +117,7 @@ mod tests {
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::from_str("a");
+            let mut path = Path::from_str("a");
             assert_eq!(
                 path.pop_elem().expect("Failed to pop last element"),
                 "a".to_string()
@@ -125,15 +125,15 @@ mod tests {
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::from_str("/");
+            let mut path = Path::from_str("/");
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::from_str("");
+            let mut path = Path::from_str("");
             assert!(path.pop_elem().is_err());
         }
         {
-            let mut path = PackagePath::default();
+            let mut path = Path::default();
             path.push_elem("a".to_string());
             path.push_elem("b".to_string());
             path.push_elem("c".to_string());

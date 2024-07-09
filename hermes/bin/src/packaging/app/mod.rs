@@ -2,13 +2,11 @@
 
 pub(crate) mod manifest;
 
-use std::path::Path;
-
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
 use super::{
-    package::PackagePath,
+    package::Path,
     resources::ResourceTrait,
     wasm_module::{self, WasmModulePackage},
 };
@@ -23,7 +21,7 @@ use crate::{
 };
 
 /// Hermes application package.
-pub(crate) struct ApplicationPackage(#[allow(dead_code)] Package);
+pub(crate) struct ApplicationPackage(Package);
 
 impl MetadataSchema for ApplicationPackage {
     const METADATA_SCHEMA: &'static str =
@@ -47,7 +45,7 @@ impl ApplicationPackage {
     const WWW_DIR: &'static str = "srv/www";
 
     /// Create a new Hermes application package package from a manifest file.
-    pub(crate) fn build_from_manifest<P: AsRef<Path>>(
+    pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
         manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
@@ -66,7 +64,7 @@ impl ApplicationPackage {
 
     /// Open an existing application package.
     #[allow(dead_code)]
-    pub(crate) fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub(crate) fn from_file<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
         let package = Package::open(path)?;
         Ok(Self(package))
     }
@@ -107,33 +105,33 @@ fn validate_and_write_from_manifest(
     manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
     errors: &mut Errors,
 ) {
-    validate_and_write_icon(manifest.icon.build(), package, PackagePath::default())
+    validate_and_write_icon(manifest.icon.build(), package, Path::default())
         .unwrap_or_else(errors.get_add_err_fn());
     validate_and_write_metadata(
         manifest.metadata.build(),
         build_date,
         package_name,
         package,
-        PackagePath::default(),
+        Path::default(),
     )
     .unwrap_or_else(errors.get_add_err_fn());
     for module in &manifest.modules {
-        validate_and_write_module(module, package, PackagePath::default())
+        validate_and_write_module(module, package, Path::default())
             .unwrap_or_else(errors.get_add_err_fn());
     }
     if let Some(www_dir) = &manifest.www {
-        write_www_dir(www_dir.build(), package, PackagePath::default())
+        write_www_dir(www_dir.build(), package, Path::default())
             .unwrap_or_else(errors.get_add_err_fn());
     }
     if let Some(share_dir) = &manifest.share {
-        write_share_dir(share_dir.build(), package, PackagePath::default())
+        write_share_dir(share_dir.build(), package, Path::default())
             .unwrap_or_else(errors.get_add_err_fn());
     }
 }
 
 /// Validate icon.svg file and write it to the package to the provided dir path.
 fn validate_and_write_icon(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
     path.push_elem(ApplicationPackage::ICON_FILE.into());
@@ -145,7 +143,7 @@ fn validate_and_write_icon(
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
     resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
-    mut path: PackagePath,
+    mut path: Path,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -162,7 +160,7 @@ fn validate_and_write_metadata(
 
 /// Validate WASM module package and write it to the package to the provided dir path.
 fn validate_and_write_module(
-    manifest: &ManifestModule, package: &Package, path: PackagePath,
+    manifest: &ManifestModule, package: &Package, path: Path,
 ) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
     module_package.validate()?;
@@ -201,7 +199,7 @@ fn validate_and_write_module(
 
 /// Write www dir to the package to the provided dir path to the provided dir path.
 fn write_www_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(ApplicationPackage::WWW_DIR.into());
     package.copy_dir_recursively(resource, &path)?;
@@ -210,7 +208,7 @@ fn write_www_dir(
 
 /// Write share dir to the package to the provided dir path.
 fn write_share_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+    resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(ApplicationPackage::SHARE_DIR.into());
     package.copy_dir_recursively(resource, &path)?;
