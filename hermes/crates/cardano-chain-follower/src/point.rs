@@ -16,7 +16,7 @@ use pallas::crypto::hash::Hash;
 /// available as constants: `TIP_POINT`, and `ORIGIN_POINT`.
 ///
 /// # Attributes
-/// 
+///
 /// * `Point` - The inner type is a `Point` from the `pallas::network::miniprotocols`
 ///   module. This inner `Point` type encapsulates the specific details required
 ///   to identify a point in the blockchain.
@@ -59,23 +59,23 @@ pub const TIP_POINT: Point = Point(pallas::network::miniprotocols::Point::Specif
     Vec::new(),
 ));
 
-/// The origin of the blockchain. It is used when the 
-/// interest is in the very first point of the blockchain, regardless of its 
+/// The origin of the blockchain. It is used when the
+/// interest is in the very first point of the blockchain, regardless of its
 /// specific details.
 ///
 /// # Usage
 ///
-/// `ORIGIN_POINT` can be used in scenarios where the starting point of the 
-/// blockchain is required. It signifies the genesis block or the initial state 
+/// `ORIGIN_POINT` can be used in scenarios where the starting point of the
+/// blockchain is required. It signifies the genesis block or the initial state
 /// of the blockchain.
 ///
-/// The inner `Point` is created with the `Origin` variant from 
-/// `pallas::network::miniprotocols::Point`, indicating that this is a marker 
+/// The inner `Point` is created with the `Origin` variant from
+/// `pallas::network::miniprotocols::Point`, indicating that this is a marker
 /// for the blockchain's origin.
 pub const ORIGIN_POINT: Point = Point(pallas::network::miniprotocols::Point::Origin);
 
 impl Point {
-    /// Creates a new `Point` instance representing a specific 
+    /// Creates a new `Point` instance representing a specific
     /// point in the blockchain, identified by a given slot and hash.
     ///
     /// # Parameters
@@ -101,8 +101,8 @@ impl Point {
         Self(pallas::network::miniprotocols::Point::Specific(slot, hash))
     }
 
-    /// Creates a new `Point` instance representing a specific 
-    /// point in the blockchain, identified by a given slot, but with an 
+    /// Creates a new `Point` instance representing a specific
+    /// point in the blockchain, identified by a given slot, but with an
     /// unknown hash. This can be useful in scenarios where the slot is known
     /// but the hash is either unavailable or irrelevant.
     ///
@@ -131,8 +131,8 @@ impl Point {
     }
 
     /// Compares the hash stored in the `Point` with a known hash.
-    /// It returns `true` if the hashes match and `false` otherwise. If the 
-    /// provided hash is `None`, the function checks if the `Point` has an 
+    /// It returns `true` if the hashes match and `false` otherwise. If the
+    /// provided hash is `None`, the function checks if the `Point` has an
     /// empty hash.
     ///
     /// # Parameters
@@ -149,7 +149,7 @@ impl Point {
     ///
     /// ```rs
     /// use cardano_chain_follower::Point;
-    /// 
+    ///
     /// use pallas::crypto::hash::Hash;
     ///
     /// let point = Point::new(42, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
@@ -199,12 +199,12 @@ impl Point {
         self.0.slot_or_default()
     }
 
-    /// Retrieves the hash from the `Point`. If the `Point` is 
+    /// Retrieves the hash from the `Point`. If the `Point` is
     /// the origin, it returns a default hash value, which is an empty `Vec<u8>`.
     ///
     /// # Returns
     ///
-    /// A `Vec<u8>` representing the hash. If the `Point` is the `Origin`, it 
+    /// A `Vec<u8>` representing the hash. If the `Point` is the `Origin`, it
     /// returns an empty vector.
     ///
     /// # Examples
@@ -226,7 +226,7 @@ impl Point {
         }
     }
 
-    /// Checks if two `Point` instances are strictly equal. 
+    /// Checks if two `Point` instances are strictly equal.
     /// Strict equality means both the slot number and hash must be identical.
     ///
     /// # Parameters
@@ -357,7 +357,7 @@ mod tests {
         let point1 = Point::new(100u64, vec![]);
         let fuzzy1 = Point::fuzzy(100u64);
 
-        assert!(point1 == fuzzy1)
+        assert!(point1 == fuzzy1);
     }
 
     #[test]
@@ -365,18 +365,18 @@ mod tests {
         let origin1 = ORIGIN_POINT;
         let point1 = Point::new(100u64, vec![8; 32]);
 
-        assert_eq!(origin1.cmp_hash(&Some(Hash::new([0; 32]))), false);
-        assert_eq!(origin1.cmp_hash(&None), true);
+        assert!(!origin1.cmp_hash(&Some(Hash::new([0; 32]))));
+        assert!(origin1.cmp_hash(&None));
 
-        assert_eq!(point1.cmp_hash(&Some(Hash::new([8; 32]))), true);
-        assert_eq!(point1.cmp_hash(&None), false);
+        assert!(point1.cmp_hash(&Some(Hash::new([8; 32]))));
+        assert!(!point1.cmp_hash(&None));
     }
 
     #[test]
     fn test_get_hash_simple() {
         let point1 = Point::new(100u64, vec![8; 32]);
 
-        assert_eq!(point1.hash_or_default(), vec![8; 32])
+        assert_eq!(point1.hash_or_default(), vec![8; 32]);
     }
 
     #[test]
@@ -385,8 +385,8 @@ mod tests {
         let point2 = Point::new(100u64, vec![8; 32]);
         let point3 = Point::new(999u64, vec![8; 32]);
 
-        assert_eq!(point1.strict_eq(&point2), true);
-        assert_eq!(point1.strict_eq(&point3), false);
+        assert!(point1.strict_eq(&point2));
+        assert!(!point1.strict_eq(&point3));
     }
 
     #[test]
