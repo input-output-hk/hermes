@@ -42,7 +42,6 @@ impl ApplicationPackage {
     /// Application package share directory path.
     const SHARE_DIR: &'static str = "srv/share";
     /// Application shareable directory path.
-    #[allow(dead_code)]
     const USERS_DIR: &'static str = "usr";
     /// Application package www directory path.
     const WWW_DIR: &'static str = "srv/www";
@@ -246,7 +245,7 @@ mod tests {
     }
 
     fn prepare_package_dir(
-        app_name: String, module_names: Vec<String>, dir: &TempDir,
+        app_name: String, ovveride_module_name: &[String], dir: &TempDir,
         app_package_files: &ApplicationPackageFiles,
     ) -> Manifest {
         let metadata_path = dir.path().join("metadata.json");
@@ -267,7 +266,7 @@ mod tests {
 
         let mut modules = Vec::new();
         for (i, module_package_files) in app_package_files.modules.iter().enumerate() {
-            let module_name = module_names
+            let module_name = ovveride_module_name
                 .get(i)
                 .cloned()
                 .unwrap_or(format!("module_{i}"));
@@ -308,8 +307,14 @@ mod tests {
         let dir = TempDir::new().expect("Failled to create temp dir");
 
         let mut app_package_files = prepare_default_package_files();
+        let ovveride_module_name = vec![];
 
-        let manifest = prepare_package_dir("app".to_string(), vec![], &dir, &app_package_files);
+        let manifest = prepare_package_dir(
+            "app".to_string(),
+            &ovveride_module_name,
+            &dir,
+            &app_package_files,
+        );
 
         let build_time = DateTime::default();
         let package =

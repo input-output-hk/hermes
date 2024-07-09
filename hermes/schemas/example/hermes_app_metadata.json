@@ -1,7 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
     "name": "Athena - Project Catalyst Voting",
-    "icon": "/srv/www/icons/athena.svg",
     "version": "V2.7.3",
     "description": "Project Catalyst Innovation Platform",
     "about": "About Project Catalyst, long form.\nMulti line.",
