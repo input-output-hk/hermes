@@ -1,17 +1,17 @@
 //! Hermes WASM module package.
 
+mod author_payload;
 mod config;
 pub(crate) mod manifest;
 mod settings;
-mod signature_payload;
 
 use std::path::Path;
 
+use author_payload::{SignaturePayload, SignaturePayloadBuilder};
 use chrono::{DateTime, Utc};
 use config::{Config, ConfigSchema};
 use manifest::{Manifest, ManifestConfig};
 use settings::SettingsSchema;
-use signature_payload::{SignaturePayload, SignaturePayloadBuilder};
 
 use crate::{
     errors::Errors,
@@ -47,7 +47,7 @@ impl WasmModulePackage {
     /// WASM module package config schema file path.
     const CONFIG_SCHEMA_FILE: &'static str = "config.schema.json";
     /// WASM module package file extension.
-    const FILE_EXTENSION: &'static str = "hmod";
+    pub(crate) const FILE_EXTENSION: &'static str = "hmod";
     /// WASM module package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
     /// WASM module package settings schema file path.
@@ -367,7 +367,7 @@ pub(crate) fn write_share_dir(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
@@ -379,13 +379,15 @@ mod tests {
         },
     };
 
-    fn prepare_default_package_files() -> (
-        Metadata<WasmModulePackage>,
-        Vec<u8>,
-        Config,
-        ConfigSchema,
-        SettingsSchema,
-    ) {
+    pub(crate) struct ModulePackageFiles {
+        metadata: Metadata<WasmModulePackage>,
+        component: Vec<u8>,
+        config_schema: ConfigSchema,
+        config: Config,
+        settings_schema: SettingsSchema,
+    }
+
+    pub(crate) fn prepare_default_package_files() -> ModulePackageFiles {
         let metadata = Metadata::<WasmModulePackage>::from_reader(
             serde_json::json!(
                 {
@@ -424,19 +426,18 @@ mod tests {
                 (func $foo (result s32) (canon lift (core func $module "foo")))
                 (export "foo" (func $foo))
             )"#;
-        (
+
+        ModulePackageFiles {
             metadata,
-            component.as_bytes().to_vec(),
-            config,
+            component: component.as_bytes().to_vec(),
             config_schema,
+            config,
             settings_schema,
-        )
+        }
     }
 
-    fn prepare_package_dir(
-        module_name: String, dir: &TempDir, metadata: &Metadata<WasmModulePackage>,
-        component: &[u8], config: &Config, config_schema: &ConfigSchema,
-        settings_schema: &SettingsSchema,
+    pub(crate) fn prepare_package_dir(
+        module_name: String, dir: &TempDir, module_package_files: &ModulePackageFiles,
     ) -> Manifest {
         let config_path = dir.path().join("config.json");
         let config_schema_path = dir.path().join("config.schema.json");
@@ -446,16 +447,19 @@ mod tests {
 
         std::fs::write(
             &metadata_path,
-            metadata
+            module_package_files
+                .metadata
                 .to_bytes()
                 .expect("cannot decode metadata to bytes")
                 .as_slice(),
         )
         .expect("Cannot create metadata.json file");
-        std::fs::write(&component_path, component).expect("Cannot create module.wasm file");
+        std::fs::write(&component_path, module_package_files.component.as_slice())
+            .expect("Cannot create module.wasm file");
         std::fs::write(
             &config_path,
-            config
+            module_package_files
+                .config
                 .to_bytes()
                 .expect("cannot decode config to bytes")
                 .as_slice(),
@@ -463,7 +467,8 @@ mod tests {
         .expect("Cannot create config.json file");
         std::fs::write(
             &config_schema_path,
-            config_schema
+            module_package_files
+                .config_schema
                 .to_bytes()
                 .expect("cannot decode config schema to bytes")
                 .as_slice(),
@@ -471,7 +476,8 @@ mod tests {
         .expect("Cannot create config.schema.json file");
         std::fs::write(
             &settings_schema_path,
-            settings_schema
+            module_package_files
+                .settings_schema
                 .to_bytes()
                 .expect("cannot decode settings schema to bytes")
                 .as_slice(),
@@ -499,18 +505,9 @@ mod tests {
     fn from_dir_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let (mut metadata, component, config, config_schema, settings_schema) =
-            prepare_default_package_files();
+        let mut module_package_files = prepare_default_package_files();
 
-        let manifest = prepare_package_dir(
-            "module".to_string(),
-            &dir,
-            &metadata,
-            component.as_slice(),
-            &config,
-            &config_schema,
-            &settings_schema,
-        );
+        let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
         let package =
@@ -520,13 +517,13 @@ mod tests {
         assert!(package.validate().is_ok());
 
         // check metadata JSON file
-        metadata.set_name(&manifest.name);
-        metadata.set_build_date(build_time);
+        module_package_files.metadata.set_name(&manifest.name);
+        module_package_files.metadata.set_build_date(build_time);
 
         let package_metadata = package
             .get_metadata()
             .expect("Cannot get metadata from package");
-        assert_eq!(metadata, package_metadata);
+        assert_eq!(module_package_files.metadata, package_metadata);
 
         // check component WASM file
         assert!(package.get_component().is_ok());
@@ -535,9 +532,12 @@ mod tests {
         let (package_config, package_config_schema) = package
             .get_config_with_schema()
             .expect("Cannot get config from package");
-        assert_eq!(config, package_config.expect("Missing config in package"));
         assert_eq!(
-            config_schema,
+            module_package_files.config,
+            package_config.expect("Missing config in package")
+        );
+        assert_eq!(
+            module_package_files.config_schema,
             package_config_schema.expect("Missing config schema in package")
         );
 
@@ -546,7 +546,7 @@ mod tests {
             .get_settings_schema()
             .expect("Cannot get settings schema from package");
         assert_eq!(
-            settings_schema,
+            module_package_files.settings_schema,
             package_settings_schema.expect("Missing settings schema in package")
         );
     }
@@ -555,18 +555,9 @@ mod tests {
     fn sign_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
 
-        let (mut metadata, component, config, config_schema, settings_schema) =
-            prepare_default_package_files();
+        let mut module_package_files = prepare_default_package_files();
 
-        let manifest = prepare_package_dir(
-            "module".to_string(),
-            &dir,
-            &metadata,
-            component.as_slice(),
-            &config,
-            &config_schema,
-            &settings_schema,
-        );
+        let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
         let package =
@@ -600,7 +591,7 @@ mod tests {
         assert!(package.validate().is_ok());
 
         // corrupt payload with the modifying metadata.json file
-        metadata.set_name("New name");
+        module_package_files.metadata.set_name("New name");
         package
             .0
             .remove_file(WasmModulePackage::METADATA_FILE.into())
@@ -610,7 +601,10 @@ mod tests {
             .copy_file(
                 &BytesResource::new(
                     WasmModulePackage::METADATA_FILE.to_string(),
-                    metadata.to_bytes().expect("Failed to decode metadata."),
+                    module_package_files
+                        .metadata
+                        .to_bytes()
+                        .expect("Failed to decode metadata."),
                 ),
                 WasmModulePackage::METADATA_FILE.into(),
             )

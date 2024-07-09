@@ -157,7 +157,8 @@ fn validate_and_write_module(
     let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
     module_package.validate()?;
 
-    let module_name = manifest.name.clone().unwrap_or_default();
+    let module_original_name = module_package.get_metadata()?.get_name()?;
+    let module_name = manifest.name.clone().unwrap_or(module_original_name);
 
     let mut module_path = path.clone();
     module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
@@ -213,7 +214,13 @@ mod tests {
     use super::*;
     use crate::packaging::resources::{FsResource, ResourceBuilder};
 
-    fn prepare_default_package_files() -> Metadata<ApplicationPackage> {
+    struct ApplicationPackageFiles {
+        metadata: Metadata<ApplicationPackage>,
+        icon: Vec<u8>,
+        modules: Vec<wasm_module::tests::ModulePackageFiles>,
+    }
+
+    fn prepare_default_package_files() -> ApplicationPackageFiles {
         let metadata = Metadata::<ApplicationPackage>::from_reader(
             serde_json::json!(
                 {
@@ -227,33 +234,70 @@ mod tests {
                 }
             ).to_string().as_bytes(),
         ).expect("Invalid metadata");
+        let icon = b"icon_image_svg_content".to_vec();
 
-        metadata
+        let modules = vec![wasm_module::tests::prepare_default_package_files()];
+
+        ApplicationPackageFiles {
+            metadata,
+            icon,
+            modules,
+        }
     }
 
     fn prepare_package_dir(
-        app_name: String, dir: &TempDir, metadata: &Metadata<ApplicationPackage>,
+        app_name: String, module_names: Vec<String>, dir: &TempDir,
+        app_package_files: &ApplicationPackageFiles,
     ) -> Manifest {
         let metadata_path = dir.path().join("metadata.json");
         let icon_path = dir.path().join("icon.png");
 
         std::fs::write(
             &metadata_path,
-            metadata
+            app_package_files
+                .metadata
                 .to_bytes()
-                .expect("cannot decode metadata to bytes")
+                .expect("Failed to decode metadata to bytes")
                 .as_slice(),
         )
-        .expect("Cannot create metadata.json file");
+        .expect("Failed to create metadata.json file");
 
-        std::fs::write(&icon_path, b"icon_image_svg_content")
-            .expect("Cannot create metadata.json file");
+        std::fs::write(&icon_path, app_package_files.icon.as_slice())
+            .expect("Failed to create metadata.json file");
+
+        let mut modules = Vec::new();
+        for (i, module_package_files) in app_package_files.modules.iter().enumerate() {
+            let module_name = module_names
+                .get(i)
+                .cloned()
+                .unwrap_or(format!("module_{i}"));
+
+            let module_manifest = wasm_module::tests::prepare_package_dir(
+                module_name.clone(),
+                dir,
+                module_package_files,
+            );
+
+            let build_date = DateTime::default();
+            WasmModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
+                .expect("Failed to create module package");
+
+            let mut module_package_path = dir.path().join(&module_name);
+            module_package_path.set_extension(WasmModulePackage::FILE_EXTENSION);
+
+            modules.push(ManifestModule {
+                name: Some(module_name),
+                file: ResourceBuilder::Fs(FsResource::new(module_package_path)),
+                config: None,
+                share: None,
+            });
+        }
 
         Manifest {
             name: app_name,
             icon: ResourceBuilder::Fs(FsResource::new(icon_path)),
             metadata: ResourceBuilder::Fs(FsResource::new(metadata_path)),
-            modules: vec![],
+            modules,
             www: None,
             share: None,
         }
@@ -261,11 +305,11 @@ mod tests {
 
     #[test]
     fn from_dir_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().expect("Failled to create temp dir");
 
-        let mut metadata = prepare_default_package_files();
+        let mut app_package_files = prepare_default_package_files();
 
-        let manifest = prepare_package_dir("app".to_string(), &dir, &metadata);
+        let manifest = prepare_package_dir("app".to_string(), vec![], &dir, &app_package_files);
 
         let build_time = DateTime::default();
         let package =
@@ -275,12 +319,12 @@ mod tests {
         assert!(package.validate().is_ok());
 
         // check metadata JSON file
-        metadata.set_name(&manifest.name);
-        metadata.set_build_date(build_time);
+        app_package_files.metadata.set_name(&manifest.name);
+        app_package_files.metadata.set_build_date(build_time);
 
         let package_metadata = package
             .get_metadata()
             .expect("Cannot get metadata from package");
-        assert_eq!(metadata, package_metadata);
+        assert_eq!(app_package_files.metadata, package_metadata);
     }
 }

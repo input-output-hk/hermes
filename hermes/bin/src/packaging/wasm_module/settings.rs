@@ -1,4 +1,4 @@
-//! WASM package settings JSON
+//! WASM module package settings JSON
 
 use std::io::Read;
 
