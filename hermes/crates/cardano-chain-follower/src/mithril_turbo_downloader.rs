@@ -28,6 +28,9 @@ use crate::{
     stats::{self},
 };
 
+/// Size of the Archive Read Buffer (Could be up to 3 times this amount of memory due to pipelining the read.)
+const ARCHIVE_BUFFER_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
+
 /// A snapshot downloader that accelerates Download using `aria2`.
 pub struct MithrilTurboDownloader {
     /// Handle to a HTTP client to use for downloading simply.
@@ -183,7 +186,8 @@ impl SnapshotDownloader for MithrilTurboDownloader {
             target_dir.to_string_lossy()
         );
 
-        let mut archive = Archive::new(ZstdDecoder::new(BufReader::new(
+        let mut archive = Archive::new(ZstdDecoder::new(BufReader::with_capacity(
+            ARCHIVE_BUFFER_CAPACITY,
             File::open(dst_archive).await?,
         )));
 

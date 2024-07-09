@@ -5,6 +5,14 @@
 // Allowing since this is example code.
 #![allow(clippy::unwrap_used)]
 
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
+
+/// Use Mimalloc for the global allocator.
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 use std::{error::Error, time::Duration};
 
 use cardano_chain_follower::{

@@ -85,12 +85,12 @@ humansize
 humantime
 ideascale
 idents
-ipfs
-ipld
 IFMT
 Intellij
 ioerr
 iohk
+ipfs
+ipld
 jetbrains
 jorm
 jormungandr
@@ -98,10 +98,10 @@ Jörmungandr
 jsonschema
 lcov
 Leshiy
-libsqlite
-libtest
 libipld
 libp2p
+libsqlite
+libtest
 linkat
 lintfix
 localizable
@@ -110,6 +110,7 @@ maindbname
 mapref
 mdlint
 mdns
+mimalloc
 miniprotocol
 miniprotocols
 mithril
