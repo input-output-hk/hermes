@@ -42,7 +42,7 @@ impl ApplicationPackage {
     /// Application package share directory path.
     const SHARE_DIR: &'static str = "srv/share";
     /// Application shareable directory path.
-    const USERS_DIR: &'static str = "usr";
+    const USR_DIR: &'static str = "usr";
     /// Application package www directory path.
     const WWW_DIR: &'static str = "srv/www";
 
@@ -166,7 +166,7 @@ fn validate_and_write_module(
     module_package.copy_to_package(package, &module_path)?;
 
     let mut usr_module_path = path;
-    usr_module_path.push_elem(ApplicationPackage::SHARE_DIR.into());
+    usr_module_path.push_elem(ApplicationPackage::USR_DIR.into());
     usr_module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
     usr_module_path.push_elem(module_name.clone());
 
