@@ -69,7 +69,7 @@ impl Package {
 
     /// Remove file from `Package`.
     pub(crate) fn remove_file(&self, mut path: PackagePath) -> anyhow::Result<()> {
-        let file_name = path.pop_last_elem()?;
+        let file_name = path.pop_elem()?;
         let dir = get_dir_from_package(&path, &self.0)?;
         if dir.dataset(file_name.as_str()).is_ok() {
             dir.unlink(file_name.as_str()).map_err(|_| {
@@ -84,7 +84,7 @@ impl Package {
     /// Remove directory from `Package`.
     #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: PackagePath) -> anyhow::Result<()> {
-        let dir_name = path.pop_last_elem()?;
+        let dir_name = path.pop_elem()?;
         let dir = get_dir_from_package(&path, &self.0)?;
 
         if dir.group(dir_name.as_str()).is_ok() {
@@ -150,7 +150,7 @@ fn get_dir_from_package(path: &PackagePath, root: &hdf5::Group) -> anyhow::Resul
 fn copy_file_to_package(
     resource: &impl ResourceTrait, mut path: PackagePath, root: &hdf5::Group,
 ) -> anyhow::Result<()> {
-    let file_name = path.pop_last_elem()?;
+    let file_name = path.pop_elem()?;
 
     let mut reader = resource.get_reader()?;
     let mut resource_data = Vec::new();
@@ -194,7 +194,7 @@ fn copy_dir_recursively_to_package(
 fn get_package_file_reader(
     mut path: PackagePath, root: &hdf5::Group,
 ) -> anyhow::Result<Option<impl Read>> {
-    let file_name = path.pop_last_elem()?;
+    let file_name = path.pop_elem()?;
     let dir = get_dir_from_package(&path, root)?;
 
     let reader = dir

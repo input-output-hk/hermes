@@ -7,7 +7,11 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
-use super::{package::PackagePath, resources::ResourceTrait, wasm_module::WasmModulePackage};
+use super::{
+    package::PackagePath,
+    resources::ResourceTrait,
+    wasm_module::{self, WasmModulePackage},
+};
 use crate::{
     errors::Errors,
     packaging::{
@@ -93,29 +97,46 @@ fn validate_and_write_from_manifest(
     manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
     errors: &mut Errors,
 ) {
-    validate_and_write_icon(manifest, package).unwrap_or_else(errors.get_add_err_fn());
-    validate_and_write_metadata(manifest, build_date, package_name, package)
+    validate_and_write_icon(manifest.icon.build(), package, PackagePath::default())
         .unwrap_or_else(errors.get_add_err_fn());
+    validate_and_write_metadata(
+        manifest.metadata.build(),
+        build_date,
+        package_name,
+        package,
+        PackagePath::default(),
+    )
+    .unwrap_or_else(errors.get_add_err_fn());
     for module in &manifest.modules {
-        validate_and_write_module(module, package).unwrap_or_else(errors.get_add_err_fn());
+        validate_and_write_module(module, package, PackagePath::default())
+            .unwrap_or_else(errors.get_add_err_fn());
     }
-    write_www_dir(manifest, package).unwrap_or_else(errors.get_add_err_fn());
-    write_share_dir(manifest, package).unwrap_or_else(errors.get_add_err_fn());
+    if let Some(www_dir) = &manifest.www {
+        write_www_dir(www_dir.build(), package, PackagePath::default())
+            .unwrap_or_else(errors.get_add_err_fn());
+    }
+    if let Some(share_dir) = &manifest.share {
+        write_share_dir(share_dir.build(), package, PackagePath::default())
+            .unwrap_or_else(errors.get_add_err_fn());
+    }
 }
 
-/// Validate icon.svg file and write it to the package.
-fn validate_and_write_icon(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
+/// Validate icon.svg file and write it to the package to the provided dir path.
+fn validate_and_write_icon(
+    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
-    package.copy_file(manifest.icon.build(), ApplicationPackage::ICON_FILE.into())?;
+    path.push_elem(ApplicationPackage::ICON_FILE.into());
+    package.copy_file(resource, path)?;
     Ok(())
 }
 
-/// Validate metadata.json file and write it to the package.
+/// Validate metadata.json file and write it to the package to the provided dir path.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    manifest: &Manifest, build_date: DateTime<Utc>, name: &str, package: &Package,
+    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
+    mut path: PackagePath,
 ) -> anyhow::Result<()> {
-    let resource = manifest.metadata.build();
     let metadata_reader = resource.get_reader()?;
 
     let mut metadata = Metadata::<ApplicationPackage>::from_reader(metadata_reader)
@@ -124,40 +145,64 @@ fn validate_and_write_metadata(
     metadata.set_name(name);
 
     let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
-    package.copy_file(&resource, ApplicationPackage::METADATA_FILE.into())?;
+    path.push_elem(ApplicationPackage::METADATA_FILE.into());
+    package.copy_file(&resource, path)?;
     Ok(())
 }
 
-/// Validate WASM module package and write it to the package.
-fn validate_and_write_module(manifest: &ManifestModule, package: &Package) -> anyhow::Result<()> {
-    let module_file_path = manifest.file.upload_to_fs();
-    let module_package = WasmModulePackage::from_file(module_file_path)?;
+/// Validate WASM module package and write it to the package to the provided dir path.
+fn validate_and_write_module(
+    manifest: &ManifestModule, package: &Package, path: PackagePath,
+) -> anyhow::Result<()> {
+    let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
     module_package.validate()?;
 
     let module_name = manifest.name.clone().unwrap_or_default();
 
-    let module_path = PackagePath::new(vec![
-        ApplicationPackage::MODULES_DIR.to_string(),
-        module_name,
-    ]);
+    let mut module_path = path.clone();
+    module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
+    module_path.push_elem(module_name.clone());
+
     module_package.copy_to_package(package, &module_path)?;
 
-    Ok(())
-}
+    let mut usr_module_path = path;
+    usr_module_path.push_elem(ApplicationPackage::SHARE_DIR.into());
+    usr_module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
+    usr_module_path.push_elem(module_name.clone());
 
-/// Write www dir to the package.
-fn write_www_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
+    if let Some(config) = &manifest.config {
+        let config_schema = module_package.get_config_schema()?.ok_or(anyhow::anyhow!(
+            "Missing config schema for module {module_name}"
+        ))?;
+
+        wasm_module::validate_and_write_config_file(
+            config.build(),
+            &config_schema,
+            package,
+            usr_module_path.clone(),
+        )?;
+    }
     if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir.build(), &ApplicationPackage::WWW_DIR.into())?;
+        wasm_module::write_share_dir(share_dir.build(), package, usr_module_path)?;
     }
     Ok(())
 }
 
-/// Write share dir to the package.
-fn write_share_dir(manifest: &Manifest, package: &Package) -> anyhow::Result<()> {
-    if let Some(share_dir) = &manifest.share {
-        package.copy_dir_recursively(share_dir.build(), &ApplicationPackage::SHARE_DIR.into())?;
-    }
+/// Write www dir to the package to the provided dir path to the provided dir path.
+fn write_www_dir(
+    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+) -> anyhow::Result<()> {
+    path.push_elem(ApplicationPackage::WWW_DIR.into());
+    package.copy_dir_recursively(resource, &path)?;
+    Ok(())
+}
+
+/// Write share dir to the package to the provided dir path.
+fn write_share_dir(
+    resource: &impl ResourceTrait, package: &Package, mut path: PackagePath,
+) -> anyhow::Result<()> {
+    path.push_elem(ApplicationPackage::SHARE_DIR.into());
+    package.copy_dir_recursively(resource, &path)?;
     Ok(())
 }
 
