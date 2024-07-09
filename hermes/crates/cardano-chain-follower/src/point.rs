@@ -181,6 +181,45 @@ pub(crate) fn cmp_point(
 mod tests {
     use crate::*;
 
+    use pallas::crypto::hash::Hash;
+
+    #[test]
+    fn test_create_points() {
+        let point1 = Point::new(100u64, vec![]);
+        let fuzzy1 = Point::fuzzy(100u64);
+
+        assert!(point1 == fuzzy1)
+    }
+
+    #[test]
+    fn test_cmp_hash_simple() {
+        let origin1 = ORIGIN_POINT;
+        let point1 = Point::new(100u64, vec![8; 32]);
+
+        assert_eq!(origin1.cmp_hash(&Some(Hash::new([0; 32]))), false);
+        assert_eq!(origin1.cmp_hash(&None), true);
+
+        assert_eq!(point1.cmp_hash(&Some(Hash::new([8; 32]))), true);
+        assert_eq!(point1.cmp_hash(&None), false);
+    }
+
+    #[test]
+    fn test_get_hash_simple() {
+        let point1 = Point::new(100u64, vec![8; 32]);
+
+        assert_eq!(point1.hash_or_default(), vec![8; 32])
+    }
+
+    #[test]
+    fn test_identical_compare() {
+        let point1 = Point::new(100u64, vec![8; 32]);
+        let point2 = Point::new(100u64, vec![8; 32]);
+        let point3 = Point::new(999u64, vec![8; 32]);
+
+        assert_eq!(point1.strict_eq(&point2), true);
+        assert_eq!(point1.strict_eq(&point3), false);
+    }
+
     #[test]
     fn test_comparisons() {
         let origin1 = ORIGIN_POINT;
