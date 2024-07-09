@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn from_dir_test() {
-        let dir = TempDir::new().expect("Failled to create temp dir");
+        let dir = TempDir::new().expect("Failed to create temp dir");
 
         let modules_num = 4;
         let mut app_package_files = prepare_default_package_files(modules_num);
@@ -376,7 +376,7 @@ mod tests {
                 .get_mut(i)
                 .expect("Empty module file");
 
-            module_package.validate().expect("Ivalid WASM module");
+            module_package.validate().expect("Invalid WASM module");
             let module_name = module_package
                 .get_metadata()
                 .expect("Cannot get metadata from module package")
