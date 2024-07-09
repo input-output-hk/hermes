@@ -60,19 +60,14 @@ impl Cli {
             .with_line_num(true)
             .build();
 
-        logger::init(&log_config).unwrap_or_else(|err| errors.add_err(err));
+        logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
         match self.command {
             None => run::Run::exec(),
             Some(Commands::Module(cmd)) => cmd.exec(),
             Some(Commands::App(cmd)) => cmd.exec(),
         }
-        .unwrap_or_else(|err| {
-            match err.downcast::<Errors>() {
-                Ok(errs) => errors.merge(errs),
-                Err(err) => errors.add_err(err),
-            }
-        });
+        .unwrap_or_else(errors.get_add_err_fn());
 
         if !errors.is_empty() {
             println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());

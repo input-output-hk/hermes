@@ -81,3 +81,7 @@ bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, export
 {
     return false;
 }
+
+bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_response_t *ret){
+  return false;
+};

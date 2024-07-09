@@ -35,13 +35,19 @@ impl Errors {
     }
 
     /// Add an error to the `Errors`
-    pub(crate) fn add_err(&mut self, err: anyhow::Error) {
-        self.0.push(err);
+    pub(crate) fn add_err<E>(&mut self, err: E)
+    where E: Into<anyhow::Error> {
+        let err = err.into();
+        match err.downcast::<Errors>() {
+            Ok(errs) => self.0.extend(errs.0),
+            Err(err) => self.0.push(err),
+        }
     }
 
-    /// Merge two `Errors`
-    pub(crate) fn merge(&mut self, other: Self) {
-        self.0.extend(other.0);
+    /// Return a closure that adds an error to the `Errors`
+    pub(crate) fn get_add_err_fn<E>(&mut self) -> impl FnOnce(E) + '_
+    where E: Into<anyhow::Error> {
+        |err| self.add_err(err)
     }
 
     /// Return errors if `Errors` is not empty or return `Ok(val)`
@@ -69,8 +75,8 @@ mod tests {
         errors_2.add_err(anyhow::anyhow!("error 4"));
 
         let mut combined_errors = Errors::new();
-        combined_errors.merge(errors_1);
-        combined_errors.merge(errors_2);
+        combined_errors.add_err(errors_1);
+        combined_errors.add_err(errors_2);
 
         assert_eq!(
             combined_errors.to_string(),
