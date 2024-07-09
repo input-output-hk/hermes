@@ -19,8 +19,8 @@ use crate::{
     event::{queue::send, HermesEvent},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, PeerId, PubsubMessage,
-            PubsubTopic,
+            DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
+            PubsubMessage, PubsubTopic,
         },
         hermes::ipfs::event::OnTopicEvent,
     },
@@ -272,23 +272,14 @@ enum IpfsCommand {
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
 }
 
-/// A valid DHT Value.
-struct ValidDhtValue {}
-
-impl ValidDhtValue {
-    /// Checks for `DhtValue` validity.
-    fn is_valid(value: &DhtValue) -> bool {
-        !value.is_empty()
-    }
+/// Checks for `DhtKey`, and `DhtValue` validity.
+fn is_valid_dht_content(_key: &DhtKey, value: &DhtValue) -> bool {
+    !value.is_empty()
 }
-/// A valid `PubsubMessage`
-struct ValidPubsubMessage {}
 
-impl ValidPubsubMessage {
-    /// Checks for `PubsubMessage` validity.
-    fn is_valid(message: &PubsubMessage) -> bool {
-        !message.message.is_empty()
-    }
+/// Checks for `PubsubTopic`, and `MessageData` validity.
+fn is_valid_pubsub_content(_topic: &PubsubTopic, message: &MessageData) -> bool {
+    !message.is_empty()
 }
 
 #[allow(dead_code)]
@@ -311,13 +302,17 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
             },
             IpfsCommand::PinFile(cid, tx) => {
                 let status = match hermes_node.insert_pin(&cid).await {
-                    Ok(()) => true,
+                    Ok(()) => Ok(true),
+                    Err(err) if err.to_string().contains("already pinned recursively") => {
+                        tracing::debug!(cid = %cid, "file already pinned");
+                        Ok(true)
+                    },
                     Err(err) => {
                         tracing::error!("Failed to pin block {}: {}", cid, err);
-                        false
+                        Err(Errno::FilePinError)
                     },
                 };
-                if let Err(err) = tx.send(Ok(status)) {
+                if let Err(err) = tx.send(status) {
                     tracing::error!("sending response of pin IPFS file should not fail: {err:?}");
                 }
             },
@@ -348,8 +343,8 @@ async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<
                         let on_topic_event = OnTopicEvent {
                             message: PubsubMessage {
                                 topic: msg_topic.clone(),
-                                message: String::from_utf8_lossy(&msg.data).to_string(),
-                                peer: msg.source.map(|p| p.to_string()),
+                                message: msg.data,
+                                publisher: msg.source.map(|p| p.to_string()),
                             },
                         };
                         let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
@@ -397,17 +392,17 @@ pub(crate) fn hermes_ipfs_content_validate(
     app_name: &HermesAppName, content: &IpfsContent,
 ) -> bool {
     match content {
-        IpfsContent::Dht((key, v)) => {
+        IpfsContent::Dht((k, v)) => {
             // TODO(@saibatizoku): Implement types and validation
-            let key_str = format!("{key:x?}");
-            let is_valid = ValidDhtValue::is_valid(v);
+            let key_str = format!("{k:x?}");
+            let is_valid = is_valid_dht_content(k, v);
             tracing::debug!(app_name = %app_name, dht_key = %key_str, is_valid = %is_valid, "DHT value validation");
             is_valid
         },
-        IpfsContent::Pubsub(m) => {
+        IpfsContent::Pubsub((topic, message)) => {
             // TODO(@saibatizoku): Implement types and validation
-            let is_valid = ValidPubsubMessage::is_valid(m);
-            tracing::debug!(app_name = %app_name, topic = %m.topic, is_valid = %is_valid, "PubSub message validation");
+            let is_valid = is_valid_pubsub_content(topic, message);
+            tracing::debug!(app_name = %app_name, topic = %topic, is_valid = %is_valid, "PubSub message validation");
             is_valid
         },
     }

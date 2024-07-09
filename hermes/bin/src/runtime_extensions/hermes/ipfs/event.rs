@@ -7,7 +7,7 @@ use crate::{
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct OnTopicEvent {
-    ///  Message
+    ///  Topic message received.
     pub(crate) message: PubsubMessage,
 }
 
