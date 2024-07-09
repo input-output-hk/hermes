@@ -79,6 +79,11 @@ impl WasmModulePackage {
         Ok(Self(package))
     }
 
+    /// Create `WasmModulePackage` from `Package`.
+    pub(crate) fn from_dir(dir: Package) -> Self {
+        Self(dir)
+    }
+
     /// Validate package with its signature and other contents.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let mut errors = Errors::new();
@@ -380,11 +385,11 @@ pub(crate) mod tests {
     };
 
     pub(crate) struct ModulePackageFiles {
-        metadata: Metadata<WasmModulePackage>,
-        component: Vec<u8>,
-        config_schema: ConfigSchema,
-        config: Config,
-        settings_schema: SettingsSchema,
+        pub(crate) metadata: Metadata<WasmModulePackage>,
+        pub(crate) component: Vec<u8>,
+        pub(crate) config_schema: ConfigSchema,
+        pub(crate) config: Config,
+        pub(crate) settings_schema: SettingsSchema,
     }
 
     pub(crate) fn prepare_default_package_files() -> ModulePackageFiles {
@@ -501,6 +506,40 @@ pub(crate) mod tests {
         }
     }
 
+    pub(crate) fn check_module_integrity(
+        module_files: &ModulePackageFiles, module_package: &WasmModulePackage,
+    ) {
+        let package_metadata = module_package
+            .get_metadata()
+            .expect("Cannot get metadata from package");
+        assert_eq!(module_files.metadata, package_metadata);
+
+        // check component WASM file
+        assert!(module_package.get_component().is_ok());
+
+        // check config and config schema JSON files
+        let (package_config, package_config_schema) = module_package
+            .get_config_with_schema()
+            .expect("Cannot get config from package");
+        assert_eq!(
+            module_files.config,
+            package_config.expect("Missing config in package")
+        );
+        assert_eq!(
+            module_files.config_schema,
+            package_config_schema.expect("Missing config schema in package")
+        );
+
+        // check settings schema JSON file
+        let package_settings_schema = module_package
+            .get_settings_schema()
+            .expect("Cannot get settings schema from package");
+        assert_eq!(
+            module_files.settings_schema,
+            package_settings_schema.expect("Missing settings schema in package")
+        );
+    }
+
     #[test]
     fn from_dir_test() {
         let dir = TempDir::new().expect("cannot create temp dir");
@@ -520,35 +559,7 @@ pub(crate) mod tests {
         module_package_files.metadata.set_name(&manifest.name);
         module_package_files.metadata.set_build_date(build_time);
 
-        let package_metadata = package
-            .get_metadata()
-            .expect("Cannot get metadata from package");
-        assert_eq!(module_package_files.metadata, package_metadata);
-
-        // check component WASM file
-        assert!(package.get_component().is_ok());
-
-        // check config and config schema JSON files
-        let (package_config, package_config_schema) = package
-            .get_config_with_schema()
-            .expect("Cannot get config from package");
-        assert_eq!(
-            module_package_files.config,
-            package_config.expect("Missing config in package")
-        );
-        assert_eq!(
-            module_package_files.config_schema,
-            package_config_schema.expect("Missing config schema in package")
-        );
-
-        // check settings schema JSON file
-        let package_settings_schema = package
-            .get_settings_schema()
-            .expect("Cannot get settings schema from package");
-        assert_eq!(
-            module_package_files.settings_schema,
-            package_settings_schema.expect("Missing settings schema in package")
-        );
+        check_module_integrity(&module_package_files, &package);
     }
 
     #[test]

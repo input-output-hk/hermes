@@ -103,6 +103,12 @@ impl Package {
         get_package_file_reader(path, &self.0)
     }
 
+    /// Get all dirs from `Package`.
+    pub(crate) fn get_dirs(&self, path: &PackagePath) -> anyhow::Result<Vec<Self>> {
+        let dir = get_dir_from_package(path, &self.0)?;
+        Ok(dir.groups()?.into_iter().map(Self).collect())
+    }
+
     /// Calculates file hash, if present
     pub(crate) fn get_file_hash(&self, path: PackagePath) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();

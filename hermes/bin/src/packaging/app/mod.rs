@@ -89,6 +89,17 @@ impl ApplicationPackage {
             .map(Metadata::<Self>::from_reader)
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
+
+    /// Get `Vec<WasmModulePackage>` from package.
+    #[allow(dead_code)]
+    pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<WasmModulePackage>> {
+        Ok(self
+            .0
+            .get_dirs(&Self::MODULES_DIR.into())?
+            .into_iter()
+            .map(WasmModulePackage::from_dir)
+            .collect())
+    }
 }
 
 /// Validate and write all content of the `Manifest` to the provided `package`.
@@ -208,6 +219,8 @@ fn write_share_dir(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use temp_dir::TempDir;
 
     use super::*;
@@ -219,7 +232,11 @@ mod tests {
         modules: Vec<wasm_module::tests::ModulePackageFiles>,
     }
 
-    fn prepare_default_package_files() -> ApplicationPackageFiles {
+    fn default_module_name(i: usize) -> String {
+        format!("module_{i}")
+    }
+
+    fn prepare_default_package_files(modules_num: usize) -> ApplicationPackageFiles {
         let metadata = Metadata::<ApplicationPackage>::from_reader(
             serde_json::json!(
                 {
@@ -235,7 +252,10 @@ mod tests {
         ).expect("Invalid metadata");
         let icon = b"icon_image_svg_content".to_vec();
 
-        let modules = vec![wasm_module::tests::prepare_default_package_files()];
+        let mut modules = Vec::with_capacity(modules_num);
+        for _ in 0..modules_num {
+            modules.push(wasm_module::tests::prepare_default_package_files());
+        }
 
         ApplicationPackageFiles {
             metadata,
@@ -245,8 +265,8 @@ mod tests {
     }
 
     fn prepare_package_dir(
-        app_name: String, ovveride_module_name: &[String], dir: &TempDir,
-        app_package_files: &ApplicationPackageFiles,
+        app_name: String, override_module_name: &[String], build_date: DateTime<Utc>,
+        dir: &TempDir, app_package_files: &ApplicationPackageFiles,
     ) -> Manifest {
         let metadata_path = dir.path().join("metadata.json");
         let icon_path = dir.path().join("icon.png");
@@ -266,10 +286,10 @@ mod tests {
 
         let mut modules = Vec::new();
         for (i, module_package_files) in app_package_files.modules.iter().enumerate() {
-            let module_name = ovveride_module_name
+            let module_name = override_module_name
                 .get(i)
                 .cloned()
-                .unwrap_or(format!("module_{i}"));
+                .unwrap_or(default_module_name(i));
 
             let module_manifest = wasm_module::tests::prepare_package_dir(
                 module_name.clone(),
@@ -277,7 +297,6 @@ mod tests {
                 module_package_files,
             );
 
-            let build_date = DateTime::default();
             WasmModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
                 .expect("Failed to create module package");
 
@@ -306,30 +325,69 @@ mod tests {
     fn from_dir_test() {
         let dir = TempDir::new().expect("Failled to create temp dir");
 
-        let mut app_package_files = prepare_default_package_files();
-        let ovveride_module_name = vec![];
+        let modules_num = 4;
+        let mut app_package_files = prepare_default_package_files(modules_num);
 
+        // override module names for first 2 modules
+        let override_module_name = vec!["test module 1".into(), "test module 2".into()];
+        let build_date = DateTime::default();
         let manifest = prepare_package_dir(
             "app".to_string(),
-            &ovveride_module_name,
+            &override_module_name,
+            build_date,
             &dir,
             &app_package_files,
         );
 
-        let build_time = DateTime::default();
         let package =
-            ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+            ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
                 .expect("Cannot create module package");
 
         assert!(package.validate().is_ok());
 
         // check metadata JSON file
         app_package_files.metadata.set_name(&manifest.name);
-        app_package_files.metadata.set_build_date(build_time);
+        app_package_files.metadata.set_build_date(build_date);
 
         let package_metadata = package
             .get_metadata()
             .expect("Cannot get metadata from package");
         assert_eq!(app_package_files.metadata, package_metadata);
+
+        // check WASM modules
+        let modules = package
+            .get_modules()
+            .expect("Failed to get WASM modules from package");
+        assert_eq!(modules.len(), app_package_files.modules.len());
+
+        let mut expected_module_names: BTreeSet<_> = (0..modules_num)
+            .map(|i| {
+                override_module_name
+                    .get(i)
+                    .cloned()
+                    .unwrap_or(default_module_name(i))
+            })
+            .collect();
+
+        for i in 0..app_package_files.modules.len() {
+            let module_package = modules.get(i).expect("Empty module package");
+            let module_files = app_package_files
+                .modules
+                .get_mut(i)
+                .expect("Empty module file");
+
+            module_package.validate().expect("Ivalid WASM module");
+            let module_name = module_package
+                .get_metadata()
+                .expect("Cannot get metadata from module package")
+                .get_name()
+                .expect("Cannot get metadata `name` field");
+            assert!(expected_module_names.remove(&module_name));
+
+            module_files.metadata.set_name(module_name.as_str());
+            module_files.metadata.set_build_date(build_date);
+
+            wasm_module::tests::check_module_integrity(module_files, module_package);
+        }
     }
 }
