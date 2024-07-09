@@ -1,37 +1,6 @@
 //! Hermes IPFS
 //!
 //! Provides support for storage, and `PubSub` functionality.
-//!
-//! ```no_run
-//! use hermes_ipfs::HermesIpfs;
-//!
-//! #[tokio::main]
-//! #[allow(clippy::println_empty_string)]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Start with default options
-//!     let node = HermesIpfs::start().await?;
-//!     node.stop().await;
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ```no_run
-//! use hermes_ipfs::{HermesIpfs, IpfsBuilder};
-//!
-//! #[tokio::main]
-//! #[allow(clippy::println_empty_string)]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Start with default options
-//!     let node: HermesIpfs = IpfsBuilder::new()
-//!         .with_default()
-//!         .set_default_listener()
-//!         .start()
-//!         .await?
-//!         .into();
-//!     node.stop().await;
-//!     Ok(())
-//! }
-//! ```
 
 use std::str::FromStr;
 
