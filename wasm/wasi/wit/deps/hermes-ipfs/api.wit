@@ -9,12 +9,14 @@ interface api {
     variant ipfs-content {
         /// DHT value
         dht(tuple<dht-key,dht-value>),
-        pubsub(pubsub-message),
+        pubsub(tuple<pubsub-topic,message-data>),
     }
     /// The binary contents of an IPFS file.
     type ipfs-file = list<u8>;
     /// A path to an IPFS file.
     type ipfs-path = string;
+    /// PubSub Message Data
+    type message-data = list<u8>;
     /// The ID of a peer.
     type peer-id = string;
     /// A PubSub topic.
@@ -24,9 +26,9 @@ interface api {
         /// The topic that the message was received on. 
         topic: pubsub-topic,
         /// The contents of the message.
-        message: string,
-        /// Peer ID that sent the message.
-        peer: option<peer-id>,
+        message: message-data,
+        /// Optional Peer ID that published the message.
+        publisher: option<peer-id>,
     }
     /// Errors that occur in IPFS networking.
     enum errno {
@@ -74,6 +76,8 @@ interface api {
     file-pin: func(path: ipfs-path) -> result<bool, errno>;
     /// Evict peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
+    /// Publish a message to a topic.
+    pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<bool, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }

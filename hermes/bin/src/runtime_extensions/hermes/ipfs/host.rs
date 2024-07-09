@@ -4,7 +4,8 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, PeerId, PubsubTopic,
+            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
+            PubsubTopic,
         },
         hermes::ipfs::state::{
             hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
@@ -35,6 +36,12 @@ impl Host for HermesRuntimeContext {
 
     fn dht_get(&mut self, key: DhtKey) -> wasmtime::Result<Result<DhtValue, Errno>> {
         Ok(hermes_ipfs_get_dht_value(self.app_name(), key))
+    }
+
+    fn pubsub_publish(
+        &mut self, _topic: PubsubTopic, _message: MessageData,
+    ) -> wasmtime::Result<Result<bool, Errno>> {
+        Ok(Ok(true))
     }
 
     fn pubsub_subscribe(&mut self, topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {
