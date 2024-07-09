@@ -10,38 +10,118 @@ use std::{
 
 use pallas::crypto::hash::Hash;
 
-/// A point in the chain or the tip.
+/// A specific point in the blockchain. It can be used to
+/// identify a particular location within the blockchain, such as the tip (the
+/// most recent block) or any other block. It has special kinds of `Point`,
+/// available as constants: `TIP_POINT`, and `ORIGIN_POINT`.
+///
+/// # Attributes
+/// 
+/// * `Point` - The inner type is a `Point` from the `pallas::network::miniprotocols`
+///   module. This inner `Point` type encapsulates the specific details required
+///   to identify a point in the blockchain.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Point(pallas::network::miniprotocols::Point);
 
-/// A special point which means we do not know the point, and its NOT the origin.
-/// Used for previous point when its truly unknown.
+/// A truly unknown point in the blockchain. It is used
+/// when the previous point is completely unknown and does not correspond to the
+/// origin of the blockchain.
+///
+/// # Usage
+///
+/// `UNKNOWN_POINT` can be used in scenarios where the previous point in the blockchain
+/// is not known and should not be assumed to be the origin. It serves as a marker
+/// for an indeterminate or unspecified point.
+///
+/// The inner `Point` is created with `u64::MIN` and an empty `Vec<u8>`, indicating
+/// that this is a special marker for an unknown point, rather than a specific
+/// point in the blockchain.
 pub(crate) const UNKNOWN_POINT: Point = Point(pallas::network::miniprotocols::Point::Specific(
     u64::MIN,
     Vec::new(),
 ));
 
-/// A special point which means we do not know the point, however it's the TIP, whatever that
-/// happens to be NOW.
-/// Used for Point we are interested in should be the TIP of the blockchain.
+/// The tip of the blockchain at the current moment.
+/// It is used when the specific point in the blockchain is not known, but the
+/// interest is in the most recent block (the tip). The tip is the point where
+/// new blocks are being added.
+///
+/// # Usage
+///
+/// `TIP_POINT` can be used in scenarios where the most up-to-date point in the
+/// blockchain is required. It signifies that the exact point is not important
+/// as long as it is the latest available point in the chain.
+///
+/// The inner `Point` is created with `u64::MAX` and an empty `Vec<u8>`, indicating
+/// that this is a special marker rather than a specific point in the blockchain.
 pub const TIP_POINT: Point = Point(pallas::network::miniprotocols::Point::Specific(
     u64::MAX,
     Vec::new(),
 ));
 
-/// A special point which means we do not know the point, however it's the ORIGIN, whatever that
-/// happens to be.
-/// Used for Point we are interested in should be the ORIGIN of the blockchain.
+/// The origin of the blockchain. It is used when the 
+/// interest is in the very first point of the blockchain, regardless of its 
+/// specific details.
+///
+/// # Usage
+///
+/// `ORIGIN_POINT` can be used in scenarios where the starting point of the 
+/// blockchain is required. It signifies the genesis block or the initial state 
+/// of the blockchain.
+///
+/// The inner `Point` is created with the `Origin` variant from 
+/// `pallas::network::miniprotocols::Point`, indicating that this is a marker 
+/// for the blockchain's origin.
 pub const ORIGIN_POINT: Point = Point(pallas::network::miniprotocols::Point::Origin);
 
 impl Point {
-    /// Create a new specific point.
+    /// Creates a new `Point` instance representing a specific 
+    /// point in the blockchain, identified by a given slot and hash.
+    ///
+    /// # Parameters
+    ///
+    /// * `slot` - A `u64` value representing the slot number in the blockchain.
+    /// * `hash` - A `Vec<u8>` containing the hash of the block at the specified slot.
+    ///
+    /// # Returns
+    ///
+    /// A new `Point` instance encapsulating the given slot and hash.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let slot = 42;
+    /// let hash = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    /// let point = Point::new(slot, hash);
+    /// ```
     #[must_use]
     pub fn new(slot: u64, hash: Vec<u8>) -> Self {
         Self(pallas::network::miniprotocols::Point::Specific(slot, hash))
     }
 
-    /// Create a new specific point where hash is unknown.
+    /// Creates a new `Point` instance representing a specific 
+    /// point in the blockchain, identified by a given slot, but with an 
+    /// unknown hash. This can be useful in scenarios where the slot is known
+    /// but the hash is either unavailable or irrelevant.
+    ///
+    /// # Parameters
+    ///
+    /// * `slot` - A `u64` value representing the slot number in the blockchain.
+    ///
+    /// # Returns
+    ///
+    /// A new `Point` instance encapsulating the given slot with an empty hash.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let slot = 42;
+    /// let point = Point::fuzzy(slot);
+    /// ```
     #[must_use]
     pub fn fuzzy(slot: u64) -> Self {
         Self(pallas::network::miniprotocols::Point::Specific(
@@ -50,7 +130,35 @@ impl Point {
         ))
     }
 
-    /// Compare the Points hash with a known hash from a block.
+    /// Compares the hash stored in the `Point` with a known hash.
+    /// It returns `true` if the hashes match and `false` otherwise. If the 
+    /// provided hash is `None`, the function checks if the `Point` has an 
+    /// empty hash.
+    ///
+    /// # Parameters
+    ///
+    /// * `hash` - An `Option<Hash<32>>` containing the hash to compare against.
+    ///   If `Some`, the contained hash is compared with the `Point`'s hash.
+    ///   If `None`, the function checks if the `Point`'s hash is empty.
+    ///
+    /// # Returns
+    ///
+    /// A `bool` indicating whether the hashes match.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    /// 
+    /// use pallas::crypto::hash::Hash;
+    ///
+    /// let point = Point::new(42, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    /// let hash = Some(Hash::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));
+    /// assert!(point.cmp_hash(&hash));
+    ///
+    /// let empty_point = Point::fuzzy(42);
+    /// assert!(empty_point.cmp_hash(&None));
+    /// ```
     #[must_use]
     pub fn cmp_hash(&self, hash: &Option<Hash<32>>) -> bool {
         match hash {
@@ -67,13 +175,49 @@ impl Point {
         }
     }
 
-    /// Get the slot, or a default if its the Origin.
+    /// Retrieves the slot number from the `Point`. If the `Point`
+    /// is the origin, it returns a default slot number.
+    ///
+    /// # Returns
+    ///
+    /// A `u64` representing the slot number. If the `Point` is the origin,
+    /// it returns a default slot value, typically `0`.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::{Point, ORIGIN_POINT};
+    ///
+    /// let specific_point = Point::new(42, vec![1, 2, 3]);
+    /// assert_eq!(specific_point.slot_or_default(), 42);
+    ///
+    /// let origin_point = ORIGIN_POINT;
+    /// assert_eq!(origin_point.slot_or_default(), 0); // assuming 0 is the default
+    /// ```
     #[must_use]
     pub fn slot_or_default(&self) -> u64 {
         self.0.slot_or_default()
     }
 
-    /// Get the slot, or a default if its the Origin.
+    /// Retrieves the hash from the `Point`. If the `Point` is 
+    /// the origin, it returns a default hash value, which is an empty `Vec<u8>`.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` representing the hash. If the `Point` is the `Origin`, it 
+    /// returns an empty vector.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::{Point, ORIGIN_POINT};
+    ///
+    /// let specific_point = Point::new(42, vec![1, 2, 3]);
+    /// assert_eq!(specific_point.hash_or_default(), vec![1, 2, 3]);
+    ///
+    /// let origin_point = ORIGIN_POINT;
+    /// assert_eq!(origin_point.hash_or_default(), Vec::new());
+    /// ```
     #[must_use]
     pub fn hash_or_default(&self) -> Vec<u8> {
         match &self.0 {
@@ -82,9 +226,30 @@ impl Point {
         }
     }
 
-    /// Strict Equality.
+    /// Checks if two `Point` instances are strictly equal. 
+    /// Strict equality means both the slot number and hash must be identical.
     ///
-    /// This checks BOTH the Slot# and Hash are identical.
+    /// # Parameters
+    ///
+    /// * `b` - Another `Point` instance to compare against.
+    ///
+    /// # Returns
+    ///
+    /// A `bool` indicating whether the two `Point` instances are strictly equal.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let point1 = Point::new(42, vec![1, 2, 3]);
+    /// let point2 = Point::new(42, vec![1, 2, 3]);
+    /// assert!(point1.strict_eq(&point2));
+    ///
+    /// let point3 = Point::new(42, vec![1, 2, 3]);
+    /// let point4 = Point::new(43, vec![1, 2, 3]);
+    /// assert!(!point3.strict_eq(&point4));
+    /// ```
     #[must_use]
     pub fn strict_eq(&self, b: &Self) -> bool {
         self.0 == b.0
@@ -123,39 +288,43 @@ impl From<Point> for pallas::network::miniprotocols::Point {
 }
 
 impl PartialOrd for Point {
-    /// Compare two `LiveBlocks` by their points.
-    /// Only checks the Slot#.
+    /// Implements a partial ordering based on the slot number
+    /// of two `Point` instances. It only checks the slot number for ordering.
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Point {
-    /// Compare two `PointOrTips` by their points.
-    /// Only checks the Slot#.
+    /// Implements a total ordering based on the slot number
+    /// of two `Point` instances. It only checks the slot number for ordering.
     fn cmp(&self, other: &Self) -> Ordering {
         cmp_point(&self.0, &other.0)
     }
 }
 
-// Allows us to compare a SnapshotID against u64 (Just the Immutable File Number).
 impl PartialEq<u64> for Point {
-    // Equality ONLY checks the Immutable File Number, not the path.
-    // This is because the Filename is already the ImmutableFileNumber
+    /// Allows to compare a `SnapshotID` against `u64` (Just the Immutable File Number).
+    ///
+    /// Equality ONLY checks the Immutable File Number, not the path.
+    /// This is because the Filename is already the Immutable File Number.
     fn eq(&self, other: &u64) -> bool {
         self.0.slot_or_default() == *other
     }
 }
 
 impl PartialOrd<u64> for Point {
-    // Equality ONLY checks the Immutable File Number, not the path.
-    // This is because the Filename is already the ImmutableFileNumber
+    /// Allows to compare a `Point` against a `u64` (Just the Immutable File Number).
+    ///
+    /// Equality ONLY checks the Immutable File Number, not the path.
+    /// This is because the Filename is already the Immutable File Number.
     fn partial_cmp(&self, other: &u64) -> Option<Ordering> {
         self.0.slot_or_default().partial_cmp(other)
     }
 }
 
 impl Default for Point {
+    /// Returns the default value for `Point`, which is `UNKNOWN_POINT`.
     fn default() -> Self {
         UNKNOWN_POINT
     }

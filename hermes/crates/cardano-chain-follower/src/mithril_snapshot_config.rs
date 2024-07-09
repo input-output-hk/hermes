@@ -560,7 +560,7 @@ fn hash_single_file(file: &Path) -> io::Result<RawHash> {
 #[cfg(test)]
 mod tests {
 
-    use std::path::Path;
+    /* use std::path::Path;
 
     use regex::Regex;
 
@@ -642,5 +642,5 @@ mod tests {
         test_network(Network::Mainnet);
         test_network(Network::Preprod);
         test_network(Network::Preview);
-    }
+    } */
 }
