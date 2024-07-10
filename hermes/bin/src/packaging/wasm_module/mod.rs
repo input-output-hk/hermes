@@ -181,23 +181,24 @@ impl WasmModulePackage {
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         self.0
-            .get_file(Self::METADATA_FILE.into())?
-            .map(|file| Metadata::<Self>::from_reader(file.reader()?))
-            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
+            .get_file(Self::METADATA_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
+            .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
     }
 
     /// Get `wasm::module::Module` object from package.
     pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
         self.0
-            .get_file(Self::COMPONENT_FILE.into())?
-            .map(|file| wasm::module::Module::from_reader(file.reader()?))
-            .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?
+            .get_file(Self::COMPONENT_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
+            .map(|file| wasm::module::Module::from_reader(file.reader()?))?
     }
 
     /// Get `Signature` object from package.
     pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
         self.0
-            .get_file(Self::AUTHOR_COSE_FILE.into())?
+            .get_file(Self::AUTHOR_COSE_FILE.into())
+            .ok()
             .map(|file| Signature::<SignaturePayload>::from_reader(file.reader()?))
             .transpose()
     }
@@ -205,7 +206,8 @@ impl WasmModulePackage {
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
         self.0
-            .get_file(Self::CONFIG_SCHEMA_FILE.into())?
+            .get_file(Self::CONFIG_SCHEMA_FILE.into())
+            .ok()
             .map(|file| ConfigSchema::from_reader(file.reader()?))
             .transpose()
     }
@@ -219,7 +221,7 @@ impl WasmModulePackage {
             return Ok((None, None));
         };
 
-        if let Some(file) = self.0.get_file(Self::CONFIG_FILE.into())? {
+        if let Ok(file) = self.0.get_file(Self::CONFIG_FILE.into()) {
             let config_file = Config::from_reader(file.reader()?, config_schema.validator())?;
             Ok((Some(config_file), Some(config_schema)))
         } else {
@@ -230,7 +232,8 @@ impl WasmModulePackage {
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         self.0
-            .get_file(Self::SETTINGS_SCHEMA_FILE.into())?
+            .get_file(Self::SETTINGS_SCHEMA_FILE.into())
+            .ok()
             .map(|file| SettingsSchema::from_reader(file.reader()?))
             .transpose()
     }

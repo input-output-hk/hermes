@@ -2,6 +2,8 @@
 
 use std::io::Read;
 
+use super::Path;
+
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
 #[derive(Clone, Debug)]
 pub(crate) struct File(hdf5::Dataset);
@@ -12,12 +14,12 @@ impl File {
         Self(dataset)
     }
 
-    /// Return `File` name.
-    pub(crate) fn name(&self) -> String {
-        self.0.name().to_string()
+    /// Return file `Path`.
+    pub(crate) fn path(&self) -> Path {
+        Path::from_str(&self.0.name())
     }
 
-    /// Return `File` reader.
+    /// Return file reader.
     pub(crate) fn reader(&self) -> anyhow::Result<impl Read> {
         Ok(self.0.as_byte_reader()?)
     }

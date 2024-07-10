@@ -50,7 +50,7 @@ impl Package {
     /// Calculates file hash, if present
     pub(crate) fn calculate_file_hash(&self, path: Path) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
-        let Some(file) = self.0.get_file(path)? else {
+        let Ok(file) = self.0.get_file(path) else {
             return Ok(None);
         };
         calculate_file_hash(&file, &mut hasher)?;
@@ -98,19 +98,19 @@ fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Resul
     let files: BTreeMap<_, _> = dir
         .get_files(&Path::default())?
         .into_iter()
-        .map(|file| (file.name(), file))
+        .map(|file| (file.path().to_string(), file))
         .collect();
     let dirs: BTreeMap<_, _> = dir
         .get_dirs(&Path::default())?
         .into_iter()
-        .map(|dir| (dir.name(), dir))
+        .map(|dir| (dir.path().to_string(), dir))
         .collect();
-    for (name, file) in files {
-        hasher.update(name.as_bytes());
+    for (path_str, file) in files {
+        hasher.update(path_str.as_bytes());
         calculate_file_hash(&file, hasher)?;
     }
-    for (name, dir) in dirs {
-        hasher.update(name.as_bytes());
+    for (path_str, dir) in dirs {
+        hasher.update(path_str.as_bytes());
         calculate_dir_hash(&dir, hasher)?;
     }
 
@@ -187,12 +187,32 @@ mod tests {
             .expect("Failed to get dir hash from package.");
 
         let mut hasher = Blake2b256Hasher::new();
-        hasher.update(child_dir_name.as_bytes());
-        hasher.update(file_3_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), file_1_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
         hasher.update(file_content);
-        hasher.update(file_1_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), file_2_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
         hasher.update(file_content);
-        hasher.update(file_2_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), child_dir_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
+        hasher.update(
+            Path::new(vec![
+                dir_name.into(),
+                child_dir_name.into(),
+                file_3_name.into(),
+            ])
+            .to_string()
+            .as_bytes(),
+        );
         hasher.update(file_content);
         let expected_hash = hasher.finalize();
 

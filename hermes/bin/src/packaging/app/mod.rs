@@ -82,9 +82,9 @@ impl ApplicationPackage {
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         self.0
-            .get_file(Self::METADATA_FILE.into())?
-            .map(|file| Metadata::<Self>::from_reader(file.reader()?))
-            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
+            .get_file(Self::METADATA_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
+            .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
     }
 
     /// Get `Vec<WasmModulePackage>` from package.

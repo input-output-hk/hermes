@@ -19,12 +19,12 @@ impl Dir {
         Self(group)
     }
 
-    /// Return `Dir` name.
-    pub(crate) fn name(&self) -> String {
-        self.0.name().to_string()
+    /// Return dir `Path`.
+    pub(crate) fn path(&self) -> Path {
+        Path::from_str(&self.0.name())
     }
 
-    /// Copy file to the provided path.
+    /// Copy resource file to the provided path.
     pub(crate) fn copy_resource_file(
         &self, resource: &impl ResourceTrait, mut path: Path,
     ) -> anyhow::Result<()> {
@@ -121,10 +121,14 @@ impl Dir {
     }
 
     /// Get file if present from path.
-    pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<Option<File>> {
+    /// Return error if file does not exist by the provided path.
+    pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<File> {
         let file_name = path.pop_elem()?;
         let dir = self.get_dir(&path)?;
-        Ok(dir.0.dataset(file_name.as_str()).ok().map(File::new))
+        dir.0
+            .dataset(file_name.as_str())
+            .map(File::new)
+            .map_err(|_| anyhow::anyhow!("File {file_name}/{path} not found"))
     }
 
     /// Get all files from the provided path.
@@ -135,7 +139,7 @@ impl Dir {
     }
 
     /// Get dir by the provided path.
-    /// Return error if some dir does not exist.
+    /// Return error if dir does not exist by the provided path.
     /// If path is empty it will return cloned `Dir`.
     pub(crate) fn get_dir(&self, path: &Path) -> anyhow::Result<Self> {
         let mut dir = self.0.clone();
@@ -201,8 +205,7 @@ mod tests {
 
         let file_1 = dir
             .get_file(file_1_name.into())
-            .expect("Failed to get file.")
-            .expect("Missing file in dir.");
+            .expect("Failed to get file.");
 
         let mut data = Vec::new();
         file_1
@@ -214,14 +217,11 @@ mod tests {
 
         // Remove file from package
         assert!(
-            dir.remove_file(file_1_name.into()).is_err(),
+            dir.remove_dir(file_1_name.into()).is_err(),
             "Failed to remove file from package using remove_dir."
         );
         assert!(dir.remove_file(file_1_name.into()).is_ok());
-        assert!(dir
-            .get_file(file_1_name.into())
-            .expect("Failed to get file.")
-            .is_none());
+        assert!(dir.get_file(file_1_name.into()).is_err());
     }
 
     #[test]
@@ -262,12 +262,10 @@ mod tests {
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
         assert!(dir
             .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
-            .expect("Failed to get file.")
-            .is_some());
+            .is_ok());
         assert!(dir
             .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
-            .expect("Failed to get file.")
-            .is_some());
+            .is_ok());
 
         assert!(dir
             .get_dir(&Path::new(vec![
@@ -281,8 +279,7 @@ mod tests {
                 child_dir_name.into(),
                 file_3_name.into()
             ]))
-            .expect("Failed to get file reader.")
-            .is_some());
+            .is_ok());
 
         // Remove directory from package
         assert!(
@@ -293,12 +290,10 @@ mod tests {
         assert!(dir.get_dir(&base_dir_name.into()).is_err());
         assert!(dir
             .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
-            .expect("Failed to get file.")
-            .is_none());
+            .is_err());
         assert!(dir
             .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
-            .expect("Failed to get file.")
-            .is_none());
+            .is_err());
         assert!(dir
             .get_dir(&Path::new(vec![
                 base_dir_name.into(),
@@ -311,8 +306,7 @@ mod tests {
                 child_dir_name.into(),
                 file_3_name.into()
             ]))
-            .expect("Failed to get file reader.")
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -348,16 +342,10 @@ mod tests {
         );
 
         // copy content from first dir from first package to second dir in second package
-        assert!(dir_2
-            .get_file(content_name.into())
-            .expect("Failed to get file.")
-            .is_none());
+        assert!(dir_2.get_file(content_name.into()).is_err());
         dir_2
             .copy_dir(&dir_1, &"".into())
             .expect("Failed to copy package to package.");
-        assert!(dir_2
-            .get_file(content_name.into())
-            .expect("Failed to get file.")
-            .is_some());
+        assert!(dir_2.get_file(content_name.into()).is_ok());
     }
 }
