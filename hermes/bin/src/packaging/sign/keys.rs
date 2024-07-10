@@ -75,7 +75,6 @@ impl PublicKey {
 
     /// Verify signature of the message with the current public key.
     /// Returns `Ok(())` if the signature is valid, `Err` otherwise.
-    #[allow(dead_code)]
     pub(crate) fn verify(&self, msg: &[u8], signature_bytes: &[u8]) -> anyhow::Result<()> {
         let signature_bytes = signature_bytes.try_into().map_err(|_| {
             anyhow::anyhow!(

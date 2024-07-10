@@ -7,7 +7,6 @@ use std::{
 };
 
 use super::ResourceTrait;
-use crate::hdf5::FileError;
 
 /// File system resource.
 /// A simple wrapper over `PathBuf`
@@ -60,12 +59,11 @@ impl ResourceTrait for FsResource {
 
     fn get_reader(&self) -> anyhow::Result<impl Read + Debug> {
         std::fs::File::open(&self.0).map_err(|err| {
-            let msg = if err.kind() == std::io::ErrorKind::NotFound {
-                anyhow::anyhow!("File not found")
+            if err.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!("File not found at {}", self.0.display())
             } else {
-                err.into()
-            };
-            FileError::from_path(&self.0, Some(msg)).into()
+                anyhow::anyhow!("Cannot open file at {}, err: {err}", self.0.display())
+            }
         })
     }
 
