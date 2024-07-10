@@ -1,8 +1,8 @@
 //! Cardano chain follow module.
 
 use pallas::network::miniprotocols::txmonitor::{TxBody, TxId};
-use tokio::sync::broadcast;
-use tracing::debug;
+use tokio::sync::broadcast::{self};
+use tracing::{debug, error};
 
 use crate::{
     chain_sync::point_at_tip,
@@ -21,6 +21,8 @@ use crate::{
 pub struct ChainFollower {
     /// The Blockchain network we are following.
     chain: Network,
+    /// Where we started following.
+    start: Point,
     /// Where we end following.
     end: Point,
     /// Block we processed most recently.
@@ -33,6 +35,8 @@ pub struct ChainFollower {
     snapshot: MithrilSnapshot,
     /// Mithril Snapshot Follower
     mithril_follower: Option<MithrilSnapshotIterator>,
+    /// Mithril TIP Reached
+    mithril_tip: Option<Point>,
     /// Live Block Updates
     sync_updates: broadcast::Receiver<chain_update::Kind>,
 }
@@ -67,20 +71,31 @@ impl ChainFollower {
     #[must_use]
     pub async fn new(chain: Network, start: Point, end: Point) -> Self {
         let rx = get_chain_update_rx_queue(chain).await;
+        let current = start.clone();
+
         ChainFollower {
             chain,
+            start,
             end,
             previous: UNKNOWN_POINT,
-            current: start,
-            fork: 1,
+            current,
+            fork: 1, // This is correct, because Mithril is Fork 0.
             snapshot: MithrilSnapshot::new(chain),
             mithril_follower: None,
+            mithril_tip: None,
             sync_updates: rx,
         }
     }
 
     /// If we can, get the next update from the mithril snapshot.
     async fn next_from_mithril(&mut self) -> Option<ChainUpdate> {
+        let current_mithril_tip = latest_mithril_snapshot_id(self.chain).tip();
+
+        // If our start is after the current mithril tip, then there is never anything for us to do here.
+        if current_mithril_tip < self.start {
+            return None;
+        }
+
         if self.mithril_follower.is_none() {
             self.mithril_follower = self
                 .snapshot
@@ -97,6 +112,20 @@ impl ChainFollower {
                 return Some(update);
             }
         }
+
+        if self.mithril_tip.is_none() || current_mithril_tip >= self.mithril_tip {
+            let snapshot = MithrilSnapshot::new(self.chain);
+            if let Some(block) = snapshot.read_block_at(&current_mithril_tip).await {
+                // The Mithril Tip has moved forwards.
+                self.mithril_tip = Some(current_mithril_tip);
+                // Get the mithril tip block.
+                let update =
+                    ChainUpdate::new(chain_update::Kind::ImmutableBlockRollForward, false, block);
+                return Some(update);
+            }
+            error!("Mithril Tip Block is not in snapshot. Should not happen.");
+        }
+
         None
     }
 

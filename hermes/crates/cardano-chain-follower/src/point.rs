@@ -323,6 +323,35 @@ impl PartialOrd<u64> for Point {
     }
 }
 
+impl PartialEq<Option<Point>> for Point {
+    /// Allows to compare a `SnapshotID` against `u64` (Just the Immutable File Number).
+    ///
+    /// Equality ONLY checks the Immutable File Number, not the path.
+    /// This is because the Filename is already the Immutable File Number.
+    fn eq(&self, other: &Option<Point>) -> bool {
+        if let Some(other) = other {
+            *self == *other
+        } else {
+            false
+        }
+    }
+}
+
+impl PartialOrd<Option<Point>> for Point {
+    /// Allows to compare a `Point` against a `u64` (Just the Immutable File Number).
+    ///
+    /// Equality ONLY checks the Immutable File Number, not the path.
+    /// This is because the Filename is already the Immutable File Number.
+    /// Any point is greater than None.
+    fn partial_cmp(&self, other: &Option<Point>) -> Option<Ordering> {
+        if let Some(other) = other {
+            self.partial_cmp(other)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+}
+
 impl Default for Point {
     /// Returns the default value for `Point`, which is `UNKNOWN_POINT`.
     fn default() -> Self {
