@@ -13,10 +13,10 @@ use settings::SettingsSchema;
 
 use crate::{
     errors::Errors,
+    hdf5::resources::{bytes::BytesResource, ResourceTrait},
     packaging::{
         metadata::{Metadata, MetadataSchema},
         package::{Package, Path},
-        resources::{bytes::BytesResource, ResourceTrait},
         sign::{
             certificate::Certificate,
             keys::PrivateKey,
@@ -371,9 +371,9 @@ pub(crate) mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::{
-        resources::{FsResource, ResourceBuilder},
-        sign::{
+    use crate::{
+        hdf5::resources::{FsResource, ResourceBuilder},
+        packaging::sign::{
             certificate::{self, tests::certificate_str},
             keys::tests::private_key_str,
         },

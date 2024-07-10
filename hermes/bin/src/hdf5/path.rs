@@ -36,6 +36,7 @@ impl Path {
     }
 
     /// Push a new path element to the path at the end.
+    #[allow(dead_code)]
     pub(crate) fn push_elem(&mut self, value: String) {
         self.0.push(value);
     }

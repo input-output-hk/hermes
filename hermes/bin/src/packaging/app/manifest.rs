@@ -2,10 +2,9 @@
 
 use std::path::Path;
 
-use crate::packaging::{
-    resources::{FsResource, ResourceBuilder},
-    schema_validation::SchemaValidator,
-    FileError,
+use crate::{
+    hdf5::resources::{FsResource, ResourceBuilder},
+    packaging::{schema_validation::SchemaValidator, FileError},
 };
 
 /// Hermes application package manifest.json definition.
@@ -106,7 +105,7 @@ mod serde_def {
 
     use serde::Deserialize;
 
-    use crate::packaging::resources::ResourceBuilder;
+    use crate::hdf5::resources::ResourceBuilder;
 
     #[derive(Deserialize)]
     pub(crate) struct ManifestSerde {

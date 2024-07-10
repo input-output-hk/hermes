@@ -5,17 +5,13 @@ pub(crate) mod manifest;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
-use super::{
-    package::Path,
-    resources::ResourceTrait,
-    wasm_module::{self, WasmModulePackage},
-};
 use crate::{
     errors::Errors,
+    hdf5::resources::{BytesResource, ResourceTrait},
     packaging::{
         metadata::{Metadata, MetadataSchema},
-        package::Package,
-        resources::BytesResource,
+        package::{Package, Path},
+        wasm_module::{self, WasmModulePackage},
         FileError, MissingPackageFileError,
     },
 };
@@ -222,7 +218,7 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::{FsResource, ResourceBuilder};
+    use crate::hdf5::resources::{FsResource, ResourceBuilder};
 
     struct ApplicationPackageFiles {
         metadata: Metadata<ApplicationPackage>,

@@ -5,7 +5,7 @@ mod compression;
 mod dir;
 mod path;
 #[allow(dead_code, unused_imports)]
-mod resources;
+pub(crate) mod resources;
 
 use std::fmt::Display;
 
