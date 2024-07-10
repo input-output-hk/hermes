@@ -215,9 +215,9 @@ impl Statistics {
 
         let mut this_stats = chain_stats.clone();
         // Set the current rollback stats.
-        this_stats.live.rollbacks.live = rollbacks(chain, &RollbackType::LiveChain);
-        this_stats.live.rollbacks.peer = rollbacks(chain, &RollbackType::Peer);
-        this_stats.live.rollbacks.follower = rollbacks(chain, &RollbackType::Follower);
+        this_stats.live.rollbacks.live = rollbacks(chain, RollbackType::LiveChain);
+        this_stats.live.rollbacks.peer = rollbacks(chain, RollbackType::Peer);
+        this_stats.live.rollbacks.follower = rollbacks(chain, RollbackType::Follower);
 
         this_stats
     }
@@ -243,9 +243,9 @@ impl Statistics {
 
         let mut this_stats = chain_stats.clone();
         // Reset the current rollback stats.
-        this_stats.live.rollbacks.live = rollbacks_reset(chain, &RollbackType::LiveChain);
-        this_stats.live.rollbacks.peer = rollbacks_reset(chain, &RollbackType::Peer);
-        this_stats.live.rollbacks.follower = rollbacks_reset(chain, &RollbackType::Follower);
+        this_stats.live.rollbacks.live = rollbacks_reset(chain, RollbackType::LiveChain);
+        this_stats.live.rollbacks.peer = rollbacks_reset(chain, RollbackType::Peer);
+        this_stats.live.rollbacks.follower = rollbacks_reset(chain, RollbackType::Follower);
 
         this_stats
     }
@@ -548,7 +548,7 @@ pub(crate) fn mithril_validation_state(chain: Network, mithril_state: MithrilVal
 /* -------- ROLLBACK STATISTIC TRACKING ----------------------------------------------------------*/
 
 /// The types of rollbacks we track for a chain.
-#[derive(EnumIter, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(EnumIter, Eq, Ord, PartialEq, PartialOrd, Copy, Clone)]
 pub enum RollbackType {
     /// Rollback on the in-memory live chain.
     LiveChain,
@@ -579,7 +579,7 @@ static ROLLBACKS_MAP: Lazy<RollbackMap> = Lazy::new(|| {
 
 /// Get the actual rollback map for a chain.
 fn lookup_rollback_map(
-    chain: Network, rollback: &RollbackType,
+    chain: Network, rollback: RollbackType,
 ) -> Option<Arc<RwLock<RollbackRecords>>> {
     let Some(chain_rollback_map) = ROLLBACKS_MAP.get(&chain) else {
         error!("Rollback stats SHOULD BE exhaustively pre-allocated.");
@@ -587,7 +587,7 @@ fn lookup_rollback_map(
     };
     let chain_rollback_map = chain_rollback_map.value();
 
-    let Some(rollback_map) = chain_rollback_map.get(rollback) else {
+    let Some(rollback_map) = chain_rollback_map.get(&rollback) else {
         error!("Rollback stats SHOULD BE exhaustively pre-allocated.");
         return None;
     };
@@ -597,7 +597,7 @@ fn lookup_rollback_map(
 }
 
 /// Extract the current rollback stats as a vec.
-fn rollbacks(chain: Network, rollback: &RollbackType) -> Vec<Rollback> {
+fn rollbacks(chain: Network, rollback: RollbackType) -> Vec<Rollback> {
     let Some(rollback_map) = lookup_rollback_map(chain, rollback) else {
         return Vec::new();
     };
@@ -618,7 +618,7 @@ fn rollbacks(chain: Network, rollback: &RollbackType) -> Vec<Rollback> {
 }
 
 /// Reset ALL the rollback stats for a given blockchain.
-fn rollbacks_reset(chain: Network, rollback: &RollbackType) -> Vec<Rollback> {
+fn rollbacks_reset(chain: Network, rollback: RollbackType) -> Vec<Rollback> {
     let Some(rollback_map) = lookup_rollback_map(chain, rollback) else {
         return Vec::new();
     };
@@ -634,7 +634,7 @@ fn rollbacks_reset(chain: Network, rollback: &RollbackType) -> Vec<Rollback> {
 }
 
 /// Count a rollback
-pub(crate) fn rollback(chain: Network, rollback: &RollbackType, depth: u64) {
+pub(crate) fn rollback(chain: Network, rollback: RollbackType, depth: u64) {
     let Some(rollback_map) = lookup_rollback_map(chain, rollback) else {
         return;
     };

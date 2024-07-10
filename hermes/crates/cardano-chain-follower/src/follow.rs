@@ -6,7 +6,7 @@ use tracing::{debug, error};
 
 use crate::{
     chain_sync::point_at_tip,
-    chain_sync_live_chains::{find_best_fork_block, get_live_block},
+    chain_sync_live_chains::{find_best_fork_block, get_live_block, live_chain_length},
     chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
     chain_update::{self, ChainUpdate},
     mithril_snapshot::MithrilSnapshot,
@@ -14,6 +14,7 @@ use crate::{
     mithril_snapshot_iterator::MithrilSnapshotIterator,
     network::Network,
     point::{TIP_POINT, UNKNOWN_POINT},
+    stats::{self, rollback},
     MultiEraBlock, Point,
 };
 
@@ -21,8 +22,6 @@ use crate::{
 pub struct ChainFollower {
     /// The Blockchain network we are following.
     chain: Network,
-    /// Where we started following.
-    start: Point,
     /// Where we end following.
     end: Point,
     /// Block we processed most recently.
@@ -71,14 +70,12 @@ impl ChainFollower {
     #[must_use]
     pub async fn new(chain: Network, start: Point, end: Point) -> Self {
         let rx = get_chain_update_rx_queue(chain).await;
-        let current = start.clone();
 
         ChainFollower {
             chain,
-            start,
             end,
             previous: UNKNOWN_POINT,
-            current,
+            current: start,
             fork: 1, // This is correct, because Mithril is Fork 0.
             snapshot: MithrilSnapshot::new(chain),
             mithril_follower: None,
@@ -91,25 +88,22 @@ impl ChainFollower {
     async fn next_from_mithril(&mut self) -> Option<ChainUpdate> {
         let current_mithril_tip = latest_mithril_snapshot_id(self.chain).tip();
 
-        // If our start is after the current mithril tip, then there is never anything for us to do here.
-        if current_mithril_tip < self.start {
-            return None;
-        }
+        if current_mithril_tip > self.current {
+            if self.mithril_follower.is_none() {
+                self.mithril_follower = self
+                    .snapshot
+                    .try_read_blocks_from_point(&self.current)
+                    .await;
+            }
 
-        if self.mithril_follower.is_none() {
-            self.mithril_follower = self
-                .snapshot
-                .try_read_blocks_from_point(&self.current)
-                .await;
-        }
-
-        if let Some(follower) = self.mithril_follower.as_mut() {
-            if let Some(next) = follower.next().await {
-                self.previous = self.current.clone();
-                self.current = next.point();
-                self.fork = 0; // Mithril Immutable data is always Fork 0.
-                let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
-                return Some(update);
+            if let Some(follower) = self.mithril_follower.as_mut() {
+                if let Some(next) = follower.next().await {
+                    self.previous = self.current.clone();
+                    self.current = next.point();
+                    self.fork = 0; // Mithril Immutable data is always Fork 0.
+                    let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
+                    return Some(update);
+                }
             }
         }
 
@@ -133,6 +127,7 @@ impl ChainFollower {
     async fn next_from_live_chain(&mut self) -> Option<ChainUpdate> {
         let mut next_block: Option<MultiEraBlock> = None;
         let mut update_type = chain_update::Kind::Block;
+        let mut rollback_depth: u64 = 0;
 
         // Special Case: point = TIP_POINT.  Just return the latest block in the live chain.
         if self.current == TIP_POINT {
@@ -154,7 +149,7 @@ impl ChainFollower {
 
             // IF this is an update still, and not us having caught up, then it WILL be a rollback.
             update_type = chain_update::Kind::Rollback;
-            next_block = if let Some(block) =
+            next_block = if let Some((block, depth)) =
                 find_best_fork_block(self.chain, &self.current, &self.previous, self.fork)
             {
                 debug!("Found fork block: {block}");
@@ -163,6 +158,7 @@ impl ChainFollower {
                 if block.point().strict_eq(&self.current) {
                     None
                 } else {
+                    rollback_depth = depth;
                     Some(block)
                 }
             } else {
@@ -172,6 +168,7 @@ impl ChainFollower {
                     .read_block_at(&latest_mithril_point)
                     .await
                 {
+                    rollback_depth = live_chain_length(self.chain) as u64;
                     Some(block)
                 } else {
                     return None;
@@ -180,6 +177,10 @@ impl ChainFollower {
         }
 
         if let Some(next_block) = next_block {
+            // Update rollback stats for the follower if one is reported.
+            if update_type == chain_update::Kind::Rollback {
+                rollback(self.chain, stats::RollbackType::Follower, rollback_depth);
+            }
             self.previous = self.current.clone();
             self.current = next_block.point().clone();
             self.fork = next_block.fork();

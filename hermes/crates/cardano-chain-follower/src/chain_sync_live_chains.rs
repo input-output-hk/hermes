@@ -226,7 +226,6 @@ impl ProtectedLiveChainBlockList {
                 // connection with the chain sequence.
                 // We search backwards because a rollback is more likely in the newest blocks than the oldest.
                 while let Some(popped) = live_chain.pop_back() {
-                    
                     rollback_size += 1;
                     if previous_point.strict_eq(&popped.value().previous()) {
                         // We are now contiguous, so stop purging.
@@ -237,7 +236,7 @@ impl ProtectedLiveChainBlockList {
 
             // Record a rollback statistic (We record the ACTUAL size our rollback effected our
             // internal live chain, not what the node thinks.)
-            stats::rollback(chain, &stats::RollbackType::LiveChain, rollback_size);
+            stats::rollback(chain, stats::RollbackType::LiveChain, rollback_size);
         }
 
         let head_slot = block.point().slot_or_default();
@@ -356,7 +355,8 @@ impl ProtectedLiveChainBlockList {
     /// Given a known point on the live chain, and a fork count, find the best block we have.
     fn find_best_fork_block(
         &self, point: &Point, previous_point: &Point, fork: u64,
-    ) -> Option<MultiEraBlock> {
+    ) -> Option<(MultiEraBlock, u64)> {
+        let mut rollback_depth: u64 = 0;
         let Ok(chain) = self.0.read() else {
             return None;
         };
@@ -368,11 +368,12 @@ impl ProtectedLiveChainBlockList {
         let mut this_block = entry.value().clone();
         // Check if the previous block is the one we previously knew, and if so, thats the best block.
         if this_block.point().strict_eq(previous_point) {
-            return Some(this_block);
+            return Some((this_block, rollback_depth));
         }
 
-        // Search backwards for a fork smaller than one we know.
-        while this_block.fork() > fork {
+        // Search backwards for a fork smaller than or equal to the one we know.
+        while this_block.fork() >= fork {
+            rollback_depth += 1;
             entry = match entry.prev() {
                 Some(entry) => entry,
                 None => return None,
@@ -381,7 +382,7 @@ impl ProtectedLiveChainBlockList {
             this_block = entry.value().clone();
         }
 
-        Some(this_block)
+        Some((this_block, rollback_depth))
     }
 
     /// Get the point of the block at the head of the live chain.
@@ -499,7 +500,7 @@ pub(crate) fn get_intersect_points(chain: Network) -> Vec<pallas::network::minip
 /// Find best block from a fork relative to a point.
 pub(crate) fn find_best_fork_block(
     chain: Network, point: &Point, previous_point: &Point, fork: u64,
-) -> Option<MultiEraBlock> {
+) -> Option<(MultiEraBlock, u64)> {
     let live_chain = get_live_chain(chain);
     live_chain.find_best_fork_block(point, previous_point, fork)
 }
