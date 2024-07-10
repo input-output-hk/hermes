@@ -33,6 +33,12 @@ pub(crate) enum IpfsCommand {
     GetDhtValue(DhtKey, oneshot::Sender<Result<DhtValue, Errno>>),
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
+    /// Publish to a topic
+    Publish(
+        PubsubTopic,
+        MessageData,
+        oneshot::Sender<Result<PubsubMessageId, Errno>>,
+    ),
     /// Subscribe to a topic
     Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
     /// Evict Peer from node
