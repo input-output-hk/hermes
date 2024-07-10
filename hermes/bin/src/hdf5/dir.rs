@@ -1,4 +1,4 @@
-//! A Hermes HDF5 directory abtraction over the HDF5 Group object.
+//! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
 use std::io::Read;
 

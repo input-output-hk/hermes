@@ -1,4 +1,4 @@
-//! Module provides different objects, abtractions for working with HDF5 packages.
+//! Module provides different objects, abstractions for working with HDF5 packages.
 
 mod compression;
 mod dir;

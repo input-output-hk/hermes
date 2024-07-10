@@ -1,4 +1,4 @@
-//!  A Hermes HDF5 path abtraction.
+//!  A Hermes HDF5 path abstraction.
 
 use std::fmt::Display;
 

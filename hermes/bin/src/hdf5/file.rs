@@ -1,4 +1,4 @@
-//! A Hermes HDF5 file abtraction over the HDF5 dataset object.
+//! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
 use std::io::Read;
 
