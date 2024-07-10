@@ -1,11 +1,12 @@
 //! IPFS host implementation for WASM runtime.
 
+use super::state::hermes_ipfs_publish;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
-            PubsubTopic,
+            DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, MessageId,
+            PeerId, PubsubTopic,
         },
         hermes::ipfs::state::{
             hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
@@ -39,9 +40,9 @@ impl Host for HermesRuntimeContext {
     }
 
     fn pubsub_publish(
-        &mut self, _topic: PubsubTopic, _message: MessageData,
-    ) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(Ok(true))
+        &mut self, topic: PubsubTopic, message: MessageData,
+    ) -> wasmtime::Result<Result<MessageId, Errno>> {
+        Ok(hermes_ipfs_publish(self.app_name(), &topic, message))
     }
 
     fn pubsub_subscribe(&mut self, topic: PubsubTopic) -> wasmtime::Result<Result<bool, Errno>> {

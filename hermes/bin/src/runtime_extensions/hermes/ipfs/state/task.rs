@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use hermes_ipfs::{
     pin_mut, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    StreamExt,
+    PubsubMessageId, StreamExt,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -15,7 +15,7 @@ use crate::{
     event::{queue::send, HermesEvent},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, IpfsPath, PeerId, PubsubMessage, PubsubTopic,
+            DhtKey, DhtValue, Errno, IpfsPath, MessageData, PeerId, PubsubMessage, PubsubTopic,
         },
         hermes::ipfs::event::OnTopicEvent,
     },
@@ -86,6 +86,15 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
                 let status = hermes_node.dht_put(key, value).await.is_ok();
                 if let Err(err) = tx.send(Ok(status)) {
                     tracing::error!("sending status of DHT put should not fail: {err:?}");
+                }
+            },
+            IpfsCommand::Publish(topic, message, tx) => {
+                let message_id = hermes_node
+                    .pubsub_publish(topic, message)
+                    .await
+                    .map_err(|_| Errno::PubsubPublishError)?;
+                if let Err(err) = tx.send(Ok(message_id)) {
+                    tracing::error!("sending message id should not fail: {err:?}");
                 }
             },
             IpfsCommand::Subscribe(topic, tx) => {

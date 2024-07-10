@@ -4,7 +4,7 @@ mod task;
 use std::{collections::HashSet, str::FromStr};
 
 use dashmap::{DashMap, DashSet};
-use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile};
+use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile, PubsubMessageId};
 use once_cell::sync::Lazy;
 use task::{ipfs_task, IpfsCommand};
 use tokio::{
@@ -16,7 +16,8 @@ use tokio::{
 use crate::{
     app::HermesAppName,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
+        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, MessageId, PeerId,
+        PubsubTopic,
     },
 };
 
@@ -120,6 +121,22 @@ impl HermesIpfsState {
             .blocking_send(IpfsCommand::GetDhtValue(key, cmd_tx))
             .map_err(|_| Errno::DhtGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::DhtGetError)?
+    }
+
+    /// Publish message to a `PubSub` topic
+    fn pubsub_publish(
+        &self, topic: PubsubTopic, message: MessageData,
+    ) -> Result<PubsubMessageId, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.apps
+            .sender
+            .as_ref()
+            .ok_or(Errno::PubsubPublishError)?
+            .blocking_send(IpfsCommand::Publish(topic, message, cmd_tx))
+            .map_err(|_| Errno::PubsubPublishError)?;
+        cmd_rx
+            .blocking_recv()
+            .map_err(|_| Errno::PubsubPublishError)?
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -354,6 +371,14 @@ pub(crate) fn hermes_ipfs_subscribe(
         .apps
         .added_app_topic_subscription(app_name.clone(), topic);
     Ok(true)
+}
+
+/// Publish message to a topic
+pub(crate) fn hermes_ipfs_publish(
+    _app_name: &HermesAppName, topic: &PubsubTopic, message: MessageData,
+) -> Result<MessageId, Errno> {
+    let message_id = HERMES_IPFS_STATE.pubsub_publish(topic.to_string(), message)?;
+    Ok(message_id.0)
 }
 
 /// Evict Peer from node
