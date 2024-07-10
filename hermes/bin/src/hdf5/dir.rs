@@ -5,7 +5,7 @@ use std::io::Read;
 use super::{
     compression::enable_compression,
     resources::{Hdf5Resource, ResourceTrait},
-    Path,
+    File, Path,
 };
 use crate::errors::Errors;
 
@@ -14,9 +14,14 @@ use crate::errors::Errors;
 pub(crate) struct Dir(hdf5::Group);
 
 impl Dir {
-    /// Create new `Dir` instance from path.
+    /// Create new `Dir`.
     pub(crate) fn new(group: hdf5::Group) -> Self {
         Self(group)
+    }
+
+    /// Return `Dir` name.
+    pub(crate) fn name(&self) -> String {
+        self.0.name().to_string()
     }
 
     /// Copy file to the provided path.
@@ -62,7 +67,6 @@ impl Dir {
     }
 
     /// Copy other `Dir` recursively content to the current one.
-    #[allow(dead_code)]
     pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
         let resource = Hdf5Resource::Group(dir.0.clone());
         self.copy_resource_dir(&resource, path)?;
@@ -73,7 +77,7 @@ impl Dir {
     /// If some dir already exists it will be skipped, if some dir does not exist it will
     /// be created.
     /// If path is empty it will return cloned `Dir`.
-    fn create_dir(&self, path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn create_dir(&self, path: &Path) -> anyhow::Result<Self> {
         let mut dir = self.0.clone();
         for path_element in path.iter() {
             if let Ok(known_dir) = dir.group(path_element) {
@@ -116,25 +120,24 @@ impl Dir {
         }
     }
 
-    /// Get file reader if present from path.
-    /// Return error if not possible get a byte reader.
-    pub(crate) fn get_file_reader(&self, mut path: Path) -> anyhow::Result<Option<impl Read>> {
+    /// Get file if present from path.
+    pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<Option<File>> {
         let file_name = path.pop_elem()?;
         let dir = self.get_dir(&path)?;
+        Ok(dir.0.dataset(file_name.as_str()).ok().map(File::new))
+    }
 
-        let reader = dir
-            .0
-            .dataset(file_name.as_str())
-            .ok()
-            .map(|ds| ds.as_byte_reader())
-            .transpose()?;
-        Ok(reader)
+    /// Get all dirs from the provided path.
+    /// If path is empty it will return all child dirs of the current one.
+    pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<Self>> {
+        let dir = self.get_dir(path)?;
+        Ok(dir.0.groups()?.into_iter().map(Self).collect())
     }
 
     /// Get dir by the provided path.
     /// Return error if some dir does not exist.
     /// If path is empty it will return cloned `Dir`.
-    fn get_dir(&self, path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn get_dir(&self, path: &Path) -> anyhow::Result<Self> {
         let mut dir = self.0.clone();
         for path_element in path.iter() {
             dir = dir
@@ -142,6 +145,13 @@ impl Dir {
                 .map_err(|_| anyhow::anyhow!("Dir {path} not found"))?;
         }
         Ok(Self(dir))
+    }
+
+    /// Get all dirs from the provided path.
+    /// If path is empty it will return all child dirs of the current one.
+    pub(crate) fn get_dirs(&self, path: &Path) -> anyhow::Result<Vec<Self>> {
+        let dir = self.get_dir(path)?;
+        Ok(dir.0.groups()?.into_iter().map(Self).collect())
     }
 }
 
@@ -189,13 +199,15 @@ mod tests {
         dir.copy_resource_file(&FsResource::new(file_1), file_1_name.into())
             .expect("Failed to copy file to package.");
 
-        let mut file_1_reader = dir
-            .get_file_reader(file_1_name.into())
-            .unwrap_or_default()
-            .expect("Failed to get file reader.");
+        let file_1 = dir
+            .get_file(file_1_name.into())
+            .expect("Failed to get file.")
+            .expect("Missing file in dir.");
 
         let mut data = Vec::new();
-        file_1_reader
+        file_1
+            .reader()
+            .expect("Failed to get file reader.")
             .read_to_end(&mut data)
             .expect("Failed to read file's data.");
         assert_eq!(data.as_slice(), file_content);
@@ -238,12 +250,12 @@ mod tests {
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
         assert!(dir
-            .get_file_reader(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
-            .expect("Failed to get file reader.")
+            .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
+            .expect("Failed to get file.")
             .is_some());
         assert!(dir
-            .get_file_reader(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
-            .expect("Failed to get file reader.")
+            .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
+            .expect("Failed to get file.")
             .is_some());
 
         assert!(dir
@@ -253,7 +265,7 @@ mod tests {
             ]))
             .is_ok());
         assert!(dir
-            .get_file_reader(Path::new(vec![
+            .get_file(Path::new(vec![
                 base_dir_name.into(),
                 child_dir_name.into(),
                 file_3_name.into()
@@ -296,15 +308,15 @@ mod tests {
 
         // copy content from first dir from first package to second dir in second package
         assert!(dir_2
-            .get_file_reader(content_name.into())
-            .expect("Failed to get file reader.")
+            .get_file(content_name.into())
+            .expect("Failed to get file.")
             .is_none());
         dir_2
             .copy_dir(&dir_1, &"".into())
             .expect("Failed to copy package to package.");
         assert!(dir_2
-            .get_file_reader(content_name.into())
-            .expect("Failed to get file reader.")
+            .get_file(content_name.into())
+            .expect("Failed to get file.")
             .is_some());
     }
 }

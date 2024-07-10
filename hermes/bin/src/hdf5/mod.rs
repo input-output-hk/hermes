@@ -3,12 +3,17 @@
 mod compression;
 #[allow(dead_code)]
 mod dir;
+#[allow(dead_code)]
+mod file;
 mod path;
-#[allow(dead_code, unused_imports)]
 pub(crate) mod resources;
 
 use std::fmt::Display;
 
+#[allow(unused_imports)]
+pub(crate) use dir::Dir;
+#[allow(unused_imports)]
+pub(crate) use file::File;
 pub(crate) use path::Path;
 
 /// File open and read error.
