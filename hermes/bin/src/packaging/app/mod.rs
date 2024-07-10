@@ -82,8 +82,8 @@ impl ApplicationPackage {
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         self.0
-            .get_file_reader(Self::METADATA_FILE.into())?
-            .map(Metadata::<Self>::from_reader)
+            .get_file(Self::METADATA_FILE.into())?
+            .map(|file| Metadata::<Self>::from_reader(file.reader()?))
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
 
@@ -94,7 +94,8 @@ impl ApplicationPackage {
             .0
             .get_dirs(&Self::MODULES_DIR.into())?
             .into_iter()
-            .map(WasmModulePackage::from_dir)
+            .map(Package::mount)
+            .map(WasmModulePackage::from_package)
             .collect())
     }
 }
@@ -134,7 +135,7 @@ fn validate_and_write_icon(
 ) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
     path.push_elem(ApplicationPackage::ICON_FILE.into());
-    package.copy_file(resource, path)?;
+    package.copy_resource_file(resource, path)?;
     Ok(())
 }
 
@@ -153,7 +154,7 @@ fn validate_and_write_metadata(
 
     let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
     path.push_elem(ApplicationPackage::METADATA_FILE.into());
-    package.copy_file(&resource, path)?;
+    package.copy_resource_file(&resource, path)?;
     Ok(())
 }
 
@@ -201,7 +202,7 @@ fn write_www_dir(
     resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(ApplicationPackage::WWW_DIR.into());
-    package.copy_dir_recursively(resource, &path)?;
+    package.copy_resource_dir(resource, &path)?;
     Ok(())
 }
 
@@ -210,7 +211,7 @@ fn write_share_dir(
     resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(ApplicationPackage::SHARE_DIR.into());
-    package.copy_dir_recursively(resource, &path)?;
+    package.copy_resource_dir(resource, &path)?;
     Ok(())
 }
 

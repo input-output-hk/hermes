@@ -127,11 +127,11 @@ impl Dir {
         Ok(dir.0.dataset(file_name.as_str()).ok().map(File::new))
     }
 
-    /// Get all dirs from the provided path.
-    /// If path is empty it will return all child dirs of the current one.
-    pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<Self>> {
+    /// Get all files from the provided path.
+    /// If path is empty it will return all child files of the current one.
+    pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<File>> {
         let dir = self.get_dir(path)?;
-        Ok(dir.0.groups()?.into_iter().map(Self).collect())
+        Ok(dir.0.datasets()?.into_iter().map(File::new).collect())
     }
 
     /// Get dir by the provided path.
@@ -211,6 +211,17 @@ mod tests {
             .read_to_end(&mut data)
             .expect("Failed to read file's data.");
         assert_eq!(data.as_slice(), file_content);
+
+        // Remove file from package
+        assert!(
+            dir.remove_file(file_1_name.into()).is_err(),
+            "Failed to remove file from package using remove_dir."
+        );
+        assert!(dir.remove_file(file_1_name.into()).is_ok());
+        assert!(dir
+            .get_file(file_1_name.into())
+            .expect("Failed to get file.")
+            .is_none());
     }
 
     #[test]
@@ -272,6 +283,36 @@ mod tests {
             ]))
             .expect("Failed to get file reader.")
             .is_some());
+
+        // Remove directory from package
+        assert!(
+            dir.remove_file(base_dir_name.into()).is_err(),
+            "Failed to remove dir from package using remove_file."
+        );
+        assert!(dir.remove_dir(base_dir_name.into()).is_ok());
+        assert!(dir.get_dir(&base_dir_name.into()).is_err());
+        assert!(dir
+            .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
+            .expect("Failed to get file.")
+            .is_none());
+        assert!(dir
+            .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
+            .expect("Failed to get file.")
+            .is_none());
+        assert!(dir
+            .get_dir(&Path::new(vec![
+                base_dir_name.into(),
+                child_dir_name.into()
+            ]))
+            .is_err());
+        assert!(dir
+            .get_file(Path::new(vec![
+                base_dir_name.into(),
+                child_dir_name.into(),
+                file_3_name.into()
+            ]))
+            .expect("Failed to get file reader.")
+            .is_none());
     }
 
     #[test]

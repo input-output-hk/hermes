@@ -80,9 +80,9 @@ impl WasmModulePackage {
         Ok(Self(package))
     }
 
-    /// Create `WasmModulePackage` from `Package`.
-    pub(crate) fn from_dir(dir: Package) -> Self {
-        Self(dir)
+    /// Create `WasmModulePackage` from a `Package`.
+    pub(crate) fn from_package(package: Package) -> Self {
+        Self(package)
     }
 
     /// Validate package with its signature and other contents.
@@ -139,35 +139,39 @@ impl WasmModulePackage {
             BytesResource::new(Self::AUTHOR_COSE_FILE.to_string(), signature_bytes);
 
         self.0
-            .copy_file(&signature_resource, Self::AUTHOR_COSE_FILE.into())
+            .copy_resource_file(&signature_resource, Self::AUTHOR_COSE_FILE.into())
     }
 
     /// Build and return `SignaturePayload`.
     fn get_signature_payload(&self) -> anyhow::Result<SignaturePayload> {
         let metadata_hash = self
             .0
-            .get_file_hash(Self::METADATA_FILE.into())?
+            .calculate_file_hash(Self::METADATA_FILE.into())?
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
         let component_hash = self
             .0
-            .get_file_hash(Self::COMPONENT_FILE.into())?
+            .calculate_file_hash(Self::COMPONENT_FILE.into())?
             .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?;
 
         let mut signature_payload_builder =
             SignaturePayloadBuilder::new(metadata_hash.clone(), component_hash.clone());
 
-        if let Some(config_hash) = self.0.get_file_hash(Self::CONFIG_FILE.into())? {
+        if let Some(config_hash) = self.0.calculate_file_hash(Self::CONFIG_FILE.into())? {
             signature_payload_builder.with_config_file(config_hash);
         }
-        if let Some(config_schema_hash) = self.0.get_file_hash(Self::CONFIG_SCHEMA_FILE.into())? {
+        if let Some(config_schema_hash) = self
+            .0
+            .calculate_file_hash(Self::CONFIG_SCHEMA_FILE.into())?
+        {
             signature_payload_builder.with_config_schema(config_schema_hash);
         }
-        if let Some(setting_schema_hash) =
-            self.0.get_file_hash(Self::SETTINGS_SCHEMA_FILE.into())?
+        if let Some(setting_schema_hash) = self
+            .0
+            .calculate_file_hash(Self::SETTINGS_SCHEMA_FILE.into())?
         {
             signature_payload_builder.with_settings_schema(setting_schema_hash);
         }
-        if let Some(share_hash) = self.0.get_dir_hash(&Self::SHARE_DIR.into())? {
+        if let Some(share_hash) = self.0.calculate_dir_hash(&Self::SHARE_DIR.into())? {
             signature_payload_builder.with_share(share_hash);
         }
 
@@ -177,32 +181,32 @@ impl WasmModulePackage {
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         self.0
-            .get_file_reader(Self::METADATA_FILE.into())?
-            .map(Metadata::<Self>::from_reader)
+            .get_file(Self::METADATA_FILE.into())?
+            .map(|file| Metadata::<Self>::from_reader(file.reader()?))
             .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?
     }
 
     /// Get `wasm::module::Module` object from package.
     pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
         self.0
-            .get_file_reader(Self::COMPONENT_FILE.into())?
-            .map(wasm::module::Module::from_reader)
+            .get_file(Self::COMPONENT_FILE.into())?
+            .map(|file| wasm::module::Module::from_reader(file.reader()?))
             .ok_or(MissingPackageFileError(Self::COMPONENT_FILE.to_string()))?
     }
 
     /// Get `Signature` object from package.
     pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
         self.0
-            .get_file_reader(Self::AUTHOR_COSE_FILE.into())?
-            .map(Signature::<SignaturePayload>::from_reader)
+            .get_file(Self::AUTHOR_COSE_FILE.into())?
+            .map(|file| Signature::<SignaturePayload>::from_reader(file.reader()?))
             .transpose()
     }
 
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
         self.0
-            .get_file_reader(Self::CONFIG_SCHEMA_FILE.into())?
-            .map(ConfigSchema::from_reader)
+            .get_file(Self::CONFIG_SCHEMA_FILE.into())?
+            .map(|file| ConfigSchema::from_reader(file.reader()?))
             .transpose()
     }
 
@@ -215,8 +219,8 @@ impl WasmModulePackage {
             return Ok((None, None));
         };
 
-        if let Some(reader) = self.0.get_file_reader(Self::CONFIG_FILE.into())? {
-            let config_file = Config::from_reader(reader, config_schema.validator())?;
+        if let Some(file) = self.0.get_file(Self::CONFIG_FILE.into())? {
+            let config_file = Config::from_reader(file.reader()?, config_schema.validator())?;
             Ok((Some(config_file), Some(config_schema)))
         } else {
             Ok((None, Some(config_schema)))
@@ -226,14 +230,14 @@ impl WasmModulePackage {
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
         self.0
-            .get_file_reader(Self::SETTINGS_SCHEMA_FILE.into())?
-            .map(SettingsSchema::from_reader)
+            .get_file(Self::SETTINGS_SCHEMA_FILE.into())?
+            .map(|file| SettingsSchema::from_reader(file.reader()?))
             .transpose()
     }
 
     /// Copy all content of the `WasmModulePackage` to the provided `package`.
     pub(crate) fn copy_to_package(&self, package: &Package, path: &Path) -> anyhow::Result<()> {
-        package.copy_package(&self.0, path)
+        package.copy_dir(&self.0, path)
     }
 }
 
@@ -284,7 +288,7 @@ fn validate_and_write_metadata(
 
     let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
     path.push_elem(WasmModulePackage::METADATA_FILE.into());
-    package.copy_file(&resource, path)?;
+    package.copy_resource_file(&resource, path)?;
     Ok(())
 }
 
@@ -298,7 +302,7 @@ fn validate_and_write_component(
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     path.push_elem(WasmModulePackage::COMPONENT_FILE.into());
-    package.copy_file(resource, path)?;
+    package.copy_resource_file(resource, path)?;
     Ok(())
 }
 
@@ -327,7 +331,7 @@ fn validate_and_write_config_schema(
 
     let resource = BytesResource::new(resource.name()?, config_schema.to_bytes()?);
     path.push_elem(WasmModulePackage::CONFIG_SCHEMA_FILE.into());
-    package.copy_file(&resource, path)?;
+    package.copy_resource_file(&resource, path)?;
 
     Ok(config_schema)
 }
@@ -343,7 +347,7 @@ pub(crate) fn validate_and_write_config_file(
 
     let resource = BytesResource::new(resource.name()?, config.to_bytes()?);
     path.push_elem(WasmModulePackage::CONFIG_FILE.into());
-    package.copy_file(&resource, path)?;
+    package.copy_resource_file(&resource, path)?;
     Ok(())
 }
 
@@ -356,7 +360,7 @@ fn validate_and_write_settings_schema(
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     let resource = BytesResource::new(resource.name()?, settings_schema.to_bytes()?);
-    package.copy_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
+    package.copy_resource_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
     Ok(())
 }
 
@@ -365,7 +369,7 @@ pub(crate) fn write_share_dir(
     resource: &impl ResourceTrait, package: &Package, mut path: Path,
 ) -> anyhow::Result<()> {
     path.push_elem(WasmModulePackage::SHARE_DIR.into());
-    package.copy_dir_recursively(resource, &path)?;
+    package.copy_resource_dir(resource, &path)?;
     Ok(())
 }
 
@@ -607,7 +611,7 @@ pub(crate) mod tests {
             .expect("Failed to remove file");
         package
             .0
-            .copy_file(
+            .copy_resource_file(
                 &BytesResource::new(
                     WasmModulePackage::METADATA_FILE.to_string(),
                     module_package_files
