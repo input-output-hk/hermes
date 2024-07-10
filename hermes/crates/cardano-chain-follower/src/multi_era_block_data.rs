@@ -49,18 +49,18 @@ pub struct MultiEraBlock {
     /// What fork is the block on?
     /// This is NOT part of the inner block, because it is not to be protected by the Arc.
     /// It can change at any time due to rollbacks detected on the live-chain.
-    /// This means that any holder of a `MultiEraBlock` will have the actual fork their block was on
-    /// when they read it, the live-chain code can modify the actual fork count at any time without
-    /// that impacting consumers processing the data.
-    /// The fork count itself is used so an asynchronous follower can properly work out how far to
-    /// roll back on the live-chain in order to resynchronize, without keeping a full state of
-    /// processed blocks.
-    /// Followers, simply need to step backwards on the live chain until they find the previous block
-    /// they followed, or reach a fork that is <= the fork of the previous block they followed.
-    /// They can then safely re-follow from that earlier point, with full integrity.
-    /// fork is 0 on any immutable block.
-    /// It starts at 1 for live blocks, and is only incremented if the live-chain tip is purged because
-    /// of a detected fork based on data received from the peer node.
+    /// This means that any holder of a `MultiEraBlock` will have the actual fork their
+    /// block was on when they read it, the live-chain code can modify the actual fork
+    /// count at any time without that impacting consumers processing the data.
+    /// The fork count itself is used so an asynchronous follower can properly work out
+    /// how far to roll back on the live-chain in order to resynchronize, without
+    /// keeping a full state of processed blocks.
+    /// Followers, simply need to step backwards on the live chain until they find the
+    /// previous block they followed, or reach a fork that is <= the fork of the
+    /// previous block they followed. They can then safely re-follow from that earlier
+    /// point, with full integrity. fork is 0 on any immutable block.
+    /// It starts at 1 for live blocks, and is only incremented if the live-chain tip is
+    /// purged because of a detected fork based on data received from the peer node.
     /// It does NOT count the strict number of forks reported by the peer node.
     fork: u64,
     /// The Immutable decoded data about the block itself.
@@ -93,7 +93,8 @@ impl MultiEraBlock {
         // Validate that the Block point is valid.
         if *previous == ORIGIN_POINT {
             if decoded_block.header().previous_hash().is_some() {
-                // or forcibly capture the backtrace regardless of environment variable configuration
+                // or forcibly capture the backtrace regardless of environment variable
+                // configuration
                 debug!(
                     "Bad Previous Block: {}",
                     std::backtrace::Backtrace::force_capture()

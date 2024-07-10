@@ -11,7 +11,7 @@ use tracing::error;
 
 use crate::Network;
 
-/* -------- GENERAL STATISTIC TRACKING -----------------------------------------------------------*/
+// -------- GENERAL STATISTIC TRACKING
 
 /// Statistics related to Mithril Snapshots
 #[derive(Debug, Default, Clone, Serialize)]
@@ -88,10 +88,11 @@ pub struct Rollback {
 pub struct Rollbacks {
     /// These are the ACTUAL rollbacks we did on our live-chain in memory.
     pub live: Vec<Rollback>,
-    /// These are the rollbacks reported by the Peer Node, which may not == an actual rollback
-    /// on our internal live chain.
+    /// These are the rollbacks reported by the Peer Node, which may not == an actual
+    /// rollback on our internal live chain.
     pub peer: Vec<Rollback>,
-    /// These are the rollbacks synthesized for followers, based on their reading of the chain tip.
+    /// These are the rollbacks synthesized for followers, based on their reading of the
+    /// chain tip.
     pub follower: Vec<Rollback>,
 }
 
@@ -343,7 +344,8 @@ pub(crate) fn backfill_started(chain: Network) {
         return;
     };
 
-    // If we start another backfill, then that means the previous backfill failed, so record it.
+    // If we start another backfill, then that means the previous backfill failed, so record
+    // it.
     if chain_stats.live.backfill_start.is_some() {
         chain_stats.live.backfill_failures += 1;
         chain_stats.live.backfill_failure_time = chain_stats.live.backfill_start;
@@ -445,7 +447,8 @@ pub(crate) fn mithril_dl_started(chain: Network) {
     chain_stats.mithril.dl_start = Utc::now();
 }
 
-/// Record when DL finished, if it fails, set size to None, otherwise the size of the downloaded file.
+/// Record when DL finished, if it fails, set size to None, otherwise the size of the
+/// downloaded file.
 pub(crate) fn mithril_dl_finished(chain: Network, dl_size: Option<u64>) {
     // This will actually always succeed.
     let Some(stats) = lookup_stats(chain) else {
@@ -486,7 +489,8 @@ pub(crate) fn mithril_extract_started(chain: Network) {
     chain_stats.mithril.extract_start = Utc::now();
 }
 
-/// Record when DL finished, if it fails, set size to None, otherwise the size of the downloaded file.
+/// Record when DL finished, if it fails, set size to None, otherwise the size of the
+/// downloaded file.
 pub(crate) fn mithril_extract_finished(
     chain: Network, extract_size: Option<u64>, deduplicated_size: u64, deduplicated_files: u64,
     changed_files: u64, new_files: u64,
@@ -545,7 +549,8 @@ pub(crate) fn mithril_validation_state(chain: Network, mithril_state: MithrilVal
     }
 }
 
-/* -------- ROLLBACK STATISTIC TRACKING ----------------------------------------------------------*/
+// -------- ROLLBACK STATISTIC TRACKING
+// ----------------------------------------------------------
 
 /// The types of rollbacks we track for a chain.
 #[derive(EnumIter, Eq, Ord, PartialEq, PartialOrd, Copy, Clone)]

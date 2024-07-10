@@ -18,8 +18,8 @@ use pallas::crypto::hash::Hash;
 /// # Attributes
 ///
 /// * `Point` - The inner type is a `Point` from the `pallas::network::miniprotocols`
-///   module. This inner `Point` type encapsulates the specific details required
-///   to identify a point in the blockchain.
+///   module. This inner `Point` type encapsulates the specific details required to
+///   identify a point in the blockchain.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Point(pallas::network::miniprotocols::Point);
 
@@ -137,9 +137,9 @@ impl Point {
     ///
     /// # Parameters
     ///
-    /// * `hash` - An `Option<Hash<32>>` containing the hash to compare against.
-    ///   If `Some`, the contained hash is compared with the `Point`'s hash.
-    ///   If `None`, the function checks if the `Point`'s hash is empty.
+    /// * `hash` - An `Option<Hash<32>>` containing the hash to compare against. If
+    ///   `Some`, the contained hash is compared with the `Point`'s hash. If `None`, the
+    ///   function checks if the `Point`'s hash is empty.
     ///
     /// # Returns
     ///
@@ -162,15 +162,19 @@ impl Point {
     #[must_use]
     pub fn cmp_hash(&self, hash: &Option<Hash<32>>) -> bool {
         match hash {
-            Some(cmp_hash) => match self.0 {
-                pallas::network::miniprotocols::Point::Specific(_, ref hash) => {
-                    **hash == **cmp_hash
-                },
-                pallas::network::miniprotocols::Point::Origin => false,
+            Some(cmp_hash) => {
+                match self.0 {
+                    pallas::network::miniprotocols::Point::Specific(_, ref hash) => {
+                        **hash == **cmp_hash
+                    },
+                    pallas::network::miniprotocols::Point::Origin => false,
+                }
             },
-            None => match self.0 {
-                pallas::network::miniprotocols::Point::Specific(_, ref hash) => hash.is_empty(),
-                pallas::network::miniprotocols::Point::Origin => true,
+            None => {
+                match self.0 {
+                    pallas::network::miniprotocols::Point::Specific(_, ref hash) => hash.is_empty(),
+                    pallas::network::miniprotocols::Point::Origin => true,
+                }
             },
         }
     }
@@ -364,22 +368,28 @@ pub(crate) fn cmp_point(
     a: &pallas::network::miniprotocols::Point, b: &pallas::network::miniprotocols::Point,
 ) -> Ordering {
     match a {
-        pallas::network::miniprotocols::Point::Origin => match b {
-            pallas::network::miniprotocols::Point::Origin => Ordering::Equal,
-            pallas::network::miniprotocols::Point::Specific(..) => Ordering::Less,
+        pallas::network::miniprotocols::Point::Origin => {
+            match b {
+                pallas::network::miniprotocols::Point::Origin => Ordering::Equal,
+                pallas::network::miniprotocols::Point::Specific(..) => Ordering::Less,
+            }
         },
-        pallas::network::miniprotocols::Point::Specific(slot, _) => match b {
-            pallas::network::miniprotocols::Point::Origin => Ordering::Greater,
-            pallas::network::miniprotocols::Point::Specific(other_slot, _) => slot.cmp(other_slot),
+        pallas::network::miniprotocols::Point::Specific(slot, _) => {
+            match b {
+                pallas::network::miniprotocols::Point::Origin => Ordering::Greater,
+                pallas::network::miniprotocols::Point::Specific(other_slot, _) => {
+                    slot.cmp(other_slot)
+                },
+            }
         },
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
-
     use pallas::crypto::hash::Hash;
+
+    use crate::*;
 
     #[test]
     fn test_create_points() {

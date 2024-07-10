@@ -536,12 +536,14 @@ pub(crate) async fn async_hash_single_file(file: &Path) -> Option<RawHash> {
     // let root_path = path.to_path_buf();
     let file = file.to_path_buf();
     match task::spawn_blocking(move || hash_single_file(&file)).await {
-        Ok(result) => match result {
-            Ok(hash_value) => Some(hash_value),
-            Err(err) => {
-                error!("Error Hashing a single file: {:?}", err);
-                None
-            },
+        Ok(result) => {
+            match result {
+                Ok(hash_value) => Some(hash_value),
+                Err(err) => {
+                    error!("Error Hashing a single file: {:?}", err);
+                    None
+                },
+            }
         },
         Err(err) => {
             error!("Error Hashing a single file: {:?}", err);
@@ -560,87 +562,87 @@ fn hash_single_file(file: &Path) -> io::Result<RawHash> {
 #[cfg(test)]
 mod tests {
 
-    /* use std::path::Path;
-
-    use regex::Regex;
-
-    use super::*;
-    use crate::network::{ENVVAR_MITHRIL_DATA_PATH, ENVVAR_MITHRIL_EXE_NAME};
-
-    fn test_paths(
-        path: &Path, network: Network, data_root: &str, exe_name: &str, subdir: Option<&str>,
-    ) {
-        let mut re_format: String = data_root.to_string();
-        re_format += exe_name;
-        re_format += r"\/mithril\/";
-        re_format += &network.to_string();
-        if let Some(subdir) = subdir {
-            re_format += "/";
-            re_format += subdir;
-        }
-
-        let re = Regex::new(&re_format).expect("Bad Regex!");
-        assert!(re.is_match(&path.to_string_lossy()));
-    }
-
-    const DEFAULT_ROOT: &str = r"^\/home\/[^\/]*\/.local\/share\/";
-    const DEFAULT_APP: &str = r"cardano_chain_follower-[^\/]*";
-
-    const CUSTOM_EXE: &str = r"MyFollowerExecutable";
-    const CUSTOM_ROOT: &str = r"\/var\/lib\/";
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_base_path() {
-        fn test_network(network: Network, root: &str, app: &str) {
-            test_paths(&network.default_mithril_path(), network, root, app, None);
-        }
-        // Use the probed EXE name
-        test_network(Network::Mainnet, DEFAULT_ROOT, DEFAULT_APP);
-        test_network(Network::Preview, DEFAULT_ROOT, DEFAULT_APP);
-        test_network(Network::Preprod, DEFAULT_ROOT, DEFAULT_APP);
-
-        // Now try and force the EXE Name with an env var.
-        std::env::set_var(ENVVAR_MITHRIL_EXE_NAME, CUSTOM_EXE);
-        test_network(Network::Mainnet, DEFAULT_ROOT, CUSTOM_EXE);
-        test_network(Network::Preview, DEFAULT_ROOT, CUSTOM_EXE);
-        test_network(Network::Preprod, DEFAULT_ROOT, CUSTOM_EXE);
-
-        // Now try and force the Root path with an env var.
-        std::env::set_var(ENVVAR_MITHRIL_DATA_PATH, CUSTOM_ROOT);
-        test_network(Network::Mainnet, CUSTOM_ROOT, CUSTOM_EXE);
-        test_network(Network::Preview, CUSTOM_ROOT, CUSTOM_EXE);
-        test_network(Network::Preprod, CUSTOM_ROOT, CUSTOM_EXE);
-    }
-
-    #[cfg(target_os = "linux")]
-    #[tokio::test]
-    async fn test_working_paths() {
-        fn test_network(network: Network) {
-            let cfg = MithrilSnapshotConfig::default_for(network);
-
-            test_paths(
-                &cfg.dl_path(),
-                network,
-                DEFAULT_ROOT,
-                DEFAULT_APP,
-                Some(DL_SUBDIR),
-            );
-
-            test_paths(
-                &cfg.tmp_path(),
-                network,
-                DEFAULT_ROOT,
-                DEFAULT_APP,
-                Some(TMP_SUBDIR),
-            );
-
-            let latest = latest_mithril_snapshot_id(network);
-            assert!(latest.tip() != ORIGIN_POINT);
-        }
-
-        test_network(Network::Mainnet);
-        test_network(Network::Preprod);
-        test_network(Network::Preview);
-    } */
+    // use std::path::Path;
+    //
+    // use regex::Regex;
+    //
+    // use super::*;
+    // use crate::network::{ENVVAR_MITHRIL_DATA_PATH, ENVVAR_MITHRIL_EXE_NAME};
+    //
+    // fn test_paths(
+    // path: &Path, network: Network, data_root: &str, exe_name: &str, subdir:
+    // Option<&str>, ) {
+    // let mut re_format: String = data_root.to_string();
+    // re_format += exe_name;
+    // re_format += r"\/mithril\/";
+    // re_format += &network.to_string();
+    // if let Some(subdir) = subdir {
+    // re_format += "/";
+    // re_format += subdir;
+    // }
+    //
+    // let re = Regex::new(&re_format).expect("Bad Regex!");
+    // assert!(re.is_match(&path.to_string_lossy()));
+    // }
+    //
+    // const DEFAULT_ROOT: &str = r"^\/home\/[^\/]*\/.local\/share\/";
+    // const DEFAULT_APP: &str = r"cardano_chain_follower-[^\/]*";
+    //
+    // const CUSTOM_EXE: &str = r"MyFollowerExecutable";
+    // const CUSTOM_ROOT: &str = r"\/var\/lib\/";
+    //
+    // #[cfg(target_os = "linux")]
+    // #[test]
+    // fn test_base_path() {
+    // fn test_network(network: Network, root: &str, app: &str) {
+    // test_paths(&network.default_mithril_path(), network, root, app, None);
+    // }
+    // Use the probed EXE name
+    // test_network(Network::Mainnet, DEFAULT_ROOT, DEFAULT_APP);
+    // test_network(Network::Preview, DEFAULT_ROOT, DEFAULT_APP);
+    // test_network(Network::Preprod, DEFAULT_ROOT, DEFAULT_APP);
+    //
+    // Now try and force the EXE Name with an env var.
+    // std::env::set_var(ENVVAR_MITHRIL_EXE_NAME, CUSTOM_EXE);
+    // test_network(Network::Mainnet, DEFAULT_ROOT, CUSTOM_EXE);
+    // test_network(Network::Preview, DEFAULT_ROOT, CUSTOM_EXE);
+    // test_network(Network::Preprod, DEFAULT_ROOT, CUSTOM_EXE);
+    //
+    // Now try and force the Root path with an env var.
+    // std::env::set_var(ENVVAR_MITHRIL_DATA_PATH, CUSTOM_ROOT);
+    // test_network(Network::Mainnet, CUSTOM_ROOT, CUSTOM_EXE);
+    // test_network(Network::Preview, CUSTOM_ROOT, CUSTOM_EXE);
+    // test_network(Network::Preprod, CUSTOM_ROOT, CUSTOM_EXE);
+    // }
+    //
+    // #[cfg(target_os = "linux")]
+    // #[tokio::test]
+    // async fn test_working_paths() {
+    // fn test_network(network: Network) {
+    // let cfg = MithrilSnapshotConfig::default_for(network);
+    //
+    // test_paths(
+    // &cfg.dl_path(),
+    // network,
+    // DEFAULT_ROOT,
+    // DEFAULT_APP,
+    // Some(DL_SUBDIR),
+    // );
+    //
+    // test_paths(
+    // &cfg.tmp_path(),
+    // network,
+    // DEFAULT_ROOT,
+    // DEFAULT_APP,
+    // Some(TMP_SUBDIR),
+    // );
+    //
+    // let latest = latest_mithril_snapshot_id(network);
+    // assert!(latest.tip() != ORIGIN_POINT);
+    // }
+    //
+    // test_network(Network::Mainnet);
+    // test_network(Network::Preprod);
+    // test_network(Network::Preview);
+    // }
 }

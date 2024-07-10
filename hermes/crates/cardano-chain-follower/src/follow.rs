@@ -153,8 +153,8 @@ impl ChainFollower {
                 find_best_fork_block(self.chain, &self.current, &self.previous, self.fork)
             {
                 debug!("Found fork block: {block}");
-                // IF the block is the same as our current previous, there has been no chain advancement,
-                // so just return None.
+                // IF the block is the same as our current previous, there has been no chain
+                // advancement, so just return None.
                 if block.point().strict_eq(&self.current) {
                     None
                 } else {
@@ -220,7 +220,8 @@ impl ChainFollower {
             // Should only happen once every ~6hrs.
             // TODO.
 
-            // Try and get the next update from the mithril chain, and return it if we are successful.
+            // Try and get the next update from the mithril chain, and return it if we are
+            // successful.
             update = self.next_from_mithril().await;
             if update.is_some() {
                 break;

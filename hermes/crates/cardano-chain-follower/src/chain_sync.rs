@@ -58,15 +58,17 @@ async fn retry_connect(
         )
         .await
         {
-            Ok(peer) => match peer {
-                Ok(peer) => return Ok(peer),
-                Err(err) => {
-                    retries -= 1;
-                    if retries == 0 {
-                        return Err(err);
-                    }
-                    debug!("retrying {retries} connect to {addr} : {err:?}");
-                },
+            Ok(peer) => {
+                match peer {
+                    Ok(peer) => return Ok(peer),
+                    Err(err) => {
+                        retries -= 1;
+                        if retries == 0 {
+                            return Err(err);
+                        }
+                        debug!("retrying {retries} connect to {addr} : {err:?}");
+                    },
+                }
             },
             Err(error) => {
                 retries -= 1;
@@ -143,8 +145,8 @@ async fn process_rollback_actual(
 ) -> anyhow::Result<Point> {
     debug!("RollBackward: {:?} {:?}", point, tip);
 
-    // Check if the block is in the live chain, if it is, re-add it, which auto-purges the rest of live chain tip.
-    // And increments the fork count.
+    // Check if the block is in the live chain, if it is, re-add it, which auto-purges the
+    // rest of live chain tip. And increments the fork count.
     if let Some(mut block) = get_live_block(chain, &point, 0, true) {
         // Even though we are re-adding the known block, increase the fork count.
         block.set_fork(*fork_count);
@@ -152,12 +154,13 @@ async fn process_rollback_actual(
         return Ok(point);
     }
 
-    // If the block is NOT in the chain, fetch it, and insert it, which will automatically find the correct place to
-    // insert it, and purge the old tip blocks.
+    // If the block is NOT in the chain, fetch it, and insert it, which will automatically
+    // find the correct place to insert it, and purge the old tip blocks.
 
     // We don't know what or if there is a previous block, so probe for it.
     // Fizzy search for the block immediately preceding the block we will fetch.
-    // In case we don;t have a previous point on the live chain, it might be the tip of the mithril chain, so get that.
+    // In case we don;t have a previous point on the live chain, it might be the tip of the
+    // mithril chain, so get that.
     let previous_block = get_live_block(chain, &point, -1, false);
     let previous_point = if let Some(previous_block) = previous_block {
         let previous = previous_block.previous();
@@ -198,9 +201,9 @@ async fn process_rollback(
     // We actually do the work here...
     let response = process_rollback_actual(peer, chain, point, tip, fork_count).await?;
 
-    // We never really know how many blocks are rolled back when advised by the peer, but we can work out how many slots.
-    // This function wraps the real work, so we can properly record the stats when the rollback is complete.
-    // Even if it errors.
+    // We never really know how many blocks are rolled back when advised by the peer, but we
+    // can work out how many slots. This function wraps the real work, so we can properly
+    // record the stats when the rollback is complete. Even if it errors.
     stats::rollback(chain, stats::RollbackType::Peer, slot_rollback_size);
 
     Ok(response)
@@ -286,14 +289,16 @@ async fn follow_chain(
                     process_next_block(peer, chain, header, &tip, &previous_point, fork_count)
                         .await?;
 
-                // This update is just for followers to know to look again at their live chains for new data.
+                // This update is just for followers to know to look again at their live chains for
+                // new data.
                 notify_follower(chain, &update_sender, &chain_update::Kind::Block);
             },
             chainsync::NextResponse::RollBackward(point, tip) => {
                 previous_point =
                     process_rollback(peer, chain, point.into(), &tip, &previous_point, fork_count)
                         .await?;
-                // This update is just for followers to know to look again at their live chains for new data.
+                // This update is just for followers to know to look again at their live chains for
+                // new data.
                 notify_follower(chain, &update_sender, &chain_update::Kind::Rollback);
             },
             chainsync::NextResponse::Await => {
@@ -303,7 +308,8 @@ async fn follow_chain(
     }
 }
 
-/// How long we wait before trying to reconnect to a peer when it totally fails our attempts.
+/// How long we wait before trying to reconnect to a peer when it totally fails our
+/// attempts.
 const PEER_FAILURE_RECONNECT_DELAY: Duration = Duration::from_secs(10);
 
 /// Do not return until we have a connection to the peer.

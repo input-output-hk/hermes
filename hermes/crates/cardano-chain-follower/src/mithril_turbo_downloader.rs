@@ -28,7 +28,8 @@ use crate::{
     stats::{self},
 };
 
-/// Size of the Archive Read Buffer (Could be up to 3 times this amount of memory due to pipelining the read.)
+/// Size of the Archive Read Buffer (Could be up to 3 times this amount of memory due to
+/// pipelining the read.)
 const ARCHIVE_BUFFER_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 
 /// A snapshot downloader that accelerates Download using `aria2`.

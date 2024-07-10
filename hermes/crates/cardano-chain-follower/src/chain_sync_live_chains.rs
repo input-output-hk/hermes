@@ -8,7 +8,6 @@ use std::{
 
 use crossbeam_skiplist::SkipMap;
 use once_cell::sync::Lazy;
-
 use rayon::prelude::*;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
@@ -23,9 +22,9 @@ use crate::{
 /// Type we use to manage the Sync Task handle map.
 type LiveChainBlockList = SkipMap<Point, MultiEraBlock>;
 
-/// Because we have multi-entry relationships in the live-chain protect it with a `read/write lock`.
-/// The underlying `SkipMap` is still capable of multiple simultaneous reads from multiple threads
-/// which is the most common access.
+/// Because we have multi-entry relationships in the live-chain protect it with a
+/// `read/write lock`. The underlying `SkipMap` is still capable of multiple simultaneous
+/// reads from multiple threads which is the most common access.
 #[derive(Clone)]
 struct ProtectedLiveChainBlockList(Arc<RwLock<LiveChainBlockList>>);
 
@@ -135,7 +134,8 @@ impl ProtectedLiveChainBlockList {
     /// Final block MUST seamlessly link to the current head of the live chain. (Enforced)
     /// First block MUST seamlessly link to the Tip of the Immutable chain. (Enforced)
     /// The blocks MUST be contiguous and properly self referential.
-    /// Note: This last condition is NOT enforced, but must be met or block chain iteration will fail.
+    /// Note: This last condition is NOT enforced, but must be met or block chain
+    /// iteration will fail.
     fn backfill(&self, chain: Network, blocks: &[MultiEraBlock]) -> Result<()> {
         let live_chain = self.0.write().map_err(|_| Error::Internal)?;
 
@@ -161,7 +161,8 @@ impl ProtectedLiveChainBlockList {
             .clone();
         let last_backfill_point = last_backfill_block.point();
 
-        // Make sure the backfill will properly connect the partial Live chain to the Mithril chain.
+        // Make sure the backfill will properly connect the partial Live chain to the Mithril
+        // chain.
         if !last_backfill_point.strict_eq(&check_first_live_point) {
             return Err(Error::LiveSync(format!(
                 "Last Block of Live BackFill {last_backfill_point} MUST be First block of current Live Chain {check_first_live_point}."
@@ -179,7 +180,8 @@ impl ProtectedLiveChainBlockList {
         Ok(())
     }
 
-    /// Check if the given point is strictly in the live-chain.  This means the slot and Hash MUST be present.
+    /// Check if the given point is strictly in the live-chain.  This means the slot and
+    /// Hash MUST be present.
     fn strict_block_lookup(live_chain: &LiveChainBlockList, point: &Point) -> bool {
         if let Some(found_block) = live_chain.get(point) {
             return found_block.value().point().strict_eq(point);
@@ -187,8 +189,9 @@ impl ProtectedLiveChainBlockList {
         false
     }
 
-    /// Adds a block to the tip of the live chain, and automatically purges blocks that would be lost due to rollback.
-    /// Will REFUSE to add a block which does NOT have a proper "previous" point defined.
+    /// Adds a block to the tip of the live chain, and automatically purges blocks that
+    /// would be lost due to rollback. Will REFUSE to add a block which does NOT have
+    /// a proper "previous" point defined.
     fn add_block_to_tip(
         &self, chain: Network, block: MultiEraBlock, fork_count: &mut u64, tip: Point,
     ) -> Result<()> {
@@ -210,7 +213,8 @@ impl ProtectedLiveChainBlockList {
             // This is because when we start syncing we could rollback earlier than our
             // previously known earliest block.
             // Also check the point we want to link to actually exists.  If either are not true,
-            // Then we could be trying to roll back to an earlier block than our earliest known block.
+            // Then we could be trying to roll back to an earlier block than our earliest known
+            // block.
             let check_first_live_point = Self::get_first_live_point(&live_chain)?;
             if (block.point() < check_first_live_point)
                 || !Self::strict_block_lookup(&live_chain, &previous_point)
@@ -224,7 +228,8 @@ impl ProtectedLiveChainBlockList {
                 // If we get here we know for a fact that the previous block exists.
                 // Remove the latest live block, and keep removing it until we re-establish
                 // connection with the chain sequence.
-                // We search backwards because a rollback is more likely in the newest blocks than the oldest.
+                // We search backwards because a rollback is more likely in the newest blocks than
+                // the oldest.
                 while let Some(popped) = live_chain.pop_back() {
                     rollback_size += 1;
                     if previous_point.strict_eq(&popped.value().previous()) {
@@ -352,7 +357,8 @@ impl ProtectedLiveChainBlockList {
         intersect_points
     }
 
-    /// Given a known point on the live chain, and a fork count, find the best block we have.
+    /// Given a known point on the live chain, and a fork count, find the best block we
+    /// have.
     fn find_best_fork_block(
         &self, point: &Point, previous_point: &Point, fork: u64,
     ) -> Option<(MultiEraBlock, u64)> {
@@ -366,7 +372,8 @@ impl ProtectedLiveChainBlockList {
         let mut entry = chain.upper_bound(Bound::Included(&ref_point))?;
 
         let mut this_block = entry.value().clone();
-        // Check if the previous block is the one we previously knew, and if so, thats the best block.
+        // Check if the previous block is the one we previously knew, and if so, thats the best
+        // block.
         if this_block.point().strict_eq(previous_point) {
             return Some((this_block, rollback_depth));
         }
@@ -447,7 +454,6 @@ pub(crate) fn get_live_block(
 ///
 /// Note: It MAY change between calling this function and actually backfilling.
 /// This is expected and normal behavior.
-///
 pub(crate) async fn get_fill_to_point(chain: Network) -> (Point, u64) {
     let live_chain = get_live_chain(chain);
 
@@ -491,7 +497,8 @@ pub(crate) fn purge_live_chain(chain: Network, point: &Point) -> Result<()> {
     live_chain.purge(chain, point)
 }
 
-/// Get intersection points to try and find best point to connect to the node on reconnect.
+/// Get intersection points to try and find best point to connect to the node on
+/// reconnect.
 pub(crate) fn get_intersect_points(chain: Network) -> Vec<pallas::network::miniprotocols::Point> {
     let live_chain = get_live_chain(chain);
     live_chain.get_intersect_points()
