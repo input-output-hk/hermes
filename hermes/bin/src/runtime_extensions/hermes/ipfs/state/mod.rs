@@ -10,7 +10,7 @@ pub(crate) use api::{
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
 };
 use dashmap::{DashMap, DashSet};
-use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile, PubsubMessageId};
+use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId};
 use once_cell::sync::Lazy;
 use task::{ipfs_task, IpfsCommand};
 use tokio::{

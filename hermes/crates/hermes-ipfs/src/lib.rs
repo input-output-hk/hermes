@@ -19,7 +19,7 @@ pub use rust_ipfs::DhtMode;
 /// Server, Client, or Auto mode
 pub use rust_ipfs::Ipfs;
 /// `PubSub` Message ID type.
-pub use rust_ipfs::MessageId as PubsubMessageId;
+pub use rust_ipfs::MessageId;
 /// Multiaddr type.
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
@@ -387,7 +387,7 @@ impl HermesIpfs {
     /// Returns error if unable to publish to a pubsub topic.
     pub async fn pubsub_publish(
         &self, topic: impl Into<String>, message: Vec<u8>,
-    ) -> anyhow::Result<PubsubMessageId> {
+    ) -> anyhow::Result<MessageId> {
         self.node.pubsub_publish(topic, message).await
     }
 

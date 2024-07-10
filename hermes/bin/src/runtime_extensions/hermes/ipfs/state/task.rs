@@ -2,8 +2,8 @@
 use std::str::FromStr;
 
 use hermes_ipfs::{
-    pin_mut, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    PubsubMessageId, StreamExt,
+    pin_mut, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId,
+    PeerId as TargetPeerId, StreamExt,
 };
 use tokio::{
     sync::{mpsc, oneshot},
