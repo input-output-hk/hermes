@@ -4,7 +4,6 @@ use crate::{
 };
 
 /// Event handler for the `on-topic` event.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct OnTopicEvent {
     ///  Topic message received.

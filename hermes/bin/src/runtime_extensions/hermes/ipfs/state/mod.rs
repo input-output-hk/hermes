@@ -88,7 +88,6 @@ impl HermesIpfsState {
         cmd_rx.blocking_recv().map_err(|_| Errno::FileAddError)?
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     /// Get file
     ///
     /// Returns the content of the file
@@ -99,19 +98,18 @@ impl HermesIpfsState {
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FileGetError`: Failed to get the file
-    fn file_get(&self, ipfs_path: IpfsPath) -> Result<IpfsFile, Errno> {
-        let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+    fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
+        let ipfs_path = PathIpfsFile::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
-            .blocking_send(IpfsCommand::GetFile(ipfs_path, cmd_tx))
+            .blocking_send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileGetError)?
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     /// Pin file
     ///
     /// ## Parameters
@@ -121,8 +119,8 @@ impl HermesIpfsState {
     /// - `Errno::InvalidCid`: Invalid CID
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FilePinError`: Failed to pin the file
-    fn file_pin(&self, ipfs_path: IpfsPath) -> Result<bool, Errno> {
-        let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+    fn file_pin(&self, ipfs_path: &IpfsPath) -> Result<bool, Errno> {
+        let ipfs_path = PathIpfsFile::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
@@ -174,30 +172,28 @@ impl HermesIpfsState {
             .map_err(|_| Errno::PubsubPublishError)?
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     /// Subscribe to a `PubSub` topic
-    fn pubsub_subscribe(&self, topic: PubsubTopic) -> Result<JoinHandle<()>, Errno> {
+    fn pubsub_subscribe(&self, topic: &PubsubTopic) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic, cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(topic.clone(), cmd_tx))
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx
             .blocking_recv()
             .map_err(|_| Errno::PubsubSubscribeError)?
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     /// Evict peer
-    fn peer_evict(&self, peer: PeerId) -> Result<bool, Errno> {
+    fn peer_evict(&self, peer: &PeerId) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
             .sender
             .as_ref()
             .ok_or(Errno::PeerEvictionError)?
-            .blocking_send(IpfsCommand::EvictPeer(peer, cmd_tx))
+            .blocking_send(IpfsCommand::EvictPeer(peer.clone(), cmd_tx))
             .map_err(|_| Errno::PeerEvictionError)?;
         cmd_rx
             .blocking_recv()
@@ -351,7 +347,7 @@ pub(crate) fn hermes_ipfs_get_file(
     app_name: &HermesAppName, path: &IpfsPath,
 ) -> Result<IpfsFile, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
-    let content = HERMES_IPFS_STATE.file_get(path.to_string())?;
+    let content = HERMES_IPFS_STATE.file_get(path)?;
     tracing::debug!(app_name = %app_name, path = %path, "got IPFS file");
     Ok(content)
 }
@@ -361,7 +357,7 @@ pub(crate) fn hermes_ipfs_pin_file(
     app_name: &HermesAppName, path: IpfsPath,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
-    let status = HERMES_IPFS_STATE.file_pin(path.clone())?;
+    let status = HERMES_IPFS_STATE.file_pin(&path)?;
     tracing::debug!(app_name = %app_name, path = %path, "pinned IPFS file");
     HERMES_IPFS_STATE.apps.pinned_file(app_name.clone(), path);
     Ok(status)
@@ -398,7 +394,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     if HERMES_IPFS_STATE.apps.topic_subscriptions_contains(&topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = HERMES_IPFS_STATE.pubsub_subscribe(topic.to_string())?;
+        let handle = HERMES_IPFS_STATE.pubsub_subscribe(&topic)?;
         HERMES_IPFS_STATE
             .apps
             .added_topic_stream(topic.clone(), handle);
@@ -423,7 +419,7 @@ pub(crate) fn hermes_ipfs_evict_peer(
     app_name: &HermesAppName, peer: PeerId,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicting peer");
-    let status = HERMES_IPFS_STATE.peer_evict(peer.to_string())?;
+    let status = HERMES_IPFS_STATE.peer_evict(&peer.to_string())?;
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicted peer");
     HERMES_IPFS_STATE.apps.evicted_peer(app_name.clone(), peer);
     Ok(status)

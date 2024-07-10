@@ -45,26 +45,28 @@ pub(crate) enum IpfsCommand {
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
 }
 
-#[allow(dead_code)]
-/// IPFS
+/// IPFS asynchronous task
 pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<()> {
     let hermes_node = HermesIpfs::start().await?;
     if let Some(ipfs_command) = queue_rx.recv().await {
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
-                let ipfs_path = hermes_node.add_ipfs_file(ipfs_file).await?;
-                if let Err(_err) = tx.send(Ok(ipfs_path.to_string())) {
-                    tracing::error!("Failed to send IPFS path");
-                }
+                let response = hermes_node
+                    .add_ipfs_file(ipfs_file)
+                    .await
+                    .map(|ipfs_path| ipfs_path.to_string())
+                    .map_err(|_| Errno::FileAddError);
+                send_response(response, tx);
             },
             IpfsCommand::GetFile(ipfs_path, tx) => {
-                let contents = hermes_node.get_ipfs_file(ipfs_path.into()).await?;
-                if let Err(_err) = tx.send(Ok(contents)) {
-                    tracing::error!("Failed to get IPFS contents");
-                }
+                let response = hermes_node
+                    .get_ipfs_file(ipfs_path.into())
+                    .await
+                    .map_err(|_| Errno::FileGetError);
+                send_response(response, tx);
             },
             IpfsCommand::PinFile(cid, tx) => {
-                let status = match hermes_node.insert_pin(&cid).await {
+                let response = match hermes_node.insert_pin(&cid).await {
                     Ok(()) => Ok(true),
                     Err(err) if err.to_string().contains("already pinned recursively") => {
                         tracing::debug!(cid = %cid, "file already pinned");
@@ -75,33 +77,25 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
                         Err(Errno::FilePinError)
                     },
                 };
-                if let Err(err) = tx.send(status) {
-                    tracing::error!("sending response of pin IPFS file should not fail: {err:?}");
-                }
+                send_response(response, tx);
             },
             IpfsCommand::GetDhtValue(key, tx) => {
                 let response = hermes_node
                     .dht_get(key)
                     .await
                     .map_err(|_| Errno::DhtGetError);
-                if let Err(err) = tx.send(response) {
-                    tracing::error!("sending DHT value should not fail: {err:?}");
-                }
+                send_response(response, tx);
             },
             IpfsCommand::PutDhtValue(key, value, tx) => {
-                let status = hermes_node.dht_put(key, value).await.is_ok();
-                if let Err(err) = tx.send(Ok(status)) {
-                    tracing::error!("sending status of DHT put should not fail: {err:?}");
-                }
+                let response = hermes_node.dht_put(key, value).await.is_ok();
+                send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
                 let message_id = hermes_node
                     .pubsub_publish(topic, message)
                     .await
                     .map_err(|_| Errno::PubsubPublishError)?;
-                if let Err(err) = tx.send(Ok(message_id)) {
-                    tracing::error!("sending message id should not fail: {err:?}");
-                }
+                send_response(Ok(message_id), tx);
             },
             IpfsCommand::Subscribe(topic, tx) => {
                 let stream = hermes_node
@@ -120,6 +114,7 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
                             },
                         };
                         let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
+                        // Dispatch Hermes Event
                         if let Err(err) = send(HermesEvent::new(
                             on_topic_event.clone(),
                             crate::event::TargetApp::List(app_names),
@@ -129,19 +124,22 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
                         }
                     }
                 });
-                if let Err(_err) = tx.send(Ok(handle)) {
-                    tracing::error!("Failed to subscribe to topic");
-                }
+                send_response(Ok(handle), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
                 let peer_id = TargetPeerId::from_str(&peer).map_err(|_| Errno::InvalidPeerId)?;
                 let status = hermes_node.ban_peer(peer_id).await.is_ok();
-                if let Err(err) = tx.send(Ok(status)) {
-                    tracing::error!("sending status of peer eviction should not fail: {err:?}");
-                }
+                send_response(Ok(status), tx);
             },
         }
     }
     hermes_node.stop().await;
     Ok(())
+}
+
+/// Send the response of the IPFS command
+fn send_response<T>(response: T, tx: oneshot::Sender<T>) {
+    if tx.send(response).is_err() {
+        tracing::error!("sending IPFS command response should not fail");
+    }
 }
