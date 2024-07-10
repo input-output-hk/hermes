@@ -4,6 +4,7 @@ mod app;
 mod cli;
 mod errors;
 mod event;
+mod hdf5;
 mod logger;
 mod packaging;
 mod reactor;

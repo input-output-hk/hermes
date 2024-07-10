@@ -12,6 +12,7 @@ pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
 pub mod wasm;
+pub mod hdf5;
 
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{
