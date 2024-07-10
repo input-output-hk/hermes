@@ -107,7 +107,7 @@ impl ChainFollower {
             }
         }
 
-        if self.mithril_tip.is_none() || current_mithril_tip >= self.mithril_tip {
+        if self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip {
             let snapshot = MithrilSnapshot::new(self.chain);
             if let Some(block) = snapshot.read_block_at(&current_mithril_tip).await {
                 // The Mithril Tip has moved forwards.

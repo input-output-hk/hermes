@@ -23,4 +23,4 @@ test-mithril-download:
 # Run long running developer test for mithril downloading.
 run-mithril-download-example:
     RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
-    cargo run --package cardano-chain-follower --example follow_chains -- --mainnet
+    cargo run --package cardano-chain-follower --example follow_chains -- --preprod

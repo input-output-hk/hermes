@@ -72,7 +72,7 @@ async fn follow_for(network: Network) {
     let mut last_update: Option<ChainUpdate> = None;
     let mut prev_hash: Option<pallas_crypto::hash::Hash<32>> = None;
     let mut last_immutable: bool = false;
-    let mut reached_tip = false; // After we reach TIP we show all block we process.
+    //let mut reached_tip = false; // After we reach TIP we show all block we process.
     let mut updates: u64 = 0;
     let mut last_fork = 0;
 
@@ -82,16 +82,17 @@ async fn follow_for(network: Network) {
         updates += 1;
 
         if chain_update.tip {
-            reached_tip = true;
+            //reached_tip = true;
+            break;
         }
 
         let block = chain_update.block_data().decode();
         let this_era = block.era().to_string();
         if (current_era != this_era)
             || (chain_update.immutable() != last_immutable)
-            || reached_tip
-            //|| !chain_update.immutable()
-            || chain_update.data.fork() > 1
+            // || reached_tip
+            // || !chain_update.immutable()
+            // || chain_update.data.fork() > 1
             || (updates % 100_000 == 0)
             || (last_fork != chain_update.data.fork())
         {
@@ -104,24 +105,7 @@ async fn follow_for(network: Network) {
             );
         }
 
-        let this_prev_hash = match block {
-            pallas::ledger::traverse::MultiEraBlock::EpochBoundary(ref block) => {
-                Some(block.header.prev_block)
-            },
-            pallas::ledger::traverse::MultiEraBlock::AlonzoCompatible(ref block, _) => {
-                block.header.header_body.prev_hash
-            },
-            pallas::ledger::traverse::MultiEraBlock::Babbage(ref block) => {
-                block.header.header_body.prev_hash
-            },
-            pallas::ledger::traverse::MultiEraBlock::Byron(ref block) => {
-                Some(block.header.prev_block)
-            },
-            pallas::ledger::traverse::MultiEraBlock::Conway(ref block) => {
-                block.header.header_body.prev_hash
-            },
-            _ => None,
-        };
+        let this_prev_hash = block.header().previous_hash();
 
         // We have no state, so can only check consistency with block updates.
         // But thats OK, the chain follower itself is also checking chain consistency.

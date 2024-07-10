@@ -379,7 +379,7 @@ impl ProtectedLiveChainBlockList {
         }
 
         // Search backwards for a fork smaller than or equal to the one we know.
-        while this_block.fork() >= fork {
+        while this_block.fork() > fork {
             rollback_depth += 1;
             entry = match entry.prev() {
                 Some(entry) => entry,
