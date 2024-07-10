@@ -229,6 +229,14 @@ impl SnapshotDownloader for MithrilTurboDownloader {
             let file_size = get_file_size(abs_file.clone()).await.unwrap_or(0);
             extract_size += file_size;
 
+            // Assume that any files not in the immutable directory have changed, and don't check them
+            if !relative_file.starts_with(Path::new("immutable")) {
+                debug!("Not deduplicating {}", relative_file.display());
+                new_files += 1;
+                deduplicated_size += file_size;
+                continue;
+            }
+
             // Hash the new file.
             if let Some(file_hash) = async_hash_single_file(&abs_file).await {
                 let _unused = hashmap.insert(relative_file.clone(), file_hash);
