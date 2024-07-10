@@ -17,6 +17,8 @@ interface api {
     type ipfs-path = string;
     /// PubSub Message Data
     type message-data = list<u8>;
+    /// PubSub Message ID
+    type message-id = list<u8>;
     /// The ID of a peer.
     type peer-id = string;
     /// A PubSub topic.
@@ -77,7 +79,7 @@ interface api {
     /// Evict peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
     /// Publish a message to a topic.
-    pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<bool, errno>;
+    pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<message-id, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }
