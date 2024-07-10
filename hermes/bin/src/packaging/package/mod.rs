@@ -1,16 +1,16 @@
 //! Implementation of the generalized Hermes package struct as a HDF5 package.
 
 mod compression;
-mod path;
 
 use std::{collections::BTreeSet, io::Read};
-
-pub(crate) use path::Path;
 
 use self::compression::enable_compression;
 use crate::{
     errors::Errors,
-    hdf5::resources::{Hdf5Resource, ResourceTrait},
+    hdf5::{
+        resources::{Hdf5Resource, ResourceTrait},
+        Path,
+    },
     packaging::hash::{Blake2b256, Blake2b256Hasher},
 };
 

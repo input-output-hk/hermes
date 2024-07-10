@@ -13,10 +13,13 @@ use settings::SettingsSchema;
 
 use crate::{
     errors::Errors,
-    hdf5::resources::{bytes::BytesResource, ResourceTrait},
+    hdf5::{
+        resources::{bytes::BytesResource, ResourceTrait},
+        Path,
+    },
     packaging::{
         metadata::{Metadata, MetadataSchema},
-        package::{Package, Path},
+        package::Package,
         sign::{
             certificate::Certificate,
             keys::PrivateKey,

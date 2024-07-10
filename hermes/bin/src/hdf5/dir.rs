@@ -4,8 +4,8 @@ use std::io::Read;
 
 use super::{
     compression::enable_compression,
-    path::Path,
     resources::{Hdf5Resource, ResourceTrait},
+    Path,
 };
 use crate::errors::Errors;
 

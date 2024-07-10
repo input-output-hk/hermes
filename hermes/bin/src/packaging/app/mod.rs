@@ -7,10 +7,13 @@ use manifest::{Manifest, ManifestModule};
 
 use crate::{
     errors::Errors,
-    hdf5::resources::{BytesResource, ResourceTrait},
+    hdf5::{
+        resources::{BytesResource, ResourceTrait},
+        Path,
+    },
     packaging::{
         metadata::{Metadata, MetadataSchema},
-        package::{Package, Path},
+        package::Package,
         wasm_module::{self, WasmModulePackage},
         FileError, MissingPackageFileError,
     },

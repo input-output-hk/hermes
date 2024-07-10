@@ -9,6 +9,8 @@ pub(crate) mod resources;
 
 use std::fmt::Display;
 
+pub(crate) use path::Path;
+
 /// File open and read error.
 #[derive(thiserror::Error, Debug)]
 pub(crate) struct FileError {
