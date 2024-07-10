@@ -22,6 +22,16 @@ use crate::{
 };
 
 /// Hermes IPFS Internal State
+///
+/// This is a wrapper around `HermesIpfsState` which provides a singleton instance of the
+/// IPFS state.
+///
+/// This is done to ensure the IPFS state is initialized only once when the
+/// `HermesIpfsState` is first used. This is done to avoid any issues that may arise if
+/// the IPFS state is initialized multiple times.
+///
+/// The IPFS state is initialized in a separate thread and the sender channel is stored in
+/// the `HermesIpfsState`.
 static HERMES_IPFS_STATE: Lazy<HermesIpfsState> = Lazy::new(|| {
     let sender = if let Ok(runtime) = Builder::new_current_thread().enable_all().build() {
         let (sender, receiver) = mpsc::channel(1);
@@ -56,6 +66,14 @@ impl HermesIpfsState {
     }
 
     /// Add file
+    ///
+    /// Returns the IPFS path of the added file
+    ///
+    /// ## Parameters
+    /// - `contents`: The content to add
+    ///
+    /// ## Errors
+    /// - `Errno::FileAddError`: Failed to add the content
     fn file_add(&self, contents: IpfsFile) -> Result<IpfsPath, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.apps
@@ -72,6 +90,15 @@ impl HermesIpfsState {
 
     #[allow(clippy::needless_pass_by_value)]
     /// Get file
+    ///
+    /// Returns the content of the file
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FileGetError`: Failed to get the file
     fn file_get(&self, ipfs_path: IpfsPath) -> Result<IpfsFile, Errno> {
         let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -86,6 +113,14 @@ impl HermesIpfsState {
 
     #[allow(clippy::needless_pass_by_value)]
     /// Pin file
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidCid`: Invalid CID
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FilePinError`: Failed to pin the file
     fn file_pin(&self, ipfs_path: IpfsPath) -> Result<bool, Errno> {
         let ipfs_path = PathIpfsFile::from_str(&ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
@@ -267,11 +302,13 @@ impl AppIpfsState {
 
 /// Checks for `DhtKey`, and `DhtValue` validity.
 fn is_valid_dht_content(_key: &DhtKey, value: &DhtValue) -> bool {
+    // TODO(@anyone): Implement DHT content validation
     !value.is_empty()
 }
 
 /// Checks for `PubsubTopic`, and `MessageData` validity.
 fn is_valid_pubsub_content(_topic: &PubsubTopic, message: &MessageData) -> bool {
+    // TODO(@anyone): Implement PubSub content validation
     !message.is_empty()
 }
 
