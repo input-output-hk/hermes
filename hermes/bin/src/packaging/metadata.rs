@@ -58,6 +58,17 @@ impl<T: MetadataSchema> Metadata<T> {
         Ok(bytes)
     }
 
+    /// Get `name` property from the `Metadata` object.
+    pub(crate) fn get_name(&self) -> anyhow::Result<String> {
+        Ok(self
+            .json
+            .get("name")
+            .ok_or(anyhow::anyhow!("No `name` field in the metadata object"))?
+            .as_str()
+            .ok_or(anyhow::anyhow!("Metadata `name` field is not a string"))?
+            .to_string())
+    }
+
     /// Set `build_date` property to the `Metadata` object.
     pub(crate) fn set_build_date(&mut self, date: DateTime<Utc>) {
         self.json

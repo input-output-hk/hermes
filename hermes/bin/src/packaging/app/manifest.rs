@@ -2,10 +2,9 @@
 
 use std::path::Path;
 
-use crate::packaging::{
-    resources::{fs_resource::FsResource, Resource},
-    schema_validation::SchemaValidator,
-    FileError,
+use crate::{
+    hdf5::resources::{FsResource, ResourceBuilder},
+    packaging::{schema_validation::SchemaValidator, FileError},
 };
 
 /// Hermes application package manifest.json definition.
@@ -14,28 +13,28 @@ pub(crate) struct Manifest {
     /// Package name.
     pub(crate) name: String,
     /// Path to the icon svg file.
-    pub(crate) icon: Resource,
+    pub(crate) icon: ResourceBuilder,
     /// Path to the metadata JSON file.
-    pub(crate) metadata: Resource,
+    pub(crate) metadata: ResourceBuilder,
     /// Application WASM Modules.
     pub(crate) modules: Vec<ManifestModule>,
     /// Path to the www directory.
-    pub(crate) www: Option<Resource>,
+    pub(crate) www: Option<ResourceBuilder>,
     /// Path to the share directory.
-    pub(crate) share: Option<Resource>,
+    pub(crate) share: Option<ResourceBuilder>,
 }
 
 /// `Manifest` `modules` item field definition.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ManifestModule {
     /// Path to the WASM module package file.
-    pub(crate) file: Resource,
+    pub(crate) file: ResourceBuilder,
     /// Application WASM module name.
     pub(crate) name: Option<String>,
     /// Path to the WASM module config JSON file.
-    pub(crate) config: Option<Resource>,
+    pub(crate) config: Option<ResourceBuilder>,
     /// Path to the WASM module share directory.
-    pub(crate) share: Option<Resource>,
+    pub(crate) share: Option<ResourceBuilder>,
 }
 
 impl Manifest {
@@ -49,13 +48,13 @@ impl Manifest {
     }
 
     /// Default icon.svg file path.
-    fn default_icon_path() -> Resource {
-        Resource::Fs(FsResource::new("icon.svg"))
+    fn default_icon_path() -> ResourceBuilder {
+        ResourceBuilder::Fs(FsResource::new("icon.svg"))
     }
 
     /// Default metadata.json file path.
-    fn default_metadata_path() -> Resource {
-        Resource::Fs(FsResource::new("metadata.json"))
+    fn default_metadata_path() -> ResourceBuilder {
+        ResourceBuilder::Fs(FsResource::new("metadata.json"))
     }
 
     /// Create a `Manifest` from a path.
@@ -106,28 +105,28 @@ mod serde_def {
 
     use serde::Deserialize;
 
-    use crate::packaging::resources::Resource;
+    use crate::hdf5::resources::ResourceBuilder;
 
     #[derive(Deserialize)]
     pub(crate) struct ManifestSerde {
         #[serde(default = "super::Manifest::default_package_name")]
         name: String,
         #[serde(default = "super::Manifest::default_icon_path")]
-        icon: Resource,
+        icon: ResourceBuilder,
         #[serde(default = "super::Manifest::default_metadata_path")]
-        metadata: Resource,
+        metadata: ResourceBuilder,
         #[serde(default)]
         modules: Vec<ManifestModuleSerde>,
-        www: Option<Resource>,
-        share: Option<Resource>,
+        www: Option<ResourceBuilder>,
+        share: Option<ResourceBuilder>,
     }
 
     #[derive(Deserialize)]
     struct ManifestModuleSerde {
-        file: Resource,
+        file: ResourceBuilder,
         name: Option<String>,
-        config: Option<Resource>,
-        share: Option<Resource>,
+        config: Option<ResourceBuilder>,
+        share: Option<ResourceBuilder>,
     }
 
     impl From<ManifestSerde> for super::Manifest {
@@ -187,16 +186,18 @@ mod tests {
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "app_name".to_string(),
-                icon: Resource::Fs(FsResource::new(dir_path.join("icon.svg"))),
-                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                icon: ResourceBuilder::Fs(FsResource::new(dir_path.join("icon.svg"))),
+                metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
                 modules: vec![ManifestModule {
-                    file: Resource::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    file: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
                     name: Some("module_name".to_string()),
-                    config: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
-                    share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+                    config: Some(ResourceBuilder::Fs(FsResource::new(
+                        dir_path.join("config.json")
+                    ))),
+                    share: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("share")))),
                 }],
-                www: Some(Resource::Fs(FsResource::new(dir_path.join("www")))),
-                share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+                www: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("www")))),
+                share: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("share")))),
             });
         }
 
@@ -220,16 +221,16 @@ mod tests {
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "app_name".to_string(),
-                icon: Resource::Fs(FsResource::new("/icon.svg")),
-                metadata: Resource::Fs(FsResource::new("/metadata.json")),
+                icon: ResourceBuilder::Fs(FsResource::new("/icon.svg")),
+                metadata: ResourceBuilder::Fs(FsResource::new("/metadata.json")),
                 modules: vec![ManifestModule {
-                    file: Resource::Fs(FsResource::new("/module.hmod")),
+                    file: ResourceBuilder::Fs(FsResource::new("/module.hmod")),
                     name: Some("module_name".to_string()),
-                    config: Some(Resource::Fs(FsResource::new("/config.json"))),
-                    share: Some(Resource::Fs(FsResource::new("/share"))),
+                    config: Some(ResourceBuilder::Fs(FsResource::new("/config.json"))),
+                    share: Some(ResourceBuilder::Fs(FsResource::new("/share"))),
                 }],
-                www: Some(Resource::Fs(FsResource::new("/www"))),
-                share: Some(Resource::Fs(FsResource::new("/share"))),
+                www: Some(ResourceBuilder::Fs(FsResource::new("/www"))),
+                share: Some(ResourceBuilder::Fs(FsResource::new("/share"))),
             });
         }
 
@@ -250,16 +251,18 @@ mod tests {
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "app".to_string(),
-                icon: Resource::Fs(FsResource::new(dir_path.join("icon.svg"))),
-                metadata: Resource::Fs(FsResource::new(dir_path.join("metadata.json"))),
+                icon: ResourceBuilder::Fs(FsResource::new(dir_path.join("icon.svg"))),
+                metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
                 modules: vec![ManifestModule {
-                    file: Resource::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    file: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
                     name: Some("module_name".to_string()),
-                    config: Some(Resource::Fs(FsResource::new(dir_path.join("config.json")))),
-                    share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+                    config: Some(ResourceBuilder::Fs(FsResource::new(
+                        dir_path.join("config.json")
+                    ))),
+                    share: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("share")))),
                 }],
-                www: Some(Resource::Fs(FsResource::new(dir_path.join("www")))),
-                share: Some(Resource::Fs(FsResource::new(dir_path.join("share")))),
+                www: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("www")))),
+                share: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("share")))),
             });
         }
 

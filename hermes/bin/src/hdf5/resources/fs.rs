@@ -1,18 +1,23 @@
 //! Filesystem resource implementation.
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     io::Read,
     path::{Path, PathBuf},
 };
 
 use super::ResourceTrait;
-use crate::packaging::FileError;
 
 /// File system resource.
 /// A simple wrapper over `PathBuf`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FsResource(PathBuf);
+
+impl Display for FsResource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.display())
+    }
+}
 
 impl FsResource {
     /// Create a new `FsResource` instance.
@@ -20,16 +25,16 @@ impl FsResource {
         Self(path.as_ref().to_path_buf())
     }
 
+    /// Get resource path.
+    pub(crate) fn get_path(&self) -> PathBuf {
+        self.0.clone()
+    }
+
     /// Update current resource to make it relative to the given path.
     pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
         if self.0.is_relative() {
             self.0 = to.as_ref().join(&self.0);
         }
-    }
-
-    /// Get resource location.
-    pub(crate) fn location(&self) -> String {
-        format!("{}", self.0.display())
     }
 }
 
@@ -54,12 +59,11 @@ impl ResourceTrait for FsResource {
 
     fn get_reader(&self) -> anyhow::Result<impl Read + Debug> {
         std::fs::File::open(&self.0).map_err(|err| {
-            let msg = if err.kind() == std::io::ErrorKind::NotFound {
-                anyhow::anyhow!("File not found")
+            if err.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!("File not found at {}", self.0.display())
             } else {
-                err.into()
-            };
-            FileError::from_path(&self.0, Some(msg)).into()
+                anyhow::anyhow!("Cannot open file at {}, err: {err}", self.0.display())
+            }
         })
     }
 
