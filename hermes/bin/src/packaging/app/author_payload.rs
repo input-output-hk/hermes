@@ -1,4 +1,5 @@
 //! A signature payload object for author.cose Hermes application package.
+//! Defined at `https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/app_signatures/#wasm-component-module-signatures`.
 
 use crate::packaging::{
     hash::Blake2b256, schema_validation::SchemaValidator, sign::signature::SignaturePayloadEncoding,
@@ -105,7 +106,7 @@ impl SignaturePayloadBuilder {
 
 /// WASM module cose signature payload JSON schema.
 const SIGNATURE_PAYLOAD_SCHEMA: &str =
-    include_str!("../../../../schemas/hermes_module_cose_author_payload.schema.json");
+    include_str!("../../../../schemas/hermes_module_cose_payload.schema.json");
 
 impl SignaturePayloadEncoding for SignaturePayload {
     fn to_json(&self) -> serde_json::Value {

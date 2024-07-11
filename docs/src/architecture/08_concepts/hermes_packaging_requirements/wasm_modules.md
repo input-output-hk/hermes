@@ -111,7 +111,6 @@ Packaging a Module is controlled by a manifest file, which must conform to the H
 
 1. Create an unsigned WASM Component Module.
 2. Sign it as one or more authors.
-3. *Optionally, sign it as one or more publishers.*
 
 #### Creating the unsigned Application Package
 
@@ -149,9 +148,9 @@ This takes the X.509 Private Certificate presented, and signs or counter-signs t
 
 *Note: A Hermes WASM Component Module is INVALID if it does not contain at least 1 Author Signature.*
 
-##### WASM module signature payload
+##### Author signature payload
 
-WASM module package signature payload according to the signing
+WASM module package author signature payload according to the signing
 [spec](../hermes_signing_procedure/signature_format.md#signature-payload)
 should follow this schema:
 
@@ -163,7 +162,7 @@ should follow this schema:
     ```
 <!-- markdownlint-enable max-one-sentence-per-line -->
 
-WASM module package signature payload example:
+WASM module package author signature payload example:
 
 <!-- markdownlint-disable max-one-sentence-per-line -->
 ??? note "Example: `hermes_module_cose_author_payload.json`"
