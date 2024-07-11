@@ -1,0 +1,79 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_cose_author_payload.schema.json",
+    "title": "Hermes Application Author COSE Payload Schema",
+    "description": "Defines the COSE signing payload. An application package specific information which should be cryptographically protected.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "metadata": {
+            "type": "string",
+            "title": "Blake2b hash hex of metadata.json package file",
+            "description": "A hex representation of the Blake2b hash of the metadata.json file inside the package.",
+            "pattern": "^[0-9a-f]{64}$"
+        },
+        "icon": {
+            "type": "string",
+            "title": "Blake2b hash hex of icon.svg package file",
+            "description": "A hex representation of the Blake2b hash of the icon.svg file inside the package.",
+            "pattern": "^[0-9a-f]{64}$"
+        },
+        "modules": {
+            "type": "array",
+            "title": "Application Module Files Hashes",
+            "description": "List of WASM Component Library Module Files Hashes.",
+            "items": {
+                "type": "object",
+                "title": "Application WASM Module Package definition",
+                "description": "Prepackaged Hermes WASM Component Module.",
+                "additionalProperties": false,
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Application WASM Module Name",
+                        "description": "Name of the WASM Component Library Module.\nMust be unique within the Application."
+                    },
+                    "package": {
+                        "type": "string",
+                        "title": "Blake2b hash hex of the entire WASM module package",
+                        "description": "A hex representation of the Blake2b hash of of the entire WASM module package.",
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "config": {
+                        "type": "string",
+                        "title": "Blake2b hash hex of replaced module's config.json package file",
+                        "description": "A hex representation of the Blake2b hash of the replaced module's config.json file inside the package.",
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "share": {
+                        "type": "string",
+                        "title": "Blake2b hash hex of the whole replaced module's share package directory",
+                        "description": "A hex representation of the Blake2b hash of the whole replaced module's share directory inside the package.",
+                        "pattern": "^[0-9a-f]{64}$"
+                    }
+                },
+                "required": [
+                    "name",
+                    "package"
+                ]
+            },
+            "uniqueItems": true
+        },
+        "www": {
+            "type": "string",
+            "title": "Blake2b hash hex of the whole share package directory",
+            "description": "A hex representation of the Blake2b hash of the whole share directory inside the package.",
+            "pattern": "^[0-9a-f]{64}$"
+        },
+        "share": {
+            "type": "string",
+            "title": "Blake2b hash hex of the whole share package directory",
+            "description": "A hex representation of the Blake2b hash of the whole share directory inside the package.",
+            "pattern": "^[0-9a-f]{64}$"
+        }
+    },
+    "required": [
+        "metadata",
+        "icon"
+    ]
+}

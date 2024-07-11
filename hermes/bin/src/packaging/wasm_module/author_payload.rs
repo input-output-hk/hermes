@@ -265,10 +265,7 @@ mod tests {
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect(
-                "Cannot parse
-            JSON",
-            );
+            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
             assert_eq!(payload, payload);
         }
     }

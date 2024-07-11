@@ -1,5 +1,6 @@
 //! Hermes application package.
 
+#[allow(dead_code)]
 mod author_payload;
 pub(crate) mod manifest;
 

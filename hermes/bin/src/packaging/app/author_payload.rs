@@ -10,74 +10,63 @@ use crate::packaging::{
 pub(crate) struct SignaturePayload {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
-    /// Hash of the WASM component file.
-    component: Blake2b256,
-    /// Config instance.
-    config: Option<SignaturePayloadConfig>,
-    /// Settings instance.
-    settings: Option<SignaturePayloadSettings>,
+    /// Hash of the icon SVG file.
+    icon: Blake2b256,
+    /// Modules list.
+    modules: Vec<SignaturePayloadModule>,
+    /// Hash of the www directory content.
+    www: Option<Blake2b256>,
     /// Hash of the share directory content.
     share: Option<Blake2b256>,
 }
 
-/// A `SignaturePayload` config object.
+/// A `SignaturePayload` module object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct SignaturePayloadConfig {
-    /// Hash of the config JSON file.
-    file: Option<Blake2b256>,
-    /// Hash of the config schema JSON file.
-    schema: Blake2b256,
-}
-
-/// A `SignaturePayload` settings object.
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct SignaturePayloadSettings {
-    /// Hash of the settings schema JSON file.
-    schema: Blake2b256,
+pub(crate) struct SignaturePayloadModule {
+    /// Name of the WASM module.
+    name: String,
+    /// Hash of the of the entire WASM module package.
+    package: Blake2b256,
+    /// Hash of the replaced module's config.json package file.
+    config: Option<Blake2b256>,
+    /// Hash of the whole replaced module's share package directory.
+    share: Option<Blake2b256>,
 }
 
 /// `SignaturePayload` builder object.
 pub(crate) struct SignaturePayloadBuilder {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
-    /// Hash of the WASM component file.
-    component: Blake2b256,
-    /// Hash of the config JSON file.
-    config_file: Option<Blake2b256>,
-    /// Hash of the config schema JSON file.
-    config_schema: Option<Blake2b256>,
-    /// Hash of the settings schema JSON file.
-    settings_schema: Option<Blake2b256>,
+    /// Hash of the icon SVG file.
+    icon: Blake2b256,
+    /// Modules list.
+    modules: Vec<SignaturePayloadModule>,
+    /// Hash of the www directory content.
+    www: Option<Blake2b256>,
     /// Hash of the share directory content.
     share: Option<Blake2b256>,
 }
 
 impl SignaturePayloadBuilder {
     /// Create a new `SignaturePayloadBuilder`.
-    pub(crate) fn new(metadata: Blake2b256, component: Blake2b256) -> Self {
+    pub(crate) fn new(metadata: Blake2b256, icon: Blake2b256) -> Self {
         Self {
             metadata,
-            component,
-            config_file: None,
-            config_schema: None,
-            settings_schema: None,
+            icon,
+            modules: vec![],
+            www: None,
             share: None,
         }
     }
 
-    /// Set the config file hash.
-    pub(crate) fn with_config_file(&mut self, file: Blake2b256) {
-        self.config_file = Some(file);
+    /// Set the modules list.
+    pub(crate) fn with_modules(&mut self, modules: Vec<SignaturePayloadModule>) {
+        self.modules = modules;
     }
 
-    /// Set the config schema hash.
-    pub(crate) fn with_config_schema(&mut self, schema: Blake2b256) {
-        self.config_schema = Some(schema);
-    }
-
-    /// Set the settings schema hash.
-    pub(crate) fn with_settings_schema(&mut self, schema: Blake2b256) {
-        self.settings_schema = Some(schema);
+    /// Set the www directory hash.
+    pub(crate) fn with_www(&mut self, www: Blake2b256) {
+        self.www = Some(www);
     }
 
     /// Set the share directory hash.
@@ -89,16 +78,53 @@ impl SignaturePayloadBuilder {
     pub(crate) fn build(self) -> SignaturePayload {
         SignaturePayload {
             metadata: self.metadata,
-            component: self.component,
-            config: self.config_schema.map(|schema| {
-                SignaturePayloadConfig {
-                    file: self.config_file,
-                    schema,
-                }
-            }),
-            settings: self
-                .settings_schema
-                .map(|schema| SignaturePayloadSettings { schema }),
+            icon: self.icon,
+            modules: self.modules,
+            www: self.www,
+            share: self.share,
+        }
+    }
+}
+
+/// `SignaturePayload` builder object.
+pub(crate) struct SignaturePayloadModuleBuilder {
+    /// Name of the WASM module.
+    name: String,
+    /// Hash of the of the entire WASM module package.
+    package: Blake2b256,
+    /// Hash of the replaced module's config.json package file.
+    config: Option<Blake2b256>,
+    /// Hash of the whole replaced module's share package directory.
+    share: Option<Blake2b256>,
+}
+
+impl SignaturePayloadModuleBuilder {
+    /// Create a new `SignaturePayloadModuleBuilder`.
+    pub(crate) fn new(name: String, package: Blake2b256) -> Self {
+        Self {
+            name,
+            package,
+            config: None,
+            share: None,
+        }
+    }
+
+    /// Set the config.json file hash.
+    pub(crate) fn with_config(&mut self, config: Blake2b256) {
+        self.config = Some(config);
+    }
+
+    /// Set the share directory hash.
+    pub(crate) fn with_share(&mut self, share: Blake2b256) {
+        self.share = Some(share);
+    }
+
+    /// Create a new `SignaturePayloadModule`.
+    pub(crate) fn build(self) -> SignaturePayloadModule {
+        SignaturePayloadModule {
+            name: self.name,
+            package: self.package,
+            config: self.config,
             share: self.share,
         }
     }
@@ -106,33 +132,39 @@ impl SignaturePayloadBuilder {
 
 /// WASM module cose signature payload JSON schema.
 const SIGNATURE_PAYLOAD_SCHEMA: &str =
-    include_str!("../../../../schemas/hermes_module_cose_payload.schema.json");
+    include_str!("../../../../schemas/hermes_app_cose_author_payload.schema.json");
 
 impl SignaturePayloadEncoding for SignaturePayload {
     fn to_json(&self) -> serde_json::Value {
         let mut json = serde_json::Map::new();
-        json.insert("metadata".to_string(), self.metadata.to_hex().into());
-        json.insert("component".to_string(), self.component.to_hex().into());
-        if let Some(config) = &self.config {
-            let mut config_json = serde_json::Map::new();
+        json.insert("metadata".into(), self.metadata.to_hex().into());
+        json.insert("icon".into(), self.icon.to_hex().into());
 
-            config_json.insert("schema".to_string(), config.schema.to_hex().into());
-            if let Some(file) = &config.file {
-                config_json.insert("file".to_string(), file.to_hex().into());
-            }
-
-            json.insert("config".to_string(), config_json.into());
+        if !self.modules.is_empty() {
+            let modules: Vec<serde_json::Value> = self
+                .modules
+                .iter()
+                .map(|module| {
+                    let mut json = serde_json::Map::new();
+                    json.insert("name".into(), module.name.clone().into());
+                    json.insert("package".into(), module.package.to_hex().into());
+                    if let Some(config) = &module.config {
+                        json.insert("config".into(), config.to_hex().into());
+                    }
+                    if let Some(share) = &module.share {
+                        json.insert("share".into(), share.to_hex().into());
+                    }
+                    json.into()
+                })
+                .collect();
+            json.insert("modules".into(), modules.into());
         }
-        if let Some(settings) = &self.settings {
-            json.insert(
-                "settings".to_string(),
-                serde_json::json!({
-                    "schema": settings.schema.to_hex()
-                }),
-            );
+
+        if let Some(www) = &self.www {
+            json.insert("www".into(), www.to_hex().into());
         }
         if let Some(share) = &self.share {
-            json.insert("share".to_string(), share.to_hex().into());
+            json.insert("share".into(), share.to_hex().into());
         }
 
         json.into()
@@ -154,47 +186,58 @@ impl SignaturePayloadEncoding for SignaturePayload {
             .ok_or_else(|| anyhow::anyhow!("Invalid metadata field"))
             .map(Blake2b256::from_hex)??;
 
-        let component = json
-            .get("component")
-            .ok_or_else(|| anyhow::anyhow!("Missing component field"))?
+        let icon = json
+            .get("icon")
+            .ok_or_else(|| anyhow::anyhow!("Missing icon field"))?
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Invalid component field"))
+            .ok_or_else(|| anyhow::anyhow!("Invalid icon field"))
             .map(Blake2b256::from_hex)??;
 
-        let config = json
-            .get("config")
-            .and_then(|val| val.as_object())
-            .map(|config| -> anyhow::Result<_> {
-                let file = config
-                    .get("file")
-                    .map(|file| {
-                        file.as_str()
-                            .ok_or_else(|| anyhow::anyhow!("Invalid file field"))
-                            .map(Blake2b256::from_hex)?
-                    })
-                    .transpose()?;
-                let schema = config
-                    .get("schema")
-                    .ok_or_else(|| anyhow::anyhow!("Missing schema field"))?
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid schema field"))
-                    .map(Blake2b256::from_hex)??;
-                Ok(SignaturePayloadConfig { file, schema })
-            })
-            .transpose()?;
+        let json_modules_array: &[serde_json::Value] = json
+            .get("modules")
+            .and_then(|val| val.as_array())
+            .map_or(&[], |val| val.as_slice());
 
-        let settings = json
-            .get("settings")
-            .and_then(|val| val.as_object())
-            .map(|settings| -> anyhow::Result<_> {
-                let schema = settings
-                    .get("schema")
-                    .ok_or_else(|| anyhow::anyhow!("Missing schema field"))?
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Invalid schema field"))
-                    .map(Blake2b256::from_hex)??;
-                Ok(SignaturePayloadSettings { schema })
-            })
+        let mut modules = Vec::new();
+        for json_module in json_modules_array {
+            let name = json_module
+                .get("name")
+                .ok_or_else(|| anyhow::anyhow!("Missing name field"))?
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid name field"))?
+                .to_string();
+
+            let package = json_module
+                .get("package")
+                .ok_or_else(|| anyhow::anyhow!("Missing package field"))?
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid package field"))
+                .map(Blake2b256::from_hex)??;
+
+            let config = json_module
+                .get("config")
+                .and_then(|val| val.as_str())
+                .map(Blake2b256::from_hex)
+                .transpose()?;
+
+            let share = json_module
+                .get("share")
+                .and_then(|val| val.as_str())
+                .map(Blake2b256::from_hex)
+                .transpose()?;
+
+            modules.push(SignaturePayloadModule {
+                name,
+                package,
+                config,
+                share,
+            });
+        }
+
+        let www = json
+            .get("www")
+            .and_then(|val| val.as_str())
+            .map(Blake2b256::from_hex)
             .transpose()?;
 
         let share = json
@@ -205,9 +248,9 @@ impl SignaturePayloadEncoding for SignaturePayload {
 
         Ok(SignaturePayload {
             metadata,
-            component,
-            config,
-            settings,
+            icon,
+            modules,
+            www,
             share,
         })
     }
@@ -232,7 +275,7 @@ mod tests {
 
             let expected_json = serde_json::json!({
                 "metadata": hash.to_hex(),
-                "component": hash.to_hex(),
+                "icon": hash.to_hex(),
             });
             assert_eq!(json, expected_json);
 
@@ -241,11 +284,13 @@ mod tests {
         }
 
         {
+            let payload_module_builder =
+                SignaturePayloadModuleBuilder::new("module_1".to_string(), hash.clone());
+
             let mut payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
-            payload_builder.with_config_file(hash.clone());
-            payload_builder.with_config_schema(hash.clone());
-            payload_builder.with_settings_schema(hash.clone());
+            payload_builder.with_www(hash.clone());
             payload_builder.with_share(hash.clone());
+            payload_builder.with_modules(vec![payload_module_builder.build()]);
             let payload = payload_builder.build();
 
             let json = payload.to_json();
@@ -253,22 +298,54 @@ mod tests {
 
             let expected_json = serde_json::json!({
                 "metadata": hash.to_hex(),
-                "component": hash.to_hex(),
-                "config": {
-                    "file": hash.to_hex(),
-                    "schema": hash.to_hex(),
-                },
-                "settings": {
-                    "schema": hash.to_hex(),
-                },
+                "icon": hash.to_hex(),
+                "modules": [
+                    {
+                        "name": "module_1",
+                        "package": hash.to_hex(),
+                    }
+                ],
+                "www": hash.to_hex(),
                 "share": hash.to_hex(),
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect(
-                "Cannot parse
-            JSON",
-            );
+            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
+            assert_eq!(payload, payload);
+        }
+
+        {
+            let mut payload_module_builder =
+                SignaturePayloadModuleBuilder::new("module_1".to_string(), hash.clone());
+            payload_module_builder.with_config(hash.clone());
+            payload_module_builder.with_share(hash.clone());
+
+            let mut payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
+            payload_builder.with_www(hash.clone());
+            payload_builder.with_share(hash.clone());
+            payload_builder.with_modules(vec![payload_module_builder.build()]);
+            let payload = payload_builder.build();
+
+            let json = payload.to_json();
+            schema_validator.validate(&json).expect("Invalid JSON");
+
+            let expected_json = serde_json::json!({
+                "metadata": hash.to_hex(),
+                "icon": hash.to_hex(),
+                "modules": [
+                    {
+                        "name": "module_1",
+                        "package": hash.to_hex(),
+                        "config": hash.to_hex(),
+                        "share": hash.to_hex(),
+                    }
+                ],
+                "www": hash.to_hex(),
+                "share": hash.to_hex(),
+            });
+            assert_eq!(json, expected_json);
+
+            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
             assert_eq!(payload, payload);
         }
     }

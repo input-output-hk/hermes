@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_cose_author_payload.schema.json",
-    "title": "Hermes WASM Module COSE Payload Schema",
+    "title": "Hermes WASM Module Author COSE Payload Schema",
     "description": "Defines the COSE signing payload. A WASM module package specific information which should be cryptographically protected.",
     "type": "object",
     "additionalProperties": false,

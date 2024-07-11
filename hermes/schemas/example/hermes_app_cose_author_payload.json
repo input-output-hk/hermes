@@ -1,0 +1,14 @@
+{
+    "metadata": "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+    "icon": "92cdf578c47085a5992256f0dcf97d0b19f1f1c9de4d5fe30c3ace6191b6e5db",
+    "modules": [
+        {
+            "name": "module_1",
+            "package": "31237cdb79ae1dfa7ffb87cde7ea8a80352d300ee5ac758a6cddd19d671925ec",
+            "config": "581348337b0f3e148620173daaa5f94d00d881705dcbf0aa83efdaba61d2ede1",
+            "share": "eb8649214997574e20c464388a172420d25403682bbbb80c496831c8cc1f8f0d"
+        }
+    ],
+    "share": "70b201352f24bf1c9770b99f8f71201821411cf414377c9b8c2dbcee61db87d6",
+    "www": "7bee3bbfb37286d6a41378082e08c12af0084f0b1b92f77983f4c3394e91b5e9"
+}
