@@ -11,7 +11,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{BytesResource, ResourceTrait},
-        Path,
+        Dir, Path,
     },
     packaging::{
         metadata::{Metadata, MetadataSchema},
@@ -78,6 +78,15 @@ impl ApplicationPackage {
         self.get_metadata()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
+        match self.get_modules() {
+            Ok(modules) => {
+                if modules.is_empty() && self.get_www().is_none() && self.get_share().is_none() {
+                    errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
+                }
+            },
+            Err(err) => errors.add_err(err),
+        }
+
         errors.return_result(())
     }
 
@@ -99,6 +108,18 @@ impl ApplicationPackage {
             .map(Package::mount)
             .map(WasmModulePackage::from_package)
             .collect())
+    }
+
+    /// Get www dir from package if present.
+    #[allow(dead_code)]
+    pub(crate) fn get_www(&self) -> Option<Dir> {
+        self.0.get_dir(&Self::WWW_DIR.into()).ok()
+    }
+
+    /// Get share dir from package if present.
+    #[allow(dead_code)]
+    pub(crate) fn get_share(&self) -> Option<Dir> {
+        self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 }
 
@@ -165,7 +186,7 @@ fn validate_and_write_module(
     manifest: &ManifestModule, package: &Package, path: Path,
 ) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
-    module_package.validate()?;
+    module_package.validate(false)?;
 
     let module_original_name = module_package.get_metadata()?.get_name()?;
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
@@ -376,7 +397,7 @@ mod tests {
                 .get_mut(i)
                 .expect("Empty module file");
 
-            module_package.validate().expect("Invalid WASM module");
+            module_package.validate(false).expect("Invalid WASM module");
             let module_name = module_package
                 .get_metadata()
                 .expect("Cannot get metadata from module package")

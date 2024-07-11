@@ -15,7 +15,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
-        Path,
+        Dir, Path,
     },
     packaging::{
         metadata::{Metadata, MetadataSchema},
@@ -86,7 +86,8 @@ impl WasmModulePackage {
     }
 
     /// Validate package with its signature and other contents.
-    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+    /// If `required_signature` is `true` returns `Err` if signature is missing.
+    pub(crate) fn validate(&self, required_signature: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -98,13 +99,15 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        self.verify_sign(required_signature)
+            .unwrap_or_else(errors.get_add_err_fn());
 
         errors.return_result(())
     }
 
-    /// Verify package signature if it exists.
-    fn verify_sign(&self) -> anyhow::Result<()> {
+    /// Verify package.
+    /// If `required_signature` is `true` returns `Err` if signature is missing.
+    fn verify_sign(&self, required_signature: bool) -> anyhow::Result<()> {
         if let Some(signature) = self.get_signature()? {
             let expected_payload = self.get_signature_payload()?;
             let signature_payload = signature.payload();
@@ -115,6 +118,8 @@ impl WasmModulePackage {
                 signature_payload.to_json().to_string()
             );
             signature.verify()?;
+        } else if required_signature {
+            anyhow::bail!(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()));
         }
         Ok(())
     }
@@ -236,6 +241,12 @@ impl WasmModulePackage {
             .ok()
             .map(|file| SettingsSchema::from_reader(file.reader()?))
             .transpose()
+    }
+
+    /// Get share dir from package if present.
+    #[allow(dead_code)]
+    pub(crate) fn get_share(&self) -> Option<Dir> {
+        self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 
     /// Copy all content of the `WasmModulePackage` to the provided `package`.
@@ -558,7 +569,7 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
 
         // check metadata JSON file
         module_package_files.metadata.set_name(&manifest.name);
@@ -580,7 +591,8 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
+        assert!(package.validate(true).is_err());
 
         assert!(package.get_signature().expect("Package error").is_none());
 
@@ -598,13 +610,13 @@ pub(crate) mod tests {
         assert!(package.get_signature().expect("Package error").is_some());
 
         assert!(
-            package.validate().is_err(),
+            package.validate(false).is_err(),
             "Missing certificate in the storage."
         );
 
         certificate::storage::add_certificate(certificate)
             .expect("Failed to add certificate to the storage.");
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
 
         // corrupt payload with the modifying metadata.json file
         module_package_files.metadata.set_name("New name");
@@ -626,6 +638,9 @@ pub(crate) mod tests {
             )
             .expect("Failed to copy resource to the package.");
 
-        assert!(package.validate().is_err(), "Corrupted signature payload.");
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
     }
 }
