@@ -303,12 +303,12 @@ impl AppIpfsState {
 
 /// Checks for `DhtKey`, and `DhtValue` validity.
 fn is_valid_dht_content(_key: &DhtKey, value: &DhtValue) -> bool {
-    // TODO(@anyone): Implement DHT content validation
+    // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !value.is_empty()
 }
 
 /// Checks for `PubsubTopic`, and `MessageData` validity.
 fn is_valid_pubsub_content(_topic: &PubsubTopic, message: &MessageData) -> bool {
-    // TODO(@anyone): Implement PubSub content validation
+    // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !message.is_empty()
 }

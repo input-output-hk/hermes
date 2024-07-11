@@ -27,14 +27,12 @@ pub(crate) fn hermes_ipfs_content_validate(
 ) -> bool {
     match content {
         IpfsContent::Dht((k, v)) => {
-            // TODO(@saibatizoku): Implement types and validation
             let key_str = format!("{k:x?}");
             let is_valid = is_valid_dht_content(k, v);
             tracing::debug!(app_name = %app_name, dht_key = %key_str, is_valid = %is_valid, "DHT value validation");
             is_valid
         },
         IpfsContent::Pubsub((topic, message)) => {
-            // TODO(@saibatizoku): Implement types and validation
             let is_valid = is_valid_pubsub_content(topic, message);
             tracing::debug!(app_name = %app_name, topic = %topic, is_valid = %is_valid, "PubSub message validation");
             is_valid
