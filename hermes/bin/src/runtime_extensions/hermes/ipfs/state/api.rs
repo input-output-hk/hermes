@@ -110,10 +110,9 @@ pub(crate) fn hermes_ipfs_subscribe(
 pub(crate) fn hermes_ipfs_publish(
     _app_name: &HermesAppName, topic: &PubsubTopic, message: MessageData,
 ) -> Result<MessageId, Errno> {
-    let message_id = HERMES_IPFS_STATE
+    HERMES_IPFS_STATE
         .pubsub_publish(topic.to_string(), message)
-        .map(|m| m.0)?;
-    Ok(message_id.0)
+        .map(|m| m.0 .0)
 }
 
 /// Evict Peer from node
