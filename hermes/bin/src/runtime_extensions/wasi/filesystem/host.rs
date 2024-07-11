@@ -424,6 +424,6 @@ impl filesystem::preopens::Host for HermesRuntimeContext {
     fn get_directories(
         &mut self,
     ) -> wasmtime::Result<Vec<(wasmtime::component::Resource<Descriptor>, String)>> {
-        todo!()
+        Ok(Vec::new())
     }
 }

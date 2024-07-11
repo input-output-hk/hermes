@@ -113,4 +113,15 @@ impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
     fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
 }
 
+impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
+    fn reply(
+        _body: hermes::exports::hermes::http_gateway::event::Bstr,
+        _headers: hermes::exports::hermes::http_gateway::event::Headers,
+        _path: String,
+        _method: String,
+    ) -> Option<hermes::exports::hermes::http_gateway::event::HttpResponse> {
+        None
+    }
+}
+
 hermes::export!(TestComponent with_types_in hermes);

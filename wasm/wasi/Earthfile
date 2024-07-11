@@ -9,9 +9,9 @@ build:
     FROM wasi-hermes-component-adapter+builder
 
     # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs ../wasi/wit 
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs ../wasi/wit
 
-    # We do this because the single doc above seems broken.  Rather than automate this, 
+    # We do this because the single doc above seems broken.  Rather than automate this,
     # it would be better to fix whats wrong with doc generating a large file.
 
     RUN mkdir -p wasi-hermes-docs/wasi &&\
@@ -76,9 +76,19 @@ build:
 build-rust-bindings:
     FROM wasi-hermes-component-adapter+builder
 
-    RUN wit-bindgen rust ../wasi/wit
+    RUN wit-bindgen rust -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
+
+# build-go-bindings - Generate tinygo bindings
+build-go-bindings:
+    FROM wasi-hermes-component-adapter+builder
+
+    RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
+
+    SAVE ARTIFACT ../wasi/wit
+    SAVE ARTIFACT bindings
+
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:

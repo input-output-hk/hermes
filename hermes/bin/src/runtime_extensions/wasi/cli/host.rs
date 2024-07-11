@@ -33,20 +33,26 @@ impl cli::environment::Host for HermesRuntimeContext {
     }
 }
 
+impl cli::exit::Host for HermesRuntimeContext {
+    fn exit(&mut self, _status: Result<(), ()>) -> wasmtime::Result<()> {
+        Ok(())
+    }
+}
+
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
-        todo!()
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
 
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
-        todo!()
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
-        todo!()
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
