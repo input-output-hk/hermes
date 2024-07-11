@@ -5,7 +5,7 @@ use clap::Subcommand;
 mod package;
 mod sign;
 
-/// Hermes cli commands
+/// Hermes cli module commands
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// package wasm module
