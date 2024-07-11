@@ -4,10 +4,12 @@
 
 use std::str::FromStr;
 
+use derive_more::{Display, From, Into};
 /// IPFS Content Identifier.
 pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
+use libp2p::gossipsub::MessageId as PubsubMesssageId;
 /// libp2p re-export.
 pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
@@ -18,8 +20,6 @@ pub use rust_ipfs::path::IpfsPath;
 pub use rust_ipfs::DhtMode;
 /// Server, Client, or Auto mode
 pub use rust_ipfs::Ipfs;
-/// `PubSub` Message ID type.
-pub use rust_ipfs::MessageId;
 /// Multiaddr type.
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
@@ -29,6 +29,10 @@ pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
 pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
 use rust_ipfs::{dag::ResolveError, unixfs::AddOpt, PubsubEvent, Quorum};
+
+#[derive(Debug, Display, From, Into)]
+/// `PubSub` Message ID.
+pub struct MessageId(pub PubsubMesssageId);
 
 /// Hermes IPFS
 #[allow(dead_code)]
@@ -388,7 +392,10 @@ impl HermesIpfs {
     pub async fn pubsub_publish(
         &self, topic: impl Into<String>, message: Vec<u8>,
     ) -> anyhow::Result<MessageId> {
-        self.node.pubsub_publish(topic, message).await
+        self.node
+            .pubsub_publish(topic, message)
+            .await
+            .map(std::convert::Into::into)
     }
 
     /// Ban peer from node.
