@@ -18,7 +18,7 @@ use hermes::{
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
 
-const IPFS_DEMO_FILE: &[u8] = b"ipfs file uploaded from wasm";
+const IPFS_DEMO_FILE: &[u8] = b"ipfs file uploaded from wasm!";
 struct TestComponent;
 
 fn test_file_add_and_get_and_pin(run: bool) -> Option<TestResult> {
