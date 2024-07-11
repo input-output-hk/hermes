@@ -156,20 +156,20 @@ WASM module package signature payload according to the signing
 should follow this schema:
 
 <!-- markdownlint-disable max-one-sentence-per-line -->
-??? note "Schema: `hermes_module_cose_payload.schema.json`"
+??? note "Schema: `hermes_module_cose_author_payload.schema.json`"
 
     ```json
-    {{ include_file('includes/schemas/hermes_module_cose_payload.schema.json', indent=4) }}
+    {{ include_file('includes/schemas/hermes_module_cose_author_payload.schema.json', indent=4) }}
     ```
 <!-- markdownlint-enable max-one-sentence-per-line -->
 
 WASM module package signature payload example:
 
 <!-- markdownlint-disable max-one-sentence-per-line -->
-??? note "Example: `hermes_module_cose_payload.json`"
+??? note "Example: `hermes_module_cose_author_payload.json`"
 
     ```json
-    {{ include_file('includes/schemas/example/hermes_module_cose_payload.json', indent=4) }}
+    {{ include_file('includes/schemas/example/hermes_module_cose_author_payload.json', indent=4) }}
     ```
 <!-- markdownlint-enable max-one-sentence-per-line -->
 

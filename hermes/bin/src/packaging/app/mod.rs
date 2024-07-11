@@ -1,5 +1,6 @@
 //! Hermes application package.
 
+mod author_payload;
 pub(crate) mod manifest;
 
 use chrono::{DateTime, Utc};
