@@ -9,7 +9,7 @@ use derive_more::{Display, From, Into};
 pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
-use libp2p::gossipsub::MessageId as PubsubMesssageId;
+use libp2p::gossipsub::MessageId as PubsubMessageId;
 /// libp2p re-export.
 pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
@@ -32,7 +32,7 @@ use rust_ipfs::{dag::ResolveError, unixfs::AddOpt, PubsubEvent, Quorum};
 
 #[derive(Debug, Display, From, Into)]
 /// `PubSub` Message ID.
-pub struct MessageId(pub PubsubMesssageId);
+pub struct MessageId(pub PubsubMessageId);
 
 /// Hermes IPFS
 #[allow(dead_code)]
