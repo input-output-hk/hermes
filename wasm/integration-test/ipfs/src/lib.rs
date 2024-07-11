@@ -24,16 +24,10 @@ struct TestComponent;
 fn test_file_add_and_get_and_pin(run: bool) -> Option<TestResult> {
     let status = if run {
         if let Ok(ipfs_path) = ipfs_api::file_add(&IPFS_DEMO_FILE.to_vec()) {
-            let contents_match = if let Ok(ipfs_file) = ipfs_api::file_get(&ipfs_path) {
-                ipfs_file == IPFS_DEMO_FILE
-            } else {
-                false
-            };
-            let expected_status_is_true = if let Ok(status) = ipfs_api::file_pin(&ipfs_path) {
-                status
-            } else {
-                false
-            };
+            let contents_match = ipfs_api::file_get(&ipfs_path)
+                .map_or(false, |ipfs_file| ipfs_file == IPFS_DEMO_FILE);
+            let expected_status_is_true = ipfs_api::file_pin(&ipfs_path)
+                .map_or(false, |status| status);
             contents_match && expected_status_is_true
         } else {
             false
