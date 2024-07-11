@@ -42,7 +42,7 @@ hex.workspace = true
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-mimalloc.workspace = true
+mimalloc = {workspace = true, optional = true}
 
 [dev-dependencies]
 hex.workspace = true
@@ -53,6 +53,10 @@ clap.workspace = true
 # Note, these features are for support of features exposed by dependencies.
 [features]
 default = ["rustls-tls-native-roots"]
+
+# Enable the MiMalloc global allocator
+# Only used for examples.
+mimalloc = ["dep:mimalloc"]
 
 # These features are for support of dependent crates only.
 # They do not change the operation of the main crate.

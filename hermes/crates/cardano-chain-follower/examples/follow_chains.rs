@@ -3,7 +3,7 @@
 //! and also how long each chain took to reach its tip.
 
 // Allowing since this is example code.
-#![allow(clippy::unwrap_used)]
+//#![allow(clippy::unwrap_used)]
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
@@ -13,24 +13,29 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use std::{error::Error, time::Duration};
+use std::error::Error;
 
 use cardano_chain_follower::{
     ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Network, Statistics, ORIGIN_POINT, TIP_POINT,
 };
-use clap::{arg, ArgAction, Command};
-use tokio::time::{sleep, Instant};
-use tracing::{debug, error, info, level_filters::LevelFilter};
+use clap::{arg, ArgAction, ArgMatches, Command};
+use tokio::time::Instant;
+use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 /// Process our CLI Arguments
-fn process_argument() -> Vec<Network> {
+fn process_argument() -> (Vec<Network>, ArgMatches) {
     let matches = Command::new("follow_chains")
         .args(&[
             arg!(--preprod "Follow Preprod network").action(ArgAction::SetTrue),
             arg!(--preview "Follow Preview network").action(ArgAction::SetTrue),
             arg!(--mainnet "Follow Mainnet network").action(ArgAction::SetTrue),
             arg!(--all "Follow All networks").action(ArgAction::SetTrue),
+            arg!(--"stop-at-tip" "Stop when the tip of the blockchain is reached.")
+                .action(ArgAction::SetTrue),
+            arg!(--"all-live-blocks" "Show all live blocks.").action(ArgAction::SetTrue),
+            arg!(--"all-tip-blocks" "Show all blocks read from the Peer as TIP.")
+                .action(ArgAction::SetTrue),
         ])
         .get_matches();
 
@@ -45,7 +50,7 @@ fn process_argument() -> Vec<Network> {
         networks.push(Network::Mainnet);
     }
 
-    networks
+    (networks, matches)
 }
 
 /// Start syncing a particular network
@@ -61,20 +66,29 @@ async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// The interval between showing a block, even if nothing else changed.
+const RUNNING_UPDATE_INTERVAL: u64 = 100_000;
+
 /// Try and follow a chain continuously, from Genesis until Tip.
-#[allow(clippy::panic)]
-async fn follow_for(network: Network) {
+//#[allow(clippy::panic)]
+async fn follow_for(network: Network, matches: ArgMatches) {
     // loop {
     info!(chain = network.to_string(), "Following");
     let mut follower = ChainFollower::new(network, ORIGIN_POINT, TIP_POINT).await;
 
+    let all_tip_blocks = matches.get_flag("all-tip-blocks");
+    let all_live_blocks = matches.get_flag("all-live-blocks");
+    let stop_at_tip = matches.get_flag("stop-at-tip");
+
     let mut current_era = String::new();
     let mut last_update: Option<ChainUpdate> = None;
+    let mut last_update_shown = false;
     let mut prev_hash: Option<pallas_crypto::hash::Hash<32>> = None;
     let mut last_immutable: bool = false;
-    //let mut reached_tip = false; // After we reach TIP we show all block we process.
+    let mut reached_tip = false; // After we reach TIP we show all block we process.
     let mut updates: u64 = 0;
     let mut last_fork = 0;
+    let mut follow_all = false;
 
     let mut last_metrics_time = Instant::now();
 
@@ -82,18 +96,41 @@ async fn follow_for(network: Network) {
         updates += 1;
 
         if chain_update.tip {
-            //reached_tip = true;
-            break;
+            reached_tip = true;
         }
 
         let block = chain_update.block_data().decode();
         let this_era = block.era().to_string();
+
+        // When we transition between important points, show the last block as well.
+        if ((current_era != this_era)
+            || (chain_update.immutable() != last_immutable)
+            || (last_fork != chain_update.data.fork()))
+            && !last_update_shown
+        {
+            if let Some(last_update) = last_update.clone() {
+                info!(
+                    chain = network.to_string(),
+                    "Chain Update {}:{}",
+                    updates - 1,
+                    last_update
+                );
+            }
+        }
+
+        // If these become true, we will show all blocks from the follower.
+        follow_all = follow_all
+            || (!chain_update.immutable() && all_live_blocks)
+            || ((chain_update.data.fork() > 1) && all_tip_blocks);
+
+        // Don't know if this update will show or not, so say it didn't.
+        last_update_shown = false;
+
         if (current_era != this_era)
             || (chain_update.immutable() != last_immutable)
-            // || reached_tip
-            // || !chain_update.immutable()
-            // || chain_update.data.fork() > 1
-            || (updates % 100_000 == 0)
+            || reached_tip
+            || follow_all
+            || (updates % RUNNING_UPDATE_INTERVAL == 0)
             || (last_fork != chain_update.data.fork())
         {
             current_era = this_era;
@@ -103,6 +140,8 @@ async fn follow_for(network: Network) {
                 chain = network.to_string(),
                 "Chain Update {updates}:{}", chain_update
             );
+            // We already showed the last update, no need to show it again.
+            last_update_shown = true;
         }
 
         let this_prev_hash = block.header().previous_hash();
@@ -112,18 +151,24 @@ async fn follow_for(network: Network) {
         // This is just an example.
         if chain_update.kind == Kind::Block && last_update.is_some() && prev_hash != this_prev_hash
         {
-            debug!("last_update = {}", last_update.unwrap());
-            debug!("prev_hash = {:?}", prev_hash);
-            debug!("this_prev_hash = {:?}", this_prev_hash);
+            let display_last_update = if let Some(last_update) = last_update.clone() {
+                format!("{last_update}")
+            } else {
+                "This Can't Happen".to_string()
+            };
             error!(
                 chain = network.to_string(),
-                "Chain is broken: {}", chain_update
+                "Chain is broken: {chain_update} Does not follow: {display_last_update}",
             );
-            panic!("DEAD");
+            break;
         }
 
         prev_hash = Some(block.hash());
         last_update = Some(chain_update);
+
+        if reached_tip && stop_at_tip {
+            break;
+        }
 
         let check_time = Instant::now();
         if check_time.duration_since(last_metrics_time).as_secs() >= 60 {
@@ -131,14 +176,19 @@ async fn follow_for(network: Network) {
 
             let stats = Statistics::new(network);
 
-            // info!("Json Metrics:  {}", stats.as_json(false));
             info!("Json Metrics:  {}", stats.as_json(true));
         }
     }
 
-    if let Some(last_update) = last_update {
-        info!(chain = network.to_string(), "Last Update: {}", last_update);
+    if !last_update_shown {
+        if let Some(last_update) = last_update.clone() {
+            info!(chain = network.to_string(), "Last Update: {}", last_update);
+        }
     }
+
+    let stats = Statistics::new(network);
+    info!("Json Metrics:  {}", stats.as_json(true));
+
     info!(chain = network.to_string(), "Following Completed.");
 
     //}
@@ -154,17 +204,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .pretty()
         .with_env_filter(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::DEBUG.into())
+                .with_default_directive(LevelFilter::INFO.into())
                 .from_env_lossy(),
         )
         .init();
 
-    let networks = process_argument();
+    let (networks, matches) = process_argument();
     let parallelism = std::thread::available_parallelism()?;
     info!(
         Parallelism = parallelism,
         "Cardano Chain Followers Starting."
     );
+
+    #[cfg(feature = "mimalloc")]
+    info!("mimalloc global allocator: enabled");
 
     // First we need to actually start the underlying sync tasks for each blockchain.
     for network in &networks {
@@ -174,11 +227,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Make a follower for the network.
     let mut tasks = Vec::new();
     for network in &networks {
-        tasks.push(tokio::spawn(follow_for(*network)));
+        tasks.push(tokio::spawn(follow_for(*network, matches.clone())));
     }
 
-    // Wait forever (a really really long time anyway)
-    sleep(Duration::from_secs(u64::MAX)).await;
+    // Wait for all followers to finish.
+    for task in tasks {
+        task.await?;
+    }
+
+    // Keep running for 1 minute after last follower reaches its tip.
+    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 
     Ok(())
 }
