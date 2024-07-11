@@ -16,6 +16,11 @@ use crate::{
     packaging::{
         metadata::{Metadata, MetadataSchema},
         package::Package,
+        sign::{
+            certificate::Certificate,
+            keys::PrivateKey,
+            signature::{Signature, SignaturePayloadEncoding},
+        },
         wasm_module::{self, WasmModulePackage},
         FileError, MissingPackageFileError,
     },
@@ -30,6 +35,8 @@ impl MetadataSchema for ApplicationPackage {
 }
 
 impl ApplicationPackage {
+    /// Application package signature file path.
+    const AUTHOR_COSE_FILE: &'static str = "author.cose";
     /// Hermes application package file extension.
     const FILE_EXTENSION: &'static str = "happ";
     /// Hermes application package icon file path.
@@ -72,7 +79,7 @@ impl ApplicationPackage {
 
     /// Validate package with its signature and other contents.
     #[allow(dead_code)]
-    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+    pub(crate) fn validate(&self, required_signature: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -87,7 +94,77 @@ impl ApplicationPackage {
             Err(err) => errors.add_err(err),
         }
 
+        self.verify_author_sign(required_signature)
+            .unwrap_or_else(errors.get_add_err_fn());
+
         errors.return_result(())
+    }
+
+    /// Verify author package signature.
+    /// If `required_signature` is `true` returns `Err` if signature is missing.
+    fn verify_author_sign(&self, required_signature: bool) -> anyhow::Result<()> {
+        if let Some(signature) = self.get_author_signature()? {
+            let expected_payload = self.get_author_signature_payload()?;
+            let signature_payload = signature.payload();
+            anyhow::ensure!(
+                &expected_payload == signature_payload,
+                "Signature payload mismatch.\nExpected: {}\nGot: {}",
+                expected_payload.to_json().to_string(),
+                signature_payload.to_json().to_string()
+            );
+            signature.verify()?;
+        } else if required_signature {
+            anyhow::bail!(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Sign the package as an author and store signature inside it.
+    /// If signature already exists it will be extended with a new signature.
+    #[allow(dead_code)]
+    pub(crate) fn author_sign(
+        &self, private_key: &PrivateKey, certificate: &Certificate,
+    ) -> anyhow::Result<()> {
+        let mut signature = if let Some(existing_signature) = self.get_author_signature()? {
+            self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
+            existing_signature
+        } else {
+            let payload = self.get_author_signature_payload()?;
+            Signature::new(payload)
+        };
+
+        signature.add_sign(private_key, certificate)?;
+
+        let signature_bytes = signature.to_bytes()?;
+        let signature_resource =
+            BytesResource::new(Self::AUTHOR_COSE_FILE.to_string(), signature_bytes);
+
+        self.0
+            .copy_resource_file(&signature_resource, Self::AUTHOR_COSE_FILE.into())
+    }
+
+    /// Build and return `author_payload::SignaturePayload`.
+    fn get_author_signature_payload(&self) -> anyhow::Result<author_payload::SignaturePayload> {
+        let metadata_hash = self
+            .0
+            .calculate_file_hash(Self::METADATA_FILE.into())?
+            .ok_or(MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
+        let icon_hash = self
+            .0
+            .calculate_file_hash(Self::ICON_FILE.into())?
+            .ok_or(MissingPackageFileError(Self::ICON_FILE.to_string()))?;
+
+        let mut signature_payload_builder =
+            author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
+
+        if let Some(www_hash) = self.0.calculate_dir_hash(&Self::WWW_DIR.into())? {
+            signature_payload_builder.with_www(www_hash);
+        }
+        if let Some(share_hash) = self.0.calculate_dir_hash(&Self::SHARE_DIR.into())? {
+            signature_payload_builder.with_share(share_hash);
+        }
+
+        Ok(signature_payload_builder.build())
     }
 
     /// Get `Metadata` object from package.
@@ -96,6 +173,17 @@ impl ApplicationPackage {
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
             .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
+    }
+
+    /// Get author `Signature` object from package.
+    pub(crate) fn get_author_signature(
+        &self,
+    ) -> anyhow::Result<Option<Signature<author_payload::SignaturePayload>>> {
+        self.0
+            .get_file(Self::AUTHOR_COSE_FILE.into())
+            .ok()
+            .map(|file| Signature::<author_payload::SignaturePayload>::from_reader(file.reader()?))
+            .transpose()
     }
 
     /// Get `Vec<WasmModulePackage>` from package.
@@ -245,7 +333,13 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::hdf5::resources::{FsResource, ResourceBuilder};
+    use crate::{
+        hdf5::resources::{FsResource, ResourceBuilder},
+        packaging::sign::{
+            certificate::{self, tests::certificate_str},
+            keys::tests::private_key_str,
+        },
+    };
 
     struct ApplicationPackageFiles {
         metadata: Metadata<ApplicationPackage>,
@@ -364,7 +458,7 @@ mod tests {
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
 
         // check metadata JSON file
         app_package_files.metadata.set_name(&manifest.name);
@@ -410,5 +504,86 @@ mod tests {
 
             wasm_module::tests::check_module_integrity(module_files, module_package);
         }
+    }
+
+    #[test]
+    fn author_sing_test() {
+        let dir = TempDir::new().expect("Failed to create temp dir");
+
+        let modules_num = 4;
+        let mut app_package_files = prepare_default_package_files(modules_num);
+
+        // override module names for first 2 modules
+        let override_module_name = vec!["test module 1".into(), "test module 2".into()];
+        let build_date = DateTime::default();
+        let manifest = prepare_package_dir(
+            "app".to_string(),
+            &override_module_name,
+            build_date,
+            &dir,
+            &app_package_files,
+        );
+
+        let package =
+            ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
+                .expect("Cannot create module package");
+
+        assert!(package.validate(false).is_ok());
+        assert!(package.validate(true).is_err());
+
+        assert!(package
+            .get_author_signature()
+            .expect("Package error")
+            .is_none());
+
+        let private_key =
+            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
+        let certificate =
+            Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
+        package
+            .author_sign(&private_key, &certificate)
+            .expect("Cannot sign package");
+        package
+            .author_sign(&private_key, &certificate)
+            .expect("Cannot sign package twice with the same private key");
+
+        assert!(package
+            .get_author_signature()
+            .expect("Package error")
+            .is_some());
+
+        assert!(
+            package.validate(false).is_err(),
+            "Missing certificate in the storage."
+        );
+
+        certificate::storage::add_certificate(certificate)
+            .expect("Failed to add certificate to the storage.");
+        assert!(package.validate(false).is_ok());
+
+        // corrupt payload with the modifying metadata.json file
+        app_package_files.metadata.set_name("New name");
+        package
+            .0
+            .remove_file(ApplicationPackage::METADATA_FILE.into())
+            .expect("Failed to remove file");
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ApplicationPackage::METADATA_FILE.to_string(),
+                    app_package_files
+                        .metadata
+                        .to_bytes()
+                        .expect("Failed to decode metadata."),
+                ),
+                ApplicationPackage::METADATA_FILE.into(),
+            )
+            .expect("Failed to copy resource to the package.");
+
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
     }
 }

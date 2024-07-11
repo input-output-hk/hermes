@@ -105,7 +105,7 @@ impl WasmModulePackage {
         errors.return_result(())
     }
 
-    /// Verify package.
+    /// Verify package signature.
     /// If `required_signature` is `true` returns `Err` if signature is missing.
     fn verify_sign(&self, required_signature: bool) -> anyhow::Result<()> {
         if let Some(signature) = self.get_signature()? {
@@ -133,8 +133,8 @@ impl WasmModulePackage {
             self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
             existing_signature
         } else {
-            let signature_payload = self.get_signature_payload()?;
-            Signature::new(signature_payload)
+            let payload = self.get_signature_payload()?;
+            Signature::new(payload)
         };
 
         signature.add_sign(private_key, certificate)?;
@@ -605,7 +605,7 @@ pub(crate) mod tests {
             .expect("Cannot sign package");
         package
             .sign(&private_key, &certificate)
-            .expect("Cannot sign package twice");
+            .expect("Cannot sign package twice with the same private key");
 
         assert!(package.get_signature().expect("Package error").is_some());
 
