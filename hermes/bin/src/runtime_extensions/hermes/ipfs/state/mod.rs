@@ -9,7 +9,7 @@ pub(crate) use api::{
     hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
 };
-use dashmap::{DashMap, DashSet};
+use dashmap::DashMap;
 use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId};
 use once_cell::sync::Lazy;
 use task::{ipfs_task, IpfsCommand};
@@ -211,17 +211,17 @@ struct AppIpfsState {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// List of uploaded files per app.
-    published_files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+    published_files: DashMap<HermesAppName, HashSet<IpfsPath>>,
     /// List of pinned files per app.
-    pinned_files: DashMap<HermesAppName, DashSet<IpfsPath>>,
+    pinned_files: DashMap<HermesAppName, HashSet<IpfsPath>>,
     /// List of DHT values per app.
-    dht_keys: DashMap<HermesAppName, DashSet<DhtKey>>,
+    dht_keys: DashMap<HermesAppName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
     topic_subscriptions: DashMap<PubsubTopic, HashSet<HermesAppName>>,
     /// Collection of stream join handles per topic subscription.
     subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
-    evicted_peers: DashMap<HermesAppName, DashSet<PeerId>>,
+    evicted_peers: DashMap<HermesAppName, HashSet<PeerId>>,
 }
 
 impl AppIpfsState {
