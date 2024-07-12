@@ -32,7 +32,7 @@ impl SignCommand {
         let cert = Certificate::from_file(self.cert)?;
         let package = WasmModulePackage::from_file(self.package)?;
 
-        package.validate(false)?;
+        package.validate(true)?;
         package.sign(&private_key, &cert)?;
 
         println!("{} Done", Emoji::new("✅", ""));

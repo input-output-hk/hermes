@@ -1,5 +1,6 @@
 //! Hermes application package.
 
+#[allow(dead_code)]
 mod author_payload;
 pub(crate) mod manifest;
 
@@ -70,15 +71,14 @@ impl ApplicationPackage {
     }
 
     /// Open an existing application package.
-    #[allow(dead_code)]
     pub(crate) fn from_file<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
         let package = Package::open(path)?;
         Ok(Self(package))
     }
 
     /// Validate package with its signature and other contents.
-    #[allow(dead_code)]
-    pub(crate) fn validate(&self, required_signature: bool) -> anyhow::Result<()> {
+    /// If `untrasted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrasted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -93,15 +93,16 @@ impl ApplicationPackage {
             Err(err) => errors.add_err(err),
         }
 
-        self.verify_author_sign(required_signature)
-            .unwrap_or_else(errors.get_add_err_fn());
+        if !untrasted {
+            self.verify_author_sign()
+                .unwrap_or_else(errors.get_add_err_fn());
+        }
 
         errors.return_result(())
     }
 
     /// Verify author package signature.
-    /// If `required_signature` is `true` returns `Err` if signature is missing.
-    fn verify_author_sign(&self, required_signature: bool) -> anyhow::Result<()> {
+    fn verify_author_sign(&self) -> anyhow::Result<()> {
         if let Some(signature) = self.get_author_signature()? {
             let expected_payload = self.get_author_signature_payload()?;
             let signature_payload = signature.payload();
@@ -112,15 +113,14 @@ impl ApplicationPackage {
                 signature_payload.to_json().to_string()
             );
             signature.verify()?;
-        } else if required_signature {
-            anyhow::bail!(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()));
+            Ok(())
+        } else {
+            Err(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()).into())
         }
-        Ok(())
     }
 
     /// Sign the package as an author and store signature inside it.
     /// If signature already exists it will be extended with a new signature.
-    #[allow(dead_code)]
     pub(crate) fn author_sign(
         &self, private_key: &PrivateKey, certificate: &Certificate,
     ) -> anyhow::Result<()> {
@@ -186,7 +186,6 @@ impl ApplicationPackage {
     }
 
     /// Get `Vec<WasmModulePackage>` from package.
-    #[allow(dead_code)]
     pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<WasmModulePackage>> {
         Ok(self
             .0
@@ -198,13 +197,11 @@ impl ApplicationPackage {
     }
 
     /// Get www dir from package if present.
-    #[allow(dead_code)]
     pub(crate) fn get_www(&self) -> Option<Dir> {
         self.0.get_dir(&Self::WWW_DIR.into()).ok()
     }
 
     /// Get share dir from package if present.
-    #[allow(dead_code)]
     pub(crate) fn get_share(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
@@ -273,7 +270,7 @@ fn validate_and_write_module(
     manifest: &ManifestModule, package: &Package, path: Path,
 ) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
-    module_package.validate(false)?;
+    module_package.validate(true)?;
 
     let module_original_name = module_package.get_metadata()?.get_name()?;
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
@@ -457,7 +454,7 @@ mod tests {
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
                 .expect("Cannot create module package");
 
-        assert!(package.validate(false).is_ok());
+        assert!(package.validate(true).is_ok());
 
         // check metadata JSON file
         app_package_files.metadata.set_name(&manifest.name);
@@ -490,7 +487,7 @@ mod tests {
                 .get_mut(i)
                 .expect("Empty module file");
 
-            module_package.validate(false).expect("Invalid WASM module");
+            module_package.validate(true).expect("Invalid WASM module");
             let module_name = module_package
                 .get_metadata()
                 .expect("Cannot get metadata from module package")
@@ -527,9 +524,8 @@ mod tests {
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
                 .expect("Cannot create module package");
 
-        assert!(package.validate(false).is_ok());
-        assert!(package.validate(true).is_err());
-
+        assert!(package.validate(true).is_ok());
+        assert!(package.validate(false).is_err());
         assert!(package
             .get_author_signature()
             .expect("Package error")

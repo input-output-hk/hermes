@@ -86,8 +86,8 @@ impl WasmModulePackage {
     }
 
     /// Validate package with its signature and other contents.
-    /// If `required_signature` is `true` returns `Err` if signature is missing.
-    pub(crate) fn validate(&self, required_signature: bool) -> anyhow::Result<()> {
+    /// If `untrasted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrasted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -99,15 +99,15 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        self.verify_sign(required_signature)
-            .unwrap_or_else(errors.get_add_err_fn());
+        if !untrasted {
+            self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        }
 
         errors.return_result(())
     }
 
     /// Verify package signature.
-    /// If `required_signature` is `true` returns `Err` if signature is missing.
-    fn verify_sign(&self, required_signature: bool) -> anyhow::Result<()> {
+    fn verify_sign(&self) -> anyhow::Result<()> {
         if let Some(signature) = self.get_signature()? {
             let expected_payload = self.get_signature_payload()?;
             let signature_payload = signature.payload();
@@ -118,10 +118,10 @@ impl WasmModulePackage {
                 signature_payload.to_json().to_string()
             );
             signature.verify()?;
-        } else if required_signature {
-            anyhow::bail!(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()));
+            Ok(())
+        } else {
+            Err(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()).into())
         }
-        Ok(())
     }
 
     /// Sign the package and store signature inside it.
@@ -569,7 +569,7 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate(false).is_ok());
+        assert!(package.validate(true).is_ok());
 
         // check metadata JSON file
         module_package_files.metadata.set_name(&manifest.name);
@@ -591,9 +591,8 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate(false).is_ok());
-        assert!(package.validate(true).is_err());
-
+        assert!(package.validate(true).is_ok());
+        assert!(package.validate(false).is_err());
         assert!(package.get_signature().expect("Package error").is_none());
 
         let private_key =
