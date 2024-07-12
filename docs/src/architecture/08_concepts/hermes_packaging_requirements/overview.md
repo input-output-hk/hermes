@@ -51,6 +51,7 @@ Data is divided between them to make merging those views easy and consistent.
 | `/lib/<module-name>/author.cose` | :octicons-file-badge-16: | Modules Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/var/` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/metadata.json` | :octicons-file-16: | Applications Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/icon.svg` | :octicons-file-16: | Application Icon | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/author.cose` | :octicons-file-badge-16: | Application Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/publisher.cose` | :octicons-file-badge-16: | Application Publisher Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 
