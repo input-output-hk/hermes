@@ -17,7 +17,7 @@ gen-bindings:
 build:
     DO rust-ci+SETUP
 
-    COPY --dir src .
+    COPY --keep-ts --dir src .
     COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
@@ -25,8 +25,10 @@ build:
         --args "build --target wasm32-unknown-unknown --release" \
         --output="wasm32-unknown-unknown/release/ipfs_test_component.wasm"
 
+
     COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
 
     RUN wasm-tools component new -o ipfs.wasm target/wasm32-unknown-unknown/release/ipfs_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+    RUN sha256sum ipfs.wasm
 
     SAVE ARTIFACT ipfs.wasm
