@@ -571,7 +571,8 @@ pub(crate) mod tests {
 
         assert!(package.validate(true).is_ok());
 
-        // check metadata JSON file
+        // WASM module package during the build process updates metadata file
+        // to have a corresponded values update `module_package_files`.
         module_package_files.metadata.set_name(&manifest.name);
         module_package_files.metadata.set_build_date(build_time);
 
