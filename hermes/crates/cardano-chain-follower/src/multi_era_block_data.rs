@@ -391,22 +391,9 @@ mod tests {
         Ok(())
     }
 
+    /// Previous Point slot is < blocks point, and hash is also correct. (should pass).
     #[test]
-    fn test_multi_era_block_with_origin_point() {
-        for test_block in test_blocks() {
-            let block = MultiEraBlock::new(
-                Network::Preprod,
-                test_block.raw.clone(),
-                &test_block.previous,
-                1,
-            );
-
-            assert!(block.is_err())
-        }
-    }
-
-    #[test]
-    fn test_multi_era_block_point_compare_previous_point() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_3() -> anyhow::Result<(), anyhow::Error> {
         for test_block in test_blocks() {
             let pallas_block =
                 pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
@@ -427,6 +414,20 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_multi_era_block_with_origin_point() {
+        for test_block in test_blocks() {
+            let block = MultiEraBlock::new(
+                Network::Preprod,
+                test_block.raw.clone(),
+                &test_block.previous,
+                1,
+            );
+
+            assert!(block.is_err())
+        }
     }
 
     #[test]
