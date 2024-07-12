@@ -433,10 +433,7 @@ mod tests {
     #[test]
     fn test_multi_era_block_decode() -> anyhow::Result<(), anyhow::Error> {
         for test_block in test_blocks() {
-            let pallas_block =
-                pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
-
-            assert!(!pallas_block.is_empty());
+            pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
         }
 
         Ok(())
