@@ -350,7 +350,7 @@ mod tests {
 
             let previous_point = Point::new(
                 pallas_block.slot().add(i as u64),
-                pallas_block.header().previous_hash().unwrap().to_vec()
+                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
             );
 
             let block = MultiEraBlock::new(
@@ -400,7 +400,7 @@ mod tests {
 
             let previous_point = Point::new(
                 pallas_block.slot() - 1,
-                pallas_block.header().previous_hash().unwrap().to_vec()
+                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
             );
 
             let block = MultiEraBlock::new(
@@ -426,7 +426,7 @@ mod tests {
                 1,
             );
 
-            assert!(block.is_err())
+            assert!(block.is_err());
         }
     }
 
