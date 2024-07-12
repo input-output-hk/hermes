@@ -106,7 +106,7 @@ impl MultiEraBlock {
                 ));
             }
         } else {
-            if *previous > slot {
+            if *previous >= slot {
                 return Err(Error::Codec(
                     "Previous slot is not less than current slot".to_string(),
                 ));
