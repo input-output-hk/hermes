@@ -106,7 +106,7 @@ impl MultiEraBlock {
                 ));
             }
         } else {
-            if *previous > slot {
+            if *previous >= slot {
                 return Err(Error::Codec(
                     "Previous slot is not less than current slot".to_string(),
                 ));
@@ -275,6 +275,10 @@ impl PartialOrd<Point> for MultiEraBlock {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Add;
+
+    use anyhow::Ok;
+
     use crate::{point::ORIGIN_POINT, MultiEraBlock, Network, Point};
 
     struct TestRecord {
@@ -337,23 +341,102 @@ mod tests {
         ]
     }
 
+    /// Previous Point slot is >= blocks point, but hash is correct (should fail)
     #[test]
-    fn multi_era_block_test() {
-        for test_block in test_blocks() {
-            let block_bytes = hex::decode(test_block.raw).expect("Failed to decode hex block.");
+    fn test_multi_era_block_point_compare_1() -> anyhow::Result<(), anyhow::Error> {
+        for (i, test_block) in test_blocks().into_iter().enumerate() {
+            let pallas_block =
+                pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
+
+            let previous_point = Point::new(
+                pallas_block.slot().add(i as u64),
+                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
+            );
+
             let block = MultiEraBlock::new(
                 Network::Preprod,
-                block_bytes.clone(),
-                &test_block.previous,
+                test_block.raw.clone(),
+                &previous_point,
                 1,
-            )
-            .expect("Failed to decode block.");
+            );
+
+            assert!(block.is_err());
+        }
+        
+        Ok(())
+    }
+
+    /// Previous Point slot is < blocks point, but hash is different. (should fail).
+    #[test]
+    fn test_multi_era_block_point_compare_2() -> anyhow::Result<(), anyhow::Error> {
+        for test_block in test_blocks() {
             let pallas_block =
-                pallas::ledger::traverse::MultiEraBlock::decode(block_bytes.as_slice())
-                    .expect("Failed to decode pallas block.");
+                pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
+
+            let previous_point = Point::new(
+                pallas_block.slot() - 1,
+                vec![0; 32]
+            );
+
+            let block = MultiEraBlock::new(
+                Network::Preprod,
+                test_block.raw.clone(),
+                &previous_point,
+                1,
+            );
+
+            assert!(block.is_err());
+        }
+        
+        Ok(())
+    }
+
+    /// Previous Point slot is < blocks point, and hash is also correct. (should pass).
+    #[test]
+    fn test_multi_era_block_point_compare_3() -> anyhow::Result<(), anyhow::Error> {
+        for test_block in test_blocks() {
+            let pallas_block =
+                pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
+
+            let previous_point = Point::new(
+                pallas_block.slot() - 1,
+                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
+            );
+
+            let block = MultiEraBlock::new(
+                Network::Preprod,
+                test_block.raw.clone(),
+                &previous_point,
+                1,
+            )?;
 
             assert_eq!(block.decode().hash(), pallas_block.hash());
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_multi_era_block_with_origin_point() {
+        for test_block in test_blocks() {
+            let block = MultiEraBlock::new(
+                Network::Preprod,
+                test_block.raw.clone(),
+                &test_block.previous,
+                1,
+            );
+
+            assert!(block.is_err());
+        }
+    }
+
+    #[test]
+    fn test_multi_era_block_decode() -> anyhow::Result<(), anyhow::Error> {
+        for test_block in test_blocks() {
+            pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
+        }
+
+        Ok(())
     }
 
     // #[test]
