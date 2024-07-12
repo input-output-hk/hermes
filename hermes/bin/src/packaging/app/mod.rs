@@ -269,7 +269,7 @@ fn validate_and_write_metadata(
 fn validate_and_write_module(
     manifest: &ManifestModule, package: &Package, path: Path,
 ) -> anyhow::Result<()> {
-    let module_package = WasmModulePackage::from_file(manifest.file.upload_to_fs())?;
+    let module_package = WasmModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
 
     let module_original_name = module_package.get_metadata()?.get_name()?;
@@ -416,7 +416,7 @@ mod tests {
 
             modules.push(ManifestModule {
                 name: Some(module_name),
-                file: ResourceBuilder::Fs(FsResource::new(module_package_path)),
+                package: ResourceBuilder::Fs(FsResource::new(module_package_path)),
                 config: None,
                 share: None,
             });
@@ -482,12 +482,13 @@ mod tests {
 
         for i in 0..app_package_files.modules.len() {
             let module_package = modules.get(i).expect("Empty module package");
+            module_package.validate(true).expect("Invalid WASM module");
+
             let module_files = app_package_files
                 .modules
                 .get_mut(i)
                 .expect("Empty module file");
 
-            module_package.validate(true).expect("Invalid WASM module");
             let module_name = module_package
                 .get_metadata()
                 .expect("Cannot get metadata from module package")
