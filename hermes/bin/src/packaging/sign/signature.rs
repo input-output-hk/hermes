@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(signature.cose_signatures.len(), 1);
         signature
             .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature twice.");
+            .expect("Failed to add signature twice with the same private key.");
         assert_eq!(signature.cose_signatures.len(), 1);
 
         let another_private_key = PrivateKey::from_str(&format!(
