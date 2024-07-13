@@ -59,9 +59,9 @@ impl SignaturePayloadBuilder {
         }
     }
 
-    /// Set the modules list.
-    pub(crate) fn with_modules(&mut self, modules: Vec<SignaturePayloadModule>) {
-        self.modules = modules;
+    /// Add a new `SignaturePayloadModule` into the list.
+    pub(crate) fn with_module(&mut self, module: SignaturePayloadModule) {
+        self.modules.push(module);
     }
 
     /// Set the www directory hash.
@@ -290,7 +290,7 @@ mod tests {
             let mut payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
             payload_builder.with_www(hash.clone());
             payload_builder.with_share(hash.clone());
-            payload_builder.with_modules(vec![payload_module_builder.build()]);
+            payload_builder.with_module(payload_module_builder.build());
             let payload = payload_builder.build();
 
             let json = payload.to_json();
@@ -323,7 +323,7 @@ mod tests {
             let mut payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
             payload_builder.with_www(hash.clone());
             payload_builder.with_share(hash.clone());
-            payload_builder.with_modules(vec![payload_module_builder.build()]);
+            payload_builder.with_module(payload_module_builder.build());
             let payload = payload_builder.build();
 
             let json = payload.to_json();

@@ -7,6 +7,7 @@ pub(crate) mod manifest;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
+use super::hash::Blake2b256;
 use crate::{
     errors::Errors,
     hdf5::{
@@ -155,6 +156,34 @@ impl ApplicationPackage {
 
         let mut signature_payload_builder =
             author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
+
+        let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::MODULES_DIR.into()]);
+        for (module_name, module_package) in self.get_modules()? {
+            let module_sign = module_package.get_signature()?.ok_or(anyhow::anyhow!(
+                "Module {module_name} not signed, missing author.cose signature"
+            ))?;
+            let module_sign_hash = Blake2b256::hash(module_sign.to_bytes()?.as_slice());
+
+            let mut signature_payload_module_builder =
+                author_payload::SignaturePayloadModuleBuilder::new(
+                    module_name.clone(),
+                    module_sign_hash,
+                );
+
+            let mut usr_module_config_path = usr_module_path.clone();
+            usr_module_config_path.push_elem(WasmModulePackage::CONFIG_FILE.into());
+            if let Some(config_hash) = self.0.calculate_file_hash(usr_module_config_path)? {
+                signature_payload_module_builder.with_config(config_hash);
+            }
+
+            let mut usr_module_share_path = usr_module_path.clone();
+            usr_module_share_path.push_elem(WasmModulePackage::SHARE_DIR.into());
+            if let Some(share_hash) = self.0.calculate_dir_hash(&usr_module_share_path)? {
+                signature_payload_module_builder.with_share(share_hash);
+            }
+
+            signature_payload_builder.with_module(signature_payload_module_builder.build());
+        }
 
         if let Some(www_hash) = self.0.calculate_dir_hash(&Self::WWW_DIR.into())? {
             signature_payload_builder.with_www(www_hash);
@@ -547,6 +576,14 @@ mod tests {
             PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
         let certificate =
             Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
+
+        // sign wasm modules packages first
+        for (_, module_package) in package.get_modules().expect("Failed to get modules") {
+            module_package
+                .sign(&private_key, &certificate)
+                .expect("Cannot sign module package");
+        }
+
         package
             .author_sign(&private_key, &certificate)
             .expect("Cannot sign package");
