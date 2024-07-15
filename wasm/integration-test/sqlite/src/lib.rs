@@ -89,6 +89,17 @@ impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
     }
 }
 
+impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
+    fn reply(
+        _body: hermes::exports::hermes::http_gateway::event::Bstr,
+        _headers: hermes::exports::hermes::http_gateway::event::Headers,
+        _path: String,
+        _method: String,
+    ) -> Option<hermes::exports::hermes::http_gateway::event::HttpResponse> {
+        None
+    }
+}
+
 impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
     fn kv_update(_key: String, _value: KvValues) {}
 }
