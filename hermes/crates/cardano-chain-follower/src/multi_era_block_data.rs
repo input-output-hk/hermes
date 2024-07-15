@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn test_multi_era_block_point_compare_4() -> anyhow::Result<(), anyhow::Error> {
         // Get sorted by slot number from highest to lowest
-        let test_sorted_blocks = vec![
+        let test_sorted_blocks = [
             mary_block(),
             allegra_block(),
             alonzo_block(),
@@ -429,8 +429,8 @@ mod tests {
         ];
 
         for test_block in test_sorted_blocks.windows(2) {
-            let block_lhs = &test_block[0];
-            let block_rhs = &test_block[1];
+            let block_lhs = test_block.first().expect("cannot get block");
+            let block_rhs = test_block.last().expect("cannot get block");
 
             let prev_point_lhs =
                 pallas::ledger::traverse::MultiEraBlock::decode(block_lhs.as_slice()).map(|block| {
@@ -460,7 +460,7 @@ mod tests {
                 1,
             )?;
 
-            assert!(block_lhs >= block_rhs)
+            assert!(block_lhs >= block_rhs);
         }
         
         Ok(())
