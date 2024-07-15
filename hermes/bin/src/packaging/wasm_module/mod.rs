@@ -15,7 +15,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
-        Path,
+        Dir, Path,
     },
     packaging::{
         metadata::{Metadata, MetadataSchema},
@@ -86,7 +86,8 @@ impl WasmModulePackage {
     }
 
     /// Validate package with its signature and other contents.
-    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+    /// If `untrusted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -98,12 +99,14 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        if !untrusted {
+            self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        }
 
         errors.return_result(())
     }
 
-    /// Verify package signature if it exists.
+    /// Verify package signature.
     fn verify_sign(&self) -> anyhow::Result<()> {
         if let Some(signature) = self.get_signature()? {
             let expected_payload = self.get_signature_payload()?;
@@ -115,8 +118,10 @@ impl WasmModulePackage {
                 signature_payload.to_json().to_string()
             );
             signature.verify()?;
+            Ok(())
+        } else {
+            Err(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()).into())
         }
-        Ok(())
     }
 
     /// Sign the package and store signature inside it.
@@ -128,8 +133,8 @@ impl WasmModulePackage {
             self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
             existing_signature
         } else {
-            let signature_payload = self.get_signature_payload()?;
-            Signature::new(signature_payload)
+            let payload = self.get_signature_payload()?;
+            Signature::new(payload)
         };
 
         signature.add_sign(private_key, certificate)?;
@@ -236,6 +241,12 @@ impl WasmModulePackage {
             .ok()
             .map(|file| SettingsSchema::from_reader(file.reader()?))
             .transpose()
+    }
+
+    /// Get share dir from package if present.
+    #[allow(dead_code)]
+    pub(crate) fn get_share(&self) -> Option<Dir> {
+        self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 
     /// Copy all content of the `WasmModulePackage` to the provided `package`.
@@ -558,9 +569,10 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
+        assert!(package.validate(true).is_ok());
 
-        // check metadata JSON file
+        // WASM module package during the build process updates metadata file
+        // to have a corresponded values update `module_package_files`.
         module_package_files.metadata.set_name(&manifest.name);
         module_package_files.metadata.set_build_date(build_time);
 
@@ -580,8 +592,8 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
-
+        assert!(package.validate(true).is_ok());
+        assert!(package.validate(false).is_err());
         assert!(package.get_signature().expect("Package error").is_none());
 
         let private_key =
@@ -593,18 +605,18 @@ pub(crate) mod tests {
             .expect("Cannot sign package");
         package
             .sign(&private_key, &certificate)
-            .expect("Cannot sign package twice");
+            .expect("Cannot sign package twice with the same private key");
 
         assert!(package.get_signature().expect("Package error").is_some());
 
         assert!(
-            package.validate().is_err(),
+            package.validate(false).is_err(),
             "Missing certificate in the storage."
         );
 
         certificate::storage::add_certificate(certificate)
             .expect("Failed to add certificate to the storage.");
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
 
         // corrupt payload with the modifying metadata.json file
         module_package_files.metadata.set_name("New name");
@@ -626,6 +638,9 @@ pub(crate) mod tests {
             )
             .expect("Failed to copy resource to the package.");
 
-        assert!(package.validate().is_err(), "Corrupted signature payload.");
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
     }
 }
