@@ -86,8 +86,8 @@ impl WasmModulePackage {
     }
 
     /// Validate package with its signature and other contents.
-    /// If `untrasted` flag is `true` the signature will not be verified.
-    pub(crate) fn validate(&self, untrasted: bool) -> anyhow::Result<()> {
+    /// If `untrusted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -99,7 +99,7 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        if !untrasted {
+        if !untrusted {
             self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
         }
 
