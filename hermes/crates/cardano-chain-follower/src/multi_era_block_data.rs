@@ -419,7 +419,7 @@ mod tests {
     /// Compares between blocks using `>=`
     #[test]
     fn test_multi_era_block_point_compare_4() -> anyhow::Result<(), anyhow::Error> {
-        // Get sorted by slot number from highest to lowest
+        // sorted by slot number from highest to lowest
         let test_sorted_blocks = [
             mary_block(),
             allegra_block(),
