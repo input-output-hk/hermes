@@ -74,6 +74,7 @@ genhtml
 GETFL
 getres
 gmtime
+gossipsub
 happ
 hardano
 hardlink

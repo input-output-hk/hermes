@@ -2,8 +2,8 @@
 
 pub(crate) mod app;
 pub(crate) mod hash;
+pub(crate) mod metadata;
 pub(crate) mod package;
-mod resources;
 mod schema_validation;
 pub(crate) mod sign;
 pub(crate) mod wasm_module;
@@ -43,3 +43,8 @@ impl Display for FileError {
         writeln!(f, "{msg}{err}",)
     }
 }
+
+/// Missing package file error.
+#[derive(thiserror::Error, Debug)]
+#[error("Missing package file {0}.")]
+pub(crate) struct MissingPackageFileError(String);

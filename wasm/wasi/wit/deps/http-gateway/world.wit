@@ -1,0 +1,5 @@
+package hermes:http-gateway;
+
+world all {
+    export event;
+}

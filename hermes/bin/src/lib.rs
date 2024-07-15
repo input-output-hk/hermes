@@ -1,11 +1,13 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
+#![type_length_limit = "45079293105"]
 
 pub mod app;
 #[allow(dead_code)]
 pub mod cli;
 pub mod errors;
 pub mod event;
+pub mod hdf5;
 pub mod logger;
 pub mod packaging;
 pub mod reactor;

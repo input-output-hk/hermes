@@ -33,6 +33,11 @@ bool exports_hermes_init_event_init(void)
     return false;
 }
 
+// Exported Functions from `hermes:ipfs/event`
+bool exports_hermes_ipfs_event_on_topic(exports_hermes_ipfs_event_pubsub_message_t *message) {
+  return false;
+}
+
 // Exported Functions from `hermes:kv-store/event`
 void exports_hermes_kv_store_event_kv_update(hermes_string_t *key, exports_hermes_kv_store_event_kv_values_t *value)
 {
@@ -79,3 +84,7 @@ bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, export
 {
     return false;
 }
+
+bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_response_t *ret){
+  return false;
+};

@@ -1,214 +1,120 @@
 //! Implementation of the generalized Hermes package struct as a HDF5 package.
 
-mod compression;
+use std::{collections::BTreeMap, io::Read, ops::Deref};
 
-use std::{collections::BTreeSet, io::Read, path::Path};
-
-use self::compression::enable_compression;
 use crate::{
-    errors::Errors,
-    packaging::{
-        hash::{Blake2b256, Blake2b256Hasher},
-        resources::ResourceTrait,
-    },
+    hdf5::{Dir, File, Path},
+    packaging::hash::{Blake2b256, Blake2b256Hasher},
 };
 
 /// Hermes package object.
 /// Wrapper over HDF5 file object.
-#[allow(dead_code)]
-pub(crate) struct Package(hdf5::File);
+pub(crate) struct Package(Dir);
 
-#[allow(dead_code)]
+impl Deref for Package {
+    type Target = Dir;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Package {
+    /// Create a new `Package` instance mounting a `dir` as a root for this package.
+    pub(crate) fn mount(dir: Dir) -> Self {
+        Self(dir)
+    }
+
     /// Create new `Package` instance from path.
-    pub(crate) fn create<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let package = hdf5::File::create(&path).map_err(|_| {
+    pub(crate) fn create<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
+        let hdf5_file = hdf5::File::create(&path).map_err(|_| {
             anyhow::anyhow!(
                 "Failed to create package. Package at {0} could be already exists.",
                 path.as_ref().display()
             )
         })?;
-        Ok(Self(package))
+        Ok(Self(Dir::new(hdf5_file.as_group()?)))
     }
 
     /// Open existing `Package` instance from path.
-    pub(crate) fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let package = hdf5::File::open_rw(&path).map_err(|_| {
+    pub(crate) fn open<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
+        let hdf5_file = hdf5::File::open_rw(&path).map_err(|_| {
             anyhow::anyhow!(
                 "Failed to open package. Package at {0} could not be found.",
                 path.as_ref().display()
             )
         })?;
-        Ok(Self(package))
-    }
-
-    /// Copy file to `Package`
-    pub(crate) fn copy_file(&self, file: &impl ResourceTrait, name: &str) -> anyhow::Result<()> {
-        copy_file_to_package(file, name, &self.0)
-    }
-
-    /// Copy dir to `Package` recursively.
-    pub(crate) fn copy_dir_recursively(
-        &self, dir: &impl ResourceTrait, name: &str,
-    ) -> anyhow::Result<()> {
-        copy_dir_recursively_to_package(dir, name, &self.0)
-    }
-
-    /// Remove file from `Package`.
-    pub(crate) fn remove_file(&self, name: &str) -> anyhow::Result<()> {
-        if self.0.dataset(name).is_ok() {
-            self.0
-                .unlink(name)
-                .map_err(|_| anyhow::anyhow!("Failed to remove file '{name}' from package"))?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("File '{name}' not found"))
-        }
-    }
-
-    /// Remove directory from `Package`.
-    #[allow(dead_code)]
-    pub(crate) fn remove_dir(&self, name: &str) -> anyhow::Result<()> {
-        if self.0.group(name).is_ok() {
-            self.0
-                .unlink(name)
-                .map_err(|_| anyhow::anyhow!("Failed to remove directory '{name}' from package"))?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Directory '{name}' not found"))
-        }
-    }
-
-    /// Get package file reader if present.
-    /// Return error if not possible get a byte reader.
-    pub(crate) fn get_file_reader(&self, name: &str) -> anyhow::Result<Option<impl Read>> {
-        get_package_file_reader(name, &self.0)
+        Ok(Self(Dir::new(hdf5_file.as_group()?)))
     }
 
     /// Calculates file hash, if present
-    pub(crate) fn get_file_hash(&self, name: &str) -> anyhow::Result<Option<Blake2b256>> {
+    pub(crate) fn calculate_file_hash(&self, path: Path) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
-
-        Ok(calculate_package_file_hash(name, &self.0, &mut hasher)?.then(|| hasher.finalize()))
+        let Ok(file) = self.0.get_file(path) else {
+            return Ok(None);
+        };
+        calculate_file_hash(&file, &mut hasher)?;
+        Ok(Some(hasher.finalize()))
     }
 
     /// Calculates recursively package directory contents hash including file contents and
     /// file names.
-    pub(crate) fn get_dir_hash(&self, name: &str) -> anyhow::Result<Option<Blake2b256>> {
+    pub(crate) fn calculate_dir_hash(&self, path: &Path) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
-        Ok(calculate_package_dir_hash(name, &self.0, &mut hasher)?.then(|| hasher.finalize()))
+        let Ok(dir) = self.0.get_dir(path) else {
+            return Ok(None);
+        };
+        calculate_dir_hash(&dir, &mut hasher)?;
+        Ok(Some(hasher.finalize()))
     }
-}
-
-/// Copy resource to hdf5 package.
-fn copy_file_to_package(
-    resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
-) -> anyhow::Result<()> {
-    let mut reader = resource.get_reader()?;
-    let mut resource_data = Vec::new();
-    reader.read_to_end(&mut resource_data)?;
-    if resource_data.is_empty() {
-        return Err(anyhow::anyhow!("Resource {} is empty", resource.name()?));
-    }
-
-    let ds_builder = package.new_dataset_builder();
-    enable_compression(ds_builder)
-        .with_data(&resource_data)
-        .create(name)?;
-
-    Ok(())
-}
-
-/// Copy resource dir to hdf5 package recursively.
-fn copy_dir_recursively_to_package(
-    resource: &impl ResourceTrait, name: &str, package: &hdf5::Group,
-) -> anyhow::Result<()> {
-    let package = package.create_group(name)?;
-
-    let mut errors = Errors::new();
-    for resource in resource.get_directory_content()? {
-        if resource.is_dir() {
-            copy_dir_recursively_to_package(&resource, &resource.name()?, &package).unwrap_or_else(
-                |err| {
-                    match err.downcast::<Errors>() {
-                        Ok(errs) => errors.merge(errs),
-                        Err(err) => errors.add_err(err),
-                    }
-                },
-            );
-        }
-        if resource.is_file() {
-            copy_file_to_package(&resource, &resource.name()?, &package)
-                .unwrap_or_else(|err| errors.add_err(err));
-        }
-    }
-    errors.return_result(())
-}
-
-/// Get package file reader if present.
-/// Return error if not possible get a byte reader.
-fn get_package_file_reader(name: &str, package: &hdf5::Group) -> anyhow::Result<Option<impl Read>> {
-    let reader = package
-        .dataset(name)
-        .ok()
-        .map(|ds| ds.as_byte_reader())
-        .transpose()?;
-    Ok(reader)
 }
 
 /// Buffer size for hash calculation.
 /// 1024 * 1024 = 1MB.
 const BUFFER_SIZE: usize = 1024 * 1024;
 
-/// Calculates package file hash with the provided hasher.
-/// Returns true if hash was calculated successfully and file is present.
+/// Calculates file hash with the provided hasher.
 #[allow(clippy::indexing_slicing)]
-fn calculate_package_file_hash(
-    name: &str, package: &hdf5::Group, hasher: &mut Blake2b256Hasher,
-) -> anyhow::Result<bool> {
-    if let Some(mut reader) = get_package_file_reader(name, package)? {
-        let mut buf = vec![0; BUFFER_SIZE];
+fn calculate_file_hash(file: &File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
+    let mut reader = file.reader()?;
+    let mut buf = vec![0; BUFFER_SIZE];
 
-        loop {
-            let len = reader.read(&mut buf)?;
-            if len == 0 {
-                break;
-            }
-            hasher.update(&buf[..len]);
+    loop {
+        let len = reader.read(&mut buf)?;
+        if len == 0 {
+            break;
         }
-
-        Ok(true)
-    } else {
-        Ok(false)
+        hasher.update(&buf[..len]);
     }
+
+    Ok(())
 }
 
-/// Calculates recursively package directory contents hash with the provided hasher
+/// Calculates recursively directory contents hash with the provided hasher
 /// including file contents.
-/// Returns true if hash was calculated successfully and file is present.
-fn calculate_package_dir_hash(
-    dir_name: &str, package: &hdf5::Group, hasher: &mut Blake2b256Hasher,
-) -> anyhow::Result<bool> {
-    let dir = package.group(dir_name).ok();
-
-    if let Some(dir) = dir {
-        // order all package directory content by names
-        // to have consistent hash result not depending on the order.
-        let content_names: BTreeSet<_> = dir.member_names()?.into_iter().collect();
-
-        for name in content_names {
-            hasher.update(name.as_bytes());
-
-            // Returns false if file is not present, which means that it's a directory
-            if !calculate_package_file_hash(&name, &dir, hasher)? {
-                calculate_package_dir_hash(&name, &dir, hasher)?;
-            }
-        }
-
-        Ok(true)
-    } else {
-        Ok(false)
+fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
+    // order all package directory content by names
+    // to have consistent hash result not depending on the order.
+    let files: BTreeMap<_, _> = dir
+        .get_files(&Path::default())?
+        .into_iter()
+        .map(|file| (file.path().to_string(), file))
+        .collect();
+    let dirs: BTreeMap<_, _> = dir
+        .get_dirs(&Path::default())?
+        .into_iter()
+        .map(|dir| (dir.path().to_string(), dir))
+        .collect();
+    for (path_str, file) in files {
+        hasher.update(path_str.as_bytes());
+        calculate_file_hash(&file, hasher)?;
     }
+    for (path_str, dir) in dirs {
+        hasher.update(path_str.as_bytes());
+        calculate_dir_hash(&dir, hasher)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -216,10 +122,10 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use crate::packaging::resources::fs_resource::FsResource;
+    use crate::hdf5::resources::FsResource;
 
     #[test]
-    fn copy_file_to_package_and_get_package_file_hash_test() {
+    fn calculate_file_hash_test() {
         let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
         let file_content = "test".as_bytes();
 
@@ -231,48 +137,20 @@ mod tests {
         std::fs::write(&file_1, file_content).expect("Failed to create a file.");
 
         package
-            .copy_file(&FsResource::new(file_1), file_1_name)
+            .copy_resource_file(&FsResource::new(file_1), file_1_name.into())
             .expect("Failed to copy file to package.");
 
-        let mut file_1_reader = package
-            .get_file_reader(file_1_name)
-            .unwrap_or_default()
-            .expect("Failed to get file reader.");
-
-        let mut data = Vec::new();
-        file_1_reader
-            .read_to_end(&mut data)
-            .expect("Failed to read file's data.");
-        assert_eq!(data.as_slice(), file_content);
-
         let hash = package
-            .get_file_hash(file_1_name)
+            .calculate_file_hash(file_1_name.into())
             .expect("Failed to calculate file hash.")
             .expect("Failed to get file hash from package.");
 
         let expected_hash = Blake2b256::hash(file_content);
         assert_eq!(expected_hash, hash);
-
-        // Remove file from package
-        assert!(
-            package.remove_dir(file_1_name).is_err(),
-            "Cannot remove file from package using remove_dir."
-        );
-        assert!(package
-            .get_file_hash(file_1_name)
-            .expect("Failed to calculate file hash.")
-            .is_some());
-        package
-            .remove_file(file_1_name)
-            .expect("Failed to remove file from package.");
-        assert!(package
-            .get_file_hash(file_1_name)
-            .expect("Failed to calculate file hash.")
-            .is_none());
     }
 
     #[test]
-    fn copy_dir_recursively_to_package_and_get_package_file_hash_test() {
+    fn calculate_dir_hash_test() {
         let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
         let file_content = "test".as_bytes();
 
@@ -300,59 +178,44 @@ mod tests {
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
         package
-            .copy_dir_recursively(&FsResource::new(dir), dir_name)
+            .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
             .expect("Failed to copy dir to package.");
 
-        let root_group = package
-            .0
-            .group(dir_name)
-            .expect("Failed to open root group.");
-        assert!(get_package_file_reader(file_1_name, &root_group)
-            .unwrap_or_default()
-            .is_some());
-        assert!(get_package_file_reader(file_2_name, &root_group)
-            .unwrap_or_default()
-            .is_some());
-
-        let child_group = root_group
-            .group(child_dir_name)
-            .expect("Cannot open child group");
-        assert!(get_package_file_reader(file_3_name, &child_group)
-            .unwrap_or_default()
-            .is_some());
-
         let hash = package
-            .get_dir_hash(dir_name)
+            .calculate_dir_hash(&dir_name.into())
             .expect("Failed to calculate dir hash.")
             .expect("Failed to get dir hash from package.");
 
         let mut hasher = Blake2b256Hasher::new();
-        hasher.update(child_dir_name.as_bytes());
-        hasher.update(file_3_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), file_1_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
         hasher.update(file_content);
-        hasher.update(file_1_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), file_2_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
         hasher.update(file_content);
-        hasher.update(file_2_name.as_bytes());
+        hasher.update(
+            Path::new(vec![dir_name.into(), child_dir_name.into()])
+                .to_string()
+                .as_bytes(),
+        );
+        hasher.update(
+            Path::new(vec![
+                dir_name.into(),
+                child_dir_name.into(),
+                file_3_name.into(),
+            ])
+            .to_string()
+            .as_bytes(),
+        );
         hasher.update(file_content);
         let expected_hash = hasher.finalize();
 
         assert_eq!(expected_hash, hash);
-
-        // Remove directory from package
-        assert!(
-            package.remove_file(dir_name).is_err(),
-            "Cannot remove dir from package using remove_file."
-        );
-        assert!(package
-            .get_dir_hash(dir_name)
-            .expect("Failed to calculate dir hash.")
-            .is_some());
-        package
-            .remove_dir(dir_name)
-            .expect("Failed to remove dir from package.");
-        assert!(package
-            .get_dir_hash(dir_name)
-            .expect("Failed to calculate dir hash.")
-            .is_none());
     }
 }

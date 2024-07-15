@@ -60,6 +60,8 @@ num_cpus = { workspace = true }
 console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+hyper = { version = "0.14.10", features = ["full"] }
+
 jsonschema = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
@@ -69,6 +71,7 @@ sha2 = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem"] }
 x509-cert = { workspace = true, features = ["pem"] }
 coset = { workspace = true }
+hermes-ipfs = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }

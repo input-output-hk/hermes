@@ -3,13 +3,17 @@
 mod hermes;
 
 use hermes::{
-    exports::hermes::integration_test::event::TestResult,
+    exports::hermes::{
+        integration_test::event::TestResult,
+        http_gateway::event::{Bstr, Headers, HttpResponse}
+    },
     hermes::{
         cardano::{
             self,
             api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
         },
         cron::api::CronTagged,
+        ipfs::api::PubsubMessage,
         kv_store::api::KvValues,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
@@ -89,8 +93,20 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
     }
 }
 
+impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
+    fn on_topic(_message: PubsubMessage) -> bool {
+        false
+    }
+}
+
 impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
     fn kv_update(_key: String, _value: KvValues) {}
+}
+
+impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
+    fn reply(_body: Bstr, _headers: Headers, _path: String, method: String,) -> Option<HttpResponse> {
+        None
+    }
 }
 
 impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
