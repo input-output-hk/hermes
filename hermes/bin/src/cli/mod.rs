@@ -56,6 +56,13 @@ enum Commands {
 }
 
 impl Cli {
+    /// Hermes home directory
+    pub(crate) fn hermes_home() -> PathBuf {
+        dirs::home_dir()
+            .unwrap_or("/var/lib".into())
+            .join(".hermes")
+    }
+
     /// Execute cli commands of the hermes
     pub(crate) fn exec(self) {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());

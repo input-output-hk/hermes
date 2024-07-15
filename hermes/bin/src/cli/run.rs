@@ -2,12 +2,17 @@
 
 use std::path::PathBuf;
 
+use console::Emoji;
+
 use crate::{
+    app::{HermesApp, HermesAppName},
+    cli::Cli,
     packaging::{
         app::ApplicationPackage,
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
+    vfs::Vfs,
 };
 
 /// Run cli command
@@ -26,7 +31,15 @@ impl Run {
         let package = ApplicationPackage::from_file(app_package)?;
         package.validate(unstrusted)?;
 
-        let mut reactor = HermesReactor::new(vec![])?;
+        let app_name = package.get_metadata()?.get_name()?;
+
+        println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
+        let vfs = Vfs::bootstrap(Cli::hermes_home(), app_name.as_str())?;
+
+        println!("{} Running application {app_name} ", Emoji::new("🚀", ""),);
+        let app = HermesApp::new(HermesAppName(app_name), vfs, vec![]);
+
+        let mut reactor = HermesReactor::new(vec![app])?;
         reactor.wait()?;
 
         Ok(())
