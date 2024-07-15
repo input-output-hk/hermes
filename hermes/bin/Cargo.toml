@@ -71,6 +71,7 @@ sha2 = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem"] }
 x509-cert = { workspace = true, features = ["pem"] }
 coset = { workspace = true }
+hermes-ipfs = { workspace = true }
 
 [build-dependencies]
 build-info-build = { workspace = true }

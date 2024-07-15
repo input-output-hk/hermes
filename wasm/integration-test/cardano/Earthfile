@@ -11,7 +11,7 @@ IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 build:
     DO rust-ci+SETUP
 
-    COPY --dir src .
+    COPY --keep-ts --dir src .
     COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 

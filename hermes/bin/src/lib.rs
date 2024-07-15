@@ -1,5 +1,6 @@
 //! Intentionally empty
 //! This file exists, so that doc tests can be used inside binary crates.
+#![type_length_limit = "45079293105"]
 
 pub mod app;
 #[allow(dead_code)]
