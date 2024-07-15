@@ -35,12 +35,25 @@ async fn main() -> anyhow::Result<()> {
     println!("***************************************");
     println!("* CID Pinning:");
     println!("");
+    if let Err(e) = hermes_ipfs.insert_pin(cid).await {
+        if e.to_string().contains("already pinned recursively") {
+            println!("{cid} is already pinned");
+        } else {
+            println!("AN ERROR OCCURRED: {e}");
+        }
+    };
     println!("* Removing pin.");
     hermes_ipfs.remove_pin(cid).await?;
     print_cid_pinned(&hermes_ipfs, cid).await?;
     println!("");
     println!("* Re-pinning CID:.");
-    hermes_ipfs.insert_pin(cid).await?;
+    if let Err(e) = hermes_ipfs.insert_pin(cid).await {
+        if e.to_string().contains("already pinned recursively") {
+            println!("{cid} is already pinned");
+        } else {
+            println!("AN ERROR OCCURRED: {e}");
+        }
+    };
     print_cid_pinned(&hermes_ipfs, cid).await?;
     println!("***************************************");
     println!("");

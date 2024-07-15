@@ -13,7 +13,7 @@ gen-bindings:
 
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
-# build - builds the sqlite integration test wasm component
+# build - builds the IPFS integration test wasm component
 build:
     DO rust-ci+SETUP
 
@@ -23,10 +23,12 @@ build:
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-unknown-unknown --release" \
-        --output="wasm32-unknown-unknown/release/sqlite_test_component.wasm"
+        --output="wasm32-unknown-unknown/release/ipfs_test_component.wasm"
+
 
     COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
 
-    RUN wasm-tools component new -o sqlite.wasm target/wasm32-unknown-unknown/release/sqlite_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+    RUN wasm-tools component new -o ipfs.wasm target/wasm32-unknown-unknown/release/ipfs_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
+    RUN sha256sum ipfs.wasm
 
-    SAVE ARTIFACT sqlite.wasm
+    SAVE ARTIFACT ipfs.wasm
