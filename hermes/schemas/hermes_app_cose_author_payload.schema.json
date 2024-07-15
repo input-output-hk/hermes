@@ -35,8 +35,8 @@
                     },
                     "package": {
                         "type": "string",
-                        "title": "Blake2b hash hex of the entire WASM module package",
-                        "description": "A hex representation of the Blake2b hash of of the entire WASM module package.",
+                        "title": "Blake2b hash hex of the WASM module package author.cose signature bytes",
+                        "description": "A hex representation of the Blake2b hash of of the WASM module package author.cose signature bytes.",
                         "pattern": "^[0-9a-f]{64}$"
                     },
                     "config": {
