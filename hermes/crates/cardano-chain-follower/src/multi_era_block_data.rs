@@ -416,6 +416,56 @@ mod tests {
         Ok(())
     }
 
+    /// Compares between blocks using `>=`
+    #[test]
+    fn test_multi_era_block_point_compare_4() -> anyhow::Result<(), anyhow::Error> {
+        // Get sorted by slot number from highest to lowest
+        let test_sorted_blocks = vec![
+            mary_block(),
+            allegra_block(),
+            alonzo_block(),
+            shelley_block(),
+            byron_block()
+        ];
+
+        for test_block in test_sorted_blocks.windows(2) {
+            let block_lhs = &test_block[0];
+            let block_rhs = &test_block[1];
+
+            let prev_point_lhs =
+                pallas::ledger::traverse::MultiEraBlock::decode(block_lhs.as_slice()).map(|block| {
+                    Point::new(
+                        block.slot() - 1,
+                        block.header().previous_hash().expect("cannot get previous hash").to_vec()
+                    )
+                })?;
+            let prev_point_rhs =
+                pallas::ledger::traverse::MultiEraBlock::decode(block_rhs.as_slice()).map(|block| {
+                    Point::new(
+                        block.slot() - 1,
+                        block.header().previous_hash().expect("cannot get previous hash").to_vec()
+                    )
+                })?;
+
+            let block_lhs = MultiEraBlock::new(
+                Network::Preprod,
+                block_lhs.clone(),
+                &prev_point_lhs,
+                1,
+            )?;
+            let block_rhs = MultiEraBlock::new(
+                Network::Preprod,
+                block_rhs.clone(),
+                &prev_point_rhs,
+                1,
+            )?;
+
+            assert!(block_lhs >= block_rhs)
+        }
+        
+        Ok(())
+    }
+
     #[test]
     fn test_multi_era_block_with_origin_point() {
         for test_block in test_blocks() {
@@ -428,15 +478,6 @@ mod tests {
 
             assert!(block.is_err());
         }
-    }
-
-    #[test]
-    fn test_multi_era_block_decode() -> anyhow::Result<(), anyhow::Error> {
-        for test_block in test_blocks() {
-            pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
-        }
-
-        Ok(())
     }
 
     // #[test]
