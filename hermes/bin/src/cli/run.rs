@@ -21,7 +21,7 @@ pub(crate) struct Run;
 impl Run {
     /// Run the hermes application
     pub(crate) fn exec(
-        app_package: PathBuf, certificates: Vec<PathBuf>, unstrusted: bool,
+        app_package: PathBuf, certificates: Vec<PathBuf>, untrusted: bool,
     ) -> anyhow::Result<()> {
         for cert_path in certificates {
             let cert = Certificate::from_file(cert_path)?;
@@ -29,7 +29,7 @@ impl Run {
         }
 
         let package = ApplicationPackage::from_file(app_package)?;
-        package.validate(unstrusted)?;
+        package.validate(untrusted)?;
 
         let app_name = package.get_metadata()?.get_name()?;
 

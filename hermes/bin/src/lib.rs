@@ -13,8 +13,8 @@ pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
-pub mod wasm;
 pub mod vfs;
+pub mod wasm;
 
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{

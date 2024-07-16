@@ -37,7 +37,7 @@ pub(crate) struct Cli {
 
     /// Flag which disables package signature verification
     #[clap(long, action = clap::ArgAction::SetTrue)]
-    unstrusted: bool,
+    untrusted: bool,
 
     /// Hermes cli subcommand
     #[clap(subcommand)]
@@ -83,7 +83,7 @@ impl Cli {
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
         match self.command {
-            None => run::Run::exec(self.app_package, self.certificate, self.unstrusted),
+            None => run::Run::exec(self.app_package, self.certificate, self.untrusted),
             Some(Commands::Module(cmd)) => cmd.exec(),
             Some(Commands::App(cmd)) => cmd.exec(),
         }
