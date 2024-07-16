@@ -1,4 +1,4 @@
-//! Hermes virtual file system bootstraper.
+//! Hermes virtual file system bootstrapper.
 
 use std::path::PathBuf;
 
@@ -8,7 +8,7 @@ use super::Vfs;
 use crate::hdf5::{self as hermes_hdf5};
 
 /// Hermes virtual file system builder.
-pub(crate) struct VfsBootstraper {
+pub(crate) struct VfsBootstrapper {
     /// Path to the VFS's HDF5 file's directory.
     vfs_dir_path: PathBuf,
     /// VFS's name.
@@ -19,7 +19,7 @@ pub(crate) struct VfsBootstraper {
     mounted_www: Option<hermes_hdf5::Dir>,
 }
 
-impl VfsBootstraper {
+impl VfsBootstrapper {
     /// Virtual file system file extension.
     const FILE_EXTENSION: &'static str = "hfs";
     /// Virtual file system `share` directory name.
@@ -92,12 +92,12 @@ mod tests {
 
         let vfs_name = "test_vfs".to_string();
 
-        let vfs = VfsBootstraper::new(dir.path(), vfs_name.clone())
+        let vfs = VfsBootstrapper::new(dir.path(), vfs_name.clone())
             .bootstrap()
             .expect("Failed to bootstrap VFS");
         drop(vfs);
 
-        let _vfs = VfsBootstraper::new(dir.path(), vfs_name)
+        let _vfs = VfsBootstrapper::new(dir.path(), vfs_name)
             .bootstrap()
             .expect("Failed to bootstrap VFS");
     }
