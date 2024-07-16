@@ -568,6 +568,7 @@ mod tests {
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
                 .expect("Cannot create module package");
 
+
         assert!(package.validate(true).is_ok());
         assert!(package.validate(false).is_err());
         assert!(package
