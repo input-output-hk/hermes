@@ -9,9 +9,9 @@ use crate::hdf5::{self as hermes_hdf5};
 
 /// Hermes virtual file system builder.
 pub(crate) struct VfsBootstrapper {
-    /// Path to the VFS's HDF5 file's directory.
+    /// Path to the VFS HDF5 file's directory.
     vfs_dir_path: PathBuf,
-    /// VFS's name.
+    /// VFS file name.
     vfs_file_name: String,
     /// Mounted `srv/share` directory.
     mounted_share: Option<hermes_hdf5::Dir>,
@@ -29,7 +29,7 @@ impl VfsBootstrapper {
     /// Virtual file system `www` directory name.
     const WWW_DIR: &'static str = "www";
 
-    /// Create a new `VfsBootstraper` instance.
+    /// Create a new `VfsBootstrapper` instance.
     pub(crate) fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
         Self {
             vfs_dir_path: vfs_dir_path.as_ref().to_path_buf(),
@@ -70,10 +70,10 @@ impl VfsBootstrapper {
 
         let srv_dir = root.create_dir(&Self::SRV_DIR.into())?;
         if let Some(www) = self.mounted_www.as_ref() {
-            srv_dir.mount_external(www, Self::WWW_DIR)?;
+            srv_dir.mount_dir(www, Self::WWW_DIR)?;
         }
         if let Some(share) = self.mounted_share.as_ref() {
-            srv_dir.mount_external(share, Self::SHARE_DIR)?;
+            srv_dir.mount_dir(share, Self::SHARE_DIR)?;
         }
 
         Ok(Vfs { root })
@@ -87,18 +87,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vfs_bootstrap_test() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+    fn vfs_bootstrap_test() -> anyhow::Result<()> {
+        let dir = TempDir::new()?;
 
         let vfs_name = "test_vfs".to_string();
 
-        let vfs = VfsBootstrapper::new(dir.path(), vfs_name.clone())
-            .bootstrap()
-            .expect("Failed to bootstrap VFS");
+        let vfs = VfsBootstrapper::new(dir.path(), vfs_name.clone()).bootstrap()?;
         drop(vfs);
 
-        let _vfs = VfsBootstrapper::new(dir.path(), vfs_name)
-            .bootstrap()
-            .expect("Failed to bootstrap VFS");
+        let _vfs = VfsBootstrapper::new(dir.path(), vfs_name).bootstrap()?;
+        Ok(())
     }
 }

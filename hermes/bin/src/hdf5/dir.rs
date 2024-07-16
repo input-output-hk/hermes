@@ -24,9 +24,9 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
-    /// Mount external directory from the another HDF5 package.
-    #[allow(dead_code)]
-    pub(crate) fn mount_external(&self, dir: &Dir, link_name: &str) -> anyhow::Result<()> {
+    /// Mount directory from the another HDF5 package.
+
+    pub(crate) fn mount_dir(&self, dir: &Dir, link_name: &str) -> anyhow::Result<()> {
         let target_file_name = dir.0.filename();
         let target = dir.0.name();
         self.0
@@ -225,7 +225,7 @@ mod tests {
             0
         );
 
-        dir1.mount_external(&dir2, link_name)
+        dir1.mount_dir(&dir2, link_name)
             .expect("Failed to mount external.");
 
         assert!(dir1.get_dir(&link_name.into()).is_ok());
