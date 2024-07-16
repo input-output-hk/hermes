@@ -70,10 +70,10 @@ impl VfsBootstrapper {
 
         let srv_dir = root.create_dir(&Self::SRV_DIR.into())?;
         if let Some(www) = self.mounted_www.as_ref() {
-            srv_dir.mount_dir(www, Self::WWW_DIR)?;
+            srv_dir.mount_dir(www, Self::WWW_DIR.into())?;
         }
         if let Some(share) = self.mounted_share.as_ref() {
-            srv_dir.mount_dir(share, Self::SHARE_DIR)?;
+            srv_dir.mount_dir(share, Self::SHARE_DIR.into())?;
         }
 
         Ok(Vfs { root })

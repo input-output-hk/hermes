@@ -24,13 +24,18 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
-    /// Mount directory from the another HDF5 package.
+    /// Mount directory from the another HDF5 package to the provided path.
+    pub(crate) fn mount_dir(&self, mounted_dir: &Dir, mut path: Path) -> anyhow::Result<()> {
+        let link_name = path.pop_elem()?;
+        let dir = self.get_dir(&path)?;
 
-    pub(crate) fn mount_dir(&self, dir: &Dir, link_name: &str) -> anyhow::Result<()> {
-        let target_file_name = dir.0.filename();
-        let target = dir.0.name();
-        self.0
-            .link_external(target_file_name.as_str(), target.as_str(), link_name)?;
+        let target_file_name = mounted_dir.0.filename();
+        let target = mounted_dir.0.name();
+        dir.0.link_external(
+            target_file_name.as_str(),
+            target.as_str(),
+            link_name.as_str(),
+        )?;
         Ok(())
     }
 
@@ -218,32 +223,32 @@ mod tests {
             .create_dir(&child_dir_path)
             .expect("Failed to create dir.");
 
-        let link_name = "linked_dir";
-        assert!(dir1.get_dir(&link_name.into()).is_err());
+        let mounted_dir_name = "mounted_dir";
+        assert!(dir1.get_dir(&mounted_dir_name.into()).is_err());
         assert_eq!(
             dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
             0
         );
 
-        dir1.mount_dir(&dir2, link_name)
+        dir1.mount_dir(&dir2, mounted_dir_name.into())
             .expect("Failed to mount external.");
 
-        assert!(dir1.get_dir(&link_name.into()).is_ok());
+        assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
         assert_eq!(
             dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
             1
         );
         assert!(dir1
-            .get_dir(&format!("{link_name}/{child_dir_name}").into())
+            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}").into())
             .is_ok());
         assert_eq!(
-            dir1.get_dirs(&format!("{link_name}/{child_dir_name}").into())
+            dir1.get_dirs(&format!("{mounted_dir_name}/{child_dir_name}").into())
                 .expect("Failed to get dirs")
                 .len(),
             1
         );
         assert!(dir1
-            .get_dir(&format!("{link_name}/{child_dir_name}/{child_dir_name}").into())
+            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
             .is_ok());
     }
 
