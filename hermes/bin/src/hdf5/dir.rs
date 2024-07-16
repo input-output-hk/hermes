@@ -24,6 +24,16 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
+    /// Mount external directory from the another HDF5 package.
+    #[allow(dead_code)]
+    pub(crate) fn mount_external(&self, dir: &Dir, link_name: &str) -> anyhow::Result<()> {
+        let target_file_name = dir.0.filename();
+        let target = dir.0.name();
+        self.0
+            .link_external(target_file_name.as_str(), target.as_str(), link_name)?;
+        Ok(())
+    }
+
     /// Copy resource file to the provided path.
     pub(crate) fn copy_resource_file(
         &self, resource: &impl ResourceTrait, mut path: Path,
@@ -185,6 +195,56 @@ mod tests {
 
         dir.create_dir(&path)
             .expect("Failed to create directories in package.");
+    }
+
+    #[test]
+    fn mount_external_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+
+        let child_dir_name = "child_dir";
+        let child_dir_path = Path::from_str(child_dir_name);
+
+        let child_dir = dir2
+            .create_dir(&child_dir_path)
+            .expect("Failed to create dir.");
+        child_dir
+            .create_dir(&child_dir_path)
+            .expect("Failed to create dir.");
+
+        let link_name = "linked_dir";
+        assert!(dir1.get_dir(&link_name.into()).is_err());
+        assert_eq!(
+            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
+            0
+        );
+
+        dir1.mount_external(&dir2, link_name)
+            .expect("Failed to mount external.");
+
+        assert!(dir1.get_dir(&link_name.into()).is_ok());
+        assert_eq!(
+            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
+            1
+        );
+        assert!(dir1
+            .get_dir(&format!("{link_name}/{child_dir_name}").into())
+            .is_ok());
+        assert_eq!(
+            dir1.get_dirs(&format!("{link_name}/{child_dir_name}").into())
+                .expect("Failed to get dirs")
+                .len(),
+            1
+        );
+        assert!(dir1
+            .get_dir(&format!("{link_name}/{child_dir_name}/{child_dir_name}").into())
+            .is_ok());
     }
 
     #[test]
