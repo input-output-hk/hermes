@@ -12,7 +12,7 @@ use crate::{
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
-    vfs::Vfs,
+    vfs::VfsBootstraper,
 };
 
 /// Run cli command
@@ -34,7 +34,7 @@ impl Run {
         let app_name = package.get_metadata()?.get_name()?;
 
         println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
-        let vfs = Vfs::bootstrap(Cli::hermes_home(), app_name.as_str())?;
+        let vfs = VfsBootstraper::new(Cli::hermes_home(), app_name.clone()).bootstrap()?;
 
         println!("{} Running application {app_name} ", Emoji::new("🚀", ""),);
         let app = HermesApp::new(HermesAppName(app_name), vfs, vec![]);

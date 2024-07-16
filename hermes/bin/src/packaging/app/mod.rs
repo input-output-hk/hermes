@@ -37,19 +37,19 @@ impl MetadataSchema for ApplicationPackage {
 impl ApplicationPackage {
     /// Application package signature file path.
     const AUTHOR_COSE_FILE: &'static str = "author.cose";
-    /// Hermes application package file extension.
+    /// Application package file extension.
     const FILE_EXTENSION: &'static str = "happ";
-    /// Hermes application package icon file path.
+    /// Application package icon file path.
     const ICON_FILE: &'static str = "icon.svg";
-    /// Hermes application package metadata file path.
+    /// Application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
     /// Application WASM modules directory path.
     const MODULES_DIR: &'static str = "lib";
-    /// Application package share directory path.
+    /// Application package `share` directory path.
     const SHARE_DIR: &'static str = "srv/share";
     /// Application shareable directory path.
     const USR_DIR: &'static str = "usr";
-    /// Application package www directory path.
+    /// Application package `www` directory path.
     const WWW_DIR: &'static str = "srv/www";
 
     /// Create a new Hermes application package package from a manifest file.

@@ -267,7 +267,7 @@ mod tests {
     use super::*;
     use crate::{
         app::HermesApp, event::queue::HermesEventLoopHandler,
-        runtime_extensions::hermes::cron::tests::hermes_app_name, vfs::Vfs,
+        runtime_extensions::hermes::cron::tests::hermes_app_name, vfs::VfsBootstraper,
     };
 
     const APP_NAME: &str = "test";
@@ -326,7 +326,9 @@ mod tests {
     fn initialize_queue(temp_dir: &TempDir) -> (CronEventQueue, HermesEventLoopHandler) {
         let queue = CronEventQueue::new(None);
         let hermes_app_name = hermes_app_name(APP_NAME);
-        let vfs = Vfs::bootstrap(temp_dir.path(), APP_NAME).unwrap();
+        let vfs = VfsBootstraper::new(temp_dir.path(), APP_NAME.to_string())
+            .bootstrap()
+            .unwrap();
         let hermes_app = HermesApp::new(hermes_app_name.clone(), vfs, vec![]);
         let handler =
             crate::event::queue::init(Arc::new(HashMap::from([(hermes_app_name, hermes_app)])))
