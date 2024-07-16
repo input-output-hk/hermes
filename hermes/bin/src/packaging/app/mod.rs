@@ -37,19 +37,19 @@ impl MetadataSchema for ApplicationPackage {
 impl ApplicationPackage {
     /// Application package signature file path.
     const AUTHOR_COSE_FILE: &'static str = "author.cose";
-    /// Hermes application package file extension.
+    /// Application package file extension.
     const FILE_EXTENSION: &'static str = "happ";
-    /// Hermes application package icon file path.
+    /// Application package icon file path.
     const ICON_FILE: &'static str = "icon.svg";
-    /// Hermes application package metadata file path.
+    /// Application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
     /// Application WASM modules directory path.
     const MODULES_DIR: &'static str = "lib";
-    /// Application package share directory path.
+    /// Application package `share` directory path.
     const SHARE_DIR: &'static str = "srv/share";
     /// Application shareable directory path.
     const USR_DIR: &'static str = "usr";
-    /// Application package www directory path.
+    /// Application package `www` directory path.
     const WWW_DIR: &'static str = "srv/www";
 
     /// Create a new Hermes application package package from a manifest file.
@@ -88,6 +88,12 @@ impl ApplicationPackage {
             Ok(modules) => {
                 if modules.is_empty() && self.get_www().is_none() && self.get_share().is_none() {
                     errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
+                }
+
+                for (_, module_package) in modules {
+                    module_package
+                        .validate(untrusted)
+                        .unwrap_or_else(errors.get_add_err_fn());
                 }
             },
             Err(err) => errors.add_err(err),
@@ -502,8 +508,6 @@ mod tests {
         assert_eq!(modules.len(), app_package_files.modules.len());
 
         for (app_module_name, module_package) in modules {
-            module_package.validate(true).expect("Invalid WASM module");
-
             let package_module_name = module_package
                 .get_metadata()
                 .expect("Cannot get metadata from package")

@@ -13,6 +13,7 @@ pub mod packaging;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
+pub mod vfs;
 pub mod wasm;
 
 #[cfg(feature = "bench")]
