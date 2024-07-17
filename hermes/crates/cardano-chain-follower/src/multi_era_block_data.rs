@@ -341,6 +341,17 @@ mod tests {
         ]
     }
 
+    // Gets sorted by slot number from highest to lowest
+    fn sorted_test_blocks() -> Vec<Vec<u8>> {
+        vec![
+            mary_block(), // 27388606
+            allegra_block(), // 18748707
+            alonzo_block(), // 18748707
+            shelley_block(), // 7948610
+            byron_block() // 3241381
+        ]
+    }
+
     /// Previous Point slot is >= blocks point, but hash is correct (should fail)
     #[test]
     fn test_multi_era_block_point_compare_1() -> anyhow::Result<(), anyhow::Error> {
@@ -416,52 +427,207 @@ mod tests {
         Ok(())
     }
 
-    /// Compares between blocks using `>=`
+    /// Compares between blocks using comparison operators
     #[test]
     fn test_multi_era_block_point_compare_4() -> anyhow::Result<(), anyhow::Error> {
-        // sorted by slot number from highest to lowest
-        let test_sorted_blocks = [
-            mary_block(),
-            allegra_block(),
-            alonzo_block(),
-            shelley_block(),
-            byron_block()
-        ];
+        let raw_blocks = sorted_test_blocks();
 
-        for test_block in test_sorted_blocks.windows(2) {
-            let block_lhs = test_block.first().expect("cannot get block");
-            let block_rhs = test_block.last().expect("cannot get block");
-
-            let prev_point_lhs =
-                pallas::ledger::traverse::MultiEraBlock::decode(block_lhs.as_slice()).map(|block| {
+        let multi_era_blocks: Vec<_> = raw_blocks.iter().map(|block| {
+            let prev_point =
+                pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
                     Point::new(
                         block.slot() - 1,
                         block.header().previous_hash().expect("cannot get previous hash").to_vec()
                     )
-                })?;
-            let prev_point_rhs =
-                pallas::ledger::traverse::MultiEraBlock::decode(block_rhs.as_slice()).map(|block| {
+                }).expect("cannot create point");
+
+                MultiEraBlock::new(
+                    Network::Preprod,
+                    block.clone(),
+                    &prev_point,
+                    1,
+                ).expect("cannot create multi-era block")
+        }).collect();
+
+        let mary_block = multi_era_blocks.first().expect("cannot get block");
+        let allegra_block = multi_era_blocks.get(1).expect("cannot get block");
+        let alonzo_block = multi_era_blocks.get(2).expect("cannot get block");
+        let shelley_block = multi_era_blocks.get(3).expect("cannot get block");
+        let byron_block = multi_era_blocks.get(4).expect("cannot get block");
+
+        assert!(mary_block > allegra_block);
+        assert!(mary_block >= allegra_block);
+        assert!(mary_block != allegra_block);
+        assert!(mary_block > alonzo_block);
+        assert!(mary_block >= alonzo_block);
+        assert!(mary_block != alonzo_block);
+        assert!(mary_block > shelley_block);
+        assert!(mary_block >= shelley_block);
+        assert!(mary_block != shelley_block);
+        assert!(mary_block > byron_block);
+        assert!(mary_block >= byron_block);
+
+        assert!(allegra_block < mary_block);
+        assert!(allegra_block <= mary_block);
+        assert!(allegra_block != mary_block);
+        assert!(allegra_block == alonzo_block);
+        assert!(allegra_block >= alonzo_block);
+        assert!(allegra_block <= alonzo_block);
+        assert!(allegra_block > shelley_block);
+        assert!(allegra_block >= shelley_block);
+        assert!(allegra_block != shelley_block);
+        assert!(allegra_block > byron_block);
+        assert!(allegra_block >= byron_block);
+        assert!(allegra_block != byron_block);
+        
+        assert!(alonzo_block < mary_block);
+        assert!(alonzo_block <= mary_block);
+        assert!(alonzo_block != mary_block);
+        assert!(alonzo_block == allegra_block);
+        assert!(alonzo_block >= allegra_block);
+        assert!(alonzo_block <= allegra_block);
+        assert!(alonzo_block > shelley_block);
+        assert!(alonzo_block >= shelley_block);
+        assert!(alonzo_block != shelley_block);
+        assert!(alonzo_block > byron_block);
+        assert!(alonzo_block >= byron_block);
+        assert!(alonzo_block != byron_block);
+
+        assert!(shelley_block < mary_block);
+        assert!(shelley_block <= mary_block);
+        assert!(shelley_block != mary_block);
+        assert!(shelley_block < allegra_block);
+        assert!(shelley_block <= allegra_block);
+        assert!(shelley_block != allegra_block);
+        assert!(shelley_block < alonzo_block);
+        assert!(shelley_block <= alonzo_block);
+        assert!(shelley_block != alonzo_block);
+        assert!(shelley_block > byron_block);
+        assert!(shelley_block >= byron_block);
+        assert!(shelley_block != byron_block);
+
+        assert!(byron_block < mary_block);
+        assert!(byron_block <= mary_block);
+        assert!(byron_block != mary_block);
+        assert!(byron_block < allegra_block);
+        assert!(byron_block <= allegra_block);
+        assert!(byron_block != allegra_block);
+        assert!(byron_block < alonzo_block);
+        assert!(byron_block <= alonzo_block);
+        assert!(byron_block != alonzo_block);
+        assert!(byron_block < shelley_block);
+        assert!(byron_block <= shelley_block);
+        assert!(byron_block != shelley_block);
+        
+        Ok(())
+    }
+
+    /// Compares between blocks and points using comparison operators
+    #[test]
+    fn test_multi_era_block_point_compare_5() -> anyhow::Result<(), anyhow::Error> {
+        let raw_blocks = sorted_test_blocks();
+
+        let points: Vec<_> = raw_blocks.iter().map(|block| {
+            pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
+                Point::new(
+                    block.slot(),
+                    block.header().previous_hash().expect("cannot get previous hash").to_vec()
+                )
+            }).expect("cannot create point")
+        }).collect();
+
+        let blocks: Vec<_> = raw_blocks.iter().map(|block| {
+            let prev_point =
+                pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
                     Point::new(
                         block.slot() - 1,
                         block.header().previous_hash().expect("cannot get previous hash").to_vec()
                     )
-                })?;
+                }).expect("cannot create point");
 
-            let block_lhs = MultiEraBlock::new(
-                Network::Preprod,
-                block_lhs.clone(),
-                &prev_point_lhs,
-                1,
-            )?;
-            let block_rhs = MultiEraBlock::new(
-                Network::Preprod,
-                block_rhs.clone(),
-                &prev_point_rhs,
-                1,
-            )?;
+                MultiEraBlock::new(
+                    Network::Preprod,
+                    block.clone(),
+                    &prev_point,
+                    1,
+                ).expect("cannot create multi-era block")
+        }).collect();
 
-            assert!(block_lhs >= block_rhs);
-        }
+        let mary_block = blocks.first().expect("cannot get block");
+        let allegra_block = blocks.get(1).expect("cannot get block");
+        let alonzo_block = blocks.get(2).expect("cannot get block");
+        let shelley_block = blocks.get(3).expect("cannot get block");
+        let byron_block = blocks.get(4).expect("cannot get block");
+
+        let mary_point = points.first().expect("cannot get point");
+        let allegra_point = points.get(1).expect("cannot get point");
+        let alonzo_point = points.get(2).expect("cannot get point");
+        let shelley_point = points.get(3).expect("cannot get point");
+        let byron_point = points.get(4).expect("cannot get point");
+
+        assert!(mary_block > allegra_point);
+        assert!(mary_block >= allegra_point);
+        assert!(mary_block != allegra_point);
+        assert!(mary_block > alonzo_point);
+        assert!(mary_block >= alonzo_point);
+        assert!(mary_block != alonzo_point);
+        assert!(mary_block > shelley_point);
+        assert!(mary_block >= shelley_point);
+        assert!(mary_block != shelley_point);
+        assert!(mary_block > byron_point);
+        assert!(mary_block >= byron_point);
+
+        assert!(allegra_block < mary_point);
+        assert!(allegra_block <= mary_point);
+        assert!(allegra_block != mary_point);
+        assert!(allegra_block == alonzo_point);
+        assert!(allegra_block >= alonzo_point);
+        assert!(allegra_block <= alonzo_point);
+        assert!(allegra_block > shelley_point);
+        assert!(allegra_block >= shelley_point);
+        assert!(allegra_block != shelley_point);
+        assert!(allegra_block > byron_point);
+        assert!(allegra_block >= byron_point);
+        assert!(allegra_block != byron_point);
+        
+        assert!(alonzo_block < mary_point);
+        assert!(alonzo_block <= mary_point);
+        assert!(alonzo_block != mary_point);
+        assert!(alonzo_block == allegra_point);
+        assert!(alonzo_block >= allegra_point);
+        assert!(alonzo_block <= allegra_point);
+        assert!(alonzo_block > shelley_point);
+        assert!(alonzo_block >= shelley_point);
+        assert!(alonzo_block != shelley_point);
+        assert!(alonzo_block > byron_point);
+        assert!(alonzo_block >= byron_point);
+        assert!(alonzo_block != byron_point);
+
+        assert!(shelley_block < mary_point);
+        assert!(shelley_block <= mary_point);
+        assert!(shelley_block != mary_point);
+        assert!(shelley_block < allegra_point);
+        assert!(shelley_block <= allegra_point);
+        assert!(shelley_block != allegra_point);
+        assert!(shelley_block < alonzo_point);
+        assert!(shelley_block <= alonzo_point);
+        assert!(shelley_block != alonzo_point);
+        assert!(shelley_block > byron_point);
+        assert!(shelley_block >= byron_point);
+        assert!(shelley_block != byron_point);
+
+        assert!(byron_block < mary_point);
+        assert!(byron_block <= mary_point);
+        assert!(byron_block != mary_point);
+        assert!(byron_block < allegra_point);
+        assert!(byron_block <= allegra_point);
+        assert!(byron_block != allegra_point);
+        assert!(byron_block < alonzo_point);
+        assert!(byron_block <= alonzo_point);
+        assert!(byron_block != alonzo_point);
+        assert!(byron_block < shelley_point);
+        assert!(byron_block <= shelley_point);
+        assert!(byron_block != shelley_point);
         
         Ok(())
     }
