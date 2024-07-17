@@ -354,7 +354,7 @@ mod tests {
 
     /// Previous Point slot is >= blocks point, but hash is correct (should fail)
     #[test]
-    fn test_multi_era_block_point_compare_1() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_1() -> anyhow::Result<()> {
         for (i, test_block) in test_blocks().into_iter().enumerate() {
             let pallas_block =
                 pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
@@ -379,7 +379,7 @@ mod tests {
 
     /// Previous Point slot is < blocks point, but hash is different. (should fail).
     #[test]
-    fn test_multi_era_block_point_compare_2() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_2() -> anyhow::Result<()> {
         for test_block in test_blocks() {
             let pallas_block =
                 pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
@@ -404,7 +404,7 @@ mod tests {
 
     /// Previous Point slot is < blocks point, and hash is also correct. (should pass).
     #[test]
-    fn test_multi_era_block_point_compare_3() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_3() -> anyhow::Result<()> {
         for test_block in test_blocks() {
             let pallas_block =
                 pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
@@ -429,7 +429,7 @@ mod tests {
 
     /// Compares between blocks using comparison operators
     #[test]
-    fn test_multi_era_block_point_compare_4() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_4() -> anyhow::Result<()> {
         let raw_blocks = sorted_test_blocks();
 
         let multi_era_blocks: Vec<_> = raw_blocks.iter().map(|block| {
@@ -524,7 +524,7 @@ mod tests {
 
     /// Compares between blocks and points using comparison operators
     #[test]
-    fn test_multi_era_block_point_compare_5() -> anyhow::Result<(), anyhow::Error> {
+    fn test_multi_era_block_point_compare_5() -> anyhow::Result<()> {
         let raw_blocks = sorted_test_blocks();
 
         let points: Vec<_> = raw_blocks.iter().map(|block| {
