@@ -18,7 +18,6 @@ impl File {
     ) -> anyhow::Result<Self> {
         let builder = group.new_dataset_builder();
         let shape = hdf5::SimpleExtents::resizable([data.len()]);
-
         let hdf5_ds = enable_compression(builder)
             .empty::<u8>()
             .shape(shape)
@@ -59,8 +58,8 @@ impl std::io::Read for File {
         let file_size = self.size().map_err(map_to_io_error)?;
         let remaining_len = file_size.saturating_sub(self.pos);
 
-        let amt = std::cmp::min(buf.len(), remaining_len);
-        let selection = hdf5::Selection::new(self.pos..self.pos + amt);
+        let reading_len = std::cmp::min(buf.len(), remaining_len);
+        let selection = hdf5::Selection::new(self.pos..self.pos + reading_len);
 
         let data = self
             .hdf5_ds
@@ -71,10 +70,33 @@ impl std::io::Read for File {
             .as_slice()
             .ok_or(map_to_io_error("Failed to read data."))?;
         #[allow(clippy::indexing_slicing)]
-        buf[..amt].copy_from_slice(data_slice);
+        buf[..reading_len].copy_from_slice(data_slice);
 
-        self.pos = self.pos.saturating_add(amt);
-        Ok(amt)
+        self.pos = self.pos.saturating_add(reading_len);
+        Ok(reading_len)
+    }
+}
+
+impl std::io::Write for File {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let file_size = self.size().map_err(map_to_io_error)?;
+        let remaining_len = file_size.saturating_sub(self.pos);
+        let increasing_len = buf.len().saturating_sub(remaining_len);
+
+        let new_shape = [file_size.saturating_add(increasing_len)];
+        self.hdf5_ds.resize(new_shape).map_err(map_to_io_error)?;
+
+        let selection = hdf5::Selection::new(self.pos..self.pos + buf.len());
+
+        self.hdf5_ds
+            .write_slice(buf, selection)
+            .map_err(map_to_io_error)?;
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
@@ -114,14 +136,13 @@ impl std::io::Seek for File {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{Read, Seek, Write};
 
     use temp_dir::TempDir;
 
     use super::*;
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn file_test() {
         let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
 
@@ -132,7 +153,7 @@ mod tests {
             .expect("Failed to get a root group from package.");
 
         let file_name = "test.txt";
-        let file_content = b"test1";
+        let file_content = b"file_content";
 
         assert!(group.dataset(file_name).is_err());
         let mut file =
@@ -144,17 +165,17 @@ mod tests {
             .expect("Failed to read from file.");
         assert_eq!(buffer, file_content);
 
-        // let dataspace = file.0.space().unwrap().extents().unwrap();
-        // println!("{}", dataspace.is_resizable());
+        file.seek(std::io::SeekFrom::Start(0))
+            .expect("Failed to seek.");
+        let new_file_content = b"new_file_content";
+        file.write_all(new_file_content)
+            .expect("Failed to write to file.");
 
-        // let writer = file.hdf5_ds.as_writer();
-        // writer.write(b"test_2").expect("Failed to write to file.");
-
-        // let mut buffer = Vec::new();
-        // file.reader()
-        //     .expect("Failed to read from file.")
-        //     .read_to_end(&mut buffer)
-        //     .expect("Failed to read from file.");
-        // assert_eq!(buffer, b"test2");
+        file.seek(std::io::SeekFrom::Start(0))
+            .expect("Failed to seek.");
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .expect("Failed to read from file.");
+        assert_eq!(buffer, new_file_content);
     }
 }
