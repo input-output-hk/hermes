@@ -263,14 +263,12 @@ mod tests {
         dir.copy_resource_file(&FsResource::new(file_1), file_1_name.into())
             .expect("Failed to copy file to package.");
 
-        let file_1 = dir
+        let mut file_1 = dir
             .get_file(file_1_name.into())
             .expect("Failed to get file.");
 
         let mut data = Vec::new();
         file_1
-            .reader()
-            .expect("Failed to get file reader.")
             .read_to_end(&mut data)
             .expect("Failed to read file's data.");
         assert_eq!(data.as_slice(), file_content);

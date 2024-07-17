@@ -50,10 +50,10 @@ impl Package {
     /// Calculates file hash, if present
     pub(crate) fn calculate_file_hash(&self, path: Path) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
-        let Ok(file) = self.0.get_file(path) else {
+        let Ok(mut file) = self.0.get_file(path) else {
             return Ok(None);
         };
-        calculate_file_hash(&file, &mut hasher)?;
+        calculate_file_hash(&mut file, &mut hasher)?;
         Ok(Some(hasher.finalize()))
     }
 
@@ -75,12 +75,11 @@ const BUFFER_SIZE: usize = 1024 * 1024;
 
 /// Calculates file hash with the provided hasher.
 #[allow(clippy::indexing_slicing)]
-fn calculate_file_hash(file: &File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
-    let mut reader = file.reader()?;
+fn calculate_file_hash(file: &mut File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
     let mut buf = vec![0; BUFFER_SIZE];
 
     loop {
-        let len = reader.read(&mut buf)?;
+        let len = file.read(&mut buf)?;
         if len == 0 {
             break;
         }
@@ -105,9 +104,9 @@ fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Resul
         .into_iter()
         .map(|dir| (dir.path().to_string(), dir))
         .collect();
-    for (path_str, file) in files {
+    for (path_str, mut file) in files {
         hasher.update(path_str.as_bytes());
-        calculate_file_hash(&file, hasher)?;
+        calculate_file_hash(&mut file, hasher)?;
     }
     for (path_str, dir) in dirs {
         hasher.update(path_str.as_bytes());

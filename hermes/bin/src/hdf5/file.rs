@@ -1,7 +1,5 @@
 //! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
-use std::io::Read;
-
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
@@ -37,11 +35,6 @@ impl File {
     /// Return file `Path`.
     pub(crate) fn path(&self) -> Path {
         Path::from_str(&self.hdf5_ds.name())
-    }
-
-    /// Return file reader.
-    pub(crate) fn reader(&self) -> anyhow::Result<impl Read> {
-        Ok(self.hdf5_ds.as_byte_reader()?)
     }
 
     /// Return file size.
@@ -85,8 +78,44 @@ impl std::io::Read for File {
     }
 }
 
+impl std::io::Seek for File {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        let (base_pos, offset) = match pos {
+            std::io::SeekFrom::Start(n) => {
+                self.pos = n.try_into().map_err(map_to_io_error)?;
+                return Ok(n);
+            },
+            std::io::SeekFrom::End(n) => (self.size().map_err(map_to_io_error)?, n),
+            std::io::SeekFrom::Current(n) => (self.pos, n),
+        };
+        let new_pos = if offset.is_negative() {
+            base_pos.checked_sub(offset.wrapping_abs().try_into().map_err(map_to_io_error)?)
+        } else {
+            base_pos.checked_add(offset.try_into().map_err(map_to_io_error)?)
+        };
+        match new_pos {
+            Some(n) => {
+                self.pos = n;
+                Ok(self.pos.try_into().map_err(map_to_io_error)?)
+            },
+            None => {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid seek to a negative or overflowing position",
+                ))
+            },
+        }
+    }
+
+    fn stream_position(&mut self) -> std::io::Result<u64> {
+        self.pos.try_into().map_err(map_to_io_error)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+
     use temp_dir::TempDir;
 
     use super::*;
