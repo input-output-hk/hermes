@@ -38,8 +38,7 @@ impl File {
 
     /// Return file size.
     fn size(&self) -> anyhow::Result<usize> {
-        let dataspace = self.hdf5_ds.space()?;
-        let shape = dataspace.shape();
+        let shape = self.hdf5_ds.space()?.shape();
         let size = shape
             .first()
             .ok_or(anyhow::anyhow!("Failed to get file size.",))?;
