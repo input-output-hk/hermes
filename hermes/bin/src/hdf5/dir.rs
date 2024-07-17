@@ -3,7 +3,6 @@
 use std::io::Read;
 
 use super::{
-    compression::enable_compression,
     resources::{Hdf5Resource, ResourceTrait},
     File, Path,
 };
@@ -53,11 +52,7 @@ impl Dir {
         }
 
         let dir = self.create_dir(&path)?;
-        let ds_builder = dir.0.new_dataset_builder();
-        enable_compression(ds_builder)
-            .with_data(&resource_data)
-            .create(file_name.as_str())?;
-
+        File::create(&dir.0, file_name.as_str(), &resource_data)?;
         Ok(())
     }
 
@@ -142,7 +137,7 @@ impl Dir {
         let dir = self.get_dir(&path)?;
         dir.0
             .dataset(file_name.as_str())
-            .map(File::new)
+            .map(File::open)
             .map_err(|_| anyhow::anyhow!("File {file_name}/{path} not found"))
     }
 
@@ -150,7 +145,7 @@ impl Dir {
     /// If path is empty it will return all child files of the current one.
     pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<File>> {
         let dir = self.get_dir(path)?;
-        Ok(dir.0.datasets()?.into_iter().map(File::new).collect())
+        Ok(dir.0.datasets()?.into_iter().map(File::open).collect())
     }
 
     /// Get dir by the provided path.
