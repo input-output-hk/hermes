@@ -205,7 +205,7 @@ impl ApplicationPackage {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
+            .map(Metadata::<Self>::from_reader)?
     }
 
     /// Get author `Signature` object from package.
@@ -215,7 +215,7 @@ impl ApplicationPackage {
         self.0
             .get_file(Self::AUTHOR_COSE_FILE.into())
             .ok()
-            .map(|file| Signature::<author_payload::SignaturePayload>::from_reader(file.reader()?))
+            .map(Signature::<author_payload::SignaturePayload>::from_reader)
             .transpose()
     }
 
