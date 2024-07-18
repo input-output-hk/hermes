@@ -1,7 +1,5 @@
 //! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
-use std::io::Read;
-
 use super::{
     resources::{Hdf5Resource, ResourceTrait},
     File, Path,
@@ -38,21 +36,22 @@ impl Dir {
         Ok(())
     }
 
+    /// Create a new empty file in the provided path.
+    pub(crate) fn create_file(&self, mut path: Path) -> anyhow::Result<File> {
+        let file_name = path.pop_elem()?;
+        let dir = self.get_dir(&path)?;
+        let file = File::create(&dir.0, file_name.as_str())?;
+        Ok(file)
+    }
+
     /// Copy resource file to the provided path.
     pub(crate) fn copy_resource_file(
-        &self, resource: &impl ResourceTrait, mut path: Path,
+        &self, resource: &impl ResourceTrait, path: Path,
     ) -> anyhow::Result<()> {
-        let file_name = path.pop_elem()?;
-
+        let mut file = self.create_file(path)?;
         let mut reader = resource.get_reader()?;
-        let mut resource_data = Vec::new();
-        reader.read_to_end(&mut resource_data)?;
-        if resource_data.is_empty() {
-            anyhow::bail!("Resource {} is empty", resource.to_string());
-        }
 
-        let dir = self.get_dir(&path)?;
-        File::create(&dir.0, file_name.as_str(), &resource_data)?;
+        std::io::copy(&mut reader, &mut file)?;
         Ok(())
     }
 
@@ -170,6 +169,8 @@ impl Dir {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+
     use temp_dir::TempDir;
 
     use super::*;

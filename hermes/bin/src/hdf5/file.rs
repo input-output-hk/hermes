@@ -13,16 +13,13 @@ pub(crate) struct File {
 
 impl File {
     /// Create a new file.
-    pub(crate) fn create(
-        group: &hdf5::Group, file_name: &str, data: &[u8],
-    ) -> anyhow::Result<Self> {
+    pub(crate) fn create(group: &hdf5::Group, file_name: &str) -> anyhow::Result<Self> {
         let builder = group.new_dataset_builder();
-        let shape = hdf5::SimpleExtents::resizable([data.len()]);
+        let shape = hdf5::SimpleExtents::resizable([0]);
         let hdf5_ds = enable_compression(builder)
             .empty::<u8>()
             .shape(shape)
             .create(file_name)?;
-        hdf5_ds.write(data)?;
         Ok(Self { hdf5_ds, pos: 0 })
     }
 
@@ -152,13 +149,17 @@ mod tests {
             .expect("Failed to get a root group from package.");
 
         let file_name = "test.txt";
-        let file_content = b"file_content";
 
         assert!(group.dataset(file_name).is_err());
-        let mut file =
-            File::create(&group, file_name, file_content).expect("Failed to create a new file.");
+        let mut file = File::create(&group, file_name).expect("Failed to create a new file.");
         assert!(group.dataset(file_name).is_ok());
 
+        let file_content = b"file_content";
+        file.write_all(file_content)
+            .expect("Failed to write to file.");
+
+        file.seek(std::io::SeekFrom::Start(0))
+            .expect("Failed to seek.");
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
             .expect("Failed to read from file.");
