@@ -5,7 +5,7 @@ use std::{
     io::Read,
 };
 
-use super::ResourceTrait;
+use super::{super::Path, ResourceTrait};
 
 /// HDF5 resource struct.
 #[derive(Debug, Clone)]
@@ -28,8 +28,8 @@ impl Display for Hdf5Resource {
 impl ResourceTrait for Hdf5Resource {
     fn name(&self) -> anyhow::Result<String> {
         match self {
-            Self::Group(g) => Ok(g.name()),
-            Self::Dataset(d) => Ok(d.name()),
+            Self::Group(g) => Ok(Path::from_str(&g.name()).pop_elem()?),
+            Self::Dataset(d) => Ok(Path::from_str(&d.name()).pop_elem()?),
         }
     }
 
