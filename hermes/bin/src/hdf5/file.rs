@@ -88,6 +88,7 @@ impl std::io::Write for File {
             .write_slice(buf, selection)
             .map_err(map_to_io_error)?;
 
+        self.pos = self.pos.saturating_add(buf.len());
         Ok(buf.len())
     }
 
@@ -155,14 +156,17 @@ mod tests {
         assert!(group.dataset(file_name).is_ok());
 
         let file_content = b"file_content";
-        file.write_all(file_content)
-            .expect("Failed to write to file.");
+        let written = file.write(file_content).expect("Failed to write to file.");
+        assert_eq!(written, file_content.len());
 
         file.seek(std::io::SeekFrom::Start(0))
             .expect("Failed to seek.");
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)
-            .expect("Failed to read from file.");
+        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        assert_eq!(read, file_content.len());
+        assert_eq!(buffer, file_content);
+        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        assert_eq!(read, file_content.len());
         assert_eq!(buffer, file_content);
 
         file.seek(std::io::SeekFrom::Start(0))
