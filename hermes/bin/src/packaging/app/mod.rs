@@ -255,9 +255,19 @@ fn validate_and_write_from_manifest(
 
     match package.create_dir(ApplicationPackage::MODULES_DIR.into()) {
         Ok(modules_dir) => {
-            for module in &manifest.modules {
-                validate_and_write_module(module, &modules_dir)
-                    .unwrap_or_else(errors.get_add_err_fn());
+            match package.create_dir(ApplicationPackage::USR_DIR.into()) {
+                Ok(usr_dir) => {
+                    match usr_dir.create_dir(ApplicationPackage::MODULES_DIR.into()) {
+                        Ok(usr_modules_dir) => {
+                            for module in &manifest.modules {
+                                validate_and_write_module(module, &modules_dir, &usr_modules_dir)
+                                    .unwrap_or_else(errors.get_add_err_fn());
+                            }
+                        },
+                        Err(err) => errors.add_err(err),
+                    }
+                },
+                Err(err) => errors.add_err(err),
             }
         },
         Err(err) => errors.add_err(err),
@@ -302,7 +312,9 @@ fn validate_and_write_metadata(
 }
 
 /// Validate WASM module package and write it to the package to the provided dir path.
-fn validate_and_write_module(manifest: &ManifestModule, modules_dir: &Dir) -> anyhow::Result<()> {
+fn validate_and_write_module(
+    manifest: &ManifestModule, modules_dir: &Dir, usr_modules_dir: &Dir,
+) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
 
@@ -312,7 +324,7 @@ fn validate_and_write_module(manifest: &ManifestModule, modules_dir: &Dir) -> an
     let module_package_dir = modules_dir.create_dir(module_name.as_str().into())?;
     module_package.copy_to_dir(&module_package_dir, Path::default())?;
 
-    let module_overridable_dir = module_package_dir;
+    let module_overridable_dir = usr_modules_dir.create_dir(module_name.as_str().into())?;
 
     if let Some(config) = &manifest.config {
         let config_schema = module_package.get_config_schema()?.ok_or(anyhow::anyhow!(
