@@ -48,7 +48,7 @@ impl VfsBootstrapper {
     /// Add a mounted www directory.
     #[allow(dead_code)]
     pub(crate) fn with_mounted_www(&mut self, mounted_www: hermes_hdf5::Dir) {
-        self.mounted_share = Some(mounted_www);
+        self.mounted_www = Some(mounted_www);
     }
 
     /// Bootstrap the virtual file system from the provided configuration.
