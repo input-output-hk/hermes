@@ -61,8 +61,8 @@ mod tests {
         let tmp_dir_www = TempDir::new().expect("Failed to create temp dir.");
         let www = tmp_dir_www.child("www.hdf5");
 
-        let www = hdf5::File::create(www).expect("Failed to create a new package.");
-        let www_dir = Dir::new(www.as_group().expect("Failed to create a root group."));
+        let www = hdf5::File::create(www).expect("Failed to create hdf5 file.");
+        let www_dir = Dir::new(www.as_group().expect("Failed to create a www group."));
 
         let mut bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
 
