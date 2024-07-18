@@ -188,7 +188,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
+            .map(Metadata::<Self>::from_reader)?
     }
 
     /// Get `wasm::module::Module` object from package.
@@ -196,7 +196,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::COMPONENT_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(|file| wasm::module::Module::from_reader(file.reader()?))?
+            .map(wasm::module::Module::from_reader)?
     }
 
     /// Get `Signature` object from package.
@@ -204,7 +204,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::AUTHOR_COSE_FILE.into())
             .ok()
-            .map(|file| Signature::<SignaturePayload>::from_reader(file.reader()?))
+            .map(Signature::<SignaturePayload>::from_reader)
             .transpose()
     }
 
@@ -213,7 +213,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::CONFIG_SCHEMA_FILE.into())
             .ok()
-            .map(|file| ConfigSchema::from_reader(file.reader()?))
+            .map(ConfigSchema::from_reader)
             .transpose()
     }
 
@@ -227,7 +227,7 @@ impl WasmModulePackage {
         };
 
         if let Ok(file) = self.0.get_file(Self::CONFIG_FILE.into()) {
-            let config_file = Config::from_reader(file.reader()?, config_schema.validator())?;
+            let config_file = Config::from_reader(file, config_schema.validator())?;
             Ok((Some(config_file), Some(config_schema)))
         } else {
             Ok((None, Some(config_schema)))
@@ -239,7 +239,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::SETTINGS_SCHEMA_FILE.into())
             .ok()
-            .map(|file| SettingsSchema::from_reader(file.reader()?))
+            .map(SettingsSchema::from_reader)
             .transpose()
     }
 
