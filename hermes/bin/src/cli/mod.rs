@@ -26,7 +26,7 @@ const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
 /// And also it could be used to package, sign, verify and distribute hermes apps using
 /// corresponding commands.
 #[derive(Parser)]
-#[clap(version = BUILD_INFO)]
+#[clap(version = BUILD_INFO, multicall = true)]
 pub(crate) struct Cli {
     /// Path to the Hermes application package to run
     app_package: PathBuf,
@@ -48,10 +48,10 @@ pub(crate) struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// module commands
-    #[command(subcommand)]
+    #[clap(subcommand)]
     Module(module::Commands),
     /// app commands
-    #[command(subcommand)]
+    #[clap(subcommand)]
     App(app::Commands),
 }
 
