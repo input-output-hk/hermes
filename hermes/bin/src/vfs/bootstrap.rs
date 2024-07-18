@@ -68,7 +68,7 @@ impl VfsBootstrapper {
         };
         let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
 
-        let srv_dir = root.create_dir(&Self::SRV_DIR.into())?;
+        let srv_dir = root.create_dir(Self::SRV_DIR.into())?;
         if let Some(www) = self.mounted_www.as_ref() {
             srv_dir.mount_dir(www, Self::WWW_DIR.into())?;
         }

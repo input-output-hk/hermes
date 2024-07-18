@@ -51,25 +51,27 @@ impl Dir {
             anyhow::bail!("Resource {} is empty", resource.to_string());
         }
 
-        let dir = self.create_dir(&path)?;
+        let dir = self.get_dir(&path)?;
         File::create(&dir.0, file_name.as_str(), &resource_data)?;
         Ok(())
     }
 
     /// Copy resource dir recursively to the provided path.
     pub(crate) fn copy_resource_dir(
-        &self, resource: &impl ResourceTrait, path: &Path,
+        &self, resource: &impl ResourceTrait, path: Path,
     ) -> anyhow::Result<()> {
-        let dir = self.create_dir(path)?;
+        let dir = self.get_dir(&path)?;
 
         let mut errors = Errors::new();
         for resource in resource.get_directory_content()? {
+            let path: Path = resource.name()?.into();
             if resource.is_dir() {
-                dir.copy_resource_dir(&resource, &resource.name()?.into())
+                dir.create_dir(path.clone())?;
+                dir.copy_resource_dir(&resource, path.clone())
                     .unwrap_or_else(errors.get_add_err_fn());
             }
             if resource.is_file() {
-                dir.copy_resource_file(&resource, resource.name()?.into())
+                dir.copy_resource_file(&resource, path)
                     .unwrap_or_else(errors.get_add_err_fn());
             }
         }
@@ -77,7 +79,7 @@ impl Dir {
     }
 
     /// Copy other `Dir` recursively content to the current one.
-    pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
+    pub(crate) fn copy_dir(&self, dir: &Dir, path: Path) -> anyhow::Result<()> {
         let resource = Hdf5Resource::Group(dir.0.clone());
         self.copy_resource_dir(&resource, path)?;
         Ok(())
@@ -86,17 +88,14 @@ impl Dir {
     /// Create dir recursively from path related to current dir.
     /// If some dir already exists it will be skipped, if some dir does not exist it will
     /// be created.
-    /// If path is empty it will return cloned `Dir`.
-    pub(crate) fn create_dir(&self, path: &Path) -> anyhow::Result<Self> {
-        let mut dir = self.0.clone();
-        for path_element in path.iter() {
-            if let Ok(known_dir) = dir.group(path_element) {
-                dir = known_dir;
-            } else {
-                dir = dir.create_group(path_element)?;
-            }
-        }
-        Ok(Self(dir))
+    pub(crate) fn create_dir(&self, mut path: Path) -> anyhow::Result<Self> {
+        let dir_name = path.pop_elem()?;
+        let dir = self.get_dir(&path)?;
+        let new_dir = dir
+            .0
+            .create_group(&dir_name)
+            .map_err(|_| anyhow::anyhow!("Dir `{path}/{dir_name}` already exists"))?;
+        Ok(Self(new_dir))
     }
 
     /// Remove file by the provided path.
@@ -156,7 +155,7 @@ impl Dir {
         for path_element in path.iter() {
             dir = dir
                 .group(path_element)
-                .map_err(|_| anyhow::anyhow!("Dir {path} not found"))?;
+                .map_err(|_| anyhow::anyhow!("Dir `{path}` not found"))?;
         }
         Ok(Self(dir))
     }
@@ -183,18 +182,27 @@ mod tests {
         let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
         let dir = Dir::new(package.as_group().expect("Failed to create a root group."));
 
-        let path = Path::from_str("dir_1/dir_2/dir_3/dir_4");
-        dir.create_dir(&path)
+        let dir_1 = "dir_1";
+        let dir_2 = "dir_2";
+        let dir_3 = "dir_3";
+        let new_dir = dir
+            .create_dir(dir_1.into())
+            .expect("Failed to create directories in package.");
+        let new_dir = new_dir
+            .create_dir(dir_2.into())
+            .expect("Failed to create directories in package.");
+        new_dir
+            .create_dir(dir_3.into())
             .expect("Failed to create directories in package.");
 
-        assert!(dir.get_dir(&Path::from_str("dir_1")).is_ok());
-        assert!(dir.get_dir(&Path::from_str("dir_1/dir_2")).is_ok());
-        assert!(dir.get_dir(&Path::from_str("dir_1/dir_2/dir_3")).is_ok());
-        assert!(dir.get_dir(&path).is_ok());
+        assert!(dir.get_dir(&dir_1.into()).is_ok());
+        assert!(dir.get_dir(&format!("{dir_1}/{dir_2}").into()).is_ok());
+        assert!(dir
+            .get_dir(&format!("{dir_1}/{dir_2}/{dir_3}").into())
+            .is_ok());
         assert!(dir.get_dir(&Path::from_str("not_created_dir")).is_err());
 
-        dir.create_dir(&path)
-            .expect("Failed to create directories in package.");
+        assert!(dir.create_dir(dir_1.into()).is_err());
     }
 
     #[test]
@@ -212,10 +220,10 @@ mod tests {
         let child_dir_path = Path::from_str(child_dir_name);
 
         let child_dir = dir2
-            .create_dir(&child_dir_path)
+            .create_dir(child_dir_path.clone())
             .expect("Failed to create dir.");
         child_dir
-            .create_dir(&child_dir_path)
+            .create_dir(child_dir_path)
             .expect("Failed to create dir.");
 
         let mounted_dir_name = "mounted_dir";
@@ -314,7 +322,9 @@ mod tests {
         let file_3 = fs_child_dir.join(file_3_name);
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
-        dir.copy_resource_dir(&FsResource::new(fs_base_dir), &base_dir_name.into())
+        dir.create_dir(base_dir_name.into())
+            .expect("Failed to create dir.");
+        dir.copy_resource_dir(&FsResource::new(fs_base_dir), base_dir_name.into())
             .expect("Failed to copy dir to package.");
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
@@ -402,7 +412,7 @@ mod tests {
         // copy content from first dir from first package to second dir in second package
         assert!(dir_2.get_file(content_name.into()).is_err());
         dir_2
-            .copy_dir(&dir_1, &"".into())
+            .copy_dir(&dir_1, "".into())
             .expect("Failed to copy package to package.");
         assert!(dir_2.get_file(content_name.into()).is_ok());
     }
