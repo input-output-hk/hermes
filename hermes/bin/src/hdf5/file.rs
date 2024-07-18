@@ -158,28 +158,34 @@ mod tests {
         let file_content = b"file_content";
         let written = file.write(file_content).expect("Failed to write to file.");
         assert_eq!(written, file_content.len());
+        let written = file.write(file_content).expect("Failed to write to file.");
+        assert_eq!(written, file_content.len());
 
         file.seek(std::io::SeekFrom::Start(0))
             .expect("Failed to seek.");
-        let mut buffer = Vec::new();
+        let mut buffer = [0; 12];
+        assert_eq!(buffer.len(), file_content.len());
         let read = file.read(&mut buffer).expect("Failed to read from file.");
         assert_eq!(read, file_content.len());
-        assert_eq!(buffer, file_content);
+        assert_eq!(buffer.as_slice(), file_content.as_slice());
         let read = file.read(&mut buffer).expect("Failed to read from file.");
         assert_eq!(read, file_content.len());
-        assert_eq!(buffer, file_content);
+        assert_eq!(buffer.as_slice(), file_content.as_slice());
 
         file.seek(std::io::SeekFrom::Start(0))
             .expect("Failed to seek.");
         let new_file_content = b"new_file_content";
-        file.write_all(new_file_content)
+        let written = file
+            .write(new_file_content)
             .expect("Failed to write to file.");
+        assert_eq!(written, new_file_content.len());
 
         file.seek(std::io::SeekFrom::Start(0))
             .expect("Failed to seek.");
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)
-            .expect("Failed to read from file.");
-        assert_eq!(buffer, new_file_content);
+        let mut buffer = [0; 16];
+        assert_eq!(buffer.len(), new_file_content.len());
+        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        assert_eq!(read, new_file_content.len());
+        assert_eq!(buffer.as_slice(), new_file_content.as_slice());
     }
 }
