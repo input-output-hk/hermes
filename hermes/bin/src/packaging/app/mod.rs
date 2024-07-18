@@ -322,7 +322,7 @@ fn validate_and_write_module(
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
 
     let module_package_dir = modules_dir.create_dir(module_name.as_str().into())?;
-    module_package.copy_to_dir(&module_package_dir, Path::default())?;
+    module_package.copy_to_dir(&module_package_dir, &Path::default())?;
 
     let module_overridable_dir = usr_modules_dir.create_dir(module_name.as_str().into())?;
 
@@ -346,14 +346,14 @@ fn validate_and_write_module(
 /// Write www dir to the package to the provided dir path to the provided dir path.
 fn write_www_dir(resource: &impl ResourceTrait, srv_dir: &Dir) -> anyhow::Result<()> {
     let www_dir = srv_dir.create_dir(ApplicationPackage::WWW_DIR.into())?;
-    www_dir.copy_resource_dir(resource, Path::default())?;
+    www_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
 /// Write share dir to the package to the provided dir path.
 fn write_share_dir(resource: &impl ResourceTrait, srv_dir: &Dir) -> anyhow::Result<()> {
     let share_dir = srv_dir.create_dir(ApplicationPackage::SHARE_DIR.into())?;
-    share_dir.copy_resource_dir(resource, Path::default())?;
+    share_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 

@@ -180,7 +180,7 @@ mod tests {
             .create_dir(dir_name.into())
             .expect("Failed to create dir.");
         package
-            .copy_resource_dir(&FsResource::new(dir), dir_name.into())
+            .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
             .expect("Failed to copy dir to package.");
 
         let hash = package

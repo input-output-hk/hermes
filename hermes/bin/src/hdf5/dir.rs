@@ -58,16 +58,16 @@ impl Dir {
 
     /// Copy resource dir recursively to the provided path.
     pub(crate) fn copy_resource_dir(
-        &self, resource: &impl ResourceTrait, path: Path,
+        &self, resource: &impl ResourceTrait, path: &Path,
     ) -> anyhow::Result<()> {
-        let dir = self.get_dir(&path)?;
+        let dir = self.get_dir(path)?;
 
         let mut errors = Errors::new();
         for resource in resource.get_directory_content()? {
             let path: Path = resource.name()?.into();
             if resource.is_dir() {
                 dir.create_dir(path.clone())?;
-                dir.copy_resource_dir(&resource, path.clone())
+                dir.copy_resource_dir(&resource, &path)
                     .unwrap_or_else(errors.get_add_err_fn());
             }
             if resource.is_file() {
@@ -79,7 +79,7 @@ impl Dir {
     }
 
     /// Copy other `Dir` recursively content to the current one.
-    pub(crate) fn copy_dir(&self, dir: &Dir, path: Path) -> anyhow::Result<()> {
+    pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
         let resource = Hdf5Resource::Group(dir.0.clone());
         self.copy_resource_dir(&resource, path)?;
         Ok(())
@@ -324,7 +324,7 @@ mod tests {
 
         dir.create_dir(base_dir_name.into())
             .expect("Failed to create dir.");
-        dir.copy_resource_dir(&FsResource::new(fs_base_dir), base_dir_name.into())
+        dir.copy_resource_dir(&FsResource::new(fs_base_dir), &base_dir_name.into())
             .expect("Failed to copy dir to package.");
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
@@ -412,7 +412,7 @@ mod tests {
         // copy content from first dir from first package to second dir in second package
         assert!(dir_2.get_file(content_name.into()).is_err());
         dir_2
-            .copy_dir(&dir_1, "".into())
+            .copy_dir(&dir_1, &"".into())
             .expect("Failed to copy package to package.");
         assert!(dir_2.get_file(content_name.into()).is_ok());
     }

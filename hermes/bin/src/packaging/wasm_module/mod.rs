@@ -250,7 +250,7 @@ impl WasmModulePackage {
     }
 
     /// Copy all content of the `WasmModulePackage` to the provided `Dir`.
-    pub(crate) fn copy_to_dir(&self, dir: &Dir, path: Path) -> anyhow::Result<()> {
+    pub(crate) fn copy_to_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
         dir.copy_dir(&self.0, path)
     }
 }
@@ -361,7 +361,7 @@ fn validate_and_write_settings_schema(
 /// Write share dir to the package.
 pub(crate) fn write_share_dir(resource: &impl ResourceTrait, dir: &Dir) -> anyhow::Result<()> {
     let share_dir = dir.create_dir(WasmModulePackage::SHARE_DIR.into())?;
-    share_dir.copy_resource_dir(resource, Path::default())?;
+    share_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
