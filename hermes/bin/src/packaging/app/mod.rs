@@ -6,7 +6,6 @@ pub(crate) mod manifest;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
-use super::hash::Blake2b256;
 use crate::{
     errors::Errors,
     hdf5::{
@@ -14,6 +13,7 @@ use crate::{
         Dir, Path,
     },
     packaging::{
+        hash::Blake2b256,
         metadata::{Metadata, MetadataSchema},
         package::Package,
         sign::{
@@ -46,11 +46,13 @@ impl ApplicationPackage {
     /// Application WASM modules directory path.
     const MODULES_DIR: &'static str = "lib";
     /// Application package `share` directory path.
-    const SHARE_DIR: &'static str = "srv/share";
+    const SHARE_DIR: &'static str = "share";
+    /// Application package `srv` directory name.
+    const SRV_DIR: &'static str = "srv";
     /// Application shareable directory path.
     const USR_DIR: &'static str = "usr";
     /// Application package `www` directory path.
-    const WWW_DIR: &'static str = "srv/www";
+    const WWW_DIR: &'static str = "www";
 
     /// Create a new Hermes application package package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
@@ -247,45 +249,55 @@ fn validate_and_write_from_manifest(
     manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
     errors: &mut Errors,
 ) {
-    validate_and_write_icon(manifest.icon.build(), package, Path::default())
+    validate_and_write_icon(manifest.icon.build(), package).unwrap_or_else(errors.get_add_err_fn());
+    validate_and_write_metadata(manifest.metadata.build(), build_date, package_name, package)
         .unwrap_or_else(errors.get_add_err_fn());
-    validate_and_write_metadata(
-        manifest.metadata.build(),
-        build_date,
-        package_name,
-        package,
-        Path::default(),
-    )
-    .unwrap_or_else(errors.get_add_err_fn());
-    for module in &manifest.modules {
-        validate_and_write_module(module, package, Path::default())
-            .unwrap_or_else(errors.get_add_err_fn());
-    }
-    if let Some(www_dir) = &manifest.www {
-        write_www_dir(www_dir.build(), package, Path::default())
-            .unwrap_or_else(errors.get_add_err_fn());
-    }
-    if let Some(share_dir) = &manifest.share {
-        write_share_dir(share_dir.build(), package, Path::default())
-            .unwrap_or_else(errors.get_add_err_fn());
-    }
+
+    match package.create_dir(ApplicationPackage::MODULES_DIR.into()) {
+        Ok(modules_dir) => {
+            match package.create_dir(ApplicationPackage::USR_DIR.into()) {
+                Ok(usr_dir) => {
+                    match usr_dir.create_dir(ApplicationPackage::MODULES_DIR.into()) {
+                        Ok(usr_modules_dir) => {
+                            for module in &manifest.modules {
+                                validate_and_write_module(module, &modules_dir, &usr_modules_dir)
+                                    .unwrap_or_else(errors.get_add_err_fn());
+                            }
+                        },
+                        Err(err) => errors.add_err(err),
+                    }
+                },
+                Err(err) => errors.add_err(err),
+            }
+        },
+        Err(err) => errors.add_err(err),
+    };
+
+    match package.create_dir(ApplicationPackage::SRV_DIR.into()) {
+        Ok(srv_dir) => {
+            if let Some(www_dir) = &manifest.www {
+                write_www_dir(www_dir.build(), &srv_dir).unwrap_or_else(errors.get_add_err_fn());
+            }
+            if let Some(share_dir) = &manifest.share {
+                write_share_dir(share_dir.build(), &srv_dir)
+                    .unwrap_or_else(errors.get_add_err_fn());
+            }
+        },
+        Err(err) => errors.add_err(err),
+    };
 }
 
 /// Validate icon.svg file and write it to the package to the provided dir path.
-fn validate_and_write_icon(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
-) -> anyhow::Result<()> {
+fn validate_and_write_icon(resource: &impl ResourceTrait, dir: &Dir) -> anyhow::Result<()> {
     // TODO: https://github.com/input-output-hk/hermes/issues/282
-    path.push_elem(ApplicationPackage::ICON_FILE.into());
-    package.copy_resource_file(resource, path)?;
+    dir.copy_resource_file(resource, ApplicationPackage::ICON_FILE.into())?;
     Ok(())
 }
 
 /// Validate metadata.json file and write it to the package to the provided dir path.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
-    mut path: Path,
+    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, dir: &Dir,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -295,14 +307,13 @@ fn validate_and_write_metadata(
     metadata.set_name(name);
 
     let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
-    path.push_elem(ApplicationPackage::METADATA_FILE.into());
-    package.copy_resource_file(&resource, path)?;
+    dir.copy_resource_file(&resource, ApplicationPackage::METADATA_FILE.into())?;
     Ok(())
 }
 
 /// Validate WASM module package and write it to the package to the provided dir path.
 fn validate_and_write_module(
-    manifest: &ManifestModule, package: &Package, path: Path,
+    manifest: &ManifestModule, modules_dir: &Dir, usr_modules_dir: &Dir,
 ) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
@@ -310,16 +321,10 @@ fn validate_and_write_module(
     let module_original_name = module_package.get_metadata()?.get_name()?;
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
 
-    let mut module_path = path.clone();
-    module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
-    module_path.push_elem(module_name.clone());
+    let module_package_dir = modules_dir.create_dir(module_name.as_str().into())?;
+    module_package.copy_to_dir(&module_package_dir, &Path::default())?;
 
-    module_package.copy_to_package(package, &module_path)?;
-
-    let mut usr_module_path = path;
-    usr_module_path.push_elem(ApplicationPackage::USR_DIR.into());
-    usr_module_path.push_elem(ApplicationPackage::MODULES_DIR.into());
-    usr_module_path.push_elem(module_name.clone());
+    let module_overridable_dir = usr_modules_dir.create_dir(module_name.as_str().into())?;
 
     if let Some(config) = &manifest.config {
         let config_schema = module_package.get_config_schema()?.ok_or(anyhow::anyhow!(
@@ -329,31 +334,26 @@ fn validate_and_write_module(
         wasm_module::validate_and_write_config_file(
             config.build(),
             &config_schema,
-            package,
-            usr_module_path.clone(),
+            &module_overridable_dir,
         )?;
     }
     if let Some(share_dir) = &manifest.share {
-        wasm_module::write_share_dir(share_dir.build(), package, usr_module_path)?;
+        wasm_module::write_share_dir(share_dir.build(), &module_overridable_dir)?;
     }
     Ok(())
 }
 
 /// Write www dir to the package to the provided dir path to the provided dir path.
-fn write_www_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
-) -> anyhow::Result<()> {
-    path.push_elem(ApplicationPackage::WWW_DIR.into());
-    package.copy_resource_dir(resource, &path)?;
+fn write_www_dir(resource: &impl ResourceTrait, srv_dir: &Dir) -> anyhow::Result<()> {
+    let www_dir = srv_dir.create_dir(ApplicationPackage::WWW_DIR.into())?;
+    www_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
 /// Write share dir to the package to the provided dir path.
-fn write_share_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
-) -> anyhow::Result<()> {
-    path.push_elem(ApplicationPackage::SHARE_DIR.into());
-    package.copy_resource_dir(resource, &path)?;
+fn write_share_dir(resource: &impl ResourceTrait, srv_dir: &Dir) -> anyhow::Result<()> {
+    let share_dir = srv_dir.create_dir(ApplicationPackage::SHARE_DIR.into())?;
+    share_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
@@ -476,7 +476,7 @@ mod tests {
         let mut app_package_files = prepare_default_package_files(modules_num);
 
         // override module names for first 2 modules
-        let override_module_name = vec!["test module 1".into(), "test module 2".into()];
+        let override_module_name = vec!["test_module_1".into(), "test_module_2".into()];
         let build_date = DateTime::default();
         let manifest = prepare_package_dir(
             "app".to_string(),

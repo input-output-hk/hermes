@@ -177,6 +177,9 @@ mod tests {
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
         package
+            .create_dir(dir_name.into())
+            .expect("Failed to create dir.");
+        package
             .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
             .expect("Failed to copy dir to package.");
 

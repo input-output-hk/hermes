@@ -68,7 +68,13 @@ impl VfsBootstrapper {
         };
         let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
 
-        let srv_dir = root.create_dir(&Self::SRV_DIR.into())?;
+        let srv_path = Self::SRV_DIR.into();
+        let srv_dir = if let Ok(srv_dir) = root.get_dir(&srv_path) {
+            srv_dir
+        } else {
+            root.create_dir(srv_path)?
+        };
+
         if let Some(www) = self.mounted_www.as_ref() {
             srv_dir.mount_dir(www, Self::WWW_DIR.into())?;
         }
@@ -87,15 +93,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vfs_bootstrap_test() -> anyhow::Result<()> {
-        let dir = TempDir::new()?;
+    fn vfs_bootstrap_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
 
         let vfs_name = "test_vfs".to_string();
 
-        let vfs = VfsBootstrapper::new(dir.path(), vfs_name.clone()).bootstrap()?;
+        let vfs = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone())
+            .bootstrap()
+            .expect("Failed to bootstrap VFS");
         drop(vfs);
 
-        let _vfs = VfsBootstrapper::new(dir.path(), vfs_name).bootstrap()?;
-        Ok(())
+        let _vfs = VfsBootstrapper::new(tmp_dir.path(), vfs_name)
+            .bootstrap()
+            .expect("Failed to bootstrap VFS");
     }
 }
