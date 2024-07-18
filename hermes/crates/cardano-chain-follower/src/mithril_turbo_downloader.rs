@@ -1,9 +1,10 @@
 //! Turbo Downloads for Mithril Snapshots.
 
 use std::{
+    ffi::OsStr,
     path::{Path, PathBuf},
     process::Stdio,
-    sync::Mutex,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{anyhow, bail, Context};
@@ -20,7 +21,7 @@ use tokio::{
 use tokio_stream::StreamExt;
 use tokio_tar::Archive;
 use tokio_util::codec::{FramedRead, LinesCodec};
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::{
     mithril_snapshot_config::{async_hash_single_file, MithrilSnapshotConfig},
@@ -38,8 +39,8 @@ pub struct MithrilTurboDownloader {
     http_client: reqwest::Client,
     /// Configuration for the snapshot sync.
     cfg: MithrilSnapshotConfig,
-    /// Last hashmap from the previous download
-    previous_hashmap: Mutex<Option<FileHashMap>>,
+    /// Last hashmap/list of changed chunks from the previous download
+    previous_hashmap: OnceLock<(Arc<FileHashMap>, Arc<Vec<String>>)>,
 }
 
 impl MithrilTurboDownloader {
@@ -52,23 +53,47 @@ impl MithrilTurboDownloader {
         Ok(Self {
             http_client,
             cfg,
-            previous_hashmap: Mutex::new(Option::default()),
+            previous_hashmap: OnceLock::new(),
         })
     }
 
     /// Take the hashmap for the previous download.  Can only be done Once.
-    pub fn take_previous_hashmap(&self) -> Option<FileHashMap> {
-        match self.previous_hashmap.lock() {
-            Ok(mut map) => map.take(),
-            Err(_) => None,
-        }
+    pub fn take_previous_hashmap(&self) -> Option<(Arc<FileHashMap>, Arc<Vec<String>>)> {
+        self.previous_hashmap.get().cloned()
     }
 
     /// Set the hashmap for the previous download.
-    fn set_hashmap(&self, map: FileHashMap) {
-        if let Ok(mut hashmap) = self.previous_hashmap.lock() {
-            *hashmap = Some(map);
+    fn set_hashmap(&self, map: FileHashMap, chunks: Vec<String>) {
+        if self
+            .previous_hashmap
+            .set((Arc::new(map), Arc::new(chunks)))
+            .is_err()
+        {
+            error!("Failed to set hashmap... Called Twice??");
         }
+    }
+
+    /// Create directories required to exist for download to succeed.
+    async fn create_directories(&self, target_dir: &Path) -> MithrilResult<()> {
+        if let Err(error) = create_dir_all(self.cfg.dl_path()).await {
+            let msg = format!(
+                "Download directory {} could not be created: {}",
+                self.cfg.dl_path().to_string_lossy(),
+                error
+            );
+            Err(anyhow!(msg.clone()).context(msg))?;
+        }
+
+        if let Err(error) = create_dir_all(target_dir).await {
+            let msg = format!(
+                "Target directory {} could not be created: {}",
+                target_dir.to_string_lossy(),
+                error
+            );
+            Err(anyhow!(msg.clone()).context(msg))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -140,24 +165,9 @@ impl SnapshotDownloader for MithrilTurboDownloader {
         _download_id: &str, _snapshot_size: u64,
     ) -> MithrilResult<()> {
         let hashmap = FileHashMap::new();
+        let mut new_chunks: Vec<String> = Vec::new();
 
-        if let Err(error) = create_dir_all(self.cfg.dl_path()).await {
-            let msg = format!(
-                "Download directory {} could not be created: {}",
-                self.cfg.dl_path().to_string_lossy(),
-                error
-            );
-            Err(anyhow!(msg.clone()).context(msg))?;
-        }
-
-        if let Err(error) = create_dir_all(target_dir).await {
-            let msg = format!(
-                "Target directory {} could not be created: {}",
-                target_dir.to_string_lossy(),
-                error
-            );
-            Err(anyhow!(msg.clone()).context(msg))?;
-        }
+        self.create_directories(target_dir).await?;
 
         debug!("Download and Unpack started='{location}' to '{target_dir:?}'.");
 
@@ -249,11 +259,23 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                             debug!("Changed File '{}'.", relative_file.to_string_lossy());
                             changed_files += 1;
                             deduplicated_size += file_size;
+                            if abs_file.extension() == Some(OsStr::new("chunk")) {
+                                new_chunks.push(abs_file.to_string_lossy().to_string());
+                            }
                         }
                     } else {
                         // debug!("New File '{}'.", relative_file.to_string_lossy());
                         new_files += 1;
                         deduplicated_size += file_size;
+                        if abs_file.extension() == Some(OsStr::new("chunk")) {
+                            new_chunks.push(abs_file.to_string_lossy().to_string());
+                        }
+                    }
+                } else {
+                    new_files += 1;
+                    deduplicated_size += file_size;
+                    if abs_file.extension() == Some(OsStr::new("chunk")) {
+                        new_chunks.push(abs_file.to_string_lossy().to_string());
                     }
                 }
             }
@@ -261,7 +283,7 @@ impl SnapshotDownloader for MithrilTurboDownloader {
 
         // Set the hashmap of the previous download.
         debug!("Hashmap entries = {}", hashmap.len());
-        self.set_hashmap(hashmap);
+        self.set_hashmap(hashmap, new_chunks);
 
         stats::mithril_extract_finished(
             self.cfg.chain,

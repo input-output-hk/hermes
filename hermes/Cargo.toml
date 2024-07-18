@@ -46,15 +46,15 @@ missing_docs_in_private_items = "deny"
 
 [workspace.dependencies]
 # specific commit from the `catalyst` branch
-pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
+pallas = "0.29.0"
 # specific commit from the `catalyst` branch
-pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
-pallas-crypto = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "cd70422a7e6c011464e2268d1036cdf2249fb8d7", version = "0.28.0" }
+pallas-hardano = "0.29.0"
+pallas-crypto = "0.29.0"
 cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
 
 hermes-ipfs = { path = "crates/hermes-ipfs", version = "0.0.1" }
 
-wasmtime = "20.0.2"
+wasmtime = "22.0.0"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
 blake2b_simd = "1.0.2"
@@ -111,7 +111,7 @@ regex = "1.10.4"
 humansize = { version = "^2.1.2", default-features = false, features = [
     "no_alloc",
 ] }
-reqwest = { version = ">=0.0.0, 0.12.5", default-features = false, features = [
+reqwest = { version = "0.12.5, >=0.0.0", default-features = false, features = [
     "rustls-tls-native-roots",
     "http2",
     "blocking",
@@ -144,8 +144,8 @@ humantime = "2.1.0"
 crossbeam-queue = "0.3.11"
 crossbeam-skiplist = "0.1.3"
 crossbeam-channel = "0.5.13"
-strum = "0.26.2"
-strum_macros = "0.26.2"
+strum = "0.26.3"
+strum_macros = "0.26.4"
 rayon = "1.10.0"
 ignore = "0.4.22"
 hmac = "0.12.1"

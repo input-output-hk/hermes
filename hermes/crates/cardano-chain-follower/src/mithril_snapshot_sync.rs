@@ -2,18 +2,22 @@
 //!
 //! This task is responsible for downloading Mithril snapshot files. It downloads the
 //! latest snapshot file and then sleeps until the next snapshot is available.
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use chrono::{TimeDelta, Utc};
 use humantime::format_duration;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tokio::{
     fs::remove_dir_all,
     join,
     sync::mpsc::Sender,
     time::{sleep, Duration},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::{
     error::{Error, Result},
@@ -416,13 +420,13 @@ async fn get_latest_validated_mithril_snapshot(
 /// Get the Mithril client and recover our existing mithril snapshot data, if any.
 async fn recover_existing_snapshot(
     cfg: &MithrilSnapshotConfig, tx: &Sender<MithrilUpdateMessage>,
-) -> (Client, Arc<MithrilTurboDownloader>, Option<SnapshotId>) {
+) -> Option<SnapshotId> {
     // This is a Mithril Validation, so record it.
     mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
 
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
-    let (client, downloader) = connect_client(cfg).await;
+    let (client, _downloader) = connect_client(cfg).await;
 
     debug!(
         "Mithril Snapshot background updater for: {} : Client connected.",
@@ -477,7 +481,7 @@ async fn recover_existing_snapshot(
         mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
     }
 
-    (client, downloader, current_snapshot)
+    current_snapshot
 }
 
 /// Status of checking if we have a new snapshot to get or not.
@@ -529,10 +533,69 @@ async fn check_snapshot_to_download(
     SnapshotStatus::Updated((snapshot, certificate))
 }
 
+/// Start Mithril Validation in the background, and return a handle so we can check when it finishes.
+fn background_validate_mithril_snapshot(
+    chain: Network, certificate: MithrilCertificate, tmp_path: PathBuf,
+) -> tokio::task::JoinHandle<bool> {
+    tokio::spawn(async move {
+        debug!(
+            "Mithril Snapshot background updater for: {} : Check Certificate.",
+            chain
+        );
+
+        stats::mithril_validation_state(chain, stats::MithrilValidationState::Start);
+
+        if !validate_mithril_snapshot(chain, &certificate, &tmp_path).await {
+            stats::mithril_validation_state(chain, stats::MithrilValidationState::Failed);
+            // If we couldn't build the message then assume its a transient error.
+            error!(
+                chain = %chain,
+                "Failed to Compute Snapshot Message"
+            );
+            return false;
+        }
+        stats::mithril_validation_state(chain, stats::MithrilValidationState::Finish);
+
+        debug!(
+            "Mithril Snapshot background updater for: {} : Certificate Validated OK.",
+            chain
+        );
+
+        true
+    })
+}
+
+/// In the background, index all the blocks and transactions that updated.
+fn background_index_blocks_and_transactions(
+    chain: Network, validation_handle: tokio::task::JoinHandle<bool>, chunk_list: Arc<Vec<String>>,
+) -> tokio::task::JoinHandle<bool> {
+    tokio::spawn(async move {
+        debug!(
+            "Index Blocks and Transactions background updater for: {} : Started",
+            chain
+        );
+
+        let inner_indexer_handle = tokio::task::spawn_blocking(move || {
+            chunk_list.par_iter().for_each(|chunk| {
+                info!("Indexing chunk: {}", &chunk);
+            });
+        });
+
+        let _unused = inner_indexer_handle.await;
+
+        debug!(
+            "Index Blocks and Transactions background updater for: {} : Finished",
+            chain
+        );
+
+        validation_handle.await.unwrap_or(false)
+    })
+}
+
 /// Downloads and validates a snapshot from the aggregator.
 async fn download_and_validate_snapshot(
-    client: &Client, cfg: &MithrilSnapshotConfig, snapshot: &Snapshot,
-    certificate: &MithrilCertificate,
+    client: &Client, downloader: Arc<MithrilTurboDownloader>, cfg: &MithrilSnapshotConfig,
+    snapshot: &Snapshot, certificate: MithrilCertificate,
 ) -> bool {
     debug!(
         "Mithril Snapshot background updater for: {} : Download and unpack the Mithril snapshot.",
@@ -569,20 +632,69 @@ async fn download_and_validate_snapshot(
         cfg.chain
     );
 
-    stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
+    if let Some((_, chunk_list)) = downloader.take_previous_hashmap() {
+        let validate_handle =
+            background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
 
-    if !validate_mithril_snapshot(cfg.chain, certificate, &cfg.tmp_path()).await {
-        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Failed);
-        // If we couldn't build the message then assume its a transient error.
+        let index_handle =
+            background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
+
+        if !index_handle.await.unwrap_or(false) {
+            error!(
+                "Failed to validate or index blocks and transactions for {}",
+                cfg.chain
+            );
+            return false;
+        }
+    } else {
         error!(
-            chain = cfg.chain.to_string(),
-            "Failed to Compute Snapshot Message"
+            "Download did not complete properly, no File hashmap or Changed Chunk list provided."
         );
         return false;
     }
-    stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
 
+    /*
+        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
+
+        if !validate_mithril_snapshot(cfg.chain, certificate, &cfg.tmp_path()).await {
+            stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Failed);
+            // If we couldn't build the message then assume its a transient error.
+            error!(
+                chain = cfg.chain.to_string(),
+                "Failed to Compute Snapshot Message"
+            );
+            return false;
+        }
+        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
+    */
     true
+}
+
+/// We can accumulate junk depending on errors or when we terminate, make sure we are
+/// always clean.
+async fn cleanup(cfg: &MithrilSnapshotConfig) {
+    if let Err(error) = cfg.cleanup().await {
+        error!(
+            "Mithril Snapshot background updater for:  {} : Error cleaning up: {:?}",
+            cfg.chain, error
+        );
+    }
+}
+
+/// Sleep until its likely there has been another mithril snapshot update.
+async fn sleep_until_next_probable_update(
+    cfg: &MithrilSnapshotConfig, next_sleep: &Duration,
+) -> Duration {
+    debug!(
+        "Mithril Snapshot background updater for: {} : Sleeping for {}.",
+        cfg.chain,
+        format_duration(*next_sleep)
+    );
+    // Wait until its likely we have a new snapshot ready to download.
+    sleep(*next_sleep).await;
+
+    // Default sleep if we end up back at the top of this loop because of an error.
+    DOWNLOAD_ERROR_RETRY_DURATION
 }
 
 /// Handle the background downloading of Mithril snapshots for a given network.
@@ -611,29 +723,16 @@ pub(crate) async fn background_mithril_update(
     );
     let mut next_sleep = Duration::from_secs(0);
 
-    let (client, downloader, mut current_snapshot) = recover_existing_snapshot(&cfg, &tx).await;
+    let mut current_snapshot = recover_existing_snapshot(&cfg, &tx).await;
 
     loop {
         debug!("Background Mithril Updater - New Loop");
-        // We can accumulate junk depending on errors or when we terminate, make sure we are
-        // always clean.
-        if let Err(error) = cfg.cleanup().await {
-            error!(
-                "Mithril Snapshot background updater for:  {} : Error cleaning up: {:?}",
-                cfg.chain, error
-            );
-        }
 
-        debug!(
-            "Mithril Snapshot background updater for: {} : Sleeping for {}.",
-            cfg.chain,
-            format_duration(next_sleep)
-        );
-        // Wait until its likely we have a new snapshot ready to download.
-        sleep(next_sleep).await;
+        cleanup(&cfg).await;
 
-        // Default sleep if we end up back at the top of this loop because of an error.
-        next_sleep = DOWNLOAD_ERROR_RETRY_DURATION;
+        next_sleep = sleep_until_next_probable_update(&cfg, &next_sleep).await;
+
+        let (client, downloader) = connect_client(&cfg).await;
 
         let (snapshot, certificate) =
             match check_snapshot_to_download(cfg.chain, &client, &current_snapshot).await {
@@ -644,7 +743,15 @@ pub(crate) async fn background_mithril_update(
                 SnapshotStatus::Updated(update) => update,
             };
 
-        if !download_and_validate_snapshot(&client, &cfg, &snapshot, &certificate).await {
+        if !download_and_validate_snapshot(
+            &client,
+            downloader.clone(),
+            &cfg,
+            &snapshot,
+            certificate,
+        )
+        .await
+        {
             error!("Failed to Download or Validate a snapshot.");
             continue;
         }
@@ -686,8 +793,7 @@ pub(crate) async fn background_mithril_update(
 
                 if let Some(latest_snapshot) = current_snapshot.clone() {
                     // Save the new file hash map and update the latest snapshot data record
-                    if let Some(hash_map) = downloader.take_previous_hashmap() {
-                        let hash_map = Arc::new(hash_map);
+                    if let Some((hash_map, _)) = downloader.take_previous_hashmap() {
                         debug!(
                             chain = cfg.chain.to_string(),
                             "File hashmap has {} entries",
