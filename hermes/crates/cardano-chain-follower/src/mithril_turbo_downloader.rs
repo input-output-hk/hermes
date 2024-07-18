@@ -10,6 +10,7 @@ use std::{
 use anyhow::{anyhow, bail, Context};
 use async_compression::tokio::bufread::ZstdDecoder;
 use async_trait::async_trait;
+use crossbeam_skiplist::SkipSet;
 use mithril_client::{
     common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, MithrilResult,
 };
@@ -40,7 +41,7 @@ pub struct MithrilTurboDownloader {
     /// Configuration for the snapshot sync.
     cfg: MithrilSnapshotConfig,
     /// Last hashmap/list of changed chunks from the previous download
-    previous_hashmap: OnceLock<(Arc<FileHashMap>, Arc<Vec<String>>)>,
+    previous_hashmap: OnceLock<(Arc<FileHashMap>, Arc<SkipSet<PathBuf>>)>,
 }
 
 impl MithrilTurboDownloader {
@@ -57,13 +58,13 @@ impl MithrilTurboDownloader {
         })
     }
 
-    /// Take the hashmap for the previous download.  Can only be done Once.
-    pub fn take_previous_hashmap(&self) -> Option<(Arc<FileHashMap>, Arc<Vec<String>>)> {
+    /// Take the hashmap for the previous download.
+    pub fn take_previous_hashmap(&self) -> Option<(Arc<FileHashMap>, Arc<SkipSet<PathBuf>>)> {
         self.previous_hashmap.get().cloned()
     }
 
     /// Set the hashmap for the previous download.
-    fn set_hashmap(&self, map: FileHashMap, chunks: Vec<String>) {
+    fn set_hashmap(&self, map: FileHashMap, chunks: SkipSet<PathBuf>) {
         if self
             .previous_hashmap
             .set((Arc::new(map), Arc::new(chunks)))
@@ -165,7 +166,7 @@ impl SnapshotDownloader for MithrilTurboDownloader {
         _download_id: &str, _snapshot_size: u64,
     ) -> MithrilResult<()> {
         let hashmap = FileHashMap::new();
-        let mut new_chunks: Vec<String> = Vec::new();
+        let new_chunks: SkipSet<PathBuf> = SkipSet::new();
 
         self.create_directories(target_dir).await?;
 
@@ -260,7 +261,7 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                             changed_files += 1;
                             deduplicated_size += file_size;
                             if abs_file.extension() == Some(OsStr::new("chunk")) {
-                                new_chunks.push(abs_file.to_string_lossy().to_string());
+                                new_chunks.insert(abs_file);
                             }
                         }
                     } else {
@@ -268,14 +269,14 @@ impl SnapshotDownloader for MithrilTurboDownloader {
                         new_files += 1;
                         deduplicated_size += file_size;
                         if abs_file.extension() == Some(OsStr::new("chunk")) {
-                            new_chunks.push(abs_file.to_string_lossy().to_string());
+                            new_chunks.insert(abs_file);
                         }
                     }
                 } else {
                     new_files += 1;
                     deduplicated_size += file_size;
                     if abs_file.extension() == Some(OsStr::new("chunk")) {
-                        new_chunks.push(abs_file.to_string_lossy().to_string());
+                        new_chunks.insert(abs_file);
                     }
                 }
             }

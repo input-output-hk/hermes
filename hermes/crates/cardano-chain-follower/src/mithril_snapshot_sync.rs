@@ -8,18 +8,20 @@ use std::{
 };
 
 use chrono::{TimeDelta, Utc};
+use crossbeam_skiplist::SkipSet;
 use humantime::format_duration;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
 use tokio::{
     fs::remove_dir_all,
     join,
     sync::mpsc::Sender,
     time::{sleep, Duration},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::{
+    data_index::index_immutable_chunk,
     error::{Error, Result},
     mithril_query::get_mithril_tip_point,
     mithril_snapshot_config::{
@@ -567,7 +569,8 @@ fn background_validate_mithril_snapshot(
 
 /// In the background, index all the blocks and transactions that updated.
 fn background_index_blocks_and_transactions(
-    chain: Network, validation_handle: tokio::task::JoinHandle<bool>, chunk_list: Arc<Vec<String>>,
+    chain: Network, validation_handle: tokio::task::JoinHandle<bool>,
+    chunk_list: Arc<SkipSet<PathBuf>>,
 ) -> tokio::task::JoinHandle<bool> {
     tokio::spawn(async move {
         debug!(
@@ -576,9 +579,16 @@ fn background_index_blocks_and_transactions(
         );
 
         let inner_indexer_handle = tokio::task::spawn_blocking(move || {
-            chunk_list.par_iter().for_each(|chunk| {
-                info!("Indexing chunk: {}", &chunk);
+            rayon::scope(|s| {
+                chunk_list.iter().for_each(|chunk| {
+                    let chunk_value = chunk.value().clone();
+                    s.spawn(move |_| {
+                        // task s.1
+                        index_immutable_chunk(chain, &chunk_value);
+                    });
+                });
             });
+            debug!("Finished Indexing.");
         });
 
         let _unused = inner_indexer_handle.await;
@@ -590,6 +600,40 @@ fn background_index_blocks_and_transactions(
 
         validation_handle.await.unwrap_or(false)
     })
+}
+
+/// Convert a chunk filename into its numeric equivalent.
+fn chunk_filename_to_chunk_number(chunk: &Path) -> Option<u64> {
+    if let Some(stem) = chunk.file_stem().map(Path::new) {
+        if let Some(base) = stem.file_name().map(|s| s.to_string_lossy().to_string()) {
+            if let Ok(num) = base.parse::<u64>() {
+                return Some(num);
+            }
+        }
+    }
+    None
+}
+
+/// Remove any chunks from the chunk list which exceed the `max_chunk`.
+fn trim_chunk_list(chunk_list: &Arc<SkipSet<PathBuf>>, max_chunks: u64) {
+    loop {
+        if let Some(last_chunk) = chunk_list.back().map(|c| c.value().clone()) {
+            if let Some(chunk_index) = chunk_filename_to_chunk_number(&last_chunk) {
+                if chunk_index > max_chunks {
+                    debug!("Removing Non immutable Chunk: {:?}", last_chunk);
+                    chunk_list.pop_back();
+                    continue;
+                }
+            } else {
+                // Huh, not a valid filename, so purge it.
+                error!("Found an invalid chunk name: {:?}", last_chunk);
+                chunk_list.pop_back();
+                continue;
+            }
+        }
+
+        break;
+    }
 }
 
 /// Downloads and validates a snapshot from the aggregator.
@@ -628,11 +672,15 @@ async fn download_and_validate_snapshot(
     }
 
     debug!(
-        "Mithril Snapshot background updater for: {} : Check Certificate.",
+        "Mithril Snapshot background updater for: {} : Index and Check Certificate.",
         cfg.chain
     );
 
     if let Some((_, chunk_list)) = downloader.take_previous_hashmap() {
+        // Remove the last chunks from the list, if they are > the max_chunk thats immutable.
+        let max_chunk = snapshot.beacon.immutable_file_number;
+        trim_chunk_list(&chunk_list, max_chunk);
+
         let validate_handle =
             background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
 
