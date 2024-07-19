@@ -19,21 +19,21 @@ pub(crate) struct HermesRuntimeContext {
 
     /// App Virtual file system
     #[allow(dead_code)]
-    vfs: Option<Vfs>,
+    vfs: Vfs,
 }
 
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
         app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u32,
-        vfs: Option<&Vfs>,
+        vfs: Vfs,
     ) -> Self {
         Self {
             app_name,
             module_id,
             event_name,
             exc_counter,
-            vfs: vfs.cloned(),
+            vfs,
         }
     }
 

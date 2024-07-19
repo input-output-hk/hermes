@@ -158,7 +158,7 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// Execute a hermes event on the provided module and all necessary info.
 pub(crate) fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, module: &Module, event: &dyn HermesEventPayload,
-    vfs: Option<&Vfs>,
+    vfs: Vfs,
 ) {
     let runtime_context = HermesRuntimeContext::new(
         app_name,
@@ -188,7 +188,7 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
             module_id.clone(),
             module,
             event.payload(),
-            Some(vfs),
+            vfs.clone(),
         );
     }
 }

@@ -8,8 +8,10 @@ use once_cell::sync::OnceCell;
 
 use crate::{
     app::HermesAppName,
+    cli::Cli,
     event::{queue::event_dispatch, HermesEventPayload},
     runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
+    vfs::VfsBootstrapper,
     wasm::module::Module,
 };
 
@@ -85,6 +87,10 @@ pub fn execute_event(
 ) -> anyhow::Result<Option<TestResult>> {
     let app_name = HermesAppName("integration-test".to_owned());
 
+    let hermes_home_dir = Cli::hermes_home()?;
+
+    let vfs = VfsBootstrapper::new(hermes_home_dir, app_name.to_string()).bootstrap()?;
+
     let result = match event_type {
         EventType::Bench => {
             let on_bench_event = Box::new(OnBenchEvent { test, run });
@@ -93,7 +99,7 @@ pub fn execute_event(
                 module.id().clone(),
                 module,
                 on_bench_event.as_ref(),
-                None,
+                vfs,
             );
             // module.execute_event(&on_bench_event)?;
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
@@ -105,7 +111,7 @@ pub fn execute_event(
                 module.id().clone(),
                 module,
                 on_test_event.as_ref(),
-                None,
+                vfs,
             );
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
