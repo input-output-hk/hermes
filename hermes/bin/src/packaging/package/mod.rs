@@ -176,45 +176,29 @@ mod tests {
         let file_3 = child_dir.join(file_3_name);
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
-        package
+        let root_dir_name = "root_dir";
+        let root_dir = package
+            .create_dir(root_dir_name.into())
+            .expect("Failed to create dir.");
+        root_dir
             .create_dir(dir_name.into())
             .expect("Failed to create dir.");
-        package
+        root_dir
             .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
             .expect("Failed to copy dir to package.");
 
         let hash = package
-            .calculate_dir_hash(&dir_name.into())
+            .calculate_dir_hash(&format!("{root_dir_name}/{dir_name}").into())
             .expect("Failed to calculate dir hash.")
             .expect("Failed to get dir hash from package.");
 
         let mut hasher = Blake2b256Hasher::new();
-        hasher.update(
-            Path::new(vec![dir_name.into(), file_1_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
+        hasher.update(file_1_name.as_bytes());
         hasher.update(file_content);
-        hasher.update(
-            Path::new(vec![dir_name.into(), file_2_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
+        hasher.update(file_2_name.as_bytes());
         hasher.update(file_content);
-        hasher.update(
-            Path::new(vec![dir_name.into(), child_dir_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
-        hasher.update(
-            Path::new(vec![
-                dir_name.into(),
-                child_dir_name.into(),
-                file_3_name.into(),
-            ])
-            .to_string()
-            .as_bytes(),
-        );
+        hasher.update(child_dir_name.as_bytes());
+        hasher.update(file_3_name.as_bytes());
         hasher.update(file_content);
         let expected_hash = hasher.finalize();
 
