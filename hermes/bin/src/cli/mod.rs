@@ -26,27 +26,29 @@ const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
 /// And also it could be used to package, sign, verify and distribute hermes apps using
 /// corresponding commands.
 #[derive(Parser)]
-#[clap(version = BUILD_INFO, multicall = true)]
+#[clap(version = BUILD_INFO)]
 pub(crate) struct Cli {
-    /// Path to the Hermes application package to run
-    app_package: PathBuf,
-
-    /// Path to the trusted certificate
-    #[clap(name = "cert", short)]
-    certificate: Vec<PathBuf>,
-
-    /// Flag which disables package signature verification
-    #[clap(long, action = clap::ArgAction::SetTrue)]
-    untrusted: bool,
-
     /// Hermes cli subcommand
     #[clap(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 /// Hermes cli commands
 #[derive(Subcommand)]
 enum Commands {
+    /// Run the hermes node
+    Run {
+        /// Path to the Hermes application package to run
+        app_package: PathBuf,
+
+        /// Path to the trusted certificate
+        #[clap(name = "cert", short)]
+        certificate: Vec<PathBuf>,
+
+        /// Flag which disables package signature verification
+        #[clap(long, action = clap::ArgAction::SetTrue)]
+        untrusted: bool,
+    },
     /// module commands
     #[clap(subcommand)]
     Module(module::Commands),
@@ -57,10 +59,14 @@ enum Commands {
 
 impl Cli {
     /// Hermes home directory
-    pub(crate) fn hermes_home() -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or("/var/lib".into())
-            .join(".hermes")
+    pub(crate) fn hermes_home() -> anyhow::Result<PathBuf> {
+        let hermes_home = dirs::home_dir()
+            .ok_or(anyhow::anyhow!(
+                "Current platform does not have a home directory"
+            ))?
+            .join(".hermes");
+        std::fs::create_dir_all(&hermes_home)?;
+        Ok(hermes_home)
     }
 
     /// Execute cli commands of the hermes
@@ -83,9 +89,13 @@ impl Cli {
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
         match self.command {
-            None => run::Run::exec(self.app_package, self.certificate, self.untrusted),
-            Some(Commands::Module(cmd)) => cmd.exec(),
-            Some(Commands::App(cmd)) => cmd.exec(),
+            Commands::Run {
+                app_package,
+                certificate,
+                untrusted,
+            } => run::Run::exec(app_package, certificate, untrusted),
+            Commands::Module(cmd) => cmd.exec(),
+            Commands::App(cmd) => cmd.exec(),
         }
         .unwrap_or_else(errors.get_add_err_fn());
 
