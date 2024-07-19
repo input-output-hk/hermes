@@ -21,6 +21,11 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
+    /// Return dir name.
+    pub(crate) fn name(&self) -> String {
+        self.path().pop_elem()
+    }
+
     /// Mount directory from the another HDF5 package to the provided path.
     pub(crate) fn mount_dir(&self, mounted_dir: &Dir, mut path: Path) -> anyhow::Result<()> {
         let link_name = path.pop_elem();

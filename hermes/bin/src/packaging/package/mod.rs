@@ -97,12 +97,12 @@ fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Resul
     let files: BTreeMap<_, _> = dir
         .get_files(&Path::default())?
         .into_iter()
-        .map(|file| (file.path().to_string(), file))
+        .map(|file| (file.name(), file))
         .collect();
     let dirs: BTreeMap<_, _> = dir
         .get_dirs(&Path::default())?
         .into_iter()
-        .map(|dir| (dir.path().to_string(), dir))
+        .map(|dir| (dir.name(), dir))
         .collect();
     for (path_str, mut file) in files {
         hasher.update(path_str.as_bytes());

@@ -31,8 +31,8 @@ impl Display for Hdf5Resource {
 impl ResourceTrait for Hdf5Resource {
     fn name(&self) -> anyhow::Result<String> {
         match self {
-            Self::Dir(dir) => Ok(dir.path().pop_elem()),
-            Self::File(file) => Ok(file.path().pop_elem()),
+            Self::Dir(dir) => Ok(dir.name()),
+            Self::File(file) => Ok(file.name()),
         }
     }
 

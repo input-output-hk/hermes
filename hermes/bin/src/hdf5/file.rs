@@ -33,6 +33,11 @@ impl File {
         Path::from_str(&self.hdf5_ds.name())
     }
 
+    /// Return file name.
+    pub(crate) fn name(&self) -> String {
+        self.path().pop_elem()
+    }
+
     /// Return file size.
     fn size(&self) -> anyhow::Result<usize> {
         let shape = self.hdf5_ds.space()?.shape();
