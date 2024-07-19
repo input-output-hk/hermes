@@ -61,7 +61,7 @@ impl VfsBootstrapper {
         } else {
             hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
                 anyhow::anyhow!(
-                    "Failed to create Hermes virtual file system instance at {}.",
+                    "Failed to create Hermes virtual file system instance at `{}`.",
                     vfs_file_path.display()
                 )
             })?
