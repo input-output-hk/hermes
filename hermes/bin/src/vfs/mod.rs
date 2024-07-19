@@ -46,7 +46,7 @@ impl Vfs {
     }
 }
 #[cfg(test)]
-mod testss {
+mod tests {
 
     use temp_dir::TempDir;
 
