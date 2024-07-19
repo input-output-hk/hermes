@@ -15,6 +15,7 @@ use crate::{
     app::{HermesAppName, IndexedApps},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::new_context,
+    vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
 
@@ -42,7 +43,7 @@ pub(crate) struct NotInitializedError;
 pub(crate) struct EventLoopPanicsError;
 
 /// Hermes event execution context
-type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module);
+type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module, &'a Vfs);
 
 /// Hermes event queue.
 /// It is a singleton struct.
@@ -115,7 +116,7 @@ fn get_execution_context<'a>(
             let mut res = Vec::new();
             for (app_name, app) in target_apps {
                 for (module_id, module) in app.indexed_modules() {
-                    res.push((app_name, module_id, module));
+                    res.push((app_name, module_id, module, app.vfs()));
                 }
             }
             res
@@ -133,7 +134,7 @@ fn get_execution_context<'a>(
                         continue;
                     };
 
-                    res.push((app_name, module_id, module));
+                    res.push((app_name, module_id, module, app.vfs()));
                 }
             }
             res
@@ -157,12 +158,14 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// Execute a hermes event on the provided module and all necessary info.
 pub(crate) fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, module: &Module, event: &dyn HermesEventPayload,
+    vfs: Option<&Vfs>,
 ) {
     let runtime_context = HermesRuntimeContext::new(
         app_name,
         module_id,
         event.event_name().to_string(),
         module.exec_counter(),
+        vfs,
     );
 
     // Advise Runtime Extensions of a new context
@@ -179,8 +182,14 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: &HermesEvent) {
         get_execution_context(event.target_app(), event.target_module(), indexed_apps);
 
     // Event dispatch
-    for (app_name, module_id, module) in execution_contexts {
-        event_dispatch(app_name.clone(), module_id.clone(), module, event.payload());
+    for (app_name, module_id, module, vfs) in execution_contexts {
+        event_dispatch(
+            app_name.clone(),
+            module_id.clone(),
+            module,
+            event.payload(),
+            Some(vfs),
+        );
     }
 }
 

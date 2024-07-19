@@ -9,6 +9,7 @@ pub(crate) use bootstrap::VfsBootstrapper;
 use crate::hdf5::{self as hermes_hdf5, Path};
 
 /// Hermes virtual file system type.
+#[derive(Clone, Debug)]
 pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     #[allow(dead_code)]
