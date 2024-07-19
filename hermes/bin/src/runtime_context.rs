@@ -33,7 +33,7 @@ impl HermesRuntimeContext {
             module_id,
             event_name,
             exc_counter,
-            vfs: vfs.clone().cloned(),
+            vfs: vfs.cloned(),
         }
     }
 

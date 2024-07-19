@@ -40,7 +40,7 @@ impl Vfs {
             Err(_) => self.root.create_file(path.clone())?,
         };
 
-        let _unused = file.write(&buffer)?;
+        let _unused = file.write(buffer)?;
 
         Ok(())
     }
