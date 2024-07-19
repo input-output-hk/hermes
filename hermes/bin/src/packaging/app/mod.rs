@@ -226,7 +226,7 @@ impl ApplicationPackage {
         let dirs = self.0.get_dirs(&Self::MODULES_DIR.into())?;
         let mut modules = Vec::with_capacity(dirs.len());
         for dir in dirs {
-            let dir_name = dir.path().pop_elem()?;
+            let dir_name = dir.path().pop_elem();
             let package = WasmModulePackage::from_package(Package::mount(dir));
             modules.push((dir_name, package));
         }
