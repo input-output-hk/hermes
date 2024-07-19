@@ -115,7 +115,8 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
             anyhow::anyhow!("Failed to decode signature `kid` value to `Blake2b256` hash. {err}",)
         })?;
         let cert = certificate::storage::get_certificate(&cert_hash).ok_or(anyhow::anyhow!(
-            "Cannot find certificate in the storage from the signature `kid` value."
+            "Cannot find certificate in the storage, cert hash {}.",
+            cert_hash.to_hex()
         ))?;
         let public_key = cert.subject_public_key()?;
 
