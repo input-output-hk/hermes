@@ -13,6 +13,7 @@ pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     #[allow(dead_code)]
     root: hermes_hdf5::Dir,
+    // TODO: add permissions RWX
 }
 
 impl Vfs {
@@ -30,6 +31,7 @@ impl Vfs {
     }
 
     /// Writes data from a buffer declared by the user to a hdf5 file.
+    // TODO: add permissions RWX
     #[allow(dead_code)]
     pub(crate) fn write(&self, path: &Path, buffer: &[u8]) -> anyhow::Result<(), anyhow::Error> {
         let mut file = match self.root.get_file(path.clone()) {
