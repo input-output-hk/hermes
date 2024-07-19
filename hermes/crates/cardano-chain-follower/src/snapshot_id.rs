@@ -176,8 +176,98 @@ impl PartialOrd<u64> for SnapshotId {
 
 #[cfg(test)]
 mod tests {
+    use crate::point::*;
+    use super::*;
+
+    const TEST_DIR: &str = "test_snapshot_id";
+
     #[test]
-    fn test_sample() {
-        
+    fn test_parse_path() {
+        let dir_path_1 = &[TEST_DIR, "12345"].join("/");
+        let dir_path_2 = &[TEST_DIR, "12346"].join("/");
+        let dir_path_3 = &[TEST_DIR, "12347"].join("/");
+        let dir_path_4 = &[TEST_DIR, "not_found"].join("/");
+        let dir_path_5 = &[TEST_DIR, "123abc"].join("/");
+
+        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_1)), Some(12345));
+        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_2)), Some(12346));
+        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_3)), Some(12347));
+        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_4)), None);
+        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_5)), None);
+    }
+
+    #[test]
+    fn test_new() {
+        let dir_path_1 = &[TEST_DIR, "12345"].join("/");
+        let dir_path_2 = &[TEST_DIR, "12346"].join("/");
+        let dir_path_3 = &[TEST_DIR, "12347"].join("/");
+
+        let point_1 = Point::fuzzy(999);
+        let point_2 = Point::new(999, vec![0; 32]);
+        let point_3 = Point::new(12345, vec![8; 32]);
+
+        assert!(SnapshotId::new(&PathBuf::from(dir_path_1), point_1).is_some());
+        assert!(SnapshotId::new(&PathBuf::from(dir_path_2), point_2).is_some());
+        assert!(SnapshotId::new(&PathBuf::from(dir_path_3), point_3).is_some());
+    }
+
+    #[tokio::test]
+    async fn test_try_new() {
+        let dir_path_1 = &[TEST_DIR, "12345"].join("/");
+        let dir_path_1 = PathBuf::from(dir_path_1).canonicalize().expect("cannot get absolute path");
+
+        let tmp = std::fs::read_dir(&dir_path_1);
+
+        println!("{:?}", tmp);
+
+        assert_eq!(SnapshotId::try_new(Network::Preprod, &dir_path_1).await, None);
+    }
+
+    #[test]
+    fn test_immutable_path() {
+        let dir_path_1 = &[TEST_DIR, "12345"].join("/");
+
+        let point_1 = Point::fuzzy(999);
+
+        let snapshot_id_1 = SnapshotId::new(&PathBuf::from(dir_path_1), point_1).expect("cannot create snapshot id");
+
+        assert_eq!(snapshot_id_1.immutable_path(), PathBuf::from([dir_path_1.as_str(), "immutable"].join("/")));
+    }
+
+    #[test]
+    fn test_compare() {
+        let dir_path_1 = &[TEST_DIR, "12345"].join("/");
+        let dir_path_2 = &[TEST_DIR, "12345"].join("/");
+        let dir_path_3 = &[TEST_DIR, "12346"].join("/");
+        let dir_path_4 = &[TEST_DIR, "12347"].join("/");
+
+        let point_1 = Point::fuzzy(999);
+        let point_2 = Point::new(999, vec![0; 32]);
+        let point_3 = Point::new(12345, vec![8; 32]);
+
+        let snapshot_id_1 = SnapshotId::new(&PathBuf::from(dir_path_1), point_1.clone());
+        let snapshot_id_2 = SnapshotId::new(&PathBuf::from(dir_path_2), point_1);
+        let snapshot_id_3 = SnapshotId::new(&PathBuf::from(dir_path_3), point_2);
+        let snapshot_id_4 = SnapshotId::new(&PathBuf::from(dir_path_4), point_3);
+
+        assert!(snapshot_id_1 == snapshot_id_1);
+        assert!(snapshot_id_1 == snapshot_id_2);
+        assert!(snapshot_id_1 != snapshot_id_3);
+        assert!(snapshot_id_1 < snapshot_id_3);
+        assert!(snapshot_id_1 != snapshot_id_4);
+        assert!(snapshot_id_1 < snapshot_id_4);
+
+        assert!(snapshot_id_2 == snapshot_id_1);
+        assert!(snapshot_id_2 != snapshot_id_3);
+        assert!(snapshot_id_2 < snapshot_id_3);
+        assert!(snapshot_id_2 != snapshot_id_4);
+        assert!(snapshot_id_2 < snapshot_id_4);
+
+        assert!(snapshot_id_4 != snapshot_id_1);
+        assert!(snapshot_id_4 > snapshot_id_1);
+        assert!(snapshot_id_4 != snapshot_id_2);
+        assert!(snapshot_id_4 > snapshot_id_2);
+        assert!(snapshot_id_4 != snapshot_id_3);
+        assert!(snapshot_id_4 > snapshot_id_3);
     }
 }
