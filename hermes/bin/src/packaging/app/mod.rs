@@ -96,7 +96,7 @@ impl ApplicationPackage {
                     module_package
                         .validate(untrusted)
                         .map_err(|err| {
-                            anyhow::anyhow!("Invalid module package {module_name}:\n{err}")
+                            anyhow::anyhow!("Invalid module package `{module_name}`:\n{err}")
                         })
                         .unwrap_or_else(errors.get_add_err_fn());
                 }
