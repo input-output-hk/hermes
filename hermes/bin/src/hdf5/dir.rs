@@ -21,9 +21,14 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
+    /// Return dir name.
+    pub(crate) fn name(&self) -> String {
+        self.path().pop_elem()
+    }
+
     /// Mount directory from the another HDF5 package to the provided path.
     pub(crate) fn mount_dir(&self, mounted_dir: &Dir, mut path: Path) -> anyhow::Result<()> {
-        let link_name = path.pop_elem()?;
+        let link_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
         let target_file_name = mounted_dir.0.filename();
@@ -38,7 +43,7 @@ impl Dir {
 
     /// Create a new empty file in the provided path.
     pub(crate) fn create_file(&self, mut path: Path) -> anyhow::Result<File> {
-        let file_name = path.pop_elem()?;
+        let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let file = File::create(&dir.0, file_name.as_str())?;
         Ok(file)
@@ -79,7 +84,7 @@ impl Dir {
 
     /// Copy other `Dir` recursively content to the current one.
     pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
-        let resource = Hdf5Resource::Group(dir.0.clone());
+        let resource = Hdf5Resource::Dir(dir.clone());
         self.copy_resource_dir(&resource, path)?;
         Ok(())
     }
@@ -88,7 +93,7 @@ impl Dir {
     /// If some dir already exists it will be skipped, if some dir does not exist it will
     /// be created.
     pub(crate) fn create_dir(&self, mut path: Path) -> anyhow::Result<Self> {
-        let dir_name = path.pop_elem()?;
+        let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let new_dir = dir
             .0
@@ -99,7 +104,7 @@ impl Dir {
 
     /// Remove file by the provided path.
     pub(crate) fn remove_file(&self, mut path: Path) -> anyhow::Result<()> {
-        let file_name = path.pop_elem()?;
+        let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
         if dir.0.dataset(file_name.as_str()).is_ok() {
@@ -115,7 +120,7 @@ impl Dir {
     /// Remove directory by the provided path.
     #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: Path) -> anyhow::Result<()> {
-        let dir_name = path.pop_elem()?;
+        let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
         if dir.0.group(dir_name.as_str()).is_ok() {
@@ -131,7 +136,7 @@ impl Dir {
     /// Get file if present from path.
     /// Return error if file does not exist by the provided path.
     pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<File> {
-        let file_name = path.pop_elem()?;
+        let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         dir.0
             .dataset(file_name.as_str())

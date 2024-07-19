@@ -92,9 +92,12 @@ impl ApplicationPackage {
                     errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
                 }
 
-                for (_, module_package) in modules {
+                for (module_name, module_package) in modules {
                     module_package
                         .validate(untrusted)
+                        .map_err(|err| {
+                            anyhow::anyhow!("Invalid module package `{module_name}`:\n{err}")
+                        })
                         .unwrap_or_else(errors.get_add_err_fn());
                 }
             },
@@ -116,7 +119,7 @@ impl ApplicationPackage {
             let signature_payload = signature.payload();
             anyhow::ensure!(
                 &expected_payload == signature_payload,
-                "Signature payload mismatch.\nExpected: {}\nGot: {}",
+                "Application package signature payload mismatch.\nExpected: {}\nGot: {}",
                 expected_payload.to_json().to_string(),
                 signature_payload.to_json().to_string()
             );
@@ -226,7 +229,7 @@ impl ApplicationPackage {
         let dirs = self.0.get_dirs(&Self::MODULES_DIR.into())?;
         let mut modules = Vec::with_capacity(dirs.len());
         for dir in dirs {
-            let dir_name = dir.path().pop_elem()?;
+            let dir_name = dir.path().pop_elem();
             let package = WasmModulePackage::from_package(Package::mount(dir));
             modules.push((dir_name, package));
         }

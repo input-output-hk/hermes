@@ -29,10 +29,9 @@ impl Path {
     }
 
     /// Pop the last path element of the path from the path elements.
-    pub(crate) fn pop_elem(&mut self) -> anyhow::Result<String> {
-        self.0
-            .pop()
-            .ok_or(anyhow::anyhow!("Empty last path element."))
+    /// If the path is empty, return empty string.
+    pub(crate) fn pop_elem(&mut self) -> String {
+        self.0.pop().unwrap_or_default()
     }
 
     /// Push a new path element to the path at the end.
@@ -77,78 +76,45 @@ mod tests {
     fn package_path_test() {
         {
             let mut path = Path::from_str("/a/b/c");
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "c".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "b".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "a".to_string()
-            );
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), "c".to_string());
+            assert_eq!(path.pop_elem(), "b".to_string());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::from_str("a/b/c");
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "c".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "b".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "a".to_string()
-            );
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), "c".to_string());
+            assert_eq!(path.pop_elem(), "b".to_string());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::from_str("/a");
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "a".to_string()
-            );
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::from_str("a");
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "a".to_string()
-            );
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::from_str("/");
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::from_str("");
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), String::new());
         }
         {
             let mut path = Path::default();
             path.push_elem("a".to_string());
             path.push_elem("b".to_string());
             path.push_elem("c".to_string());
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "c".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "b".to_string()
-            );
-            assert_eq!(
-                path.pop_elem().expect("Failed to pop last element"),
-                "a".to_string()
-            );
-            assert!(path.pop_elem().is_err());
+            assert_eq!(path.pop_elem(), "c".to_string());
+            assert_eq!(path.pop_elem(), "b".to_string());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
         }
     }
 }
