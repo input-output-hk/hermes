@@ -156,7 +156,9 @@ impl Module {
 #[allow(missing_docs)]
 pub mod bench {
     use super::*;
-    use crate::{app::HermesAppName, runtime_context::HermesRuntimeContext};
+    use crate::{
+        app::HermesAppName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
+    };
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization
@@ -180,6 +182,14 @@ pub mod bench {
         let module =
             Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
 
+        let app_name = HermesAppName("integration-test".to_owned());
+
+        let hermes_home_dir = Cli::hermes_home().unwrap();
+
+        let vfs = VfsBootstrapper::new(hermes_home_dir, app_name.to_string())
+            .bootstrap()
+            .unwrap();
+
         b.iter(|| {
             module
                 .execute_event(
@@ -189,7 +199,7 @@ pub mod bench {
                         module.id().clone(),
                         "init".to_string(),
                         0,
-                        None,
+                        vfs,
                     ),
                 )
                 .unwrap();
