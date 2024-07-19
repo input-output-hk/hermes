@@ -152,8 +152,8 @@ impl Module {
     }
 }
 
-#[cfg(feature = "bench")]
 #[allow(missing_docs)]
+#[cfg(feature = "bench")]
 pub mod bench {
     use super::*;
     use crate::{
@@ -199,7 +199,7 @@ pub mod bench {
                         module.id().clone(),
                         "init".to_string(),
                         0,
-                        vfs,
+                        vfs.clone(),
                     ),
                 )
                 .unwrap();
