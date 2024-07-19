@@ -37,7 +37,7 @@ impl Run {
         let hermes_home_dir = Cli::hermes_home()?;
         let vfs = VfsBootstrapper::new(hermes_home_dir, app_name.clone()).bootstrap()?;
 
-        println!("{} Running application {app_name} ", Emoji::new("🚀", ""),);
+        println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
         let mut modules = Vec::new();
         for (_, module_package) in package.get_modules()? {
             let module = module_package.get_component()?;
