@@ -189,6 +189,7 @@ pub mod bench {
                         module.id().clone(),
                         "init".to_string(),
                         0,
+                        None,
                     ),
                 )
                 .unwrap();

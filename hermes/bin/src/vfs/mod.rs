@@ -46,7 +46,7 @@ impl Vfs {
     }
 }
 #[cfg(test)]
-mod tests {
+mod testss {
 
     use temp_dir::TempDir;
 
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn read_write_file_test() {
         // bootstrap
-        let dir = TempDir::new().unwrap();
+        let dir = TempDir::new().expect("Failed to create temp dir");
 
         let vfs_name = "test_vfs".to_string();
 
@@ -69,12 +69,13 @@ mod tests {
         let mut bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
 
         bootstrapper.with_mounted_www(www_dir);
-        let vfs = bootstrapper.bootstrap().unwrap();
+        let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
         let www_file_path = Path::from_str("/www");
-        vfs.write(&www_file_path, b"web_server").unwrap();
+        vfs.write(&www_file_path, b"web_server")
+            .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(www_file_path).unwrap();
+        let written_data = vfs.read(www_file_path).expect("Cannot read from VFS");
         assert_eq!(10, written_data.len());
 
         let written = String::from_utf8_lossy(&written_data).to_string();
