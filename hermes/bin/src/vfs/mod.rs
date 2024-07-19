@@ -50,9 +50,8 @@ mod tests {
 
     use temp_dir::TempDir;
 
-    use crate::hdf5::{Dir, Path};
-
     use super::VfsBootstrapper;
+    use crate::hdf5::{Dir, Path};
 
     #[test]
     fn read_write_file_test() {
