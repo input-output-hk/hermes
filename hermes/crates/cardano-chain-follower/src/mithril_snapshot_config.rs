@@ -1,26 +1,23 @@
 //! Configuration for the Mithril Snapshot used by the follower.
 
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
 
 use crossbeam_skiplist::SkipMap;
 use futures::future::join_all;
-use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 use strum::IntoEnumIterator;
 use tokio::{
-    fs::{self, hard_link, remove_file},
+    fs::{self},
     io::{self},
     sync::{mpsc, Mutex},
-    task::{self, JoinHandle},
+    task::JoinHandle,
 };
 use tracing::{debug, error};
 
 use crate::{
+    data_index::init_index_db,
     error::{Error, Result},
-    mithril_snapshot_data::{latest_mithril_snapshot_id, FileHashMap, RawHash, SnapshotData},
+    mithril_snapshot_data::{latest_mithril_snapshot_id, SnapshotData},
     mithril_snapshot_sync::background_mithril_update,
     network::Network,
     point::ORIGIN_POINT,
@@ -44,6 +41,9 @@ const DL_SUBDIR: &str = "dl";
 
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
+
+/// Subdirectory where we store the index DB.
+const DB_SUBDIR: &str = "db";
 
 /// Message we send when Mithril Snapshot updates
 #[derive(Debug)]
@@ -93,6 +93,15 @@ impl MithrilSnapshotConfig {
         let mut dl_path = self.path.clone();
         dl_path.push(DL_SUBDIR);
         dl_path
+    }
+
+    /// Returns the path to store the Index DB for the Mithril Snapshot to.
+    /// Will use a path relative to mithril data path.
+    #[must_use]
+    pub(crate) fn db_path(&self) -> PathBuf {
+        let mut db_path = self.path.clone();
+        db_path.push(DB_SUBDIR);
+        db_path
     }
 
     /// Try and recover the latest snapshot id from the files on disk.
@@ -239,15 +248,11 @@ impl MithrilSnapshotConfig {
     /// Deduplicate a file in the tmp directory vs its equivalent in the current snapshot.
     ///
     /// This does not check if they SHOULD be de-duped, only de-dupes the files specified.
-    pub(crate) async fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotData) {
+    pub(crate) fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotData) {
         // Get the matching src file in the latest mithril snapshot to compare against.
         let snapshot_path = latest_snapshot.id().as_ref();
         let tmp_path = self.tmp_path();
-        debug!(
-            "De-duping: {} {}",
-            snapshot_path.to_string_lossy(),
-            tmp_path.to_string_lossy()
-        );
+
         let Ok(relative_file) = tmp_file.strip_prefix(tmp_path) else {
             error!("Failed to get relative path of file.");
             return;
@@ -255,7 +260,7 @@ impl MithrilSnapshotConfig {
 
         // IF we make it here, the files are identical, so we can de-dup them safely.
         // Remove the tmp file momentarily.
-        if let Err(error) = remove_file(tmp_file).await {
+        if let Err(error) = std::fs::remove_file(tmp_file) {
             error!(
                 "Error removing tmp file  {} :  {}",
                 tmp_file.to_string_lossy(),
@@ -267,7 +272,7 @@ impl MithrilSnapshotConfig {
         let src_file = snapshot_path.join(relative_file);
         let src_file = src_file.as_path();
         // Hardlink the src file to the tmp file.
-        if let Err(error) = hard_link(src_file, tmp_file).await {
+        if let Err(error) = std::fs::hard_link(src_file, tmp_file) {
             error!(
                 "Error linking src file {} to tmp file {} : {}",
                 src_file.to_string_lossy(),
@@ -409,6 +414,8 @@ impl MithrilSnapshotConfig {
             return Err(Error::MithrilSnapshotSyncAlreadyRunning(self.chain));
         }
 
+        init_index_db(self).map_err(|err| Error::MithrilIndexDB(self.chain, err))?;
+
         self.validate().await?;
 
         // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot
@@ -486,77 +493,6 @@ fn remove_whitespace(s: &str) -> String {
 /// Check if a string is an even number of hex digits.
 fn is_hex(s: &str) -> bool {
     s.chars().count() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// Generate all file hashes for a path.
-pub(crate) async fn generate_hashes_for_path(path: PathBuf, map: Arc<FileHashMap>) {
-    // We do not want to do this ASYNC, its slow.
-    // Start a SYNC thread to do it, and try and do it in-parallel.
-    // let root_path = path.to_path_buf();
-    let map = map.clone();
-    let _res = task::spawn_blocking(move || {
-        hash_all_files(&path, &path, &map);
-    })
-    .await;
-}
-
-/// Hash all files in a directory, and all its subdirectories.
-fn hash_all_files(dir: &Path, root: &Path, map: &Arc<FileHashMap>) {
-    let walk = WalkBuilder::new(dir)
-        .standard_filters(false)
-        .build_parallel();
-    let map = map.clone();
-
-    walk.run(|| {
-        let map = map.clone();
-        // let root = root;
-        // let map = map.clone();
-        Box::new(move |result| {
-            use ignore::WalkState::Continue;
-
-            if let Ok(entry) = result {
-                let file = entry.path();
-                if file.is_file() {
-                    if let Ok(file_hash) = hash_single_file(file) {
-                        if let Ok(abs_path) = file.strip_prefix(root) {
-                            map.insert(abs_path.to_path_buf(), file_hash);
-                        }
-                    }
-                }
-            }
-            Continue
-        })
-    });
-}
-
-/// Async version of `hash_single_file`
-pub(crate) async fn async_hash_single_file(file: &Path) -> Option<RawHash> {
-    // We do not want to do this ASYNC, its slow.
-    // Start a SYNC thread to do it, and try and do it in-parallel.
-    // let root_path = path.to_path_buf();
-    let file = file.to_path_buf();
-    match task::spawn_blocking(move || hash_single_file(&file)).await {
-        Ok(result) => {
-            match result {
-                Ok(hash_value) => Some(hash_value),
-                Err(err) => {
-                    error!("Error Hashing a single file: {:?}", err);
-                    None
-                },
-            }
-        },
-        Err(err) => {
-            error!("Error Hashing a single file: {:?}", err);
-            None
-        },
-    }
-}
-
-/// Hash a single file and return the `RawHash`
-fn hash_single_file(file: &Path) -> io::Result<RawHash> {
-    let mut hasher = blake3::Hasher::new();
-    hasher.update_mmap_rayon(file)?;
-    Ok(*hasher.finalize().as_bytes())
 }
 
 #[cfg(test)]

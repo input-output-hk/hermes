@@ -14,20 +14,17 @@ use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, Snaps
 
 use tokio::{
     fs::remove_dir_all,
-    join,
     sync::mpsc::Sender,
     time::{sleep, Duration},
 };
 use tracing::{debug, error};
 
 use crate::{
-    data_index::index_immutable_chunk,
+    data_index::background_index_blocks_and_transactions,
     error::{Error, Result},
     mithril_query::get_mithril_tip_point,
-    mithril_snapshot_config::{
-        generate_hashes_for_path, MithrilSnapshotConfig, MithrilUpdateMessage,
-    },
-    mithril_snapshot_data::{update_latest_mithril_snapshot, FileHashMap},
+    mithril_snapshot_config::{MithrilSnapshotConfig, MithrilUpdateMessage},
+    mithril_snapshot_data::update_latest_mithril_snapshot,
     mithril_snapshot_iterator::MithrilSnapshotIterator,
     mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
@@ -348,7 +345,7 @@ async fn validate_mithril_snapshot(
 /// 2. It must
 async fn get_latest_validated_mithril_snapshot(
     chain: Network, client: &Client, cfg: &MithrilSnapshotConfig,
-) -> Option<(SnapshotId, Arc<FileHashMap>)> {
+) -> Option<SnapshotId> {
     /// Purge a bad mithril snapshot from disk.
     async fn purge_bad_mithril_snapshot(chain: Network, latest_mithril: &SnapshotId) {
         debug!("Purging Bad Mithril Snapshot: {latest_mithril}");
@@ -392,23 +389,8 @@ async fn get_latest_validated_mithril_snapshot(
         return None;
     };
 
-    let map = Arc::new(FileHashMap::new());
     let path = latest_mithril.as_ref();
-    let hash_fn = generate_hashes_for_path(path.to_path_buf(), map.clone());
-    let validate_fn = validate_mithril_snapshot(chain, &certificate, path);
-
-    // Do the Validation AND File hashing at the same time to reduce time wasted.
-    let (valid, ()) = join!(validate_fn, hash_fn);
-
-    debug!("Mithril Valid: {}. Hash Entries = {}", valid, map.len());
-    // if valid {
-    //    for entry in map.iter() {
-    //        let path = entry.key().to_string_lossy();
-    //        let value = hex::encode(entry.value());
-
-    //            debug!("Hash Entry: {path}:{value}");
-    //    }
-    //}
+    let valid = validate_mithril_snapshot(chain, &certificate, path).await;
 
     if !valid {
         error!("Mithril Snapshot : Snapshot fails to validate, can not be recovered.");
@@ -416,7 +398,7 @@ async fn get_latest_validated_mithril_snapshot(
         return None;
     }
 
-    Some((latest_mithril, map))
+    Some(latest_mithril)
 }
 
 /// Get the Mithril client and recover our existing mithril snapshot data, if any.
@@ -439,7 +421,7 @@ async fn recover_existing_snapshot(
 
     // Check if we already have a Mithril snapshot downloaded, and IF we do validate it is
     // intact.
-    if let Some((active_snapshot, hash_map)) =
+    if let Some(active_snapshot) =
         get_latest_validated_mithril_snapshot(cfg.chain, &client, cfg).await
     {
         // Read the actual TIP block from the Mithril chain.
@@ -448,7 +430,7 @@ async fn recover_existing_snapshot(
                 // Validate the Snapshot ID matches the true TIP.
                 if active_snapshot.tip() == tip_block.point() {
                     current_snapshot = Some(active_snapshot.clone());
-                    update_latest_mithril_snapshot(cfg.chain, active_snapshot, hash_map);
+                    update_latest_mithril_snapshot(cfg.chain, active_snapshot);
 
                     // Tell the live sync service the current Mithril TIP.
                     let update = MithrilUpdateMessage {
@@ -567,41 +549,6 @@ fn background_validate_mithril_snapshot(
     })
 }
 
-/// In the background, index all the blocks and transactions that updated.
-fn background_index_blocks_and_transactions(
-    chain: Network, validation_handle: tokio::task::JoinHandle<bool>,
-    chunk_list: Arc<SkipSet<PathBuf>>,
-) -> tokio::task::JoinHandle<bool> {
-    tokio::spawn(async move {
-        debug!(
-            "Index Blocks and Transactions background updater for: {} : Started",
-            chain
-        );
-
-        let inner_indexer_handle = tokio::task::spawn_blocking(move || {
-            rayon::scope(|s| {
-                chunk_list.iter().for_each(|chunk| {
-                    let chunk_value = chunk.value().clone();
-                    s.spawn(move |_| {
-                        // task s.1
-                        index_immutable_chunk(chain, &chunk_value);
-                    });
-                });
-            });
-            debug!("Finished Indexing.");
-        });
-
-        let _unused = inner_indexer_handle.await;
-
-        debug!(
-            "Index Blocks and Transactions background updater for: {} : Finished",
-            chain
-        );
-
-        validation_handle.await.unwrap_or(false)
-    })
-}
-
 /// Convert a chunk filename into its numeric equivalent.
 fn chunk_filename_to_chunk_number(chunk: &Path) -> Option<u64> {
     if let Some(stem) = chunk.file_stem().map(Path::new) {
@@ -676,45 +623,25 @@ async fn download_and_validate_snapshot(
         cfg.chain
     );
 
-    if let Some((_, chunk_list)) = downloader.take_previous_hashmap() {
-        // Remove the last chunks from the list, if they are > the max_chunk thats immutable.
-        let max_chunk = snapshot.beacon.immutable_file_number;
-        trim_chunk_list(&chunk_list, max_chunk);
+    let chunk_list = downloader.get_new_chunks();
+    // Remove the last chunks from the list, if they are > the max_chunk thats immutable.
+    let max_chunk = snapshot.beacon.immutable_file_number;
+    trim_chunk_list(&chunk_list, max_chunk);
 
-        let validate_handle =
-            background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
+    let validate_handle =
+        background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
 
-        let index_handle =
-            background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
+    let index_handle =
+        background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
 
-        if !index_handle.await.unwrap_or(false) {
-            error!(
-                "Failed to validate or index blocks and transactions for {}",
-                cfg.chain
-            );
-            return false;
-        }
-    } else {
+    if !index_handle.await.unwrap_or(false) {
         error!(
-            "Download did not complete properly, no File hashmap or Changed Chunk list provided."
+            "Failed to validate or index blocks and transactions for {}",
+            cfg.chain
         );
         return false;
     }
 
-    /*
-        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Start);
-
-        if !validate_mithril_snapshot(cfg.chain, certificate, &cfg.tmp_path()).await {
-            stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Failed);
-            // If we couldn't build the message then assume its a transient error.
-            error!(
-                chain = cfg.chain.to_string(),
-                "Failed to Compute Snapshot Message"
-            );
-            return false;
-        }
-        stats::mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
-    */
     true
 }
 
@@ -840,18 +767,8 @@ pub(crate) async fn background_mithril_update(
                 current_snapshot = SnapshotId::new(&new_path, tip.point());
 
                 if let Some(latest_snapshot) = current_snapshot.clone() {
-                    // Save the new file hash map and update the latest snapshot data record
-                    if let Some((hash_map, _)) = downloader.take_previous_hashmap() {
-                        debug!(
-                            chain = cfg.chain.to_string(),
-                            "File hashmap has {} entries",
-                            hash_map.len()
-                        );
-
-                        update_latest_mithril_snapshot(cfg.chain, latest_snapshot, hash_map);
-                    } else {
-                        error!(chain = cfg.chain.to_string(), "No previous hashmap found");
-                    }
+                    // Update the latest snapshot data record
+                    update_latest_mithril_snapshot(cfg.chain, latest_snapshot);
 
                     // Tell the live updater that the Immutable TIP has updated.
                     if let Err(error) = tx

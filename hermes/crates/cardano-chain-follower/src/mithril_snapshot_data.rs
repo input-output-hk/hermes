@@ -1,50 +1,27 @@
 //! Data about the current Mithril Snapshot
-use std::{
-    default,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::default;
 
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
-use crate::{network::Network, point::ORIGIN_POINT, snapshot_id::SnapshotId};
-
-/// Raw Blake3 hash of a file. (Don't need constant time comparison)
-pub(crate) type RawHash = [u8; 32];
-/// Map of all files to their respective hashes. 9Used for dedup).
-pub(crate) type FileHashMap = DashMap<PathBuf, RawHash>;
+use crate::{network::Network, snapshot_id::SnapshotId};
 
 /// Current Mithril Snapshot Data for a network.
 #[derive(Debug, Clone)]
 pub(crate) struct SnapshotData {
     /// Snapshot ID the data represents
     id: SnapshotId,
-    /// Hashmap of all files in the snapshot.
-    hash_map: Arc<FileHashMap>,
 }
 
 impl SnapshotData {
     /// Create a new Snapshot Data.
-    pub(crate) fn new(id: SnapshotId, hash_map: Arc<FileHashMap>) -> Self {
-        SnapshotData { id, hash_map }
-    }
-
-    /// Does this snapshot ID actually exist.
-    pub(crate) fn exists(&self) -> bool {
-        self.id.tip() != ORIGIN_POINT
+    pub(crate) fn new(id: SnapshotId) -> Self {
+        SnapshotData { id }
     }
 
     /// Get the snapshot ID of this Snapshot Data.
     pub(crate) fn id(&self) -> &SnapshotId {
         &self.id
-    }
-
-    /// Get a current hash for a known file in this snapshot data (or None if its not
-    /// known).
-    pub(crate) fn current_hash(&self, filename: &Path) -> Option<RawHash> {
-        let entry = self.hash_map.get(filename)?;
-        Some(*entry.value())
     }
 }
 
@@ -53,7 +30,6 @@ impl default::Default for SnapshotData {
     fn default() -> Self {
         SnapshotData {
             id: SnapshotId::default(),
-            hash_map: FileHashMap::default().into(),
         }
     }
 }
@@ -78,10 +54,8 @@ pub(crate) fn latest_mithril_snapshot_id(chain: Network) -> SnapshotId {
 }
 
 /// Update the latest snapshot data.
-pub(crate) fn update_latest_mithril_snapshot(
-    chain: Network, snapshot_id: SnapshotId, hash_map: Arc<FileHashMap>,
-) {
-    let snapshot_data = SnapshotData::new(snapshot_id, hash_map);
+pub(crate) fn update_latest_mithril_snapshot(chain: Network, snapshot_id: SnapshotId) {
+    let snapshot_data = SnapshotData::new(snapshot_id);
 
     // Save the current snapshot
     CURRENT_MITHRIL_SNAPSHOT.insert(chain, snapshot_data);

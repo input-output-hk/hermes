@@ -107,9 +107,9 @@ impl MultiEraBlock {
             }
         } else {
             if *previous >= slot {
-                return Err(Error::Codec(
-                    "Previous slot is not less than current slot".to_string(),
-                ));
+                return Err(Error::Codec(format!(
+                    "Previous slot is not less than current slot:{slot}"
+                )));
             }
 
             // Special case, when the previous block is actually UNKNOWN, we can't check it.
@@ -344,11 +344,11 @@ mod tests {
     // Gets sorted by slot number from highest to lowest
     fn sorted_test_blocks() -> Vec<Vec<u8>> {
         vec![
-            mary_block(), // 27388606
+            mary_block(),    // 27388606
             allegra_block(), // 18748707
-            alonzo_block(), // 18748707
+            alonzo_block(),  // 18748707
             shelley_block(), // 7948610
-            byron_block() // 3241381
+            byron_block(),   // 3241381
         ]
     }
 
@@ -361,19 +361,19 @@ mod tests {
 
             let previous_point = Point::new(
                 pallas_block.slot().add(i as u64),
-                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
+                pallas_block
+                    .header()
+                    .previous_hash()
+                    .expect("cannot get previous hash")
+                    .to_vec(),
             );
 
-            let block = MultiEraBlock::new(
-                Network::Preprod,
-                test_block.raw.clone(),
-                &previous_point,
-                1,
-            );
+            let block =
+                MultiEraBlock::new(Network::Preprod, test_block.raw.clone(), &previous_point, 1);
 
             assert!(block.is_err());
         }
-        
+
         Ok(())
     }
 
@@ -384,21 +384,14 @@ mod tests {
             let pallas_block =
                 pallas::ledger::traverse::MultiEraBlock::decode(test_block.raw.as_slice())?;
 
-            let previous_point = Point::new(
-                pallas_block.slot() - 1,
-                vec![0; 32]
-            );
+            let previous_point = Point::new(pallas_block.slot() - 1, vec![0; 32]);
 
-            let block = MultiEraBlock::new(
-                Network::Preprod,
-                test_block.raw.clone(),
-                &previous_point,
-                1,
-            );
+            let block =
+                MultiEraBlock::new(Network::Preprod, test_block.raw.clone(), &previous_point, 1);
 
             assert!(block.is_err());
         }
-        
+
         Ok(())
     }
 
@@ -411,15 +404,15 @@ mod tests {
 
             let previous_point = Point::new(
                 pallas_block.slot() - 1,
-                pallas_block.header().previous_hash().expect("cannot get previous hash").to_vec()
+                pallas_block
+                    .header()
+                    .previous_hash()
+                    .expect("cannot get previous hash")
+                    .to_vec(),
             );
 
-            let block = MultiEraBlock::new(
-                Network::Preprod,
-                test_block.raw.clone(),
-                &previous_point,
-                1,
-            )?;
+            let block =
+                MultiEraBlock::new(Network::Preprod, test_block.raw.clone(), &previous_point, 1)?;
 
             assert_eq!(block.decode().hash(), pallas_block.hash());
         }
@@ -427,27 +420,55 @@ mod tests {
         Ok(())
     }
 
+    fn mk_test_blocks() -> Vec<MultiEraBlock> {
+        let raw_blocks = sorted_test_blocks();
+        raw_blocks
+            .iter()
+            .map(|block| {
+                let prev_point = pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice())
+                    .map(|block| {
+                        Point::new(
+                            block.slot() - 1,
+                            block
+                                .header()
+                                .previous_hash()
+                                .expect("cannot get previous hash")
+                                .to_vec(),
+                        )
+                    })
+                    .expect("cannot create point");
+
+                MultiEraBlock::new(Network::Preprod, block.clone(), &prev_point, 1)
+                    .expect("cannot create multi-era block")
+            })
+            .collect()
+    }
+
+    fn mk_test_points() -> Vec<Point> {
+        let raw_blocks = sorted_test_blocks();
+        raw_blocks
+            .iter()
+            .map(|block| {
+                pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice())
+                    .map(|block| {
+                        Point::new(
+                            block.slot(),
+                            block
+                                .header()
+                                .previous_hash()
+                                .expect("cannot get previous hash")
+                                .to_vec(),
+                        )
+                    })
+                    .expect("cannot create point")
+            })
+            .collect()
+    }
+
     /// Compares between blocks using comparison operators
     #[test]
     fn test_multi_era_block_point_compare_4() -> anyhow::Result<()> {
-        let raw_blocks = sorted_test_blocks();
-
-        let multi_era_blocks: Vec<_> = raw_blocks.iter().map(|block| {
-            let prev_point =
-                pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
-                    Point::new(
-                        block.slot() - 1,
-                        block.header().previous_hash().expect("cannot get previous hash").to_vec()
-                    )
-                }).expect("cannot create point");
-
-                MultiEraBlock::new(
-                    Network::Preprod,
-                    block.clone(),
-                    &prev_point,
-                    1,
-                ).expect("cannot create multi-era block")
-        }).collect();
+        let multi_era_blocks = mk_test_blocks();
 
         let mary_block = multi_era_blocks.first().expect("cannot get block");
         let allegra_block = multi_era_blocks.get(1).expect("cannot get block");
@@ -479,7 +500,7 @@ mod tests {
         assert!(allegra_block > byron_block);
         assert!(allegra_block >= byron_block);
         assert!(allegra_block != byron_block);
-        
+
         assert!(alonzo_block < mary_block);
         assert!(alonzo_block <= mary_block);
         assert!(alonzo_block != mary_block);
@@ -518,40 +539,15 @@ mod tests {
         assert!(byron_block < shelley_block);
         assert!(byron_block <= shelley_block);
         assert!(byron_block != shelley_block);
-        
+
         Ok(())
     }
 
     /// Compares between blocks and points using comparison operators
     #[test]
     fn test_multi_era_block_point_compare_5() -> anyhow::Result<()> {
-        let raw_blocks = sorted_test_blocks();
-
-        let points: Vec<_> = raw_blocks.iter().map(|block| {
-            pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
-                Point::new(
-                    block.slot(),
-                    block.header().previous_hash().expect("cannot get previous hash").to_vec()
-                )
-            }).expect("cannot create point")
-        }).collect();
-
-        let blocks: Vec<_> = raw_blocks.iter().map(|block| {
-            let prev_point =
-                pallas::ledger::traverse::MultiEraBlock::decode(block.as_slice()).map(|block| {
-                    Point::new(
-                        block.slot() - 1,
-                        block.header().previous_hash().expect("cannot get previous hash").to_vec()
-                    )
-                }).expect("cannot create point");
-
-                MultiEraBlock::new(
-                    Network::Preprod,
-                    block.clone(),
-                    &prev_point,
-                    1,
-                ).expect("cannot create multi-era block")
-        }).collect();
+        let points = mk_test_points();
+        let blocks = mk_test_blocks();
 
         let mary_block = blocks.first().expect("cannot get block");
         let allegra_block = blocks.get(1).expect("cannot get block");
@@ -589,7 +585,7 @@ mod tests {
         assert!(allegra_block > byron_point);
         assert!(allegra_block >= byron_point);
         assert!(allegra_block != byron_point);
-        
+
         assert!(alonzo_block < mary_point);
         assert!(alonzo_block <= mary_point);
         assert!(alonzo_block != mary_point);
@@ -628,7 +624,7 @@ mod tests {
         assert!(byron_block < shelley_point);
         assert!(byron_block <= shelley_point);
         assert!(byron_block != shelley_point);
-        
+
         Ok(())
     }
 

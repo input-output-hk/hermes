@@ -83,6 +83,9 @@ pub enum Error {
     /// General Mithril Client Error
     #[error("Mithril Client Error for {0} @ {1}: {2}")]
     MithrilClient(Network, String, anyhow::Error),
+    /// General Mithril Index DB Error
+    #[error("Mithril Index DB Error for {0}: {1}")]
+    MithrilIndexDB(Network, anyhow::Error),
     /// Mithril Aggregator has no Snapshots
     #[error("Mithril Aggregator does not list any Mithril Snapshots for {0} @ {1}")]
     MithrilClientNoSnapshots(Network, String),
