@@ -52,6 +52,11 @@ impl HermesApp {
         &self.app_name
     }
 
+    /// Get vfs
+    pub(crate) fn vfs(&self) -> &Vfs {
+        &self.vfs
+    }
+
     /// Get indexed modules
     pub(crate) fn indexed_modules(&self) -> &HashMap<ModuleId, Module> {
         &self.indexed_modules

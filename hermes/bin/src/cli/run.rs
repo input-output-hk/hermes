@@ -34,10 +34,16 @@ impl Run {
         let app_name = package.get_metadata()?.get_name()?;
 
         println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
-        let vfs = VfsBootstrapper::new(Cli::hermes_home(), app_name.clone()).bootstrap()?;
+        let hermes_home_dir = Cli::hermes_home()?;
+        let vfs = VfsBootstrapper::new(hermes_home_dir, app_name.clone()).bootstrap()?;
 
-        println!("{} Running application {app_name} ", Emoji::new("🚀", ""),);
-        let app = HermesApp::new(HermesAppName(app_name), vfs, vec![]);
+        println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
+        let mut modules = Vec::new();
+        for (_, module_package) in package.get_modules()? {
+            let module = module_package.get_component()?;
+            modules.push(module);
+        }
+        let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
 
         let mut reactor = HermesReactor::new(vec![app])?;
         reactor.wait()?;

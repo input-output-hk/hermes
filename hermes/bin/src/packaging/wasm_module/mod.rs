@@ -113,7 +113,7 @@ impl WasmModulePackage {
             let signature_payload = signature.payload();
             anyhow::ensure!(
                 &expected_payload == signature_payload,
-                "Signature payload mismatch.\nExpected: {}\nGot: {}",
+                "Module package signature payload mismatch.\nExpected: {}\nGot: {}",
                 expected_payload.to_json().to_string(),
                 signature_payload.to_json().to_string()
             );
