@@ -6,8 +6,8 @@ use clap::Args;
 use console::Emoji;
 
 use crate::packaging::{
+    module::ModulePackage,
     sign::{certificate::Certificate, keys::PrivateKey},
-    module::WasmModulePackage,
 };
 
 /// WASM module package signing
@@ -30,7 +30,7 @@ impl SignCommand {
 
         let private_key = PrivateKey::from_file(self.private_key)?;
         let cert = Certificate::from_file(self.cert)?;
-        let package = WasmModulePackage::from_file(self.package)?;
+        let package = ModulePackage::from_file(self.package)?;
 
         package.validate(true)?;
         package.sign(&private_key, &cert)?;

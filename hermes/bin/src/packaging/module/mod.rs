@@ -31,32 +31,32 @@ use crate::{
 };
 
 /// Hermes WASM module package.
-pub(crate) struct WasmModulePackage(Package);
+pub(crate) struct ModulePackage(Package);
 
-impl MetadataSchema for WasmModulePackage {
+impl MetadataSchema for ModulePackage {
     const METADATA_SCHEMA: &'static str =
         include_str!("../../../../schemas/hermes_module_metadata.schema.json");
 }
 
-impl WasmModulePackage {
-    /// WASM module package signature file path.
+impl ModulePackage {
+    /// Module package signature file path.
     const AUTHOR_COSE_FILE: &'static str = "author.cose";
-    /// WASM module package component file path.
+    /// Module package WASM component file path.
     const COMPONENT_FILE: &'static str = "module.wasm";
-    /// WASM module package config file path.
+    /// Module package config file path.
     pub(crate) const CONFIG_FILE: &'static str = "config.json";
-    /// WASM module package config schema file path.
+    /// Module package config schema file path.
     const CONFIG_SCHEMA_FILE: &'static str = "config.schema.json";
-    /// WASM module package file extension.
+    /// Module package file extension.
     pub(crate) const FILE_EXTENSION: &'static str = "hmod";
-    /// WASM module package metadata file path.
+    /// Module package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
-    /// WASM module package settings schema file path.
+    /// Module package settings schema file path.
     const SETTINGS_SCHEMA_FILE: &'static str = "settings.schema.json";
-    /// WASM module package share directory path.
+    /// Module package share directory path.
     pub(crate) const SHARE_DIR: &'static str = "share";
 
-    /// Create a new WASM module package from a manifest file.
+    /// Create a new module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
         manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
@@ -86,7 +86,7 @@ impl WasmModulePackage {
         Ok(Self(package))
     }
 
-    /// Create `WasmModulePackage` from a `Package`.
+    /// Create `ModulePackage` from a `Package`.
     pub(crate) fn from_package(package: Package) -> Self {
         Self(package)
     }
@@ -255,7 +255,7 @@ impl WasmModulePackage {
         self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 
-    /// Copy all content of the `WasmModulePackage` to the provided `Dir`.
+    /// Copy all content of the `ModulePackage` to the provided `Dir`.
     pub(crate) fn copy_to_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
         dir.copy_dir(&self.0, path)
     }
@@ -314,7 +314,7 @@ fn validate_and_write_metadata(
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
-    let mut metadata = Metadata::<WasmModulePackage>::from_reader(metadata_reader)
+    let mut metadata = Metadata::<ModulePackage>::from_reader(metadata_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
     metadata.set_build_date(build_date);
     metadata.set_name(name);
@@ -413,7 +413,7 @@ pub(crate) mod tests {
     };
 
     pub(crate) struct ModulePackageFiles {
-        pub(crate) metadata: Metadata<WasmModulePackage>,
+        pub(crate) metadata: Metadata<ModulePackage>,
         pub(crate) component: Vec<u8>,
         pub(crate) config_schema: ConfigSchema,
         pub(crate) config: Config,
@@ -421,7 +421,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn prepare_default_package_files() -> ModulePackageFiles {
-        let metadata = Metadata::<WasmModulePackage>::from_reader(
+        let metadata = Metadata::<ModulePackage>::from_reader(
             serde_json::json!(
                 {
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
@@ -535,14 +535,14 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn check_module_integrity(
-        module_files: &ModulePackageFiles, module_package: &WasmModulePackage,
+        module_files: &ModulePackageFiles, module_package: &ModulePackage,
     ) {
         let package_metadata = module_package
             .get_metadata()
             .expect("Cannot get metadata from package");
         assert_eq!(module_files.metadata, package_metadata);
 
-        // check component WASM file
+        // check WASM component file
         assert!(module_package.get_component().is_ok());
 
         // check config and config schema JSON files
@@ -577,13 +577,12 @@ pub(crate) mod tests {
         let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
-        let package =
-            WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
-                .expect("Cannot create module package");
+        let package = ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+            .expect("Cannot create module package");
 
         assert!(package.validate(true).is_ok());
 
-        // WASM module package during the build process updates metadata file
+        // Module package during the build process updates metadata file
         // to have a corresponded values update `module_package_files`.
         module_package_files.metadata.set_name(&manifest.name);
         module_package_files.metadata.set_build_date(build_time);
@@ -600,9 +599,8 @@ pub(crate) mod tests {
         let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
-        let package =
-            WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
-                .expect("Cannot create module package");
+        let package = ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
+            .expect("Cannot create module package");
 
         assert!(package.validate(true).is_ok());
         assert!(package.validate(false).is_err());
@@ -634,19 +632,19 @@ pub(crate) mod tests {
         module_package_files.metadata.set_name("New name");
         package
             .0
-            .remove_file(WasmModulePackage::METADATA_FILE.into())
+            .remove_file(ModulePackage::METADATA_FILE.into())
             .expect("Failed to remove file");
         package
             .0
             .copy_resource_file(
                 &BytesResource::new(
-                    WasmModulePackage::METADATA_FILE.to_string(),
+                    ModulePackage::METADATA_FILE.to_string(),
                     module_package_files
                         .metadata
                         .to_bytes()
                         .expect("Failed to decode metadata."),
                 ),
-                WasmModulePackage::METADATA_FILE.into(),
+                ModulePackage::METADATA_FILE.into(),
             )
             .expect("Failed to copy resource to the package.");
 

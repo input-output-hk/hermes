@@ -21,7 +21,7 @@ use crate::{
             keys::PrivateKey,
             signature::{Signature, SignaturePayloadEncoding},
         },
-        module::{self, WasmModulePackage},
+        module::{self, ModulePackage},
         FileError, MissingPackageFileError,
     },
 };
@@ -35,9 +35,9 @@ pub(crate) struct ModuleInfo {
     /// Module name.
     pub(crate) name: String,
     /// Module package.
-    pub(crate) package: WasmModulePackage,
+    pub(crate) package: ModulePackage,
     /// Module config.
-    pub(crate) config: Option<module::WasmModulePackage>,
+    pub(crate) config: Option<module::ModulePackage>,
     /// Module share directory.
     pub(crate) share: Option<Dir>,
 }
@@ -206,13 +206,13 @@ impl ApplicationPackage {
                 );
 
             let mut usr_module_config_path = usr_module_path.clone();
-            usr_module_config_path.push_elem(WasmModulePackage::CONFIG_FILE.into());
+            usr_module_config_path.push_elem(ModulePackage::CONFIG_FILE.into());
             if let Some(config_hash) = self.0.calculate_file_hash(usr_module_config_path)? {
                 signature_payload_module_builder.with_config(config_hash);
             }
 
             let mut usr_module_share_path = usr_module_path.clone();
-            usr_module_share_path.push_elem(WasmModulePackage::SHARE_DIR.into());
+            usr_module_share_path.push_elem(ModulePackage::SHARE_DIR.into());
             if let Some(share_hash) = self.0.calculate_dir_hash(&usr_module_share_path)? {
                 signature_payload_module_builder.with_share(share_hash);
             }
@@ -250,12 +250,12 @@ impl ApplicationPackage {
     }
 
     /// Get `Vec<WasmModulePackage>` from package.
-    pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<(String, WasmModulePackage)>> {
+    pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<(String, ModulePackage)>> {
         let dirs = self.0.get_dirs(&Self::LIB_DIR.into())?;
         let mut modules = Vec::with_capacity(dirs.len());
         for dir in dirs {
             let dir_name = dir.path().pop_elem();
-            let package = WasmModulePackage::from_package(Package::mount(dir));
+            let package = ModulePackage::from_package(Package::mount(dir));
             modules.push((dir_name, package));
         }
         Ok(modules)
@@ -353,7 +353,7 @@ fn validate_and_write_module(
     manifest: &ManifestModule, dir: &Dir, modules_path: &Path, usr_modules_path: &Path,
     config_file_name: &str, share_dir_name: &str,
 ) -> anyhow::Result<()> {
-    let module_package = WasmModulePackage::from_file(manifest.package.upload_to_fs())?;
+    let module_package = ModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
 
     let module_original_name = module_package.get_metadata()?.get_name()?;
@@ -477,7 +477,7 @@ mod tests {
         for (i, module_package_files) in app_package_files.modules.iter_mut().enumerate() {
             let default_module_name = default_module_name(i);
             let mut module_package_path = dir.path().join(&default_module_name);
-            module_package_path.set_extension(WasmModulePackage::FILE_EXTENSION);
+            module_package_path.set_extension(ModulePackage::FILE_EXTENSION);
 
             let module_manifest = module::tests::prepare_package_dir(
                 default_module_name.clone(),
@@ -485,7 +485,7 @@ mod tests {
                 module_package_files,
             );
 
-            WasmModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
+            ModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
                 .expect("Failed to create module package");
 
             // WASM module package during the build process updates metadata file
