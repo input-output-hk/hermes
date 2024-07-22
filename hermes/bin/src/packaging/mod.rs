@@ -6,7 +6,7 @@ pub(crate) mod metadata;
 pub(crate) mod package;
 mod schema_validation;
 pub(crate) mod sign;
-pub(crate) mod wasm_module;
+pub(crate) mod module;
 
 use std::{fmt::Display, path::Path};
 

@@ -7,7 +7,7 @@ use console::Emoji;
 
 use crate::packaging::{
     sign::{certificate::Certificate, keys::PrivateKey},
-    wasm_module::WasmModulePackage,
+    module::WasmModulePackage,
 };
 
 /// WASM module package signing

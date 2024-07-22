@@ -21,7 +21,7 @@ use crate::{
             keys::PrivateKey,
             signature::{Signature, SignaturePayloadEncoding},
         },
-        wasm_module::{self, WasmModulePackage},
+        module::{self, WasmModulePackage},
         FileError, MissingPackageFileError,
     },
 };
@@ -37,7 +37,7 @@ pub(crate) struct ModuleInfo {
     /// Module package.
     pub(crate) package: WasmModulePackage,
     /// Module config.
-    pub(crate) config: Option<wasm_module::WasmModulePackage>,
+    pub(crate) config: Option<module::WasmModulePackage>,
     /// Module share directory.
     pub(crate) share: Option<Dir>,
 }
@@ -371,7 +371,7 @@ fn validate_and_write_module(
             "Missing config schema for module {module_name}"
         ))?;
 
-        wasm_module::validate_and_write_config_file(
+        module::validate_and_write_config_file(
             config.build(),
             &config_schema,
             &module_overridable_dir,
@@ -379,7 +379,7 @@ fn validate_and_write_module(
         )?;
     }
     if let Some(share_dir) = &manifest.share {
-        wasm_module::write_share_dir(
+        module::write_share_dir(
             share_dir.build(),
             &module_overridable_dir,
             share_dir_name.into(),
@@ -418,7 +418,7 @@ mod tests {
     struct ApplicationPackageFiles {
         metadata: Metadata<ApplicationPackage>,
         icon: Vec<u8>,
-        modules: Vec<wasm_module::tests::ModulePackageFiles>,
+        modules: Vec<module::tests::ModulePackageFiles>,
     }
 
     fn default_module_name(i: usize) -> String {
@@ -443,7 +443,7 @@ mod tests {
 
         let mut modules = Vec::with_capacity(modules_num);
         for _ in 0..modules_num {
-            modules.push(wasm_module::tests::prepare_default_package_files());
+            modules.push(module::tests::prepare_default_package_files());
         }
 
         ApplicationPackageFiles {
@@ -479,7 +479,7 @@ mod tests {
             let mut module_package_path = dir.path().join(&default_module_name);
             module_package_path.set_extension(WasmModulePackage::FILE_EXTENSION);
 
-            let module_manifest = wasm_module::tests::prepare_package_dir(
+            let module_manifest = module::tests::prepare_package_dir(
                 default_module_name.clone(),
                 dir,
                 module_package_files,
@@ -587,7 +587,7 @@ mod tests {
                 )
             );
 
-            wasm_module::tests::check_module_integrity(module_files, &module_package);
+            module::tests::check_module_integrity(module_files, &module_package);
         }
     }
 
