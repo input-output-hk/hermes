@@ -20,12 +20,22 @@ pub(crate) struct VfsBootstrapper {
 }
 
 impl VfsBootstrapper {
+    /// Virtual file system `etc` directory name.
+    const ETC_DIR: &'static str = "etc";
     /// Virtual file system file extension.
     const FILE_EXTENSION: &'static str = "hfs";
+    /// Virtual file system `lib` directory name.
+    const LIB_DIR: &'static str = "lib";
     /// Virtual file system `share` directory name.
     const SHARE_DIR: &'static str = "share";
     /// Virtual file system `srv` directory name.
     const SRV_DIR: &'static str = "srv";
+    /// Virtual file system `tmp` directory name.
+    const TMP_DIR: &'static str = "tmp";
+    /// Virtual file system `usr` directory name.
+    const USR_DIR: &'static str = "usr";
+    /// Virtual file system `usr/lib` directory name.
+    const USR_LIB_DIR: &'static str = "usr/lib";
     /// Virtual file system `www` directory name.
     const WWW_DIR: &'static str = "www";
 
@@ -56,25 +66,21 @@ impl VfsBootstrapper {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name);
         vfs_file_path.set_extension(Self::FILE_EXTENSION);
 
-        let hdf5_file = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
-            hdf5_file
+        let root = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
+            hermes_hdf5::Dir::new(hdf5_file.as_group()?)
         } else {
-            hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
+            let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
                 anyhow::anyhow!(
                     "Failed to create Hermes virtual file system instance at `{}`.",
                     vfs_file_path.display()
                 )
-            })?
-        };
-        let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
-
-        let srv_path = Self::SRV_DIR.into();
-        let srv_dir = if let Ok(srv_dir) = root.get_dir(&srv_path) {
-            srv_dir
-        } else {
-            root.create_dir(srv_path)?
+            })?;
+            let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
+            Self::setup_hdf5_vfs_structure(&root)?;
+            root
         };
 
+        let srv_dir = root.get_dir(&Self::SRV_DIR.into())?;
         if let Some(www) = self.mounted_www.as_ref() {
             srv_dir.mount_dir(www, Self::WWW_DIR.into())?;
         }
@@ -83,6 +89,18 @@ impl VfsBootstrapper {
         }
 
         Ok(Vfs { root })
+    }
+
+    /// Setup hdf5 VFS directories structure.
+    fn setup_hdf5_vfs_structure(root: &hermes_hdf5::Dir) -> anyhow::Result<()> {
+        root.create_dir(Self::TMP_DIR.into())?;
+        root.create_dir(Self::ETC_DIR.into())?;
+        root.create_dir(Self::SRV_DIR.into())?;
+        root.create_dir(Self::USR_DIR.into())?;
+        root.create_dir(Self::USR_LIB_DIR.into())?;
+        root.create_dir(Self::LIB_DIR.into())?;
+
+        Ok(())
     }
 }
 
