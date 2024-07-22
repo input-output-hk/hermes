@@ -32,7 +32,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn read(
         &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        Ok(Ok(Vec::new()))
+        todo!()
     }
 
     /// Read bytes from a stream, after blocking until at least one byte can
@@ -40,7 +40,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_read(
         &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        Ok(Ok(Vec::new()))
+        todo!()
     }
 
     /// Skip bytes from a stream. Returns number of bytes skipped.
@@ -50,7 +50,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn skip(
         &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        Ok(Ok(0))
+        todo!()
     }
 
     /// Skip bytes from a stream, after blocking until at least one byte
@@ -58,11 +58,11 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_skip(
         &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        Ok(Ok(0))
+        todo!()
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        Ok(())
+        todo!()
     }
 }
 
@@ -79,7 +79,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn check_write(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        Ok(Ok(0))
+        todo!()
     }
 
     /// Perform a write. This function never blocks.
@@ -92,7 +92,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn write(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Perform a write of up to 4096 bytes, and then flush the stream. Block
@@ -122,7 +122,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn blocking_write_and_flush(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Request to flush buffered output. This function never blocks.
@@ -138,7 +138,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn flush(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Request to flush buffered output, and block until flush completes
@@ -146,7 +146,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn blocking_flush(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Write zeroes to a stream.
@@ -158,7 +158,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn write_zeroes(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Perform a write of up to 4096 zeroes, and then flush the stream.
@@ -188,7 +188,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn blocking_write_zeroes_and_flush(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        Ok(Ok(()))
+        todo!()
     }
 
     /// Read from one stream and write to another.
@@ -208,7 +208,7 @@ impl HostOutputStream for HermesRuntimeContext {
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
         _src: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        Ok(Ok(0))
+        todo!()
     }
 
     /// Read from one stream and write to another, with blocking.
@@ -220,11 +220,11 @@ impl HostOutputStream for HermesRuntimeContext {
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
         _src: wasmtime::component::Resource<InputStream>, _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        Ok(Ok(0))
+        todo!()
     }
 
     fn drop(&mut self, _rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
-        Ok(())
+        todo!()
     }
 }
 
