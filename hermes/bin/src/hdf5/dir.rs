@@ -41,6 +41,22 @@ impl Dir {
         Ok(())
     }
 
+    /// Mount file from the another HDF5 package to the provided path.
+    #[allow(dead_code)]
+    pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
+        let link_name = path.pop_elem();
+        let dir = self.get_dir(&path)?;
+
+        let target_file_name = mounted_file.hdf5_ds.filename();
+        let target = mounted_file.hdf5_ds.name();
+        dir.0.link_external(
+            target_file_name.as_str(),
+            target.as_str(),
+            link_name.as_str(),
+        )?;
+        Ok(())
+    }
+
     /// Create a new empty file in the provided path.
     pub(crate) fn create_file(&self, mut path: Path) -> anyhow::Result<File> {
         let file_name = path.pop_elem();
@@ -174,7 +190,7 @@ impl Dir {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{Read, Write};
 
     use temp_dir::TempDir;
 
@@ -212,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn mount_external_test() {
+    fn mount_dir_test() {
         let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
         let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
             .expect("Failed to create a new package.");
@@ -240,7 +256,7 @@ mod tests {
         );
 
         dir1.mount_dir(&dir2, mounted_dir_name.into())
-            .expect("Failed to mount external.");
+            .expect("Failed to mount dir.");
 
         assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
         assert_eq!(
@@ -259,6 +275,39 @@ mod tests {
         assert!(dir1
             .get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
             .is_ok());
+    }
+
+    #[test]
+    fn mount_file_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+
+        let file_name = "file.txt";
+        let file_content = b"file_content";
+        let mut file = dir2
+            .create_file(file_name.into())
+            .expect("Failed to create file.");
+        file.write_all(file_content).expect("Failed to write file.");
+
+        assert!(dir1.get_file(file_name.into()).is_err());
+        dir1.mount_file(&file, file_name.into())
+            .expect("Failed to mount file.");
+
+        let mut mounted_file = dir1
+            .get_file(file_name.into())
+            .expect("Failed to get file.");
+        let mut mounted_file_content = Vec::new();
+        mounted_file
+            .read_to_end(&mut mounted_file_content)
+            .expect("Failed to read file's data.");
+
+        assert_eq!(mounted_file_content, file_content);
     }
 
     #[test]

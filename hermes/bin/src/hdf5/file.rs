@@ -6,7 +6,7 @@ use super::{compression::enable_compression, Path};
 #[derive(Clone, Debug)]
 pub(crate) struct File {
     /// HDF5 dataset object.
-    hdf5_ds: hdf5::Dataset,
+    pub(super) hdf5_ds: hdf5::Dataset,
     /// Reading/Writing position of the `hdf5_ds`.
     pos: usize,
 }
