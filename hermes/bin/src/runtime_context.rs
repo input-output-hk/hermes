@@ -1,9 +1,9 @@
 //! Hermes runtime context implementation.
 
-use crate::{app::HermesAppName, wasm::module::ModuleId};
+use crate::{app::HermesAppName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
     app_name: HermesAppName,
@@ -16,18 +16,24 @@ pub(crate) struct HermesRuntimeContext {
 
     /// module's execution counter
     exc_counter: u32,
+
+    /// App Virtual file system
+    #[allow(dead_code)]
+    vfs: Vfs,
 }
 
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
         app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u32,
+        vfs: Vfs,
     ) -> Self {
         Self {
             app_name,
             module_id,
             event_name,
             exc_counter,
+            vfs,
         }
     }
 
