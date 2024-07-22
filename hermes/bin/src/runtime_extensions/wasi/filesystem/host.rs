@@ -424,6 +424,8 @@ impl filesystem::preopens::Host for HermesRuntimeContext {
     fn get_directories(
         &mut self,
     ) -> wasmtime::Result<Vec<(wasmtime::component::Resource<Descriptor>, String)>> {
+        // TODO: This should return the directories in the VFS which are accessible to the
+        // application otherwise the runtime will not allow working with files inside them.
         Ok(Vec::new())
     }
 }
