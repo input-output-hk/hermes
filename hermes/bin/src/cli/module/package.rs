@@ -6,7 +6,7 @@ use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
-use crate::packaging::wasm_module::{manifest::Manifest, WasmModulePackage};
+use crate::packaging::wasm_module::{Manifest, WasmModulePackage};
 
 /// Hermes WASM module packaging
 #[derive(Args)]

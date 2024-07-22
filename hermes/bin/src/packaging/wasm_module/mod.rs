@@ -2,14 +2,14 @@
 
 mod author_payload;
 mod config;
-pub(crate) mod manifest;
+mod manifest;
 mod settings;
 
-use author_payload::{SignaturePayload, SignaturePayloadBuilder};
+pub(crate) use author_payload::{SignaturePayload, SignaturePayloadBuilder};
 use chrono::{DateTime, Utc};
-use config::{Config, ConfigSchema};
-use manifest::{Manifest, ManifestConfig};
-use settings::SettingsSchema;
+pub(crate) use config::{Config, ConfigSchema};
+pub(crate) use manifest::{Manifest, ManifestConfig};
+pub(crate) use settings::SettingsSchema;
 
 use crate::{
     errors::Errors,

@@ -29,6 +29,19 @@ use crate::{
 /// Hermes application package.
 pub(crate) struct ApplicationPackage(Package);
 
+/// Application package module info.
+#[allow(dead_code)]
+pub(crate) struct ModuleInfo {
+    /// Module name.
+    pub(crate) name: String,
+    /// Module package.
+    pub(crate) package: WasmModulePackage,
+    /// Module config.
+    pub(crate) config: Option<wasm_module::WasmModulePackage>,
+    /// Module share directory.
+    pub(crate) share: Option<Dir>,
+}
+
 impl MetadataSchema for ApplicationPackage {
     const METADATA_SCHEMA: &'static str =
         include_str!("../../../../schemas/hermes_app_metadata.schema.json");
@@ -41,13 +54,13 @@ impl ApplicationPackage {
     const FILE_EXTENSION: &'static str = "happ";
     /// Application package icon file path.
     const ICON_FILE: &'static str = "icon.svg";
+    /// Application package 'lib' directory path.
+    const LIB_DIR: &'static str = "lib";
     /// Application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
-    /// Application WASM modules directory path.
-    const MODULES_DIR: &'static str = "lib";
-    /// Application overriden module's config file path.
+    /// Application package overriden module's config file name.
     const MODULE_CONFIG_FILE: &'static str = "config.json";
-    /// Application overriden module's share dir path.
+    /// Application package overriden module's 'share' dir name.
     const MODULE_SHARE_DIR: &'static str = "share";
     /// Application package `srv` directory name.
     const SRV_DIR: &'static str = "srv";
@@ -55,8 +68,10 @@ impl ApplicationPackage {
     const SRV_SHARE_DIR: &'static str = "srv/share";
     /// Application package `srv/www` directory path.
     const SRV_WWW_DIR: &'static str = "srv/www";
-    /// Application shareable directory path.
+    /// Application package 'usr' directory path.
     const USR_DIR: &'static str = "usr";
+    /// Application package 'usr/lib' directory path.
+    const USR_LIB_DIR: &'static str = "usr/lib";
 
     /// Create a new Hermes application package package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
@@ -177,7 +192,7 @@ impl ApplicationPackage {
         let mut signature_payload_builder =
             author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
 
-        let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::MODULES_DIR.into()]);
+        let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::LIB_DIR.into()]);
         for (module_name, module_package) in self.get_modules()? {
             let module_sign = module_package.get_signature()?.ok_or(anyhow::anyhow!(
                 "Module {module_name} not signed, missing author.cose signature"
@@ -236,7 +251,7 @@ impl ApplicationPackage {
 
     /// Get `Vec<WasmModulePackage>` from package.
     pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<(String, WasmModulePackage)>> {
-        let dirs = self.0.get_dirs(&Self::MODULES_DIR.into())?;
+        let dirs = self.0.get_dirs(&Self::LIB_DIR.into())?;
         let mut modules = Vec::with_capacity(dirs.len());
         for dir in dirs {
             let dir_name = dir.path().pop_elem();
@@ -272,32 +287,29 @@ impl ApplicationPackage {
         )
         .unwrap_or_else(errors.get_add_err_fn());
 
-        match package.create_dir(Self::MODULES_DIR.into()) {
-            Ok(modules_dir) => {
-                match package.create_dir(Self::USR_DIR.into()) {
-                    Ok(usr_dir) => {
-                        match usr_dir.create_dir(Self::MODULES_DIR.into()) {
-                            Ok(usr_modules_dir) => {
-                                for module in &manifest.modules {
-                                    validate_and_write_module(
-                                        module,
-                                        &modules_dir,
-                                        &usr_modules_dir,
-                                    )
-                                    .unwrap_or_else(errors.get_add_err_fn());
-                                }
-                            },
-                            Err(err) => errors.add_err(err),
-                        }
-                    },
-                    Err(err) => errors.add_err(err),
-                }
-            },
-            Err(err) => errors.add_err(err),
-        };
+        package
+            .create_dir(Self::LIB_DIR.into())
+            .map_or_else(errors.get_add_err_fn(), |_| ());
+        package
+            .create_dir(Self::USR_DIR.into())
+            .map_or_else(errors.get_add_err_fn(), |_| ());
+        package
+            .create_dir(Self::USR_LIB_DIR.into())
+            .map_or_else(errors.get_add_err_fn(), |_| ());
+        for module in &manifest.modules {
+            validate_and_write_module(
+                module,
+                package,
+                &Self::LIB_DIR.into(),
+                &Self::USR_LIB_DIR.into(),
+                Self::MODULE_CONFIG_FILE,
+                Self::MODULE_SHARE_DIR,
+            )
+            .unwrap_or_else(errors.get_add_err_fn());
+        }
 
         package
-            .create_dir(ApplicationPackage::SRV_DIR.into())
+            .create_dir(Self::SRV_DIR.into())
             .map_or_else(errors.get_add_err_fn(), |_| ());
         if let Some(www_dir) = &manifest.www {
             write_www_dir(www_dir.build(), package, Self::SRV_WWW_DIR.into())
@@ -338,7 +350,8 @@ fn validate_and_write_metadata(
 
 /// Validate WASM module package and write it to the package to the provided dir path.
 fn validate_and_write_module(
-    manifest: &ManifestModule, modules_dir: &Dir, usr_modules_dir: &Dir,
+    manifest: &ManifestModule, dir: &Dir, modules_path: &Path, usr_modules_path: &Path,
+    config_file_name: &str, share_dir_name: &str,
 ) -> anyhow::Result<()> {
     let module_package = WasmModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
@@ -346,9 +359,11 @@ fn validate_and_write_module(
     let module_original_name = module_package.get_metadata()?.get_name()?;
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
 
+    let modules_dir = dir.get_dir(modules_path)?;
     let module_package_dir = modules_dir.create_dir(module_name.as_str().into())?;
     module_package.copy_to_dir(&module_package_dir, &Path::default())?;
 
+    let usr_modules_dir = dir.get_dir(usr_modules_path)?;
     let module_overridable_dir = usr_modules_dir.create_dir(module_name.as_str().into())?;
 
     if let Some(config) = &manifest.config {
@@ -360,14 +375,14 @@ fn validate_and_write_module(
             config.build(),
             &config_schema,
             &module_overridable_dir,
-            ApplicationPackage::MODULE_CONFIG_FILE.into(),
+            config_file_name.into(),
         )?;
     }
     if let Some(share_dir) = &manifest.share {
         wasm_module::write_share_dir(
             share_dir.build(),
             &module_overridable_dir,
-            ApplicationPackage::MODULE_SHARE_DIR.into(),
+            share_dir_name.into(),
         )?;
     }
     Ok(())
