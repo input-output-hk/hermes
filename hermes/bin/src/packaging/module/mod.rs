@@ -222,13 +222,21 @@ impl ModulePackage {
             .transpose()
     }
 
+    /// Get config schema `File` object from package.
+    pub(crate) fn get_config_schema_file(&self) -> Option<File> {
+        self.0.get_file(Self::CONFIG_SCHEMA_FILE.into()).ok()
+    }
+
     /// Get `ConfigSchema` object from package.
     pub(crate) fn get_config_schema(&self) -> anyhow::Result<Option<ConfigSchema>> {
-        self.0
-            .get_file(Self::CONFIG_SCHEMA_FILE.into())
-            .ok()
+        self.get_config_schema_file()
             .map(ConfigSchema::from_reader)
             .transpose()
+    }
+
+    /// Get config `File` object from package.
+    pub(crate) fn get_config_file(&self) -> Option<File> {
+        self.0.get_file(Self::CONFIG_FILE.into()).ok()
     }
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
@@ -240,7 +248,7 @@ impl ModulePackage {
             return Ok((None, None));
         };
 
-        if let Ok(file) = self.0.get_file(Self::CONFIG_FILE.into()) {
+        if let Some(file) = self.get_config_file() {
             let config_file = Config::from_reader(file, config_schema.validator())?;
             Ok((Some(config_file), Some(config_schema)))
         } else {

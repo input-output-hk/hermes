@@ -66,19 +66,30 @@ impl Run {
 fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
     let mut mount = Hdf5Mount::default();
 
-    mount.with_root_files(vec![package.get_icon_file()?, package.get_metadata_file()?]);
+    mount.with_root_file(package.get_icon_file()?);
+    mount.with_root_file(package.get_metadata_file()?);
 
     let modules = package.get_modules()?;
-    let mut to_lib_content = Vec::with_capacity(modules.len());
     for module_info in modules {
-        let to_lib = Hdf5MountToLib {
-            dir_name: module_info.get_name(),
-            files: Vec::new(),
-            share: module_info.get_share(),
-        };
-        to_lib_content.push(to_lib);
+        let mut to_lib = Hdf5MountToLib::new(module_info.get_name());
+
+        to_lib.with_file(module_info.get_metadata_file()?);
+        to_lib.with_file(module_info.get_component_file()?);
+        if let Some(config_schema) = module_info.get_config_schema_file() {
+            to_lib.with_file(config_schema);
+        }
+        if let Some(config) = module_info.get_config_file() {
+            to_lib.with_file(config);
+        }
+        if let Some(settings_schema) = module_info.get_settings_schema_file() {
+            to_lib.with_file(settings_schema);
+        }
+        if let Some(share_dir) = module_info.get_share() {
+            to_lib.with_dir(share_dir);
+        }
+
+        mount.with_to_lib(to_lib);
     }
-    mount.with_to_lib(to_lib_content);
 
     if let Some(share_dir) = package.get_share_dir() {
         mount.with_share_dir(share_dir);

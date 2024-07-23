@@ -13,7 +13,6 @@ pub(crate) struct AppModuleInfo {
     /// Module package.
     pub(super) package: ModulePackage,
     /// Application defined module's `config.json` file
-    #[allow(dead_code)]
     pub(super) app_config: Option<File>,
     /// Application defined module's `share` directory
     pub(super) app_share: Option<Dir>,
@@ -28,6 +27,31 @@ impl AppModuleInfo {
     /// Get module's WASM component
     pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
         self.package.get_component()
+    }
+
+    /// Get module's WASM component file
+    pub(crate) fn get_component_file(&self) -> anyhow::Result<File> {
+        self.package.get_component_file()
+    }
+
+    /// Get module's WASM metadata file
+    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
+        self.package.get_metadata_file()
+    }
+
+    /// Get module's WASM config schema file
+    pub(crate) fn get_config_schema_file(&self) -> Option<File> {
+        self.package.get_config_schema_file()
+    }
+
+    /// Get module's WASM config file
+    pub(crate) fn get_config_file(&self) -> Option<File> {
+        self.app_config.clone().or(self.package.get_config_file())
+    }
+
+    /// Get module's WASM settings schema file
+    pub(crate) fn get_settings_schema_file(&self) -> Option<File> {
+        self.package.get_settings_schema_file()
     }
 
     /// Get module's share dir

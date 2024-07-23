@@ -32,22 +32,22 @@ pub(crate) struct Hdf5Mount {
 /// HDF5 mounted content to `lib` directory struct.
 pub(crate) struct Hdf5MountToLib {
     /// Module's directory name
-    pub(crate) dir_name: String,
+    dir_name: String,
     /// Mounted module's files
-    pub(crate) files: Vec<hermes_hdf5::File>,
-    /// Mounted module's `share` directory.
-    pub(crate) share: Option<hermes_hdf5::Dir>,
+    files: Vec<hermes_hdf5::File>,
+    /// Mounted module's directories.
+    dirs: Vec<hermes_hdf5::Dir>,
 }
 
 impl Hdf5Mount {
-    /// Add a mounted root files
-    pub(crate) fn with_root_files(&mut self, root_files: Vec<hermes_hdf5::File>) {
-        self.root_files = root_files;
+    /// Add a mounted root file
+    pub(crate) fn with_root_file(&mut self, root_file: hermes_hdf5::File) {
+        self.root_files.push(root_file);
     }
 
     /// Add a mounted module's content
-    pub(crate) fn with_to_lib(&mut self, to_lib: Vec<Hdf5MountToLib>) {
-        self.to_lib = to_lib;
+    pub(crate) fn with_to_lib(&mut self, to_lib: Hdf5MountToLib) {
+        self.to_lib.push(to_lib);
     }
 
     /// Add a mounted share directory.
@@ -58,6 +58,28 @@ impl Hdf5Mount {
     /// Add a mounted www directory.
     pub(crate) fn with_www_dir(&mut self, www: hermes_hdf5::Dir) {
         self.www = Some(www);
+    }
+}
+
+impl Hdf5MountToLib {
+    /// Create a `Hdf5MountToLib`
+    pub(crate) fn new(dir_name: String) -> Self {
+        Self {
+            dir_name,
+            files: Vec::new(),
+            dirs: Vec::new(),
+        }
+    }
+
+    /// Add a mounted file
+    #[allow(dead_code)]
+    pub(crate) fn with_file(&mut self, file: hermes_hdf5::File) {
+        self.files.push(file);
+    }
+
+    /// Add a mounted dir
+    pub(crate) fn with_dir(&mut self, dir: hermes_hdf5::Dir) {
+        self.dirs.push(dir);
     }
 }
 
@@ -141,15 +163,16 @@ impl VfsBootstrapper {
         for root_file in &mount.root_files {
             root.mount_file(root_file, root_file.name().into())?;
         }
-        for module in &mount.to_lib {
+        for to_lib in &mount.to_lib {
             let lib_dir = root.get_dir(&Self::LIB_DIR.into())?;
-            let module_dir = lib_dir.create_dir(module.dir_name.as_str().into())?;
+            let to_lib_dir = lib_dir.create_dir(to_lib.dir_name.as_str().into())?;
 
-            for module_file in &module.files {
-                module_dir.mount_file(module_file, module_file.name().into())?;
+            for file in &to_lib.files {
+                to_lib_dir.mount_file(file, file.name().into())?;
             }
-            if let Some(share) = module.share.as_ref() {
-                module_dir.mount_dir(share, share.name().into())?;
+
+            for dir in &to_lib.dirs {
+                to_lib_dir.mount_dir(dir, dir.name().into())?;
             }
         }
         if let Some(www) = mount.www.as_ref() {
@@ -219,17 +242,16 @@ mod tests {
         let file = dir1.create_file(file_name.into()).unwrap();
 
         let mut mount = Hdf5Mount::default();
-        mount.with_root_files(vec![file.clone()]);
+        mount.with_root_file(file.clone());
         mount.with_www_dir(dir1.clone());
         mount.with_share_dir(dir1.clone());
 
         let module_name = "module_1";
-        let module = Hdf5MountToLib {
-            dir_name: module_name.to_string(),
-            files: vec![file],
-            share: Some(dir1),
-        };
-        mount.with_to_lib(vec![module]);
+        let mut to_lib = Hdf5MountToLib::new(module_name.to_string());
+        to_lib.with_file(file);
+        to_lib.with_dir(dir1);
+
+        mount.with_to_lib(to_lib);
 
         let vfs_name = "test_vfs".to_string();
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name);
