@@ -356,7 +356,7 @@ fn validate_and_write_module(
     let module_package = ModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
 
-    let module_original_name = module_package.get_metadata_file()?.try_get()?.get_name()?;
+    let module_original_name = module_package.get_metadata()?.get_name()?;
     let module_name = manifest.name.clone().unwrap_or(module_original_name);
 
     let modules_dir = dir.get_dir(modules_path)?;
@@ -554,10 +554,8 @@ mod tests {
 
         for (app_module_name, module_package) in modules {
             let package_module_name = module_package
-                .get_metadata_file()
+                .get_metadata()
                 .expect("Cannot get metadata file from package")
-                .try_get()
-                .expect("Failed to get metadata")
                 .get_name()
                 .expect("Failed to get module name");
             let (i, module_files) = app_package_files

@@ -96,7 +96,7 @@ impl ModulePackage {
     pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
-        self.get_metadata_file()
+        self.get_metadata()
             .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_component()
             .map_or_else(errors.get_add_err_fn(), |_| ());
@@ -190,13 +190,13 @@ impl ModulePackage {
     }
 
     /// Get `Metadata` object from package.
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
         let file = self
             .0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
-        let file = TypedFile::new(file, |reader| Metadata::from_reader(reader));
-        Ok(file)
+        let mut file = TypedFile::new(file, |reader| Metadata::from_reader(reader));
+        Ok(file.try_get()?)
     }
 
     /// Get `wasm::module::Module` object from package.
@@ -540,10 +540,8 @@ pub(crate) mod tests {
         module_files: &ModulePackageFiles, module_package: &ModulePackage,
     ) {
         let package_metadata = module_package
-            .get_metadata_file()
-            .expect("Cannot get metadata file from package")
-            .try_get()
-            .expect("Cannot get metadata from file");
+            .get_metadata()
+            .expect("Cannot get metadata file from package");
         assert_eq!(module_files.metadata, package_metadata);
 
         // check WASM component file

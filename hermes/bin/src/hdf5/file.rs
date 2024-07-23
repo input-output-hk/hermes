@@ -1,7 +1,5 @@
 //! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
-use std::ops::Deref;
-
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
@@ -74,6 +72,7 @@ impl<T> TypedFile<T> {
 
     /// Read `T` from the `File` content.
     pub(crate) fn try_get(&mut self) -> anyhow::Result<T> {
+        self.file.pos = 0;
         (self.decoder)(&mut self.file)
     }
 }
@@ -166,7 +165,7 @@ impl std::io::Seek for File {
     }
 }
 
-impl<T> Deref for TypedFile<T> {
+impl<T> std::ops::Deref for TypedFile<T> {
     type Target = File;
 
     fn deref(&self) -> &Self::Target {
