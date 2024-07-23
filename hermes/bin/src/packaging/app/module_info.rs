@@ -1,10 +1,10 @@
 //! An application's module info object
 
-#![allow(dead_code)]
-
-use hdf5::File;
-
-use crate::{hdf5::Dir, packaging::module::ModulePackage, wasm::module::Module};
+use crate::{
+    hdf5::{Dir, File},
+    packaging::module::ModulePackage,
+    wasm::module::Module,
+};
 
 /// Application package module info.
 pub(crate) struct AppModuleInfo {
@@ -13,6 +13,7 @@ pub(crate) struct AppModuleInfo {
     /// Module package.
     pub(super) package: ModulePackage,
     /// Application defined module's `config.json` file
+    #[allow(dead_code)]
     pub(super) app_config: Option<File>,
     /// Application defined module's `share` directory
     pub(super) app_share: Option<Dir>,

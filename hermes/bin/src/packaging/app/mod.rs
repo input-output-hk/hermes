@@ -268,18 +268,24 @@ impl ApplicationPackage {
     /// Get `Vec<WasmModulePackage>` from package.
     pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<AppModuleInfo>> {
         let lib_dirs = self.0.get_dirs(&Self::LIB_DIR.into())?;
-        // let usr_lib_dirs = self.0.get_dirs(&Self::USR_LIB_DIR.into())?;
+        let usr_lib = self.0.get_dir(&Self::USR_LIB_DIR.into())?;
 
         let mut modules = Vec::with_capacity(lib_dirs.len());
         for dir in lib_dirs {
             let name = dir.path().pop_elem();
             let package = ModulePackage::from_package(Package::mount(dir));
 
+            let usr_lib_module = usr_lib.get_dir(&name.as_str().into())?;
+            let app_share = usr_lib_module.get_dir(&Self::MODULE_SHARE_DIR.into()).ok();
+            let app_config = usr_lib_module
+                .get_file(Self::MODULE_CONFIG_FILE.into())
+                .ok();
+
             let module_info = AppModuleInfo {
                 name,
                 package,
-                app_share: None,
-                app_config: None,
+                app_config,
+                app_share,
             };
             modules.push(module_info);
         }
