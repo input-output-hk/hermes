@@ -430,6 +430,7 @@ pub(crate) mod tests {
         pub(crate) settings_schema: SettingsSchema,
     }
 
+    #[allow(clippy::unwrap_used)]
     pub(crate) fn prepare_default_package_files() -> ModulePackageFiles {
         let metadata = Metadata::<ModulePackage>::from_reader(
             serde_json::json!(
@@ -443,19 +444,18 @@ pub(crate) mod tests {
                     "license": [{"spdx": "MIT"}]
                 }
             ).to_string().as_bytes(),
-        ).expect("Invalid metadata");
-        let config_schema = ConfigSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
-            .expect("Invalid config schema");
+        ).unwrap();
+        let config_schema =
+            ConfigSchema::from_reader(serde_json::json!({}).to_string().as_bytes()).unwrap();
 
         let config = Config::from_reader(
             serde_json::json!({}).to_string().as_bytes(),
             config_schema.validator(),
         )
-        .expect("Invalid config");
+        .unwrap();
 
         let settings_schema =
-            SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes())
-                .expect("Invalid settings schema");
+            SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes()).unwrap();
 
         let component = r#"
             (component
@@ -479,6 +479,7 @@ pub(crate) mod tests {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     pub(crate) fn prepare_package_dir(
         module_name: String, dir: &TempDir, module_package_files: &ModulePackageFiles,
     ) -> Manifest {
@@ -490,42 +491,33 @@ pub(crate) mod tests {
 
         std::fs::write(
             &metadata_path,
-            module_package_files
-                .metadata
-                .to_bytes()
-                .expect("cannot decode metadata to bytes")
-                .as_slice(),
+            module_package_files.metadata.to_bytes().unwrap().as_slice(),
         )
-        .expect("Cannot create metadata.json file");
-        std::fs::write(&component_path, module_package_files.component.as_slice())
-            .expect("Cannot create module.wasm file");
+        .unwrap();
+        std::fs::write(&component_path, module_package_files.component.as_slice()).unwrap();
         std::fs::write(
             &config_path,
-            module_package_files
-                .config
-                .to_bytes()
-                .expect("cannot decode config to bytes")
-                .as_slice(),
+            module_package_files.config.to_bytes().unwrap().as_slice(),
         )
-        .expect("Cannot create config.json file");
+        .unwrap();
         std::fs::write(
             &config_schema_path,
             module_package_files
                 .config_schema
                 .to_bytes()
-                .expect("cannot decode config schema to bytes")
+                .unwrap()
                 .as_slice(),
         )
-        .expect("Cannot create config.schema.json file");
+        .unwrap();
         std::fs::write(
             &settings_schema_path,
             module_package_files
                 .settings_schema
                 .to_bytes()
-                .expect("cannot decode settings schema to bytes")
+                .unwrap()
                 .as_slice(),
         )
-        .expect("Cannot create settings.schema.json file");
+        .unwrap();
 
         Manifest {
             name: module_name,
@@ -544,51 +536,42 @@ pub(crate) mod tests {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     pub(crate) fn check_module_integrity(
         module_files: &ModulePackageFiles, module_package: &ModulePackage,
     ) {
-        let package_metadata = module_package
-            .get_metadata()
-            .expect("Cannot get metadata file from package");
+        let package_metadata = module_package.get_metadata().unwrap();
         assert_eq!(module_files.metadata, package_metadata);
 
         // check WASM component file
         assert!(module_package.get_component().is_ok());
 
         // check config and config schema JSON files
-        let (package_config, package_config_schema) = module_package
-            .get_config_with_schema()
-            .expect("Cannot get config from package");
-        assert_eq!(
-            module_files.config,
-            package_config.expect("Missing config in package")
-        );
-        assert_eq!(
-            module_files.config_schema,
-            package_config_schema.expect("Missing config schema in package")
-        );
+        let (package_config, package_config_schema) =
+            module_package.get_config_with_schema().unwrap();
+        assert_eq!(module_files.config, package_config.unwrap());
+        assert_eq!(module_files.config_schema, package_config_schema.unwrap());
 
         // check settings schema JSON file
-        let package_settings_schema = module_package
-            .get_settings_schema()
-            .expect("Cannot get settings schema from package");
+        let package_settings_schema = module_package.get_settings_schema().unwrap();
         assert_eq!(
             module_files.settings_schema,
-            package_settings_schema.expect("Missing settings schema in package")
+            package_settings_schema.unwrap()
         );
     }
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn from_dir_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let mut module_package_files = prepare_default_package_files();
 
         let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
-        let package = ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
-            .expect("Cannot create module package");
+        let package =
+            ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
 
         assert!(package.validate(true).is_ok());
 
@@ -601,41 +584,35 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn sign_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let mut module_package_files = prepare_default_package_files();
 
         let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
         let build_time = DateTime::default();
-        let package = ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
-            .expect("Cannot create module package");
+        let package =
+            ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
 
         assert!(package.validate(true).is_ok());
         assert!(package.validate(false).is_err());
-        assert!(package.get_signature().expect("Package error").is_none());
+        assert!(package.get_signature().unwrap().is_none());
 
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let certificate =
-            Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
-        package
-            .sign(&private_key, &certificate)
-            .expect("Cannot sign package");
-        package
-            .sign(&private_key, &certificate)
-            .expect("Cannot sign package twice with the same private key");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let certificate = Certificate::from_str(&certificate_str()).unwrap();
+        package.sign(&private_key, &certificate).unwrap();
+        package.sign(&private_key, &certificate).unwrap();
 
-        assert!(package.get_signature().expect("Package error").is_some());
+        assert!(package.get_signature().unwrap().is_some());
 
         assert!(
             package.validate(false).is_err(),
             "Missing certificate in the storage."
         );
 
-        certificate::storage::add_certificate(certificate)
-            .expect("Failed to add certificate to the storage.");
+        certificate::storage::add_certificate(certificate).unwrap();
         assert!(package.validate(false).is_ok());
 
         // corrupt payload with the modifying metadata.json file
@@ -643,20 +620,17 @@ pub(crate) mod tests {
         package
             .0
             .remove_file(ModulePackage::METADATA_FILE.into())
-            .expect("Failed to remove file");
+            .unwrap();
         package
             .0
             .copy_resource_file(
                 &BytesResource::new(
                     ModulePackage::METADATA_FILE.to_string(),
-                    module_package_files
-                        .metadata
-                        .to_bytes()
-                        .expect("Failed to decode metadata."),
+                    module_package_files.metadata.to_bytes().unwrap(),
                 ),
                 ModulePackage::METADATA_FILE.into(),
             )
-            .expect("Failed to copy resource to the package.");
+            .unwrap();
 
         assert!(
             package.validate(false).is_err(),

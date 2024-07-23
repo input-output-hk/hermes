@@ -11,7 +11,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{BytesResource, ResourceTrait},
-        Dir, Path, TypedFile,
+        Dir, File, Path, TypedFile,
     },
     packaging::{
         hash::Blake2b256,
@@ -235,6 +235,13 @@ impl ApplicationPackage {
         Ok(signature_payload_builder.build())
     }
 
+    /// Get icon `File` object from package.
+    pub(crate) fn get_icon_file(&self) -> anyhow::Result<File> {
+        self.0
+            .get_file(Self::ICON_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::ICON_FILE.to_string()).into())
+    }
+
     /// Get `TypedFile<Metadata>` object from package.
     pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
         self.0
@@ -439,10 +446,7 @@ mod tests {
         modules: Vec<module::tests::ModulePackageFiles>,
     }
 
-    fn default_module_name(i: usize) -> String {
-        format!("module_{i}")
-    }
-
+    #[allow(clippy::unwrap_used)]
     fn prepare_default_package_files(modules_num: usize) -> ApplicationPackageFiles {
         let metadata = Metadata::<ApplicationPackage>::from_reader(
             serde_json::json!(
@@ -456,7 +460,7 @@ mod tests {
                     "license": [{"spdx": "MIT"}]
                 }
             ).to_string().as_bytes(),
-        ).expect("Invalid metadata");
+        ).unwrap();
         let icon = b"icon_image_svg_content".to_vec();
 
         let mut modules = Vec::with_capacity(modules_num);
@@ -471,6 +475,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     fn prepare_package_dir(
         app_name: String, override_module_name: &[String], build_date: DateTime<Utc>,
         dir: &TempDir, app_package_files: &mut ApplicationPackageFiles,
@@ -480,20 +485,15 @@ mod tests {
 
         std::fs::write(
             &metadata_path,
-            app_package_files
-                .metadata
-                .to_bytes()
-                .expect("Failed to decode metadata to bytes")
-                .as_slice(),
+            app_package_files.metadata.to_bytes().unwrap().as_slice(),
         )
-        .expect("Failed to create metadata.json file");
+        .unwrap();
 
-        std::fs::write(&icon_path, app_package_files.icon.as_slice())
-            .expect("Failed to create metadata.json file");
+        std::fs::write(&icon_path, app_package_files.icon.as_slice()).unwrap();
 
         let mut modules = Vec::new();
         for (i, module_package_files) in app_package_files.modules.iter_mut().enumerate() {
-            let default_module_name = default_module_name(i);
+            let default_module_name = format!("module_{i}");
             let mut module_package_path = dir.path().join(&default_module_name);
             module_package_path.set_extension(ModulePackage::FILE_EXTENSION);
 
@@ -504,7 +504,7 @@ mod tests {
             );
 
             ModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
-                .expect("Failed to create module package");
+                .unwrap();
 
             // WASM module package during the build process updates metadata file
             // to have a corresponded values update `module_package_files`.
@@ -532,8 +532,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
     fn from_dir_test() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let modules_num = 4;
         let mut app_package_files = prepare_default_package_files(modules_num);
@@ -551,7 +552,7 @@ mod tests {
 
         let package =
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
-                .expect("Cannot create module package");
+                .unwrap();
 
         assert!(package.validate(true).is_ok());
 
@@ -559,50 +560,28 @@ mod tests {
         app_package_files.metadata.set_name(&manifest.name);
         app_package_files.metadata.set_build_date(build_date);
 
-        let package_metadata = package
-            .get_metadata()
-            .expect("Cannot get metadata from package");
+        let package_metadata = package.get_metadata().unwrap();
         assert_eq!(app_package_files.metadata, package_metadata);
 
+        assert!(package.get_icon_file().is_ok());
+
         // check WASM modules
-        let modules = package
-            .get_modules()
-            .expect("Failed to get WASM modules from package");
+        let modules = package.get_modules().unwrap();
         assert_eq!(modules.len(), app_package_files.modules.len());
 
         for (app_module_name, module_package) in modules {
-            let package_module_name = module_package
-                .get_metadata()
-                .expect("Cannot get metadata file from package")
-                .get_name()
-                .expect("Failed to get module name");
+            let package_module_name = module_package.get_metadata().unwrap().get_name().unwrap();
             let (i, module_files) = app_package_files
                 .modules
                 .iter_mut()
                 .enumerate()
-                .find(|(_, module)| {
-                    module
-                        .metadata
-                        .get_name()
-                        .expect("Failed to get module name")
-                        == *package_module_name
-                })
-                .expect("Failed to find module in app package files by module name");
+                .find(|(_, module)| module.metadata.get_name().unwrap() == *package_module_name)
+                .unwrap();
 
-            let manifest_module_name = manifest
-                .modules
-                .get(i)
-                .expect("Empty manifest modules")
-                .name
-                .clone();
+            let manifest_module_name = manifest.modules[i].name.clone();
             assert_eq!(
                 app_module_name,
-                manifest_module_name.unwrap_or(
-                    module_files
-                        .metadata
-                        .get_name()
-                        .expect("Failed to get module name")
-                )
+                manifest_module_name.unwrap_or(module_files.metadata.get_name().unwrap())
             );
 
             module::tests::check_module_integrity(module_files, &module_package);
@@ -610,8 +589,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn author_sing_test() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let modules_num = 4;
         let mut app_package_files = prepare_default_package_files(modules_num);
@@ -629,46 +609,31 @@ mod tests {
 
         let package =
             ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
-                .expect("Cannot create module package");
+                .unwrap();
 
         assert!(package.validate(true).is_ok());
         assert!(package.validate(false).is_err());
-        assert!(package
-            .get_author_signature()
-            .expect("Package error")
-            .is_none());
+        assert!(package.get_author_signature().unwrap().is_none());
 
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let certificate =
-            Certificate::from_str(&certificate_str()).expect("Cannot create certificate");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
         // sign wasm modules packages first
-        for (_, module_package) in package.get_modules().expect("Failed to get modules") {
-            module_package
-                .sign(&private_key, &certificate)
-                .expect("Cannot sign module package");
+        for (_, module_package) in package.get_modules().unwrap() {
+            module_package.sign(&private_key, &certificate).unwrap();
         }
 
-        package
-            .author_sign(&private_key, &certificate)
-            .expect("Cannot sign package");
-        package
-            .author_sign(&private_key, &certificate)
-            .expect("Cannot sign package twice with the same private key");
+        package.author_sign(&private_key, &certificate).unwrap();
+        package.author_sign(&private_key, &certificate).unwrap();
 
-        assert!(package
-            .get_author_signature()
-            .expect("Package error")
-            .is_some());
+        assert!(package.get_author_signature().unwrap().is_some());
 
         assert!(
             package.validate(false).is_err(),
             "Missing certificate in the storage."
         );
 
-        certificate::storage::add_certificate(certificate)
-            .expect("Failed to add certificate to the storage.");
+        certificate::storage::add_certificate(certificate).unwrap();
         assert!(package.validate(false).is_ok());
 
         // corrupt payload with the modifying metadata.json file
@@ -676,20 +641,17 @@ mod tests {
         package
             .0
             .remove_file(ApplicationPackage::METADATA_FILE.into())
-            .expect("Failed to remove file");
+            .unwrap();
         package
             .0
             .copy_resource_file(
                 &BytesResource::new(
                     ApplicationPackage::METADATA_FILE.to_string(),
-                    app_package_files
-                        .metadata
-                        .to_bytes()
-                        .expect("Failed to decode metadata."),
+                    app_package_files.metadata.to_bytes().unwrap(),
                 ),
                 ApplicationPackage::METADATA_FILE.into(),
             )
-            .expect("Failed to copy resource to the package.");
+            .unwrap();
 
         assert!(
             package.validate(false).is_err(),

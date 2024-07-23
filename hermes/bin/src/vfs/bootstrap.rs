@@ -118,7 +118,7 @@ impl VfsBootstrapper {
     /// Mount hdf5 content to the VFS.
     fn mount_hdf5_content(root: &hermes_hdf5::Dir, mount: &Hdf5Mount) -> anyhow::Result<()> {
         for root_file in &mount.root_files {
-            root.mount_file(&root_file, root_file.name().into())?;
+            root.mount_file(root_file, root_file.name().into())?;
         }
 
         if let Some(www) = mount.www.as_ref() {
