@@ -216,8 +216,6 @@ mod tests {
         let dir_path_1 = &[TEST_DIR, "12345"].join("/");
         let dir_path_1 = PathBuf::from(dir_path_1).canonicalize().expect("cannot get absolute path");
 
-        let tmp = std::fs::read_dir(&dir_path_1);
-
         assert_eq!(SnapshotId::try_new(Network::Preprod, &dir_path_1).await, None);
     }
 
