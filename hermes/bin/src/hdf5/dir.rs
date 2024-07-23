@@ -1,9 +1,6 @@
 //! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
-use std::io::Read;
-
 use super::{
-    compression::enable_compression,
     resources::{Hdf5Resource, ResourceTrait},
     File, Path,
 };
@@ -24,25 +21,42 @@ impl Dir {
         Path::from_str(&self.0.name())
     }
 
+    /// Return dir name.
+    pub(crate) fn name(&self) -> String {
+        self.path().pop_elem()
+    }
+
+    /// Mount directory from the another HDF5 package to the provided path.
+    pub(crate) fn mount_dir(&self, mounted_dir: &Dir, mut path: Path) -> anyhow::Result<()> {
+        let link_name = path.pop_elem();
+        let dir = self.get_dir(&path)?;
+
+        let target_file_name = mounted_dir.0.filename();
+        let target = mounted_dir.0.name();
+        dir.0.link_external(
+            target_file_name.as_str(),
+            target.as_str(),
+            link_name.as_str(),
+        )?;
+        Ok(())
+    }
+
+    /// Create a new empty file in the provided path.
+    pub(crate) fn create_file(&self, mut path: Path) -> anyhow::Result<File> {
+        let file_name = path.pop_elem();
+        let dir = self.get_dir(&path)?;
+        let file = File::create(&dir.0, file_name.as_str())?;
+        Ok(file)
+    }
+
     /// Copy resource file to the provided path.
     pub(crate) fn copy_resource_file(
-        &self, resource: &impl ResourceTrait, mut path: Path,
+        &self, resource: &impl ResourceTrait, path: Path,
     ) -> anyhow::Result<()> {
-        let file_name = path.pop_elem()?;
-
+        let mut file = self.create_file(path)?;
         let mut reader = resource.get_reader()?;
-        let mut resource_data = Vec::new();
-        reader.read_to_end(&mut resource_data)?;
-        if resource_data.is_empty() {
-            anyhow::bail!("Resource {} is empty", resource.to_string());
-        }
 
-        let dir = self.create_dir(&path)?;
-        let ds_builder = dir.0.new_dataset_builder();
-        enable_compression(ds_builder)
-            .with_data(&resource_data)
-            .create(file_name.as_str())?;
-
+        std::io::copy(&mut reader, &mut file)?;
         Ok(())
     }
 
@@ -50,16 +64,18 @@ impl Dir {
     pub(crate) fn copy_resource_dir(
         &self, resource: &impl ResourceTrait, path: &Path,
     ) -> anyhow::Result<()> {
-        let dir = self.create_dir(path)?;
+        let dir = self.get_dir(path)?;
 
         let mut errors = Errors::new();
         for resource in resource.get_directory_content()? {
+            let path: Path = resource.name()?.into();
             if resource.is_dir() {
-                dir.copy_resource_dir(&resource, &resource.name()?.into())
+                dir.create_dir(path.clone())?;
+                dir.copy_resource_dir(&resource, &path)
                     .unwrap_or_else(errors.get_add_err_fn());
             }
             if resource.is_file() {
-                dir.copy_resource_file(&resource, resource.name()?.into())
+                dir.copy_resource_file(&resource, path)
                     .unwrap_or_else(errors.get_add_err_fn());
             }
         }
@@ -68,7 +84,7 @@ impl Dir {
 
     /// Copy other `Dir` recursively content to the current one.
     pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
-        let resource = Hdf5Resource::Group(dir.0.clone());
+        let resource = Hdf5Resource::Dir(dir.clone());
         self.copy_resource_dir(&resource, path)?;
         Ok(())
     }
@@ -76,22 +92,19 @@ impl Dir {
     /// Create dir recursively from path related to current dir.
     /// If some dir already exists it will be skipped, if some dir does not exist it will
     /// be created.
-    /// If path is empty it will return cloned `Dir`.
-    pub(crate) fn create_dir(&self, path: &Path) -> anyhow::Result<Self> {
-        let mut dir = self.0.clone();
-        for path_element in path.iter() {
-            if let Ok(known_dir) = dir.group(path_element) {
-                dir = known_dir;
-            } else {
-                dir = dir.create_group(path_element)?;
-            }
-        }
-        Ok(Self(dir))
+    pub(crate) fn create_dir(&self, mut path: Path) -> anyhow::Result<Self> {
+        let dir_name = path.pop_elem();
+        let dir = self.get_dir(&path)?;
+        let new_dir = dir
+            .0
+            .create_group(&dir_name)
+            .map_err(|_| anyhow::anyhow!("Dir `{path}/{dir_name}` already exists"))?;
+        Ok(Self(new_dir))
     }
 
     /// Remove file by the provided path.
     pub(crate) fn remove_file(&self, mut path: Path) -> anyhow::Result<()> {
-        let file_name = path.pop_elem()?;
+        let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
         if dir.0.dataset(file_name.as_str()).is_ok() {
@@ -107,7 +120,7 @@ impl Dir {
     /// Remove directory by the provided path.
     #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: Path) -> anyhow::Result<()> {
-        let dir_name = path.pop_elem()?;
+        let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
         if dir.0.group(dir_name.as_str()).is_ok() {
@@ -123,11 +136,11 @@ impl Dir {
     /// Get file if present from path.
     /// Return error if file does not exist by the provided path.
     pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<File> {
-        let file_name = path.pop_elem()?;
+        let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         dir.0
             .dataset(file_name.as_str())
-            .map(File::new)
+            .map(File::open)
             .map_err(|_| anyhow::anyhow!("File {file_name}/{path} not found"))
     }
 
@@ -135,7 +148,7 @@ impl Dir {
     /// If path is empty it will return all child files of the current one.
     pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<File>> {
         let dir = self.get_dir(path)?;
-        Ok(dir.0.datasets()?.into_iter().map(File::new).collect())
+        Ok(dir.0.datasets()?.into_iter().map(File::open).collect())
     }
 
     /// Get dir by the provided path.
@@ -146,7 +159,7 @@ impl Dir {
         for path_element in path.iter() {
             dir = dir
                 .group(path_element)
-                .map_err(|_| anyhow::anyhow!("Dir {path} not found"))?;
+                .map_err(|_| anyhow::anyhow!("Dir `{path}` not found"))?;
         }
         Ok(Self(dir))
     }
@@ -161,6 +174,8 @@ impl Dir {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+
     use temp_dir::TempDir;
 
     use super::*;
@@ -173,18 +188,77 @@ mod tests {
         let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
         let dir = Dir::new(package.as_group().expect("Failed to create a root group."));
 
-        let path = Path::from_str("dir_1/dir_2/dir_3/dir_4");
-        dir.create_dir(&path)
+        let dir_1 = "dir_1";
+        let dir_2 = "dir_2";
+        let dir_3 = "dir_3";
+        let new_dir = dir
+            .create_dir(dir_1.into())
+            .expect("Failed to create directories in package.");
+        let new_dir = new_dir
+            .create_dir(dir_2.into())
+            .expect("Failed to create directories in package.");
+        new_dir
+            .create_dir(dir_3.into())
             .expect("Failed to create directories in package.");
 
-        assert!(dir.get_dir(&Path::from_str("dir_1")).is_ok());
-        assert!(dir.get_dir(&Path::from_str("dir_1/dir_2")).is_ok());
-        assert!(dir.get_dir(&Path::from_str("dir_1/dir_2/dir_3")).is_ok());
-        assert!(dir.get_dir(&path).is_ok());
+        assert!(dir.get_dir(&dir_1.into()).is_ok());
+        assert!(dir.get_dir(&format!("{dir_1}/{dir_2}").into()).is_ok());
+        assert!(dir
+            .get_dir(&format!("{dir_1}/{dir_2}/{dir_3}").into())
+            .is_ok());
         assert!(dir.get_dir(&Path::from_str("not_created_dir")).is_err());
 
-        dir.create_dir(&path)
-            .expect("Failed to create directories in package.");
+        assert!(dir.create_dir(dir_1.into()).is_err());
+    }
+
+    #[test]
+    fn mount_external_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+
+        let child_dir_name = "child_dir";
+        let child_dir_path = Path::from_str(child_dir_name);
+
+        let child_dir = dir2
+            .create_dir(child_dir_path.clone())
+            .expect("Failed to create dir.");
+        child_dir
+            .create_dir(child_dir_path)
+            .expect("Failed to create dir.");
+
+        let mounted_dir_name = "mounted_dir";
+        assert!(dir1.get_dir(&mounted_dir_name.into()).is_err());
+        assert_eq!(
+            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
+            0
+        );
+
+        dir1.mount_dir(&dir2, mounted_dir_name.into())
+            .expect("Failed to mount external.");
+
+        assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
+        assert_eq!(
+            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
+            1
+        );
+        assert!(dir1
+            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}").into())
+            .is_ok());
+        assert_eq!(
+            dir1.get_dirs(&format!("{mounted_dir_name}/{child_dir_name}").into())
+                .expect("Failed to get dirs")
+                .len(),
+            1
+        );
+        assert!(dir1
+            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
+            .is_ok());
     }
 
     #[test]
@@ -203,14 +277,12 @@ mod tests {
         dir.copy_resource_file(&FsResource::new(file_1), file_1_name.into())
             .expect("Failed to copy file to package.");
 
-        let file_1 = dir
+        let mut file_1 = dir
             .get_file(file_1_name.into())
             .expect("Failed to get file.");
 
         let mut data = Vec::new();
         file_1
-            .reader()
-            .expect("Failed to get file reader.")
             .read_to_end(&mut data)
             .expect("Failed to read file's data.");
         assert_eq!(data.as_slice(), file_content);
@@ -256,6 +328,8 @@ mod tests {
         let file_3 = fs_child_dir.join(file_3_name);
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
+        dir.create_dir(base_dir_name.into())
+            .expect("Failed to create dir.");
         dir.copy_resource_dir(&FsResource::new(fs_base_dir), &base_dir_name.into())
             .expect("Failed to copy dir to package.");
 

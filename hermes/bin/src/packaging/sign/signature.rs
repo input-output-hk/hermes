@@ -115,7 +115,8 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
             anyhow::anyhow!("Failed to decode signature `kid` value to `Blake2b256` hash. {err}",)
         })?;
         let cert = certificate::storage::get_certificate(&cert_hash).ok_or(anyhow::anyhow!(
-            "Cannot find certificate in the storage from the signature `kid` value."
+            "Cannot find certificate in the storage, cert hash `{}`.",
+            cert_hash.to_hex()
         ))?;
         let public_key = cert.subject_public_key()?;
 
@@ -336,7 +337,7 @@ mod tests {
         assert_eq!(signature.cose_signatures.len(), 1);
         signature
             .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature twice.");
+            .expect("Failed to add signature twice with the same private key.");
         assert_eq!(signature.cose_signatures.len(), 1);
 
         let another_private_key = PrivateKey::from_str(&format!(

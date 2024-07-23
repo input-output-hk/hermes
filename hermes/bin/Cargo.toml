@@ -61,6 +61,7 @@ console = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hyper = { version = "0.14.10", features = ["full"] }
+dirs = { workspace = true }
 
 jsonschema = { workspace = true }
 hex = { workspace = true }
@@ -72,6 +73,7 @@ ed25519-dalek = { workspace = true, features = ["pem"] }
 x509-cert = { workspace = true, features = ["pem"] }
 coset = { workspace = true }
 hermes-ipfs = { workspace = true }
+temp-dir = "0.1.13"
 
 [build-dependencies]
 build-info-build = { workspace = true }
@@ -79,7 +81,7 @@ build-info-build = { workspace = true }
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 serial_test = { workspace = true }
-temp-dir = "0.1.13"
+temp-dir = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["blosc-src"]

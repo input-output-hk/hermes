@@ -15,7 +15,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
-        Path,
+        Dir, Path,
     },
     packaging::{
         metadata::{Metadata, MetadataSchema},
@@ -86,7 +86,8 @@ impl WasmModulePackage {
     }
 
     /// Validate package with its signature and other contents.
-    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+    /// If `untrusted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -98,25 +99,29 @@ impl WasmModulePackage {
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
 
-        self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        if !untrusted {
+            self.verify_sign().unwrap_or_else(errors.get_add_err_fn());
+        }
 
         errors.return_result(())
     }
 
-    /// Verify package signature if it exists.
+    /// Verify package signature.
     fn verify_sign(&self) -> anyhow::Result<()> {
         if let Some(signature) = self.get_signature()? {
             let expected_payload = self.get_signature_payload()?;
             let signature_payload = signature.payload();
             anyhow::ensure!(
                 &expected_payload == signature_payload,
-                "Signature payload mismatch.\nExpected: {}\nGot: {}",
+                "Module package signature payload mismatch.\nExpected: {}\nGot: {}",
                 expected_payload.to_json().to_string(),
                 signature_payload.to_json().to_string()
             );
             signature.verify()?;
+            Ok(())
+        } else {
+            Err(MissingPackageFileError(Self::AUTHOR_COSE_FILE.to_string()).into())
         }
-        Ok(())
     }
 
     /// Sign the package and store signature inside it.
@@ -128,8 +133,8 @@ impl WasmModulePackage {
             self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
             existing_signature
         } else {
-            let signature_payload = self.get_signature_payload()?;
-            Signature::new(signature_payload)
+            let payload = self.get_signature_payload()?;
+            Signature::new(payload)
         };
 
         signature.add_sign(private_key, certificate)?;
@@ -183,7 +188,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(|file| Metadata::<Self>::from_reader(file.reader()?))?
+            .map(Metadata::<Self>::from_reader)?
     }
 
     /// Get `wasm::module::Module` object from package.
@@ -191,7 +196,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::COMPONENT_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(|file| wasm::module::Module::from_reader(file.reader()?))?
+            .map(wasm::module::Module::from_reader)?
     }
 
     /// Get `Signature` object from package.
@@ -199,7 +204,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::AUTHOR_COSE_FILE.into())
             .ok()
-            .map(|file| Signature::<SignaturePayload>::from_reader(file.reader()?))
+            .map(Signature::<SignaturePayload>::from_reader)
             .transpose()
     }
 
@@ -208,7 +213,7 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::CONFIG_SCHEMA_FILE.into())
             .ok()
-            .map(|file| ConfigSchema::from_reader(file.reader()?))
+            .map(ConfigSchema::from_reader)
             .transpose()
     }
 
@@ -222,7 +227,7 @@ impl WasmModulePackage {
         };
 
         if let Ok(file) = self.0.get_file(Self::CONFIG_FILE.into()) {
-            let config_file = Config::from_reader(file.reader()?, config_schema.validator())?;
+            let config_file = Config::from_reader(file, config_schema.validator())?;
             Ok((Some(config_file), Some(config_schema)))
         } else {
             Ok((None, Some(config_schema)))
@@ -234,13 +239,19 @@ impl WasmModulePackage {
         self.0
             .get_file(Self::SETTINGS_SCHEMA_FILE.into())
             .ok()
-            .map(|file| SettingsSchema::from_reader(file.reader()?))
+            .map(SettingsSchema::from_reader)
             .transpose()
     }
 
-    /// Copy all content of the `WasmModulePackage` to the provided `package`.
-    pub(crate) fn copy_to_package(&self, package: &Package, path: &Path) -> anyhow::Result<()> {
-        package.copy_dir(&self.0, path)
+    /// Get share dir from package if present.
+    #[allow(dead_code)]
+    pub(crate) fn get_share(&self) -> Option<Dir> {
+        self.0.get_dir(&Self::SHARE_DIR.into()).ok()
+    }
+
+    /// Copy all content of the `WasmModulePackage` to the provided `Dir`.
+    pub(crate) fn copy_to_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
+        dir.copy_dir(&self.0, path)
     }
 }
 
@@ -249,16 +260,10 @@ fn validate_and_write_from_manifest(
     manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
     errors: &mut Errors,
 ) {
-    validate_and_write_metadata(
-        manifest.metadata.build(),
-        build_date,
-        package_name,
-        package,
-        Path::default(),
-    )
-    .unwrap_or_else(errors.get_add_err_fn());
+    validate_and_write_metadata(manifest.metadata.build(), build_date, package_name, package)
+        .unwrap_or_else(errors.get_add_err_fn());
 
-    validate_and_write_component(manifest.component.build(), package, Path::default())
+    validate_and_write_component(manifest.component.build(), package)
         .unwrap_or_else(errors.get_add_err_fn());
 
     if let Some(config) = &manifest.config {
@@ -271,16 +276,14 @@ fn validate_and_write_from_manifest(
     }
 
     if let Some(share_dir) = &manifest.share {
-        write_share_dir(share_dir.build(), package, Path::default())
-            .unwrap_or_else(errors.get_add_err_fn());
+        write_share_dir(share_dir.build(), package).unwrap_or_else(errors.get_add_err_fn());
     }
 }
 
 /// Validate metadata.json file and write it to the package to the provided dir path.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, package: &Package,
-    mut path: Path,
+    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, dir: &Dir,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -290,58 +293,47 @@ fn validate_and_write_metadata(
     metadata.set_name(name);
 
     let resource = BytesResource::new(resource.name()?, metadata.to_bytes()?);
-    path.push_elem(WasmModulePackage::METADATA_FILE.into());
-    package.copy_resource_file(&resource, path)?;
+    dir.copy_resource_file(&resource, WasmModulePackage::METADATA_FILE.into())?;
     Ok(())
 }
 
 /// Validate WASM component file and write it to the package to the provided dir path.
-fn validate_and_write_component(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
-) -> anyhow::Result<()> {
+fn validate_and_write_component(resource: &impl ResourceTrait, dir: &Dir) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
     wasm::module::Module::from_reader(component_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
-    path.push_elem(WasmModulePackage::COMPONENT_FILE.into());
-    package.copy_resource_file(resource, path)?;
+    dir.copy_resource_file(resource, WasmModulePackage::COMPONENT_FILE.into())?;
     Ok(())
 }
 
 /// Validate config schema and config file and write them to the package.
 fn validate_and_write_config(manifest: &ManifestConfig, package: &Package) -> anyhow::Result<()> {
-    let config_schema =
-        validate_and_write_config_schema(manifest.schema.build(), package, Path::default())?;
+    let config_schema = validate_and_write_config_schema(manifest.schema.build(), package)?;
     if let Some(config_file) = &manifest.file {
-        validate_and_write_config_file(
-            config_file.build(),
-            &config_schema,
-            package,
-            Path::default(),
-        )?;
+        validate_and_write_config_file(config_file.build(), &config_schema, package)?;
     }
     Ok(())
 }
 
 /// Validate config schema and write it to the package to the provided dir path.
 fn validate_and_write_config_schema(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
+    resource: &impl ResourceTrait, dir: &Dir,
 ) -> anyhow::Result<ConfigSchema> {
     let config_schema_reader = resource.get_reader()?;
     let config_schema = ConfigSchema::from_reader(config_schema_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     let resource = BytesResource::new(resource.name()?, config_schema.to_bytes()?);
-    path.push_elem(WasmModulePackage::CONFIG_SCHEMA_FILE.into());
-    package.copy_resource_file(&resource, path)?;
+    dir.copy_resource_file(&resource, WasmModulePackage::CONFIG_SCHEMA_FILE.into())?;
 
     Ok(config_schema)
 }
 
 /// Validate config file and write it to the package.
 pub(crate) fn validate_and_write_config_file(
-    resource: &impl ResourceTrait, config_schema: &ConfigSchema, package: &Package, mut path: Path,
+    resource: &impl ResourceTrait, config_schema: &ConfigSchema, dir: &Dir,
 ) -> anyhow::Result<()> {
     let config_reader = resource.get_reader()?;
 
@@ -349,30 +341,27 @@ pub(crate) fn validate_and_write_config_file(
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     let resource = BytesResource::new(resource.name()?, config.to_bytes()?);
-    path.push_elem(WasmModulePackage::CONFIG_FILE.into());
-    package.copy_resource_file(&resource, path)?;
+    dir.copy_resource_file(&resource, WasmModulePackage::CONFIG_FILE.into())?;
     Ok(())
 }
 
 /// Validate settings schema file and it to the package.
 fn validate_and_write_settings_schema(
-    resource: &impl ResourceTrait, package: &Package,
+    resource: &impl ResourceTrait, dir: &Dir,
 ) -> anyhow::Result<()> {
     let setting_schema_reader = resource.get_reader()?;
     let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     let resource = BytesResource::new(resource.name()?, settings_schema.to_bytes()?);
-    package.copy_resource_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
+    dir.copy_resource_file(&resource, WasmModulePackage::SETTINGS_SCHEMA_FILE.into())?;
     Ok(())
 }
 
 /// Write share dir to the package.
-pub(crate) fn write_share_dir(
-    resource: &impl ResourceTrait, package: &Package, mut path: Path,
-) -> anyhow::Result<()> {
-    path.push_elem(WasmModulePackage::SHARE_DIR.into());
-    package.copy_resource_dir(resource, &path)?;
+pub(crate) fn write_share_dir(resource: &impl ResourceTrait, dir: &Dir) -> anyhow::Result<()> {
+    let share_dir = dir.create_dir(WasmModulePackage::SHARE_DIR.into())?;
+    share_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
@@ -558,9 +547,10 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
+        assert!(package.validate(true).is_ok());
 
-        // check metadata JSON file
+        // WASM module package during the build process updates metadata file
+        // to have a corresponded values update `module_package_files`.
         module_package_files.metadata.set_name(&manifest.name);
         module_package_files.metadata.set_build_date(build_time);
 
@@ -580,8 +570,8 @@ pub(crate) mod tests {
             WasmModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time)
                 .expect("Cannot create module package");
 
-        assert!(package.validate().is_ok());
-
+        assert!(package.validate(true).is_ok());
+        assert!(package.validate(false).is_err());
         assert!(package.get_signature().expect("Package error").is_none());
 
         let private_key =
@@ -593,18 +583,18 @@ pub(crate) mod tests {
             .expect("Cannot sign package");
         package
             .sign(&private_key, &certificate)
-            .expect("Cannot sign package twice");
+            .expect("Cannot sign package twice with the same private key");
 
         assert!(package.get_signature().expect("Package error").is_some());
 
         assert!(
-            package.validate().is_err(),
+            package.validate(false).is_err(),
             "Missing certificate in the storage."
         );
 
         certificate::storage::add_certificate(certificate)
             .expect("Failed to add certificate to the storage.");
-        assert!(package.validate().is_ok());
+        assert!(package.validate(false).is_ok());
 
         // corrupt payload with the modifying metadata.json file
         module_package_files.metadata.set_name("New name");
@@ -626,6 +616,9 @@ pub(crate) mod tests {
             )
             .expect("Failed to copy resource to the package.");
 
-        assert!(package.validate().is_err(), "Corrupted signature payload.");
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
     }
 }

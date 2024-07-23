@@ -28,7 +28,7 @@ pub(crate) struct Manifest {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ManifestModule {
     /// Path to the WASM module package file.
-    pub(crate) file: ResourceBuilder,
+    pub(crate) package: ResourceBuilder,
     /// Application WASM module name.
     pub(crate) name: Option<String>,
     /// Path to the WASM module config JSON file.
@@ -80,7 +80,7 @@ impl Manifest {
         manifest.icon.make_relative_to(dir_path);
         manifest.metadata.make_relative_to(dir_path);
         manifest.modules.iter_mut().for_each(|m| {
-            m.file.make_relative_to(dir_path);
+            m.package.make_relative_to(dir_path);
             if let Some(config) = m.config.as_mut() {
                 config.make_relative_to(dir_path);
             }
@@ -123,7 +123,7 @@ mod serde_def {
 
     #[derive(Deserialize)]
     struct ManifestModuleSerde {
-        file: ResourceBuilder,
+        package: ResourceBuilder,
         name: Option<String>,
         config: Option<ResourceBuilder>,
         share: Option<ResourceBuilder>,
@@ -140,7 +140,7 @@ mod serde_def {
                     .into_iter()
                     .map(|der| {
                         super::ManifestModule {
-                            file: der.file,
+                            package: der.package,
                             name: der.name,
                             config: der.config,
                             share: der.share,
@@ -174,7 +174,7 @@ mod tests {
                     "icon": "icon.svg",
                     "metadata": "metadata.json",
                     "modules": [{
-                        "file": "module.hmod",
+                        "package": "module.hmod",
                         "name": "module_name",
                         "config": "config.json",
                         "share": "share"
@@ -189,7 +189,7 @@ mod tests {
                 icon: ResourceBuilder::Fs(FsResource::new(dir_path.join("icon.svg"))),
                 metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
                 modules: vec![ManifestModule {
-                    file: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    package: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
                     name: Some("module_name".to_string()),
                     config: Some(ResourceBuilder::Fs(FsResource::new(
                         dir_path.join("config.json")
@@ -209,7 +209,7 @@ mod tests {
                     "icon": "/icon.svg",
                     "metadata": "/metadata.json",
                     "modules": [{
-                        "file": "/module.hmod",
+                        "package": "/module.hmod",
                         "name": "module_name",
                         "config": "/config.json",
                         "share": "/share"
@@ -224,7 +224,7 @@ mod tests {
                 icon: ResourceBuilder::Fs(FsResource::new("/icon.svg")),
                 metadata: ResourceBuilder::Fs(FsResource::new("/metadata.json")),
                 modules: vec![ManifestModule {
-                    file: ResourceBuilder::Fs(FsResource::new("/module.hmod")),
+                    package: ResourceBuilder::Fs(FsResource::new("/module.hmod")),
                     name: Some("module_name".to_string()),
                     config: Some(ResourceBuilder::Fs(FsResource::new("/config.json"))),
                     share: Some(ResourceBuilder::Fs(FsResource::new("/share"))),
@@ -239,7 +239,7 @@ mod tests {
             let manifest_json_data = serde_json::json!({
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
                     "modules": [{
-                        "file": "module.hmod",
+                        "package": "module.hmod",
                         "name": "module_name",
                         "config": "config.json",
                         "share": "share"
@@ -254,7 +254,7 @@ mod tests {
                 icon: ResourceBuilder::Fs(FsResource::new(dir_path.join("icon.svg"))),
                 metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
                 modules: vec![ManifestModule {
-                    file: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
+                    package: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.hmod"))),
                     name: Some("module_name".to_string()),
                     config: Some(ResourceBuilder::Fs(FsResource::new(
                         dir_path.join("config.json")

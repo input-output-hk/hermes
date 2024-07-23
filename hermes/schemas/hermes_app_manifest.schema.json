@@ -43,7 +43,7 @@
                 "description": "Prepackaged Hermes WASM Component Module.",
                 "additionalProperties": false,
                 "properties": {
-                    "file": {
+                    "package": {
                         "type": "string",
                         "title": "Application WASM Module Package File",
                         "description": "Path to the WASM Component Library Module Package File.",
@@ -68,7 +68,7 @@
                     }
                 },
                 "required": [
-                    "file"
+                    "package"
                 ]
             },
             "uniqueItems": true

@@ -50,10 +50,10 @@ impl Package {
     /// Calculates file hash, if present
     pub(crate) fn calculate_file_hash(&self, path: Path) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
-        let Ok(file) = self.0.get_file(path) else {
+        let Ok(mut file) = self.0.get_file(path) else {
             return Ok(None);
         };
-        calculate_file_hash(&file, &mut hasher)?;
+        calculate_file_hash(&mut file, &mut hasher)?;
         Ok(Some(hasher.finalize()))
     }
 
@@ -75,12 +75,11 @@ const BUFFER_SIZE: usize = 1024 * 1024;
 
 /// Calculates file hash with the provided hasher.
 #[allow(clippy::indexing_slicing)]
-fn calculate_file_hash(file: &File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
-    let mut reader = file.reader()?;
+fn calculate_file_hash(file: &mut File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
     let mut buf = vec![0; BUFFER_SIZE];
 
     loop {
-        let len = reader.read(&mut buf)?;
+        let len = file.read(&mut buf)?;
         if len == 0 {
             break;
         }
@@ -98,16 +97,16 @@ fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Resul
     let files: BTreeMap<_, _> = dir
         .get_files(&Path::default())?
         .into_iter()
-        .map(|file| (file.path().to_string(), file))
+        .map(|file| (file.name(), file))
         .collect();
     let dirs: BTreeMap<_, _> = dir
         .get_dirs(&Path::default())?
         .into_iter()
-        .map(|dir| (dir.path().to_string(), dir))
+        .map(|dir| (dir.name(), dir))
         .collect();
-    for (path_str, file) in files {
+    for (path_str, mut file) in files {
         hasher.update(path_str.as_bytes());
-        calculate_file_hash(&file, hasher)?;
+        calculate_file_hash(&mut file, hasher)?;
     }
     for (path_str, dir) in dirs {
         hasher.update(path_str.as_bytes());
@@ -177,42 +176,29 @@ mod tests {
         let file_3 = child_dir.join(file_3_name);
         std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
 
-        package
+        let root_dir_name = "root_dir";
+        let root_dir = package
+            .create_dir(root_dir_name.into())
+            .expect("Failed to create dir.");
+        root_dir
+            .create_dir(dir_name.into())
+            .expect("Failed to create dir.");
+        root_dir
             .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
             .expect("Failed to copy dir to package.");
 
         let hash = package
-            .calculate_dir_hash(&dir_name.into())
+            .calculate_dir_hash(&format!("{root_dir_name}/{dir_name}").into())
             .expect("Failed to calculate dir hash.")
             .expect("Failed to get dir hash from package.");
 
         let mut hasher = Blake2b256Hasher::new();
-        hasher.update(
-            Path::new(vec![dir_name.into(), file_1_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
+        hasher.update(file_1_name.as_bytes());
         hasher.update(file_content);
-        hasher.update(
-            Path::new(vec![dir_name.into(), file_2_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
+        hasher.update(file_2_name.as_bytes());
         hasher.update(file_content);
-        hasher.update(
-            Path::new(vec![dir_name.into(), child_dir_name.into()])
-                .to_string()
-                .as_bytes(),
-        );
-        hasher.update(
-            Path::new(vec![
-                dir_name.into(),
-                child_dir_name.into(),
-                file_3_name.into(),
-            ])
-            .to_string()
-            .as_bytes(),
-        );
+        hasher.update(child_dir_name.as_bytes());
+        hasher.update(file_3_name.as_bytes());
         hasher.update(file_content);
         let expected_hash = hasher.finalize();
 
