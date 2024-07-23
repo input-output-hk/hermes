@@ -179,7 +179,7 @@ mod tests {
     use crate::point::*;
     use super::*;
 
-    const TEST_DIR: &str = "test_snapshot_id";
+    const TEST_DIR: &str = "test_data/test_snapshot_id";
 
     #[test]
     fn test_parse_path() {
