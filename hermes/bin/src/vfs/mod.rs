@@ -2,7 +2,7 @@
 
 mod bootstrap;
 
-pub(crate) use bootstrap::VfsBootstrapper;
+pub(crate) use bootstrap::{Hdf5Mount, VfsBootstrapper};
 
 use crate::hdf5::{self as hermes_hdf5};
 

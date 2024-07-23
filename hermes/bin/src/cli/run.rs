@@ -13,7 +13,7 @@ use crate::{
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
-    vfs::{Vfs, VfsBootstrapper},
+    vfs::{Hdf5Mount, Vfs, VfsBootstrapper},
 };
 
 /// Run cli command
@@ -64,16 +64,18 @@ impl Run {
 
 /// Bootstrap Hermes virtual filesystem
 fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
-    let hermes_home_dir = Cli::hermes_home()?;
-    let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name);
+    let mut mount = Hdf5Mount::default();
 
     if let Some(share_dir) = package.get_share_dir() {
-        bootstrapper.with_mounted_share(share_dir);
+        mount.with_share_dir(share_dir);
     }
     if let Some(www_dir) = package.get_www_dir() {
-        bootstrapper.with_mounted_www(www_dir);
+        mount.with_www_dir(www_dir);
     }
 
+    let hermes_home_dir = Cli::hermes_home()?;
+    let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name);
+    bootstrapper.set_hdf5_mount(mount);
     let vfs = bootstrapper.bootstrap()?;
     Ok(vfs)
 }

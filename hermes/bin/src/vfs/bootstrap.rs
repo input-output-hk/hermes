@@ -13,10 +13,29 @@ pub(crate) struct VfsBootstrapper {
     vfs_dir_path: PathBuf,
     /// VFS file name.
     vfs_file_name: String,
+    /// HDF5 mounted content.
+    hdf5_mount: Hdf5Mount,
+}
+
+/// HDF5 mounted content struct.
+#[derive(Default)]
+pub(crate) struct Hdf5Mount {
     /// Mounted `srv/share` directory.
-    mounted_share: Option<hermes_hdf5::Dir>,
+    share: Option<hermes_hdf5::Dir>,
     /// Mounted `srv/www` directory.
-    mounted_www: Option<hermes_hdf5::Dir>,
+    www: Option<hermes_hdf5::Dir>,
+}
+
+impl Hdf5Mount {
+    /// Add a mounted share directory.
+    pub(crate) fn with_share_dir(&mut self, share: hermes_hdf5::Dir) {
+        self.share = Some(share);
+    }
+
+    /// Add a mounted www directory.
+    pub(crate) fn with_www_dir(&mut self, www: hermes_hdf5::Dir) {
+        self.www = Some(www);
+    }
 }
 
 impl VfsBootstrapper {
@@ -44,19 +63,13 @@ impl VfsBootstrapper {
         Self {
             vfs_dir_path: vfs_dir_path.as_ref().to_path_buf(),
             vfs_file_name,
-            mounted_share: None,
-            mounted_www: None,
+            hdf5_mount: Hdf5Mount::default(),
         }
     }
 
-    /// Add a mounted share directory.
-    pub(crate) fn with_mounted_share(&mut self, mounted_share: hermes_hdf5::Dir) {
-        self.mounted_share = Some(mounted_share);
-    }
-
-    /// Add a mounted www directory.
-    pub(crate) fn with_mounted_www(&mut self, mounted_www: hermes_hdf5::Dir) {
-        self.mounted_www = Some(mounted_www);
+    /// Set `Hdf5Mount` object
+    pub(crate) fn set_hdf5_mount(&mut self, hdf5_mount: Hdf5Mount) {
+        self.hdf5_mount = hdf5_mount;
     }
 
     /// Bootstrap the virtual file system from the provided configuration.
@@ -78,7 +91,7 @@ impl VfsBootstrapper {
             root
         };
 
-        self.mount_app_package_content(&root)?;
+        Self::mount_hdf5_content(&root, &self.hdf5_mount)?;
 
         Ok(Vfs { root })
     }
@@ -95,12 +108,12 @@ impl VfsBootstrapper {
         Ok(())
     }
 
-    /// Mount app package content to the VFS.
-    fn mount_app_package_content(&self, root: &hermes_hdf5::Dir) -> anyhow::Result<()> {
-        if let Some(www) = self.mounted_www.as_ref() {
+    /// Mount hdf5 content to the VFS.
+    fn mount_hdf5_content(root: &hermes_hdf5::Dir, mount: &Hdf5Mount) -> anyhow::Result<()> {
+        if let Some(www) = mount.www.as_ref() {
             root.mount_dir(www, Self::SRV_WWW_DIR.into())?;
         }
-        if let Some(share) = self.mounted_share.as_ref() {
+        if let Some(share) = mount.share.as_ref() {
             root.mount_dir(share, Self::SRV_SHARE_DIR.into())?;
         }
         Ok(())
@@ -144,10 +157,13 @@ mod tests {
         let file_name = "file.txt";
         dir1.create_file(file_name.into()).unwrap();
 
+        let mut mount = Hdf5Mount::default();
+        mount.with_www_dir(dir1.clone());
+        mount.with_share_dir(dir1.clone());
+
         let vfs_name = "test_vfs".to_string();
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name);
-        bootstrapper.with_mounted_www(dir1.clone());
-        bootstrapper.with_mounted_share(dir1.clone());
+        bootstrapper.set_hdf5_mount(mount);
 
         let vfs = bootstrapper.bootstrap().unwrap();
 
