@@ -1,5 +1,7 @@
 //! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
+use std::ops::Deref;
+
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
@@ -10,6 +12,18 @@ pub(crate) struct File {
     /// Reading/Writing position of the `hdf5_ds`.
     pos: usize,
 }
+
+/// A typed version of `File` which could return `T` by read from the `File` content and
+/// decoding with the help of `decoder`.
+pub(crate) struct TypedFile<T> {
+    /// `File` object.
+    file: File,
+    /// Decoder function.
+    decoder: Box<DecoderFn<T>>,
+}
+
+/// `TypedFile<T>` decoder function type.
+type DecoderFn<T> = dyn Fn(&mut dyn std::io::Read) -> anyhow::Result<T>;
 
 impl File {
     /// Create a new file.
@@ -45,6 +59,22 @@ impl File {
             .first()
             .ok_or(anyhow::anyhow!("Failed to get file size.",))?;
         Ok(*size)
+    }
+}
+
+impl<T> TypedFile<T> {
+    /// Create a new `TypedFile` instance.
+    pub(crate) fn new<F>(file: File, decoder: F) -> Self
+    where F: 'static + Fn(&mut dyn std::io::Read) -> anyhow::Result<T> {
+        Self {
+            file,
+            decoder: Box::new(decoder),
+        }
+    }
+
+    /// Read `T` from the `File` content.
+    pub(crate) fn try_get(&mut self) -> anyhow::Result<T> {
+        (self.decoder)(&mut self.file)
     }
 }
 
@@ -133,6 +163,14 @@ impl std::io::Seek for File {
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
         self.pos.try_into().map_err(map_to_io_error)
+    }
+}
+
+impl<T> Deref for TypedFile<T> {
+    type Target = File;
+
+    fn deref(&self) -> &Self::Target {
+        &self.file
     }
 }
 

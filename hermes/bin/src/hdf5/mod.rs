@@ -7,5 +7,5 @@ mod path;
 pub(crate) mod resources;
 
 pub(crate) use dir::Dir;
-pub(crate) use file::File;
+pub(crate) use file::{File, TypedFile};
 pub(crate) use path::Path;
