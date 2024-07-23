@@ -27,7 +27,7 @@ use crate::{
         },
         FileError, MissingPackageFileError,
     },
-    wasm,
+    wasm::module::Module,
 };
 
 /// Hermes WASM module package.
@@ -189,22 +189,30 @@ impl ModulePackage {
         Ok(signature_payload_builder.build())
     }
 
+    /// Get `TypedFile<Metadata>` object from package.
+    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
+        self.0
+            .get_file(Self::METADATA_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
+            .map(|f| TypedFile::new(f, |r| Metadata::<Self>::from_reader(r)))
+    }
+
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
-        let file = self
-            .0
-            .get_file(Self::METADATA_FILE.into())
-            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))?;
-        let mut file = TypedFile::new(file, |reader| Metadata::from_reader(reader));
-        Ok(file.try_get()?)
+        self.get_metadata_file()?.try_get()
+    }
+
+    /// Get `TypedFile<wasm::module::Module>` object from package.
+    pub(crate) fn get_component_file(&self) -> anyhow::Result<TypedFile<Module>> {
+        self.0
+            .get_file(Self::COMPONENT_FILE.into())
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
+            .map(|f| TypedFile::new(f, |r| Module::from_reader(r)))
     }
 
     /// Get `wasm::module::Module` object from package.
-    pub(crate) fn get_component(&self) -> anyhow::Result<wasm::module::Module> {
-        self.0
-            .get_file(Self::COMPONENT_FILE.into())
-            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(wasm::module::Module::from_reader)?
+    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
+        self.get_component_file()?.try_get()
     }
 
     /// Get `Signature` object from package.
@@ -332,7 +340,7 @@ fn validate_and_write_component(
 ) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
-    wasm::module::Module::from_reader(component_reader)
+    Module::from_reader(component_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     dir.copy_resource_file(resource, path)?;

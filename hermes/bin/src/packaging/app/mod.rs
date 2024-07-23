@@ -6,16 +6,17 @@ pub(crate) mod manifest;
 use chrono::{DateTime, Utc};
 use manifest::{Manifest, ManifestModule};
 
+use super::module;
 use crate::{
     errors::Errors,
     hdf5::{
         resources::{BytesResource, ResourceTrait},
-        Dir, Path,
+        Dir, Path, TypedFile,
     },
     packaging::{
         hash::Blake2b256,
         metadata::{Metadata, MetadataSchema},
-        module::{self, ModulePackage},
+        module::ModulePackage,
         package::Package,
         sign::{
             certificate::Certificate,
@@ -24,6 +25,7 @@ use crate::{
         },
         FileError, MissingPackageFileError,
     },
+    wasm::module::Module,
 };
 
 /// Hermes application package.
@@ -35,9 +37,7 @@ pub(crate) struct ModuleInfo {
     /// Module name.
     pub(crate) name: String,
     /// Module package.
-    pub(crate) package: ModulePackage,
-    /// Module config.
-    pub(crate) config: Option<module::ModulePackage>,
+    pub(crate) package: TypedFile<Module>,
     /// Module share directory.
     pub(crate) share: Option<Dir>,
 }
@@ -230,22 +230,35 @@ impl ApplicationPackage {
         Ok(signature_payload_builder.build())
     }
 
-    /// Get `Metadata` object from package.
-    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
+    /// Get `TypedFile<Metadata>` object from package.
+    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
         self.0
             .get_file(Self::METADATA_FILE.into())
-            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()))
-            .map(Metadata::<Self>::from_reader)?
+            .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
+            .map(|f| TypedFile::new(f, |r| Metadata::<Self>::from_reader(r)))
+    }
+
+    /// Get `Metadata` object from package.
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
+        self.get_metadata_file()?.try_get()
+    }
+
+    /// Get author `TypedFile<Signature>` object from package.
+    pub(crate) fn get_author_signature_file(
+        &self,
+    ) -> Option<TypedFile<Signature<author_payload::SignaturePayload>>> {
+        self.0
+            .get_file(Self::AUTHOR_COSE_FILE.into())
+            .ok()
+            .map(|f| TypedFile::new(f, |r| Signature::from_reader(r)))
     }
 
     /// Get author `Signature` object from package.
     pub(crate) fn get_author_signature(
         &self,
     ) -> anyhow::Result<Option<Signature<author_payload::SignaturePayload>>> {
-        self.0
-            .get_file(Self::AUTHOR_COSE_FILE.into())
-            .ok()
-            .map(Signature::<author_payload::SignaturePayload>::from_reader)
+        self.get_author_signature_file()
+            .map(|mut f| f.try_get())
             .transpose()
     }
 
