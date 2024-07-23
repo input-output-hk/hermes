@@ -218,8 +218,6 @@ mod tests {
 
         let tmp = std::fs::read_dir(&dir_path_1);
 
-        println!("{:?}", tmp);
-
         assert_eq!(SnapshotId::try_new(Network::Preprod, &dir_path_1).await, None);
     }
 
