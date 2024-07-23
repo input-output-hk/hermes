@@ -3,7 +3,7 @@
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct File {
     /// HDF5 dataset object.
     pub(super) hdf5_ds: hdf5::Dataset,
@@ -11,17 +11,27 @@ pub(crate) struct File {
     pos: usize,
 }
 
+impl std::clone::Clone for File {
+    fn clone(&self) -> Self {
+        Self {
+            hdf5_ds: self.hdf5_ds.clone(),
+            pos: self.pos,
+        }
+    }
+}
+
 /// A typed version of `File` which could return `T` by read from the `File` content and
 /// decoding with the help of `decoder`.
+#[derive(Clone, Debug)]
 pub(crate) struct TypedFile<T> {
     /// `File` object.
     file: File,
     /// Decoder function.
-    decoder: Box<DecoderFn<T>>,
+    decoder: fn(&mut dyn std::io::Read) -> anyhow::Result<T>,
 }
 
-/// `TypedFile<T>` decoder function type.
-type DecoderFn<T> = dyn Fn(&mut dyn std::io::Read) -> anyhow::Result<T>;
+/// `TypedFile<T>` decoder function pointer.
+type DecoderFn<T> = fn(&mut dyn std::io::Read) -> anyhow::Result<T>;
 
 impl File {
     /// Create a new file.
@@ -62,12 +72,8 @@ impl File {
 
 impl<T> TypedFile<T> {
     /// Create a new `TypedFile` instance.
-    pub(crate) fn new<F>(file: File, decoder: F) -> Self
-    where F: 'static + Fn(&mut dyn std::io::Read) -> anyhow::Result<T> {
-        Self {
-            file,
-            decoder: Box::new(decoder),
-        }
+    pub(crate) fn new(file: File, decoder: DecoderFn<T>) -> Self {
+        Self { file, decoder }
     }
 
     /// Read `T` from the `File` content.

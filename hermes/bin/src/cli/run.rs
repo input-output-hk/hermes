@@ -12,7 +12,7 @@ use crate::{
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
-    vfs::VfsBootstrapper,
+    vfs::{Vfs, VfsBootstrapper},
 };
 
 /// Run cli command
@@ -34,8 +34,7 @@ impl Run {
         let app_name = package.get_metadata()?.get_name()?;
 
         println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
-        let hermes_home_dir = Cli::hermes_home()?;
-        let vfs = VfsBootstrapper::new(hermes_home_dir, app_name.clone()).bootstrap()?;
+        let vfs = bootstrap_vfs(app_name.clone(), &package)?;
 
         println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
         let mut modules = Vec::new();
@@ -50,4 +49,20 @@ impl Run {
 
         Ok(())
     }
+}
+
+/// Bootstrap Hermes virtual filesystem
+fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
+    let hermes_home_dir = Cli::hermes_home()?;
+    let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name);
+
+    if let Some(share_dir) = package.get_share_dir() {
+        bootstrapper.with_mounted_share(share_dir);
+    }
+    if let Some(www_dir) = package.get_www_dir() {
+        bootstrapper.with_mounted_www(www_dir);
+    }
+
+    let vfs = bootstrapper.bootstrap()?;
+    Ok(vfs)
 }

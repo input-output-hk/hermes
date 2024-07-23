@@ -36,8 +36,10 @@ pub(crate) struct ApplicationPackage(Package);
 pub(crate) struct ModuleInfo {
     /// Module name.
     pub(crate) name: String,
-    /// Module package.
-    pub(crate) package: TypedFile<Module>,
+    /// Module metadata.
+    pub(crate) metadata: TypedFile<Metadata<ModulePackage>>,
+    /// Module WASM component.
+    pub(crate) component: TypedFile<Module>,
     /// Module share directory.
     pub(crate) share: Option<Dir>,
 }
@@ -113,7 +115,8 @@ impl ApplicationPackage {
 
         match self.get_modules() {
             Ok(modules) => {
-                if modules.is_empty() && self.get_www().is_none() && self.get_share().is_none() {
+                if modules.is_empty() && self.get_www_dir().is_none() && self.get_share_dir().is_none()
+                {
                     errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
                 }
 
@@ -275,12 +278,12 @@ impl ApplicationPackage {
     }
 
     /// Get www dir from package if present.
-    pub(crate) fn get_www(&self) -> Option<Dir> {
+    pub(crate) fn get_www_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_WWW_DIR.into()).ok()
     }
 
     /// Get share dir from package if present.
-    pub(crate) fn get_share(&self) -> Option<Dir> {
+    pub(crate) fn get_share_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_SHARE_DIR.into()).ok()
     }
 
