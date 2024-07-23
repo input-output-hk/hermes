@@ -199,7 +199,7 @@ impl ModulePackage {
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
-        self.get_metadata_file()?.try_get()
+        self.get_metadata_file()?.object()
     }
 
     /// Get `TypedFile<wasm::module::Module>` object from package.
@@ -212,7 +212,7 @@ impl ModulePackage {
 
     /// Get `wasm::module::Module` object from package.
     pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.get_component_file()?.try_get()
+        self.get_component_file()?.object()
     }
 
     /// Get `Signature` object from package.

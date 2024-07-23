@@ -66,6 +66,7 @@ impl Run {
 fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
     let mut mount = Hdf5Mount::default();
 
+    mount.with_root_files(vec![package.get_metadata_file()?.file()]);
     if let Some(share_dir) = package.get_share_dir() {
         mount.with_share_dir(share_dir);
     }

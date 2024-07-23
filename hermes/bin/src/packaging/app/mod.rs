@@ -115,7 +115,9 @@ impl ApplicationPackage {
 
         match self.get_modules() {
             Ok(modules) => {
-                if modules.is_empty() && self.get_www_dir().is_none() && self.get_share_dir().is_none()
+                if modules.is_empty()
+                    && self.get_www_dir().is_none()
+                    && self.get_share_dir().is_none()
                 {
                     errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
                 }
@@ -243,7 +245,7 @@ impl ApplicationPackage {
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
-        self.get_metadata_file()?.try_get()
+        self.get_metadata_file()?.object()
     }
 
     /// Get author `TypedFile<Signature>` object from package.
@@ -261,7 +263,7 @@ impl ApplicationPackage {
         &self,
     ) -> anyhow::Result<Option<Signature<author_payload::SignaturePayload>>> {
         self.get_author_signature_file()
-            .map(|mut f| f.try_get())
+            .map(|mut f| f.object())
             .transpose()
     }
 

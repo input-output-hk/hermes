@@ -20,6 +20,8 @@ pub(crate) struct VfsBootstrapper {
 /// HDF5 mounted content struct.
 #[derive(Default)]
 pub(crate) struct Hdf5Mount {
+    /// Mounted files to the `/` dir
+    root_files: Vec<hermes_hdf5::File>,
     /// Mounted `srv/share` directory.
     share: Option<hermes_hdf5::Dir>,
     /// Mounted `srv/www` directory.
@@ -27,6 +29,11 @@ pub(crate) struct Hdf5Mount {
 }
 
 impl Hdf5Mount {
+    /// Add a mounted root files
+    pub(crate) fn with_root_files(&mut self, root_files: Vec<hermes_hdf5::File>) {
+        self.root_files = root_files;
+    }
+
     /// Add a mounted share directory.
     pub(crate) fn with_share_dir(&mut self, share: hermes_hdf5::Dir) {
         self.share = Some(share);
@@ -110,6 +117,10 @@ impl VfsBootstrapper {
 
     /// Mount hdf5 content to the VFS.
     fn mount_hdf5_content(root: &hermes_hdf5::Dir, mount: &Hdf5Mount) -> anyhow::Result<()> {
+        for root_file in &mount.root_files {
+            root.mount_file(&root_file, root_file.name().into())?;
+        }
+
         if let Some(www) = mount.www.as_ref() {
             root.mount_dir(www, Self::SRV_WWW_DIR.into())?;
         }
@@ -138,10 +149,24 @@ mod tests {
             .bootstrap()
             .unwrap();
 
-        drop(vfs);
-        let _vfs = VfsBootstrapper::new(tmp_dir.path(), vfs_name)
-            .bootstrap()
-            .unwrap();
+        // check VFS hdf5 directories structure
+        assert!(vfs.root.get_dir(&VfsBootstrapper::TMP_DIR.into()).is_ok());
+        assert!(vfs.root.get_dir(&VfsBootstrapper::ETC_DIR.into()).is_ok());
+        assert!(vfs.root.get_dir(&VfsBootstrapper::SRV_DIR.into()).is_ok());
+        assert!(vfs
+            .root
+            .get_dir(&VfsBootstrapper::SRV_WWW_DIR.into())
+            .is_err());
+        assert!(vfs
+            .root
+            .get_dir(&VfsBootstrapper::SRV_SHARE_DIR.into())
+            .is_err());
+        assert!(vfs.root.get_dir(&VfsBootstrapper::USR_DIR.into()).is_ok());
+        assert!(vfs
+            .root
+            .get_dir(&VfsBootstrapper::USR_LIB_DIR.into())
+            .is_ok());
+        assert!(vfs.root.get_dir(&VfsBootstrapper::LIB_DIR.into()).is_ok());
     }
 
     #[test]
@@ -155,9 +180,10 @@ mod tests {
         // prepare mounted package content
         let dir1 = dir.create_dir("dir1".into()).unwrap();
         let file_name = "file.txt";
-        dir1.create_file(file_name.into()).unwrap();
+        let file = dir1.create_file(file_name.into()).unwrap();
 
         let mut mount = Hdf5Mount::default();
+        mount.with_root_files(vec![file]);
         mount.with_www_dir(dir1.clone());
         mount.with_share_dir(dir1.clone());
 
@@ -168,10 +194,7 @@ mod tests {
         let vfs = bootstrapper.bootstrap().unwrap();
 
         // check VFS hdf5 directories structure
-        assert!(vfs.root.get_dir(&VfsBootstrapper::TMP_DIR.into()).is_ok());
-        assert!(vfs.root.get_dir(&VfsBootstrapper::ETC_DIR.into()).is_ok());
-        assert!(vfs.root.get_dir(&VfsBootstrapper::SRV_DIR.into()).is_ok());
-
+        assert!(vfs.root.get_file(file_name.into()).is_ok());
         let www_dir = vfs
             .root
             .get_dir(&VfsBootstrapper::SRV_WWW_DIR.into())
@@ -182,12 +205,5 @@ mod tests {
             .get_dir(&VfsBootstrapper::SRV_SHARE_DIR.into())
             .unwrap();
         assert!(share_dir.get_file(file_name.into()).is_ok());
-
-        assert!(vfs.root.get_dir(&VfsBootstrapper::USR_DIR.into()).is_ok());
-        assert!(vfs
-            .root
-            .get_dir(&VfsBootstrapper::USR_LIB_DIR.into())
-            .is_ok());
-        assert!(vfs.root.get_dir(&VfsBootstrapper::LIB_DIR.into()).is_ok());
     }
 }

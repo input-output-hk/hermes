@@ -77,9 +77,14 @@ impl<T> TypedFile<T> {
     }
 
     /// Read `T` from the `File` content.
-    pub(crate) fn try_get(&mut self) -> anyhow::Result<T> {
+    pub(crate) fn object(&mut self) -> anyhow::Result<T> {
         self.file.pos = 0;
         (self.decoder)(&mut self.file)
+    }
+
+    /// Get `File`
+    pub(crate) fn file(&self) -> File {
+        self.file.clone()
     }
 }
 
