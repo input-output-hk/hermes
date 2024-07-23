@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use crate::wasm::module::{Module, ModuleId};
+use crate::{
+    vfs::Vfs,
+    wasm::module::{Module, ModuleId},
+};
 
 /// Hermes App Name type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -24,26 +27,34 @@ pub(crate) struct HermesApp {
 
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Module>,
+
+    /// App `Vfs` instance
+    #[allow(dead_code)]
+    vfs: Vfs,
 }
 
 impl HermesApp {
     /// Create a new Hermes app
-    #[allow(dead_code)]
-    pub(crate) fn new(app_name: HermesAppName, module_bytes: Vec<Vec<u8>>) -> anyhow::Result<Self> {
-        let mut modules = HashMap::with_capacity(module_bytes.len());
-        for module_bytes in module_bytes {
-            let module = Module::from_bytes(&module_bytes)?;
-            modules.insert(module.id().clone(), module);
-        }
-        Ok(Self {
+    pub(crate) fn new(app_name: HermesAppName, vfs: Vfs, modules: Vec<Module>) -> Self {
+        let indexed_modules = modules
+            .into_iter()
+            .map(|module| (module.id().clone(), module))
+            .collect();
+        Self {
             app_name,
-            indexed_modules: modules,
-        })
+            indexed_modules,
+            vfs,
+        }
     }
 
     /// Get app name
     pub(crate) fn app_name(&self) -> &HermesAppName {
         &self.app_name
+    }
+
+    /// Get vfs
+    pub(crate) fn vfs(&self) -> &Vfs {
+        &self.vfs
     }
 
     /// Get indexed modules

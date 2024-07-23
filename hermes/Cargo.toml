@@ -54,7 +54,7 @@ cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.
 
 hermes-ipfs = { path = "crates/hermes-ipfs", version = "0.0.1" }
 
-wasmtime = "22.0.0"
+wasmtime = "23.0.1"
 rusty_ulid = "2.0.0"
 anyhow = "1.0.71"
 blake2b_simd = "1.0.2"
@@ -92,13 +92,14 @@ tokio = { version = "1.36.0", features = [
 ] }
 tokio-util = { version = "0.7.11", features = ["codec"] }
 tokio-stream = "0.1.15"
-libsqlite3-sys = "0.29.0"
+libsqlite3-sys = "0.30.0"
 stringzilla = "3.8.4"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
 hdf5 = { git = "https://github.com/aldanor/hdf5-rust.git", rev = "694e900972fbf5ffbdd1a2294f57a2cc3a91c994", version = "0.8.1", features = [
     "static",
     "blosc",
 ] }
+temp-dir = "0.1.13"
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.0", features = ["lz4", "zlib", "zstd"] }
 num_cpus = "1.16.0"
@@ -159,3 +160,8 @@ libp2p = "0.53.2"
 rust-ipfs = "0.11.19"
 rustyline-async = "0.4.2"
 ouroboros = "0.18.4"
+memx = "0.1.32"
+fmmap = {version = "0.3.3", features = ["sync", "tokio-async"]}
+minicbor = {version = "0.24.2", features = ["alloc", "derive"]}
+redb = {version = "2.1.1", features = ["cache_metrics"]}
+heed = {version = "0.20.3"}

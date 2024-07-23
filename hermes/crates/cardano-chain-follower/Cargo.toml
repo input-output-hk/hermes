@@ -43,6 +43,10 @@ rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 mimalloc = {workspace = true, optional = true}
+memx.workspace = true
+fmmap.workspace = true
+minicbor.workspace = true
+redb.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

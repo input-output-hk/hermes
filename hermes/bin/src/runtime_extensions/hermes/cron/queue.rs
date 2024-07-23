@@ -262,10 +262,12 @@ fn new_waiting_task(
 mod tests {
     use std::{collections::HashMap, sync::Arc, thread::sleep};
 
+    use temp_dir::TempDir;
+
     use super::*;
     use crate::{
         app::HermesApp, event::queue::HermesEventLoopHandler,
-        runtime_extensions::hermes::cron::tests::hermes_app_name,
+        runtime_extensions::hermes::cron::tests::hermes_app_name, vfs::VfsBootstrapper,
     };
 
     const APP_NAME: &str = "test";
@@ -321,10 +323,13 @@ mod tests {
     /// Initialize the `CronEventQueue` and the `HermesEventQueue` with
     /// the `HermesApp` named `HermesAppName(APP_NAME.to_string())`.
     #[allow(clippy::unwrap_used)]
-    fn initialize_queue() -> (CronEventQueue, HermesEventLoopHandler) {
+    fn initialize_queue(temp_dir: &TempDir) -> (CronEventQueue, HermesEventLoopHandler) {
         let queue = CronEventQueue::new(None);
         let hermes_app_name = hermes_app_name(APP_NAME);
-        let hermes_app = HermesApp::new(hermes_app_name.clone(), vec![]).unwrap();
+        let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
+            .bootstrap()
+            .unwrap();
+        let hermes_app = HermesApp::new(hermes_app_name.clone(), vfs, vec![]);
         let handler =
             crate::event::queue::init(Arc::new(HashMap::from([(hermes_app_name, hermes_app)])))
                 .unwrap();
@@ -478,7 +483,9 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_immediately() {
-        let (queue, _handler) = initialize_queue();
+        let dir = TempDir::new().expect("Failed to create temp dir");
+
+        let (queue, _handler) = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // With a timestamp in the past, triggering the queue will not create a waiting_event,
@@ -492,7 +499,9 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task() {
-        let (queue, _handler) = initialize_queue();
+        let dir = TempDir::new().expect("Failed to create temp dir");
+
+        let (queue, _handler) = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // With a timestamp in the future, triggering the queue will create a waiting task that
@@ -515,7 +524,9 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task_cleans_up_after_dispatch() {
-        let (queue, _handler) = initialize_queue();
+        let dir = TempDir::new().expect("Failed to create temp dir");
+
+        let (queue, _handler) = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // Adding a new event with a timestamp that is sooner, will replace the waiting_event.

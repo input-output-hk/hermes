@@ -188,20 +188,24 @@ impl Iterator for MithrilSnapshotIteratorInner {
             if let Ok(block) = maybe_block {
                 if let Some(previous) = self.previous.clone() {
                     // We can safely fully decode this block.
-                    if let Ok(block_data) = MultiEraBlock::new(self.chain, block, &previous, 0) {
-                        // Update the previous point
-                        self.previous = Some(block_data.point());
+                    match MultiEraBlock::new(self.chain, block, &previous, 0) {
+                        Ok(block_data) => {
+                            // Update the previous point
+                            self.previous = Some(block_data.point());
 
-                        // Make sure we got to the start, otherwise this could be a block artifact
-                        // from a discover previous point search.
-                        if block_data < self.start {
-                            continue;
-                        }
+                            // Make sure we got to the start, otherwise this could be a block artifact
+                            // from a discover previous point search.
+                            if block_data < self.start {
+                                continue;
+                            }
 
-                        return Some(block_data);
+                            return Some(block_data);
+                        },
+                        Err(error) => {
+                            error!(previous=%previous, error=%error, "Error decoding a block from the snapshot");
+                            break;
+                        },
                     }
-                    error!("Error decoding a block from the snapshot");
-                    break;
                 }
 
                 // We cannot fully decode this block because we don't know its previous point,

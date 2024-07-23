@@ -5,6 +5,7 @@ mod chain_sync_config;
 mod chain_sync_live_chains;
 mod chain_sync_ready;
 mod chain_update;
+mod data_index;
 mod error;
 mod follow;
 mod mithril_query;

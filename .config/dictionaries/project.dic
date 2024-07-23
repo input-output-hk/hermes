@@ -15,6 +15,7 @@ blockdiag
 blockfetch
 blosc
 bmac
+bootstrapper
 BROTLI
 bufread
 bytesize
@@ -43,6 +44,7 @@ Datelike
 DBSTATUS
 dbsync
 dcbor
+ddup
 delegators
 dockerhub
 dotenv
@@ -63,6 +65,7 @@ filestat
 filestorage
 filesystems
 fkey
+fmmap
 fmtchk
 fmtfix
 fontawesome
@@ -111,7 +114,10 @@ maindbname
 mapref
 mdlint
 mdns
+memeq
+memx
 mimalloc
+minicbor
 miniprotocol
 miniprotocols
 mithril
@@ -156,6 +162,7 @@ qpsg
 rapidoc
 Rawhash
 readlinkat
+redb
 redoc
 REMOVEDIR
 renameat
@@ -184,6 +191,7 @@ stevenj
 stringzilla
 subdir
 subsec
+surrealkv
 symlinkat
 syscall
 tacho

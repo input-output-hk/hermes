@@ -1,4 +1,4 @@
-//! A signature payload object for author.cose WASM module package.
+//! A signature payload object for author.cose Hermes WASM module package.
 //! Defined at `https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/wasm_modules/#wasm-component-module-signatures`.
 
 use crate::packaging::{
@@ -106,7 +106,7 @@ impl SignaturePayloadBuilder {
 
 /// WASM module cose signature payload JSON schema.
 const SIGNATURE_PAYLOAD_SCHEMA: &str =
-    include_str!("../../../../schemas/hermes_module_cose_payload.schema.json");
+    include_str!("../../../../schemas/hermes_module_cose_author_payload.schema.json");
 
 impl SignaturePayloadEncoding for SignaturePayload {
     fn to_json(&self) -> serde_json::Value {
@@ -265,10 +265,7 @@ mod tests {
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect(
-                "Cannot parse
-            JSON",
-            );
+            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
             assert_eq!(payload, payload);
         }
     }
