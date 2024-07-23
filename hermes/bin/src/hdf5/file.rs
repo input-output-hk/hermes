@@ -20,19 +20,6 @@ impl std::clone::Clone for File {
     }
 }
 
-/// A typed version of `File` which could return `T` by read from the `File` content and
-/// decoding with the help of `decoder`.
-#[derive(Clone, Debug)]
-pub(crate) struct TypedFile<T> {
-    /// `File` object.
-    file: File,
-    /// Decoder function.
-    decoder: fn(&mut dyn std::io::Read) -> anyhow::Result<T>,
-}
-
-/// `TypedFile<T>` decoder function pointer.
-type DecoderFn<T> = fn(&mut dyn std::io::Read) -> anyhow::Result<T>;
-
 impl File {
     /// Create a new file.
     pub(crate) fn create(group: &hdf5::Group, file_name: &str) -> anyhow::Result<Self> {
@@ -67,24 +54,6 @@ impl File {
             .first()
             .ok_or(anyhow::anyhow!("Failed to get file size.",))?;
         Ok(*size)
-    }
-}
-
-impl<T> TypedFile<T> {
-    /// Create a new `TypedFile` instance.
-    pub(crate) fn new(file: File, decoder: DecoderFn<T>) -> Self {
-        Self { file, decoder }
-    }
-
-    /// Read `T` from the `File` content.
-    pub(crate) fn object(&mut self) -> anyhow::Result<T> {
-        self.file.pos = 0;
-        (self.decoder)(&mut self.file)
-    }
-
-    /// Get `File`
-    pub(crate) fn file(&self) -> File {
-        self.file.clone()
     }
 }
 
@@ -173,14 +142,6 @@ impl std::io::Seek for File {
 
     fn stream_position(&mut self) -> std::io::Result<u64> {
         self.pos.try_into().map_err(map_to_io_error)
-    }
-}
-
-impl<T> std::ops::Deref for TypedFile<T> {
-    type Target = File;
-
-    fn deref(&self) -> &Self::Target {
-        &self.file
     }
 }
 

@@ -12,7 +12,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{BytesResource, ResourceTrait},
-        Dir, File, Path, TypedFile,
+        Dir, File, Path,
     },
     packaging::{
         hash::Blake2b256,
@@ -233,35 +233,26 @@ impl ApplicationPackage {
             .map_err(|_| MissingPackageFileError(Self::ICON_FILE.to_string()).into())
     }
 
-    /// Get `TypedFile<Metadata>` object from package.
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
+    /// Get metadata `File` object from package.
+    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
-            .map(|f| TypedFile::new(f, |r| Metadata::<Self>::from_reader(r)))
     }
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
-        self.get_metadata_file()?.object()
-    }
-
-    /// Get author `TypedFile<Signature>` object from package.
-    pub(crate) fn get_author_signature_file(
-        &self,
-    ) -> Option<TypedFile<Signature<author_payload::SignaturePayload>>> {
-        self.0
-            .get_file(Self::AUTHOR_COSE_FILE.into())
-            .ok()
-            .map(|f| TypedFile::new(f, |r| Signature::from_reader(r)))
+        self.get_metadata_file().map(Metadata::from_reader)?
     }
 
     /// Get author `Signature` object from package.
     pub(crate) fn get_author_signature(
         &self,
     ) -> anyhow::Result<Option<Signature<author_payload::SignaturePayload>>> {
-        self.get_author_signature_file()
-            .map(|mut f| f.object())
+        self.0
+            .get_file(Self::AUTHOR_COSE_FILE.into())
+            .ok()
+            .map(Signature::from_reader)
             .transpose()
     }
 

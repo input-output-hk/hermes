@@ -15,7 +15,7 @@ use crate::{
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
-        Dir, Path, TypedFile,
+        Dir, File, Path,
     },
     packaging::{
         metadata::{Metadata, MetadataSchema},
@@ -189,30 +189,28 @@ impl ModulePackage {
         Ok(signature_payload_builder.build())
     }
 
-    /// Get `TypedFile<Metadata>` object from package.
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<TypedFile<Metadata<Self>>> {
+    /// Get metadata `File` object from package.
+    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
-            .map(|f| TypedFile::new(f, |r| Metadata::<Self>::from_reader(r)))
     }
 
     /// Get `Metadata` object from package.
     pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<Self>> {
-        self.get_metadata_file()?.object()
+        self.get_metadata_file().map(Metadata::from_reader)?
     }
 
-    /// Get `TypedFile<wasm::module::Module>` object from package.
-    pub(crate) fn get_component_file(&self) -> anyhow::Result<TypedFile<Module>> {
+    /// Get component `File` object from package.
+    pub(crate) fn get_component_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::COMPONENT_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
-            .map(|f| TypedFile::new(f, |r| Module::from_reader(r)))
     }
 
     /// Get `wasm::module::Module` object from package.
     pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.get_component_file()?.object()
+        self.get_component_file().map(Module::from_reader)?
     }
 
     /// Get `Signature` object from package.
@@ -250,17 +248,19 @@ impl ModulePackage {
         }
     }
 
+    /// Get settings schema `File` object from package if present.
+    pub(crate) fn get_settings_schema_file(&self) -> Option<File> {
+        self.0.get_file(Self::SETTINGS_SCHEMA_FILE.into()).ok()
+    }
+
     /// Get `SettingsSchema` object from package if present.
     pub(crate) fn get_settings_schema(&self) -> anyhow::Result<Option<SettingsSchema>> {
-        self.0
-            .get_file(Self::SETTINGS_SCHEMA_FILE.into())
-            .ok()
+        self.get_settings_schema_file()
             .map(SettingsSchema::from_reader)
             .transpose()
     }
 
     /// Get share dir from package if present.
-    #[allow(dead_code)]
     pub(crate) fn get_share(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }

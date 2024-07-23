@@ -66,10 +66,7 @@ impl Run {
 fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
     let mut mount = Hdf5Mount::default();
 
-    mount.with_root_files(vec![
-        package.get_icon_file()?,
-        package.get_metadata_file()?.file(),
-    ]);
+    mount.with_root_files(vec![package.get_icon_file()?, package.get_metadata_file()?]);
 
     let modules = package.get_modules()?;
     let mut to_lib_content = Vec::with_capacity(modules.len());
