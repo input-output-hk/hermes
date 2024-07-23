@@ -20,18 +20,34 @@ pub(crate) struct VfsBootstrapper {
 /// HDF5 mounted content struct.
 #[derive(Default)]
 pub(crate) struct Hdf5Mount {
-    /// Mounted files to the `/` dir
+    /// Mounted files to the `/` directory
     root_files: Vec<hermes_hdf5::File>,
-    /// Mounted `srv/share` directory.
+    /// Mounted content to `lib` directory
+    to_lib: Vec<Hdf5MountToLib>,
+    /// Mounted `share` directory.
     share: Option<hermes_hdf5::Dir>,
-    /// Mounted `srv/www` directory.
+    /// Mounted `www` directory.
     www: Option<hermes_hdf5::Dir>,
+}
+/// HDF5 mounted content to `lib` directory struct.
+pub(crate) struct Hdf5MountToLib {
+    /// Module's directory name
+    dir_name: String,
+    /// Mounted module's files
+    files: Vec<hermes_hdf5::File>,
+    /// Mounted module's `share` directory.
+    share: Option<hermes_hdf5::Dir>,
 }
 
 impl Hdf5Mount {
     /// Add a mounted root files
     pub(crate) fn with_root_files(&mut self, root_files: Vec<hermes_hdf5::File>) {
         self.root_files = root_files;
+    }
+
+    /// Add a mounted module's content
+    pub(crate) fn with_to_lib(&mut self, to_lib: Vec<Hdf5MountToLib>) {
+        self.to_lib = to_lib;
     }
 
     /// Add a mounted share directory.
@@ -84,18 +100,23 @@ impl VfsBootstrapper {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name.as_str());
         vfs_file_path.set_extension(Self::FILE_EXTENSION);
 
-        let root = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
-            hermes_hdf5::Dir::new(hdf5_file.as_group()?)
-        } else {
-            let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
-                anyhow::anyhow!(
-                    "Failed to create Hermes virtual file system instance at `{}`.",
-                    vfs_file_path.display()
-                )
-            })?;
-            let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
-            Self::setup_hdf5_vfs_structure(&root)?;
-            root
+        let root = match hdf5_lib::File::open_rw(&vfs_file_path) {
+            Ok(hdf5_file) => {
+                println!("Open existing one");
+                hermes_hdf5::Dir::new(hdf5_file.as_group()?)
+            },
+            Err(err) => {
+                println!("Creating a new one, err: {err}");
+                let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
+                    anyhow::anyhow!(
+                        "Failed to create Hermes virtual file system instance at `{}`.",
+                        vfs_file_path.display()
+                    )
+                })?;
+                let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
+                Self::setup_hdf5_vfs_structure(&root)?;
+                root
+            },
         };
 
         Self::mount_hdf5_content(&root, &self.hdf5_mount)?;
@@ -120,7 +141,17 @@ impl VfsBootstrapper {
         for root_file in &mount.root_files {
             root.mount_file(root_file, root_file.name().into())?;
         }
+        for module in &mount.to_lib {
+            let lib_dir = root.get_dir(&Self::LIB_DIR.into())?;
+            let module_dir = lib_dir.create_dir(module.dir_name.as_str().into())?;
 
+            for module_file in &module.files {
+                module_dir.mount_file(module_file, module_file.name().into())?;
+            }
+            if let Some(share) = module.share.as_ref() {
+                module_dir.mount_dir(share, share.name().into())?;
+            }
+        }
         if let Some(www) = mount.www.as_ref() {
             root.mount_dir(www, Self::SRV_WWW_DIR.into())?;
         }
@@ -140,7 +171,6 @@ mod tests {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-
     fn vfs_bootstrap_test() {
         let tmp_dir = TempDir::new().unwrap();
 
@@ -167,6 +197,11 @@ mod tests {
             .get_dir(&VfsBootstrapper::USR_LIB_DIR.into())
             .is_ok());
         assert!(vfs.root.get_dir(&VfsBootstrapper::LIB_DIR.into()).is_ok());
+
+        drop(vfs);
+        let _vfs = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone())
+            .bootstrap()
+            .unwrap();
     }
 
     #[test]
@@ -175,17 +210,26 @@ mod tests {
         let tmp_dir = TempDir::new().unwrap();
 
         let package = hdf5_lib::File::create(tmp_dir.child("test.hdf5")).unwrap();
-        let dir = Dir::new(package.as_group().unwrap());
+        let package_dir = Dir::new(package.as_group().unwrap());
 
         // prepare mounted package content
-        let dir1 = dir.create_dir("dir1".into()).unwrap();
+        let dir_name = "dir1";
+        let dir1 = package_dir.create_dir(dir_name.into()).unwrap();
         let file_name = "file.txt";
         let file = dir1.create_file(file_name.into()).unwrap();
 
         let mut mount = Hdf5Mount::default();
-        mount.with_root_files(vec![file]);
+        mount.with_root_files(vec![file.clone()]);
         mount.with_www_dir(dir1.clone());
         mount.with_share_dir(dir1.clone());
+
+        let module_name = "module_1";
+        let module = Hdf5MountToLib {
+            dir_name: module_name.to_string(),
+            files: vec![file],
+            share: Some(dir1),
+        };
+        mount.with_to_lib(vec![module]);
 
         let vfs_name = "test_vfs".to_string();
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name);
@@ -204,6 +248,12 @@ mod tests {
             .root
             .get_dir(&VfsBootstrapper::SRV_SHARE_DIR.into())
             .unwrap();
+        assert!(share_dir.get_file(file_name.into()).is_ok());
+
+        let lib_dir = vfs.root.get_dir(&VfsBootstrapper::LIB_DIR.into()).unwrap();
+        let module_dir = lib_dir.get_dir(&module_name.into()).unwrap();
+        assert!(module_dir.get_file(file_name.into()).is_ok());
+        let share_dir = module_dir.get_dir(&dir_name.into()).unwrap();
         assert!(share_dir.get_file(file_name.into()).is_ok());
     }
 }

@@ -70,6 +70,7 @@ fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Resu
         package.get_icon_file()?,
         package.get_metadata_file()?.file(),
     ]);
+    for _module in package.get_modules()? {}
     if let Some(share_dir) = package.get_share_dir() {
         mount.with_share_dir(share_dir);
     }
