@@ -2,11 +2,12 @@
 
 mod author_payload;
 pub(crate) mod manifest;
+mod module_info;
 
 use chrono::{DateTime, Utc};
-use manifest::{Manifest, ManifestModule};
+pub(crate) use manifest::{Manifest, ManifestModule};
+pub(crate) use module_info::AppModuleInfo;
 
-use super::module;
 use crate::{
     errors::Errors,
     hdf5::{
@@ -16,7 +17,7 @@ use crate::{
     packaging::{
         hash::Blake2b256,
         metadata::{Metadata, MetadataSchema},
-        module::ModulePackage,
+        module::{self, ModulePackage},
         package::Package,
         sign::{
             certificate::Certificate,
@@ -25,24 +26,10 @@ use crate::{
         },
         FileError, MissingPackageFileError,
     },
-    wasm::module::Module,
 };
 
 /// Hermes application package.
 pub(crate) struct ApplicationPackage(Package);
-
-/// Application package module info.
-#[allow(dead_code)]
-pub(crate) struct ModuleInfo {
-    /// Module name.
-    pub(crate) name: String,
-    /// Module metadata.
-    pub(crate) metadata: TypedFile<Metadata<ModulePackage>>,
-    /// Module WASM component.
-    pub(crate) component: TypedFile<Module>,
-    /// Module share directory.
-    pub(crate) share: Option<Dir>,
-}
 
 impl MetadataSchema for ApplicationPackage {
     const METADATA_SCHEMA: &'static str =
@@ -122,7 +109,9 @@ impl ApplicationPackage {
                     errors.add_err(anyhow::anyhow!("Invalid package, must contain at least one module or www or share directory"));
                 }
 
-                for (module_name, module_package) in modules {
+                for module_info in modules {
+                    let module_package = module_info.package;
+                    let module_name = module_info.name;
                     module_package
                         .validate(untrusted)
                         .map_err(|err| {
@@ -198,7 +187,9 @@ impl ApplicationPackage {
             author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
 
         let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::LIB_DIR.into()]);
-        for (module_name, module_package) in self.get_modules()? {
+        for module_info in self.get_modules()? {
+            let module_name = module_info.name;
+            let module_package = module_info.package;
             let module_sign = module_package.get_signature()?.ok_or(anyhow::anyhow!(
                 "Module {module_name} not signed, missing author.cose signature"
             ))?;
@@ -275,13 +266,22 @@ impl ApplicationPackage {
     }
 
     /// Get `Vec<WasmModulePackage>` from package.
-    pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<(String, ModulePackage)>> {
-        let dirs = self.0.get_dirs(&Self::LIB_DIR.into())?;
-        let mut modules = Vec::with_capacity(dirs.len());
-        for dir in dirs {
-            let dir_name = dir.path().pop_elem();
+    pub(crate) fn get_modules(&self) -> anyhow::Result<Vec<AppModuleInfo>> {
+        let lib_dirs = self.0.get_dirs(&Self::LIB_DIR.into())?;
+        // let usr_lib_dirs = self.0.get_dirs(&Self::USR_LIB_DIR.into())?;
+
+        let mut modules = Vec::with_capacity(lib_dirs.len());
+        for dir in lib_dirs {
+            let name = dir.path().pop_elem();
             let package = ModulePackage::from_package(Package::mount(dir));
-            modules.push((dir_name, package));
+
+            let module_info = AppModuleInfo {
+                name,
+                package,
+                app_share: None,
+                app_config: None,
+            };
+            modules.push(module_info);
         }
         Ok(modules)
     }
@@ -569,7 +569,9 @@ mod tests {
         let modules = package.get_modules().unwrap();
         assert_eq!(modules.len(), app_package_files.modules.len());
 
-        for (app_module_name, module_package) in modules {
+        for module_info in modules {
+            let app_module_name = module_info.name;
+            let module_package = module_info.package;
             let package_module_name = module_package.get_metadata().unwrap().get_name().unwrap();
             let (i, module_files) = app_package_files
                 .modules
@@ -619,8 +621,11 @@ mod tests {
         let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
         // sign wasm modules packages first
-        for (_, module_package) in package.get_modules().unwrap() {
-            module_package.sign(&private_key, &certificate).unwrap();
+        for module_info in package.get_modules().unwrap() {
+            module_info
+                .package
+                .sign(&private_key, &certificate)
+                .unwrap();
         }
 
         package.author_sign(&private_key, &certificate).unwrap();

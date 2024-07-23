@@ -13,7 +13,7 @@ use crate::{
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
-    vfs::{Hdf5Mount, Vfs, VfsBootstrapper},
+    vfs::{Hdf5Mount, Hdf5MountToLib, Vfs, VfsBootstrapper},
 };
 
 /// Run cli command
@@ -49,8 +49,8 @@ impl Run {
 
         println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
         let mut modules = Vec::new();
-        for (_, module_package) in package.get_modules()? {
-            let module = module_package.get_component()?;
+        for module_info in package.get_modules()? {
+            let module = module_info.get_component()?;
             modules.push(module);
         }
         let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
@@ -70,7 +70,19 @@ fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Resu
         package.get_icon_file()?,
         package.get_metadata_file()?.file(),
     ]);
-    for _module in package.get_modules()? {}
+
+    let modules = package.get_modules()?;
+    let mut to_lib_content = Vec::with_capacity(modules.len());
+    for module_info in modules {
+        let to_lib = Hdf5MountToLib {
+            dir_name: module_info.get_name(),
+            files: Vec::new(),
+            share: module_info.get_share(),
+        };
+        to_lib_content.push(to_lib);
+    }
+    mount.with_to_lib(to_lib_content);
+
     if let Some(share_dir) = package.get_share_dir() {
         mount.with_share_dir(share_dir);
     }

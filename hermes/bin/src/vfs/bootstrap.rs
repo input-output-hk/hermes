@@ -32,11 +32,11 @@ pub(crate) struct Hdf5Mount {
 /// HDF5 mounted content to `lib` directory struct.
 pub(crate) struct Hdf5MountToLib {
     /// Module's directory name
-    dir_name: String,
+    pub(crate) dir_name: String,
     /// Mounted module's files
-    files: Vec<hermes_hdf5::File>,
+    pub(crate) files: Vec<hermes_hdf5::File>,
     /// Mounted module's `share` directory.
-    share: Option<hermes_hdf5::Dir>,
+    pub(crate) share: Option<hermes_hdf5::Dir>,
 }
 
 impl Hdf5Mount {
