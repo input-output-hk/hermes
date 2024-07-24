@@ -3,10 +3,10 @@
 pub(crate) mod app;
 pub(crate) mod hash;
 pub(crate) mod metadata;
+pub(crate) mod module;
 pub(crate) mod package;
 mod schema_validation;
 pub(crate) mod sign;
-pub(crate) mod wasm_module;
 
 use std::{fmt::Display, path::Path};
 

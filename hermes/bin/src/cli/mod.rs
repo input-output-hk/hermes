@@ -37,18 +37,7 @@ pub(crate) struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Run the hermes node
-    Run {
-        /// Path to the Hermes application package to run
-        app_package: PathBuf,
-
-        /// Path to the trusted certificate
-        #[clap(name = "cert", short)]
-        certificate: Vec<PathBuf>,
-
-        /// Flag which disables package signature verification
-        #[clap(long, action = clap::ArgAction::SetTrue)]
-        untrusted: bool,
-    },
+    Run(run::Run),
     /// module commands
     #[clap(subcommand)]
     Module(module::Commands),
@@ -89,11 +78,7 @@ impl Cli {
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
         match self.command {
-            Commands::Run {
-                app_package,
-                certificate,
-                untrusted,
-            } => run::Run::exec(app_package, certificate, untrusted),
+            Commands::Run(cmd) => cmd.exec(),
             Commands::Module(cmd) => cmd.exec(),
             Commands::App(cmd) => cmd.exec(),
         }

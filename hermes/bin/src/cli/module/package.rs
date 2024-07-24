@@ -6,7 +6,7 @@ use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
-use crate::packaging::wasm_module::{manifest::Manifest, WasmModulePackage};
+use crate::packaging::module::{Manifest, ModulePackage};
 
 /// Hermes WASM module packaging
 #[derive(Args)]
@@ -49,7 +49,7 @@ impl PackageCommand {
         let manifest = Manifest::from_file(&self.manifest)?;
         let package_name = self.name.as_deref();
         let build_time = Utc::now();
-        WasmModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
+        ModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())
