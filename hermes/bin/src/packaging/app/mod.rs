@@ -47,9 +47,9 @@ impl ApplicationPackage {
     const LIB_DIR: &'static str = "lib";
     /// Application package metadata file path.
     const METADATA_FILE: &'static str = "metadata.json";
-    /// Application package overriden module's config file name.
+    /// Application package overridden module's config file name.
     const MODULE_CONFIG_FILE: &'static str = "config.json";
-    /// Application package overriden module's 'share' dir name.
+    /// Application package overridden module's 'share' dir name.
     const MODULE_SHARE_DIR: &'static str = "share";
     /// Application package `srv` directory name.
     const SRV_DIR: &'static str = "srv";
