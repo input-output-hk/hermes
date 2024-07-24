@@ -72,7 +72,6 @@ impl Hdf5MountToLib {
     }
 
     /// Add a mounted file
-    #[allow(dead_code)]
     pub(crate) fn with_file(&mut self, file: hermes_hdf5::File) {
         self.files.push(file);
     }
@@ -122,23 +121,18 @@ impl VfsBootstrapper {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name.as_str());
         vfs_file_path.set_extension(Self::FILE_EXTENSION);
 
-        let root = match hdf5_lib::File::open_rw(&vfs_file_path) {
-            Ok(hdf5_file) => {
-                println!("Open existing one");
-                hermes_hdf5::Dir::new(hdf5_file.as_group()?)
-            },
-            Err(err) => {
-                println!("Creating a new one, err: {err}");
-                let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
-                    anyhow::anyhow!(
-                        "Failed to create Hermes virtual file system instance at `{}`.",
-                        vfs_file_path.display()
-                    )
-                })?;
-                let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
-                Self::setup_hdf5_vfs_structure(&root)?;
-                root
-            },
+        let (root, _hdf5_file) = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
+            (hermes_hdf5::Dir::new(hdf5_file.as_group()?), hdf5_file)
+        } else {
+            let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
+                anyhow::anyhow!(
+                    "Failed to create Hermes virtual file system instance at `{}`.",
+                    vfs_file_path.display()
+                )
+            })?;
+            let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
+            Self::setup_hdf5_vfs_structure(&root)?;
+            (root, hdf5_file)
         };
 
         Self::mount_hdf5_content(&root, &self.hdf5_mount)?;
