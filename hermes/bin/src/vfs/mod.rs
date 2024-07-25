@@ -4,7 +4,7 @@ mod bootstrap;
 
 use std::io::{Read, Write};
 
-pub(crate) use bootstrap::{Hdf5Mount, Hdf5MountToLib, VfsBootstrapper};
+pub(crate) use bootstrap::VfsBootstrapper;
 
 use crate::hdf5::{self as hermes_hdf5, Path};
 
@@ -15,6 +15,23 @@ pub(crate) struct Vfs {
     #[allow(dead_code)]
     root: hermes_hdf5::Dir,
     // TODO: add permissions RWX
+}
+
+impl Vfs {
+    /// Virtual file system `etc` directory name.
+    pub(crate) const ETC_DIR: &'static str = "etc";
+    /// Virtual file system file extension.
+    pub(crate) const FILE_EXTENSION: &'static str = "hfs";
+    /// Virtual file system `lib` directory name.
+    pub(crate) const LIB_DIR: &'static str = "lib";
+    /// Virtual file system `srv` directory name.
+    pub(crate) const SRV_DIR: &'static str = "srv";
+    /// Virtual file system `tmp` directory name.
+    pub(crate) const TMP_DIR: &'static str = "tmp";
+    /// Virtual file system `usr` directory name.
+    pub(crate) const USR_DIR: &'static str = "usr";
+    /// Virtual file system `usr/lib` directory name.
+    pub(crate) const USR_LIB_DIR: &'static str = "usr/lib";
 }
 
 impl Vfs {
@@ -47,14 +64,9 @@ impl Vfs {
 }
 #[cfg(test)]
 mod tests {
-
     use temp_dir::TempDir;
 
-    use super::VfsBootstrapper;
-    use crate::{
-        hdf5::{Dir, Path},
-        vfs::Hdf5Mount,
-    };
+    use super::*;
 
     #[test]
     fn read_write_file_test() {
@@ -63,27 +75,16 @@ mod tests {
 
         let vfs_name = "test_vfs".to_string();
 
-        let tmp_dir_www = TempDir::new().expect("Failed to create temp dir.");
-        let www = tmp_dir_www.child("www.hdf5");
-
-        let www = hdf5::File::create(www).expect("Failed to create hdf5 file.");
-        let www_dir = Dir::new(www.as_group().expect("Failed to create a www group."));
-
-        let mut mount = Hdf5Mount::default();
-        mount.with_www_dir(www_dir);
-        let mut bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
-        bootstrapper.set_hdf5_mount(mount);
+        let bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
 
         let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
-        let www_file_path = Path::from_str("/www");
-        vfs.write(&www_file_path, b"web_server")
+        let file_path = format!("{}/www.txt", Vfs::SRV_DIR).into();
+        let file_content = b"web_server";
+        vfs.write(&file_path, file_content)
             .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(www_file_path).expect("Cannot read from VFS");
-        assert_eq!(10, written_data.len());
-
-        let written = String::from_utf8_lossy(&written_data).to_string();
-        assert_eq!(written, "web_server".to_string());
+        let written_data = vfs.read(file_path).expect("Cannot read from VFS");
+        assert_eq!(written_data.as_slice(), file_content);
     }
 }
