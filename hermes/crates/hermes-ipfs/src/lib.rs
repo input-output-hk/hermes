@@ -38,8 +38,72 @@ use rust_ipfs::{
 /// `PubSub` Message ID.
 pub struct MessageId(pub PubsubMessageId);
 
-/// Hermes IPFS
-#[allow(dead_code)]
+/// Builder type for IPFS Node configuration.
+pub struct IpfsBuilder(UninitializedIpfsNoop);
+
+impl IpfsBuilder {
+    #[must_use]
+    /// Create a new` IpfsBuilder`.
+    pub fn new() -> Self {
+        Self(UninitializedIpfsNoop::new())
+    }
+
+    #[must_use]
+    /// Set the default configuration for the IPFS node.
+    pub fn with_default(self) -> Self {
+        Self(self.0.with_default())
+    }
+
+    #[must_use]
+    /// Set the default listener for the IPFS node.
+    pub fn set_default_listener(self) -> Self {
+        Self(self.0.set_default_listener())
+    }
+
+    #[must_use]
+    /// Set the storage type for the IPFS node to local disk.
+    ///
+    /// ## Parameters
+    pub fn set_disk_storage<T: Into<std::path::PathBuf>>(self, storage_path: T) -> Self {
+        Self(
+            self.0
+                .set_storage_type(rust_ipfs::StorageType::Disk(storage_path.into())),
+        )
+    }
+
+    #[must_use]
+    /// Set the transport configuration for the IPFS node.
+    pub fn set_transport_configuration(self, transport: rust_ipfs::p2p::TransportConfig) -> Self {
+        Self(self.0.set_transport_configuration(transport))
+    }
+
+    #[must_use]
+    /// Disable TLS for the IPFS node.
+    pub fn disable_tls(self) -> Self {
+        let transport = rust_ipfs::p2p::TransportConfig {
+            enable_quic: false,
+            enable_secure_websocket: false,
+            ..Default::default()
+        };
+        Self(self.0.set_transport_configuration(transport))
+    }
+
+    /// Start the IPFS node.
+    ///
+    /// ## Errors
+    /// Returns an error if the IPFS daemon fails to start.
+    pub async fn start(self) -> anyhow::Result<Ipfs> {
+        self.0.start().await
+    }
+}
+
+impl Default for IpfsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Hermes IPFS Node.
 pub struct HermesIpfs {
     /// IPFS node
     node: Ipfs,
@@ -89,7 +153,7 @@ impl HermesIpfs {
     ///
     /// ## Parameters
     ///
-    /// * `ipfs_path` - `GetIpfsFile(String)` Path used to get the file from IPFS.
+    /// * `ipfs_path` - `GetIpfsFile(IpfsPath)` Path used to get the file from IPFS.
     ///
     /// ## Returns
     ///
@@ -478,6 +542,12 @@ impl From<(Option<String>, Vec<u8>)> for AddIpfsFile {
 
 /// Path to get the file from IPFS
 pub struct GetIpfsFile(IpfsPath);
+
+impl From<Cid> for GetIpfsFile {
+    fn from(value: Cid) -> Self {
+        GetIpfsFile(value.into())
+    }
+}
 
 impl From<IpfsPath> for GetIpfsFile {
     fn from(value: IpfsPath) -> Self {
