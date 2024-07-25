@@ -107,6 +107,8 @@ impl std::io::Write for File {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        let package = self.hdf5_ds.file().map_err(map_to_io_error)?;
+        package.flush().map_err(map_to_io_error)?;
         Ok(())
     }
 }

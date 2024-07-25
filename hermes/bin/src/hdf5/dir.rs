@@ -38,11 +38,11 @@ impl Dir {
             target.as_str(),
             link_name.as_str(),
         )?;
+        self.flush()?;
         Ok(())
     }
 
     /// Mount file from the another HDF5 package to the provided path.
-    #[allow(dead_code)]
     pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
         let link_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
@@ -54,6 +54,7 @@ impl Dir {
             target.as_str(),
             link_name.as_str(),
         )?;
+        self.flush()?;
         Ok(())
     }
 
@@ -62,6 +63,7 @@ impl Dir {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let file = File::create(&dir.0, file_name.as_str())?;
+        self.flush()?;
         Ok(file)
     }
 
@@ -73,6 +75,7 @@ impl Dir {
         let mut reader = resource.get_reader()?;
 
         std::io::copy(&mut reader, &mut file)?;
+        self.flush()?;
         Ok(())
     }
 
@@ -95,6 +98,7 @@ impl Dir {
                     .unwrap_or_else(errors.get_add_err_fn());
             }
         }
+        self.flush()?;
         errors.return_result(())
     }
 
@@ -115,6 +119,7 @@ impl Dir {
             .0
             .create_group(&dir_name)
             .map_err(|_| anyhow::anyhow!("Dir `{path}/{dir_name}` already exists"))?;
+        self.flush()?;
         Ok(Self(new_dir))
     }
 
@@ -123,14 +128,15 @@ impl Dir {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
-        if dir.0.dataset(file_name.as_str()).is_ok() {
-            dir.0.unlink(file_name.as_str()).map_err(|_| {
-                anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
-            })?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("File '{path}/{file_name}' not found"))
-        }
+        dir.0.dataset(file_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
+        })?;
+        dir.0.unlink(file_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
+        })?;
+
+        self.flush()?;
+        Ok(())
     }
 
     /// Remove directory by the provided path.
@@ -139,14 +145,15 @@ impl Dir {
         let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
-        if dir.0.group(dir_name.as_str()).is_ok() {
-            dir.0.unlink(dir_name.as_str()).map_err(|_| {
-                anyhow::anyhow!("Failed to remove directory '{path}/{dir_name}' from package")
-            })?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Directory '{path}/{dir_name}' not found"))
-        }
+        dir.0
+            .group(dir_name.as_str())
+            .map_err(|_| anyhow::anyhow!("Directory '{path}/{dir_name}' not found"))?;
+        dir.0.unlink(dir_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove directory '{path}/{dir_name}' from package")
+        })?;
+
+        self.flush()?;
+        Ok(())
     }
 
     /// Get file if present from path.
@@ -185,6 +192,13 @@ impl Dir {
     pub(crate) fn get_dirs(&self, path: &Path) -> anyhow::Result<Vec<Self>> {
         let dir = self.get_dir(path)?;
         Ok(dir.0.groups()?.into_iter().map(Self).collect())
+    }
+
+    /// Flushes internal HDF5 to the disk
+    fn flush(&self) -> anyhow::Result<()> {
+        let package = self.0.file()?;
+        package.flush()?;
+        Ok(())
     }
 }
 
