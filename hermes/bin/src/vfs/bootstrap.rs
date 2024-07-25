@@ -34,19 +34,16 @@ impl VfsBootstrapper {
     }
 
     /// Add a `Dir` creation by the provided path during bootstrapping
-    #[allow(dead_code)]
     pub(crate) fn with_dir_to_create(&mut self, path: hermes_hdf5::Path) {
         self.dirs_to_create.push(path);
     }
 
     /// Add a mounted file
-    #[allow(dead_code)]
     pub(crate) fn with_mounted_file(&mut self, to: hermes_hdf5::Path, file: hermes_hdf5::File) {
         self.mounted_files.push((to, file));
     }
 
     /// Add a mounted dir
-    #[allow(dead_code)]
     pub(crate) fn with_mounted_dir(&mut self, to: hermes_hdf5::Path, dir: hermes_hdf5::Dir) {
         self.mounted_dirs.push((to, dir));
     }
@@ -88,7 +85,6 @@ impl VfsBootstrapper {
         root.create_dir(Vfs::USR_DIR.into())?;
         root.create_dir(Vfs::USR_LIB_DIR.into())?;
         root.create_dir(Vfs::LIB_DIR.into())?;
-
         Ok(())
     }
 
@@ -99,16 +95,21 @@ impl VfsBootstrapper {
         mounted_dirs: &Vec<(hermes_hdf5::Path, hermes_hdf5::Dir)>,
     ) -> anyhow::Result<()> {
         for dir_to_create in dirs_to_create {
+            let _unused = root.remove_dir(dir_to_create.clone());
             root.create_dir(dir_to_create)?;
         }
         for (to, file) in mounted_files {
             let to_dir = root.get_dir(to)?;
-            to_dir.mount_file(file, file.name().into())?;
+            let file_path: hermes_hdf5::Path = file.name().into();
+            let _unused = to_dir.remove_file(file_path.clone());
+            to_dir.mount_file(file, file_path)?;
         }
 
         for (to, dir) in mounted_dirs {
             let to_dir = root.get_dir(to)?;
-            to_dir.mount_dir(dir, dir.name().into())?;
+            let dir_path: hermes_hdf5::Path = dir.name().into();
+            let _unused = to_dir.remove_dir(dir_path.clone());
+            to_dir.mount_dir(dir, dir_path)?;
         }
         Ok(())
     }
@@ -160,7 +161,7 @@ mod tests {
         let file = dir1.create_file(file_name.into()).unwrap();
 
         let vfs_name = "test_vfs".to_string();
-        let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name);
+        let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
 
         bootstrapper.with_mounted_file("/".into(), file.clone());
 
@@ -185,5 +186,23 @@ mod tests {
         assert!(new_dir.get_file(file_name.into()).is_ok());
         let dir = new_dir.get_dir(&dir_name.into()).unwrap();
         assert!(dir.get_file(file_name.into()).is_ok());
+
+        // open existing vfs instance from disk with the same boostrapping configuration
+
+        drop(vfs);
+        let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
+        bootstrapper.with_mounted_file("/".into(), file.clone());
+        let dir_to_create_name = "new_dir";
+        bootstrapper.with_dir_to_create(format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into());
+        bootstrapper.with_mounted_file(
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            file.clone(),
+        );
+        bootstrapper.with_mounted_dir(
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            dir1.clone(),
+        );
+
+        let _vfs = bootstrapper.bootstrap().unwrap();
     }
 }

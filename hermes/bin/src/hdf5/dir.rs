@@ -140,7 +140,6 @@ impl Dir {
     }
 
     /// Remove directory by the provided path.
-    #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: Path) -> anyhow::Result<()> {
         let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;

@@ -12,7 +12,6 @@ use crate::hdf5::{self as hermes_hdf5, Path};
 #[derive(Clone, Debug)]
 pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
-    #[allow(dead_code)]
     root: hermes_hdf5::Dir,
     // TODO: add permissions RWX
 }
