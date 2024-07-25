@@ -9,8 +9,7 @@ use derive_more::{Display, From, Into};
 pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
-use libp2p::gossipsub::MessageId as PubsubMessageId;
-/// libp2p re-export.
+/// libp2p re-exports.
 pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
 pub use rust_ipfs::p2p::PeerInfo;
@@ -24,11 +23,16 @@ pub use rust_ipfs::Ipfs;
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
+/// Storage type for IPFS node.
+pub use rust_ipfs::StorageType;
 /// Stream for `PubSub` Topic Subscriptions.
 pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
-pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
-use rust_ipfs::{dag::ResolveError, unixfs::AddOpt, PubsubEvent, Quorum};
+use rust_ipfs::UninitializedIpfsNoop;
+use rust_ipfs::{
+    dag::ResolveError, libp2p::gossipsub::MessageId as PubsubMessageId, unixfs::AddOpt,
+    PubsubEvent, Quorum,
+};
 
 #[derive(Debug, Display, From, Into)]
 /// `PubSub` Message ID.

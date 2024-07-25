@@ -14,7 +14,6 @@ workspace = true
 anyhow.workspace = true
 derive_more.workspace = true
 libipld.workspace = true
-libp2p.workspace = true
 rust-ipfs.workspace = true
 
 [dev-dependencies]
