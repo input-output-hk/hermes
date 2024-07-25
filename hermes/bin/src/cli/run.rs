@@ -8,12 +8,13 @@ use console::Emoji;
 use crate::{
     app::{HermesApp, HermesAppName},
     cli::Cli,
+    hdf5::Path,
     packaging::{
         app::ApplicationPackage,
         sign::certificate::{self, Certificate},
     },
     reactor::HermesReactor,
-    vfs::{Hdf5Mount, Hdf5MountToLib, Vfs, VfsBootstrapper},
+    vfs::{Vfs, VfsBootstrapper},
 };
 
 /// Run cli command
@@ -64,43 +65,46 @@ impl Run {
 
 /// Bootstrap Hermes virtual filesystem
 fn bootstrap_vfs(app_name: String, package: &ApplicationPackage) -> anyhow::Result<Vfs> {
-    let mut mount = Hdf5Mount::default();
-
-    mount.with_root_file(package.get_icon_file()?);
-    mount.with_root_file(package.get_metadata_file()?);
-
-    let modules = package.get_modules()?;
-    for module_info in modules {
-        let mut to_lib = Hdf5MountToLib::new(module_info.get_name());
-
-        to_lib.with_file(module_info.get_metadata_file()?);
-        to_lib.with_file(module_info.get_component_file()?);
-        if let Some(config_schema) = module_info.get_config_schema_file() {
-            to_lib.with_file(config_schema);
-        }
-        if let Some(config) = module_info.get_config_file() {
-            to_lib.with_file(config);
-        }
-        if let Some(settings_schema) = module_info.get_settings_schema_file() {
-            to_lib.with_file(settings_schema);
-        }
-        if let Some(share_dir) = module_info.get_share() {
-            to_lib.with_dir(share_dir);
-        }
-
-        mount.with_to_lib(to_lib);
-    }
-
-    if let Some(share_dir) = package.get_share_dir() {
-        mount.with_share_dir(share_dir);
-    }
-    if let Some(www_dir) = package.get_www_dir() {
-        mount.with_www_dir(www_dir);
-    }
-
     let hermes_home_dir = Cli::hermes_home()?;
     let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name);
-    bootstrapper.set_hdf5_mount(mount);
+
+    let root_path = Path::default();
+    bootstrapper.with_mounted_file(root_path.clone(), package.get_icon_file()?);
+    bootstrapper.with_mounted_file(root_path.clone(), package.get_metadata_file()?);
+    if let Some(share_dir) = package.get_share_dir() {
+        bootstrapper.with_mounted_dir(root_path.clone(), share_dir);
+    }
+    if let Some(www_dir) = package.get_www_dir() {
+        bootstrapper.with_mounted_dir(root_path.clone(), www_dir);
+    }
+
+    for module_info in package.get_modules()? {
+        let lib_module_dir_path: Path =
+            format!("{}/{}", Vfs::LIB_DIR, module_info.get_name()).into();
+        bootstrapper.with_dir_to_create(lib_module_dir_path.clone());
+
+        bootstrapper.with_mounted_file(
+            lib_module_dir_path.clone(),
+            module_info.get_metadata_file()?,
+        );
+        bootstrapper.with_mounted_file(
+            lib_module_dir_path.clone(),
+            module_info.get_component_file()?,
+        );
+        if let Some(config_schema) = module_info.get_config_schema_file() {
+            bootstrapper.with_mounted_file(lib_module_dir_path.clone(), config_schema);
+        }
+        if let Some(config) = module_info.get_config_file() {
+            bootstrapper.with_mounted_file(lib_module_dir_path.clone(), config);
+        }
+        if let Some(settings_schema) = module_info.get_settings_schema_file() {
+            bootstrapper.with_mounted_file(lib_module_dir_path.clone(), settings_schema);
+        }
+        if let Some(share_dir) = module_info.get_share() {
+            bootstrapper.with_mounted_dir(lib_module_dir_path.clone(), share_dir);
+        }
+    }
+
     let vfs = bootstrapper.bootstrap()?;
     Ok(vfs)
 }
