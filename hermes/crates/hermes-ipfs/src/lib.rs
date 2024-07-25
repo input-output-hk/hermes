@@ -120,10 +120,11 @@ impl HermesIpfs {
     ///
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
-        // TODO(saibatizoku):
         let node: Ipfs = IpfsBuilder::new()
             .with_default()
             .set_default_listener()
+            // TODO(saibatizoku): Re-Enable default transport config when libp2p Cert bug is fixed
+            .disable_tls()
             .start()
             .await?;
 
