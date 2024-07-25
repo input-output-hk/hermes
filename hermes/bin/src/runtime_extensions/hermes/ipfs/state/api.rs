@@ -13,11 +13,11 @@ pub(crate) fn hermes_ipfs_add_file(
     app_name: &HermesAppName, contents: IpfsFile,
 ) -> Result<IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
-    let ipfs_path = HERMES_IPFS_STATE.file_add(contents)?;
+    let ipfs_path = HERMES_IPFS_STATE.file_add(contents)?.to_string();
     tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
     HERMES_IPFS_STATE
         .apps
-        .added_file(app_name.clone(), ipfs_path.clone());
+        .pinned_file(app_name.clone(), &ipfs_path)?;
     Ok(ipfs_path)
 }
 
@@ -52,12 +52,23 @@ pub(crate) fn hermes_ipfs_get_file(
 
 /// Pin IPFS File
 pub(crate) fn hermes_ipfs_pin_file(
-    app_name: &HermesAppName, path: IpfsPath,
+    app_name: &HermesAppName, path: &IpfsPath,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
-    let status = HERMES_IPFS_STATE.file_pin(&path)?;
+    let status = HERMES_IPFS_STATE.file_pin(path)?;
     tracing::debug!(app_name = %app_name, path = %path, "pinned IPFS file");
-    HERMES_IPFS_STATE.apps.pinned_file(app_name.clone(), path);
+    HERMES_IPFS_STATE.apps.pinned_file(app_name.clone(), path)?;
+    Ok(status)
+}
+
+/// Un-pin IPFS File
+pub(crate) fn hermes_ipfs_unpin_file(
+    app_name: &HermesAppName, path: &IpfsPath,
+) -> Result<bool, Errno> {
+    tracing::debug!(app_name = %app_name, path = %path, "un-pin IPFS file");
+    let status = HERMES_IPFS_STATE.file_unpin(path)?;
+    tracing::debug!(app_name = %app_name, path = %path, "un-pinned IPFS file");
+    HERMES_IPFS_STATE.apps.unpinned_file(app_name, path)?;
     Ok(status)
 }
 

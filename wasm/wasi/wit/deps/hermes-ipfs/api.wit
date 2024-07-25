@@ -4,7 +4,6 @@ interface api {
     type dht-key = list<u8>;
     /// A DHT value.
     type dht-value = list<u8>;
-    /// IPFS Content.
     /// This is content that can be validated.
     variant ipfs-content {
         /// DHT value
@@ -74,8 +73,10 @@ interface api {
     file-add: func(contents: ipfs-file) -> result<ipfs-path, errno>;
     /// Retrieves a file from IPFS.
     file-get: func(path: ipfs-path) -> result<ipfs-file, errno>;
-    /// Pins a file by path to IPFS.
+    /// Pins an IPFS file by path.
     file-pin: func(path: ipfs-path) -> result<bool, errno>;
+    /// Un-pins an IPFS file by path.
+    file-unpin: func(path: ipfs-path) -> result<bool, errno>;
     /// Evict peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
     /// Publish a message to a topic.

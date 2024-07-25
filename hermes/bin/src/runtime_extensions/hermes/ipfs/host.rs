@@ -3,7 +3,7 @@
 use super::state::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
     hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
+    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
 use crate::{
     runtime_context::HermesRuntimeContext,
@@ -25,7 +25,11 @@ impl Host for HermesRuntimeContext {
     }
 
     fn file_pin(&mut self, ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(hermes_ipfs_pin_file(self.app_name(), ipfs_path))
+        Ok(hermes_ipfs_pin_file(self.app_name(), &ipfs_path))
+    }
+
+    fn file_unpin(&mut self, ipfs_path: IpfsPath) -> wasmtime::Result<Result<bool, Errno>> {
+        Ok(hermes_ipfs_unpin_file(self.app_name(), &ipfs_path))
     }
 
     fn dht_put(&mut self, key: DhtKey, value: DhtValue) -> wasmtime::Result<Result<bool, Errno>> {
