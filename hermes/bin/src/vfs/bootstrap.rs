@@ -187,7 +187,7 @@ mod tests {
         let dir = new_dir.get_dir(&dir_name.into()).unwrap();
         assert!(dir.get_file(file_name.into()).is_ok());
 
-        // open existing vfs instance from disk with the same boostrapping configuration
+        // open existing vfs instance from disk with the same bootstrapping configuration
 
         drop(vfs);
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
