@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
 
-use crate::hdf5::{self as hermes_hdf5, Path};
+use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system type.
 #[derive(Clone, Debug)]
@@ -37,8 +37,8 @@ impl Vfs {
     /// Reads in data in bytes, the number of which is specified by the caller,
     /// from the hdf5 file and stores then into a buffer supplied by the calling process.
     #[allow(dead_code)]
-    pub(crate) fn read(&self, path: Path) -> anyhow::Result<Vec<u8>, anyhow::Error> {
-        let mut file = self.root.get_file(path)?;
+    pub(crate) fn read(&self, path: &str) -> anyhow::Result<Vec<u8>> {
+        let mut file = self.root.get_file(path.into())?;
 
         let mut buffer = Vec::new();
 
@@ -50,13 +50,15 @@ impl Vfs {
     /// Writes data from a buffer declared by the user to a hdf5 file.
     // TODO: add permissions RWX
     #[allow(dead_code)]
-    pub(crate) fn write(&self, path: &Path, buffer: &[u8]) -> anyhow::Result<(), anyhow::Error> {
+    pub(crate) fn write(&self, path: &str, buffer: &[u8]) -> anyhow::Result<()> {
+        let path: hermes_hdf5::Path = path.into();
         let mut file = match self.root.get_file(path.clone()) {
             Ok(file) => file,
-            Err(_) => self.root.create_file(path.clone())?,
+            Err(_) => self.root.create_file(path)?,
         };
 
         let _unused = file.write(buffer)?;
+        file.flush()?;
 
         Ok(())
     }
@@ -78,12 +80,12 @@ mod tests {
 
         let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
-        let file_path = format!("{}/www.txt", Vfs::SRV_DIR).into();
+        let file_path = format!("{}/www.txt", Vfs::SRV_DIR);
         let file_content = b"web_server";
-        vfs.write(&file_path, file_content)
+        vfs.write(file_path.as_str(), file_content)
             .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(file_path).expect("Cannot read from VFS");
+        let written_data = vfs.read(file_path.as_str()).expect("Cannot read from VFS");
         assert_eq!(written_data.as_slice(), file_content);
     }
 }
