@@ -193,8 +193,9 @@ impl Iterator for MithrilSnapshotIteratorInner {
                             // Update the previous point
                             self.previous = Some(block_data.point());
 
-                            // Make sure we got to the start, otherwise this could be a block artifact
-                            // from a discover previous point search.
+                            // Make sure we got to the start, otherwise this could be a block
+                            // artifact from a discover previous point
+                            // search.
                             if block_data < self.start {
                                 continue;
                             }

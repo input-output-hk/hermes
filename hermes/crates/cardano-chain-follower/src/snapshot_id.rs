@@ -176,8 +176,8 @@ impl PartialOrd<u64> for SnapshotId {
 
 #[cfg(test)]
 mod tests {
-    use crate::point::*;
     use super::*;
+    use crate::point::*;
 
     const TEST_DIR: &str = "test_data/test_snapshot_id";
 
@@ -189,9 +189,18 @@ mod tests {
         let dir_path_4 = &[TEST_DIR, "not_found"].join("/");
         let dir_path_5 = &[TEST_DIR, "123abc"].join("/");
 
-        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_1)), Some(12345));
-        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_2)), Some(12346));
-        assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_3)), Some(12347));
+        assert_eq!(
+            SnapshotId::parse_path(&PathBuf::from(dir_path_1)),
+            Some(12345)
+        );
+        assert_eq!(
+            SnapshotId::parse_path(&PathBuf::from(dir_path_2)),
+            Some(12346)
+        );
+        assert_eq!(
+            SnapshotId::parse_path(&PathBuf::from(dir_path_3)),
+            Some(12347)
+        );
         assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_4)), None);
         assert_eq!(SnapshotId::parse_path(&PathBuf::from(dir_path_5)), None);
     }
@@ -214,9 +223,14 @@ mod tests {
     #[tokio::test]
     async fn test_try_new() {
         let dir_path_1 = &[TEST_DIR, "12345"].join("/");
-        let dir_path_1 = PathBuf::from(dir_path_1).canonicalize().expect("cannot get absolute path");
+        let dir_path_1 = PathBuf::from(dir_path_1)
+            .canonicalize()
+            .expect("cannot get absolute path");
 
-        assert_eq!(SnapshotId::try_new(Network::Preprod, &dir_path_1).await, None);
+        assert_eq!(
+            SnapshotId::try_new(Network::Preprod, &dir_path_1).await,
+            None
+        );
     }
 
     #[test]
@@ -225,9 +239,13 @@ mod tests {
 
         let point_1 = Point::fuzzy(999);
 
-        let snapshot_id_1 = SnapshotId::new(&PathBuf::from(dir_path_1), point_1).expect("cannot create snapshot id");
+        let snapshot_id_1 = SnapshotId::new(&PathBuf::from(dir_path_1), point_1)
+            .expect("cannot create snapshot id");
 
-        assert_eq!(snapshot_id_1.immutable_path(), PathBuf::from([dir_path_1.as_str(), "immutable"].join("/")));
+        assert_eq!(
+            snapshot_id_1.immutable_path(),
+            PathBuf::from([dir_path_1.as_str(), "immutable"].join("/"))
+        );
     }
 
     #[test]

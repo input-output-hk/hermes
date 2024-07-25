@@ -4,28 +4,31 @@
 //! These can not be found without either keeping an index of them, or doing
 //! exhaustive searches.
 //!
-//! Typically these indexes are put into a shared DB, which can significantly slow down the
-//! process of updating data when it references another entity.
+//! Typically these indexes are put into a shared DB, which can significantly slow down
+//! the process of updating data when it references another entity.
 //!
 //! The aim here is to keep the index locally for maximum possible performance.
 
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::bail;
-use crossbeam_skiplist::SkipSet;
+use crossbeam_skiplist::{SkipMap, SkipSet};
+use heed::EnvOpenOptions;
 use pallas_crypto::hash::Hash;
-use redb::{Database, TableDefinition};
 use tokio::sync::mpsc::{self, Sender};
 use tracing::{debug, error};
 
-use crate::{mithril_snapshot_config::MithrilSnapshotConfig, Network};
+use crate::{mithril_snapshot_config::MithrilSnapshotConfig, MultiEraBlock, Network};
+
+type Key = heed::types::Bytes;
+type Value = heed::types::Bytes;
 
 /// The name of the Index Database file
-const INDEX_DB_NAME: &str = "index.redb";
+const INDEX_DB_NAME: &str = "index.mdb";
 
 /// The name of the Block Index Database file
 const BLOCK_INDEX_TABLE_NAME: &str = "block_index";
@@ -33,15 +36,13 @@ const BLOCK_INDEX_TABLE_NAME: &str = "block_index";
 const TRANSACTION_INDEX_TABLE_NAME: &str = "transaction_index";
 
 /// The Block Index Table
-const BLOCK_INDEX_TABLE: TableDefinition<[u8; 32], Vec<u8>> =
-    TableDefinition::new(BLOCK_INDEX_TABLE_NAME);
+type BlockIndexTable = heed::Database<Key, Value>;
 
 /// The Transaction Index Table
-const TRANSACTION_INDEX_TABLE: TableDefinition<[u8; 32], Vec<u8>> =
-    TableDefinition::new(TRANSACTION_INDEX_TABLE_NAME);
+type TransactionIndexTable = heed::Database<Key, Value>;
 
 /// The Database Type we store in the DB.
-type KvDb = Arc<RwLock<Database>>;
+type KvDb = (heed::Env, Arc<SkipMap<[u8; 32], (u64, u16)>>);
 
 /// The Mainnet Index DB
 static MAINNET_INDEX_DB: OnceLock<KvDb> = OnceLock::new();
@@ -51,24 +52,38 @@ static PREPROD_INDEX_DB: OnceLock<KvDb> = OnceLock::new();
 static PREVIEW_INDEX_DB: OnceLock<KvDb> = OnceLock::new();
 
 /// Size of the Index DB in-Memory Cache.
-const DB_CACHE_SIZE: usize = 0x4000_0000; // 1GB
+// const DB_CACHE_SIZE: usize = 0x4000_0000; // 1GB
 
 /// Initialize the Index DB
 pub(crate) fn init_index_db(cfg: &MithrilSnapshotConfig) -> anyhow::Result<()> {
     let mut db_path = cfg.db_path();
-    fs::create_dir_all(db_path.clone())?;
     db_path.push(INDEX_DB_NAME);
+    fs::create_dir_all(db_path.clone())?;
 
-    let db = Arc::new(RwLock::new(
-        redb::Builder::new()
-            .set_cache_size(DB_CACHE_SIZE)
-            .create(db_path)?,
-    ));
+    let env = unsafe {
+        EnvOpenOptions::new().
+        map_size(100 * 1024 * 1024 * 1024).    // 100 GB
+        max_dbs(2).open(db_path)?
+    };
+
+    let mut wtxn = env.write_txn()?;
+
+    let _block_db: BlockIndexTable =
+        env.create_database(&mut wtxn, Some(BLOCK_INDEX_TABLE_NAME))?;
+    let _transaction_dn: TransactionIndexTable =
+        env.create_database(&mut wtxn, Some(TRANSACTION_INDEX_TABLE_NAME))?;
+
+    wtxn.commit()?;
+
+    env.force_sync()?;
+
+    // Create the in-memory index for the live chain
+    let in_memory_db: Arc<SkipMap<[u8; 32], (u64, u16)>> = Arc::new(SkipMap::new());
 
     let already_initialized = match cfg.chain {
-        Network::Mainnet => MAINNET_INDEX_DB.set(db),
-        Network::Preprod => PREPROD_INDEX_DB.set(db),
-        Network::Preview => PREVIEW_INDEX_DB.set(db),
+        Network::Mainnet => MAINNET_INDEX_DB.set((env, in_memory_db)),
+        Network::Preprod => PREPROD_INDEX_DB.set((env, in_memory_db)),
+        Network::Preview => PREVIEW_INDEX_DB.set((env, in_memory_db)),
     };
 
     if already_initialized.is_err() {
@@ -95,84 +110,98 @@ pub(crate) struct DBWriteTransaction(Sender<DBWriteUpdate>);
 impl DBWriteTransaction {
     /// Create a new Write Transaction for the Blockchain Index.
     pub(crate) fn new(chain: Network) -> anyhow::Result<DBWriteTransaction> {
-        let Some(db) = get_db(chain) else {
-            bail!("DB not initialized");
-        };
-
         let (tx, mut rx) = mpsc::channel::<DBWriteUpdate>(DB_UPDATE_QUEUE_SIZE);
 
         tokio::task::spawn_blocking(move || {
-            let mut db = match db.write() {
-                Ok(db) => db,
-                Err(error) => {
-                    error!(error=%error, "Somehow the Database RwLock is Poisoned. Should not happen.");
-                    return;
-                },
+            let Some((db, _)) = get_db(chain) else {
+                error!("DB not initialized");
+                return;
             };
 
-            //let mut txn = db.begin_with_mode(Mode::WriteOnly)?;
-            let mut txn = match db.begin_write() {
-                Ok(txn) => txn,
+            let mut wtxn = match db.write_txn() {
+                Ok(wtxn) => wtxn,
                 Err(error) => {
                     error!(error=%error, "Index DB Write Transaction Error");
                     return;
                 },
             };
-            txn.set_durability(redb::Durability::Immediate);
 
-            let mut block_table = match txn.open_table(BLOCK_INDEX_TABLE) {
-                Ok(block_table) => block_table,
-                Err(error) => {
-                    error!(error=%error, "Index DB Block Table Error");
-                    return;
-                },
-            };
+            let block_table: BlockIndexTable =
+                match db.create_database(&mut wtxn, Some(BLOCK_INDEX_TABLE_NAME)) {
+                    Ok(block_table) => block_table,
+                    Err(error) => {
+                        error!(error=%error, "Index DB Block Table Error");
+                        return;
+                    },
+                };
 
-            let mut transaction_table = match txn.open_table(TRANSACTION_INDEX_TABLE) {
-                Ok(transaction_table) => transaction_table,
-                Err(error) => {
-                    error!(error=%error, "Index DB Transaction Table Error");
-                    return;
-                },
-            };
+            let transaction_table: TransactionIndexTable =
+                match db.create_database(&mut wtxn, Some(TRANSACTION_INDEX_TABLE_NAME)) {
+                    Ok(transaction_table) => transaction_table,
+                    Err(error) => {
+                        error!(error=%error, "Index DB Transaction Table Error");
+                        return;
+                    },
+                };
+
+            let mut blocks_indexed: u64 = 0;
+            let mut txn_indexed: u64 = 0;
 
             loop {
                 match rx.blocking_recv() {
                     Some(DBWriteUpdate::BlockHash(hash, slot_no)) => {
                         let key: [u8; 32] = *hash;
                         let value = serialize_value(slot_no, 0);
-                        if let Err(error) = block_table.insert(key, &value) {
+                        if let Err(error) = block_table.put_with_flags(
+                            &mut wtxn,
+                            heed::PutFlags::NO_OVERWRITE,
+                            &key,
+                            &value,
+                        ) {
                             error!(chain=%chain, error=%error, "Error while writing Block Hash to index db: {}:{}",hash, slot_no);
+                            return;
+                        }
+                        blocks_indexed += 1;
+                        if blocks_indexed % 100_000 == 0 {
+                            debug!("indexed {blocks_indexed} blocks");
                         }
                     },
                     Some(DBWriteUpdate::TransactionHash(hash, slot_no, txn_index)) => {
                         let key: [u8; 32] = *hash;
                         let value = serialize_value(slot_no, txn_index);
-                        if let Err(error) = transaction_table.insert(key, &value) {
+                        if let Err(error) = transaction_table.put_with_flags(
+                            &mut wtxn,
+                            heed::PutFlags::NO_OVERWRITE,
+                            &key,
+                            &value,
+                        ) {
                             error!(chain=%chain, error=%error, "Error while writing Transaction Hash to index db: {}:{}/{}",hash, slot_no, txn_index);
+                            return;
+                        }
+                        txn_indexed += 1;
+                        if txn_indexed % 100_000 == 0 {
+                            debug!("indexed {txn_indexed} transactions");
                         }
                     },
                     Some(DBWriteUpdate::Commit) => {
-                        drop(block_table);
-                        drop(transaction_table);
-                        if let Err(error) = txn.commit() {
+                        if let Err(error) = wtxn.commit() {
                             error!(chain=%chain, error=%error,"Error while committing index db");
+                            return;
                         }
                         break;
                     },
                     Some(DBWriteUpdate::Rollback) | None => {
-                        drop(block_table);
-                        drop(transaction_table);
-                        if let Err(error) = txn.abort() {
-                            error!(chain=%chain, error=%error,"Error while rolling back index db");
-                        }
+                        wtxn.abort();
                         break;
                     },
                 }
             }
 
-            if let Err(error) = db.compact() {
-                error!(error=%error,"Error compacting index db");
+            debug!("Done: indexed {blocks_indexed} blocks");
+            debug!("Done: indexed {txn_indexed} traactions");
+
+            if let Err(error) = db.force_sync() {
+                error!(error=%error,"Error syncing index db");
             }
         });
 
@@ -283,7 +312,7 @@ fn deserialize_value(value: [u8; 10]) -> (u64, u16) {
 pub(crate) fn index_immutable_chunk(
     chain: Network, chunk_path: &Path, transaction: &DBWriteTransaction,
 ) {
-    //debug!("Indexing chunk: {:?}", chunk_path);
+    // debug!("Indexing chunk: {:?}", chunk_path);
 
     let dir = chunk_path.parent().unwrap_or(Path::new(""));
     let name = chunk_path
@@ -308,9 +337,10 @@ pub(crate) fn index_immutable_chunk(
                                     transaction.index_block_hash(&block_hash, block_slot)
                                 {
                                     error!(chain=%chain, error=%error, "Error indexing block hash: {}:{}", block_hash, block_slot);
+                                    return;
                                 };
 
-                                //debug!(
+                                // debug!(
                                 //    chain = %chain,
                                 //    "Indexing block: {} @ {}", block_hash, block_slot
                                 //);
@@ -323,7 +353,8 @@ pub(crate) fn index_immutable_chunk(
                                     if let Err(error) = transaction
                                         .index_transaction_hash(&txn_hash, block_slot, offset)
                                     {
-                                        error!(chain=%chain, error=%error, "Error indexing block hash: {}:{}", block_hash, block_slot);
+                                        error!(chain=%chain, error=%error, "Error indexing transaction hash: {}:{}", block_hash, block_slot);
+                                        return;
                                     };
                                     //    debug!(
                                     //        chain = %chain,
@@ -354,7 +385,46 @@ pub(crate) fn index_immutable_chunk(
             error!(
                 chain = %chain,
                 error = %error, "Failed to iterate {} for indexing.",chunk_path.to_string_lossy());
+            return;
         },
+    }
+}
+
+/// Add a live block to the in-memory block index
+pub(crate) fn index_live_block(chain: Network, block: &MultiEraBlock) {
+    let decoded_block = block.decode();
+    let block_hash: [u8; 32] = *decoded_block.hash();
+    let block_slot = decoded_block.slot();
+
+    let Some((_, in_memory_db)) = get_db(chain) else {
+        error!("Failed to get the in-memory index db. Should not happen.");
+        return;
+    };
+
+    // Save the block index.
+    let _unused = in_memory_db.insert(block_hash, (block_slot, 0));
+
+    for (txn_offset, txn) in decoded_block.txs().into_iter().enumerate() {
+        let offset = u16::try_from(txn_offset).unwrap_or(u16::MAX);
+        let txn_hash: [u8; 32] = *txn.hash();
+
+        // Index the transactions within the block.
+        let _unused = in_memory_db.insert(txn_hash, (block_slot, offset));
+    }
+}
+
+/// Purges all data from the live block index thats < `max_slot`.
+pub(crate) fn purge_index_live_block(chain: Network, max_slot: u64) {
+    let Some((_, in_memory_db)) = get_db(chain) else {
+        error!("Failed to get the in-memory index db. Should not happen.");
+        return;
+    };
+
+    for entry in in_memory_db.iter() {
+        let slot = entry.value().0;
+        if slot < max_slot {
+            let _unused = entry.remove();
+        }
     }
 }
 

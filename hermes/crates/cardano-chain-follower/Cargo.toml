@@ -28,15 +28,12 @@ chrono.workspace = true
 reqwest.workspace = true
 async-trait.workspace = true
 dirs.workspace = true
-regex.workspace = true
 futures.workspace = true
 async-compression.workspace = true
 tokio-tar.workspace = true
 humantime.workspace = true
 crossbeam-skiplist.workspace = true
 strum.workspace = true
-blake3.workspace = true
-ignore.workspace = true
 ouroboros.workspace = true
 hex.workspace = true
 rayon.workspace = true
@@ -46,7 +43,7 @@ mimalloc = {workspace = true, optional = true}
 memx.workspace = true
 fmmap.workspace = true
 minicbor.workspace = true
-redb.workspace = true
+heed = {workspace = true, optional = true}
 
 [dev-dependencies]
 hex.workspace = true
@@ -57,6 +54,12 @@ clap.workspace = true
 # Note, these features are for support of features exposed by dependencies.
 [features]
 default = ["rustls-tls-native-roots"]
+
+# Enable the local hash index.
+# This is poorly tested, and is gigNTIC (>8gb on mainnet) and slow
+# to index when a new snaphot is downloaded (many minutes on fast disks).
+# It should NOT be enabled, and is here only for future testing purposes.
+local-hash-index = ["dep:heed"]
 
 # Enable the MiMalloc global allocator
 # Only used for examples.

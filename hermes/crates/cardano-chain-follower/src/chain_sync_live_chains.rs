@@ -12,6 +12,8 @@ use rayon::prelude::*;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
 
+#[cfg(feature = "local-hash-index")]
+use crate::data_index::{index_live_block, purge_index_live_block};
 use crate::{
     error::{Error, Result},
     mithril_snapshot_data::latest_mithril_snapshot_id,
@@ -171,6 +173,8 @@ impl ProtectedLiveChainBlockList {
 
         // SkipMap is thread-safe, so we can parallel iterate inserting the blocks.
         blocks.par_iter().for_each(|block| {
+            #[cfg(feature = "local-hash-index")]
+            index_live_block(chain, block);
             let _unused = live_chain.insert(block.point(), block.clone());
         });
 
@@ -247,6 +251,8 @@ impl ProtectedLiveChainBlockList {
         let head_slot = block.point().slot_or_default();
 
         // Add the block to the tip of the Live Chain.
+        #[cfg(feature = "local-hash-index")]
+        index_live_block(chain, &block);
         let _unused = live_chain.insert(block.point(), block);
 
         let tip_slot = tip.slot_or_default();
@@ -280,6 +286,8 @@ impl ProtectedLiveChainBlockList {
         // Special Case.
         // If the Purge Point == TIP_POINT, then we purge the entire chain.
         if *point == TIP_POINT {
+            #[cfg(feature = "local-hash-index")]
+            purge_index_live_block(chain, point.slot_or_default());
             live_chain.clear();
         } else {
             // If the block we want to purge upto must be in the chain.
@@ -297,6 +305,8 @@ impl ProtectedLiveChainBlockList {
             }
 
             // Purge every block prior to the purge point.
+            #[cfg(feature = "local-hash-index")]
+            purge_index_live_block(chain, point.slot_or_default());
             while let Some(previous_block) = purge_start_block_entry.prev() {
                 let _unused = previous_block.remove();
             }

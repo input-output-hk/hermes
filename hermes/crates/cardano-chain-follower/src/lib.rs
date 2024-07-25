@@ -5,7 +5,6 @@ mod chain_sync_config;
 mod chain_sync_live_chains;
 mod chain_sync_ready;
 mod chain_update;
-mod data_index;
 mod error;
 mod follow;
 mod mithril_query;
@@ -20,6 +19,9 @@ mod network;
 mod point;
 mod snapshot_id;
 mod stats;
+
+#[cfg(feature = "local-hash-index")]
+mod data_index;
 
 pub use chain_sync_config::ChainSyncConfig;
 pub use chain_update::{ChainUpdate, Kind};

@@ -11,7 +11,6 @@ use chrono::{TimeDelta, Utc};
 use crossbeam_skiplist::SkipSet;
 use humantime::format_duration;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
-
 use tokio::{
     fs::remove_dir_all,
     sync::mpsc::Sender,
@@ -19,8 +18,9 @@ use tokio::{
 };
 use tracing::{debug, error};
 
+#[cfg(feature = "local-hash-index")]
+use crate::data_index::background_index_blocks_and_transactions;
 use crate::{
-    data_index::background_index_blocks_and_transactions,
     error::{Error, Result},
     mithril_query::get_mithril_tip_point,
     mithril_snapshot_config::{MithrilSnapshotConfig, MithrilUpdateMessage},
@@ -517,7 +517,8 @@ async fn check_snapshot_to_download(
     SnapshotStatus::Updated((snapshot, certificate))
 }
 
-/// Start Mithril Validation in the background, and return a handle so we can check when it finishes.
+/// Start Mithril Validation in the background, and return a handle so we can check when
+/// it finishes.
 fn background_validate_mithril_snapshot(
     chain: Network, certificate: MithrilCertificate, tmp_path: PathBuf,
 ) -> tokio::task::JoinHandle<bool> {
@@ -631,15 +632,26 @@ async fn download_and_validate_snapshot(
     let validate_handle =
         background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
 
-    let index_handle =
-        background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
+    #[cfg(not(feature = "local-hash-index"))]
+    {
+        if !validate_handle.await.unwrap_or(false) {
+            error!("Failed to validate for {}", cfg.chain);
+            return false;
+        }
+    }
 
-    if !index_handle.await.unwrap_or(false) {
-        error!(
-            "Failed to validate or index blocks and transactions for {}",
-            cfg.chain
-        );
-        return false;
+    #[cfg(feature = "local-hash-index")]
+    {
+        let index_handle =
+            background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
+
+        if !index_handle.await.unwrap_or(false) {
+            error!(
+                "Failed to validate or index blocks and transactions for {}",
+                cfg.chain
+            );
+            return false;
+        }
     }
 
     true

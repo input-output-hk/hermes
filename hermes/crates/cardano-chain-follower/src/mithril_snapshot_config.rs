@@ -14,8 +14,9 @@ use tokio::{
 };
 use tracing::{debug, error};
 
+#[cfg(feature = "local-hash-index")]
+use crate::data_index::init_index_db;
 use crate::{
-    data_index::init_index_db,
     error::{Error, Result},
     mithril_snapshot_data::{latest_mithril_snapshot_id, SnapshotData},
     mithril_snapshot_sync::background_mithril_update,
@@ -43,6 +44,7 @@ const DL_SUBDIR: &str = "dl";
 const TMP_SUBDIR: &str = "tmp";
 
 /// Subdirectory where we store the index DB.
+#[cfg(feature = "local-hash-index")]
 const DB_SUBDIR: &str = "db";
 
 /// Message we send when Mithril Snapshot updates
@@ -98,6 +100,7 @@ impl MithrilSnapshotConfig {
     /// Returns the path to store the Index DB for the Mithril Snapshot to.
     /// Will use a path relative to mithril data path.
     #[must_use]
+    #[cfg(feature = "local-hash-index")]
     pub(crate) fn db_path(&self) -> PathBuf {
         let mut db_path = self.path.clone();
         db_path.push(DB_SUBDIR);
@@ -414,6 +417,7 @@ impl MithrilSnapshotConfig {
             return Err(Error::MithrilSnapshotSyncAlreadyRunning(self.chain));
         }
 
+        #[cfg(feature = "local-hash-index")]
         init_index_db(self).map_err(|err| Error::MithrilIndexDB(self.chain, err))?;
 
         self.validate().await?;

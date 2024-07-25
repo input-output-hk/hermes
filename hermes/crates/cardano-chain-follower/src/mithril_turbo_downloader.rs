@@ -22,7 +22,7 @@ use mithril_client::{
     common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, MithrilResult,
 };
 use tokio::{
-    fs::create_dir_all,
+    fs::{create_dir_all, hard_link},
     process::Command,
     sync::mpsc::{self, UnboundedSender},
     task::JoinHandle,
@@ -272,8 +272,43 @@ impl MithrilTurboDownloader {
 /// Use a consistent name for a download archive to simplify processing.
 const DOWNLOAD_FILE_NAME: &str = "latest-mithril.tar.zst";
 
-/// Download a file using `aria2` tool, with maximum number of simultaneous connections.
+/// Check if wew pre-downloaded the file to ~/Downloads and of so, jut use that.
+/// Saves time in testing.
+async fn check_pre_downloaded(dest: &Path, url: &str) -> bool {
+    let file_name_parts: Vec<&str> = url.split('/').collect();
+    if let Some(file_name) = file_name_parts.last() {
+        if let Some(mut dl_path) = dirs::download_dir() {
+            dl_path.push(file_name);
+            if dl_path.is_file() {
+                let mut dest_file = dest.to_path_buf();
+                dest_file.push(DOWNLOAD_FILE_NAME);
+                if dest_file.exists() {
+                    if let Err(error) = tokio::fs::remove_file(&dest_file).await {
+                        error!(error=%error, "Destination File Exists");
+                    }
+                }
+
+                if let Err(error) = hard_link(dl_path, dest_file).await {
+                    error!(error=%error, "Trying to hard link pre downloaded file.")
+                } else {
+                    return true;
+                }
+            }
+        }
+    }
+
+    debug!("Failed to find pre-downloaded file. Downloading now.");
+
+    false
+}
+
+/// Download a file using `aria2` tool,s with maximum number of simultaneous connections.
 async fn aria2_download(dest: &Path, url: &str) -> MithrilResult<()> {
+    // Use pre-downloaded file if it exists
+    if check_pre_downloaded(dest, url).await {
+        return Ok(());
+    }
+
     let dest = format!("--dir={}", dest.to_string_lossy());
     let dest_file = format!("--out={DOWNLOAD_FILE_NAME}");
 
@@ -396,9 +431,9 @@ impl SnapshotDownloader for MithrilTurboDownloader {
 
             // Supply the runner with files to dedup from a queue.
             // When finished, close the queue.
-            // And wait for the de-duper to finish (which it does when it detects the queue is closed.)
-            // This will let us dedup in parallel with file extraction adn untar.
-            // The de-duper is CPU heavy, so use sync IO for the de-dupe process.
+            // And wait for the de-duper to finish (which it does when it detects the queue is
+            // closed.) This will let us dedup in parallel with file extraction adn
+            // untar. The de-duper is CPU heavy, so use sync IO for the de-dupe process.
             let Ok(file_path) = file.path() else {
                 error!("Failed to get the path for de-duping...");
                 continue;
