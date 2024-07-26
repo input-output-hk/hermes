@@ -10,10 +10,11 @@ use coset::{
 };
 
 use super::{
+    super::hash::Blake2b256,
     certificate::{self, Certificate},
     keys::PrivateKey,
 };
-use crate::{errors::Errors, packaging::hash::Blake2b256};
+use crate::errors::Errors;
 
 /// COSE signature object.
 #[derive(Debug, Clone, PartialEq)]

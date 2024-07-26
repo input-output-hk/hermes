@@ -1,8 +1,8 @@
 //! An application's module info object
 
+use super::module::ModulePackage;
 use crate::{
     hdf5::{Dir, File},
-    packaging::module::ModulePackage,
     wasm::module::Module,
 };
 
@@ -30,32 +30,32 @@ impl AppModuleInfo {
     }
 
     /// Get module's WASM component file
-    pub(crate) fn get_component_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_component_file(&self) -> anyhow::Result<File> {
         self.package.get_component_file()
     }
 
     /// Get module's WASM metadata file
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.package.get_metadata_file()
     }
 
     /// Get module's WASM config schema file
-    pub(crate) fn get_config_schema_file(&self) -> Option<File> {
+    pub(super) fn get_config_schema_file(&self) -> Option<File> {
         self.package.get_config_schema_file()
     }
 
     /// Get module's WASM config file
-    pub(crate) fn get_config_file(&self) -> Option<File> {
+    pub(super) fn get_config_file(&self) -> Option<File> {
         self.app_config.clone().or(self.package.get_config_file())
     }
 
     /// Get module's WASM settings schema file
-    pub(crate) fn get_settings_schema_file(&self) -> Option<File> {
+    pub(super) fn get_settings_schema_file(&self) -> Option<File> {
         self.package.get_settings_schema_file()
     }
 
     /// Get module's share dir
-    pub(crate) fn get_share(&self) -> Option<Dir> {
+    pub(super) fn get_share(&self) -> Option<Dir> {
         self.app_share.clone().or(self.package.get_share())
     }
 }

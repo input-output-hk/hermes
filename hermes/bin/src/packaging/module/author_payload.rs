@@ -1,7 +1,7 @@
 //! A signature payload object for author.cose Hermes WASM module package.
 //! Defined at `https://input-output-hk.github.io/hermes/architecture/08_concepts/hermes_packaging_requirements/wasm_modules/#wasm-component-module-signatures`.
 
-use crate::packaging::{
+use super::super::{
     hash::Blake2b256, schema_validation::SchemaValidator, sign::signature::SignaturePayloadEncoding,
 };
 

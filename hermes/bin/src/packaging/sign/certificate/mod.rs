@@ -6,7 +6,7 @@ use std::path::Path;
 
 use x509_cert::der::{DecodePem, Encode};
 
-use crate::packaging::{hash::Blake2b256, sign::keys::PublicKey, FileError};
+use super::super::{hash::Blake2b256, sign::keys::PublicKey, FileError};
 
 /// Certificate decoding from string error.
 #[derive(thiserror::Error, Debug)]
