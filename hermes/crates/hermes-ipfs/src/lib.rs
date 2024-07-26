@@ -206,6 +206,25 @@ impl HermesIpfs {
         self.node.is_pinned(cid).await
     }
 
+    /// List all pins in the IPFS node.
+    ///
+    /// ## Parameters
+    /// * `cid` - `Option<Cid>` Optional content identifier to list pins.
+    ///  If `None`, lists all pins.
+    ///
+    /// ## Errors
+    /// Returns an error if listing pins fails.
+    pub async fn list_pins(&self) -> anyhow::Result<Vec<Cid>> {
+        // List all kinds of pins by setting `None` as the argument.
+        let pins_stream = self.node.list_pins(None).await;
+        pin_mut!(pins_stream);
+        let mut pins = vec![];
+        while let Some(pinned) = pins_stream.next().await {
+            pins.push(pinned?.0);
+        }
+        Ok(pins)
+    }
+
     /// Remove pinned content from IPFS.
     ///
     /// ## Parameters
