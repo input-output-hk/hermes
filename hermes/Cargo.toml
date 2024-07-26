@@ -165,3 +165,4 @@ fmmap = {version = "0.3.3", features = ["sync", "tokio-async"]}
 minicbor = {version = "0.24.2", features = ["alloc", "derive"]}
 redb = {version = "2.1.1", features = ["cache_metrics"]}
 heed = {version = "0.20.3", features = ["mdb_idl_logn_16", "posix-sem"]}
+brotli = "6.0.0"

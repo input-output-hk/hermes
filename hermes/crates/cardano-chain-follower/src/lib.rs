@@ -19,6 +19,7 @@ mod network;
 mod point;
 mod snapshot_id;
 mod stats;
+mod metadata;
 
 #[cfg(feature = "local-hash-index")]
 mod data_index;
