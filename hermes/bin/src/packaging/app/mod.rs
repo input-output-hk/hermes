@@ -294,8 +294,8 @@ impl ApplicationPackage {
         self.0.get_dir(&Self::SRV_SHARE_DIR.into()).ok()
     }
 
-    /// bootsrtrap `Vfs` with the `ApplicationPackage` content
-    pub(crate) fn bootstrap_vfs(&self, bootstrapper: &mut VfsBootstrapper) -> anyhow::Result<()> {
+    /// Mount `ApplicationPackage` content to the `Vfs`
+    pub(crate) fn mount_to_vfs(&self, bootstrapper: &mut VfsBootstrapper) -> anyhow::Result<()> {
         let root_path = Path::default();
         bootstrapper.with_mounted_file(root_path.clone(), self.get_icon_file()?);
         bootstrapper.with_mounted_file(root_path.clone(), self.get_metadata_file()?);

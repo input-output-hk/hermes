@@ -47,7 +47,7 @@ impl Run {
         println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
         let hermes_home_dir = Cli::hermes_home()?;
         let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name.clone());
-        package.bootstrap_vfs(&mut bootstrapper)?;
+        package.mount_to_vfs(&mut bootstrapper)?;
         let vfs = bootstrapper.bootstrap()?;
 
         println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
