@@ -89,7 +89,9 @@ pub fn execute_event(
 
     let hermes_home_dir = TempDir::new()?;
 
-    let vfs = VfsBootstrapper::new(hermes_home_dir.path(), app_name.to_string()).bootstrap()?;
+    let vfs = VfsBootstrapper::new(hermes_home_dir.path(), app_name.to_string())
+        .bootstrap()?
+        .into();
 
     let result = match event_type {
         EventType::Bench => {

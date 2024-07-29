@@ -8,7 +8,7 @@ use crate::utils::parse_path;
 
 /// Permission level type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum PermissionLevel {
+pub(crate) enum PermissionLevel {
     /// Read only permission level.
     Read,
     /// Read and write permission level.
@@ -18,13 +18,14 @@ enum PermissionLevel {
 
 /// VFS permissions state stored in the radix tree structure, where the
 /// each node relates to a single path element with the permission level.
-struct PermissionsTree {
+#[derive(Debug)]
+pub(crate) struct PermissionsTree {
     /// Tree's root node.
     root: PermissionNodeRef,
 }
 
 /// `PermissionsTree` node type.
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct PermissionNode {
     /// Node permission level.
     permission: PermissionLevel,
