@@ -1,36 +1,49 @@
 //! Permissions state management of the Hermes virtual file system.
 
-#![allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
+#![allow(dead_code)]
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::utils::parse_path;
 
+/// Permission level type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 enum PermissionLevel {
+    /// Read only permission level.
     Read,
+    /// Read and write permission level.
     #[default]
     ReadAndWrite,
 }
 
+/// VFS permissions state stored in the radix tree structure, where the
+/// each node relates to a single path element with the permission level.
 struct PermissionsTree {
+    /// Tree's root node.
     root: PermissionNodeRef,
 }
 
+/// `PermissionsTree` node type.
 #[derive(Default)]
 struct PermissionNode {
+    /// Node permission level.
     permission: PermissionLevel,
+    /// Node childs.
     childs: HashMap<String, PermissionNodeRef>,
 }
 
+/// Convinient type of the referenced `PermissionNode`.
 type PermissionNodeRef = Rc<RefCell<PermissionNode>>;
 
 impl PermissionsTree {
+    /// Creates a new `PermissionsTree` instance with the root node which releates to the
+    /// "/" path with the `PermissionLevel::ReadAndWrite` default permission level.
     fn new() -> Self {
         let root = PermissionNodeRef::default();
         Self { root }
     }
 
+    /// Adds a new path to the `PermissionsTree` with the provided permission level.
     fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
         let path_elements = parse_path(path);
 
@@ -50,6 +63,7 @@ impl PermissionsTree {
         walk.borrow_mut().permission = permission;
     }
 
+    /// Gets the permission level for the provided path.
     fn get_permission(&self, path: &str) -> PermissionLevel {
         let mut permission = self.root.borrow().permission;
 
