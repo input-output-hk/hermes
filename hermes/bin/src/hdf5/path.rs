@@ -2,24 +2,21 @@
 
 use std::fmt::Display;
 
+use crate::utils::parse_path;
+
 /// Package path.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Path(Vec<String>);
 
 impl Path {
     /// Create new `PackagePath` from path components.
-    pub(crate) fn new(path_components: Vec<String>) -> Self {
-        Self(path_components)
+    pub(crate) fn new(path_elements: Vec<String>) -> Self {
+        Self(path_elements)
     }
 
     /// Create new `PackagePath` from str.
     pub(crate) fn from_str(path: &str) -> Self {
-        let path_components = path
-            .split(&['/', '\\'])
-            .map(ToString::to_string)
-            .filter(|s| !s.is_empty())
-            .collect();
-        Self(path_components)
+        Self(parse_path(path))
     }
 
     /// Returns an iterator over the path elements.

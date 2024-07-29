@@ -4,6 +4,8 @@
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use crate::utils::parse_path;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 enum PermissionLevel {
     Read,
@@ -67,13 +69,6 @@ impl PermissionsTree {
 
         permission
     }
-}
-
-fn parse_path(path: &str) -> Vec<String> {
-    path.split(&['/', '\\'])
-        .map(ToString::to_string)
-        .filter(|s| !s.is_empty())
-        .collect()
 }
 
 #[cfg(test)]
