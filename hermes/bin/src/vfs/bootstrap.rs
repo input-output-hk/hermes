@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use hdf5 as hdf5_lib;
 
-use super::Vfs;
+use super::{permission::PermissionsTree, Vfs};
 use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system builder.
@@ -74,7 +74,10 @@ impl VfsBootstrapper {
             &self.mounted_dirs,
         )?;
 
-        Ok(Vfs { root })
+        Ok(Vfs {
+            root,
+            permissions: PermissionsTree::new(),
+        })
     }
 
     /// Setup hdf5 VFS directories structure.

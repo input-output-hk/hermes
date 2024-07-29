@@ -2,7 +2,12 @@
 
 #![allow(dead_code)]
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
+use dashmap::DashMap;
 
 use crate::utils::parse_path;
 
@@ -16,6 +21,25 @@ pub(crate) enum PermissionLevel {
     ReadAndWrite,
 }
 
+impl From<PermissionLevel> for bool {
+    fn from(level: PermissionLevel) -> Self {
+        match level {
+            PermissionLevel::Read => false,
+            PermissionLevel::ReadAndWrite => true,
+        }
+    }
+}
+
+impl From<bool> for PermissionLevel {
+    fn from(level: bool) -> Self {
+        if level {
+            PermissionLevel::ReadAndWrite
+        } else {
+            PermissionLevel::Read
+        }
+    }
+}
+
 /// VFS permissions state stored in the radix tree structure, where the
 /// each node relates to a single path element with the permission level.
 #[derive(Debug)]
@@ -25,70 +49,90 @@ pub(crate) struct PermissionsTree {
 }
 
 /// `PermissionsTree` node type.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct PermissionNode {
     /// Node permission level.
-    permission: PermissionLevel,
+    permission: AtomicBool,
     /// Node childs.
-    childs: HashMap<String, PermissionNodeRef>,
+    childs: DashMap<String, PermissionNodeRef>,
+}
+
+impl Default for PermissionNode {
+    fn default() -> Self {
+        let permission = PermissionLevel::default();
+        Self {
+            permission: AtomicBool::new(permission.into()),
+            childs: DashMap::new(),
+        }
+    }
 }
 
 /// Convinient type of the referenced `PermissionNode`.
-type PermissionNodeRef = Rc<RefCell<PermissionNode>>;
+type PermissionNodeRef = Arc<PermissionNode>;
 
 impl PermissionsTree {
     /// Creates a new `PermissionsTree` instance with the root node which releates to the
     /// "/" path with the `PermissionLevel::ReadAndWrite` default permission level.
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let root = PermissionNodeRef::default();
         Self { root }
     }
 
     /// Adds a new path to the `PermissionsTree` with the provided permission level.
-    fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
+    pub(crate) fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
         let path_elements = parse_path(path);
 
         let mut walk = self.root.clone();
         for path_element in path_elements {
             let node = walk.clone();
-            let mut node = node.borrow_mut();
             if let Some(child_node) = node.childs.get(&path_element) {
-                walk = child_node.clone();
+                walk = child_node.value().clone();
             } else {
                 let new_node = PermissionNodeRef::default();
                 node.childs.insert(path_element, new_node.clone());
                 walk = new_node;
-            }
+            };
         }
         // Update the last node with the provided permission
-        walk.borrow_mut().permission = permission;
+        walk.permission.store(permission.into(), Ordering::Release);
     }
 
     /// Gets the permission level for the provided path.
-    fn get_permission(&self, path: &str) -> PermissionLevel {
-        let mut permission = self.root.borrow().permission;
+    pub(crate) fn get_permission(&self, path: &str) -> PermissionLevel {
+        let mut permission = self.root.permission.load(Ordering::Acquire);
 
         let path_elements = parse_path(path);
 
         let mut walk = self.root.clone();
         for path_element in path_elements {
             let node = walk.clone();
-            let node = node.borrow();
             if let Some(child_node) = node.childs.get(&path_element) {
-                permission = child_node.borrow().permission;
+                permission = child_node.permission.load(Ordering::Acquire);
                 walk = child_node.clone();
             } else {
                 break;
-            }
+            };
         }
 
-        permission
+        permission.into()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn permission_level_test() {
+        assert!(!Into::<bool>::into(PermissionLevel::Read));
+        assert!(Into::<bool>::into(PermissionLevel::ReadAndWrite));
+
+        assert_eq!(Into::<PermissionLevel>::into(false), PermissionLevel::Read);
+        assert_eq!(
+            Into::<PermissionLevel>::into(true),
+            PermissionLevel::ReadAndWrite
+        );
+    }
 
     #[test]
     fn permission_tree_test() {
