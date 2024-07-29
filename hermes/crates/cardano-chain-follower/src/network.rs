@@ -202,3 +202,23 @@ impl From<Network> for u64 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Ok;
+
+    use super::*;
+
+    #[test]
+    fn test_from_str() -> anyhow::Result<()> {
+        let mainnet = Network::from_str("mainnet")?;
+        let preprod = Network::from_str("preprod")?;
+        let preview = Network::from_str("preview")?;
+
+        assert_eq!(mainnet, Network::Mainnet);
+        assert_eq!(preprod, Network::Preprod);
+        assert_eq!(preview, Network::Preview);
+        
+        Ok(())
+    }
+}
