@@ -15,7 +15,7 @@ use crate::{
     network::Network,
     point::{TIP_POINT, UNKNOWN_POINT},
     stats::{self, rollback},
-    MultiEraBlock, Point,
+    MultiEraBlock, Point, Statistics,
 };
 
 /// The Chain Follower
@@ -286,6 +286,21 @@ impl ChainFollower {
         let mut follower = Self::new(chain, point.clone(), point).await;
 
         follower.next().await
+    }
+
+    /// Get the current Immutable and live tips.
+    ///
+    /// Note, this will block until the chain is synced, ready to be followed.
+    pub async fn get_tips(chain: Network) -> (Point, Point) {
+        // Can't follow if SYNC is not ready.
+        block_until_sync_ready(chain).await;
+
+        let tips = Statistics::tips(chain);
+
+        let mithril_tip = Point::fuzzy(tips.0);
+        let live_tip = Point::fuzzy(tips.1);
+
+        (mithril_tip, live_tip)
     }
 
     /// Schedule a transaction to be posted to the blockchain.

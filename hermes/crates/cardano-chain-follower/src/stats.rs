@@ -229,6 +229,19 @@ impl Statistics {
         self.mithril.reset();
     }
 
+    /// Get the current tips of the immutable chain and live chain.
+    pub(crate) fn tips(chain: Network) -> (u64, u64) {
+        let Some(stats) = lookup_stats(chain) else {
+            return (0, 0);
+        };
+
+        let Ok(chain_stats) = stats.read() else {
+            return (0, 0);
+        };
+
+        (chain_stats.mithril.tip, chain_stats.live.head_slot)
+    }
+
     /// Reset amd return cumulative counters contained in the statistics.
     #[must_use]
     pub fn reset(chain: Network) -> Self {
