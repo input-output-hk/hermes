@@ -42,7 +42,7 @@ impl From<bool> for PermissionLevel {
 /// each node relates to a single path element with the permission level.
 /// `PermissionLevel::ReadAndWrite` is a default permission level so if permission was not
 /// defined for the path explicitly `PermissionsState` will return the
-/// `PermissionLevel::ReadAndWrite` permision level for the asked path.
+/// `PermissionLevel::ReadAndWrite` permission level for the asked path.
 #[derive(Debug)]
 pub(crate) struct PermissionsState {
     /// Tree's root node.
@@ -67,11 +67,11 @@ impl Default for PermissionNode {
     }
 }
 
-/// Convinient type of the referenced `PermissionNode`.
+/// Convenient type of the referenced `PermissionNode`.
 type PermissionNodeRef = Arc<PermissionNode>;
 
 impl PermissionsState {
-    /// Creates a new `PermissionsTree` instance with the root node which releates to the
+    /// Creates a new `PermissionsTree` instance with the root node which relates to the
     /// "/" path with the `PermissionLevel::ReadAndWrite` default permission level.
     pub(crate) fn new() -> Self {
         let root = PermissionNodeRef::default();
