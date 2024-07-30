@@ -89,12 +89,21 @@ mod tests {
 
         let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
-        let file_path = format!("{}/www.txt", Vfs::SRV_DIR);
+        let file_name = "www.txt";
         let file_content = b"web_server";
-        vfs.write(file_path.as_str(), file_content)
+        assert!(
+            vfs.write(
+                format!("{}/{file_name}", Vfs::SRV_DIR).as_str(),
+                file_content
+            )
+            .is_err(),
+            "Cannot write to the 'read only' directory"
+        );
+
+        vfs.write(file_name, file_content)
             .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(file_path.as_str()).expect("Cannot read from VFS");
+        let written_data = vfs.read(file_name).expect("Cannot read from VFS");
         assert_eq!(written_data.as_slice(), file_content);
     }
 }
