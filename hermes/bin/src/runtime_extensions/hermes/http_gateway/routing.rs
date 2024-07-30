@@ -218,9 +218,9 @@ mod tests {
         let b = "/hello_1/world";
         let c = "/three/directories/abc";
         let d = "/";
-        let valids = vec![a, b, c, d];
+        let valid_path = vec![a, b, c, d];
 
-        for valid in valids {
+        for valid in valid_path {
             if let Some(captures) = regex.captures(valid) {
                 assert_eq!(captures.get(0).unwrap().as_str(), valid);
             }
