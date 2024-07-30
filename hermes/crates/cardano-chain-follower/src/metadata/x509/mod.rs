@@ -78,6 +78,7 @@ pub fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::
             decoder
                 .read_to_end(&mut buffer)
                 .map_err(|_| anyhow::anyhow!("Failed to decompress"))?;
+            println!("Decompressed data: {:?}", hex::encode(&buffer));
         },
     }
     Ok(buffer)
