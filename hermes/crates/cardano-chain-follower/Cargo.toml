@@ -47,6 +47,7 @@ heed = {workspace = true, optional = true}
 brotli.workspace = true
 zstd.workspace = true
 c509-certificate.workspace = true
+x509-cert.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
