@@ -213,9 +213,9 @@ mod tests {
         // (...)+|/: Explicitly allow just a single slash
         let regex = Regex::new(VALID_PATH).unwrap();
 
-        // valids
+        // valid
         let a = "/abc/def";
-        let b = "/hello_1/worldz";
+        let b = "/hello_1/world";
         let c = "/three/directories/abc";
         let d = "/";
         let valids = vec![a, b, c, d];
@@ -226,7 +226,7 @@ mod tests {
             }
         }
 
-        // invalids
+        // invalid
         let a = "/abc/def/";
         let b = "/abc//def";
         let c = "//";
