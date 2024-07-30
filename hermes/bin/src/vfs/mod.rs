@@ -6,6 +6,7 @@ mod permission;
 use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
+pub(crate) use permission::PermissionLevel;
 use permission::PermissionsTree;
 
 use crate::hdf5 as hermes_hdf5;
@@ -16,7 +17,6 @@ pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     root: hermes_hdf5::Dir,
     /// VFS permissions state.
-    #[allow(dead_code)]
     permissions: PermissionsTree,
 }
 
@@ -52,9 +52,14 @@ impl Vfs {
     }
 
     /// Writes data from a buffer declared by the user to a hdf5 file.
-    // TODO: add permissions RWX
     #[allow(dead_code)]
     pub(crate) fn write(&self, path: &str, buffer: &[u8]) -> anyhow::Result<()> {
+        let permission = self.permissions.get_permission(path);
+        anyhow::ensure!(
+            permission == PermissionLevel::ReadAndWrite,
+            "Permission denied, file does not has write permission."
+        );
+
         let path: hermes_hdf5::Path = path.into();
         let mut file = match self.root.get_file(path.clone()) {
             Ok(file) => file,

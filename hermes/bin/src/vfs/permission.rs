@@ -1,7 +1,5 @@
 //! Permissions state management of the Hermes virtual file system.
 
-#![allow(dead_code)]
-
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -79,6 +77,7 @@ impl PermissionsTree {
     }
 
     /// Adds a new path to the `PermissionsTree` with the provided permission level.
+    #[allow(dead_code)]
     pub(crate) fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
         let path_elements = parse_path(path);
 

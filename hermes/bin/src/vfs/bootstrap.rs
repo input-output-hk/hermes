@@ -4,7 +4,10 @@ use std::path::PathBuf;
 
 use hdf5 as hdf5_lib;
 
-use super::{permission::PermissionsTree, Vfs};
+use super::{
+    permission::{PermissionLevel, PermissionsTree},
+    Vfs,
+};
 use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system builder.
@@ -14,11 +17,44 @@ pub(crate) struct VfsBootstrapper {
     /// VFS file name.
     vfs_file_name: String,
     /// Mounted module's files
-    mounted_files: Vec<(hermes_hdf5::Path, hermes_hdf5::File)>,
+    mounted_files: Vec<MountedFile>,
     /// Mounted module's directories.
-    mounted_dirs: Vec<(hermes_hdf5::Path, hermes_hdf5::Dir)>,
+    mounted_dirs: Vec<MountedDir>,
     /// HDF5 directories to create
-    dirs_to_create: Vec<hermes_hdf5::Path>,
+    dirs_to_create: Vec<DitToCreate>,
+    /// VFS permissions state.
+    permissions: PermissionsTree,
+}
+
+/// Directory to create object.
+struct DitToCreate {
+    /// HDF5 directory path.
+    path: hermes_hdf5::Path,
+    /// Permission level.
+    #[allow(dead_code)]
+    permission: PermissionLevel,
+}
+
+/// Mounted file object.
+struct MountedFile {
+    /// HDF5 file path.
+    path: hermes_hdf5::Path,
+    /// HDF5 file.
+    file: hermes_hdf5::File,
+    /// Permission level.
+    #[allow(dead_code)]
+    permission: PermissionLevel,
+}
+
+/// Mounted directory object.
+struct MountedDir {
+    /// HDF5 directory path.
+    path: hermes_hdf5::Path,
+    /// HDF5 directory.
+    dir: hermes_hdf5::Dir,
+    /// Permission level.
+    #[allow(dead_code)]
+    permission: PermissionLevel,
 }
 
 impl VfsBootstrapper {
@@ -30,22 +66,37 @@ impl VfsBootstrapper {
             mounted_files: Vec::new(),
             mounted_dirs: Vec::new(),
             dirs_to_create: Vec::new(),
+            permissions: PermissionsTree::new(),
         }
     }
 
     /// Add a `Dir` creation by the provided path during bootstrapping
-    pub(crate) fn with_dir_to_create(&mut self, path: hermes_hdf5::Path) {
-        self.dirs_to_create.push(path);
+    pub(crate) fn with_dir_to_create(
+        &mut self, path: hermes_hdf5::Path, permission: PermissionLevel,
+    ) {
+        self.dirs_to_create.push(DitToCreate { path, permission });
     }
 
     /// Add a mounted file
-    pub(crate) fn with_mounted_file(&mut self, to: hermes_hdf5::Path, file: hermes_hdf5::File) {
-        self.mounted_files.push((to, file));
+    pub(crate) fn with_mounted_file(
+        &mut self, to: hermes_hdf5::Path, file: hermes_hdf5::File, permission: PermissionLevel,
+    ) {
+        self.mounted_files.push(MountedFile {
+            path: to,
+            file,
+            permission,
+        });
     }
 
     /// Add a mounted dir
-    pub(crate) fn with_mounted_dir(&mut self, to: hermes_hdf5::Path, dir: hermes_hdf5::Dir) {
-        self.mounted_dirs.push((to, dir));
+    pub(crate) fn with_mounted_dir(
+        &mut self, to: hermes_hdf5::Path, dir: hermes_hdf5::Dir, permission: PermissionLevel,
+    ) {
+        self.mounted_dirs.push(MountedDir {
+            path: to,
+            dir,
+            permission,
+        });
     }
 
     /// Bootstrap the virtual file system from the provided configuration.
@@ -76,7 +127,7 @@ impl VfsBootstrapper {
 
         Ok(Vfs {
             root,
-            permissions: PermissionsTree::new(),
+            permissions: self.permissions,
         })
     }
 
@@ -93,26 +144,25 @@ impl VfsBootstrapper {
 
     /// Mount hdf5 content to the VFS.
     fn mount_hdf5_content(
-        root: &hermes_hdf5::Dir, dirs_to_create: Vec<hermes_hdf5::Path>,
-        mounted_files: &Vec<(hermes_hdf5::Path, hermes_hdf5::File)>,
-        mounted_dirs: &Vec<(hermes_hdf5::Path, hermes_hdf5::Dir)>,
+        root: &hermes_hdf5::Dir, dirs_to_create: Vec<DitToCreate>, mounted_files: &[MountedFile],
+        mounted_dirs: &[MountedDir],
     ) -> anyhow::Result<()> {
         for dir_to_create in dirs_to_create {
-            let _unused = root.remove_dir(dir_to_create.clone());
-            root.create_dir(dir_to_create)?;
+            let _unused = root.remove_dir(dir_to_create.path.clone());
+            root.create_dir(dir_to_create.path)?;
         }
-        for (to, file) in mounted_files {
-            let to_dir = root.get_dir(to)?;
-            let file_path: hermes_hdf5::Path = file.name().into();
+        for mounted in mounted_files {
+            let to_dir = root.get_dir(&mounted.path)?;
+            let file_path: hermes_hdf5::Path = mounted.file.name().into();
             let _unused = to_dir.remove_file(file_path.clone());
-            to_dir.mount_file(file, file_path)?;
+            to_dir.mount_file(&mounted.file, file_path)?;
         }
 
-        for (to, dir) in mounted_dirs {
-            let to_dir = root.get_dir(to)?;
-            let dir_path: hermes_hdf5::Path = dir.name().into();
+        for mounted in mounted_dirs {
+            let to_dir = root.get_dir(&mounted.path)?;
+            let dir_path: hermes_hdf5::Path = mounted.dir.name().into();
             let _unused = to_dir.remove_dir(dir_path.clone());
-            to_dir.mount_dir(dir, dir_path)?;
+            to_dir.mount_dir(&mounted.dir, dir_path)?;
         }
         Ok(())
     }
@@ -166,17 +216,22 @@ mod tests {
         let vfs_name = "test_vfs".to_string();
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
 
-        bootstrapper.with_mounted_file("/".into(), file.clone());
+        bootstrapper.with_mounted_file("/".into(), file.clone(), PermissionLevel::ReadAndWrite);
 
         let dir_to_create_name = "new_dir";
-        bootstrapper.with_dir_to_create(format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into());
+        bootstrapper.with_dir_to_create(
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            PermissionLevel::ReadAndWrite,
+        );
         bootstrapper.with_mounted_file(
             format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
             file.clone(),
+            PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_dir(
             format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
             dir1.clone(),
+            PermissionLevel::ReadAndWrite,
         );
 
         let vfs = bootstrapper.bootstrap().unwrap();
@@ -194,16 +249,21 @@ mod tests {
 
         drop(vfs);
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
-        bootstrapper.with_mounted_file("/".into(), file.clone());
+        bootstrapper.with_mounted_file("/".into(), file.clone(), PermissionLevel::ReadAndWrite);
         let dir_to_create_name = "new_dir";
-        bootstrapper.with_dir_to_create(format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into());
+        bootstrapper.with_dir_to_create(
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            PermissionLevel::ReadAndWrite,
+        );
         bootstrapper.with_mounted_file(
             format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
             file.clone(),
+            PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_dir(
             format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
             dir1.clone(),
+            PermissionLevel::ReadAndWrite,
         );
 
         let _vfs = bootstrapper.bootstrap().unwrap();
