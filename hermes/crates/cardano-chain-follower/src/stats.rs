@@ -660,9 +660,11 @@ pub(crate) fn rollback(chain: Network, rollback: RollbackType, depth: u64) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::*;
     use chrono::Utc;
+
+    use super::*;
 
     #[test]
     fn test_mithril_reset() {

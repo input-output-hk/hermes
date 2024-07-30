@@ -490,18 +490,22 @@ pub(crate) fn background_index_blocks_and_transactions(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anyhow::Ok;
     use minicbor::decode;
+
+    use super::*;
 
     #[test]
     fn test_serialize_value_simple() {
         let slot_no = 12345;
         let txn_offset = 678;
-        
+
         let serialized = serialize_value(slot_no, txn_offset);
-        
-        assert!(!serialized.is_empty(), "Serialized output must not be empty");
+
+        assert!(
+            !serialized.is_empty(),
+            "Serialized output must not be empty"
+        );
 
         let decoded: HashIndex = decode(&serialized).expect("Failed to decode serialized bytes");
 
@@ -535,13 +539,21 @@ mod tests {
 
         db_write_transaction.commit().await.expect("cannot commit");
 
-        db_write_transaction.rollback().await.expect("cannot rollback");
+        db_write_transaction
+            .rollback()
+            .await
+            .expect("cannot rollback");
 
         tokio::task::spawn_blocking(move || {
-            // calling this function without wrapping it inside `spawn_blocking` will cause thread panic
-            db_write_transaction.index_block_hash(&hash, slot_no).expect("cannot index block hash");
+            // calling this function without wrapping it inside `spawn_blocking` will cause thread
+            // panic
+            db_write_transaction
+                .index_block_hash(&hash, slot_no)
+                .expect("cannot index block hash");
 
-            db_write_transaction.index_transaction_hash(&hash, slot_no, txn_offset).expect("cannot index transaction hash")
+            db_write_transaction
+                .index_transaction_hash(&hash, slot_no, txn_offset)
+                .expect("cannot index transaction hash")
         });
 
         Ok(())

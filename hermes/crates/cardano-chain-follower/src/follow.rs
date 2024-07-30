@@ -335,8 +335,8 @@ mod tests {
         let raw_block = hex::decode(include_str!("./../test_data/shelley.block"))
             .expect("Failed to decode hex block.");
 
-        let pallas_block =
-            pallas::ledger::traverse::MultiEraBlock::decode(raw_block.as_slice()).expect("cannot decode block");
+        let pallas_block = pallas::ledger::traverse::MultiEraBlock::decode(raw_block.as_slice())
+            .expect("cannot decode block");
 
         let previous_point = Point::new(
             pallas_block.slot() - 1,
@@ -347,7 +347,8 @@ mod tests {
                 .to_vec(),
         );
 
-        MultiEraBlock::new(Network::Preprod, raw_block.clone(), &previous_point, 1).expect("cannot create block")
+        MultiEraBlock::new(Network::Preprod, raw_block.clone(), &previous_point, 1)
+            .expect("cannot create block")
     }
 
     #[tokio::test]

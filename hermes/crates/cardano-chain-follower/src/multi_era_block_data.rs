@@ -194,6 +194,12 @@ impl MultiEraBlock {
     pub fn fork(&self) -> u64 {
         self.fork
     }
+
+    /// What chain was the block from
+    #[must_use]
+    pub fn chain(&self) -> Network {
+        self.inner.chain
+    }
 }
 
 impl Display for MultiEraBlock {
