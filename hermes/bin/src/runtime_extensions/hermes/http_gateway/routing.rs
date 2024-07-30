@@ -14,16 +14,26 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
+
+use regex::Regex;
 use tracing::info;
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
+    VFS,
 };
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
-/// Everything that hits /api should route to hermes
-const HERMES_ROUTE: &str = "/api";
+/// Everything that hits /api routes to Webasm Component Modules
+const WEBASM_ROUTE: &str = "/api";
+
+/// Check path is valid for static files
+/// ^ and $: Match the entire string/line
+/// (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by slashes;
+/// each directory must consist of one or more characters of your charset.
+/// (...)+|/: Explicitly allow just a single slash
+const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 
 /// Attempts to wait for a value on this receiver,
 /// returning an error if the corresponding channel has hung up,
@@ -134,18 +144,19 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             .push(header_val.to_str()?.to_string());
     }
 
-    match uri.path() {
-        HERMES_ROUTE => {
-            compose_http_event(
-                method,
-                header_map.into_iter().collect(),
-                req.collect().await?.to_bytes(), // body
-                path,
-                lambda_send,
-                &lambda_recv_answer,
-            )
-        },
-        _ => Ok(not_found()?),
+    if uri.path() == WEBASM_ROUTE {
+        compose_http_event(
+            method,
+            header_map.into_iter().collect(),
+            req.collect().await?.to_bytes(), // body
+            path,
+            lambda_send,
+            &lambda_recv_answer,
+        )
+    } else if is_valid_path(uri.path().to_owned())? {
+        serve_static_data(uri.path().to_owned())
+    } else {
+        Ok(not_found()?)
     }
 }
 
@@ -172,5 +183,62 @@ fn compose_http_event(
             Ok(Response::new(serde_json::to_string(&resp)?.into()))
         },
         HTTPEventMsg::HTTPEventReceiver => Ok(error_response("HTTP event msg error".to_owned())?),
+    }
+}
+
+/// Serves static data with 1:1 mapping
+fn serve_static_data(path: String) -> anyhow::Result<Response<Body>> {
+    let vfs = VFS
+        .get()
+        .ok_or(anyhow::anyhow!("Unable to obtain virtual filesystem"))?;
+
+    let file = vfs.read(&path)?;
+
+    Ok(Response::new(file.into()))
+}
+
+/// Check if valid path to static files.
+fn is_valid_path(path: String) -> anyhow::Result<bool> {
+    let regex = Regex::new(VALID_PATH)?;
+
+    Ok(regex.is_match(&path))
+}
+
+#[cfg(test)]
+mod tests {
+    use regex::Regex;
+
+    use super::VALID_PATH;
+
+    #[test]
+    fn test_valid_paths_regex() {
+        let regex = Regex::new(VALID_PATH).unwrap();
+
+        // valids
+        let a = "/abc/def";
+        let b = "/hello_1/worldz";
+        let c = "/three/directories/abc";
+        let d = "/";
+        let valids = vec![a, b, c, d];
+
+        for valid in valids {
+            if let Some(captures) = regex.captures(valid) {
+                assert_eq!(captures.get(0).unwrap().as_str(), valid);
+            }
+        }
+
+        // invalids
+        let a = "/abc/def/";
+        let b = "/abc//def";
+        let c = "//";
+        let d = "abc/def";
+        let e = "/abc/def/file.txt";
+        let invalids = vec![a, b, c, d, e];
+
+        for invalid in invalids {
+            if let Some(captures) = regex.captures(invalid) {
+                assert!(captures.len() == 0);
+            }
+        }
     }
 }

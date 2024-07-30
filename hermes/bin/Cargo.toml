@@ -74,6 +74,7 @@ x509-cert = { workspace = true, features = ["pem"] }
 coset = { workspace = true }
 hermes-ipfs = { workspace = true }
 temp-dir = "0.1.13"
+regex = "1.10.5"
 
 [build-dependencies]
 build-info-build = { workspace = true }

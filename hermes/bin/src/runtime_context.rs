@@ -60,4 +60,10 @@ impl HermesRuntimeContext {
     pub(crate) fn exc_counter(&self) -> u32 {
         self.exc_counter
     }
+
+    /// Get virtual file system
+    #[allow(dead_code)]
+    pub(crate) fn vfs(&self) -> &Vfs {
+        &self.vfs
+    }
 }
