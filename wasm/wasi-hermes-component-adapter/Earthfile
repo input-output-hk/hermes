@@ -10,10 +10,10 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.8 AS rust-ci
 builder:
     DO rust-ci+SETUP
 
-    COPY --dir .cargo .config src .
+    COPY --keep-ts --dir .cargo .config src .
     COPY ..+wasi-src/wasi ../wasi
-    COPY Cargo.toml build.rs .
-    COPY clippy.toml deny.toml rustfmt.toml .
+    COPY --keep-ts Cargo.toml build.rs .
+    COPY --keep-ts clippy.toml deny.toml rustfmt.toml .
 
 # Run quality checks.
 check:

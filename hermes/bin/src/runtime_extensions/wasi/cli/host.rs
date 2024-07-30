@@ -1,5 +1,7 @@
 //! CLI host implementation for WASM runtime.
 
+use tracing::warn;
+
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::{
@@ -33,20 +35,30 @@ impl cli::environment::Host for HermesRuntimeContext {
     }
 }
 
+impl cli::exit::Host for HermesRuntimeContext {
+    fn exit(&mut self, _status: Result<(), ()>) -> wasmtime::Result<()> {
+        warn!("Exiting an application is not supported");
+        Ok(())
+    }
+}
+
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
-        todo!()
+        warn!("Stdin is not supported");
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
 
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
-        todo!()
+        // TODO: Redirect stdout to Hermes' logging api.
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
-        todo!()
+        // TODO: Redirect stderr to Hermes' logging api.
+        Ok(wasmtime::component::Resource::new_own(0))
     }
 }
