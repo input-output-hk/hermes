@@ -62,7 +62,6 @@ impl HermesRuntimeContext {
     }
 
     /// Get virtual file system
-    #[allow(dead_code)]
     pub(crate) fn vfs(&self) -> &Vfs {
         &self.vfs
     }
