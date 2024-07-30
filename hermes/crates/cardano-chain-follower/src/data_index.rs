@@ -487,3 +487,63 @@ pub(crate) fn background_index_blocks_and_transactions(
         mithril_valid
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Ok;
+    use minicbor::decode;
+
+    #[test]
+    fn test_serialize_value_simple() {
+        let slot_no = 12345;
+        let txn_offset = 678;
+        
+        let serialized = serialize_value(slot_no, txn_offset);
+        
+        assert!(!serialized.is_empty(), "Serialized output must not be empty");
+
+        let decoded: HashIndex = decode(&serialized).expect("Failed to decode serialized bytes");
+
+        assert_eq!(decoded.slot_no, slot_no);
+        assert_eq!(decoded.txn_offset, txn_offset);
+    }
+
+    #[test]
+    fn test_deserialize_value_simple() {
+        let slot_no = 12345u64;
+        let txn_offset = 678u16;
+
+        let mut value = [0u8; 10];
+        value[0..8].copy_from_slice(&slot_no.to_be_bytes());
+        value[8..10].copy_from_slice(&txn_offset.to_be_bytes());
+
+        let (deserialized_slot_no, deserialized_txn_offset) = deserialize_value(value);
+
+        assert_eq!(deserialized_slot_no, slot_no);
+        assert_eq!(deserialized_txn_offset, txn_offset);
+    }
+
+    #[tokio::test]
+    async fn test_index_db_simple() -> anyhow::Result<()> {
+        init_index_db(&MithrilSnapshotConfig::default_for(Network::Preprod))?;
+        let db_write_transaction = DBWriteTransaction::new(Network::Preprod)?;
+
+        let hash = Hash::new([1; 32]);
+        let slot_no = 42;
+        let txn_offset = 7;
+
+        db_write_transaction.commit().await.expect("cannot commit");
+
+        db_write_transaction.rollback().await.expect("cannot rollback");
+
+        tokio::task::spawn_blocking(move || {
+            // calling this function without wrapping it inside `spawn_blocking` will cause thread panic
+            db_write_transaction.index_block_hash(&hash, slot_no).expect("cannot index block hash");
+
+            db_write_transaction.index_transaction_hash(&hash, slot_no, txn_offset).expect("cannot index transaction hash")
+        });
+
+        Ok(())
+    }
+}

@@ -658,3 +658,86 @@ pub(crate) fn rollback(chain: Network, rollback: RollbackType, depth: u64) {
 
     let _unused = rollbacks.insert(depth, value);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn test_mithril_reset() {
+        let mut mithril = Mithril {
+            updates: 10,
+            dl_failures: 5,
+            extract_failures: 3,
+            validate_failures: 2,
+            invalid_blocks: 1,
+            ..Default::default()
+        };
+        mithril.reset();
+        assert_eq!(mithril.updates, 0);
+        assert_eq!(mithril.dl_failures, 0);
+        assert_eq!(mithril.extract_failures, 0);
+        assert_eq!(mithril.validate_failures, 0);
+        assert_eq!(mithril.invalid_blocks, 0);
+    }
+
+    #[test]
+    fn test_live_reset() {
+        let mut live = Live {
+            new_blocks: 10,
+            reconnects: 5,
+            invalid_blocks: 3,
+            ..Default::default()
+        };
+        live.reset();
+        assert_eq!(live.new_blocks, 0);
+        assert_eq!(live.reconnects, 0);
+        assert_eq!(live.invalid_blocks, 0);
+    }
+
+    #[test]
+    fn test_statistics_reset_stats() {
+        let mut stats = Statistics::default();
+        stats.live.new_blocks = 10;
+        stats.mithril.updates = 5;
+        stats.reset_stats();
+        assert_eq!(stats.live.new_blocks, 0);
+        assert_eq!(stats.mithril.updates, 0);
+    }
+
+    #[test]
+    fn test_statistics_as_json() {
+        let stats = Statistics::default();
+        let json = stats.as_json(true);
+        assert!(json.contains("\"blocks\": 0"));
+        assert!(json.contains("\"updates\": 0"));
+    }
+
+    #[test]
+    fn test_lookup_stats() {
+        let network = Network::Preprod;
+        let stats = lookup_stats(network);
+        assert!(stats.is_some());
+    }
+
+    #[test]
+    fn test_new_live_block() {
+        let network = Network::Preprod;
+        new_live_block(network, 100, 50, 200);
+        let stats = lookup_stats(network).unwrap();
+        let stats = stats.read().unwrap();
+        assert_eq!(stats.live.blocks, 100);
+        assert_eq!(stats.live.head_slot, 50);
+        assert_eq!(stats.live.tip, 200);
+    }
+
+    #[test]
+    fn test_mithril_dl_started() {
+        let network = Network::Preprod;
+        mithril_dl_started(network);
+        let stats = lookup_stats(network).unwrap();
+        let stats = stats.read().unwrap();
+        assert!(stats.mithril.dl_start <= Utc::now());
+    }
+}

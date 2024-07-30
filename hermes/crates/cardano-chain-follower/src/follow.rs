@@ -326,3 +326,74 @@ impl ChainFollower {
 
 // TODO(SJ) - Add a function to check if a transaction is pending, or has been sent to the
 // chain.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mock_block() -> MultiEraBlock {
+        let raw_block = hex::decode(include_str!("./../test_data/shelley.block"))
+            .expect("Failed to decode hex block.");
+
+        let pallas_block =
+            pallas::ledger::traverse::MultiEraBlock::decode(raw_block.as_slice()).expect("cannot decode block");
+
+        let previous_point = Point::new(
+            pallas_block.slot() - 1,
+            pallas_block
+                .header()
+                .previous_hash()
+                .expect("cannot get previous hash")
+                .to_vec(),
+        );
+
+        MultiEraBlock::new(Network::Preprod, raw_block.clone(), &previous_point, 1).expect("cannot create block")
+    }
+
+    #[tokio::test]
+    async fn test_chain_follower_new() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
+
+        let follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
+
+        assert_eq!(follower.chain, chain);
+        assert_eq!(follower.end, end);
+        assert_eq!(follower.previous, UNKNOWN_POINT);
+        assert_eq!(follower.current, start);
+        assert_eq!(follower.fork, 1);
+        assert!(follower.mithril_follower.is_none());
+        assert!(follower.mithril_tip.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_chain_follower_update_current_none() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
+
+        let mut follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
+
+        let result = follower.update_current(&None);
+
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn test_chain_follower_update_current() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
+
+        let mut follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
+
+        let block_data = mock_block();
+        let update = ChainUpdate::new(chain_update::Kind::Block, false, block_data);
+
+        let result = follower.update_current(&Some(update.clone()));
+
+        assert!(result);
+        assert_eq!(follower.current, update.block_data().point());
+    }
+}
