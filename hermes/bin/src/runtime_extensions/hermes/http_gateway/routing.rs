@@ -28,10 +28,6 @@ use crate::event::{HermesEvent, TargetApp, TargetModule};
 const WEBASM_ROUTE: &str = "/api";
 
 /// Check path is valid for static files
-/// ^ and $: Match the entire string/line
-/// (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
-/// slashes; each directory must consist of one or more characters of your charset.
-/// (...)+|/: Explicitly allow just a single slash
 const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 
 /// Attempts to wait for a value on this receiver,
@@ -211,6 +207,10 @@ mod tests {
 
     #[test]
     fn test_valid_paths_regex() {
+        // ^ and $: Match the entire string/line
+        // (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
+        // slashes; each directory must consist of one or more characters of your charset.
+        // (...)+|/: Explicitly allow just a single slash
         let regex = Regex::new(VALID_PATH).unwrap();
 
         // valids
