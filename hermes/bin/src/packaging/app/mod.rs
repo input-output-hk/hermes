@@ -296,63 +296,54 @@ impl ApplicationPackage {
 
     /// Mount `ApplicationPackage` content to the `Vfs`
     pub(crate) fn mount_to_vfs(&self, bootstrapper: &mut VfsBootstrapper) -> anyhow::Result<()> {
-        let root_path = Path::default();
-        bootstrapper.with_mounted_file(
-            root_path.clone(),
-            self.get_icon_file()?,
-            PermissionLevel::Read,
-        );
-        bootstrapper.with_mounted_file(
-            root_path.clone(),
-            self.get_metadata_file()?,
-            PermissionLevel::Read,
-        );
+        let root_path = "/";
+        bootstrapper.with_mounted_file(root_path, self.get_icon_file()?, PermissionLevel::Read);
+        bootstrapper.with_mounted_file(root_path, self.get_metadata_file()?, PermissionLevel::Read);
         if let Some(share_dir) = self.get_share_dir() {
-            bootstrapper.with_mounted_dir(root_path.clone(), share_dir, PermissionLevel::Read);
+            bootstrapper.with_mounted_dir(root_path, share_dir, PermissionLevel::Read);
         }
         if let Some(www_dir) = self.get_www_dir() {
-            bootstrapper.with_mounted_dir(root_path.clone(), www_dir, PermissionLevel::Read);
+            bootstrapper.with_mounted_dir(root_path, www_dir, PermissionLevel::Read);
         }
 
         for module_info in self.get_modules()? {
-            let lib_module_dir_path: Path =
-                format!("{}/{}", Vfs::LIB_DIR, module_info.get_name()).into();
-            bootstrapper.with_dir_to_create(lib_module_dir_path.clone(), PermissionLevel::Read);
+            let lib_module_dir_path = format!("{}/{}", Vfs::LIB_DIR, module_info.get_name());
+            bootstrapper.with_dir_to_create(lib_module_dir_path.as_str(), PermissionLevel::Read);
 
             bootstrapper.with_mounted_file(
-                lib_module_dir_path.clone(),
+                lib_module_dir_path.as_str(),
                 module_info.get_metadata_file()?,
                 PermissionLevel::Read,
             );
             bootstrapper.with_mounted_file(
-                lib_module_dir_path.clone(),
+                lib_module_dir_path.as_str(),
                 module_info.get_component_file()?,
                 PermissionLevel::Read,
             );
             if let Some(config_schema) = module_info.get_config_schema_file() {
                 bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
+                    lib_module_dir_path.as_str(),
                     config_schema,
                     PermissionLevel::Read,
                 );
             }
             if let Some(config) = module_info.get_config_file() {
                 bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
+                    lib_module_dir_path.as_str(),
                     config,
                     PermissionLevel::Read,
                 );
             }
             if let Some(settings_schema) = module_info.get_settings_schema_file() {
                 bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
+                    lib_module_dir_path.as_str(),
                     settings_schema,
                     PermissionLevel::Read,
                 );
             }
             if let Some(share_dir) = module_info.get_share() {
                 bootstrapper.with_mounted_dir(
-                    lib_module_dir_path.clone(),
+                    lib_module_dir_path.as_str(),
                     share_dir,
                     PermissionLevel::Read,
                 );

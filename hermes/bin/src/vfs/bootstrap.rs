@@ -30,9 +30,6 @@ pub(crate) struct VfsBootstrapper {
 struct DitToCreate {
     /// HDF5 directory path.
     path: hermes_hdf5::Path,
-    /// Permission level.
-    #[allow(dead_code)]
-    permission: PermissionLevel,
 }
 
 /// Mounted file object.
@@ -41,9 +38,6 @@ struct MountedFile {
     path: hermes_hdf5::Path,
     /// HDF5 file.
     file: hermes_hdf5::File,
-    /// Permission level.
-    #[allow(dead_code)]
-    permission: PermissionLevel,
 }
 
 /// Mounted directory object.
@@ -52,9 +46,6 @@ struct MountedDir {
     path: hermes_hdf5::Path,
     /// HDF5 directory.
     dir: hermes_hdf5::Dir,
-    /// Permission level.
-    #[allow(dead_code)]
-    permission: PermissionLevel,
 }
 
 impl VfsBootstrapper {
@@ -71,31 +62,30 @@ impl VfsBootstrapper {
     }
 
     /// Add a `Dir` creation by the provided path during bootstrapping
-    pub(crate) fn with_dir_to_create(
-        &mut self, path: hermes_hdf5::Path, permission: PermissionLevel,
-    ) {
-        self.dirs_to_create.push(DitToCreate { path, permission });
+    pub(crate) fn with_dir_to_create(&mut self, path: &str, permission: PermissionLevel) {
+        self.permissions.add_permission(path, permission);
+        self.dirs_to_create.push(DitToCreate { path: path.into() });
     }
 
     /// Add a mounted file
     pub(crate) fn with_mounted_file(
-        &mut self, to: hermes_hdf5::Path, file: hermes_hdf5::File, permission: PermissionLevel,
+        &mut self, to: &str, file: hermes_hdf5::File, permission: PermissionLevel,
     ) {
+        self.permissions.add_permission(to, permission);
         self.mounted_files.push(MountedFile {
-            path: to,
+            path: to.into(),
             file,
-            permission,
         });
     }
 
     /// Add a mounted dir
     pub(crate) fn with_mounted_dir(
-        &mut self, to: hermes_hdf5::Path, dir: hermes_hdf5::Dir, permission: PermissionLevel,
+        &mut self, to: &str, dir: hermes_hdf5::Dir, permission: PermissionLevel,
     ) {
+        self.permissions.add_permission(to, permission);
         self.mounted_dirs.push(MountedDir {
-            path: to,
+            path: to.into(),
             dir,
-            permission,
         });
     }
 
@@ -216,20 +206,20 @@ mod tests {
         let vfs_name = "test_vfs".to_string();
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
 
-        bootstrapper.with_mounted_file("/".into(), file.clone(), PermissionLevel::ReadAndWrite);
+        bootstrapper.with_mounted_file("/", file.clone(), PermissionLevel::ReadAndWrite);
 
         let dir_to_create_name = "new_dir";
         bootstrapper.with_dir_to_create(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_file(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             file.clone(),
             PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_dir(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             dir1.clone(),
             PermissionLevel::ReadAndWrite,
         );
@@ -249,19 +239,19 @@ mod tests {
 
         drop(vfs);
         let mut bootstrapper = VfsBootstrapper::new(tmp_dir.path(), vfs_name.clone());
-        bootstrapper.with_mounted_file("/".into(), file.clone(), PermissionLevel::ReadAndWrite);
+        bootstrapper.with_mounted_file("/", file.clone(), PermissionLevel::ReadAndWrite);
         let dir_to_create_name = "new_dir";
         bootstrapper.with_dir_to_create(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_file(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             file.clone(),
             PermissionLevel::ReadAndWrite,
         );
         bootstrapper.with_mounted_dir(
-            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).into(),
+            format!("{}/{dir_to_create_name}", Vfs::LIB_DIR).as_str(),
             dir1.clone(),
             PermissionLevel::ReadAndWrite,
         );
