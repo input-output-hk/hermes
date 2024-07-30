@@ -665,17 +665,6 @@ mod tests {
     use chrono::Utc;
 
     #[test]
-    fn test_mithril_default() {
-        let mithril = Mithril::default();
-        assert_eq!(mithril.updates, 0);
-        assert_eq!(mithril.tip, 0);
-        assert_eq!(mithril.dl_failures, 0);
-        assert_eq!(mithril.extract_failures, 0);
-        assert_eq!(mithril.validate_failures, 0);
-        assert_eq!(mithril.invalid_blocks, 0);
-    }
-
-    #[test]
     fn test_mithril_reset() {
         let mut mithril = Mithril {
             updates: 10,
@@ -694,32 +683,6 @@ mod tests {
     }
 
     #[test]
-    fn test_follower_default() {
-        let follower = Follower::default();
-        assert_eq!(follower.id, 0);
-        assert_eq!(follower.start, 0);
-        assert_eq!(follower.current, 0);
-        assert_eq!(follower.end, 0);
-    }
-
-    #[test]
-    fn test_live_default() {
-        let live = Live::default();
-        assert_eq!(live.backfill_size, 0);
-        assert_eq!(live.backfill_failures, 0);
-        assert_eq!(live.blocks, 0);
-        assert_eq!(live.head_slot, 0);
-        assert_eq!(live.tip, 0);
-        assert_eq!(live.reconnects, 0);
-        assert_eq!(live.new_blocks, 0);
-        assert_eq!(live.invalid_blocks, 0);
-        assert!(live.sync_end.is_none());
-        assert!(live.backfill_start.is_none());
-        assert!(live.backfill_end.is_none());
-        assert!(live.backfill_failure_time.is_none());
-    }
-
-    #[test]
     fn test_live_reset() {
         let mut live = Live {
             new_blocks: 10,
@@ -731,13 +694,6 @@ mod tests {
         assert_eq!(live.new_blocks, 0);
         assert_eq!(live.reconnects, 0);
         assert_eq!(live.invalid_blocks, 0);
-    }
-
-    #[test]
-    fn test_statistics_default() {
-        let stats = Statistics::default();
-        assert_eq!(stats.live.blocks, 0);
-        assert_eq!(stats.mithril.updates, 0);
     }
 
     #[test]

@@ -497,6 +497,49 @@ fn is_hex(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    // use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_default_for() {
+        let network = Network::Preprod;
+        let config = MithrilSnapshotConfig::default_for(network);
+
+        assert_eq!(config.chain, network);
+        assert_eq!(config.path, network.default_mithril_path());
+        assert_eq!(config.aggregator_url, network.default_mithril_aggregator());
+        assert_eq!(config.genesis_key, network.default_mithril_genesis_key());
+    }
+
+    #[tokio::test]
+    async fn test_dl_path() {
+        let network = Network::Preprod;
+        let config = MithrilSnapshotConfig::default_for(network);
+        let expected_path = config.path.join("dl");
+
+        assert_eq!(config.dl_path(), expected_path);
+    }
+
+    #[tokio::test]
+    async fn test_validate_genesis_vkey() {
+        let config = MithrilSnapshotConfig {
+            chain: Network::Preprod,
+            path: PathBuf::new(),
+            aggregator_url: String::new(),
+            genesis_key: "1234abcd".to_string(),
+        };
+
+        assert!(config.validate_genesis_vkey().is_ok());
+
+        let invalid_config = MithrilSnapshotConfig {
+            chain: Network::Preprod,
+            path: PathBuf::new(),
+            aggregator_url: String::new(),
+            genesis_key: "1234abcz".to_string(),
+        };
+
+        assert!(invalid_config.validate_genesis_vkey().is_err());
+    }
 
     // use std::path::Path;
     //
