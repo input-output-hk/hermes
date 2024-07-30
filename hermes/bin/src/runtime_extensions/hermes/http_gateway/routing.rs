@@ -211,28 +211,40 @@ mod tests {
         // (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
         // slashes; each directory must consist of one or more characters of your charset.
         // (...)+|/: Explicitly allow just a single slash
-        let regex = Regex::new(VALID_PATH).unwrap();
+        let regex = Regex::new(VALID_PATH).expect("Invalid regex pattern");
 
         // valid
-        let a = "/abc/def";
-        let b = "/hello_1/world";
-        let c = "/three/directories/abc";
-        let d = "/";
-        let valid_path = vec![a, b, c, d];
+        let example_one = "/abc/def";
+        let example_two = "/hello_1/world";
+        let example_three = "/three/directories/abc";
+        let example_four = "/";
+        let valid_path = vec![example_one, example_two, example_three, example_four];
 
         for valid in valid_path {
             if let Some(captures) = regex.captures(valid) {
-                assert_eq!(captures.get(0).unwrap().as_str(), valid);
+                assert_eq!(
+                    captures
+                        .get(0)
+                        .expect("Cannot capture regex pattern")
+                        .as_str(),
+                    valid
+                );
             }
         }
 
         // invalid
-        let a = "/abc/def/";
-        let b = "/abc//def";
-        let c = "//";
-        let d = "abc/def";
-        let e = "/abc/def/file.txt";
-        let invalids = vec![a, b, c, d, e];
+        let example_one = "/abc/def/";
+        let example_two = "/abc//def";
+        let example_three = "//";
+        let example_four = "abc/def";
+        let example_five = "/abc/def/file.txt";
+        let invalids = vec![
+            example_one,
+            example_two,
+            example_three,
+            example_four,
+            example_five,
+        ];
 
         for invalid in invalids {
             if let Some(captures) = regex.captures(invalid) {
