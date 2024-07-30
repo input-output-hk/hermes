@@ -662,7 +662,7 @@ pub(crate) fn rollback(chain: Network, rollback: RollbackType, depth: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use chrono::{TimeZone, Utc};
+    use chrono::Utc;
 
     #[test]
     fn test_mithril_default() {
