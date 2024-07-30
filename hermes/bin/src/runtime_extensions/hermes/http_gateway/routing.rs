@@ -152,8 +152,8 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             lambda_send,
             &lambda_recv_answer,
         )
-    } else if is_valid_path(uri.path().to_owned())? {
-        serve_static_data(uri.path().to_owned())
+    } else if is_valid_path(uri.path())? {
+        serve_static_data(uri.path())
     } else {
         Ok(not_found()?)
     }
@@ -186,21 +186,21 @@ fn compose_http_event(
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data(path: String) -> anyhow::Result<Response<Body>> {
+fn serve_static_data(path: &str) -> anyhow::Result<Response<Body>> {
     let vfs = VFS
         .get()
         .ok_or(anyhow::anyhow!("Unable to obtain virtual filesystem"))?;
 
-    let file = vfs.read(&path)?;
+    let file = vfs.read(path)?;
 
     Ok(Response::new(file.into()))
 }
 
 /// Check if valid path to static files.
-fn is_valid_path(path: String) -> anyhow::Result<bool> {
+fn is_valid_path(path: &str) -> anyhow::Result<bool> {
     let regex = Regex::new(VALID_PATH)?;
 
-    Ok(regex.is_match(&path))
+    Ok(regex.is_match(path))
 }
 
 #[cfg(test)]
