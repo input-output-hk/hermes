@@ -1,10 +1,9 @@
 //! Cardano Chain Follower Statistics
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use chrono::{DateTime, Utc};
 use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
 use serde::Serialize;
 use strum::{EnumIter, IntoEnumIterator};
 use tracing::error;
@@ -180,7 +179,7 @@ pub struct Statistics {
 /// Type we use to manage the Sync Task handle map.
 type StatsMap = SkipMap<Network, Arc<RwLock<Statistics>>>;
 /// The statistics being maintained per chain.
-static STATS_MAP: Lazy<StatsMap> = Lazy::new(|| {
+static STATS_MAP: LazyLock<StatsMap> = LazyLock::new(|| {
     let map = StatsMap::default();
 
     for network in Network::iter() {
@@ -583,7 +582,7 @@ type RollbackTypeMap = SkipMap<RollbackType, Arc<RwLock<RollbackRecords>>>;
 /// Record of rollbacks.
 type RollbackMap = SkipMap<Network, RollbackTypeMap>;
 /// Statistics of rollbacks detected per chain.
-static ROLLBACKS_MAP: Lazy<RollbackMap> = Lazy::new(|| {
+static ROLLBACKS_MAP: LazyLock<RollbackMap> = LazyLock::new(|| {
     let map = RollbackMap::new();
     for network in Network::iter() {
         let type_map = RollbackTypeMap::new();

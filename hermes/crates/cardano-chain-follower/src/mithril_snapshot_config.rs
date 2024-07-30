@@ -1,10 +1,12 @@
 //! Configuration for the Mithril Snapshot used by the follower.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use crossbeam_skiplist::SkipMap;
 use futures::future::join_all;
-use once_cell::sync::Lazy;
 use strum::IntoEnumIterator;
 use tokio::{
     fs::{self},
@@ -14,8 +16,6 @@ use tokio::{
 };
 use tracing::{debug, error};
 
-#[cfg(feature = "local-hash-index")]
-use crate::data_index::init_index_db;
 use crate::{
     error::{Error, Result},
     mithril_snapshot_data::{latest_mithril_snapshot_id, SnapshotData},
@@ -29,7 +29,7 @@ use crate::{
 /// Type we use to manage the Sync Task handle map.
 type SyncMap = SkipMap<Network, Mutex<Option<JoinHandle<()>>>>;
 /// Handle to the mithril sync thread. One for each Network ONLY.
-static SYNC_JOIN_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| {
+static SYNC_JOIN_HANDLE_MAP: LazyLock<SyncMap> = LazyLock::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
         map.insert(network, Mutex::new(None));
@@ -42,10 +42,6 @@ const DL_SUBDIR: &str = "dl";
 
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
-
-/// Subdirectory where we store the index DB.
-#[cfg(feature = "local-hash-index")]
-const DB_SUBDIR: &str = "db";
 
 /// Message we send when Mithril Snapshot updates
 #[derive(Debug)]
@@ -95,16 +91,6 @@ impl MithrilSnapshotConfig {
         let mut dl_path = self.path.clone();
         dl_path.push(DL_SUBDIR);
         dl_path
-    }
-
-    /// Returns the path to store the Index DB for the Mithril Snapshot to.
-    /// Will use a path relative to mithril data path.
-    #[must_use]
-    #[cfg(feature = "local-hash-index")]
-    pub(crate) fn db_path(&self) -> PathBuf {
-        let mut db_path = self.path.clone();
-        db_path.push(DB_SUBDIR);
-        db_path
     }
 
     /// Try and recover the latest snapshot id from the files on disk.
@@ -417,9 +403,6 @@ impl MithrilSnapshotConfig {
             return Err(Error::MithrilSnapshotSyncAlreadyRunning(self.chain));
         }
 
-        #[cfg(feature = "local-hash-index")]
-        init_index_db(self).map_err(|err| Error::MithrilIndexDB(self.chain, err))?;
-
         self.validate().await?;
 
         // Create a Queue we use to signal the Live Blockchain Follower that the Mithril Snapshot
@@ -502,7 +485,6 @@ fn is_hex(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_default_for() {

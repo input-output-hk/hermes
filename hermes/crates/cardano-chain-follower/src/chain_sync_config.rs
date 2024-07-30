@@ -4,8 +4,9 @@
 //! each network. Chain Followers use the data supplied by the Chain-Sync.
 //! This module configures the chain sync processes.
 
+use std::sync::LazyLock;
+
 use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
 use strum::IntoEnumIterator;
 use tokio::{sync::Mutex, task::JoinHandle};
 use tracing::{debug, error};
@@ -28,7 +29,7 @@ const DEFAULT_IMMUTABLE_SLOT_WINDOW: u64 = 12 * 60 * 60;
 /// Type we use to manage the Sync Task handle map.
 type SyncMap = SkipMap<Network, Mutex<Option<JoinHandle<()>>>>;
 /// Handle to the mithril sync thread. One for each Network ONLY.
-static SYNC_JOIN_HANDLE_MAP: Lazy<SyncMap> = Lazy::new(|| {
+static SYNC_JOIN_HANDLE_MAP: LazyLock<SyncMap> = LazyLock::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
         map.insert(network, Mutex::new(None));

@@ -1,10 +1,9 @@
 //! Flag to control if chain sync for a blockchain is ready.
 //! Can not consume the blockchain data until it is.
 
-use std::time::Duration;
+use std::{sync::LazyLock, time::Duration};
 
 use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
 use strum::IntoEnumIterator;
 use tokio::{
     sync::{broadcast, oneshot, RwLock},
@@ -74,7 +73,7 @@ impl SyncReadyWaiter {
 /// Lock to prevent using any blockchain data for a network UNTIL it is synced to TIP.
 /// Pre-initialized for all possible blockchains, so it's safe to use `expect` to access a
 /// value.
-static SYNC_READY: Lazy<SkipMap<Network, RwLock<SyncReady>>> = Lazy::new(|| {
+static SYNC_READY: LazyLock<SkipMap<Network, RwLock<SyncReady>>> = LazyLock::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
         map.insert(network, RwLock::new(SyncReady::new()));

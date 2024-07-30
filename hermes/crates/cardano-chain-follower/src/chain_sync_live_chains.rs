@@ -2,18 +2,15 @@
 
 use std::{
     ops::Bound,
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
     time::Duration,
 };
 
 use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
 
-#[cfg(feature = "local-hash-index")]
-use crate::data_index::{index_live_block, purge_index_live_block};
 use crate::{
     error::{Error, Result},
     mithril_snapshot_data::latest_mithril_snapshot_id,
@@ -31,7 +28,7 @@ type LiveChainBlockList = SkipMap<Point, MultiEraBlock>;
 struct ProtectedLiveChainBlockList(Arc<RwLock<LiveChainBlockList>>);
 
 /// Handle to the mithril sync thread. One for each Network ONLY.
-static LIVE_CHAINS: Lazy<SkipMap<Network, ProtectedLiveChainBlockList>> = Lazy::new(|| {
+static LIVE_CHAINS: LazyLock<SkipMap<Network, ProtectedLiveChainBlockList>> = LazyLock::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
         map.insert(network, ProtectedLiveChainBlockList::new());
@@ -40,7 +37,7 @@ static LIVE_CHAINS: Lazy<SkipMap<Network, ProtectedLiveChainBlockList>> = Lazy::
 });
 
 /// Latest TIP received from the Peer Node.
-static PEER_TIP: Lazy<SkipMap<Network, Point>> = Lazy::new(|| {
+static PEER_TIP: LazyLock<SkipMap<Network, Point>> = LazyLock::new(|| {
     let map = SkipMap::new();
     for network in Network::iter() {
         map.insert(network, UNKNOWN_POINT);
@@ -173,8 +170,6 @@ impl ProtectedLiveChainBlockList {
 
         // SkipMap is thread-safe, so we can parallel iterate inserting the blocks.
         blocks.par_iter().for_each(|block| {
-            #[cfg(feature = "local-hash-index")]
-            index_live_block(chain, block);
             let _unused = live_chain.insert(block.point(), block.clone());
         });
 
@@ -251,8 +246,6 @@ impl ProtectedLiveChainBlockList {
         let head_slot = block.point().slot_or_default();
 
         // Add the block to the tip of the Live Chain.
-        #[cfg(feature = "local-hash-index")]
-        index_live_block(chain, &block);
         let _unused = live_chain.insert(block.point(), block);
 
         let tip_slot = tip.slot_or_default();
@@ -286,8 +279,6 @@ impl ProtectedLiveChainBlockList {
         // Special Case.
         // If the Purge Point == TIP_POINT, then we purge the entire chain.
         if *point == TIP_POINT {
-            #[cfg(feature = "local-hash-index")]
-            purge_index_live_block(chain, point.slot_or_default());
             live_chain.clear();
         } else {
             // If the block we want to purge upto must be in the chain.
@@ -305,8 +296,6 @@ impl ProtectedLiveChainBlockList {
             }
 
             // Purge every block prior to the purge point.
-            #[cfg(feature = "local-hash-index")]
-            purge_index_live_block(chain, point.slot_or_default());
             while let Some(previous_block) = purge_start_block_entry.prev() {
                 let _unused = previous_block.remove();
             }

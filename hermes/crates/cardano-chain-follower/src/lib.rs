@@ -20,9 +20,6 @@ mod point;
 mod snapshot_id;
 mod stats;
 
-#[cfg(feature = "local-hash-index")]
-mod data_index;
-
 pub use chain_sync_config::ChainSyncConfig;
 pub use chain_update::{ChainUpdate, Kind};
 pub use error::Result;
