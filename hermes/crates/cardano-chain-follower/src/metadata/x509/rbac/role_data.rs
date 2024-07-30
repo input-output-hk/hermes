@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use minicbor::{decode, Decode, Decoder};
 
 use super::X509RbacMetadataInt;
@@ -8,13 +10,7 @@ pub(crate) struct RoleData {
     role_signing_key: Option<KeyReference>,
     role_encryption_key: Option<KeyReference>,
     payment_key: Option<u64>,
-    role_extended_data_keys: Option<RoleExtendedDataKeys>,
-}
-
-#[derive(Debug, PartialEq)]
-struct RoleExtendedDataKeys {
-    role_extended_data_keys: u64,
-    role_extended_data_keys_value: Vec<u8>,
+    role_extended_data_keys: HashMap<u64, Vec<u8>>,
 }
 
 impl RoleData {
@@ -24,7 +20,7 @@ impl RoleData {
             role_signing_key: None,
             role_encryption_key: None,
             payment_key: None,
-            role_extended_data_keys: None,
+            role_extended_data_keys: HashMap::new(),
         }
     }
 
@@ -95,10 +91,9 @@ impl Decode<'_, ()> for RoleData {
                         minicbor::data::Type::String => d.str()?.as_bytes().to_vec(),
                         _ => return Err(decode::Error::message("Data type not supported")),
                     };
-                    role_data.role_extended_data_keys = Some(RoleExtendedDataKeys {
-                        role_extended_data_keys: extended_key,
-                        role_extended_data_keys_value: value,
-                    });
+                    role_data
+                        .role_extended_data_keys
+                        .insert(extended_key, value);
                 },
             }
         }

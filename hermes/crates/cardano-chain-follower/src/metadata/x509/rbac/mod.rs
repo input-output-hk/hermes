@@ -25,7 +25,7 @@ pub enum X509RbacMetadataInt {
     X509Certs = 10,
     C509Certs = 20,
     SimplePublicKeys = 30,
-    RevolcationList = 40,
+    RevocationList = 40,
     RoleSet = 100,
 }
 
@@ -86,7 +86,7 @@ impl Decode<'_, ()> for X509RbacMetadata {
                     let pub_keys = decode_array(d)?;
                     x509_rbac_metadata.set_pub_keys(pub_keys);
                 },
-                X509RbacMetadataInt::RevolcationList => {
+                X509RbacMetadataInt::RevocationList => {
                     println!("40");
                     let revocation_set = decode_revocation_set(d)?;
                     x509_rbac_metadata.set_revocation_set(revocation_set);
@@ -146,8 +146,8 @@ mod test_metadata {
         // c509
         let c509_certs = "14";
         let c509_certs_arr = "81";
-        let c509 = "8a004301f50d6b52464320746573742043411a63b0cd001a6955b90047010123456789ab01582102b1216ab96e5b3b3340f5bdf02e693f16213a04525ed44450b1019c2dfd3838ab0100"; //58406fc903015259a38c0800a3d0b2969ca21977e8ed6ec344964d4e1c6b37c8fb541274c3bb81b2f53073c5f101a5ac2a92886583b6a2679b6e682d2a26945ed0b2";
-                                                                                                                                                                           // pub key
+        let c509 = "8b004301f50d6b52464320746573742043411a63b0cd001a6955b90047010123456789ab01582102b1216ab96e5b3b3340f5bdf02e693f16213a04525ed44450b1019c2dfd3838ab010058406fc903015259a38c0800a3d0b2969ca21977e8ed6ec344964d4e1c6b37c8fb541274c3bb81b2f53073c5f101a5ac2a92886583b6a2679b6e682d2a26945ed0b2";
+        // pub key
         let pub_keys = "181e";
         let pub_keys_arr = "81";
         let ed25519_tag = "d98005";

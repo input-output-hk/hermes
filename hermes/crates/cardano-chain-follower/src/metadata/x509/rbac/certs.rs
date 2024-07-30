@@ -1,5 +1,6 @@
-use c509_certificate::tbs_cert::TbsCert;
+use c509_certificate::c509::C509;
 use minicbor::{decode, Decode, Decoder};
+use x509_cert::{der::Decode as x509Decode, Certificate};
 
 // ------------------x509------------------------
 
@@ -8,7 +9,10 @@ pub(crate) struct X509DerCert(Vec<u8>);
 
 impl Decode<'_, ()> for X509DerCert {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
-        Ok(Self(d.bytes()?.to_vec()))
+        let data = d.bytes()?;
+        Certificate::from_der(data)
+            .map_err(|_| decode::Error::message("Invalid X509 certificate"))?;
+        Ok(Self(data.to_vec()))
     }
 }
 
@@ -17,7 +21,7 @@ impl Decode<'_, ()> for X509DerCert {
 #[derive(Debug, PartialEq)]
 pub(crate) enum C509Cert {
     C509CertInMetadatumReference(C509CertInMetadatumReference),
-    C509Certificate(TbsCert),
+    C509Certificate(C509),
 }
 
 impl Decode<'_, ()> for C509Cert {
@@ -31,7 +35,7 @@ impl Decode<'_, ()> for C509Cert {
                 C509CertInMetadatumReference::decode(d, ctx)?,
             ))
         } else {
-            Ok(Self::C509Certificate(TbsCert::decode(d, ctx)?))
+            Ok(Self::C509Certificate(C509::decode(d, ctx)?))
         }
     }
 }
