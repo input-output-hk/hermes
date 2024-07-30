@@ -14,7 +14,6 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
-
 use regex::Regex;
 use tracing::info;
 
@@ -30,8 +29,8 @@ const WEBASM_ROUTE: &str = "/api";
 
 /// Check path is valid for static files
 /// ^ and $: Match the entire string/line
-/// (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by slashes;
-/// each directory must consist of one or more characters of your charset.
+/// (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
+/// slashes; each directory must consist of one or more characters of your charset.
 /// (...)+|/: Explicitly allow just a single slash
 const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 
