@@ -193,7 +193,7 @@ impl VfsBootstrapper {
         let path_str = format!("{}/{}", mounted.to_path, mounted.dir.name());
         permissions.add_permission(path_str.as_str(), mounted.permission);
         let path: hermes_hdf5::Path = path_str.into();
-        let _unused = root.remove_file(path.clone());
+        let _unused = root.remove_dir(path.clone());
         root.mount_dir(&mounted.dir, path)?;
         Ok(())
     }
