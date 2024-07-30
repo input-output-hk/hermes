@@ -9,9 +9,9 @@ use crate::{
 };
 
 /// Hermes Reactor struct
-#[allow(dead_code)]
 pub(crate) struct HermesReactor {
     /// Hermes apps
+    #[allow(dead_code)]
     indexed_apps: Arc<IndexedApps>,
     /// Hermes event queue loop thread handler.
     event_loop: event::queue::HermesEventLoopHandler,
