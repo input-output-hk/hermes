@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use hdf5 as hdf5_lib;
 
 use super::{
-    permission::{PermissionLevel, PermissionsTree},
+    permission::{PermissionLevel, PermissionsState},
     Vfs,
 };
 use crate::hdf5 as hermes_hdf5;
@@ -23,7 +23,7 @@ pub(crate) struct VfsBootstrapper {
     /// HDF5 directories to create
     dirs_to_create: Vec<DitToCreate>,
     /// VFS permissions state.
-    permissions: PermissionsTree,
+    permissions: PermissionsState,
 }
 
 /// Directory to create object.
@@ -63,7 +63,7 @@ impl VfsBootstrapper {
             mounted_files: Vec::new(),
             mounted_dirs: Vec::new(),
             dirs_to_create: Vec::new(),
-            permissions: PermissionsTree::new(),
+            permissions: PermissionsState::new(),
         }
     }
 

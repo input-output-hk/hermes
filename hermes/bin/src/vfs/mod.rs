@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
 pub(crate) use permission::PermissionLevel;
-use permission::PermissionsTree;
+use permission::PermissionsState;
 
 use crate::hdf5 as hermes_hdf5;
 
@@ -17,7 +17,7 @@ pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     root: hermes_hdf5::Dir,
     /// VFS permissions state.
-    permissions: PermissionsTree,
+    permissions: PermissionsState,
 }
 
 impl Vfs {
