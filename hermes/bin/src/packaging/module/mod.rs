@@ -2,6 +2,7 @@
 
 mod author_payload;
 mod config;
+mod config_info;
 mod manifest;
 mod settings;
 #[cfg(test)]
@@ -10,6 +11,7 @@ pub(crate) mod tests;
 pub(crate) use author_payload::{SignaturePayload, SignaturePayloadBuilder};
 use chrono::{DateTime, Utc};
 pub(crate) use config::{Config, ConfigSchema};
+pub(crate) use config_info::ConfigInfo;
 pub(crate) use manifest::{Manifest, ManifestConfig};
 pub(crate) use settings::SettingsSchema;
 
@@ -102,7 +104,7 @@ impl ModulePackage {
             .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_component()
             .map_or_else(errors.get_add_err_fn(), |_| ());
-        self.get_config_with_schema()
+        self.get_config_info()
             .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_settings_schema()
             .map_or_else(errors.get_add_err_fn(), |_| ());
@@ -242,19 +244,22 @@ impl ModulePackage {
     }
 
     /// Get `Config` and `ConfigSchema` objects from package if present.
-    /// To obtain a valid `Config` object it is needed to get `ConfigSchema` first.
-    pub(crate) fn get_config_with_schema(
-        &self,
-    ) -> anyhow::Result<(Option<Config>, Option<ConfigSchema>)> {
+    pub(crate) fn get_config_info(&self) -> anyhow::Result<Option<ConfigInfo>> {
         let Some(config_schema) = self.get_config_schema()? else {
-            return Ok((None, None));
+            return Ok(None);
         };
 
         if let Some(file) = self.get_config_file() {
             let config_file = Config::from_reader(file, config_schema.validator())?;
-            Ok((Some(config_file), Some(config_schema)))
+            Ok(Some(ConfigInfo {
+                schema: config_schema,
+                val: Some(config_file),
+            }))
         } else {
-            Ok((None, Some(config_schema)))
+            Ok(Some(ConfigInfo {
+                schema: config_schema,
+                val: None,
+            }))
         }
     }
 

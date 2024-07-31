@@ -137,9 +137,9 @@ pub(crate) fn check_module_integrity(
     assert!(module_package.get_component().is_ok());
 
     // check config and config schema JSON files
-    let (package_config, package_config_schema) = module_package.get_config_with_schema().unwrap();
-    assert_eq!(module_files.config, package_config.unwrap());
-    assert_eq!(module_files.config_schema, package_config_schema.unwrap());
+    let config_info = module_package.get_config_info().unwrap().unwrap();
+    assert_eq!(module_files.config, config_info.val.unwrap());
+    assert_eq!(module_files.config_schema, config_info.schema);
 
     // check settings schema JSON file
     let package_settings_schema = module_package.get_settings_schema().unwrap();
@@ -177,12 +177,9 @@ fn from_dir_test() {
     assert!(package.get_component().is_ok());
 
     // check config and config schema JSON files
-    let (package_config, package_config_schema) = package.get_config_with_schema().unwrap();
-    assert_eq!(module_package_files.config, package_config.unwrap());
-    assert_eq!(
-        module_package_files.config_schema,
-        package_config_schema.unwrap()
-    );
+    let config_info = package.get_config_info().unwrap().unwrap();
+    assert_eq!(module_package_files.config, config_info.val.unwrap());
+    assert_eq!(module_package_files.config_schema, config_info.schema);
 
     // check settings schema JSON file
     let package_settings_schema = package.get_settings_schema().unwrap();
@@ -236,7 +233,7 @@ fn sign_package(package: &ModulePackage) {
 
 #[test]
 #[allow(clippy::unwrap_used)]
-fn corrupted_metadata_sign_test() {
+fn corrupted_metadata_test() {
     let dir = TempDir::new().unwrap();
 
     let module_package_files = prepare_default_package_content();
@@ -297,7 +294,7 @@ fn corrupted_metadata_sign_test() {
 
 #[test]
 #[allow(clippy::unwrap_used)]
-fn corrupted_component_sign_test() {
+fn corrupted_component_test() {
     let dir = TempDir::new().unwrap();
 
     let module_package_files = prepare_default_package_content();
@@ -348,6 +345,128 @@ fn corrupted_component_sign_test() {
             .unwrap();
 
         assert!(package.get_component().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_config_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_files = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ModulePackage::CONFIG_FILE.into())
+            .unwrap();
+        let config_info = package.get_config_info().unwrap().unwrap();
+        assert!(config_info.val.is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let config_schema = package.get_config_schema().unwrap().unwrap();
+        let new_config = Config::from_reader(
+            serde_json::json!({
+                "new_prop": "new value",
+            })
+            .to_string()
+            .as_bytes(),
+            config_schema.validator(),
+        )
+        .unwrap();
+        assert_ne!(module_package_files.config, new_config);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ModulePackage::CONFIG_FILE.to_string(),
+                    new_config.to_bytes().unwrap(),
+                ),
+                ModulePackage::CONFIG_FILE.into(),
+            )
+            .unwrap();
+
+        let config_info = package.get_config_info().unwrap().unwrap();
+        assert!(config_info.val.is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_config_schema_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_files = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ModulePackage::CONFIG_SCHEMA_FILE.into())
+            .unwrap();
+        let config_info = package.get_config_info().unwrap();
+        assert!(config_info.is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let new_config_schema = ConfigSchema::from_reader(
+            serde_json::json!({
+                "title": "Test empty schema",
+                "type": "object",
+                "properties": {}
+            })
+            .to_string()
+            .as_bytes(),
+        )
+        .unwrap();
+        assert_ne!(module_package_files.config_schema, new_config_schema);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ModulePackage::CONFIG_SCHEMA_FILE.to_string(),
+                    new_config_schema.to_bytes().unwrap(),
+                ),
+                ModulePackage::CONFIG_SCHEMA_FILE.into(),
+            )
+            .unwrap();
+
+        let config_info = package.get_config_info().unwrap();
+        assert!(config_info.is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
