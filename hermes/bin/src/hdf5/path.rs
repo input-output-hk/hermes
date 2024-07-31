@@ -2,25 +2,21 @@
 
 use std::fmt::Display;
 
+use crate::utils::parse_path;
+
 /// Package path.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Path(Vec<String>);
 
 impl Path {
     /// Create new `PackagePath` from path components.
-    #[allow(dead_code)]
-    pub(crate) fn new(path_components: Vec<String>) -> Self {
-        Self(path_components)
+    pub(crate) fn new(path_elements: Vec<String>) -> Self {
+        Self(path_elements)
     }
 
     /// Create new `PackagePath` from str.
     pub(crate) fn from_str(path: &str) -> Self {
-        let path_components = path
-            .split('/')
-            .map(ToString::to_string)
-            .filter(|s| !s.is_empty())
-            .collect();
-        Self(path_components)
+        Self(parse_path(path))
     }
 
     /// Returns an iterator over the path elements.
@@ -74,6 +70,7 @@ mod tests {
 
     #[test]
     fn package_path_test() {
+        // with '/' delimiter
         {
             let mut path = Path::from_str("/a/b/c");
             assert_eq!(path.pop_elem(), "c".to_string());
@@ -94,12 +91,37 @@ mod tests {
             assert_eq!(path.pop_elem(), String::new());
         }
         {
-            let mut path = Path::from_str("a");
+            let mut path = Path::from_str("/");
+            assert_eq!(path.pop_elem(), String::new());
+        }
+        // with '\' delimiter
+        {
+            let mut path = Path::from_str(r"\a\b\c");
+            assert_eq!(path.pop_elem(), "c".to_string());
+            assert_eq!(path.pop_elem(), "b".to_string());
             assert_eq!(path.pop_elem(), "a".to_string());
             assert_eq!(path.pop_elem(), String::new());
         }
         {
-            let mut path = Path::from_str("/");
+            let mut path = Path::from_str(r"a\b\c");
+            assert_eq!(path.pop_elem(), "c".to_string());
+            assert_eq!(path.pop_elem(), "b".to_string());
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
+        }
+        {
+            let mut path = Path::from_str(r"\a");
+            assert_eq!(path.pop_elem(), "a".to_string());
+            assert_eq!(path.pop_elem(), String::new());
+        }
+        {
+            let mut path = Path::from_str(r"\");
+            assert_eq!(path.pop_elem(), String::new());
+        }
+
+        {
+            let mut path = Path::from_str("a");
+            assert_eq!(path.pop_elem(), "a".to_string());
             assert_eq!(path.pop_elem(), String::new());
         }
         {

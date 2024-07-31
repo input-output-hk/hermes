@@ -10,7 +10,7 @@ use ed25519_dalek::{
     SigningKey, VerifyingKey,
 };
 
-use crate::packaging::FileError;
+use super::super::FileError;
 
 /// Public or private key decoding from string error.
 #[derive(thiserror::Error, Debug)]

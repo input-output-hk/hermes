@@ -1,31 +1,32 @@
 //! Hermes application package.
 
 mod author_payload;
-pub(crate) mod manifest;
+mod manifest;
 mod module_info;
 
 use chrono::{DateTime, Utc};
 pub(crate) use manifest::{Manifest, ManifestModule};
 pub(crate) use module_info::AppModuleInfo;
 
+use super::{
+    hash::Blake2b256,
+    metadata::{Metadata, MetadataSchema},
+    module::{self, ModulePackage},
+    package::Package,
+    sign::{
+        certificate::Certificate,
+        keys::PrivateKey,
+        signature::{Signature, SignaturePayloadEncoding},
+    },
+    FileError, MissingPackageFileError,
+};
 use crate::{
     errors::Errors,
     hdf5::{
         resources::{BytesResource, ResourceTrait},
         Dir, File, Path,
     },
-    packaging::{
-        hash::Blake2b256,
-        metadata::{Metadata, MetadataSchema},
-        module::{self, ModulePackage},
-        package::Package,
-        sign::{
-            certificate::Certificate,
-            keys::PrivateKey,
-            signature::{Signature, SignaturePayloadEncoding},
-        },
-        FileError, MissingPackageFileError,
-    },
+    vfs::{PermissionLevel, Vfs, VfsBootstrapper},
 };
 
 /// Hermes application package.
@@ -202,13 +203,13 @@ impl ApplicationPackage {
                 );
 
             let mut usr_module_config_path = usr_module_path.clone();
-            usr_module_config_path.push_elem(ModulePackage::CONFIG_FILE.into());
+            usr_module_config_path.push_elem(Self::MODULE_CONFIG_FILE.into());
             if let Some(config_hash) = self.0.calculate_file_hash(usr_module_config_path)? {
                 signature_payload_module_builder.with_config(config_hash);
             }
 
             let mut usr_module_share_path = usr_module_path.clone();
-            usr_module_share_path.push_elem(ModulePackage::SHARE_DIR.into());
+            usr_module_share_path.push_elem(Self::MODULE_SHARE_DIR.into());
             if let Some(share_hash) = self.0.calculate_dir_hash(&usr_module_share_path)? {
                 signature_payload_module_builder.with_share(share_hash);
             }
@@ -227,14 +228,14 @@ impl ApplicationPackage {
     }
 
     /// Get icon `File` object from package.
-    pub(crate) fn get_icon_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_icon_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::ICON_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::ICON_FILE.to_string()).into())
     }
 
     /// Get metadata `File` object from package.
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
@@ -284,13 +285,79 @@ impl ApplicationPackage {
     }
 
     /// Get www dir from package if present.
-    pub(crate) fn get_www_dir(&self) -> Option<Dir> {
+    pub(super) fn get_www_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_WWW_DIR.into()).ok()
     }
 
     /// Get share dir from package if present.
-    pub(crate) fn get_share_dir(&self) -> Option<Dir> {
+    pub(super) fn get_share_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_SHARE_DIR.into()).ok()
+    }
+
+    /// Mount `ApplicationPackage` content to the `Vfs`
+    pub(crate) fn mount_to_vfs(&self, bootstrapper: &mut VfsBootstrapper) -> anyhow::Result<()> {
+        let root_path = "/".to_string();
+        bootstrapper.with_mounted_file(
+            root_path.clone(),
+            self.get_icon_file()?,
+            PermissionLevel::Read,
+        );
+        bootstrapper.with_mounted_file(
+            root_path.clone(),
+            self.get_metadata_file()?,
+            PermissionLevel::Read,
+        );
+        if let Some(share_dir) = self.get_share_dir() {
+            bootstrapper.with_mounted_dir(root_path.clone(), share_dir, PermissionLevel::Read);
+        }
+        if let Some(www_dir) = self.get_www_dir() {
+            bootstrapper.with_mounted_dir(root_path, www_dir, PermissionLevel::Read);
+        }
+
+        for module_info in self.get_modules()? {
+            let lib_module_dir_path = format!("{}/{}", Vfs::LIB_DIR, module_info.get_name());
+            bootstrapper.with_dir_to_create(lib_module_dir_path.clone(), PermissionLevel::Read);
+
+            bootstrapper.with_mounted_file(
+                lib_module_dir_path.clone(),
+                module_info.get_metadata_file()?,
+                PermissionLevel::Read,
+            );
+            bootstrapper.with_mounted_file(
+                lib_module_dir_path.clone(),
+                module_info.get_component_file()?,
+                PermissionLevel::Read,
+            );
+            if let Some(config_schema) = module_info.get_config_schema_file() {
+                bootstrapper.with_mounted_file(
+                    lib_module_dir_path.clone(),
+                    config_schema,
+                    PermissionLevel::Read,
+                );
+            }
+            if let Some(config) = module_info.get_config_file() {
+                bootstrapper.with_mounted_file(
+                    lib_module_dir_path.clone(),
+                    config,
+                    PermissionLevel::Read,
+                );
+            }
+            if let Some(settings_schema) = module_info.get_settings_schema_file() {
+                bootstrapper.with_mounted_file(
+                    lib_module_dir_path.clone(),
+                    settings_schema,
+                    PermissionLevel::Read,
+                );
+            }
+            if let Some(share_dir) = module_info.get_share() {
+                bootstrapper.with_mounted_dir(
+                    lib_module_dir_path,
+                    share_dir,
+                    PermissionLevel::Read,
+                );
+            }
+        }
+        Ok(())
     }
 
     /// Validate and write all content of the `Manifest` to the provided `package`.

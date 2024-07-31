@@ -2,10 +2,8 @@
 
 use std::{collections::BTreeMap, io::Read, ops::Deref};
 
-use crate::{
-    hdf5::{Dir, File, Path},
-    packaging::hash::{Blake2b256, Blake2b256Hasher},
-};
+use super::hash::{Blake2b256, Blake2b256Hasher};
+use crate::hdf5::{Dir, File, Path};
 
 /// Hermes package object.
 /// Wrapper over HDF5 file object.
