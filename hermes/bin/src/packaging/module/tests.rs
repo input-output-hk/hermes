@@ -46,7 +46,7 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageFiles {
     let settings_schema =
         SettingsSchema::from_reader(serde_json::json!({}).to_string().as_bytes()).unwrap();
 
-    let component = r#"
+    let component = br#"
         (component
             (core module $Module
                 (export "foo" (func $foo))
@@ -57,11 +57,12 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageFiles {
             (core instance $module (instantiate (module $Module)))
             (func $foo (result s32) (canon lift (core func $module "foo")))
             (export "foo" (func $foo))
-        )"#;
+        )"#
+    .to_vec();
 
     ModulePackageFiles {
         metadata,
-        component: component.as_bytes().to_vec(),
+        component,
         config_schema,
         config,
         settings_schema,
@@ -196,7 +197,7 @@ fn from_dir_test() {
 fn sign_test() {
     let dir = TempDir::new().unwrap();
 
-    let mut module_package_files = prepare_default_package_content();
+    let module_package_files = prepare_default_package_content();
 
     let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
@@ -222,26 +223,134 @@ fn sign_test() {
 
     certificate::storage::add_certificate(certificate).unwrap();
     assert!(package.validate(false).is_ok());
+}
 
-    // corrupt payload with the modifying metadata.json file
-    module_package_files.metadata.set_name("New name");
-    package
-        .0
-        .remove_file(ModulePackage::METADATA_FILE.into())
-        .unwrap();
-    package
-        .0
-        .copy_resource_file(
-            &BytesResource::new(
-                ModulePackage::METADATA_FILE.to_string(),
-                module_package_files.metadata.to_bytes().unwrap(),
-            ),
-            ModulePackage::METADATA_FILE.into(),
-        )
-        .unwrap();
+#[allow(clippy::unwrap_used)]
+fn sign_package(package: &ModulePackage) {
+    let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+    let certificate = Certificate::from_str(&certificate_str()).unwrap();
+    package.sign(&private_key, &certificate).unwrap();
+    certificate::storage::add_certificate(certificate).unwrap();
+    assert!(package.validate(false).is_ok());
+}
 
-    assert!(
-        package.validate(false).is_err(),
-        "Corrupted signature payload."
-    );
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_metadata_sign_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_files = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ModulePackage::METADATA_FILE.into())
+            .unwrap();
+        assert!(
+            package.validate(false).is_err(),
+            "Missing required metadata file."
+        );
+    }
+
+    {
+        let new_metadata = Metadata::<ModulePackage>::from_reader(
+            serde_json::json!(
+                {
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+                    "name": "new test module",
+                    "version": "V1.0.0",
+                    "description": "Some new description",
+                    "src": ["https://github.com/input-output-hk/hermes"],
+                    "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+                    "license": [{"spdx": "MIT"}]
+                }
+            ).to_string().as_bytes(),
+        ).unwrap();
+        assert_ne!(module_package_files.metadata, new_metadata);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ModulePackage::METADATA_FILE.to_string(),
+                    new_metadata.to_bytes().unwrap(),
+                ),
+                ModulePackage::METADATA_FILE.into(),
+            )
+            .unwrap();
+
+        assert!(package.get_metadata().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_component_sign_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_files = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ModulePackage::COMPONENT_FILE.into())
+            .unwrap();
+        assert!(
+            package.validate(false).is_err(),
+            "Missing required component file."
+        );
+    }
+
+    {
+        let new_component = br#"
+        (component
+            (core module $Module
+                (export "bar" (func $bar))
+                (func $bar (result i32)
+                    i32.const 1
+                )
+            )
+            (core instance $module (instantiate (module $Module)))
+            (func $bar (result s32) (canon lift (core func $module "bar")))
+            (export "bar" (func $bar))
+        )"#;
+        assert_ne!(module_package_files.component.as_slice(), new_component);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ModulePackage::COMPONENT_FILE.to_string(),
+                    new_component.to_vec(),
+                ),
+                ModulePackage::COMPONENT_FILE.into(),
+            )
+            .unwrap();
+
+        assert!(package.get_component().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
 }
