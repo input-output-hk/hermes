@@ -473,3 +473,64 @@ fn corrupted_config_schema_test() {
         );
     }
 }
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_settings_schema_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_files = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ModulePackage::SETTINGS_SCHEMA_FILE.into())
+            .unwrap();
+        let settings_schema = package.get_settings_schema().unwrap();
+        assert!(settings_schema.is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let new_settings_schema = SettingsSchema::from_reader(
+            serde_json::json!({
+                "title": "Test empty schema",
+                "type": "object",
+                "properties": {}
+            })
+            .to_string()
+            .as_bytes(),
+        )
+        .unwrap();
+        assert_ne!(module_package_files.settings_schema, new_settings_schema);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ModulePackage::SETTINGS_SCHEMA_FILE.to_string(),
+                    new_settings_schema.to_bytes().unwrap(),
+                ),
+                ModulePackage::SETTINGS_SCHEMA_FILE.into(),
+            )
+            .unwrap();
+
+        let settings_schema = package.get_settings_schema().unwrap();
+        assert!(settings_schema.is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
