@@ -27,109 +27,21 @@ use core::{
 
 // use poll::Pollable; // Hermes does not support `poll`
 use wasi::{
-    Advice,
-    Ciovec,
-    Clockid,
-    Dircookie,
-    Dirent,
-    Errno, // Event, EventFdReadwrite,
-    // Exitcode,
-    Fd,
-    Fdflags,
-    Fdstat,
-    Filedelta,
-    Filesize,
-    Filestat,
-    Fstflags,
-    Iovec,
-    Lookupflags,
-    Oflags,
-    Prestat,
-    PrestatDir,
-    PrestatU,
-    Riflags,
-    Rights,
-    Roflags,
-    Sdflags,
-    Siflags,
-    Signal,
-    Size,
-    // Subscription,
-    Timestamp,
-    Whence,
-    ADVICE_DONTNEED,
-    ADVICE_NOREUSE,
-    ADVICE_NORMAL,
-    ADVICE_RANDOM,
-    ADVICE_SEQUENTIAL,
-    ADVICE_WILLNEED,
-    CLOCKID_MONOTONIC,
-    CLOCKID_REALTIME,
-    ERRNO_ACCES,
-    ERRNO_AGAIN,
-    ERRNO_ALREADY,
-    ERRNO_BADF,
-    ERRNO_BUSY,
-    ERRNO_DEADLK,
-    ERRNO_DQUOT,
-    ERRNO_EXIST,
-    ERRNO_FBIG,
-    ERRNO_ILSEQ,
-    ERRNO_INPROGRESS,
-    ERRNO_INTR,
-    ERRNO_INVAL,
-    ERRNO_IO,
-    ERRNO_ISDIR,
-    ERRNO_LOOP,
-    ERRNO_MLINK,
-    ERRNO_MSGSIZE,
-    ERRNO_NAMETOOLONG,
-    ERRNO_NODEV,
-    ERRNO_NOENT,
-    ERRNO_NOLCK,
-    ERRNO_NOMEM,
-    ERRNO_NOSPC,
-    ERRNO_NOTDIR,
-    ERRNO_NOTEMPTY,
-    ERRNO_NOTRECOVERABLE,
-    ERRNO_NOTSUP,
-    ERRNO_NOTTY,
-    ERRNO_NXIO,
-    ERRNO_OVERFLOW,
-    ERRNO_PERM,
-    ERRNO_PIPE,
-    ERRNO_ROFS,
-    ERRNO_SPIPE,
-    ERRNO_SUCCESS,
-    ERRNO_TXTBSY,
-    ERRNO_XDEV,
-    // EVENTRWFLAGS_FD_READWRITE_HANGUP,
-    FDFLAGS_APPEND,
-    FDFLAGS_DSYNC,
-    FDFLAGS_NONBLOCK,
-    FDFLAGS_RSYNC,
-    FDFLAGS_SYNC,
-    FILETYPE_BLOCK_DEVICE,
-    FILETYPE_CHARACTER_DEVICE,
-    FILETYPE_DIRECTORY,
-    FILETYPE_REGULAR_FILE,
-    FILETYPE_SYMBOLIC_LINK,
-    FILETYPE_UNKNOWN,
-    FSTFLAGS_ATIM,
-    FSTFLAGS_ATIM_NOW,
-    FSTFLAGS_MTIM,
-    FSTFLAGS_MTIM_NOW,
-    LOOKUPFLAGS_SYMLINK_FOLLOW,
-    OFLAGS_CREAT,
-    OFLAGS_DIRECTORY,
-    OFLAGS_EXCL,
-    OFLAGS_TRUNC,
-    RIGHTS_FD_READ,
-    RIGHTS_FD_WRITE,
-    // SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME,
-    WHENCE_CUR,
-    WHENCE_END,
-    WHENCE_SET,
+    Advice, Ciovec, Clockid, Dircookie, Dirent, Errno, Exitcode, Fd, Fdflags, Fdstat, Filedelta,
+    Filesize, Filestat, Fstflags, Iovec, Lookupflags, Oflags, Prestat, PrestatDir, PrestatU,
+    Riflags, Rights, Roflags, Sdflags, Siflags, Signal, Size, Timestamp, Whence, ADVICE_DONTNEED,
+    ADVICE_NOREUSE, ADVICE_NORMAL, ADVICE_RANDOM, ADVICE_SEQUENTIAL, ADVICE_WILLNEED,
+    CLOCKID_MONOTONIC, CLOCKID_REALTIME, ERRNO_ACCES, ERRNO_AGAIN, ERRNO_ALREADY, ERRNO_BADF,
+    ERRNO_BUSY, ERRNO_DEADLK, ERRNO_DQUOT, ERRNO_EXIST, ERRNO_FBIG, ERRNO_ILSEQ, ERRNO_INPROGRESS,
+    ERRNO_INTR, ERRNO_INVAL, ERRNO_IO, ERRNO_ISDIR, ERRNO_LOOP, ERRNO_MLINK, ERRNO_MSGSIZE,
+    ERRNO_NAMETOOLONG, ERRNO_NODEV, ERRNO_NOENT, ERRNO_NOLCK, ERRNO_NOMEM, ERRNO_NOSPC,
+    ERRNO_NOTDIR, ERRNO_NOTEMPTY, ERRNO_NOTRECOVERABLE, ERRNO_NOTSUP, ERRNO_NOTTY, ERRNO_NXIO,
+    ERRNO_OVERFLOW, ERRNO_PERM, ERRNO_PIPE, ERRNO_ROFS, ERRNO_SPIPE, ERRNO_SUCCESS, ERRNO_TXTBSY,
+    ERRNO_XDEV, FDFLAGS_APPEND, FDFLAGS_DSYNC, FDFLAGS_NONBLOCK, FDFLAGS_RSYNC, FDFLAGS_SYNC,
+    FILETYPE_BLOCK_DEVICE, FILETYPE_CHARACTER_DEVICE, FILETYPE_DIRECTORY, FILETYPE_REGULAR_FILE,
+    FILETYPE_SYMBOLIC_LINK, FILETYPE_UNKNOWN, FSTFLAGS_ATIM, FSTFLAGS_ATIM_NOW, FSTFLAGS_MTIM,
+    FSTFLAGS_MTIM_NOW, LOOKUPFLAGS_SYMLINK_FOLLOW, OFLAGS_CREAT, OFLAGS_DIRECTORY, OFLAGS_EXCL,
+    OFLAGS_TRUNC, RIGHTS_FD_READ, RIGHTS_FD_WRITE, WHENCE_CUR, WHENCE_END, WHENCE_SET,
 };
 
 #[cfg(not(feature = "proxy"))]
@@ -171,7 +83,7 @@ pub mod bindings {
 
     #[cfg(feature = "proxy")]
     wit_bindgen::generate!({
-        path: "./wasi/wit",
+        path: "../wasi/wit",
         inline: r#"
             package wasmtime:adapter;
 
@@ -2161,21 +2073,21 @@ pub unsafe extern "C" fn path_unlink_file(fd: Fd, path_ptr: *const u8, path_len:
 /// termination of the program. The meanings of other values is dependent on
 /// the environment.
 /// It is not valid to `exit` from a Hermes module.
-// #[no_mangle]
-// #[allow(clippy::unreachable)]
-// #[allow(clippy::missing_safety_doc)]
-// pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
-// #[cfg(feature = "proxy")]
-// {
-// unreachable!("no other implementation available in proxy world");
-// }
-// #[cfg(not(feature = "proxy"))]
-// {
-// let status = if rval == 0 { Ok(()) } else { Err(()) };
-// crate::bindings::wasi::cli::exit::exit(status); // does not return
-// unreachable!("host exit implementation didn't exit!") // actually unreachable
-// }
-// }
+#[no_mangle]
+#[allow(clippy::unreachable)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn proc_exit(rval: Exitcode) -> ! {
+    #[cfg(feature = "proxy")]
+    {
+        unreachable!("no other implementation available in proxy world");
+    }
+    #[cfg(not(feature = "proxy"))]
+    {
+        let status = if rval == 0 { Ok(()) } else { Err(()) };
+        crate::bindings::wasi::cli::exit::exit(status); // does not return
+        unreachable!("host exit implementation didn't exit!") // actually unreachable
+    }
+}
 
 /// Send a signal to the process of the calling thread.
 /// Note: This is similar to `raise` in POSIX.
@@ -2814,7 +2726,8 @@ impl State {
     #[allow(trivial_casts)]
     fn get_environment(&self) -> &[StrTuple] {
         if self.env_vars.get().is_none() {
-            #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
+            // #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
+            #[link(wasm_import_module = "wasi:cli/environment@0.2.0")]
             extern "C" {
                 #[link_name = "get-environment"]
                 fn get_environment_import(rval: *mut StrTupleList);
@@ -2842,7 +2755,8 @@ impl State {
     #[allow(trivial_casts)]
     fn get_args(&self) -> &[WasmStr] {
         if self.args.get().is_none() {
-            #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
+            // #[link(wasm_import_module = "wasi:cli/environment@0.2.0-rc-2023-12-05")]
+            #[link(wasm_import_module = "wasi:cli/environment@0.2.0")]
             extern "C" {
                 #[link_name = "get-arguments"]
                 fn get_args_import(rval: *mut WasmStrList);

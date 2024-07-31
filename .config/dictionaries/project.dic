@@ -203,6 +203,7 @@ testunit
 thiserror
 timelike
 timespec
+tinygo
 toobig
 toolsets
 Traceback
@@ -222,6 +223,7 @@ voteplan
 voteplans
 wallclock
 wasi
+wasip
 WASI
 wasmtime
 webasm

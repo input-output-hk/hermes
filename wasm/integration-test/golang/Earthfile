@@ -1,0 +1,21 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:v3.1.8 AS rust-tools
+
+IMPORT ../../wasi AS wasi
+IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
+
+build:
+    FROM tinygo/tinygo:0.32.0
+
+    COPY rust-tools+tool-wasm-tools/wasm-tools /bin
+    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm wasi_snapshot_preview1.wasm
+    COPY wasi+build-go-bindings/bindings ./gen
+    COPY wasi+build-go-bindings/wit ./wit
+
+    COPY go.mod main.go ./
+	RUN tinygo build -target=wasip1 -no-debug -o main.wasm main.go
+	RUN wasm-tools component embed --world hermes -o main.embed.wasm ./wit main.wasm
+	RUN wasm-tools component new -o component.wasm main.embed.wasm --adapt wasi_snapshot_preview1.wasm
+
+    SAVE ARTIFACT component.wasm golang.wasm
