@@ -9,6 +9,8 @@ use derive_more::{Display, From, Into};
 pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
+/// `rust_ipfs` re-export.
+pub use rust_ipfs;
 /// libp2p re-exports.
 pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
@@ -30,7 +32,9 @@ pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
 use rust_ipfs::UninitializedIpfsNoop;
 use rust_ipfs::{
-    dag::ResolveError, libp2p::gossipsub::MessageId as PubsubMessageId, unixfs::AddOpt,
+    dag::ResolveError,
+    libp2p::gossipsub::{Message as PubsubMessage, MessageId as PubsubMessageId},
+    unixfs::AddOpt,
     PubsubEvent, Quorum,
 };
 
@@ -587,4 +591,16 @@ impl FromStr for GetIpfsFile {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(GetIpfsFile(s.parse()?))
     }
+}
+
+/// Handle stream of messages from the IPFS pubsub topic
+pub fn subscription_stream_task(
+    stream: SubscriptionStream, handler: fn(PubsubMessage),
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        pin_mut!(stream);
+        while let Some(msg) = stream.next().await {
+            handler(msg);
+        }
+    })
 }

@@ -2,8 +2,8 @@
 use std::str::FromStr;
 
 use hermes_ipfs::{
-    pin_mut, AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as PathIpfsFile,
-    MessageId as PubsubMessageId, PeerId as TargetPeerId, StreamExt, SubscriptionStream,
+    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as PathIpfsFile,
+    MessageId as PubsubMessageId, PeerId as TargetPeerId,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -113,7 +113,7 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
                     .pubsub_subscribe(topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                let handle = topic_stream(stream);
+                let handle = subscription_stream_task(stream, topic_stream_app_handler);
                 send_response(Ok(handle), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
@@ -127,31 +127,27 @@ pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyh
     Ok(())
 }
 
-/// Stream of messages from the IPFS pubsub topic
-fn topic_stream(stream: SubscriptionStream) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        pin_mut!(stream);
-        while let Some(msg) = stream.next().await {
-            let msg_topic = msg.topic.into_string();
-            let on_topic_event = OnTopicEvent {
-                message: PubsubMessage {
-                    topic: msg_topic.clone(),
-                    message: msg.data,
-                    publisher: msg.source.map(|p| p.to_string()),
-                },
-            };
-            let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
-            // Dispatch Hermes Event
-            if let Err(err) = send(HermesEvent::new(
-                on_topic_event.clone(),
-                crate::event::TargetApp::List(app_names),
-                crate::event::TargetModule::All,
-            )) {
-                tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
-            }
-        }
-    })
+/// Handler function for topic message streams.
+fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Message) {
+    let msg_topic = msg.topic.into_string();
+    let on_topic_event = OnTopicEvent {
+        message: PubsubMessage {
+            topic: msg_topic.clone(),
+            message: msg.data,
+            publisher: msg.source.map(|p| p.to_string()),
+        },
+    };
+    let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
+    // Dispatch Hermes Event
+    if let Err(err) = send(HermesEvent::new(
+        on_topic_event.clone(),
+        crate::event::TargetApp::List(app_names),
+        crate::event::TargetModule::All,
+    )) {
+        tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+    }
 }
+
 /// Send the response of the IPFS command
 fn send_response<T>(response: T, tx: oneshot::Sender<T>) {
     if tx.send(response).is_err() {
