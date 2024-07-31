@@ -1,19 +1,29 @@
+//! Public key type for RBAC metadata
+
 use minicbor::{data::Tag, decode, Decode, Decoder};
 
+/// Enum of possible public key type.
 #[derive(Debug, PartialEq)]
 pub(crate) enum SimplePublickeyType {
+    /// Undefined indicates skipped element.
     Undefined,
-    Deleted,           // Tag 31
+    /// Deleted indicates the key is deleted.
+    Deleted, // Tag 31
+    /// Ed25519 key
     Ed25519([u8; 32]), // Tag 32773
 }
 
+/// Enum of possible public key tag.
 enum PublicKeyTag {
+    /// Deleted Key tag 31.
     Deleted,
+    /// Ed25519 Key tag 32773.
     Ed25519,
 }
 
 impl PublicKeyTag {
-    pub fn tag(self) -> Tag {
+    /// Get the tag value.
+    fn tag(self) -> Tag {
         match self {
             PublicKeyTag::Deleted => Tag::new(0x31),
             PublicKeyTag::Ed25519 => Tag::new(0x8005),
@@ -38,15 +48,19 @@ impl Decode<'_, ()> for SimplePublickeyType {
                             Err(decode::Error::message("Invalid length for Ed25519 key"))
                         }
                     },
-                    _ => Err(decode::Error::message(
-                        "Unknown tag for SimplePublickeyType",
-                    )),
+                    _ => {
+                        Err(decode::Error::message(
+                            "Unknown tag for SimplePublickeyType",
+                        ))
+                    },
                 }
             },
             minicbor::data::Type::Undefined => Ok(SimplePublickeyType::Undefined),
-            _ => Err(decode::Error::message(
-                "Invalid datatype for SimplePublickeyType",
-            )),
+            _ => {
+                Err(decode::Error::message(
+                    "Invalid datatype for SimplePublickeyType",
+                ))
+            },
         }
     }
 }
