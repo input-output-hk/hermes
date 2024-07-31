@@ -193,7 +193,7 @@ fn serve_static_data(path: &str) -> anyhow::Result<Response<Body>> {
 }
 
 /// Check if valid path to static files.
-fn is_valid_path(path: &str) -> anyhow::Result<bool> {
+fn is_valid_path(path: &str) -> anyhow::Result<()> {
     let regex = Regex::new(VALID_PATH)?;
 
     Ok(regex.is_match(path))
