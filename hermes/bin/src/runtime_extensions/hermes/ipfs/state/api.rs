@@ -134,3 +134,9 @@ pub(crate) fn hermes_ipfs_evict_peer(
     HERMES_IPFS_STATE.apps.evicted_peer(app_name.clone(), peer);
     Ok(status)
 }
+
+#[allow(dead_code)]
+/// List pinned files
+pub(crate) fn hermes_ipfs_ls(app_name: &HermesAppName) -> Vec<String> {
+    HERMES_IPFS_STATE.apps.list_pinned_files(app_name)
+}

@@ -282,6 +282,14 @@ impl AppIpfsState {
         Ok(())
     }
 
+    #[allow(dead_code)]
+    /// List of pinned files by an app.
+    pub(crate) fn list_pinned_files(&self, app_name: &HermesAppName) -> Vec<String> {
+        self.pinned_files.get(app_name).map_or(vec![], |cids| {
+            cids.iter().map(std::string::ToString::to_string).collect()
+        })
+    }
+
     /// Keep track of `dht_key` of DHT value added by an app.
     fn added_dht_key(&self, app_name: HermesAppName, dht_key: DhtKey) {
         self.dht_keys
