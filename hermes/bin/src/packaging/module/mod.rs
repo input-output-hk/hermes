@@ -286,7 +286,7 @@ impl ModulePackage {
         errors: &mut Errors,
     ) {
         validate_and_write_metadata(
-            manifest.metadata.build(),
+            &manifest.metadata.build(),
             build_date,
             package_name,
             package,
@@ -295,7 +295,7 @@ impl ModulePackage {
         .unwrap_or_else(errors.get_add_err_fn());
 
         validate_and_write_component(
-            manifest.component.build(),
+            &manifest.component.build(),
             package,
             Self::COMPONENT_FILE.into(),
         )
@@ -313,7 +313,7 @@ impl ModulePackage {
 
         if let Some(settings) = &manifest.settings {
             validate_and_write_settings_schema(
-                settings.schema.build(),
+                &settings.schema.build(),
                 package,
                 Self::SETTINGS_SCHEMA_FILE.into(),
             )
@@ -321,7 +321,7 @@ impl ModulePackage {
         }
 
         if let Some(share_dir) = &manifest.share {
-            write_share_dir(share_dir.build(), package, Self::SHARE_DIR.into())
+            write_share_dir(&share_dir.build(), package, Self::SHARE_DIR.into())
                 .unwrap_or_else(errors.get_add_err_fn());
         }
     }
@@ -362,9 +362,14 @@ fn validate_and_write_config(
     manifest: &ManifestConfig, dir: &Dir, config_schema_path: Path, config_file_path: Path,
 ) -> anyhow::Result<()> {
     let config_schema =
-        validate_and_write_config_schema(manifest.schema.build(), dir, config_schema_path)?;
+        validate_and_write_config_schema(&manifest.schema.build(), dir, config_schema_path)?;
     if let Some(config_file) = &manifest.file {
-        validate_and_write_config_file(config_file.build(), &config_schema, dir, config_file_path)?;
+        validate_and_write_config_file(
+            &config_file.build(),
+            &config_schema,
+            dir,
+            config_file_path,
+        )?;
     }
     Ok(())
 }

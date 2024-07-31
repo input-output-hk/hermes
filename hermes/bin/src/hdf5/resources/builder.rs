@@ -12,28 +12,32 @@ use super::{fs::FsResource, uri::Uri, ResourceTrait};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ResourceBuilder {
     /// File system resource.
-    Fs(FsResource),
+    Fs(PathBuf),
 }
 
 impl ResourceBuilder {
     /// Upload resource to the file system, returning its path.
     pub(crate) fn upload_to_fs(&self) -> PathBuf {
         match self {
-            Self::Fs(fs) => fs.get_path(),
+            Self::Fs(fs) => fs.clone(),
         }
     }
 
     /// Update current resource to make it relative to the given path.
     pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
         match self {
-            Self::Fs(fs) => fs.make_relative_to(to),
+            Self::Fs(fs) => {
+                if fs.is_relative() {
+                    *fs = to.as_ref().join(&fs);
+                }
+            },
         }
     }
 
     /// Get `ResourceTrait` obj.
-    pub(crate) fn build(&self) -> &impl ResourceTrait {
+    pub(crate) fn build(&self) -> impl ResourceTrait {
         match self {
-            Self::Fs(fs) => fs,
+            Self::Fs(fs) => FsResource::new(fs),
         }
     }
 
@@ -47,7 +51,7 @@ impl ResourceBuilder {
                     ));
                 }
                 if let Some(path) = uri.path {
-                    Ok(Self::Fs(FsResource::new(path)))
+                    Ok(Self::Fs(path.into()))
                 } else {
                     Err(anyhow::anyhow!("Empty path in URI"))
                 }
@@ -59,7 +63,7 @@ impl ResourceBuilder {
                     ));
                 }
                 if let Some(path) = uri.path {
-                    Ok(Self::Fs(FsResource::new(path)))
+                    Ok(Self::Fs(path.into()))
                 } else {
                     Err(anyhow::anyhow!("Empty path in URI"))
                 }
@@ -90,7 +94,7 @@ mod tests {
             path: Some("file.txt".to_string()),
         };
         let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
-        assert_eq!(resource, ResourceBuilder::Fs(FsResource::new("file.txt")));
+        assert_eq!(resource, ResourceBuilder::Fs("file.txt".into()));
 
         let uri = Uri {
             schema: Some("file".to_string()),
@@ -98,7 +102,7 @@ mod tests {
             path: Some("file.txt".to_string()),
         };
         let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
-        assert_eq!(resource, ResourceBuilder::Fs(FsResource::new("file.txt")));
+        assert_eq!(resource, ResourceBuilder::Fs("file.txt".into()));
 
         let uri = Uri {
             schema: Some("file".to_string()),

@@ -4,7 +4,7 @@ use temp_dir::TempDir;
 
 use super::*;
 use crate::{
-    hdf5::resources::{FsResource, ResourceBuilder},
+    hdf5::resources::ResourceBuilder,
     packaging::sign::{
         certificate::{self, tests::certificate_str},
         keys::tests::private_key_str,
@@ -20,7 +20,7 @@ pub(crate) struct ModulePackageFiles {
 }
 
 #[allow(clippy::unwrap_used)]
-pub(crate) fn prepare_default_package_files() -> ModulePackageFiles {
+pub(crate) fn prepare_default_package_content() -> ModulePackageFiles {
     let metadata = Metadata::<ModulePackage>::from_reader(
         serde_json::json!(
             {
@@ -110,15 +110,15 @@ pub(crate) fn prepare_package_dir(
 
     Manifest {
         name: module_name,
-        metadata: ResourceBuilder::Fs(FsResource::new(metadata_path)),
-        component: ResourceBuilder::Fs(FsResource::new(component_path)),
+        metadata: ResourceBuilder::Fs(metadata_path),
+        component: ResourceBuilder::Fs(component_path),
         config: manifest::ManifestConfig {
-            file: Some(ResourceBuilder::Fs(FsResource::new(config_path))),
-            schema: ResourceBuilder::Fs(FsResource::new(config_schema_path)),
+            file: Some(ResourceBuilder::Fs(config_path)),
+            schema: ResourceBuilder::Fs(config_schema_path),
         }
         .into(),
         settings: manifest::ManifestSettings {
-            schema: ResourceBuilder::Fs(FsResource::new(settings_schema_path)),
+            schema: ResourceBuilder::Fs(settings_schema_path),
         }
         .into(),
         share: None,
@@ -153,7 +153,7 @@ pub(crate) fn check_module_integrity(
 fn from_dir_test() {
     let dir = TempDir::new().unwrap();
 
-    let mut module_package_files = prepare_default_package_files();
+    let mut module_package_files = prepare_default_package_content();
 
     let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 
@@ -168,7 +168,27 @@ fn from_dir_test() {
     module_package_files.metadata.set_name(&manifest.name);
     module_package_files.metadata.set_build_date(build_time);
 
-    check_module_integrity(&module_package_files, &package);
+    // check module package integrity
+    let package_metadata = package.get_metadata().unwrap();
+    assert_eq!(module_package_files.metadata, package_metadata);
+
+    // check WASM component file
+    assert!(package.get_component().is_ok());
+
+    // check config and config schema JSON files
+    let (package_config, package_config_schema) = package.get_config_with_schema().unwrap();
+    assert_eq!(module_package_files.config, package_config.unwrap());
+    assert_eq!(
+        module_package_files.config_schema,
+        package_config_schema.unwrap()
+    );
+
+    // check settings schema JSON file
+    let package_settings_schema = package.get_settings_schema().unwrap();
+    assert_eq!(
+        module_package_files.settings_schema,
+        package_settings_schema.unwrap()
+    );
 }
 
 #[test]
@@ -176,7 +196,7 @@ fn from_dir_test() {
 fn sign_test() {
     let dir = TempDir::new().unwrap();
 
-    let mut module_package_files = prepare_default_package_files();
+    let mut module_package_files = prepare_default_package_content();
 
     let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
 

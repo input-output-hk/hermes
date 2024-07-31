@@ -24,18 +24,6 @@ impl FsResource {
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self(path.as_ref().to_path_buf())
     }
-
-    /// Get resource path.
-    pub(crate) fn get_path(&self) -> PathBuf {
-        self.0.clone()
-    }
-
-    /// Update current resource to make it relative to the given path.
-    pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
-        if self.0.is_relative() {
-            self.0 = to.as_ref().join(&self.0);
-        }
-    }
 }
 
 impl ResourceTrait for FsResource {

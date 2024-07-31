@@ -365,10 +365,10 @@ impl ApplicationPackage {
         manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
         errors: &mut Errors,
     ) {
-        validate_and_write_icon(manifest.icon.build(), package, Self::ICON_FILE.into())
+        validate_and_write_icon(&manifest.icon.build(), package, Self::ICON_FILE.into())
             .unwrap_or_else(errors.get_add_err_fn());
         validate_and_write_metadata(
-            manifest.metadata.build(),
+            &manifest.metadata.build(),
             build_date,
             package_name,
             package,
@@ -401,11 +401,11 @@ impl ApplicationPackage {
             .create_dir(Self::SRV_DIR.into())
             .map_or_else(errors.get_add_err_fn(), |_| ());
         if let Some(www_dir) = &manifest.www {
-            write_www_dir(www_dir.build(), package, Self::SRV_WWW_DIR.into())
+            write_www_dir(&www_dir.build(), package, Self::SRV_WWW_DIR.into())
                 .unwrap_or_else(errors.get_add_err_fn());
         }
         if let Some(share_dir) = &manifest.share {
-            write_share_dir(share_dir.build(), package, Self::SRV_SHARE_DIR.into())
+            write_share_dir(&share_dir.build(), package, Self::SRV_SHARE_DIR.into())
                 .unwrap_or_else(errors.get_add_err_fn());
         }
     }
@@ -461,7 +461,7 @@ fn validate_and_write_module(
         ))?;
 
         module::validate_and_write_config_file(
-            config.build(),
+            &config.build(),
             &config_schema,
             &module_overridable_dir,
             config_file_name.into(),
@@ -469,7 +469,7 @@ fn validate_and_write_module(
     }
     if let Some(share_dir) = &manifest.share {
         module::write_share_dir(
-            share_dir.build(),
+            &share_dir.build(),
             &module_overridable_dir,
             share_dir_name.into(),
         )?;
@@ -497,7 +497,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        hdf5::resources::{FsResource, ResourceBuilder},
+        hdf5::resources::ResourceBuilder,
         packaging::sign::{
             certificate::{self, tests::certificate_str},
             keys::tests::private_key_str,
@@ -529,7 +529,7 @@ mod tests {
 
         let mut modules = Vec::with_capacity(modules_num);
         for _ in 0..modules_num {
-            modules.push(module::tests::prepare_default_package_files());
+            modules.push(module::tests::prepare_default_package_content());
         }
 
         ApplicationPackageFiles {
@@ -579,7 +579,7 @@ mod tests {
 
             modules.push(ManifestModule {
                 name: override_module_name.get(i).cloned(),
-                package: ResourceBuilder::Fs(FsResource::new(module_package_path)),
+                package: ResourceBuilder::Fs(module_package_path),
                 config: None,
                 share: None,
             });
@@ -587,8 +587,8 @@ mod tests {
 
         Manifest {
             name: app_name,
-            icon: ResourceBuilder::Fs(FsResource::new(icon_path)),
-            metadata: ResourceBuilder::Fs(FsResource::new(metadata_path)),
+            icon: ResourceBuilder::Fs(icon_path),
+            metadata: ResourceBuilder::Fs(metadata_path),
             modules,
             www: None,
             share: None,
