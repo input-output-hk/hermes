@@ -148,7 +148,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             lambda_send,
             &lambda_recv_answer,
         )
-    } else if is_valid_path(uri.path())? {
+    } else if is_valid_path(uri.path()).is_ok() {
         serve_static_data(uri.path())
     } else {
         Ok(not_found()?)
@@ -196,7 +196,11 @@ fn serve_static_data(path: &str) -> anyhow::Result<Response<Body>> {
 fn is_valid_path(path: &str) -> anyhow::Result<()> {
     let regex = Regex::new(VALID_PATH)?;
 
-    Ok(regex.is_match(path))
+    if regex.is_match(path) {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Not a valid path {:?}", path))
+    }
 }
 
 #[cfg(test)]
@@ -204,6 +208,7 @@ mod tests {
     use regex::Regex;
 
     use super::VALID_PATH;
+    use crate::runtime_extensions::hermes::http_gateway::routing::is_valid_path;
 
     #[test]
     fn test_valid_paths_regex() {
@@ -230,6 +235,8 @@ mod tests {
                     valid
                 );
             }
+
+            assert!(is_valid_path(valid).is_ok());
         }
 
         // invalid
@@ -250,6 +257,8 @@ mod tests {
             if let Some(captures) = regex.captures(invalid) {
                 assert!(captures.len() == 0);
             }
+
+            assert!(is_valid_path(invalid).is_err());
         }
     }
 }
