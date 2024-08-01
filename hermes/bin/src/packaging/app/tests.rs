@@ -11,14 +11,20 @@ use crate::{
     },
 };
 
-struct ApplicationPackageFiles {
+type ApplicationPackageShare = module::tests::ModulePackageShare;
+type ApplicationPackageWww = module::tests::ModulePackageShare;
+// type ApplicationPackageModuleShare = module::tests::ModulePackageShare;
+
+struct ApplicationPackageContent {
     metadata: Metadata<ApplicationPackage>,
     icon: Vec<u8>,
     modules: Vec<module::tests::ModulePackageContent>,
+    share: ApplicationPackageShare,
+    www: ApplicationPackageWww,
 }
 
 #[allow(clippy::unwrap_used)]
-fn prepare_default_package_files(modules_num: usize) -> ApplicationPackageFiles {
+fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageContent {
     let metadata = Metadata::<ApplicationPackage>::from_reader(
         serde_json::json!(
             {
@@ -39,33 +45,68 @@ fn prepare_default_package_files(modules_num: usize) -> ApplicationPackageFiles 
         modules.push(module::tests::prepare_default_package_content());
     }
 
-    ApplicationPackageFiles {
+    let share = ApplicationPackageShare {
+        child_dir_name: "share_child".to_string(),
+        file: ("file.txt".to_string(), b"file content".to_vec()),
+    };
+    let www = ApplicationPackageWww {
+        child_dir_name: "www_child".to_string(),
+        file: ("file.txt".to_string(), b"file content".to_vec()),
+    };
+
+    ApplicationPackageContent {
         metadata,
         icon,
         modules,
+        share,
+        www,
     }
 }
 
 #[allow(clippy::unwrap_used)]
 fn prepare_package_dir(
-    app_name: String, override_module_name: &[String], build_date: DateTime<Utc>, dir: &TempDir,
-    app_package_files: &mut ApplicationPackageFiles,
+    app_name: String, override_module_name: &[String], build_date: DateTime<Utc>,
+    dir: &std::path::Path, app_package_content: &mut ApplicationPackageContent,
 ) -> Manifest {
-    let metadata_path = dir.path().join("metadata.json");
-    let icon_path = dir.path().join("icon.png");
+    let app_dir = dir.join(&app_name);
+    let metadata_path = app_dir.join("metadata.json");
+    let icon_path = app_dir.join("icon.png");
+    let share_path = app_dir.join("share");
+    let www_path = app_dir.join("www");
 
+    std::fs::create_dir(&app_dir).unwrap();
     std::fs::write(
         &metadata_path,
-        app_package_files.metadata.to_bytes().unwrap().as_slice(),
+        app_package_content.metadata.to_bytes().unwrap().as_slice(),
     )
     .unwrap();
 
-    std::fs::write(&icon_path, app_package_files.icon.as_slice()).unwrap();
+    std::fs::write(&icon_path, app_package_content.icon.as_slice()).unwrap();
+
+    std::fs::create_dir(&share_path).unwrap();
+    std::fs::create_dir(share_path.join(&app_package_content.share.child_dir_name)).unwrap();
+    std::fs::write(
+        share_path
+            .join(&app_package_content.share.child_dir_name)
+            .join(&app_package_content.share.file.0),
+        app_package_content.share.file.1.as_slice(),
+    )
+    .unwrap();
+
+    std::fs::create_dir(&www_path).unwrap();
+    std::fs::create_dir(www_path.join(&app_package_content.www.child_dir_name)).unwrap();
+    std::fs::write(
+        www_path
+            .join(&app_package_content.www.child_dir_name)
+            .join(&app_package_content.www.file.0),
+        app_package_content.www.file.1.as_slice(),
+    )
+    .unwrap();
 
     let mut modules = Vec::new();
-    for (i, module_package_files) in app_package_files.modules.iter_mut().enumerate() {
+    for (i, module_package_files) in app_package_content.modules.iter_mut().enumerate() {
         let default_module_name = format!("module_{i}");
-        let mut module_package_path = dir.path().join(&default_module_name);
+        let mut module_package_path = dir.join(&default_module_name);
         module_package_path.set_extension(ModulePackage::FILE_EXTENSION);
 
         let module_manifest = module::tests::prepare_package_dir(
@@ -75,8 +116,7 @@ fn prepare_package_dir(
         );
 
         let package =
-            ModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
-                .unwrap();
+            ModulePackage::build_from_manifest(&module_manifest, dir, None, build_date).unwrap();
 
         // WASM module package during the build process updates metadata file
         // to have a corresponded values update `module_package_files`.
@@ -100,51 +140,30 @@ fn prepare_package_dir(
     }
 }
 
-#[test]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
-fn from_dir_test() {
-    let dir = TempDir::new().unwrap();
-
-    let modules_num = 4;
-    let mut app_package_files = prepare_default_package_files(modules_num);
-
-    // override module names for first 2 modules
-    let override_module_name = vec!["test_module_1".into(), "test_module_2".into()];
-    let build_date = DateTime::default();
-    let manifest = prepare_package_dir(
-        "app".to_string(),
-        &override_module_name,
-        build_date,
-        &dir,
-        &mut app_package_files,
-    );
-
-    let package =
-        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
-
-    assert!(package.validate(true).is_ok());
-
+fn check_app_integrity(
+    app_content: &ApplicationPackageContent, app_package: &ApplicationPackage, manifest: &Manifest,
+) {
     // check metadata JSON file
-    app_package_files.metadata.set_name(&manifest.name);
-    app_package_files.metadata.set_build_date(build_date);
-
-    let package_metadata = package.get_metadata().unwrap();
-    assert_eq!(app_package_files.metadata, package_metadata);
+    let package_metadata = app_package.get_metadata().unwrap();
+    assert_eq!(app_content.metadata, package_metadata);
 
     // check icon file
-    assert!(package.get_icon_file().is_ok());
+    assert!(app_package.get_icon_file().is_ok());
+
+    // check
 
     // check WASM modules
-    let modules = package.get_modules().unwrap();
-    assert_eq!(modules.len(), app_package_files.modules.len());
+    let modules = app_package.get_modules().unwrap();
+    assert_eq!(modules.len(), app_content.modules.len());
 
     for module_info in modules {
         // taking not overridden module name
         let package_module_name = module_info.get_metadata().unwrap().get_name().unwrap();
         // searching by this name from the prepared app package files
-        let (i, module_files) = app_package_files
+        let (i, module_files) = app_content
             .modules
-            .iter_mut()
+            .iter()
             .enumerate()
             .find(|(_, module)| module.metadata.get_name().unwrap() == *package_module_name)
             .unwrap();
@@ -161,21 +180,52 @@ fn from_dir_test() {
 
 #[test]
 #[allow(clippy::unwrap_used)]
-fn author_sing_test() {
+fn from_dir_test() {
     let dir = TempDir::new().unwrap();
 
     let modules_num = 4;
-    let mut app_package_files = prepare_default_package_files(modules_num);
+    let mut app_package_content = prepare_default_package_content(modules_num);
 
     // override module names for first 2 modules
-    let override_module_name = vec!["test module 1".into(), "test module 2".into()];
+    let override_module_name = vec!["test_module_1".into(), "test_module_2".into()];
     let build_date = DateTime::default();
     let manifest = prepare_package_dir(
         "app".to_string(),
         &override_module_name,
         build_date,
-        &dir,
-        &mut app_package_files,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    assert!(package.validate(true).is_ok());
+
+    // Application package during the build process updates metadata file
+    // to have a corresponded values update `app_package_content`.
+    app_package_content.metadata.set_name(&manifest.name);
+    app_package_content.metadata.set_build_date(build_date);
+
+    // check app package integrity
+    check_app_integrity(&app_package_content, &package, &manifest);
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn author_sing_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
     );
 
     let package =
@@ -205,26 +255,143 @@ fn author_sing_test() {
 
     certificate::storage::add_certificate(certificate).unwrap();
     assert!(package.validate(false).is_ok());
+}
 
-    // corrupt payload with the modifying metadata.json file
-    app_package_files.metadata.set_name("New name");
-    package
-        .0
-        .remove_file(ApplicationPackage::METADATA_FILE.into())
-        .unwrap();
-    package
-        .0
-        .copy_resource_file(
-            &BytesResource::new(
-                ApplicationPackage::METADATA_FILE.to_string(),
-                app_package_files.metadata.to_bytes().unwrap(),
-            ),
-            ApplicationPackage::METADATA_FILE.into(),
-        )
-        .unwrap();
+#[allow(clippy::unwrap_used)]
+fn author_sign_package(package: &ApplicationPackage) {
+    let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+    let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
-    assert!(
-        package.validate(false).is_err(),
-        "Corrupted signature payload."
+    // sign wasm modules packages first
+    for module_info in package.get_modules().unwrap() {
+        module_info.sign(&private_key, &certificate).unwrap();
+    }
+
+    package.author_sign(&private_key, &certificate).unwrap();
+
+    certificate::storage::add_certificate(certificate).unwrap();
+    assert!(package.validate(false).is_ok());
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_metadata_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    // override module names for first 2 modules
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
     );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ApplicationPackage::METADATA_FILE.into())
+            .unwrap();
+        assert!(
+            package.validate(false).is_err(),
+            "Missing required metadata file."
+        );
+    }
+
+    {
+        let new_metadata = Metadata::<ApplicationPackage>::from_reader(
+            serde_json::json!(
+                {
+                    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_metadata.schema.json",
+                    "name": "new test module",
+                    "version": "V1.0.0",
+                    "description": "Some new description",
+                    "src": ["https://github.com/input-output-hk/hermes"],
+                    "copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+                    "license": [{"spdx": "MIT"}]
+                }
+            ).to_string().as_bytes(),
+        ).unwrap();
+        assert_ne!(app_package_content.metadata, new_metadata);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(
+                    ApplicationPackage::METADATA_FILE.to_string(),
+                    new_metadata.to_bytes().unwrap(),
+                ),
+                ApplicationPackage::METADATA_FILE.into(),
+            )
+            .unwrap();
+
+        assert!(package.get_metadata().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_icon_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    // override module names for first 2 modules
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_file(ApplicationPackage::ICON_FILE.into())
+            .unwrap();
+        assert!(
+            package.validate(false).is_err(),
+            "Missing required metadata file."
+        );
+    }
+
+    {
+        let new_icon = b"new icon_image_svg_content";
+        assert_ne!(app_package_content.icon.as_slice(), new_icon);
+
+        package
+            .0
+            .copy_resource_file(
+                &BytesResource::new(ApplicationPackage::ICON_FILE.to_string(), new_icon.to_vec()),
+                ApplicationPackage::ICON_FILE.into(),
+            )
+            .unwrap();
+
+        assert!(package.get_icon_file().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
 }

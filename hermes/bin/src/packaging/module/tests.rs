@@ -13,13 +13,6 @@ use crate::{
     },
 };
 
-pub(crate) struct ModulePackageShare {
-    /// Child directory name under the share directory
-    child_dir_name: String,
-    /// File name and file content under the child directory.
-    file: (String, Vec<u8>),
-}
-
 pub(crate) struct ModulePackageContent {
     pub(crate) metadata: Metadata<ModulePackage>,
     pub(crate) component: Vec<u8>,
@@ -27,6 +20,13 @@ pub(crate) struct ModulePackageContent {
     pub(crate) config: Config,
     pub(crate) settings_schema: SettingsSchema,
     pub(crate) share: ModulePackageShare,
+}
+
+pub(crate) struct ModulePackageShare {
+    /// Child directory name under the share directory
+    pub(crate) child_dir_name: String,
+    /// File name and file content under the child directory.
+    pub(crate) file: (String, Vec<u8>),
 }
 
 #[allow(clippy::unwrap_used)]
@@ -87,9 +87,9 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
 
 #[allow(clippy::unwrap_used)]
 pub(crate) fn prepare_package_dir(
-    module_name: String, dir: &TempDir, module_package_content: &ModulePackageContent,
+    module_name: String, dir: &std::path::Path, module_package_content: &ModulePackageContent,
 ) -> Manifest {
-    let module_dir = dir.child(&module_name);
+    let module_dir = dir.join(&module_name);
     let config_path = module_dir.join("config.json");
     let config_schema_path = module_dir.join("config.schema.json");
     let metadata_path = module_dir.join("metadata.json");
@@ -204,7 +204,7 @@ fn from_dir_test() {
 
     let mut module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -228,7 +228,7 @@ fn sign_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -270,7 +270,7 @@ fn corrupted_metadata_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -331,7 +331,7 @@ fn corrupted_component_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -391,7 +391,7 @@ fn corrupted_config_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -452,7 +452,7 @@ fn corrupted_config_schema_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -513,7 +513,7 @@ fn corrupted_settings_schema_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -574,7 +574,7 @@ fn corrupted_share_dir_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
