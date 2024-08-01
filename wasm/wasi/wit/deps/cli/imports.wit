@@ -8,7 +8,7 @@ world imports {
   include wasi:io/imports@0.2.0;
 
   import environment;
-  //import exit;
+  import exit;
   import stdin;
   import stdout;
   import stderr;

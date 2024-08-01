@@ -289,7 +289,7 @@ async fn check_pre_downloaded(dest: &Path, url: &str) -> bool {
                 }
 
                 if let Err(error) = hard_link(dl_path, dest_file).await {
-                    error!(error=%error, "Trying to hard link pre downloaded file.")
+                    error!(error=%error, "Trying to hard link pre downloaded file.");
                 } else {
                     return true;
                 }

@@ -18,8 +18,6 @@ use tokio::{
 };
 use tracing::{debug, error};
 
-#[cfg(feature = "local-hash-index")]
-use crate::data_index::background_index_blocks_and_transactions;
 use crate::{
     error::{Error, Result},
     mithril_query::get_mithril_tip_point,
@@ -632,26 +630,9 @@ async fn download_and_validate_snapshot(
     let validate_handle =
         background_validate_mithril_snapshot(cfg.chain, certificate, cfg.tmp_path());
 
-    #[cfg(not(feature = "local-hash-index"))]
-    {
-        if !validate_handle.await.unwrap_or(false) {
-            error!("Failed to validate for {}", cfg.chain);
-            return false;
-        }
-    }
-
-    #[cfg(feature = "local-hash-index")]
-    {
-        let index_handle =
-            background_index_blocks_and_transactions(cfg.chain, validate_handle, chunk_list);
-
-        if !index_handle.await.unwrap_or(false) {
-            error!(
-                "Failed to validate or index blocks and transactions for {}",
-                cfg.chain
-            );
-            return false;
-        }
+    if !validate_handle.await.unwrap_or(false) {
+        error!("Failed to validate for {}", cfg.chain);
+        return false;
     }
 
     true

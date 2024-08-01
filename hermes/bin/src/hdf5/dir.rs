@@ -38,6 +38,23 @@ impl Dir {
             target.as_str(),
             link_name.as_str(),
         )?;
+        self.flush()?;
+        Ok(())
+    }
+
+    /// Mount file from the another HDF5 package to the provided path.
+    pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
+        let link_name = path.pop_elem();
+        let dir = self.get_dir(&path)?;
+
+        let target_file_name = mounted_file.hdf5_ds.filename();
+        let target = mounted_file.hdf5_ds.name();
+        dir.0.link_external(
+            target_file_name.as_str(),
+            target.as_str(),
+            link_name.as_str(),
+        )?;
+        self.flush()?;
         Ok(())
     }
 
@@ -46,6 +63,7 @@ impl Dir {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let file = File::create(&dir.0, file_name.as_str())?;
+        self.flush()?;
         Ok(file)
     }
 
@@ -57,6 +75,7 @@ impl Dir {
         let mut reader = resource.get_reader()?;
 
         std::io::copy(&mut reader, &mut file)?;
+        self.flush()?;
         Ok(())
     }
 
@@ -79,6 +98,7 @@ impl Dir {
                     .unwrap_or_else(errors.get_add_err_fn());
             }
         }
+        self.flush()?;
         errors.return_result(())
     }
 
@@ -99,6 +119,7 @@ impl Dir {
             .0
             .create_group(&dir_name)
             .map_err(|_| anyhow::anyhow!("Dir `{path}/{dir_name}` already exists"))?;
+        self.flush()?;
         Ok(Self(new_dir))
     }
 
@@ -107,30 +128,31 @@ impl Dir {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
-        if dir.0.dataset(file_name.as_str()).is_ok() {
-            dir.0.unlink(file_name.as_str()).map_err(|_| {
-                anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
-            })?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("File '{path}/{file_name}' not found"))
-        }
+        dir.0.dataset(file_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
+        })?;
+        dir.0.unlink(file_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove file '{path}/{file_name}' from package")
+        })?;
+
+        self.flush()?;
+        Ok(())
     }
 
     /// Remove directory by the provided path.
-    #[allow(dead_code)]
     pub(crate) fn remove_dir(&self, mut path: Path) -> anyhow::Result<()> {
         let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
-        if dir.0.group(dir_name.as_str()).is_ok() {
-            dir.0.unlink(dir_name.as_str()).map_err(|_| {
-                anyhow::anyhow!("Failed to remove directory '{path}/{dir_name}' from package")
-            })?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Directory '{path}/{dir_name}' not found"))
-        }
+        dir.0
+            .group(dir_name.as_str())
+            .map_err(|_| anyhow::anyhow!("Directory '{path}/{dir_name}' not found"))?;
+        dir.0.unlink(dir_name.as_str()).map_err(|_| {
+            anyhow::anyhow!("Failed to remove directory '{path}/{dir_name}' from package")
+        })?;
+
+        self.flush()?;
+        Ok(())
     }
 
     /// Get file if present from path.
@@ -170,11 +192,18 @@ impl Dir {
         let dir = self.get_dir(path)?;
         Ok(dir.0.groups()?.into_iter().map(Self).collect())
     }
+
+    /// Flushes internal HDF5 to the disk
+    fn flush(&self) -> anyhow::Result<()> {
+        let package = self.0.file()?;
+        package.flush()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{Read, Write};
 
     use temp_dir::TempDir;
 
@@ -212,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn mount_external_test() {
+    fn mount_dir_test() {
         let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
         let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
             .expect("Failed to create a new package.");
@@ -240,7 +269,7 @@ mod tests {
         );
 
         dir1.mount_dir(&dir2, mounted_dir_name.into())
-            .expect("Failed to mount external.");
+            .expect("Failed to mount dir.");
 
         assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
         assert_eq!(
@@ -259,6 +288,39 @@ mod tests {
         assert!(dir1
             .get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
             .is_ok());
+    }
+
+    #[test]
+    fn mount_file_test() {
+        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
+            .expect("Failed to create a new package.");
+        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+
+        let file_name = "file.txt";
+        let file_content = b"file_content";
+        let mut file = dir2
+            .create_file(file_name.into())
+            .expect("Failed to create file.");
+        file.write_all(file_content).expect("Failed to write file.");
+
+        assert!(dir1.get_file(file_name.into()).is_err());
+        dir1.mount_file(&file, file_name.into())
+            .expect("Failed to mount file.");
+
+        let mut mounted_file = dir1
+            .get_file(file_name.into())
+            .expect("Failed to get file.");
+        let mut mounted_file_content = Vec::new();
+        mounted_file
+            .read_to_end(&mut mounted_file_content)
+            .expect("Failed to read file's data.");
+
+        assert_eq!(mounted_file_content, file_content);
     }
 
     #[test]

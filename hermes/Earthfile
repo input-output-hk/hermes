@@ -47,7 +47,7 @@ check:
 
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
-# all-hosts-check : Test which runs check with all supported host tooling.  
+# all-hosts-check : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
 all-hosts-check:
@@ -80,10 +80,11 @@ test-wasm-integration:
     FROM +build
 
     # Copy all wasm module artifacts for testing
-    COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/golang+build/golang.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/ipfs+build/ipfs.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
@@ -97,7 +98,7 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
 
-# all-hosts-build : Test which runs check with all supported host tooling.  
+# all-hosts-build : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
 all-hosts-build:

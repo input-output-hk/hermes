@@ -6,23 +6,39 @@ use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
 
-use crate::hdf5::{self as hermes_hdf5, Path};
+use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system type.
 #[derive(Clone, Debug)]
 pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
-    #[allow(dead_code)]
     root: hermes_hdf5::Dir,
     // TODO: add permissions RWX
+}
+
+impl Vfs {
+    /// Virtual file system `etc` directory name.
+    pub(crate) const ETC_DIR: &'static str = "etc";
+    /// Virtual file system file extension.
+    pub(crate) const FILE_EXTENSION: &'static str = "hfs";
+    /// Virtual file system `lib` directory name.
+    pub(crate) const LIB_DIR: &'static str = "lib";
+    /// Virtual file system `srv` directory name.
+    pub(crate) const SRV_DIR: &'static str = "srv";
+    /// Virtual file system `tmp` directory name.
+    pub(crate) const TMP_DIR: &'static str = "tmp";
+    /// Virtual file system `usr` directory name.
+    pub(crate) const USR_DIR: &'static str = "usr";
+    /// Virtual file system `usr/lib` directory name.
+    pub(crate) const USR_LIB_DIR: &'static str = "usr/lib";
 }
 
 impl Vfs {
     /// Reads in data in bytes, the number of which is specified by the caller,
     /// from the hdf5 file and stores then into a buffer supplied by the calling process.
     #[allow(dead_code)]
-    pub(crate) fn read(&self, path: Path) -> anyhow::Result<Vec<u8>, anyhow::Error> {
-        let mut file = self.root.get_file(path)?;
+    pub(crate) fn read(&self, path: &str) -> anyhow::Result<Vec<u8>> {
+        let mut file = self.root.get_file(path.into())?;
 
         let mut buffer = Vec::new();
 
@@ -34,24 +50,24 @@ impl Vfs {
     /// Writes data from a buffer declared by the user to a hdf5 file.
     // TODO: add permissions RWX
     #[allow(dead_code)]
-    pub(crate) fn write(&self, path: &Path, buffer: &[u8]) -> anyhow::Result<(), anyhow::Error> {
+    pub(crate) fn write(&self, path: &str, buffer: &[u8]) -> anyhow::Result<()> {
+        let path: hermes_hdf5::Path = path.into();
         let mut file = match self.root.get_file(path.clone()) {
             Ok(file) => file,
-            Err(_) => self.root.create_file(path.clone())?,
+            Err(_) => self.root.create_file(path)?,
         };
 
         let _unused = file.write(buffer)?;
+        file.flush()?;
 
         Ok(())
     }
 }
 #[cfg(test)]
 mod tests {
-
     use temp_dir::TempDir;
 
-    use super::VfsBootstrapper;
-    use crate::hdf5::{Dir, Path};
+    use super::*;
 
     #[test]
     fn read_write_file_test() {
@@ -60,25 +76,16 @@ mod tests {
 
         let vfs_name = "test_vfs".to_string();
 
-        let tmp_dir_www = TempDir::new().expect("Failed to create temp dir.");
-        let www = tmp_dir_www.child("www.hdf5");
+        let bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
 
-        let www = hdf5::File::create(www).expect("Failed to create hdf5 file.");
-        let www_dir = Dir::new(www.as_group().expect("Failed to create a www group."));
-
-        let mut bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
-
-        bootstrapper.with_mounted_www(www_dir);
         let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
-        let www_file_path = Path::from_str("/www");
-        vfs.write(&www_file_path, b"web_server")
+        let file_path = format!("{}/www.txt", Vfs::SRV_DIR);
+        let file_content = b"web_server";
+        vfs.write(file_path.as_str(), file_content)
             .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(www_file_path).expect("Cannot read from VFS");
-        assert_eq!(10, written_data.len());
-
-        let written = String::from_utf8_lossy(&written_data).to_string();
-        assert_eq!(written, "web_server".to_string());
+        let written_data = vfs.read(file_path.as_str()).expect("Cannot read from VFS");
+        assert_eq!(written_data.as_slice(), file_content);
     }
 }

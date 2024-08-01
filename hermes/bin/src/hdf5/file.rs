@@ -3,12 +3,21 @@
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct File {
     /// HDF5 dataset object.
-    hdf5_ds: hdf5::Dataset,
+    pub(super) hdf5_ds: hdf5::Dataset,
     /// Reading/Writing position of the `hdf5_ds`.
     pos: usize,
+}
+
+impl std::clone::Clone for File {
+    fn clone(&self) -> Self {
+        Self {
+            hdf5_ds: self.hdf5_ds.clone(),
+            pos: self.pos,
+        }
+    }
 }
 
 impl File {
@@ -98,6 +107,8 @@ impl std::io::Write for File {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        let package = self.hdf5_ds.file().map_err(map_to_io_error)?;
+        package.flush().map_err(map_to_io_error)?;
         Ok(())
     }
 }

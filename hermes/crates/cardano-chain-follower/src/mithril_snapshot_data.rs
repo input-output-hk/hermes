@@ -1,8 +1,7 @@
 //! Data about the current Mithril Snapshot
-use std::default;
+use std::{default, sync::LazyLock};
 
 use dashmap::DashMap;
-use once_cell::sync::Lazy;
 
 use crate::{network::Network, snapshot_id::SnapshotId};
 
@@ -35,7 +34,8 @@ impl default::Default for SnapshotData {
 }
 
 /// Current Mithril Snapshot for a network.
-static CURRENT_MITHRIL_SNAPSHOT: Lazy<DashMap<Network, SnapshotData>> = Lazy::new(DashMap::new);
+static CURRENT_MITHRIL_SNAPSHOT: LazyLock<DashMap<Network, SnapshotData>> =
+    LazyLock::new(DashMap::new);
 
 /// Get the current latest snapshot data we have recorded.
 pub(crate) fn latest_mithril_snapshot_data(chain: Network) -> SnapshotData {

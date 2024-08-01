@@ -21,7 +21,9 @@ pub(crate) const ENVVAR_MITHRIL_DATA_PATH: &str = "MITHRIL_DATA_PATH";
 pub(crate) const ENVVAR_MITHRIL_EXE_NAME: &str = "MITHRIL_EXE_NAME";
 
 /// Enum of possible Cardano networks.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, strum::EnumIter, strum::VariantNames)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, strum::EnumIter, strum::VariantNames,
+)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,
@@ -154,7 +156,7 @@ impl Network {
         let genesis = self.genesis_values();
         let wall_clock = genesis.slot_to_wallclock(slot);
 
-        let raw_time: i64 = wall_clock.try_into().unwrap_or(std::i64::MAX);
+        let raw_time: i64 = wall_clock.try_into().unwrap_or(i64::MAX);
         DateTime::from_timestamp(raw_time, 0).unwrap_or(DateTime::<Utc>::MAX_UTC)
     }
 
@@ -200,5 +202,25 @@ impl From<Network> for u64 {
             Network::Preprod => PRE_PRODUCTION_MAGIC,
             Network::Preview => PREVIEW_MAGIC,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Ok;
+
+    use super::*;
+
+    #[test]
+    fn test_from_str() -> anyhow::Result<()> {
+        let mainnet = Network::from_str("mainnet")?;
+        let preprod = Network::from_str("preprod")?;
+        let preview = Network::from_str("preview")?;
+
+        assert_eq!(mainnet, Network::Mainnet);
+        assert_eq!(preprod, Network::Preprod);
+        assert_eq!(preview, Network::Preview);
+
+        Ok(())
     }
 }

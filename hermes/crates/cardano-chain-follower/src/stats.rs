@@ -1,10 +1,9 @@
 //! Cardano Chain Follower Statistics
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use chrono::{DateTime, Utc};
 use crossbeam_skiplist::SkipMap;
-use once_cell::sync::Lazy;
 use serde::Serialize;
 use strum::{EnumIter, IntoEnumIterator};
 use tracing::error;
@@ -180,7 +179,7 @@ pub struct Statistics {
 /// Type we use to manage the Sync Task handle map.
 type StatsMap = SkipMap<Network, Arc<RwLock<Statistics>>>;
 /// The statistics being maintained per chain.
-static STATS_MAP: Lazy<StatsMap> = Lazy::new(|| {
+static STATS_MAP: LazyLock<StatsMap> = LazyLock::new(|| {
     let map = StatsMap::default();
 
     for network in Network::iter() {
@@ -227,6 +226,19 @@ impl Statistics {
     fn reset_stats(&mut self) {
         self.live.reset();
         self.mithril.reset();
+    }
+
+    /// Get the current tips of the immutable chain and live chain.
+    pub(crate) fn tips(chain: Network) -> (u64, u64) {
+        let Some(stats) = lookup_stats(chain) else {
+            return (0, 0);
+        };
+
+        let Ok(chain_stats) = stats.read() else {
+            return (0, 0);
+        };
+
+        (chain_stats.mithril.tip, chain_stats.live.head_slot)
     }
 
     /// Reset amd return cumulative counters contained in the statistics.
@@ -570,7 +582,7 @@ type RollbackTypeMap = SkipMap<RollbackType, Arc<RwLock<RollbackRecords>>>;
 /// Record of rollbacks.
 type RollbackMap = SkipMap<Network, RollbackTypeMap>;
 /// Statistics of rollbacks detected per chain.
-static ROLLBACKS_MAP: Lazy<RollbackMap> = Lazy::new(|| {
+static ROLLBACKS_MAP: LazyLock<RollbackMap> = LazyLock::new(|| {
     let map = RollbackMap::new();
     for network in Network::iter() {
         let type_map = RollbackTypeMap::new();
@@ -657,4 +669,89 @@ pub(crate) fn rollback(chain: Network, rollback: RollbackType, depth: u64) {
     value.count += 1;
 
     let _unused = rollbacks.insert(depth, value);
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use chrono::Utc;
+
+    use super::*;
+
+    #[test]
+    fn test_mithril_reset() {
+        let mut mithril = Mithril {
+            updates: 10,
+            dl_failures: 5,
+            extract_failures: 3,
+            validate_failures: 2,
+            invalid_blocks: 1,
+            ..Default::default()
+        };
+        mithril.reset();
+        assert_eq!(mithril.updates, 0);
+        assert_eq!(mithril.dl_failures, 0);
+        assert_eq!(mithril.extract_failures, 0);
+        assert_eq!(mithril.validate_failures, 0);
+        assert_eq!(mithril.invalid_blocks, 0);
+    }
+
+    #[test]
+    fn test_live_reset() {
+        let mut live = Live {
+            new_blocks: 10,
+            reconnects: 5,
+            invalid_blocks: 3,
+            ..Default::default()
+        };
+        live.reset();
+        assert_eq!(live.new_blocks, 0);
+        assert_eq!(live.reconnects, 0);
+        assert_eq!(live.invalid_blocks, 0);
+    }
+
+    #[test]
+    fn test_statistics_reset_stats() {
+        let mut stats = Statistics::default();
+        stats.live.new_blocks = 10;
+        stats.mithril.updates = 5;
+        stats.reset_stats();
+        assert_eq!(stats.live.new_blocks, 0);
+        assert_eq!(stats.mithril.updates, 0);
+    }
+
+    #[test]
+    fn test_statistics_as_json() {
+        let stats = Statistics::default();
+        let json = stats.as_json(true);
+        assert!(json.contains("\"blocks\": 0"));
+        assert!(json.contains("\"updates\": 0"));
+    }
+
+    #[test]
+    fn test_lookup_stats() {
+        let network = Network::Preprod;
+        let stats = lookup_stats(network);
+        assert!(stats.is_some());
+    }
+
+    #[test]
+    fn test_new_live_block() {
+        let network = Network::Preprod;
+        new_live_block(network, 100, 50, 200);
+        let stats = lookup_stats(network).unwrap();
+        let stats = stats.read().unwrap();
+        assert_eq!(stats.live.blocks, 100);
+        assert_eq!(stats.live.head_slot, 50);
+        assert_eq!(stats.live.tip, 200);
+    }
+
+    #[test]
+    fn test_mithril_dl_started() {
+        let network = Network::Preprod;
+        mithril_dl_started(network);
+        let stats = lookup_stats(network).unwrap();
+        let stats = stats.read().unwrap();
+        assert!(stats.mithril.dl_start <= Utc::now());
+    }
 }
