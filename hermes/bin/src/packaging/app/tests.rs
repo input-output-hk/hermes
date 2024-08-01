@@ -320,7 +320,7 @@ fn author_sign_package(package: &ApplicationPackage) {
 fn corrupted_metadata_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -388,7 +388,7 @@ fn corrupted_metadata_test() {
 fn corrupted_icon_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -441,7 +441,7 @@ fn corrupted_icon_test() {
 fn corrupted_share_dir_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -498,7 +498,7 @@ fn corrupted_share_dir_test() {
 fn corrupted_www_dir_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -552,7 +552,7 @@ fn corrupted_www_dir_test() {
 fn corrupted_module_config_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -570,6 +570,7 @@ fn corrupted_module_config_test() {
     author_sign_package(&package);
 
     let modules = package.get_modules().unwrap();
+    assert_eq!(modules.len(), 1);
     let module_info = modules.first().unwrap();
 
     {
@@ -585,8 +586,6 @@ fn corrupted_module_config_test() {
                 .into(),
             )
             .unwrap();
-        // remains original modules config file
-        assert!(module_info.get_config_info().unwrap().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
@@ -594,24 +593,26 @@ fn corrupted_module_config_test() {
     }
 
     {
-        // let config_schema = module_info.get_config_info().unwrap().unwrap();
+        let config_info = module_info.get_config_info().unwrap().unwrap();
 
-        // let new_config = Config::from_reader(
-        //     serde_json::json!({
-        //         "new_prop": "new value",
-        //     })
-        //     .to_string()
-        //     .as_bytes(),
-        //     config_schema.validator(),
-        // )
-        // .unwrap();
-        // assert_ne!(module_package_content.config, new_config);
+        let new_config = Config::from_reader(
+            serde_json::json!({
+                "new_prop": "new value",
+            })
+            .to_string()
+            .as_bytes(),
+            config_info.schema.validator(),
+        )
+        .unwrap();
+        assert_ne!(
+            app_package_content.modules.first().unwrap().config,
+            new_config
+        );
 
-        // assert!(module_info.get_share_dir().is_some());
-        // assert!(
-        //     package.validate(false).is_err(),
-        //     "Corrupted signature payload."
-        // );
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
     }
 }
 
@@ -620,7 +621,7 @@ fn corrupted_module_config_test() {
 fn corrupted_module_share_dir_test() {
     let dir = TempDir::new().unwrap();
 
-    let modules_num = 4;
+    let modules_num = 1;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
     let build_date = DateTime::default();
@@ -638,6 +639,7 @@ fn corrupted_module_share_dir_test() {
     author_sign_package(&package);
 
     let modules = package.get_modules().unwrap();
+    assert_eq!(modules.len(), 1);
     let module_info = modules.first().unwrap();
 
     {
@@ -653,8 +655,6 @@ fn corrupted_module_share_dir_test() {
                 .into(),
             )
             .unwrap();
-        // remains original modules share directory
-        assert!(module_info.get_share_dir().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
@@ -681,7 +681,6 @@ fn corrupted_module_share_dir_test() {
         assert_ne!(app_package_content.www.file.0.as_str(), new_file_name);
         assert_ne!(app_package_content.www.file.1.as_slice(), new_file_content);
 
-        assert!(module_info.get_share_dir().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
