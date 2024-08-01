@@ -131,7 +131,6 @@ impl HermesIpfs {
             .disable_tls()
             .start()
             .await?;
-
         Ok(HermesIpfs { node })
     }
 

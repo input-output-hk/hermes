@@ -2,7 +2,7 @@
 use std::str::FromStr;
 
 use hermes_ipfs::{
-    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as PathIpfsFile,
+    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile,
     MessageId as PubsubMessageId, PeerId as TargetPeerId,
 };
 use tokio::{
@@ -10,7 +10,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use super::HERMES_IPFS_STATE;
+use super::HERMES_IPFS;
 use crate::{
     event::{queue::send, HermesEvent},
     runtime_extensions::{
@@ -47,10 +47,9 @@ pub(crate) enum IpfsCommand {
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
 }
 
-/// IPFS asynchronous task
-pub(crate) async fn ipfs_task(mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<()> {
-    let hermes_node = HermesIpfs::start().await?;
-    if let Some(ipfs_command) = queue_rx.recv().await {
+/// Handle IPFS commands in asynchronous task.
+pub(crate) async fn ipfs_command_handler(hermes_node: HermesIpfs, mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<()> {
+    while let Some(ipfs_command) = queue_rx.recv().await {
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
                 let response = hermes_node
@@ -137,7 +136,7 @@ fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Mess
             publisher: msg.source.map(|p| p.to_string()),
         },
     };
-    let app_names = HERMES_IPFS_STATE.apps.subscribed_apps(&msg_topic);
+    let app_names = HERMES_IPFS.apps.subscribed_apps(&msg_topic);
     // Dispatch Hermes Event
     if let Err(err) = send(HermesEvent::new(
         on_topic_event.clone(),
