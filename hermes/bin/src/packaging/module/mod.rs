@@ -276,7 +276,7 @@ impl ModulePackage {
     }
 
     /// Get share dir from package if present.
-    pub(super) fn get_share(&self) -> Option<Dir> {
+    pub(super) fn get_share_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 

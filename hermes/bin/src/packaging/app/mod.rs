@@ -507,7 +507,7 @@ mod tests {
     struct ApplicationPackageFiles {
         metadata: Metadata<ApplicationPackage>,
         icon: Vec<u8>,
-        modules: Vec<module::tests::ModulePackageFiles>,
+        modules: Vec<module::tests::ModulePackageContent>,
     }
 
     #[allow(clippy::unwrap_used)]

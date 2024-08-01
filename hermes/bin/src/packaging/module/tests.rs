@@ -1,5 +1,7 @@
 //! Hermes WASM package tests.
 
+use std::io::{Read, Write};
+
 use temp_dir::TempDir;
 
 use super::*;
@@ -11,16 +13,24 @@ use crate::{
     },
 };
 
-pub(crate) struct ModulePackageFiles {
+pub(crate) struct ModulePackageShare {
+    /// Child directory name under the share directory
+    child_dir_name: String,
+    /// File name and file content under the child directory.
+    file: (String, Vec<u8>),
+}
+
+pub(crate) struct ModulePackageContent {
     pub(crate) metadata: Metadata<ModulePackage>,
     pub(crate) component: Vec<u8>,
     pub(crate) config_schema: ConfigSchema,
     pub(crate) config: Config,
     pub(crate) settings_schema: SettingsSchema,
+    pub(crate) share: ModulePackageShare,
 }
 
 #[allow(clippy::unwrap_used)]
-pub(crate) fn prepare_default_package_content() -> ModulePackageFiles {
+pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
     let metadata = Metadata::<ModulePackage>::from_reader(
         serde_json::json!(
             {
@@ -60,39 +70,52 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageFiles {
         )"#
     .to_vec();
 
-    ModulePackageFiles {
+    let share = ModulePackageShare {
+        child_dir_name: "child".to_string(),
+        file: ("file.txt".to_string(), b"file content".to_vec()),
+    };
+
+    ModulePackageContent {
         metadata,
         component,
         config_schema,
         config,
         settings_schema,
+        share,
     }
 }
 
 #[allow(clippy::unwrap_used)]
 pub(crate) fn prepare_package_dir(
-    module_name: String, dir: &TempDir, module_package_files: &ModulePackageFiles,
+    module_name: String, dir: &TempDir, module_package_content: &ModulePackageContent,
 ) -> Manifest {
-    let config_path = dir.path().join("config.json");
-    let config_schema_path = dir.path().join("config.schema.json");
-    let metadata_path = dir.path().join("metadata.json");
-    let component_path = dir.path().join("module.wasm");
-    let settings_schema_path = dir.path().join("settings.schema.json");
+    let module_dir = dir.child(&module_name);
+    let config_path = module_dir.join("config.json");
+    let config_schema_path = module_dir.join("config.schema.json");
+    let metadata_path = module_dir.join("metadata.json");
+    let component_path = module_dir.join("module.wasm");
+    let settings_schema_path = module_dir.join("settings.schema.json");
+    let share_path = module_dir.join("share");
 
+    std::fs::create_dir(&module_dir).unwrap();
     std::fs::write(
         &metadata_path,
-        module_package_files.metadata.to_bytes().unwrap().as_slice(),
+        module_package_content
+            .metadata
+            .to_bytes()
+            .unwrap()
+            .as_slice(),
     )
     .unwrap();
-    std::fs::write(&component_path, module_package_files.component.as_slice()).unwrap();
+    std::fs::write(&component_path, module_package_content.component.as_slice()).unwrap();
     std::fs::write(
         &config_path,
-        module_package_files.config.to_bytes().unwrap().as_slice(),
+        module_package_content.config.to_bytes().unwrap().as_slice(),
     )
     .unwrap();
     std::fs::write(
         &config_schema_path,
-        module_package_files
+        module_package_content
             .config_schema
             .to_bytes()
             .unwrap()
@@ -101,11 +124,21 @@ pub(crate) fn prepare_package_dir(
     .unwrap();
     std::fs::write(
         &settings_schema_path,
-        module_package_files
+        module_package_content
             .settings_schema
             .to_bytes()
             .unwrap()
             .as_slice(),
+    )
+    .unwrap();
+
+    std::fs::create_dir(&share_path).unwrap();
+    std::fs::create_dir(share_path.join(&module_package_content.share.child_dir_name)).unwrap();
+    std::fs::write(
+        share_path
+            .join(&module_package_content.share.child_dir_name)
+            .join(&module_package_content.share.file.0),
+        module_package_content.share.file.1.as_slice(),
     )
     .unwrap();
 
@@ -122,13 +155,13 @@ pub(crate) fn prepare_package_dir(
             schema: ResourceBuilder::Fs(settings_schema_path),
         }
         .into(),
-        share: None,
+        share: Some(ResourceBuilder::Fs(share_path)),
     }
 }
 
 #[allow(clippy::unwrap_used)]
 pub(crate) fn check_module_integrity(
-    module_files: &ModulePackageFiles, module_package: &ModulePackage,
+    module_files: &ModulePackageContent, module_package: &ModulePackage,
 ) {
     let package_metadata = module_package.get_metadata().unwrap();
     assert_eq!(module_files.metadata, package_metadata);
@@ -154,9 +187,9 @@ pub(crate) fn check_module_integrity(
 fn from_dir_test() {
     let dir = TempDir::new().unwrap();
 
-    let mut module_package_files = prepare_default_package_content();
+    let mut module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -165,28 +198,42 @@ fn from_dir_test() {
     assert!(package.validate(true).is_ok());
 
     // Module package during the build process updates metadata file
-    // to have a corresponded values update `module_package_files`.
-    module_package_files.metadata.set_name(&manifest.name);
-    module_package_files.metadata.set_build_date(build_time);
+    // to have a corresponded values update `module_package_content`.
+    module_package_content.metadata.set_name(&manifest.name);
+    module_package_content.metadata.set_build_date(build_time);
 
     // check module package integrity
     let package_metadata = package.get_metadata().unwrap();
-    assert_eq!(module_package_files.metadata, package_metadata);
+    assert_eq!(module_package_content.metadata, package_metadata);
 
     // check WASM component file
     assert!(package.get_component().is_ok());
 
     // check config and config schema JSON files
     let config_info = package.get_config_info().unwrap().unwrap();
-    assert_eq!(module_package_files.config, config_info.val.unwrap());
-    assert_eq!(module_package_files.config_schema, config_info.schema);
+    assert_eq!(module_package_content.config, config_info.val.unwrap());
+    assert_eq!(module_package_content.config_schema, config_info.schema);
 
     // check settings schema JSON file
     let package_settings_schema = package.get_settings_schema().unwrap();
     assert_eq!(
-        module_package_files.settings_schema,
+        module_package_content.settings_schema,
         package_settings_schema.unwrap()
     );
+
+    // check share directory
+    let share_dir = package.get_share_dir().unwrap();
+    let child_dir = share_dir
+        .get_dir(&module_package_content.share.child_dir_name.into())
+        .unwrap();
+    let mut child_dir_file = child_dir
+        .get_file(module_package_content.share.file.0.into())
+        .unwrap();
+    let mut child_dir_file_content = Vec::new();
+    child_dir_file
+        .read_to_end(&mut child_dir_file_content)
+        .unwrap();
+    assert_eq!(child_dir_file_content, module_package_content.share.file.1);
 }
 
 #[test]
@@ -194,9 +241,9 @@ fn from_dir_test() {
 fn sign_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -236,9 +283,9 @@ fn sign_package(package: &ModulePackage) {
 fn corrupted_metadata_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -271,7 +318,7 @@ fn corrupted_metadata_test() {
                 }
             ).to_string().as_bytes(),
         ).unwrap();
-        assert_ne!(module_package_files.metadata, new_metadata);
+        assert_ne!(module_package_content.metadata, new_metadata);
 
         package
             .0
@@ -297,9 +344,9 @@ fn corrupted_metadata_test() {
 fn corrupted_component_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -331,7 +378,7 @@ fn corrupted_component_test() {
             (func $bar (result s32) (canon lift (core func $module "bar")))
             (export "bar" (func $bar))
         )"#;
-        assert_ne!(module_package_files.component.as_slice(), new_component);
+        assert_ne!(module_package_content.component.as_slice(), new_component);
 
         package
             .0
@@ -357,9 +404,9 @@ fn corrupted_component_test() {
 fn corrupted_config_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -391,7 +438,7 @@ fn corrupted_config_test() {
             config_schema.validator(),
         )
         .unwrap();
-        assert_ne!(module_package_files.config, new_config);
+        assert_ne!(module_package_content.config, new_config);
 
         package
             .0
@@ -418,9 +465,9 @@ fn corrupted_config_test() {
 fn corrupted_config_schema_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -452,7 +499,7 @@ fn corrupted_config_schema_test() {
             .as_bytes(),
         )
         .unwrap();
-        assert_ne!(module_package_files.config_schema, new_config_schema);
+        assert_ne!(module_package_content.config_schema, new_config_schema);
 
         package
             .0
@@ -479,9 +526,9 @@ fn corrupted_config_schema_test() {
 fn corrupted_settings_schema_test() {
     let dir = TempDir::new().unwrap();
 
-    let module_package_files = prepare_default_package_content();
+    let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_files);
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -513,7 +560,7 @@ fn corrupted_settings_schema_test() {
             .as_bytes(),
         )
         .unwrap();
-        assert_ne!(module_package_files.settings_schema, new_settings_schema);
+        assert_ne!(module_package_content.settings_schema, new_settings_schema);
 
         package
             .0
@@ -528,6 +575,56 @@ fn corrupted_settings_schema_test() {
 
         let settings_schema = package.get_settings_schema().unwrap();
         assert!(settings_schema.is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_share_dir_test() {
+    let dir = TempDir::new().unwrap();
+
+    let module_package_content = prepare_default_package_content();
+
+    let manifest = prepare_package_dir("module".to_string(), &dir, &module_package_content);
+
+    let build_time = DateTime::default();
+    let package =
+        ModulePackage::build_from_manifest(&manifest, dir.path(), None, build_time).unwrap();
+
+    sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_dir(ModulePackage::SHARE_DIR.into())
+            .unwrap();
+        assert!(package.get_share_dir().is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let share_dir = package
+            .0
+            .create_dir(ModulePackage::SHARE_DIR.into())
+            .unwrap();
+        let new_file_name = "new_file";
+        let new_file_content = b"new file content";
+        let mut new_file = share_dir.create_file(new_file_name.into()).unwrap();
+        new_file.write_all(new_file_content).unwrap();
+        assert_ne!(module_package_content.share.file.0.as_str(), new_file_name);
+        assert_ne!(
+            module_package_content.share.file.1.as_slice(),
+            new_file_content
+        );
+
+        assert!(package.get_share_dir().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
