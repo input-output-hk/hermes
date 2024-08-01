@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use certs::{C509Cert, X509DerCert};
 use minicbor::{decode, Decode, Decoder};
-use pub_key::SimplePublickeyType;
+use pub_key::SimplePublicKeyType;
 use role_data::RoleData;
 use strum::FromRepr;
 
@@ -25,7 +25,7 @@ pub(crate) struct X509RbacMetadata {
     /// The value can be either the c509 certificate or c509 metadatum reference.
     c509_certs: Option<Vec<C509Cert>>,
     /// Optional list of Public keys.
-    pub_keys: Option<Vec<SimplePublickeyType>>,
+    pub_keys: Option<Vec<SimplePublicKeyType>>,
     /// Optional list of revocation list.
     revocation_list: Option<Vec<[u8; 16]>>,
     /// Optional list of role data.
@@ -80,7 +80,7 @@ impl X509RbacMetadata {
     }
 
     /// Set the public keys.
-    fn set_pub_keys(&mut self, pub_keys: Vec<SimplePublickeyType>) {
+    fn set_pub_keys(&mut self, pub_keys: Vec<SimplePublicKeyType>) {
         self.pub_keys = Some(pub_keys);
     }
 

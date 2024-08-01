@@ -31,13 +31,13 @@ impl PublicKeyTag {
     }
 }
 
-impl Decode<'_, ()> for SimplePublickeyType {
+impl Decode<'_, ()> for SimplePublicKeyType {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
         match d.datatype()? {
             minicbor::data::Type::Tag => {
                 let tag = d.tag()?;
                 match tag {
-                    t if t == PublicKeyTag::Deleted.tag() => Ok(SimplePublickeyType::Deleted),
+                    t if t == PublicKeyTag::Deleted.tag() => Ok(SimplePublicKeyType::Deleted),
                     t if t == PublicKeyTag::Ed25519.tag() => {
                         let bytes = d.bytes()?;
                         let mut ed25519 = [0u8; 32];
