@@ -2,8 +2,12 @@
 
 use std::io::Write;
 
-use module::tests::{
-    check_package_dir_integrity, prepare_package_dir_dir, ModulePackageContent, PackageDirContent,
+use module::{
+    tests::{
+        check_package_dir_integrity, prepare_package_dir_dir, ModulePackageContent,
+        PackageDirContent,
+    },
+    Config,
 };
 use temp_dir::TempDir;
 
@@ -27,6 +31,7 @@ struct ApplicationPackageContent {
 struct AppModulePackageContent {
     module: ModulePackageContent,
     share: PackageDirContent,
+    config: Config,
 }
 
 #[allow(clippy::unwrap_used)]
@@ -47,15 +52,28 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
     let icon = b"icon_image_svg_content".to_vec();
 
     let mut modules = Vec::with_capacity(modules_num);
-    for _ in 0..modules_num {
-        let module = AppModulePackageContent {
-            module: module::tests::prepare_default_package_content(),
-            share: PackageDirContent {
-                child_dir_name: format!("module_{}_share_child", modules.len()),
-                file: ("file.txt".to_string(), b"file content".to_vec()),
-            },
+    for i in 0..modules_num {
+        let module = module::tests::prepare_default_package_content();
+        let share = PackageDirContent {
+            child_dir_name: format!("module_{i}_share_child"),
+            file: ("file.txt".to_string(), b"file content".to_vec()),
         };
-        modules.push(module);
+        let config = Config::from_reader(
+            serde_json::json!({
+                "config_prop": format!("module_{i}_config_prop")
+
+            })
+            .to_string()
+            .as_bytes(),
+            module.config_schema.validator(),
+        )
+        .unwrap();
+
+        modules.push(AppModulePackageContent {
+            module,
+            share,
+            config,
+        });
     }
 
     let share = PackageDirContent {
@@ -125,6 +143,13 @@ fn prepare_package_dir(
         std::fs::create_dir(&app_module_share_path).unwrap();
         prepare_package_dir_dir(&app_module_share_path, &module_package_files.share);
 
+        let config_path = app_dir.join(format!("app_module_{i}_config.json"));
+        std::fs::write(
+            &config_path,
+            module_package_files.config.to_bytes().unwrap().as_slice(),
+        )
+        .unwrap();
+
         modules.push(ManifestModule {
             name: override_module_name.get(i).cloned(),
             package: ResourceBuilder::Fs(module_package_path),
@@ -184,6 +209,10 @@ fn check_app_integrity(
             manifest_module_name.unwrap_or(module_files.module.metadata.get_name().unwrap())
         );
         module_info.check_module_package_integrity(&module_files.module);
+
+        // check overriden module config JSON file
+        let config_info = module_info.get_config_info().unwrap().unwrap();
+        assert_eq!(module_files.config, config_info.val.unwrap());
 
         // check overriden module share directory
         let share_dir = module_info.get_share_dir().unwrap();

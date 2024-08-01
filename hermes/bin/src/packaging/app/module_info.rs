@@ -1,6 +1,9 @@
 //! An application's module info object
 
-use super::{module::SignaturePayload, Metadata, ModulePackage, Signature};
+use super::{
+    module::{Config, ConfigInfo, SignaturePayload},
+    Metadata, ModulePackage, Signature,
+};
 use crate::{
     hdf5::{Dir, File},
     wasm::module::Module,
@@ -56,6 +59,20 @@ impl AppModuleInfo {
     /// Get module's author signature
     pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
         self.package.get_signature()
+    }
+
+    /// Get module's config info
+    #[allow(dead_code)]
+    pub(crate) fn get_config_info(&self) -> anyhow::Result<Option<ConfigInfo>> {
+        let Some(mut config_info) = self.package.get_config_info()? else {
+            return Ok(None);
+        };
+
+        if let Some(app_config) = self.app_config.clone() {
+            let app_config = Config::from_reader(app_config, config_info.schema.validator())?;
+            config_info.val = Some(app_config);
+        }
+        Ok(Some(config_info))
     }
 
     /// Get module's WASM component file
