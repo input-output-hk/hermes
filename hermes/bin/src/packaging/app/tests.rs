@@ -74,14 +74,13 @@ fn prepare_package_dir(
             module_package_files,
         );
 
-        ModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date).unwrap();
+        let package =
+            ModulePackage::build_from_manifest(&module_manifest, dir.path(), None, build_date)
+                .unwrap();
 
         // WASM module package during the build process updates metadata file
         // to have a corresponded values update `module_package_files`.
-        module_package_files
-            .metadata
-            .set_name(default_module_name.as_str());
-        module_package_files.metadata.set_build_date(build_date);
+        module_package_files.metadata = package.get_metadata().unwrap();
 
         modules.push(ManifestModule {
             name: override_module_name.get(i).cloned(),
@@ -132,6 +131,7 @@ fn from_dir_test() {
     let package_metadata = package.get_metadata().unwrap();
     assert_eq!(app_package_files.metadata, package_metadata);
 
+    // check icon file
     assert!(package.get_icon_file().is_ok());
 
     // check WASM modules
@@ -139,9 +139,14 @@ fn from_dir_test() {
     assert_eq!(modules.len(), app_package_files.modules.len());
 
     for module_info in modules {
-        let app_module_name = module_info.name;
-        let module_package = module_info.package;
-        let package_module_name = module_package.get_metadata().unwrap().get_name().unwrap();
+        // taking not overridden module name
+        let package_module_name = module_info
+            .package
+            .get_metadata()
+            .unwrap()
+            .get_name()
+            .unwrap();
+        // searching by this name from the prepared app package files
         let (i, module_files) = app_package_files
             .modules
             .iter_mut()
@@ -149,13 +154,14 @@ fn from_dir_test() {
             .find(|(_, module)| module.metadata.get_name().unwrap() == *package_module_name)
             .unwrap();
 
+        // taking overridden module name (optional)
         let manifest_module_name = manifest.modules[i].name.clone();
         assert_eq!(
-            app_module_name,
+            module_info.name,
             manifest_module_name.unwrap_or(module_files.metadata.get_name().unwrap())
         );
 
-        module::tests::check_module_integrity(module_files, &module_package);
+        module::tests::check_module_integrity(module_files, &module_info.package);
     }
 }
 

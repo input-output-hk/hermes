@@ -163,6 +163,7 @@ pub(crate) fn prepare_package_dir(
 pub(crate) fn check_module_integrity(
     module_files: &ModulePackageContent, module_package: &ModulePackage,
 ) {
+    // check metadata file
     let package_metadata = module_package.get_metadata().unwrap();
     assert_eq!(module_files.metadata, package_metadata);
 
@@ -180,6 +181,20 @@ pub(crate) fn check_module_integrity(
         module_files.settings_schema,
         package_settings_schema.unwrap()
     );
+
+    // check share directory
+    let share_dir = module_package.get_share_dir().unwrap();
+    let child_dir = share_dir
+        .get_dir(&module_files.share.child_dir_name.as_str().into())
+        .unwrap();
+    let mut child_dir_file = child_dir
+        .get_file(module_files.share.file.0.as_str().into())
+        .unwrap();
+    let mut child_dir_file_content = Vec::new();
+    child_dir_file
+        .read_to_end(&mut child_dir_file_content)
+        .unwrap();
+    assert_eq!(child_dir_file_content, module_files.share.file.1);
 }
 
 #[test]
@@ -203,37 +218,7 @@ fn from_dir_test() {
     module_package_content.metadata.set_build_date(build_time);
 
     // check module package integrity
-    let package_metadata = package.get_metadata().unwrap();
-    assert_eq!(module_package_content.metadata, package_metadata);
-
-    // check WASM component file
-    assert!(package.get_component().is_ok());
-
-    // check config and config schema JSON files
-    let config_info = package.get_config_info().unwrap().unwrap();
-    assert_eq!(module_package_content.config, config_info.val.unwrap());
-    assert_eq!(module_package_content.config_schema, config_info.schema);
-
-    // check settings schema JSON file
-    let package_settings_schema = package.get_settings_schema().unwrap();
-    assert_eq!(
-        module_package_content.settings_schema,
-        package_settings_schema.unwrap()
-    );
-
-    // check share directory
-    let share_dir = package.get_share_dir().unwrap();
-    let child_dir = share_dir
-        .get_dir(&module_package_content.share.child_dir_name.into())
-        .unwrap();
-    let mut child_dir_file = child_dir
-        .get_file(module_package_content.share.file.0.into())
-        .unwrap();
-    let mut child_dir_file_content = Vec::new();
-    child_dir_file
-        .read_to_end(&mut child_dir_file_content)
-        .unwrap();
-    assert_eq!(child_dir_file_content, module_package_content.share.file.1);
+    check_module_integrity(&module_package_content, &package);
 }
 
 #[test]
