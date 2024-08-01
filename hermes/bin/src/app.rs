@@ -3,7 +3,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    ipfs::HermesIpfsNode, vfs::Vfs, wasm::module::{Module, ModuleId}
+    vfs::Vfs, wasm::module::{Module, ModuleId}
 };
 
 /// Hermes App Name type
@@ -27,16 +27,13 @@ pub(crate) struct HermesApp {
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Module>,
 
-    /// IPFS node
-    ipfs: Arc<HermesIpfsNode>,
-
     /// App `Vfs` instance
     vfs: Arc<Vfs>,
 }
 
 impl HermesApp {
     /// Create a new Hermes app
-    pub(crate) fn new(app_name: HermesAppName, ipfs_node: HermesIpfsNode, vfs: Vfs, modules: Vec<Module>) -> Self {
+    pub(crate) fn new(app_name: HermesAppName, vfs: Vfs, modules: Vec<Module>) -> Self {
         let indexed_modules = modules
             .into_iter()
             .map(|module| (module.id().clone(), module))
@@ -44,7 +41,6 @@ impl HermesApp {
         Self {
             app_name,
             indexed_modules,
-            ipfs: Arc::new(ipfs_node),
             vfs: Arc::new(vfs),
         }
     }
@@ -52,11 +48,6 @@ impl HermesApp {
     /// Get app name
     pub(crate) fn app_name(&self) -> &HermesAppName {
         &self.app_name
-    }
-
-    /// Get IPFS node
-    pub(crate) fn ipfs(&self) -> Arc<HermesIpfsNode> {
-        self.ipfs.clone()
     }
 
     /// Get vfs
