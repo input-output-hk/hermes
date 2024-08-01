@@ -46,6 +46,7 @@ DBSTATUS
 dbsync
 dcbor
 ddup
+Decompressor
 delegators
 dockerhub
 dotenv
@@ -117,6 +118,8 @@ mdlint
 mdns
 memeq
 memx
+Metadatum
+metadatum
 mimalloc
 minicbor
 miniprotocol
@@ -167,6 +170,8 @@ redb
 redoc
 REMOVEDIR
 renameat
+Repr
+repr
 reqwest
 retriggering
 rulelist

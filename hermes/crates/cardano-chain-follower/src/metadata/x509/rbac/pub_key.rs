@@ -4,7 +4,7 @@ use minicbor::{data::Tag, decode, Decode, Decoder};
 
 /// Enum of possible public key type.
 #[derive(Debug, PartialEq)]
-pub(crate) enum SimplePublickeyType {
+pub(crate) enum SimplePublicKeyType {
     /// Undefined indicates skipped element.
     Undefined,
     /// Deleted indicates the key is deleted.
@@ -43,22 +43,22 @@ impl Decode<'_, ()> for SimplePublickeyType {
                         let mut ed25519 = [0u8; 32];
                         if bytes.len() == 32 {
                             ed25519.copy_from_slice(&bytes);
-                            Ok(SimplePublickeyType::Ed25519(ed25519))
+                            Ok(SimplePublicKeyType::Ed25519(ed25519))
                         } else {
                             Err(decode::Error::message("Invalid length for Ed25519 key"))
                         }
                     },
                     _ => {
                         Err(decode::Error::message(
-                            "Unknown tag for SimplePublickeyType",
+                            "Unknown tag for SimplePublicKeyType",
                         ))
                     },
                 }
             },
-            minicbor::data::Type::Undefined => Ok(SimplePublickeyType::Undefined),
+            minicbor::data::Type::Undefined => Ok(SimplePublicKeyType::Undefined),
             _ => {
                 Err(decode::Error::message(
-                    "Invalid datatype for SimplePublickeyType",
+                    "Invalid datatype for SimplePublicKeyType",
                 ))
             },
         }

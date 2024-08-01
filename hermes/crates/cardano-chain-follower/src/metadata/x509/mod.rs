@@ -101,7 +101,7 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
 #[derive(Debug, PartialEq)]
 pub(crate) struct X509Metadatum {
     /// UUIDv4 Purpose .
-    purpose: [u8; 16], // uuidv4 (bytes .size 16)
+    purpose: [u8; 16], // (bytes .size 16)
     /// Transaction inputs hash.
     txn_inputs_hash: [u8; 16], // bytes .size 16
     /// Optional previous transaction ID.
