@@ -19,9 +19,14 @@ use crate::{
 struct ApplicationPackageContent {
     metadata: Metadata<ApplicationPackage>,
     icon: Vec<u8>,
-    modules: Vec<ModulePackageContent>,
+    modules: Vec<AppModulePackageContent>,
     share: PackageDirContent,
     www: PackageDirContent,
+}
+
+struct AppModulePackageContent {
+    module: ModulePackageContent,
+    share: PackageDirContent,
 }
 
 #[allow(clippy::unwrap_used)]
@@ -43,7 +48,14 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
 
     let mut modules = Vec::with_capacity(modules_num);
     for _ in 0..modules_num {
-        modules.push(module::tests::prepare_default_package_content());
+        let module = AppModulePackageContent {
+            module: module::tests::prepare_default_package_content(),
+            share: PackageDirContent {
+                child_dir_name: format!("module_{}_share_child", modules.len()),
+                file: ("file.txt".to_string(), b"file content".to_vec()),
+            },
+        };
+        modules.push(module);
     }
 
     let share = PackageDirContent {
@@ -99,7 +111,7 @@ fn prepare_package_dir(
         let module_manifest = module::tests::prepare_module_package_dir(
             default_module_name.clone(),
             dir,
-            module_package_files,
+            &module_package_files.module,
         );
 
         let package =
@@ -107,13 +119,17 @@ fn prepare_package_dir(
 
         // WASM module package during the build process updates metadata file
         // to have a corresponded values update `module_package_files`.
-        module_package_files.metadata = package.get_metadata().unwrap();
+        module_package_files.module.metadata = package.get_metadata().unwrap();
+
+        let app_module_share_path = app_dir.join(format!("app_module_{i}_share"));
+        std::fs::create_dir(&app_module_share_path).unwrap();
+        prepare_package_dir_dir(&app_module_share_path, &module_package_files.share);
 
         modules.push(ManifestModule {
             name: override_module_name.get(i).cloned(),
             package: ResourceBuilder::Fs(module_package_path),
             config: None,
-            share: None,
+            share: Some(ResourceBuilder::Fs(app_module_share_path)),
         });
     }
 
@@ -158,16 +174,20 @@ fn check_app_integrity(
             .modules
             .iter()
             .enumerate()
-            .find(|(_, module)| module.metadata.get_name().unwrap() == *package_module_name)
+            .find(|(_, module)| module.module.metadata.get_name().unwrap() == *package_module_name)
             .unwrap();
 
         // taking overridden module name (optional)
         let manifest_module_name = manifest.modules[i].name.clone();
         assert_eq!(
             module_info.get_name(),
-            manifest_module_name.unwrap_or(module_files.metadata.get_name().unwrap())
+            manifest_module_name.unwrap_or(module_files.module.metadata.get_name().unwrap())
         );
-        module_info.check_module_integrity(module_files);
+        module_info.check_module_package_integrity(&module_files.module);
+
+        // check overriden module share directory
+        let share_dir = module_info.get_share_dir().unwrap();
+        check_package_dir_integrity(&share_dir, &module_files.share);
     }
 }
 
@@ -491,6 +511,80 @@ fn corrupted_www_dir_test() {
         assert_ne!(app_package_content.www.file.1.as_slice(), new_file_content);
 
         assert!(package.get_www_dir().is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_module_share_dir_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    let modules = package.get_modules().unwrap();
+    let module_info = modules.first().unwrap();
+
+    {
+        package
+            .0
+            .remove_dir(
+                format!(
+                    "{}/{}/{}",
+                    ApplicationPackage::USR_LIB_DIR,
+                    module_info.get_name(),
+                    ApplicationPackage::MODULE_SHARE_DIR
+                )
+                .into(),
+            )
+            .unwrap();
+        // remains original modules share directory
+        assert!(module_info.get_share_dir().is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let share_dir = package
+            .0
+            .create_dir(
+                format!(
+                    "{}/{}/{}",
+                    ApplicationPackage::USR_LIB_DIR,
+                    module_info.get_name(),
+                    ApplicationPackage::MODULE_SHARE_DIR
+                )
+                .into(),
+            )
+            .unwrap();
+        let new_file_name = "new_file";
+        let new_file_content = b"new file content";
+        let mut new_file = share_dir.create_file(new_file_name.into()).unwrap();
+        new_file.write_all(new_file_content).unwrap();
+        assert_ne!(app_package_content.www.file.0.as_str(), new_file_name);
+        assert_ne!(app_package_content.www.file.1.as_slice(), new_file_content);
+
+        assert!(module_info.get_share_dir().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."

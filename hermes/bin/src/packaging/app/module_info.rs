@@ -84,7 +84,7 @@ impl AppModuleInfo {
     }
 
     /// Get module's share dir
-    pub(super) fn share_dir(&self) -> Option<Dir> {
+    pub(super) fn get_share_dir(&self) -> Option<Dir> {
         self.app_share.clone().or(self.package.get_share_dir())
     }
 }
@@ -100,7 +100,7 @@ mod tests {
     };
 
     impl AppModuleInfo {
-        pub(crate) fn check_module_integrity(&self, module_files: &ModulePackageContent) {
+        pub(crate) fn check_module_package_integrity(&self, module_files: &ModulePackageContent) {
             check_module_package_integrity(module_files, &self.package);
         }
 

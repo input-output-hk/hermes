@@ -188,7 +188,6 @@ impl ApplicationPackage {
         let mut signature_payload_builder =
             author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
 
-        let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::LIB_DIR.into()]);
         for module_info in self.get_modules()? {
             let module_name = module_info.get_name();
             let module_sign = module_info.get_signature()?.ok_or(anyhow::anyhow!(
@@ -202,14 +201,24 @@ impl ApplicationPackage {
                     module_sign_hash,
                 );
 
-            let mut usr_module_config_path = usr_module_path.clone();
-            usr_module_config_path.push_elem(Self::MODULE_CONFIG_FILE.into());
+            let usr_module_config_path: Path = format!(
+                "{}/{}/{}",
+                Self::USR_LIB_DIR,
+                module_name,
+                Self::MODULE_CONFIG_FILE
+            )
+            .into();
             if let Some(config_hash) = self.0.calculate_file_hash(usr_module_config_path)? {
                 signature_payload_module_builder.with_config(config_hash);
             }
 
-            let mut usr_module_share_path = usr_module_path.clone();
-            usr_module_share_path.push_elem(Self::MODULE_SHARE_DIR.into());
+            let usr_module_share_path: Path = format!(
+                "{}/{}/{}",
+                Self::USR_LIB_DIR,
+                module_name,
+                Self::MODULE_SHARE_DIR
+            )
+            .into();
             if let Some(share_hash) = self.0.calculate_dir_hash(&usr_module_share_path)? {
                 signature_payload_module_builder.with_share(share_hash);
             }
@@ -344,7 +353,7 @@ impl ApplicationPackage {
                     PermissionLevel::Read,
                 );
             }
-            if let Some(share_dir) = module_info.share_dir() {
+            if let Some(share_dir) = module_info.get_share_dir() {
                 bootstrapper.with_mounted_dir(
                     lib_module_dir_path,
                     share_dir,
