@@ -210,11 +210,11 @@ fn check_app_integrity(
         );
         module_info.check_module_package_integrity(&module_files.module);
 
-        // check overriden module config JSON file
+        // check overridden module config JSON file
         let config_info = module_info.get_config_info().unwrap().unwrap();
         assert_eq!(module_files.config, config_info.val.unwrap());
 
-        // check overriden module share directory
+        // check overridden module share directory
         let share_dir = module_info.get_share_dir().unwrap();
         check_package_dir_integrity(&share_dir, &module_files.share);
     }
