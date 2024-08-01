@@ -30,6 +30,7 @@ const FIRST_ROLE_EXT_KEY: u8 = 10;
 const LAST_ROLE_EXT_KEY: u8 = 99;
 
 /// Enum of role data with its associated unsigned integer value.
+#[allow(clippy::module_name_repetitions)]
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
 pub enum RoleDataInt {
@@ -43,8 +44,9 @@ pub enum RoleDataInt {
     PaymentKey = 3,
 }
 
+#[allow(clippy::module_name_repetitions)]
 impl RoleData {
-    /// Create a new instance of RoleData.
+    /// Create a new instance of `RoleData`.
     fn new() -> Self {
         Self {
             role_number: 0,
@@ -84,31 +86,28 @@ impl Decode<'_, ()> for RoleData {
         let mut role_data = RoleData::new();
         for _ in 0..map_len {
             let key = d.u8()?;
-            match RoleDataInt::from_repr(key) {
-                Some(key) => {
-                    match key {
-                        RoleDataInt::RoleNumber => {
-                            role_data.set_role_number(d.u8()?);
-                        },
-                        RoleDataInt::RoleSigningKey => {
-                            role_data.set_role_signing_key(KeyReference::decode(d, ctx)?);
-                        },
-                        RoleDataInt::RoleEncryptionKey => {
-                            role_data.set_role_encryption_key(KeyReference::decode(d, ctx)?);
-                        },
-                        RoleDataInt::PaymentKey => {
-                            role_data.set_payment_key(d.u64()?);
-                        },
-                    }
-                },
-                None => {
-                    if key < FIRST_ROLE_EXT_KEY || key > LAST_ROLE_EXT_KEY {
-                        return Err(decode::Error::message(format!("Invalid role extended data key, should be with the range {FIRST_ROLE_EXT_KEY} - {LAST_ROLE_EXT_KEY}")));
-                    }
-                    role_data
-                        .role_extended_data_keys
-                        .insert(key, decode_any(d)?);
-                },
+            if let Some(key) = RoleDataInt::from_repr(key) {
+                match key {
+                    RoleDataInt::RoleNumber => {
+                        role_data.set_role_number(d.u8()?);
+                    },
+                    RoleDataInt::RoleSigningKey => {
+                        role_data.set_role_signing_key(KeyReference::decode(d, ctx)?);
+                    },
+                    RoleDataInt::RoleEncryptionKey => {
+                        role_data.set_role_encryption_key(KeyReference::decode(d, ctx)?);
+                    },
+                    RoleDataInt::PaymentKey => {
+                        role_data.set_payment_key(d.u64()?);
+                    },
+                }
+            } else {
+                if !(FIRST_ROLE_EXT_KEY..=LAST_ROLE_EXT_KEY).contains(&key) {
+                    return Err(decode::Error::message(format!("Invalid role extended data key, should be with the range {FIRST_ROLE_EXT_KEY} - {LAST_ROLE_EXT_KEY}")));
+                }
+                role_data
+                    .role_extended_data_keys
+                    .insert(key, decode_any(d)?);
             }
         }
         Ok(role_data)

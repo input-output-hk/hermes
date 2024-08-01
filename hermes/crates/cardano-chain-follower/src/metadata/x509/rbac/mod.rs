@@ -1,6 +1,6 @@
 //! Role Based Access Control (RBAC) metadata for X509 certificates.
-//! Doc Reference: https://github.com/input-output-hk/catalyst-CIPs/tree/x509-role-registration-metadata/CIP-XXXX
-//! CDDL Reference: https://github.com/input-output-hk/catalyst-CIPs/blob/x509-role-registration-metadata/CIP-XXXX/x509-roles.cddl
+//! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-role-registration-metadata/CIP-XXXX>
+//! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-role-registration-metadata/CIP-XXXX/x509-roles.cddl>
 
 mod certs;
 mod pub_key;
@@ -57,7 +57,7 @@ pub enum X509RbacMetadataInt {
 }
 
 impl X509RbacMetadata {
-    /// Create a new instance of X509RbacMetadata.
+    /// Create a new instance of `X509RbacMetadata`.
     pub(crate) fn new() -> Self {
         Self {
             x509_certs: None,
@@ -103,45 +103,42 @@ impl Decode<'_, ()> for X509RbacMetadata {
         let mut x509_rbac_metadata = X509RbacMetadata::new();
         for _ in 0..map_len {
             let key = d.u16()?;
-            match X509RbacMetadataInt::from_repr(key) {
-                Some(key) => {
-                    match key {
-                        X509RbacMetadataInt::X509Certs => {
-                            println!("10");
-                            let x509_certs = decode_array(d)?;
-                            x509_rbac_metadata.set_x509_certs(x509_certs);
-                        },
-                        X509RbacMetadataInt::C509Certs => {
-                            println!("20");
-                            let c509_certs = decode_array(d)?;
-                            x509_rbac_metadata.set_c509_certs(c509_certs);
-                            println!("done 20");
-                        },
-                        X509RbacMetadataInt::PubKeys => {
-                            println!("30");
-                            let pub_keys = decode_array(d)?;
-                            x509_rbac_metadata.set_pub_keys(pub_keys);
-                        },
-                        X509RbacMetadataInt::RevocationList => {
-                            println!("40");
-                            let revocation_list = decode_revocation_list(d)?;
-                            x509_rbac_metadata.set_revocation_list(revocation_list);
-                        },
-                        X509RbacMetadataInt::RoleSet => {
-                            println!("100");
-                            let role_set = decode_array(d)?;
-                            x509_rbac_metadata.set_role_set(role_set);
-                        },
-                    }
-                },
-                None => {
-                    if key < FIRST_PURPOSE_KEY || key > LAST_PURPOSE_KEY {
-                        return Err(decode::Error::message(format!("Invalid purpose key set, should be with the range {FIRST_PURPOSE_KEY} - {LAST_PURPOSE_KEY}")));
-                    }
-                    x509_rbac_metadata
-                        .purpose_key_data
-                        .insert(key, decode_any(d)?);
-                },
+            if let Some(key) = X509RbacMetadataInt::from_repr(key) {
+                match key {
+                    X509RbacMetadataInt::X509Certs => {
+                        println!("10");
+                        let x509_certs = decode_array(d)?;
+                        x509_rbac_metadata.set_x509_certs(x509_certs);
+                    },
+                    X509RbacMetadataInt::C509Certs => {
+                        println!("20");
+                        let c509_certs = decode_array(d)?;
+                        x509_rbac_metadata.set_c509_certs(c509_certs);
+                        println!("done 20");
+                    },
+                    X509RbacMetadataInt::PubKeys => {
+                        println!("30");
+                        let pub_keys = decode_array(d)?;
+                        x509_rbac_metadata.set_pub_keys(pub_keys);
+                    },
+                    X509RbacMetadataInt::RevocationList => {
+                        println!("40");
+                        let revocation_list = decode_revocation_list(d)?;
+                        x509_rbac_metadata.set_revocation_list(revocation_list);
+                    },
+                    X509RbacMetadataInt::RoleSet => {
+                        println!("100");
+                        let role_set = decode_array(d)?;
+                        x509_rbac_metadata.set_role_set(role_set);
+                    },
+                }
+            } else {
+                if !(FIRST_PURPOSE_KEY..=LAST_PURPOSE_KEY).contains(&key) {
+                    return Err(decode::Error::message(format!("Invalid purpose key set, should be with the range {FIRST_PURPOSE_KEY} - {LAST_PURPOSE_KEY}")));
+                }
+                x509_rbac_metadata
+                    .purpose_key_data
+                    .insert(key, decode_any(d)?);
             }
         }
         Ok(x509_rbac_metadata)
@@ -154,7 +151,7 @@ where T: Decode<'b, ()> {
     let len = d.array()?.ok_or(decode::Error::message(
         "Error indefinite array in X509RbacMetadata",
     ))?;
-    let mut vec = Vec::with_capacity(len as usize);
+    let mut vec = Vec::with_capacity(usize::try_from(len).map_err(decode::Error::message)?);
     for _ in 0..len {
         vec.push(T::decode(d, &mut ())?);
     }
@@ -166,7 +163,8 @@ fn decode_revocation_list(d: &mut Decoder) -> Result<Vec<[u8; 16]>, decode::Erro
     let len = d.array()?.ok_or(decode::Error::message(
         "Error indefinite array in X509RbacMetadata revocation list",
     ))?;
-    let mut revocation_list = Vec::with_capacity(len as usize);
+    let mut revocation_list =
+        Vec::with_capacity(usize::try_from(len).map_err(decode::Error::message)?);
     for _ in 0..len {
         let arr: [u8; 16] = d
             .bytes()?
@@ -220,7 +218,7 @@ mod test_rbac_metadata {
         // Text("Test")
         let role_extended_data_val = "6454657374";
 
-        let test_data = "".to_string()
+        let test_data = String::new()
             + map
             + x509_certs
             + x509_certs_arr
@@ -249,10 +247,10 @@ mod test_rbac_metadata {
             + payment_key_val
             + role_extended_data
             + role_extended_data_val;
-        let data = hex::decode(&test_data).unwrap();
+        let data = hex::decode(&test_data).expect("Failed to decode hex");
 
         let mut decoder = Decoder::new(&data);
         let rbac = X509RbacMetadata::decode(&mut decoder, &mut ()).expect("Failed to decode");
-        println!("{:?}", rbac);
+        println!("{rbac:?}");
     }
 }

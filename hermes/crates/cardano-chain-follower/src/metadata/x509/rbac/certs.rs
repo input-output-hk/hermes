@@ -27,7 +27,7 @@ pub(crate) enum C509Cert {
     /// A c509 certificate in metadatum reference.
     C509CertInMetadatumReference(C509CertInMetadatumReference),
     /// A c509 certificate.
-    C509Certificate(C509),
+    C509Certificate(Box<C509>),
 }
 
 impl Decode<'_, ()> for C509Cert {
@@ -50,7 +50,10 @@ impl Decode<'_, ()> for C509Cert {
             // Consuming the c509 bytes
             let c509 = d.bytes()?;
             let mut c509_d = Decoder::new(c509);
-            Ok(Self::C509Certificate(C509::decode(&mut c509_d, ctx)?))
+            Ok(Self::C509Certificate(Box::new(C509::decode(
+                &mut c509_d,
+                ctx,
+            )?)))
         }
     }
 }
@@ -75,11 +78,8 @@ impl Decode<'_, ()> for C509CertInMetadatumReference {
                 let len = d.array()?.ok_or(decode::Error::message(
                     "Error indefinite array in C509CertInMetadatumReference",
                 ))?;
-                let mut arr = vec![];
-                for _ in 0..len {
-                    arr.push(d.u64()?);
-                }
-                Ok(Some(arr))
+                let arr: Result<Vec<u64>, _> = (0..len).map(|_| d.u64()).collect();
+                arr.map(Some)
             },
             minicbor::data::Type::Null => Ok(None),
             _ => Ok(Some(vec![d.u64()?])),

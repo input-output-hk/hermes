@@ -1,6 +1,6 @@
 //! x509 metadata
-//! Doc Reference: https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX
-//! CDDL Reference: https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl
+//! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
+//! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
 mod rbac;
 
@@ -32,7 +32,7 @@ struct X509Chunks {
 }
 
 impl X509Chunks {
-    // Create new instance of X509Chunks.
+    /// Create new instance of `X509Chunks`.
     fn new(chunk_type: CompressionAlgorithm, chunk_data: X509RbacMetadata) -> Self {
         Self {
             chunk_type,
@@ -74,7 +74,7 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
     let mut concat_chunk = vec![];
     for _ in 0..chunk_len {
         let chunk_data = d.bytes().map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        concat_chunk.extend_from_slice(&chunk_data);
+        concat_chunk.extend_from_slice(chunk_data);
     }
 
     let mut buffer = vec![];
@@ -84,7 +84,7 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
             buffer.extend_from_slice(concat_chunk.as_slice());
         },
         CompressionAlgorithm::Zstd => {
-            zstd::stream::copy_decode(concat_chunk.as_slice(), &mut buffer)?
+            zstd::stream::copy_decode(concat_chunk.as_slice(), &mut buffer)?;
         },
         CompressionAlgorithm::Brotli => {
             let mut decoder = brotli::Decompressor::new(concat_chunk.as_slice(), 4096);
@@ -100,7 +100,7 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
 /// x509 metadatum.
 #[derive(Debug, PartialEq)]
 pub(crate) struct X509Metadatum {
-    /// UUIDv4 Purpose .
+    /// `UUIDv4` Purpose .
     purpose: [u8; 16], // (bytes .size 16)
     /// Transaction inputs hash.
     txn_inputs_hash: [u8; 16], // bytes .size 16
@@ -112,7 +112,9 @@ pub(crate) struct X509Metadatum {
     validation_signature: Vec<u8>, // bytes size (1..64)
 }
 
+#[allow(clippy::module_name_repetitions)]
 impl X509Metadatum {
+    /// Create a new instance of `X509Metadatum`.
     fn new() -> Self {
         Self {
             purpose: [0; 16],
@@ -150,6 +152,7 @@ impl X509Metadatum {
 }
 
 /// Enum of x509 metadatum with its associated unsigned integer value.
+#[allow(clippy::module_name_repetitions)]
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
 pub enum X509MetadatumInt {
@@ -172,45 +175,45 @@ impl Decode<'_, ()> for X509Metadatum {
         for _ in 0..map_len {
             // Use probe to peak
             let key = d.probe().u8()?;
-            match X509MetadatumInt::from_repr(key) {
-                Some(key) => {
-                    // Consuming the int
-                    d.u8()?;
-                    match key {
-                        X509MetadatumInt::Purpose => {
-                            x509_metadatum.set_purpose(d.bytes()?.try_into().map_err(|_| {
+
+            if let Some(key) = X509MetadatumInt::from_repr(key) {
+                // Consuming the int
+                d.u8()?;
+                match key {
+                    X509MetadatumInt::Purpose => {
+                        x509_metadatum.set_purpose(
+                            d.bytes()?.try_into().map_err(|_| {
                                 decode::Error::message("Invalid data size of Purpose")
-                            })?);
-                            println!("purpose: {:?}", x509_metadatum.purpose);
-                        },
-                        X509MetadatumInt::TxInputsHash => {
-                            x509_metadatum.set_txn_inputs_hash(d.bytes()?.try_into().map_err(
-                                |_| decode::Error::message("Invalid data size of TxInputsHash"),
-                            )?);
-                            println!("txn_inputs_hash: {:?}", x509_metadatum.txn_inputs_hash);
-                        },
-                        X509MetadatumInt::PreviousTxId => {
-                            x509_metadatum.set_prv_tx_id(d.bytes()?.try_into().map_err(|_| {
-                                decode::Error::message("Invalid data size of PreviousTxId")
-                            })?);
-                            println!("prv_tx_id: {:?}", x509_metadatum.prv_tx_id);
-                        },
-                        X509MetadatumInt::ValidationSignature => {
-                            let validation_signature = d.bytes()?;
-                            if validation_signature.len() < 1 || validation_signature.len() > 64 {
-                                return Err(decode::Error::message(
-                                    "Invalid data size of ValidationSignature",
-                                ));
-                            }
-                            x509_metadatum.set_validation_signature(validation_signature.to_vec());
-                        },
-                    }
-                },
+                            })?,
+                        );
+                        println!("purpose: {:?}", x509_metadatum.purpose);
+                    },
+                    X509MetadatumInt::TxInputsHash => {
+                        x509_metadatum.set_txn_inputs_hash(d.bytes()?.try_into().map_err(
+                            |_| decode::Error::message("Invalid data size of TxInputsHash"),
+                        )?);
+                        println!("txn_inputs_hash: {:?}", x509_metadatum.txn_inputs_hash);
+                    },
+                    X509MetadatumInt::PreviousTxId => {
+                        x509_metadatum.set_prv_tx_id(d.bytes()?.try_into().map_err(|_| {
+                            decode::Error::message("Invalid data size of PreviousTxId")
+                        })?);
+                        println!("prv_tx_id: {:?}", x509_metadatum.prv_tx_id);
+                    },
+                    X509MetadatumInt::ValidationSignature => {
+                        let validation_signature = d.bytes()?;
+                        if validation_signature.is_empty() || validation_signature.len() > 64 {
+                            return Err(decode::Error::message(
+                                "Invalid data size of ValidationSignature",
+                            ));
+                        }
+                        x509_metadatum.set_validation_signature(validation_signature.to_vec());
+                    },
+                }
+            } else {
                 // Handle the x509 chunks 10 11 12
-                None => {
-                    let x509_chunks = X509Chunks::decode(d, ctx)?;
-                    x509_metadatum.set_x509_chunks(x509_chunks);
-                },
+                let x509_chunks = X509Chunks::decode(d, ctx)?;
+                x509_metadatum.set_x509_chunks(x509_chunks);
             }
         }
         Ok(x509_metadatum)
@@ -223,9 +226,9 @@ pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
         minicbor::data::Type::Bytes => Ok(d.bytes()?.to_vec()),
         minicbor::data::Type::String => Ok(d.str()?.as_bytes().to_vec()),
         minicbor::data::Type::Array => {
-            let arr_len = d
-                .array()?
-                .ok_or(decode::Error::message("Error indefinite length in decoding any"))?;
+            let arr_len = d.array()?.ok_or(decode::Error::message(
+                "Error indefinite length in decoding any",
+            ))?;
             let mut buffer = vec![];
             for _ in 0..arr_len {
                 buffer.extend_from_slice(&decode_any(d)?);
