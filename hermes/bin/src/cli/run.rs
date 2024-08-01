@@ -8,6 +8,7 @@ use console::Emoji;
 use crate::{
     app::{HermesApp, HermesAppName},
     cli::Cli,
+    ipfs::{HermesIpfsNode},
     packaging::{
         app::ApplicationPackage,
         sign::certificate::{self, Certificate},
@@ -15,6 +16,7 @@ use crate::{
     reactor::HermesReactor,
     vfs::VfsBootstrapper,
 };
+use hermes_ipfs::IpfsBuilder;
 
 /// Run cli command
 #[derive(Args)]
@@ -46,9 +48,19 @@ impl Run {
 
         println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
         let hermes_home_dir = Cli::hermes_home()?;
+        let ipfs_data_path = hermes_home_dir.as_path().join("ipfs");
         let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name.clone());
         package.mount_to_vfs(&mut bootstrapper)?;
         let vfs = bootstrapper.bootstrap()?;
+
+        println!("{} Bootstrapping IPFS node", Emoji::new("🖧", ""),);
+        let hermes_ipfs_node = HermesIpfsNode::bootstrap(move || {
+            IpfsBuilder::new()
+            .with_default()
+            .set_default_listener()
+            .disable_tls()
+            .set_disk_storage(ipfs_data_path.clone())
+        })?;
 
         println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
         let mut modules = Vec::new();
@@ -56,7 +68,7 @@ impl Run {
             let module = module_info.get_component()?;
             modules.push(module);
         }
-        let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
+        let app = HermesApp::new(HermesAppName(app_name), hermes_ipfs_node, vfs, modules);
 
         let mut reactor = HermesReactor::new(vec![app])?;
         reactor.wait()?;

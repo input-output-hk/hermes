@@ -329,7 +329,7 @@ mod tests {
         let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
             .bootstrap()
             .unwrap();
-        let hermes_app = HermesApp::new(hermes_app_name.clone(), vfs, vec![]);
+        let hermes_app = HermesApp::new(hermes_app_name.clone(), crate::ipfs::HermesIpfsNode::default(), vfs, vec![]);
         let handler =
             crate::event::queue::init(Arc::new(HashMap::from([(hermes_app_name, hermes_app)])))
                 .unwrap();
