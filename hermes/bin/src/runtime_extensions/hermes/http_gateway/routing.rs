@@ -20,7 +20,7 @@ use tracing::info;
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
-    VFS,
+    APP_VFS,
 };
 use crate::event::{HermesEvent, TargetApp, TargetModule};
 
@@ -183,11 +183,11 @@ fn compose_http_event(
 
 /// Serves static data with 1:1 mapping
 fn serve_static_data(path: &str) -> anyhow::Result<Response<Body>> {
-    let vfs = VFS
+    let app_vfs = APP_VFS
         .get()
         .ok_or(anyhow::anyhow!("Unable to obtain virtual filesystem"))?;
 
-    let file = vfs.read(path)?;
+    let file = app_vfs.read(path)?;
 
     Ok(Response::new(file.into()))
 }

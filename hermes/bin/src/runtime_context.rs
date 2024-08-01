@@ -64,7 +64,7 @@ impl HermesRuntimeContext {
     }
 
     /// Get virtual file system
-    pub(crate) fn vfs(&self) -> &Vfs {
-        &self.vfs
+    pub(crate) fn vfs(&self) -> Arc<Vfs> {
+        self.vfs.clone()
     }
 }

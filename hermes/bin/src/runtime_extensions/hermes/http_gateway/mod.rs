@@ -1,6 +1,6 @@
 //! HTTP Gateway
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use gateway_task::spawn;
 use rusty_ulid::Ulid;
@@ -12,8 +12,8 @@ mod gateway_task;
 /// Gateway routing logic
 mod routing;
 
-/// Virtual file system
-static VFS: OnceLock<Vfs> = OnceLock::new();
+/// Application Virtual file system
+static APP_VFS: OnceLock<Arc<Vfs>> = OnceLock::new();
 
 /// State.
 pub(crate) struct State {
@@ -32,6 +32,6 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 
 /// New context
 pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
-    VFS.get_or_init(|| ctx.vfs().clone());
+    APP_VFS.get_or_init(|| ctx.vfs());
     println!("Instance {:?}", STATE.instance);
 }
