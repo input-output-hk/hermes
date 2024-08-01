@@ -13,6 +13,7 @@ use std::{
 
 pub(crate) use builder::ResourceBuilder;
 pub(crate) use bytes::BytesResource;
+#[allow(unused_imports)]
 pub(crate) use fs::FsResource;
 pub(crate) use hdf5::Hdf5Resource;
 
