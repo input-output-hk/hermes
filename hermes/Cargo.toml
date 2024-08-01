@@ -50,7 +50,7 @@ pallas = "0.29.0"
 # specific commit from the `catalyst` branch
 pallas-hardano = "0.29.0"
 pallas-crypto = "0.29.0"
-cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.1.0" }
+cardano-chain-follower = { path = "crates/cardano-chain-follower", version = "0.2.0" }
 
 hermes-ipfs = { path = "crates/hermes-ipfs", version = "0.0.1" }
 
