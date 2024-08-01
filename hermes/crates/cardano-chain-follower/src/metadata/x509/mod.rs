@@ -217,9 +217,21 @@ impl Decode<'_, ()> for X509Metadatum {
     }
 }
 
+/// Decode any in CDDL, only support basic datatype
 pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
     match d.datatype()? {
         minicbor::data::Type::Bytes => Ok(d.bytes()?.to_vec()),
+        minicbor::data::Type::String => Ok(d.str()?.as_bytes().to_vec()),
+        minicbor::data::Type::Array => {
+            let arr_len = d
+                .array()?
+                .ok_or(decode::Error::message("Error indefinite length in decoding any"))?;
+            let mut buffer = vec![];
+            for _ in 0..arr_len {
+                buffer.extend_from_slice(&decode_any(d)?);
+            }
+            Ok(buffer)
+        },
         minicbor::data::Type::U8
         | minicbor::data::Type::U16
         | minicbor::data::Type::U32
@@ -228,7 +240,6 @@ pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
         | minicbor::data::Type::I16
         | minicbor::data::Type::I32
         | minicbor::data::Type::I64 => Ok(d.i64()?.to_be_bytes().to_vec()),
-        minicbor::data::Type::String => Ok(d.str()?.as_bytes().to_vec()),
         _ => Err(decode::Error::message("Data type not supported")),
     }
 }
