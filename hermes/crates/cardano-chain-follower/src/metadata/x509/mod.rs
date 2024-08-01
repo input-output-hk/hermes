@@ -51,7 +51,6 @@ impl Decode<'_, ()> for X509Chunks {
         let decompressed = decompress(d, &algorithm)
             .map_err(|e| decode::Error::message(format!("Failed to decompress {e}")))?;
 
-        println!("Decompressed data: {:?}", hex::encode(&decompressed));
         // Decode the decompressed data.
         let mut decoder = Decoder::new(&decompressed);
         let chunk_data = X509RbacMetadata::decode(&mut decoder, &mut ())
@@ -91,7 +90,6 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
             decoder
                 .read_to_end(&mut buffer)
                 .map_err(|_| anyhow::anyhow!("Failed to decompress using Brotli algorithm"))?;
-            println!("Decompressed data: {:?}", hex::encode(&buffer));
         },
     }
     Ok(buffer)
@@ -186,19 +184,16 @@ impl Decode<'_, ()> for X509Metadatum {
                                 decode::Error::message("Invalid data size of Purpose")
                             })?,
                         );
-                        println!("purpose: {:?}", x509_metadatum.purpose);
                     },
                     X509MetadatumInt::TxInputsHash => {
                         x509_metadatum.set_txn_inputs_hash(d.bytes()?.try_into().map_err(
                             |_| decode::Error::message("Invalid data size of TxInputsHash"),
                         )?);
-                        println!("txn_inputs_hash: {:?}", x509_metadatum.txn_inputs_hash);
                     },
                     X509MetadatumInt::PreviousTxId => {
                         x509_metadatum.set_prv_tx_id(d.bytes()?.try_into().map_err(|_| {
                             decode::Error::message("Invalid data size of PreviousTxId")
                         })?);
-                        println!("prv_tx_id: {:?}", x509_metadatum.prv_tx_id);
                     },
                     X509MetadatumInt::ValidationSignature => {
                         let validation_signature = d.bytes()?;
