@@ -140,12 +140,7 @@ fn from_dir_test() {
 
     for module_info in modules {
         // taking not overridden module name
-        let package_module_name = module_info
-            .package
-            .get_metadata()
-            .unwrap()
-            .get_name()
-            .unwrap();
+        let package_module_name = module_info.metadata().unwrap().get_name().unwrap();
         // searching by this name from the prepared app package files
         let (i, module_files) = app_package_files
             .modules
@@ -157,11 +152,10 @@ fn from_dir_test() {
         // taking overridden module name (optional)
         let manifest_module_name = manifest.modules[i].name.clone();
         assert_eq!(
-            module_info.name,
+            module_info.name(),
             manifest_module_name.unwrap_or(module_files.metadata.get_name().unwrap())
         );
-
-        module::tests::check_module_integrity(module_files, &module_info.package);
+        module_info.check_module_integrity(module_files);
     }
 }
 
@@ -196,10 +190,7 @@ fn author_sing_test() {
 
     // sign wasm modules packages first
     for module_info in package.get_modules().unwrap() {
-        module_info
-            .package
-            .sign(&private_key, &certificate)
-            .unwrap();
+        module_info.sign(&private_key, &certificate).unwrap();
     }
 
     package.author_sign(&private_key, &certificate).unwrap();

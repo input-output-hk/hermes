@@ -1,6 +1,6 @@
 //! An application's module info object
 
-use super::module::ModulePackage;
+use super::{module::SignaturePayload, Metadata, ModulePackage, Signature};
 use crate::{
     hdf5::{Dir, File},
     wasm::module::Module,
@@ -9,24 +9,53 @@ use crate::{
 /// Application package module info.
 pub(crate) struct AppModuleInfo {
     /// Module name.
-    pub(super) name: String,
+    name: String,
     /// Module package.
-    pub(super) package: ModulePackage,
+    package: ModulePackage,
     /// Application defined module's `config.json` file
-    pub(super) app_config: Option<File>,
+    app_config: Option<File>,
     /// Application defined module's `share` directory
-    pub(super) app_share: Option<Dir>,
+    app_share: Option<Dir>,
 }
 
 impl AppModuleInfo {
+    /// Create a new `AppModuleInfo` instance
+    pub(crate) fn new(
+        name: String, package: ModulePackage, app_config: Option<File>, app_share: Option<Dir>,
+    ) -> Self {
+        Self {
+            name,
+            package,
+            app_config,
+            app_share,
+        }
+    }
+
     /// Get module's name
-    pub(crate) fn get_name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         self.name.clone()
     }
 
+    /// Validate module package with its signature and other contents.
+    /// If `untrusted` flag is `true` the signature will not be verified.
+    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
+        self.package.validate(untrusted)
+    }
+
     /// Get module's WASM component
-    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
+    pub(crate) fn component(&self) -> anyhow::Result<Module> {
         self.package.get_component()
+    }
+
+    /// Get module's metadata
+    #[allow(dead_code)]
+    pub(crate) fn metadata(&self) -> anyhow::Result<Metadata<ModulePackage>> {
+        self.package.get_metadata()
+    }
+
+    /// Get module's author signature
+    pub(crate) fn signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
+        self.package.get_signature()
     }
 
     /// Get module's WASM component file
@@ -55,7 +84,30 @@ impl AppModuleInfo {
     }
 
     /// Get module's share dir
-    pub(super) fn get_share(&self) -> Option<Dir> {
+    pub(super) fn share_dir(&self) -> Option<Dir> {
         self.app_share.clone().or(self.package.get_share_dir())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        super::{
+            super::sign::{certificate::Certificate, keys::PrivateKey},
+            module::tests::{check_module_integrity, ModulePackageContent},
+        },
+        *,
+    };
+
+    impl AppModuleInfo {
+        pub(crate) fn check_module_integrity(&self, module_files: &ModulePackageContent) {
+            check_module_integrity(module_files, &self.package);
+        }
+
+        pub(crate) fn sign(
+            &self, private_key: &PrivateKey, certificate: &Certificate,
+        ) -> anyhow::Result<()> {
+            self.package.sign(private_key, certificate)
+        }
     }
 }
