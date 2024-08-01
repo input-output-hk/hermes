@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::super::{schema_validation::SchemaValidator, FileError};
-use crate::hdf5::resources::{FsResource, ResourceBuilder};
+use crate::hdf5::resources::ResourceBuilder;
 
 /// WASM module package manifest.json definition.
 #[derive(Debug, PartialEq, Eq)]
@@ -50,12 +50,12 @@ impl Manifest {
 
     /// Default metadata JSON file path.
     fn default_metadata_path() -> ResourceBuilder {
-        ResourceBuilder::Fs(FsResource::new("metadata.json"))
+        ResourceBuilder::Fs("metadata.json".into())
     }
 
     /// Default WASM component file path.
     fn default_component_path() -> ResourceBuilder {
-        ResourceBuilder::Fs(FsResource::new("module.wasm"))
+        ResourceBuilder::Fs("module.wasm".into())
     }
 
     /// Create a `Manifest` from a path.
@@ -175,24 +175,18 @@ mod tests {
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "module_name".to_string(),
-                metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
-                component: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.wasm"))),
+                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
                 config: ManifestConfig {
-                    file: Some(ResourceBuilder::Fs(FsResource::new(
-                        dir_path.join("config.json")
-                    ))),
-                    schema: ResourceBuilder::Fs(FsResource::new(
-                        dir_path.join("config.schema.json")
-                    )),
+                    file: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+                    schema: ResourceBuilder::Fs(dir_path.join("config.schema.json")),
                 }
                 .into(),
                 settings: ManifestSettings {
-                    schema: ResourceBuilder::Fs(FsResource::new(
-                        dir_path.join("settings.schema.json")
-                    )),
+                    schema: ResourceBuilder::Fs(dir_path.join("settings.schema.json")),
                 }
                 .into(),
-                share: Some(ResourceBuilder::Fs(FsResource::new(dir_path.join("share")))),
+                share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
             });
         }
 
@@ -215,18 +209,18 @@ mod tests {
             let manifest = Manifest::from_file(path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "module".to_string(),
-                metadata: ResourceBuilder::Fs(FsResource::new("/metadata.json")),
-                component: ResourceBuilder::Fs(FsResource::new("/module.wasm")),
+                metadata: ResourceBuilder::Fs("/metadata.json".into()),
+                component: ResourceBuilder::Fs("/module.wasm".into()),
                 config: ManifestConfig {
-                    file: Some(ResourceBuilder::Fs(FsResource::new("/config.json"))),
-                    schema: ResourceBuilder::Fs(FsResource::new("/config.schema.json")),
+                    file: Some(ResourceBuilder::Fs("/config.json".into())),
+                    schema: ResourceBuilder::Fs("/config.schema.json".into()),
                 }
                 .into(),
                 settings: ManifestSettings {
-                    schema: ResourceBuilder::Fs(FsResource::new("/settings.schema.json")),
+                    schema: ResourceBuilder::Fs("/settings.schema.json".into()),
                 }
                 .into(),
-                share: Some(ResourceBuilder::Fs(FsResource::new("/share"))),
+                share: Some(ResourceBuilder::Fs("/share".into())),
             });
         }
 
@@ -239,8 +233,8 @@ mod tests {
             let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
             assert_eq!(manifest, Manifest {
                 name: "module".to_string(),
-                metadata: ResourceBuilder::Fs(FsResource::new(dir_path.join("metadata.json"))),
-                component: ResourceBuilder::Fs(FsResource::new(dir_path.join("module.wasm"))),
+                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
                 config: None,
                 settings: None,
                 share: None,

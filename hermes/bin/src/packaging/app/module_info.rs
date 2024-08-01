@@ -56,6 +56,6 @@ impl AppModuleInfo {
 
     /// Get module's share dir
     pub(super) fn get_share(&self) -> Option<Dir> {
-        self.app_share.clone().or(self.package.get_share())
+        self.app_share.clone().or(self.package.get_share_dir())
     }
 }
