@@ -22,7 +22,7 @@ use mithril_client::{
     common::CompressionAlgorithm, snapshot_downloader::SnapshotDownloader, MithrilResult,
 };
 use tokio::{
-    fs::{create_dir_all, hard_link},
+    fs::{create_dir_all, symlink},
     process::Command,
     sync::mpsc::{self, UnboundedSender},
     task::JoinHandle,
@@ -288,7 +288,7 @@ async fn check_pre_downloaded(dest: &Path, url: &str) -> bool {
                     }
                 }
 
-                if let Err(error) = hard_link(dl_path, dest_file).await {
+                if let Err(error) = symlink(dl_path, dest_file).await {
                     error!(error=%error, "Trying to hard link pre downloaded file.");
                 } else {
                     return true;
@@ -302,7 +302,7 @@ async fn check_pre_downloaded(dest: &Path, url: &str) -> bool {
     false
 }
 
-/// Download a file using `aria2` tool,s with maximum number of simultaneous connections.
+/// Download a file using `aria2` tools with maximum number of simultaneous connections.
 async fn aria2_download(dest: &Path, url: &str) -> MithrilResult<()> {
     // Use pre-downloaded file if it exists
     if check_pre_downloaded(dest, url).await {
