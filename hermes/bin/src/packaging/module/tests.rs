@@ -19,10 +19,10 @@ pub(crate) struct ModulePackageContent {
     pub(crate) config_schema: ConfigSchema,
     pub(crate) config: Config,
     pub(crate) settings_schema: SettingsSchema,
-    pub(crate) share: ModulePackageShare,
+    pub(crate) share: PackageDirContent,
 }
 
-pub(crate) struct ModulePackageShare {
+pub(crate) struct PackageDirContent {
     /// Child directory name under the share directory
     pub(crate) child_dir_name: String,
     /// File name and file content under the child directory.
@@ -70,7 +70,7 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
         )"#
     .to_vec();
 
-    let share = ModulePackageShare {
+    let share = PackageDirContent {
         child_dir_name: "child".to_string(),
         file: ("file.txt".to_string(), b"file content".to_vec()),
     };
@@ -86,7 +86,18 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
 }
 
 #[allow(clippy::unwrap_used)]
-pub(crate) fn prepare_package_dir(
+pub(crate) fn prepare_package_dir_dir(dir: &std::path::Path, package_dir: &PackageDirContent) {
+    std::fs::create_dir(dir.join(&package_dir.child_dir_name)).unwrap();
+    std::fs::write(
+        dir.join(&package_dir.child_dir_name)
+            .join(&package_dir.file.0),
+        package_dir.file.1.as_slice(),
+    )
+    .unwrap();
+}
+
+#[allow(clippy::unwrap_used)]
+pub(crate) fn prepare_module_package_dir(
     module_name: String, dir: &std::path::Path, module_package_content: &ModulePackageContent,
 ) -> Manifest {
     let module_dir = dir.join(&module_name);
@@ -133,14 +144,7 @@ pub(crate) fn prepare_package_dir(
     .unwrap();
 
     std::fs::create_dir(&share_path).unwrap();
-    std::fs::create_dir(share_path.join(&module_package_content.share.child_dir_name)).unwrap();
-    std::fs::write(
-        share_path
-            .join(&module_package_content.share.child_dir_name)
-            .join(&module_package_content.share.file.0),
-        module_package_content.share.file.1.as_slice(),
-    )
-    .unwrap();
+    prepare_package_dir_dir(&share_path, &module_package_content.share);
 
     Manifest {
         name: module_name,
@@ -160,41 +164,46 @@ pub(crate) fn prepare_package_dir(
 }
 
 #[allow(clippy::unwrap_used)]
-pub(crate) fn check_module_integrity(
-    module_files: &ModulePackageContent, module_package: &ModulePackage,
+pub(crate) fn check_package_dir_integrity(dir: &Dir, dir_content: &PackageDirContent) {
+    let child_dir = dir
+        .get_dir(&dir_content.child_dir_name.as_str().into())
+        .unwrap();
+    let mut child_dir_file = child_dir
+        .get_file(dir_content.file.0.as_str().into())
+        .unwrap();
+    let mut child_dir_file_content = Vec::new();
+    child_dir_file
+        .read_to_end(&mut child_dir_file_content)
+        .unwrap();
+    assert_eq!(child_dir_file_content, dir_content.file.1);
+}
+
+#[allow(clippy::unwrap_used)]
+pub(crate) fn check_module_package_integrity(
+    module_content: &ModulePackageContent, module_package: &ModulePackage,
 ) {
     // check metadata file
     let package_metadata = module_package.get_metadata().unwrap();
-    assert_eq!(module_files.metadata, package_metadata);
+    assert_eq!(module_content.metadata, package_metadata);
 
     // check WASM component file
     assert!(module_package.get_component().is_ok());
 
     // check config and config schema JSON files
     let config_info = module_package.get_config_info().unwrap().unwrap();
-    assert_eq!(module_files.config, config_info.val.unwrap());
-    assert_eq!(module_files.config_schema, config_info.schema);
+    assert_eq!(module_content.config, config_info.val.unwrap());
+    assert_eq!(module_content.config_schema, config_info.schema);
 
     // check settings schema JSON file
     let package_settings_schema = module_package.get_settings_schema().unwrap();
     assert_eq!(
-        module_files.settings_schema,
+        module_content.settings_schema,
         package_settings_schema.unwrap()
     );
 
     // check share directory
     let share_dir = module_package.get_share_dir().unwrap();
-    let child_dir = share_dir
-        .get_dir(&module_files.share.child_dir_name.as_str().into())
-        .unwrap();
-    let mut child_dir_file = child_dir
-        .get_file(module_files.share.file.0.as_str().into())
-        .unwrap();
-    let mut child_dir_file_content = Vec::new();
-    child_dir_file
-        .read_to_end(&mut child_dir_file_content)
-        .unwrap();
-    assert_eq!(child_dir_file_content, module_files.share.file.1);
+    check_package_dir_integrity(&share_dir, &module_content.share);
 }
 
 #[test]
@@ -204,7 +213,8 @@ fn from_dir_test() {
 
     let mut module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -218,7 +228,7 @@ fn from_dir_test() {
     module_package_content.metadata.set_build_date(build_time);
 
     // check module package integrity
-    check_module_integrity(&module_package_content, &package);
+    check_module_package_integrity(&module_package_content, &package);
 }
 
 #[test]
@@ -228,7 +238,8 @@ fn sign_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -270,7 +281,8 @@ fn corrupted_metadata_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -331,7 +343,8 @@ fn corrupted_component_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -391,7 +404,8 @@ fn corrupted_config_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -452,7 +466,8 @@ fn corrupted_config_schema_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -513,7 +528,8 @@ fn corrupted_settings_schema_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =
@@ -574,7 +590,8 @@ fn corrupted_share_dir_test() {
 
     let module_package_content = prepare_default_package_content();
 
-    let manifest = prepare_package_dir("module".to_string(), dir.path(), &module_package_content);
+    let manifest =
+        prepare_module_package_dir("module".to_string(), dir.path(), &module_package_content);
 
     let build_time = DateTime::default();
     let package =

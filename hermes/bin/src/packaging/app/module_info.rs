@@ -94,14 +94,14 @@ mod tests {
     use super::{
         super::{
             super::sign::{certificate::Certificate, keys::PrivateKey},
-            module::tests::{check_module_integrity, ModulePackageContent},
+            module::tests::{check_module_package_integrity, ModulePackageContent},
         },
         *,
     };
 
     impl AppModuleInfo {
         pub(crate) fn check_module_integrity(&self, module_files: &ModulePackageContent) {
-            check_module_integrity(module_files, &self.package);
+            check_module_package_integrity(module_files, &self.package);
         }
 
         pub(crate) fn sign(

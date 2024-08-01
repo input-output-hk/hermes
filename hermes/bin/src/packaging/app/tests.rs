@@ -1,5 +1,10 @@
 //! Hermes application package tests.
 
+use std::io::Write;
+
+use module::tests::{
+    check_package_dir_integrity, prepare_package_dir_dir, ModulePackageContent, PackageDirContent,
+};
 use temp_dir::TempDir;
 
 use super::*;
@@ -11,16 +16,12 @@ use crate::{
     },
 };
 
-type ApplicationPackageShare = module::tests::ModulePackageShare;
-type ApplicationPackageWww = module::tests::ModulePackageShare;
-// type ApplicationPackageModuleShare = module::tests::ModulePackageShare;
-
 struct ApplicationPackageContent {
     metadata: Metadata<ApplicationPackage>,
     icon: Vec<u8>,
-    modules: Vec<module::tests::ModulePackageContent>,
-    share: ApplicationPackageShare,
-    www: ApplicationPackageWww,
+    modules: Vec<ModulePackageContent>,
+    share: PackageDirContent,
+    www: PackageDirContent,
 }
 
 #[allow(clippy::unwrap_used)]
@@ -45,11 +46,11 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
         modules.push(module::tests::prepare_default_package_content());
     }
 
-    let share = ApplicationPackageShare {
+    let share = PackageDirContent {
         child_dir_name: "share_child".to_string(),
         file: ("file.txt".to_string(), b"file content".to_vec()),
     };
-    let www = ApplicationPackageWww {
+    let www = PackageDirContent {
         child_dir_name: "www_child".to_string(),
         file: ("file.txt".to_string(), b"file content".to_vec()),
     };
@@ -84,24 +85,10 @@ fn prepare_package_dir(
     std::fs::write(&icon_path, app_package_content.icon.as_slice()).unwrap();
 
     std::fs::create_dir(&share_path).unwrap();
-    std::fs::create_dir(share_path.join(&app_package_content.share.child_dir_name)).unwrap();
-    std::fs::write(
-        share_path
-            .join(&app_package_content.share.child_dir_name)
-            .join(&app_package_content.share.file.0),
-        app_package_content.share.file.1.as_slice(),
-    )
-    .unwrap();
+    prepare_package_dir_dir(&share_path, &app_package_content.share);
 
     std::fs::create_dir(&www_path).unwrap();
-    std::fs::create_dir(www_path.join(&app_package_content.www.child_dir_name)).unwrap();
-    std::fs::write(
-        www_path
-            .join(&app_package_content.www.child_dir_name)
-            .join(&app_package_content.www.file.0),
-        app_package_content.www.file.1.as_slice(),
-    )
-    .unwrap();
+    prepare_package_dir_dir(&www_path, &app_package_content.www);
 
     let mut modules = Vec::new();
     for (i, module_package_files) in app_package_content.modules.iter_mut().enumerate() {
@@ -109,7 +96,7 @@ fn prepare_package_dir(
         let mut module_package_path = dir.join(&default_module_name);
         module_package_path.set_extension(ModulePackage::FILE_EXTENSION);
 
-        let module_manifest = module::tests::prepare_package_dir(
+        let module_manifest = module::tests::prepare_module_package_dir(
             default_module_name.clone(),
             dir,
             module_package_files,
@@ -135,8 +122,8 @@ fn prepare_package_dir(
         icon: ResourceBuilder::Fs(icon_path),
         metadata: ResourceBuilder::Fs(metadata_path),
         modules,
-        www: None,
-        share: None,
+        www: Some(ResourceBuilder::Fs(www_path)),
+        share: Some(ResourceBuilder::Fs(share_path)),
     }
 }
 
@@ -151,7 +138,13 @@ fn check_app_integrity(
     // check icon file
     assert!(app_package.get_icon_file().is_ok());
 
-    // check
+    // check www directory
+    let www_dir = app_package.get_www_dir().unwrap();
+    check_package_dir_integrity(&www_dir, &app_content.www);
+
+    // check share directory
+    let share_dir = app_package.get_share_dir().unwrap();
+    check_package_dir_integrity(&share_dir, &app_content.share);
 
     // check WASM modules
     let modules = app_package.get_modules().unwrap();
@@ -281,7 +274,6 @@ fn corrupted_metadata_test() {
     let modules_num = 4;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
-    // override module names for first 2 modules
     let build_date = DateTime::default();
     let manifest = prepare_package_dir(
         "app".to_string(),
@@ -350,7 +342,6 @@ fn corrupted_icon_test() {
     let modules_num = 4;
     let mut app_package_content = prepare_default_package_content(modules_num);
 
-    // override module names for first 2 modules
     let build_date = DateTime::default();
     let manifest = prepare_package_dir(
         "app".to_string(),
@@ -389,6 +380,117 @@ fn corrupted_icon_test() {
             .unwrap();
 
         assert!(package.get_icon_file().is_ok());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_share_dir_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_dir(ApplicationPackage::SRV_SHARE_DIR.into())
+            .unwrap();
+        assert!(package.get_share_dir().is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let share_dir = package
+            .0
+            .create_dir(ApplicationPackage::SRV_SHARE_DIR.into())
+            .unwrap();
+        let new_file_name = "new_file";
+        let new_file_content = b"new file content";
+        let mut new_file = share_dir.create_file(new_file_name.into()).unwrap();
+        new_file.write_all(new_file_content).unwrap();
+        assert_ne!(app_package_content.share.file.0.as_str(), new_file_name);
+        assert_ne!(
+            app_package_content.share.file.1.as_slice(),
+            new_file_content
+        );
+
+        assert!(package.get_share_dir().is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_www_dir_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    {
+        package
+            .0
+            .remove_dir(ApplicationPackage::SRV_WWW_DIR.into())
+            .unwrap();
+        assert!(package.get_www_dir().is_none());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        let www_dir = package
+            .0
+            .create_dir(ApplicationPackage::SRV_WWW_DIR.into())
+            .unwrap();
+        let new_file_name = "new_file";
+        let new_file_content = b"new file content";
+        let mut new_file = www_dir.create_file(new_file_name.into()).unwrap();
+        new_file.write_all(new_file_content).unwrap();
+        assert_ne!(app_package_content.www.file.0.as_str(), new_file_name);
+        assert_ne!(app_package_content.www.file.1.as_slice(), new_file_content);
+
+        assert!(package.get_www_dir().is_some());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
