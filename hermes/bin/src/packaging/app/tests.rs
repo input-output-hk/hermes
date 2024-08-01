@@ -153,7 +153,7 @@ fn prepare_package_dir(
         modules.push(ManifestModule {
             name: override_module_name.get(i).cloned(),
             package: ResourceBuilder::Fs(module_package_path),
-            config: None,
+            config: Some(ResourceBuilder::Fs(config_path)),
             share: Some(ResourceBuilder::Fs(app_module_share_path)),
         });
     }
@@ -544,6 +544,74 @@ fn corrupted_www_dir_test() {
             package.validate(false).is_err(),
             "Corrupted signature payload."
         );
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn corrupted_module_config_test() {
+    let dir = TempDir::new().unwrap();
+
+    let modules_num = 4;
+    let mut app_package_content = prepare_default_package_content(modules_num);
+
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+
+    let package =
+        ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date).unwrap();
+
+    author_sign_package(&package);
+
+    let modules = package.get_modules().unwrap();
+    let module_info = modules.first().unwrap();
+
+    {
+        package
+            .0
+            .remove_file(
+                format!(
+                    "{}/{}/{}",
+                    ApplicationPackage::USR_LIB_DIR,
+                    module_info.get_name(),
+                    ApplicationPackage::MODULE_CONFIG_FILE
+                )
+                .into(),
+            )
+            .unwrap();
+        // remains original modules config file
+        assert!(module_info.get_config_info().unwrap().is_some());
+        assert!(
+            package.validate(false).is_err(),
+            "Corrupted signature payload."
+        );
+    }
+
+    {
+        // let config_schema = module_info.get_config_info().unwrap().unwrap();
+
+        // let new_config = Config::from_reader(
+        //     serde_json::json!({
+        //         "new_prop": "new value",
+        //     })
+        //     .to_string()
+        //     .as_bytes(),
+        //     config_schema.validator(),
+        // )
+        // .unwrap();
+        // assert_ne!(module_package_content.config, new_config);
+
+        // assert!(module_info.get_share_dir().is_some());
+        // assert!(
+        //     package.validate(false).is_err(),
+        //     "Corrupted signature payload."
+        // );
     }
 }
 
