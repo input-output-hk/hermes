@@ -62,4 +62,9 @@ impl HermesRuntimeContext {
     pub(crate) fn exc_counter(&self) -> u32 {
         self.exc_counter
     }
+
+    /// Get virtual file system
+    pub(crate) fn vfs(&self) -> Arc<Vfs> {
+        self.vfs.clone()
+    }
 }

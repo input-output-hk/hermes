@@ -14,16 +14,24 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
+use regex::Regex;
 use tracing::info;
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
+    STATE,
 };
-use crate::event::{HermesEvent, TargetApp, TargetModule};
+use crate::{
+    app::HermesAppName,
+    event::{HermesEvent, TargetApp, TargetModule},
+};
 
-/// Everything that hits /api should route to hermes
-const HERMES_ROUTE: &str = "/api";
+/// Everything that hits /api routes to Webasm Component Modules
+const WEBASM_ROUTE: &str = "/api";
+
+/// Check path is valid for static files
+const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 
 /// Attempts to wait for a value on this receiver,
 /// returning an error if the corresponding channel has hung up,
@@ -94,7 +102,7 @@ pub(crate) async fn router(
         .iter()
         .any(|host| host.0 == resolved_host.0.as_str())
     {
-        route_to_hermes(req).await?
+        route_to_hermes(req, AppName(app_name.0.clone())).await?
     } else {
         return Ok(error_response("Hostname not valid".to_owned())?);
     };
@@ -110,14 +118,14 @@ pub(crate) async fn router(
 
     info!(
         "connection manager {:?} app {:?}",
-        connection_manager, app_name.0
+        connection_manager, app_name
     );
 
     Ok(response)
 }
 
 /// Route single request to hermes backend
-async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
+async fn route_to_hermes(req: Request<Body>, app_name: AppName) -> anyhow::Result<Response<Body>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
@@ -134,18 +142,19 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             .push(header_val.to_str()?.to_string());
     }
 
-    match uri.path() {
-        HERMES_ROUTE => {
-            compose_http_event(
-                method,
-                header_map.into_iter().collect(),
-                req.collect().await?.to_bytes(), // body
-                path,
-                lambda_send,
-                &lambda_recv_answer,
-            )
-        },
-        _ => Ok(not_found()?),
+    if uri.path() == WEBASM_ROUTE {
+        compose_http_event(
+            method,
+            header_map.into_iter().collect(),
+            req.collect().await?.to_bytes(), // body
+            path,
+            lambda_send,
+            &lambda_recv_answer,
+        )
+    } else if is_valid_path(uri.path()).is_ok() {
+        serve_static_data(uri.path(), &app_name)
+    } else {
+        Ok(not_found()?)
     }
 }
 
@@ -172,5 +181,88 @@ fn compose_http_event(
             Ok(Response::new(serde_json::to_string(&resp)?.into()))
         },
         HTTPEventMsg::HTTPEventReceiver => Ok(error_response("HTTP event msg error".to_owned())?),
+    }
+}
+
+/// Serves static data with 1:1 mapping
+fn serve_static_data(path: &str, app_name: &AppName) -> anyhow::Result<Response<Body>> {
+    let app_vfs = STATE
+        .vfs
+        .get(&HermesAppName(app_name.0.clone()))
+        .ok_or(anyhow::anyhow!("Cannot obtain app vfs {:?}", app_name))?;
+
+    let file = app_vfs.read(path)?;
+
+    Ok(Response::new(file.into()))
+}
+
+/// Check if valid path to static files.
+fn is_valid_path(path: &str) -> anyhow::Result<()> {
+    let regex = Regex::new(VALID_PATH)?;
+
+    if regex.is_match(path) {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Not a valid path {:?}", path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use regex::Regex;
+
+    use super::VALID_PATH;
+    use crate::runtime_extensions::hermes::http_gateway::routing::is_valid_path;
+
+    #[test]
+    fn test_valid_paths_regex() {
+        // ^ and $: Match the entire string/line
+        // (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
+        // slashes; each directory must consist of one or more characters of your charset.
+        // (...)+|/: Explicitly allow just a single slash
+        let regex = Regex::new(VALID_PATH).expect("Invalid regex pattern");
+
+        // valid
+        let example_one = "/abc/def";
+        let example_two = "/hello_1/world";
+        let example_three = "/three/directories/abc";
+        let example_four = "/";
+        let valid_path = vec![example_one, example_two, example_three, example_four];
+
+        for valid in valid_path {
+            if let Some(captures) = regex.captures(valid) {
+                assert_eq!(
+                    captures
+                        .get(0)
+                        .expect("Cannot capture regex pattern")
+                        .as_str(),
+                    valid
+                );
+            }
+
+            assert!(is_valid_path(valid).is_ok());
+        }
+
+        // invalid
+        let example_one = "/abc/def/";
+        let example_two = "/abc//def";
+        let example_three = "//";
+        let example_four = "abc/def";
+        let example_five = "/abc/def/file.txt";
+        let invalids = vec![
+            example_one,
+            example_two,
+            example_three,
+            example_four,
+            example_five,
+        ];
+
+        for invalid in invalids {
+            if let Some(captures) = regex.captures(invalid) {
+                assert!(captures.len() == 0);
+            }
+
+            assert!(is_valid_path(invalid).is_err());
+        }
     }
 }
