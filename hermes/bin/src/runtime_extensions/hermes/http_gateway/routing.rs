@@ -20,9 +20,12 @@ use tracing::info;
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
-    APP_VFS,
+    STATE,
 };
-use crate::event::{HermesEvent, TargetApp, TargetModule};
+use crate::{
+    app::HermesAppName,
+    event::{HermesEvent, TargetApp, TargetModule},
+};
 
 /// Everything that hits /api routes to Webasm Component Modules
 const WEBASM_ROUTE: &str = "/api";
@@ -99,7 +102,7 @@ pub(crate) async fn router(
         .iter()
         .any(|host| host.0 == resolved_host.0.as_str())
     {
-        route_to_hermes(req).await?
+        route_to_hermes(req, AppName(app_name.0.clone())).await?
     } else {
         return Ok(error_response("Hostname not valid".to_owned())?);
     };
@@ -115,14 +118,14 @@ pub(crate) async fn router(
 
     info!(
         "connection manager {:?} app {:?}",
-        connection_manager, app_name.0
+        connection_manager, app_name
     );
 
     Ok(response)
 }
 
 /// Route single request to hermes backend
-async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
+async fn route_to_hermes(req: Request<Body>, app_name: AppName) -> anyhow::Result<Response<Body>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
@@ -149,7 +152,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
             &lambda_recv_answer,
         )
     } else if is_valid_path(uri.path()).is_ok() {
-        serve_static_data(uri.path())
+        serve_static_data(uri.path(), &app_name)
     } else {
         Ok(not_found()?)
     }
@@ -182,10 +185,11 @@ fn compose_http_event(
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data(path: &str) -> anyhow::Result<Response<Body>> {
-    let app_vfs = APP_VFS
-        .get()
-        .ok_or(anyhow::anyhow!("Unable to obtain virtual filesystem"))?;
+fn serve_static_data(path: &str, app_name: &AppName) -> anyhow::Result<Response<Body>> {
+    let app_vfs = STATE
+        .vfs
+        .get(&HermesAppName(app_name.0.clone()))
+        .ok_or(anyhow::anyhow!("Cannot obtain app vfs {:?}", app_name))?;
 
     let file = app_vfs.read(path)?;
 
