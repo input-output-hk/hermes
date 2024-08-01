@@ -2,7 +2,7 @@
 
 use std::io::Read;
 
-use crate::packaging::schema_validation::SchemaValidator;
+use super::super::schema_validation::SchemaValidator;
 
 /// Settings schema object.
 #[derive(Debug)]

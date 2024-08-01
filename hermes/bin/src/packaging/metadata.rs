@@ -8,7 +8,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 
-use crate::packaging::schema_validation::SchemaValidator;
+use super::schema_validation::SchemaValidator;
 
 /// Metadata object.
 pub(crate) struct Metadata<T> {

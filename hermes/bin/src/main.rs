@@ -10,6 +10,7 @@ mod packaging;
 mod reactor;
 mod runtime_context;
 mod runtime_extensions;
+mod utils;
 mod vfs;
 mod wasm;
 

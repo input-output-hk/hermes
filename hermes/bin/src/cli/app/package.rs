@@ -6,7 +6,7 @@ use chrono::Utc;
 use clap::Args;
 use console::Emoji;
 
-use crate::packaging::app::{manifest::Manifest, ApplicationPackage};
+use crate::packaging::app::{ApplicationPackage, Manifest};
 
 /// Hermes application packaging
 #[derive(Args)]

@@ -1,6 +1,6 @@
 //! Hermes app implementation.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     vfs::Vfs,
@@ -29,8 +29,7 @@ pub(crate) struct HermesApp {
     indexed_modules: HashMap<ModuleId, Module>,
 
     /// App `Vfs` instance
-    #[allow(dead_code)]
-    vfs: Vfs,
+    vfs: Arc<Vfs>,
 }
 
 impl HermesApp {
@@ -43,7 +42,7 @@ impl HermesApp {
         Self {
             app_name,
             indexed_modules,
-            vfs,
+            vfs: Arc::new(vfs),
         }
     }
 
@@ -53,8 +52,8 @@ impl HermesApp {
     }
 
     /// Get vfs
-    pub(crate) fn vfs(&self) -> &Vfs {
-        &self.vfs
+    pub(crate) fn vfs(&self) -> Arc<Vfs> {
+        self.vfs.clone()
     }
 
     /// Get indexed modules

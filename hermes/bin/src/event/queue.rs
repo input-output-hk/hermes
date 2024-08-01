@@ -43,7 +43,7 @@ pub(crate) struct NotInitializedError;
 pub(crate) struct EventLoopPanicsError;
 
 /// Hermes event execution context
-type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module, &'a Vfs);
+type ExecutionContext<'a> = (&'a HermesAppName, &'a ModuleId, &'a Module, Arc<Vfs>);
 
 /// Hermes event queue.
 /// It is a singleton struct.
@@ -158,7 +158,7 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// Execute a hermes event on the provided module and all necessary info.
 pub(crate) fn event_dispatch(
     app_name: HermesAppName, module_id: ModuleId, module: &Module, event: &dyn HermesEventPayload,
-    vfs: Vfs,
+    vfs: Arc<Vfs>,
 ) {
     let runtime_context = HermesRuntimeContext::new(
         app_name,

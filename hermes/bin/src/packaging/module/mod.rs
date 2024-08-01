@@ -11,21 +11,21 @@ pub(crate) use config::{Config, ConfigSchema};
 pub(crate) use manifest::{Manifest, ManifestConfig};
 pub(crate) use settings::SettingsSchema;
 
+use super::{
+    metadata::{Metadata, MetadataSchema},
+    package::Package,
+    sign::{
+        certificate::Certificate,
+        keys::PrivateKey,
+        signature::{Signature, SignaturePayloadEncoding},
+    },
+    FileError, MissingPackageFileError,
+};
 use crate::{
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
         Dir, File, Path,
-    },
-    packaging::{
-        metadata::{Metadata, MetadataSchema},
-        package::Package,
-        sign::{
-            certificate::Certificate,
-            keys::PrivateKey,
-            signature::{Signature, SignaturePayloadEncoding},
-        },
-        FileError, MissingPackageFileError,
     },
     wasm::module::Module,
 };
@@ -44,7 +44,7 @@ impl ModulePackage {
     /// Module package WASM component file path.
     const COMPONENT_FILE: &'static str = "module.wasm";
     /// Module package config file path.
-    pub(crate) const CONFIG_FILE: &'static str = "config.json";
+    const CONFIG_FILE: &'static str = "config.json";
     /// Module package config schema file path.
     const CONFIG_SCHEMA_FILE: &'static str = "config.schema.json";
     /// Module package file extension.
@@ -54,7 +54,7 @@ impl ModulePackage {
     /// Module package settings schema file path.
     const SETTINGS_SCHEMA_FILE: &'static str = "settings.schema.json";
     /// Module package share directory path.
-    pub(crate) const SHARE_DIR: &'static str = "share";
+    const SHARE_DIR: &'static str = "share";
 
     /// Create a new module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
@@ -190,7 +190,7 @@ impl ModulePackage {
     }
 
     /// Get metadata `File` object from package.
-    pub(crate) fn get_metadata_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
@@ -202,7 +202,7 @@ impl ModulePackage {
     }
 
     /// Get component `File` object from package.
-    pub(crate) fn get_component_file(&self) -> anyhow::Result<File> {
+    pub(super) fn get_component_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::COMPONENT_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
@@ -223,7 +223,7 @@ impl ModulePackage {
     }
 
     /// Get config schema `File` object from package.
-    pub(crate) fn get_config_schema_file(&self) -> Option<File> {
+    pub(super) fn get_config_schema_file(&self) -> Option<File> {
         self.0.get_file(Self::CONFIG_SCHEMA_FILE.into()).ok()
     }
 
@@ -235,7 +235,7 @@ impl ModulePackage {
     }
 
     /// Get config `File` object from package.
-    pub(crate) fn get_config_file(&self) -> Option<File> {
+    pub(super) fn get_config_file(&self) -> Option<File> {
         self.0.get_file(Self::CONFIG_FILE.into()).ok()
     }
 
@@ -257,7 +257,7 @@ impl ModulePackage {
     }
 
     /// Get settings schema `File` object from package if present.
-    pub(crate) fn get_settings_schema_file(&self) -> Option<File> {
+    pub(super) fn get_settings_schema_file(&self) -> Option<File> {
         self.0.get_file(Self::SETTINGS_SCHEMA_FILE.into()).ok()
     }
 
@@ -269,7 +269,7 @@ impl ModulePackage {
     }
 
     /// Get share dir from package if present.
-    pub(crate) fn get_share(&self) -> Option<Dir> {
+    pub(super) fn get_share(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SHARE_DIR.into()).ok()
     }
 

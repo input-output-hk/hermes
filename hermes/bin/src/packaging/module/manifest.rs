@@ -2,10 +2,8 @@
 
 use std::path::Path;
 
-use crate::{
-    hdf5::resources::{FsResource, ResourceBuilder},
-    packaging::{schema_validation::SchemaValidator, FileError},
-};
+use super::super::{schema_validation::SchemaValidator, FileError};
+use crate::hdf5::resources::{FsResource, ResourceBuilder};
 
 /// WASM module package manifest.json definition.
 #[derive(Debug, PartialEq, Eq)]

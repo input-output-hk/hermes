@@ -1,5 +1,7 @@
 //! Hermes runtime context implementation.
 
+use std::sync::Arc;
+
 use crate::{app::HermesAppName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
@@ -19,14 +21,14 @@ pub(crate) struct HermesRuntimeContext {
 
     /// App Virtual file system
     #[allow(dead_code)]
-    vfs: Vfs,
+    vfs: Arc<Vfs>,
 }
 
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
         app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u32,
-        vfs: Vfs,
+        vfs: Arc<Vfs>,
     ) -> Self {
         Self {
             app_name,

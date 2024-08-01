@@ -1,19 +1,23 @@
 //! Hermes virtual file system.
 
 mod bootstrap;
+mod permission;
 
 use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
+pub(crate) use permission::PermissionLevel;
+use permission::PermissionsState;
 
 use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system type.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     root: hermes_hdf5::Dir,
-    // TODO: add permissions RWX
+    /// VFS permissions state.
+    permissions: PermissionsState,
 }
 
 impl Vfs {
@@ -48,9 +52,14 @@ impl Vfs {
     }
 
     /// Writes data from a buffer declared by the user to a hdf5 file.
-    // TODO: add permissions RWX
     #[allow(dead_code)]
     pub(crate) fn write(&self, path: &str, buffer: &[u8]) -> anyhow::Result<()> {
+        let permission = self.permissions.get_permission(path);
+        anyhow::ensure!(
+            permission == PermissionLevel::ReadAndWrite,
+            "Permission denied, file does not has write permission."
+        );
+
         let path: hermes_hdf5::Path = path.into();
         let mut file = match self.root.get_file(path.clone()) {
             Ok(file) => file,
@@ -80,12 +89,21 @@ mod tests {
 
         let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
 
-        let file_path = format!("{}/www.txt", Vfs::SRV_DIR);
+        let file_name = "www.txt";
         let file_content = b"web_server";
-        vfs.write(file_path.as_str(), file_content)
+        assert!(
+            vfs.write(
+                format!("{}/{file_name}", Vfs::SRV_DIR).as_str(),
+                file_content
+            )
+            .is_err(),
+            "Cannot write to the 'read only' directory"
+        );
+
+        vfs.write(file_name, file_content)
             .expect("Cannot write to VFS");
 
-        let written_data = vfs.read(file_path.as_str()).expect("Cannot read from VFS");
+        let written_data = vfs.read(file_name).expect("Cannot read from VFS");
         assert_eq!(written_data.as_slice(), file_content);
     }
 }

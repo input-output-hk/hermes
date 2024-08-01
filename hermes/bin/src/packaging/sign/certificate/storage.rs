@@ -3,7 +3,7 @@
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 
-use crate::packaging::{hash::Blake2b256, sign::certificate::Certificate};
+use super::super::super::{hash::Blake2b256, sign::certificate::Certificate};
 
 /// Singleton `CertificateStorage` instance.
 static STORAGE: Lazy<CertificateStorage> = Lazy::new(CertificateStorage::new);
