@@ -32,7 +32,7 @@ impl AppModuleInfo {
     }
 
     /// Get module's name
-    pub(crate) fn name(&self) -> String {
+    pub(crate) fn get_name(&self) -> String {
         self.name.clone()
     }
 
@@ -43,18 +43,18 @@ impl AppModuleInfo {
     }
 
     /// Get module's WASM component
-    pub(crate) fn component(&self) -> anyhow::Result<Module> {
+    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
         self.package.get_component()
     }
 
     /// Get module's metadata
     #[allow(dead_code)]
-    pub(crate) fn metadata(&self) -> anyhow::Result<Metadata<ModulePackage>> {
+    pub(crate) fn get_metadata(&self) -> anyhow::Result<Metadata<ModulePackage>> {
         self.package.get_metadata()
     }
 
     /// Get module's author signature
-    pub(crate) fn signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
+    pub(crate) fn get_signature(&self) -> anyhow::Result<Option<Signature<SignaturePayload>>> {
         self.package.get_signature()
     }
 

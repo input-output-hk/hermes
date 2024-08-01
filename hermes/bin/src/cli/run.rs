@@ -53,7 +53,7 @@ impl Run {
         println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
         let mut modules = Vec::new();
         for module_info in package.get_modules()? {
-            let module = module_info.component()?;
+            let module = module_info.get_component()?;
             modules.push(module);
         }
         let app = HermesApp::new(HermesAppName(app_name), vfs, modules);

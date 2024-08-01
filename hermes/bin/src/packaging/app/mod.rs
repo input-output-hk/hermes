@@ -113,7 +113,7 @@ impl ApplicationPackage {
                 }
 
                 for module_info in modules {
-                    let module_name = module_info.name();
+                    let module_name = module_info.get_name();
                     module_info
                         .validate(untrusted)
                         .map_err(|err| {
@@ -190,8 +190,8 @@ impl ApplicationPackage {
 
         let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::LIB_DIR.into()]);
         for module_info in self.get_modules()? {
-            let module_name = module_info.name();
-            let module_sign = module_info.signature()?.ok_or(anyhow::anyhow!(
+            let module_name = module_info.get_name();
+            let module_sign = module_info.get_signature()?.ok_or(anyhow::anyhow!(
                 "Module {module_name} not signed, missing author.cose signature"
             ))?;
             let module_sign_hash = Blake2b256::hash(module_sign.to_bytes()?.as_slice());
@@ -310,7 +310,7 @@ impl ApplicationPackage {
         }
 
         for module_info in self.get_modules()? {
-            let lib_module_dir_path = format!("{}/{}", Vfs::LIB_DIR, module_info.name());
+            let lib_module_dir_path = format!("{}/{}", Vfs::LIB_DIR, module_info.get_name());
             bootstrapper.with_dir_to_create(lib_module_dir_path.clone(), PermissionLevel::Read);
 
             bootstrapper.with_mounted_file(

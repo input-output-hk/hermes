@@ -140,7 +140,7 @@ fn from_dir_test() {
 
     for module_info in modules {
         // taking not overridden module name
-        let package_module_name = module_info.metadata().unwrap().get_name().unwrap();
+        let package_module_name = module_info.get_metadata().unwrap().get_name().unwrap();
         // searching by this name from the prepared app package files
         let (i, module_files) = app_package_files
             .modules
@@ -152,7 +152,7 @@ fn from_dir_test() {
         // taking overridden module name (optional)
         let manifest_module_name = manifest.modules[i].name.clone();
         assert_eq!(
-            module_info.name(),
+            module_info.get_name(),
             manifest_module_name.unwrap_or(module_files.metadata.get_name().unwrap())
         );
         module_info.check_module_integrity(module_files);
