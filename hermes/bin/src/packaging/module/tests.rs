@@ -1,4 +1,4 @@
-//! Hermes WASM package tests.
+//! Hermes WASM module package tests.
 
 use std::io::{Read, Write};
 
