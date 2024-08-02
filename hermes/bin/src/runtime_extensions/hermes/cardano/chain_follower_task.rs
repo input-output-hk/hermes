@@ -4,13 +4,18 @@
 use std::time::Duration;
 
 use anyhow::Context;
+use cardano_chain_follower::ChainUpdate;
+use pallas::ledger::traverse::{wellknown::GenesisValues, MultiEraBlock, MultiEraTx};
 use tracing::{error, instrument, trace, warn};
 
 use super::{ModuleStateKey, Result, STATE};
 use crate::{
     app::HermesAppName,
     event::{HermesEvent, TargetApp, TargetModule},
-    runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId},
+    runtime_extensions::bindings::{
+        hermes::cardano::api::{BlockDetail, BlockSrc, CardanoBlockchainId},
+        wasi::clocks::wall_clock::Datetime,
+    },
     wasm::module::ModuleId,
 };
 
@@ -18,8 +23,6 @@ use crate::{
 struct EventSubscriptions {
     /// Whether the module is subscribed to block events.
     blocks: bool,
-    /// Whether the module is subscribed to rollback events.
-    rollbacks: bool,
     /// Whether the module is subscribed to transaction events.
     txns: bool,
 }
@@ -210,21 +213,64 @@ fn process_chain_update(
     chain_update: cardano_chain_follower::ChainUpdate, module_state_key: &ModuleStateKey,
     chain_id: CardanoBlockchainId, event_subscriptions: &EventSubscriptions,
 ) -> anyhow::Result<u64> {
-    match chain_update {
-        cardano_chain_follower::ChainUpdate::Block(block_data) => {
-            process_block_chain_update(module_state_key, chain_id, block_data, event_subscriptions)
-                .context("Processing block chain update")
-        },
-        cardano_chain_follower::ChainUpdate::Rollback(block_data) => {
-            process_rollback_chain_update(
-                module_state_key,
-                chain_id,
-                &block_data,
-                event_subscriptions,
+    let (block_data, immutable, rollback, tip, context) = match chain_update {
+        ChainUpdate::ImmutableBlock(block_data) => {
+            (
+                block_data,
+                true,
+                false,
+                false, // There are always live blocks in front of immutable ones.
+                "Processing block chain update (Immutable)",
             )
-            .context("Processing rollback chain update")
         },
-    }
+        ChainUpdate::ImmutableBlockRollback(block_data) => {
+            (
+                block_data,
+                true,
+                true,
+                false, // There are always live blocks in front of immutable ones.
+                "Processing block chain update (Immutable Rollback)",
+            )
+        },
+        ChainUpdate::Block(block_data) => {
+            (
+                block_data,
+                false,
+                false,
+                false,
+                "Processing block chain update (Live Block)",
+            )
+        },
+        ChainUpdate::BlockTip(block_data) => {
+            (
+                block_data,
+                false,
+                false,
+                true,
+                "Processing block chain update (Live Block @ Tip)",
+            )
+        },
+        ChainUpdate::Rollback(rollback_data) => {
+            (
+                rollback_data,
+                false,
+                true,
+                false, // By definition there are always blocks in front of a rollback.
+                "Processing rollback chain update",
+            )
+        },
+    };
+
+    process_block_chain_update(
+        module_state_key,
+        chain_id,
+        &block_data,
+        event_subscriptions,
+        immutable,
+        rollback,
+        tip,
+    )
+    .context(context)
 }
 
 /// Processes a block chain update.
@@ -233,21 +279,46 @@ fn process_chain_update(
 /// Event Queue.
 fn process_block_chain_update(
     module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
-    block_data: cardano_chain_follower::MultiEraBlockData,
-    event_subscriptions: &EventSubscriptions,
+    block_data: &cardano_chain_follower::MultiEraBlockData,
+    event_subscriptions: &EventSubscriptions, immutable: bool, rollback: bool, tip: bool,
 ) -> anyhow::Result<u64> {
-    let decoded_block_data = block_data.decode().context("Decode block")?;
-
+    let decoded_block_data = block_data.decode();
     let block_number = decoded_block_data.number();
-    let slot = decoded_block_data.slot();
 
+    // We send block data first.
+    if event_subscriptions.blocks {
+        build_and_send_block_event(
+            module_state_key,
+            chain_id,
+            block_data,
+            &decoded_block_data,
+            immutable,
+            rollback,
+            tip,
+        )
+        .context("Sending Cardano block event to Event Queue")?;
+
+        trace!(block_number, "Generated Cardano block event");
+    }
+
+    // TODO(SJ): Don't send transactions until the block has been fully processed.
+
+    // Then if requested, the individual transactions.
     if event_subscriptions.txns {
         let txs = decoded_block_data.txs();
+
+        build_and_send_txns_event(
+            module_state_key,
+            chain_id,
+            &decoded_block_data,
+            &txs,
+            immutable,
+            rollback,
+            tip,
+        )
+        .context("Sending Cardano block transaction events to Event Queue")?;
+
         let tx_count = txs.len();
-
-        build_and_send_txns_event(module_state_key, chain_id, slot, txs)
-            .context("Sending Cardano block transaction events to Event Queue")?;
-
         trace!(
             block_number,
             tx_count,
@@ -255,55 +326,67 @@ fn process_block_chain_update(
         );
     }
 
-    if event_subscriptions.blocks {
-        build_and_send_block_event(module_state_key, chain_id, block_data)
-            .context("Sending Cardano block event to Event Queue")?;
-
-        trace!(block_number, "Generated Cardano block event");
-    }
-
-    Ok(slot)
+    Ok(decoded_block_data.slot())
 }
 
-/// Processes a rollback chain update.
-///
-/// This means decoding the block data, building and sending the event to the
-/// Event Queue.
-fn process_rollback_chain_update(
-    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
-    block_data: &cardano_chain_follower::MultiEraBlockData,
-    event_subscriptions: &EventSubscriptions,
-) -> anyhow::Result<u64> {
-    let decoded_block_data = block_data.decode().context("Decode rollback block")?;
+/// Get summary details about a particular block.
+fn get_details(
+    chain_id: CardanoBlockchainId, block_data: &MultiEraBlock, immutable: bool, rollback: bool,
+    tip: bool,
+) -> BlockDetail {
+    let mut src = BlockSrc::empty();
 
-    let slot = decoded_block_data.slot();
+    // Is the block Immutable or Live?
+    if immutable {
+        src |= BlockSrc::IMMUTABLE;
+    };
 
-    if event_subscriptions.rollbacks {
-        build_and_send_rollback_event(module_state_key, chain_id, slot)
-            .context("Sending Cardano rollback event to Event Queue")?;
+    // Set the tip bit flag if at Tip of the chain.
+    if tip {
+        src |= BlockSrc::TIP;
+    };
 
-        trace!(
-            block_number = decoded_block_data.number(),
-            "Generated Cardano rollback event"
-        );
+    // Set the rollback bit flag, if the block was from a rollback.
+    if rollback {
+        src |= BlockSrc::ROLLBACK;
+    };
+
+    let era = format!("{:?}", block_data.era());
+    let height = block_data.number();
+    let slot = block_data.slot();
+    let hash = block_data.hash().to_vec();
+
+    let wall_clock = match chain_id {
+        CardanoBlockchainId::Mainnet => block_data.wallclock(&GenesisValues::mainnet()),
+        CardanoBlockchainId::Preprod => block_data.wallclock(&GenesisValues::preprod()),
+        CardanoBlockchainId::Preview => block_data.wallclock(&GenesisValues::preview()),
+    };
+
+    BlockDetail {
+        era,
+        src,
+        height,
+        slot: (slot, hash),
+        wall_clock: Datetime {
+            seconds: wall_clock,
+            nanoseconds: 0,
+        },
     }
-
-    Ok(slot)
 }
 
 /// Builds a [`super::event::OnCardanoBlockEvent`] from the block data and
 /// sends it to the given module through the Event Queue.
 fn build_and_send_block_event(
     module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId,
-    block_data: cardano_chain_follower::MultiEraBlockData,
+    block_data: &MultiEraBlockData, decoded_block: &MultiEraBlock, immutable: bool, rollback: bool,
+    tip: bool,
 ) -> anyhow::Result<()> {
+    let details = get_details(chain_id, decoded_block, immutable, rollback, tip);
+
     let on_block_event = super::event::OnCardanoBlockEvent {
         blockchain: chain_id,
-        block: block_data.into_raw_data(),
-        // TODO(FelipeRosa): In order to implement this we need the
-        // cardano-chain-follower crate to give this information along
-        // with the chain update.
-        source: BlockSrc::NODE,
+        block: block_data.clone().into_raw_data(),
+        details,
     };
 
     crate::event::queue::send(HermesEvent::new(
@@ -316,15 +399,17 @@ fn build_and_send_block_event(
 /// Builds [`super::event::OnCardanoTxnEvent`] for every transaction on the block data
 /// and sends them to the given module through the Event Queue.
 fn build_and_send_txns_event(
-    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId, slot: u64,
-    txs: Vec<pallas::ledger::traverse::MultiEraTx>,
+    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId, block_data: &MultiEraBlock,
+    txs: &[MultiEraTx], immutable: bool, rollback: bool, tip: bool,
 ) -> anyhow::Result<()> {
-    for (tx, index) in txs.into_iter().zip(0u32..) {
+    let details = get_details(chain_id, block_data, immutable, rollback, tip);
+
+    for (tx, index) in txs.iter().zip(0u32..) {
         let on_txn_event = super::event::OnCardanoTxnEvent {
             blockchain: chain_id,
-            slot,
             txn_index: index,
             txn: tx.encode(),
+            details: details.clone(),
         };
 
         // Stop at the first error.
@@ -338,23 +423,6 @@ fn build_and_send_txns_event(
     Ok(())
 }
 
-/// Builds a [`super::event::OnCardanoRollback`] from the block data and
-/// sends it to the given module through the Event Queue.
-fn build_and_send_rollback_event(
-    module_state_key: &ModuleStateKey, chain_id: CardanoBlockchainId, slot: u64,
-) -> anyhow::Result<()> {
-    let on_rollback_event = super::event::OnCardanoRollback {
-        blockchain: chain_id,
-        slot,
-    };
-
-    crate::event::queue::send(HermesEvent::new(
-        on_rollback_event,
-        TargetApp::List(vec![module_state_key.0.clone()]),
-        TargetModule::List(vec![module_state_key.1.clone()]),
-    ))
-}
-
 /// Gets the event subscription flags for a given module.
 fn get_event_subscriptions(
     module_state_key: &ModuleStateKey,
@@ -366,7 +434,6 @@ fn get_event_subscriptions(
 
     Ok(EventSubscriptions {
         blocks: sub_state.subscribed_to_blocks,
-        rollbacks: sub_state.subscribed_to_rollbacks,
         txns: sub_state.subscribed_to_txns,
     })
 }

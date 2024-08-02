@@ -1,771 +1,415 @@
 //! Cardano chain follow module.
 
-use std::{future::Future, path::PathBuf};
-
-use pallas::network::{facades::PeerClient, miniprotocols::Point};
-use tokio::{
-    sync::{mpsc, oneshot},
-    task::JoinHandle,
-};
+use pallas::network::miniprotocols::txmonitor::{TxBody, TxId};
+use tokio::sync::broadcast::{self};
+use tracing::{debug, error};
 
 use crate::{
-    mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, Network, PointOrTip, Result,
+    chain_sync::point_at_tip,
+    chain_sync_live_chains::{find_best_fork_block, get_live_block, live_chain_length},
+    chain_sync_ready::{block_until_sync_ready, get_chain_update_rx_queue},
+    chain_update::{self, ChainUpdate},
+    mithril_snapshot::MithrilSnapshot,
+    mithril_snapshot_data::latest_mithril_snapshot_id,
+    mithril_snapshot_iterator::MithrilSnapshotIterator,
+    network::Network,
+    point::{TIP_POINT, UNKNOWN_POINT},
+    stats::{self, rollback},
+    MultiEraBlock, Point, Statistics,
 };
 
-/// Default [`Follower`] block buffer size.
-const DEFAULT_CHAIN_UPDATE_BUFFER_SIZE: usize = 32;
-
-/// Enum of chain updates received by the follower.
-pub enum ChainUpdate {
-    /// New block inserted on chain.
-    Block(MultiEraBlockData),
-    /// Chain rollback to the given block.
-    Rollback(MultiEraBlockData),
+/// The Chain Follower
+pub struct ChainFollower {
+    /// The Blockchain network we are following.
+    chain: Network,
+    /// Where we end following.
+    end: Point,
+    /// Block we processed most recently.
+    previous: Point,
+    /// Where we are currently in the following process.
+    current: Point,
+    /// What fork were we last on
+    fork: u64,
+    /// Mithril Snapshot
+    snapshot: MithrilSnapshot,
+    /// Mithril Snapshot Follower
+    mithril_follower: Option<MithrilSnapshotIterator>,
+    /// Mithril TIP Reached
+    mithril_tip: Option<Point>,
+    /// Live Block Updates
+    sync_updates: broadcast::Receiver<chain_update::Kind>,
 }
 
-impl ChainUpdate {
-    /// Gets the chain update's block data.
-    #[must_use]
-    pub fn block_data(&self) -> &MultiEraBlockData {
-        match self {
-            ChainUpdate::Block(block_data) | ChainUpdate::Rollback(block_data) => block_data,
-        }
-    }
-}
-
-/// Builder used to create [`FollowerConfig`]s.
-pub struct FollowerConfigBuilder {
-    /// Block buffer size option.
-    chain_update_buffer_size: usize,
-    /// Where to start following from.
-    follow_from: PointOrTip,
-    /// Path to the Mithril snapshot the follower should use.
-    mithril_snapshot_path: Option<PathBuf>,
-}
-
-impl Default for FollowerConfigBuilder {
-    fn default() -> Self {
-        Self {
-            chain_update_buffer_size: DEFAULT_CHAIN_UPDATE_BUFFER_SIZE,
-            follow_from: PointOrTip::Tip,
-            mithril_snapshot_path: None,
-        }
-    }
-}
-
-impl FollowerConfigBuilder {
-    /// Sets the size of the chain updates buffer used by the [`Follower`].
+impl ChainFollower {
+    /// Follow a blockchain.
     ///
     /// # Arguments
     ///
-    /// * `chain_update_buffer_size`: Size of the chain updates buffer.
+    /// * `chain` - The blockchain network to follow.
+    /// * `start` - The point or tip to start following from (inclusive).
+    /// * `end` - The point or tip to stop following from (inclusive).
+    ///
+    /// # Returns
+    ///
+    /// The Chain Follower that will return blocks in the requested range.
+    ///
+    /// # Notes
+    ///
+    /// IF end < start, the follower will immediately yield no blocks.
+    /// IF end is TIP, then the follower will continue to follow even when TIP is reached.
+    /// Otherwise only blocks in the request range will be returned.
+    ///
+    /// Also, UNLIKE the blockchain itself, the only relevant information is the Slot#.
+    /// The Block hash is not considered.
+    /// If start is not an exact Slot#, then the NEXT Slot immediately following will be
+    /// the first block returned.
+    /// If the end is also not an exact Slot# with a block, then the last block will be
+    /// the one immediately proceeding it.
+    ///
+    /// To ONLY follow from TIP, set BOTH start and end to TIP.
     #[must_use]
-    pub fn chain_update_buffer_size(mut self, block_buffer_size: usize) -> Self {
-        self.chain_update_buffer_size = block_buffer_size;
-        self
-    }
+    pub async fn new(chain: Network, start: Point, end: Point) -> Self {
+        let rx = get_chain_update_rx_queue(chain).await;
 
-    /// Sets the point at which the follower will start following from.
-    ///
-    /// # Arguments
-    ///
-    /// * `from`: Sync starting point.
-    #[must_use]
-    pub fn follow_from<P>(mut self, from: P) -> Self
-    where P: Into<PointOrTip> {
-        self.follow_from = from.into();
-        self
-    }
-
-    /// Sets the path of the Mithril snapshot the [`Follower`] will use.
-    ///
-    /// # Arguments
-    ///
-    /// * `path`: Mithril snapshot path.
-    #[must_use]
-    pub fn mithril_snapshot_path(mut self, path: PathBuf) -> Self {
-        self.mithril_snapshot_path = Some(path);
-        self
-    }
-
-    /// Builds a [`FollowerConfig`].
-    #[must_use]
-    pub fn build(self) -> FollowerConfig {
-        FollowerConfig {
-            chain_update_buffer_size: self.chain_update_buffer_size,
-            follow_from: self.follow_from,
-            mithril_snapshot_path: self.mithril_snapshot_path,
+        ChainFollower {
+            chain,
+            end,
+            previous: UNKNOWN_POINT,
+            current: start,
+            fork: 1, // This is correct, because Mithril is Fork 0.
+            snapshot: MithrilSnapshot::new(chain),
+            mithril_follower: None,
+            mithril_tip: None,
+            sync_updates: rx,
         }
     }
-}
 
-/// Configuration for the Cardano chain follower.
-#[derive(Clone)]
-pub struct FollowerConfig {
-    /// Configured chain update buffer size.
-    pub chain_update_buffer_size: usize,
-    /// Where to start following from.
-    pub follow_from: PointOrTip,
-    /// Path to the Mithril snapshot the follower should use.
-    pub mithril_snapshot_path: Option<PathBuf>,
-}
+    /// If we can, get the next update from the mithril snapshot.
+    async fn next_from_mithril(&mut self) -> Option<ChainUpdate> {
+        let current_mithril_tip = latest_mithril_snapshot_id(self.chain).tip();
 
-/// Information used to connect to a client.
-#[derive(Clone)]
-struct ClientConnectInfo {
-    /// Node's address
-    address: String,
-    /// Network magic
-    network: Network,
-}
+        if current_mithril_tip > self.current {
+            if self.mithril_follower.is_none() {
+                self.mithril_follower = self
+                    .snapshot
+                    .try_read_blocks_from_point(&self.current)
+                    .await;
+            }
 
-/// Handler for receiving the read block response from the client.
-pub struct ReadBlock(tokio::task::JoinHandle<Result<MultiEraBlockData>>);
-
-impl Future for ReadBlock {
-    type Output = Result<MultiEraBlockData>;
-
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let p = &mut self.0;
-        // Using tokio pin instead of, e.g., pin-project because we use tokio as the async runtime
-        // lib for this crate.
-        tokio::pin!(p);
-
-        match p.poll(cx) {
-            std::task::Poll::Ready(res) => {
-                match res {
-                    Ok(res) => std::task::Poll::Ready(res),
-                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+            if let Some(follower) = self.mithril_follower.as_mut() {
+                if let Some(next) = follower.next().await {
+                    self.previous = self.current.clone();
+                    self.current = next.point();
+                    self.fork = 0; // Mithril Immutable data is always Fork 0.
+                    let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
+                    return Some(update);
                 }
-            },
-            std::task::Poll::Pending => std::task::Poll::Pending,
+            }
         }
+
+        if self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip {
+            let snapshot = MithrilSnapshot::new(self.chain);
+            if let Some(block) = snapshot.read_block_at(&current_mithril_tip).await {
+                // The Mithril Tip has moved forwards.
+                self.mithril_tip = Some(current_mithril_tip);
+                // Get the mithril tip block.
+                let update =
+                    ChainUpdate::new(chain_update::Kind::ImmutableBlockRollForward, false, block);
+                return Some(update);
+            }
+            error!("Mithril Tip Block is not in snapshot. Should not happen.");
+        }
+
+        None
     }
-}
 
-/// Handler for receiving the read block range response from the client.
-pub struct ReadBlockRange(tokio::task::JoinHandle<Result<Vec<MultiEraBlockData>>>);
+    /// If we can, get the next update from the mithril snapshot.
+    async fn next_from_live_chain(&mut self) -> Option<ChainUpdate> {
+        let mut next_block: Option<MultiEraBlock> = None;
+        let mut update_type = chain_update::Kind::Block;
+        let mut rollback_depth: u64 = 0;
 
-impl Future for ReadBlockRange {
-    type Output = Result<Vec<MultiEraBlockData>>;
+        // Special Case: point = TIP_POINT.  Just return the latest block in the live chain.
+        if self.current == TIP_POINT {
+            next_block = {
+                let block = get_live_block(self.chain, &self.current, -1, false)?;
+                Some(block)
+            };
+        }
 
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let p = &mut self.0;
-        // Using tokio pin instead of, e.g., pin-project because we use tokio as the async runtime
-        // lib for this crate.
-        tokio::pin!(p);
+        // In most cases we will be able to get the next block.
+        if next_block.is_none() {
+            next_block = get_live_block(self.chain, &self.current, 1, true);
+        }
 
-        match p.poll(cx) {
-            std::task::Poll::Ready(res) => {
-                match res {
-                    Ok(res) => std::task::Poll::Ready(res),
-                    Err(_) => std::task::Poll::Ready(Err(Error::InternalError)),
+        // If we can't get the next consecutive block, then
+        // Get the best previous block.
+        if next_block.is_none() {
+            debug!("No blocks left in live chain.");
+
+            // IF this is an update still, and not us having caught up, then it WILL be a rollback.
+            update_type = chain_update::Kind::Rollback;
+            next_block = if let Some((block, depth)) =
+                find_best_fork_block(self.chain, &self.current, &self.previous, self.fork)
+            {
+                debug!("Found fork block: {block}");
+                // IF the block is the same as our current previous, there has been no chain
+                // advancement, so just return None.
+                if block.point().strict_eq(&self.current) {
+                    None
+                } else {
+                    rollback_depth = depth;
+                    Some(block)
                 }
-            },
-            std::task::Poll::Pending => std::task::Poll::Pending,
+            } else {
+                debug!("No block to find, rewinding to latest mithril tip.");
+                let latest_mithril_point = latest_mithril_snapshot_id(self.chain).tip();
+                if let Some(block) = MithrilSnapshot::new(self.chain)
+                    .read_block_at(&latest_mithril_point)
+                    .await
+                {
+                    rollback_depth = live_chain_length(self.chain) as u64;
+                    Some(block)
+                } else {
+                    return None;
+                }
+            }
         }
+
+        if let Some(next_block) = next_block {
+            // Update rollback stats for the follower if one is reported.
+            if update_type == chain_update::Kind::Rollback {
+                rollback(self.chain, stats::RollbackType::Follower, rollback_depth);
+            }
+            self.previous = self.current.clone();
+            self.current = next_block.point().clone();
+            self.fork = next_block.fork();
+
+            let tip = point_at_tip(self.chain, &self.current).await;
+            let update = ChainUpdate::new(update_type, tip, next_block);
+            return Some(update);
+        }
+
+        None
     }
-}
 
-/// Cardano chain follower.
-pub struct Follower {
-    /// Client connection information.
+    /// Update the current Point, and return `false` if this fails.
+    fn update_current(&mut self, update: &Option<ChainUpdate>) -> bool {
+        if let Some(update) = update {
+            let decoded = update.block_data().decode();
+            self.current = Point::new(decoded.slot(), decoded.hash().to_vec());
+            return true;
+        }
+        false
+    }
+
+    /// This is an unprotected version of `next()` which can ONLY be used within this
+    /// crate. Its purpose is to allow the chain data to be inspected/validate prior
+    /// to unlocking it for general access.
     ///
-    /// This is used to open more connections when needed.
-    client_connect_info: ClientConnectInfo,
-    /// Chain update receiver.
-    chain_update_rx: mpsc::Receiver<Result<ChainUpdate>>,
-    /// Follow task request sender.
-    follow_task_request_tx: mpsc::Sender<task::SetReadPointerRequest>,
-    /// Follow task thread join handle.
-    follow_task_join_handle: JoinHandle<()>,
-    /// Optional Mithril snapshot information.
-    mithril_snapshot: Option<MithrilSnapshot>,
-}
+    /// This function can NOT return None, but that state is used to help process data.
+    ///
+    /// This function must not be exposed for general use.
+    #[allow(clippy::unused_async)]
+    pub(crate) async fn unprotected_next(&mut self) -> Option<ChainUpdate> {
+        let mut update;
 
-impl Follower {
-    /// Connects the follower to a producer using the node-to-node protocol.
+        // We will loop here until we can successfully return a new block
+        loop {
+            // Check if Immutable TIP has advanced, and if so, send a ChainUpdate about it.
+            // Should only happen once every ~6hrs.
+            // TODO.
+
+            // Try and get the next update from the mithril chain, and return it if we are
+            // successful.
+            update = self.next_from_mithril().await;
+            if update.is_some() {
+                break;
+            }
+
+            // No update from Mithril Data, so try and get one from the live chain.
+            update = self.next_from_live_chain().await;
+            if update.is_some() {
+                break;
+            }
+
+            // IF we can't get a new block directly from the mithril data, or the live chain, then
+            // wait for something to change which might mean we can get the next block.
+            let update = self.sync_updates.recv().await;
+            match update {
+                Ok(kind) => {
+                    debug!("Update kind: {kind}");
+                },
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(distance)) => {
+                    debug!("Lagged by {} updates", distance);
+                },
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    // We are closed, so we need to wait for the next update.
+                    // This is not an error.
+                    return None;
+                },
+            }
+        }
+
+        // Update the current block, so we know which one to get next.
+        if !self.update_current(&update) {
+            return None;
+        }
+
+        update
+    }
+
+    /// Get the next block from the follower.
+    /// Returns NONE is there is no block left to return.
+    pub async fn next(&mut self) -> Option<ChainUpdate> {
+        // If we aren't syncing TIP, and Current >= End, then return None
+        if self.end != TIP_POINT && self.current >= self.end {
+            return None;
+        }
+
+        // Can't follow if SYNC is not ready.
+        block_until_sync_ready(self.chain).await;
+
+        // Get next block from the iteration.
+        self.unprotected_next().await
+    }
+
+    /// Get a single block from the chain by its point.
+    ///
+    /// If the Point does not point exactly at a block, it will return the next
+    /// consecutive block.
+    ///
+    /// This is a convenience function which just used `ChainFollower` to fetch a single
+    /// block.
+    pub async fn get_block(chain: Network, point: Point) -> Option<ChainUpdate> {
+        // Get the block from the chain.
+        let mut follower = Self::new(chain, point.clone(), point).await;
+
+        follower.next().await
+    }
+
+    /// Get the current Immutable and live tips.
+    ///
+    /// Note, this will block until the chain is synced, ready to be followed.
+    pub async fn get_tips(chain: Network) -> (Point, Point) {
+        // Can't follow if SYNC is not ready.
+        block_until_sync_ready(chain).await;
+
+        let tips = Statistics::tips(chain);
+
+        let mithril_tip = Point::fuzzy(tips.0);
+        let live_tip = Point::fuzzy(tips.1);
+
+        (mithril_tip, live_tip)
+    }
+
+    /// Schedule a transaction to be posted to the blockchain.
     ///
     /// # Arguments
     ///
-    /// * `address`: Address of the node to connect to.
-    /// * `network`: The [Network] the client is assuming it's connecting to.
-    /// * `config`: Follower's configuration (see [`FollowerConfigBuilder`]).
+    /// * `chain` - The blockchain to post the transaction on.
+    /// * `txn` - The transaction to be posted.
     ///
-    /// # Errors
+    /// # Returns
     ///
-    /// Returns Err if the connection could not be established.
-    pub async fn connect(address: &str, network: Network, config: FollowerConfig) -> Result<Self> {
-        let mut client = PeerClient::connect(address, network.into())
-            .await
-            .map_err(Error::Client)?;
+    /// `TxId` - The ID of the transaction that was queued.
+    #[allow(clippy::unused_async)]
+    pub async fn post_txn(chain: Network, txn: TxBody) -> TxId {
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = chain;
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = txn;
 
-        let Some(follow_from) = set_client_read_pointer(&mut client, config.follow_from).await?
-        else {
-            return Err(Error::SetReadPointer);
-        };
+        "unimplemented".to_string()
+    }
 
-        let mithril_snapshot = if let Some(path) = config.mithril_snapshot_path {
-            Some(MithrilSnapshot::from_path(path)?)
-        } else {
-            None
-        };
+    /// Check if a transaction, known by its `TxId`, has been sent to the Peer Node.
+    ///
+    /// Note, the `TxId` can ONLY be checked for ~6 hrs after it was posted.
+    /// After which, it should be on the blockchain, and its the applications job to track
+    /// if a transaction made it on-chain or not.
+    #[allow(clippy::unused_async)]
+    pub async fn txn_sent(chain: Network, id: TxId) -> bool {
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = chain;
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _unused = id;
 
-        let connect_info = ClientConnectInfo {
-            address: address.to_string(),
-            network,
-        };
+        false
+    }
+}
 
-        let (task_request_tx, chain_update_rx, task_join_handle) = task::FollowTask::spawn(
-            client,
-            connect_info,
-            mithril_snapshot.clone(),
-            config.chain_update_buffer_size,
-            follow_from,
+// TODO(SJ) - Add a function to check if a transaction is pending, or has been sent to the
+// chain.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mock_block() -> MultiEraBlock {
+        let raw_block = hex::decode(include_str!("./../test_data/shelley.block"))
+            .expect("Failed to decode hex block.");
+
+        let pallas_block = pallas::ledger::traverse::MultiEraBlock::decode(raw_block.as_slice())
+            .expect("cannot decode block");
+
+        let previous_point = Point::new(
+            pallas_block.slot() - 1,
+            pallas_block
+                .header()
+                .previous_hash()
+                .expect("cannot get previous hash")
+                .to_vec(),
         );
 
-        let client_connect_info = ClientConnectInfo {
-            address: address.to_string(),
-            network,
-        };
-
-        Ok(Self {
-            client_connect_info,
-            chain_update_rx,
-            follow_task_request_tx: task_request_tx,
-            follow_task_join_handle: task_join_handle,
-            mithril_snapshot,
-        })
+        MultiEraBlock::new(Network::Preprod, raw_block.clone(), &previous_point, 1)
+            .expect("cannot create block")
     }
 
-    /// Set the follower's chain read-pointer. Returns None if the point was
-    /// not found on the chain.
-    ///
-    /// # Arguments
-    ///
-    /// * `at`: Point at which to set the read-pointer.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if something went wrong while communicating with the producer.
-    pub async fn set_read_pointer<P>(&self, at: P) -> Result<Option<Point>>
-    where P: Into<PointOrTip> {
-        let (response_tx, response_rx) = oneshot::channel();
+    #[tokio::test]
+    async fn test_chain_follower_new() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
 
-        let req = task::SetReadPointerRequest {
-            at: at.into(),
-            response_tx,
-        };
+        let follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
 
-        self.follow_task_request_tx
-            .send(req)
-            .await
-            .map_err(|_| Error::FollowTaskNotRunning)?;
-
-        response_rx.await.map_err(|_| Error::FollowTaskNotRunning)?
+        assert_eq!(follower.chain, chain);
+        assert_eq!(follower.end, end);
+        assert_eq!(follower.previous, UNKNOWN_POINT);
+        assert_eq!(follower.current, start);
+        assert_eq!(follower.fork, 1);
+        assert!(follower.mithril_follower.is_none());
+        assert!(follower.mithril_tip.is_none());
     }
 
-    /// Requests the client to read a block.
-    ///
-    /// # Arguments
-    ///
-    /// * `at`: Point at which to read the block.
-    #[must_use]
-    pub fn read_block<P>(&self, at: P) -> ReadBlock
-    where P: Into<PointOrTip> {
-        let connect_info = self.client_connect_info.clone();
-        let mithril_snapshot = self.mithril_snapshot.clone();
-        let at = at.into();
+    #[tokio::test]
+    async fn test_chain_follower_update_current_none() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
 
-        let join_handle = tokio::spawn(async move {
-            let mut client = PeerClient::connect(connect_info.address, connect_info.network.into())
-                .await
-                .map_err(Error::Client)?;
+        let mut follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
 
-            match at {
-                PointOrTip::Tip => {
-                    let point = resolve_tip(&mut client).await?;
-                    read_block_from_network(&mut client, point).await
-                },
+        let result = follower.update_current(&None);
 
-                PointOrTip::Point(point) => {
-                    let snapshot_res = mithril_snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.try_read_block(point.clone()).ok())
-                        .flatten();
-
-                    match snapshot_res {
-                        Some(block_data) => {
-                            tracing::trace!("Read block from Mithril snapshot");
-                            Ok(block_data)
-                        },
-                        None => read_block_from_network(&mut client, point).await,
-                    }
-                },
-            }
-        });
-
-        ReadBlock(join_handle)
+        assert!(!result);
     }
 
-    /// Request the client to read a block range.
-    ///
-    /// # Arguments
-    ///
-    /// * `from`: Block range start.
-    /// * `to`: Block range end.
-    #[must_use]
-    pub fn read_block_range<P>(&self, from: Point, to: P) -> ReadBlockRange
-    where P: Into<PointOrTip> {
-        let connect_info = self.client_connect_info.clone();
-        let mithril_snapshot = self.mithril_snapshot.clone();
-        let to = to.into();
+    #[tokio::test]
+    async fn test_chain_follower_update_current() {
+        let chain = Network::Mainnet;
+        let start = Point::new(100u64, vec![]);
+        let end = Point::fuzzy(999u64);
 
-        let join_handle = tokio::spawn(async move {
-            let mut client = PeerClient::connect(connect_info.address, connect_info.network.into())
-                .await
-                .map_err(Error::Client)?;
+        let mut follower = ChainFollower::new(chain, start.clone(), end.clone()).await;
 
-            match to {
-                PointOrTip::Tip => {
-                    let to_point = resolve_tip(&mut client).await?;
-                    read_block_range_from_network(&mut client, from, to_point).await
-                },
-                PointOrTip::Point(to) => {
-                    let snapshot_res = mithril_snapshot
-                        .as_ref()
-                        .and_then(|snapshot| {
-                            snapshot.try_read_block_range(from.clone(), to.clone()).ok()
-                        })
-                        .flatten();
+        let block_data = mock_block();
+        let update = ChainUpdate::new(chain_update::Kind::Block, false, block_data);
 
-                    match snapshot_res {
-                        Some((last_point_read, mut block_data_vec)) => {
-                            // If we couldn't get all the blocks from the snapshot,
-                            // try fetching the remaining ones from the network.
-                            if last_point_read.slot_or_default() < to.slot_or_default() {
-                                let network_blocks =
-                                    read_block_range_from_network(&mut client, last_point_read, to)
-                                        .await?;
+        let result = follower.update_current(&Some(update.clone()));
 
-                                // Discard 1st point as it's already been read from
-                                // the snapshot
-                                let mut network_blocks_iter = network_blocks.into_iter();
-                                drop(network_blocks_iter.next());
-
-                                block_data_vec.extend(network_blocks_iter);
-                            }
-
-                            Ok(block_data_vec)
-                        },
-                        None => read_block_range_from_network(&mut client, from, to).await,
-                    }
-                },
-            }
-        });
-
-        ReadBlockRange(join_handle)
+        assert!(result);
+        assert_eq!(follower.current, update.block_data().point());
     }
-
-    /// Receive the next chain update from the producer.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if any producer communication errors occurred.
-    pub async fn next(&mut self) -> Result<ChainUpdate> {
-        self.chain_update_rx
-            .recv()
-            .await
-            .ok_or(Error::FollowTaskNotRunning)?
-    }
-
-    /// Closes the follower connection and stops its background task.
-    ///
-    /// # Errors
-    ///
-    /// Returns Err if some error occurred in the background task.
-    pub async fn close(self) -> std::result::Result<(), tokio::task::JoinError> {
-        // NOTE(FelipeRosa): For now just abort the task since it needs no cancellation
-        self.follow_task_join_handle.abort();
-
-        self.follow_task_join_handle.await
-    }
-}
-
-/// Contains functions related to the Follower's background task.
-mod task {
-    use pallas::{
-        ledger::traverse::MultiEraHeader,
-        network::{
-            facades::PeerClient,
-            miniprotocols::{chainsync, Point},
-        },
-    };
-    use tokio::sync::{mpsc, oneshot};
-
-    use super::{set_client_read_pointer, ChainUpdate, ClientConnectInfo};
-    use crate::{mithril_snapshot::MithrilSnapshot, Error, MultiEraBlockData, PointOrTip, Result};
-
-    /// Request the task to set the read pointer to the given point or to the
-    /// tip.
-    pub(super) struct SetReadPointerRequest {
-        /// Point at which to set the read pointer.
-        pub(super) at: PointOrTip,
-        /// The channel that will be used to send the request's response.
-        pub(super) response_tx: oneshot::Sender<Result<Option<Point>>>,
-    }
-
-    /// Holds state for a follow task.
-    pub(super) struct FollowTask {
-        /// Client connection info.
-        connect_info: ClientConnectInfo,
-        /// Optional Mithril Snapshot that will be used by the follow task when fetching
-        /// chain updates.
-        mithril_snapshot: Option<MithrilSnapshot>,
-        /// Request receiver.
-        request_rx: mpsc::Receiver<SetReadPointerRequest>,
-        /// Chain update sender.
-        chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
-    }
-
-    impl FollowTask {
-        /// Spawn a follow task.
-        pub(super) fn spawn(
-            client: PeerClient, connect_info: ClientConnectInfo,
-            mithril_snapshot: Option<MithrilSnapshot>, buffer_size: usize, follow_from: Point,
-        ) -> (
-            mpsc::Sender<SetReadPointerRequest>,
-            mpsc::Receiver<crate::Result<ChainUpdate>>,
-            tokio::task::JoinHandle<()>,
-        ) {
-            let (request_tx, request_rx) = mpsc::channel(1);
-            let (chain_update_tx, chain_update_rx) = mpsc::channel(buffer_size);
-
-            let this = Self {
-                connect_info,
-                mithril_snapshot,
-                request_rx,
-                chain_update_tx,
-            };
-
-            (
-                request_tx,
-                chain_update_rx,
-                tokio::spawn(this.run(client, follow_from)),
-            )
-        }
-
-        /// Runs the follow task.
-        ///
-        /// It keeps asking the connected node for new chain updates. Every update and
-        /// communication errors are sent through the channel to the follower.
-        ///
-        /// Backpressure is achieved with the chain update channel's limited size.
-        async fn run(mut self, client: PeerClient, from: Point) {
-            let fetch_chain_updates_fut = Self::fetch_chain_updates(
-                client,
-                self.mithril_snapshot.as_ref(),
-                self.chain_update_tx.clone(),
-                from,
-            );
-            tokio::pin!(fetch_chain_updates_fut);
-
-            loop {
-                tokio::select! {
-                    Some(SetReadPointerRequest { at, response_tx }) = self.request_rx.recv() => {
-                        let res = PeerClient::connect(&self.connect_info.address, self.connect_info.network.into())
-                            .await;
-
-                        let Ok(mut client) = res else {
-                            drop(response_tx.send(Err(crate::Error::SetReadPointer)));
-                            continue;
-                        };
-
-                        match set_client_read_pointer(&mut client, at).await {
-                            Ok(Some(from)) => {
-                                fetch_chain_updates_fut.set(Self::fetch_chain_updates(
-                                    client,
-                                    self.mithril_snapshot.as_ref(),
-                                    self.chain_update_tx.clone(),
-                                    from.clone(),
-                                ));
-
-                                drop(response_tx.send(Ok(Some(from))));
-                            }
-                            Ok(None) => {
-                                drop(response_tx.send(Ok(None)));
-                            }
-                            Err(_) => {
-                                drop(response_tx.send(Err(crate::Error::SetReadPointer)));
-                                continue;
-                            }
-                        }
-                    }
-
-                    () = &mut fetch_chain_updates_fut  => {}
-                }
-            }
-        }
-
-        /// Sends the next chain update to the follower.
-        /// This can be either read from the Mithril snapshot (if configured) or
-        /// from the N2N remote client.
-        async fn fetch_chain_updates(
-            mut client: PeerClient, mithril_snapshot: Option<&MithrilSnapshot>,
-            chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>, from: Point,
-        ) {
-            let mut current_point = from;
-
-            let set_to_snapshot = mithril_snapshot
-                .and_then(|snapshot| snapshot.try_read_blocks_from_point(current_point.clone()));
-
-            if let Some(iter) = set_to_snapshot {
-                let mut last_recv_from_snapshot = false;
-
-                for result in iter {
-                    let mut fallback = false;
-
-                    if let Ok(raw_block_data) = result {
-                        let block_data = MultiEraBlockData(raw_block_data);
-
-                        match block_data.decode() {
-                            Ok(block) => {
-                                current_point =
-                                    Point::Specific(block.slot(), block.hash().to_vec());
-
-                                if chain_update_tx
-                                    .send(Ok(ChainUpdate::Block(block_data)))
-                                    .await
-                                    .is_err()
-                                {
-                                    return;
-                                }
-
-                                last_recv_from_snapshot = true;
-                            },
-                            Err(_) => {
-                                fallback = true;
-                            },
-                        }
-                    } else {
-                        fallback = true;
-                    }
-
-                    // If we, for any reason, we failed to get the block from the
-                    // Mithril snapshot, fallback to the getting it from the client.
-                    if fallback {
-                        let res = set_client_read_pointer(
-                            &mut client,
-                            PointOrTip::Point(current_point.clone()),
-                        )
-                        .await;
-
-                        match res {
-                            Ok(Some(p)) => {
-                                current_point = p;
-
-                                if !Self::send_next_chain_update(
-                                    &mut client,
-                                    chain_update_tx.clone(),
-                                )
-                                .await
-                                {
-                                    return;
-                                }
-                            },
-                            Ok(None) | Err(_) => {
-                                drop(
-                                    chain_update_tx
-                                        .send(Err(crate::Error::SetReadPointer))
-                                        .await,
-                                );
-                                return;
-                            },
-                        }
-                    }
-                }
-
-                if last_recv_from_snapshot {
-                    let res = set_client_read_pointer(
-                        &mut client,
-                        PointOrTip::Point(current_point.clone()),
-                    )
-                    .await;
-
-                    if let Err(e) = res {
-                        drop(chain_update_tx.send(Err(e)).await);
-                        return;
-                    }
-
-                    // Skip the next update from the client since we've already
-                    // read it the Mithril snapshot.
-                    drop(Self::next_from_client(&mut client).await);
-                }
-            }
-
-            while Self::send_next_chain_update(&mut client, chain_update_tx.clone()).await {}
-        }
-
-        /// Waits for the next update from the node the client is connected to.
-        ///
-        /// Is cancelled by closing the `chain_update_tx` receiver end (explicitly or by
-        /// dropping it).
-        async fn next_from_client(client: &mut PeerClient) -> crate::Result<Option<ChainUpdate>> {
-            tracing::trace!("Requesting next chain update");
-            let res = {
-                match client.chainsync().state() {
-                    chainsync::State::CanAwait => client.chainsync().recv_while_can_await().await,
-                    chainsync::State::MustReply => client.chainsync().recv_while_must_reply().await,
-                    _ => client.chainsync().request_next().await,
-                }
-                .map_err(Error::Chainsync)?
-            };
-
-            tracing::trace!("Received block data from client");
-
-            match res {
-                chainsync::NextResponse::RollForward(header, _tip) => {
-                    let decoded_header = MultiEraHeader::decode(
-                        header.variant,
-                        header.byron_prefix.map(|p| p.0),
-                        &header.cbor,
-                    )
-                    .map_err(Error::Codec)?;
-
-                    let point =
-                        Point::Specific(decoded_header.slot(), decoded_header.hash().to_vec());
-                    tracing::trace!(point = ?point, "Fetching roll forward block data");
-                    let block_data = client
-                        .blockfetch()
-                        .fetch_single(point)
-                        .await
-                        .map_err(Error::Blockfetch)?;
-
-                    Ok(Some(ChainUpdate::Block(MultiEraBlockData(block_data))))
-                },
-                chainsync::NextResponse::RollBackward(point, _tip) => {
-                    tracing::trace!(point = ?point, "Fetching roll backward block data");
-                    let block_data = client
-                        .blockfetch()
-                        .fetch_single(point)
-                        .await
-                        .map_err(Error::Blockfetch)?;
-
-                    Ok(Some(ChainUpdate::Rollback(MultiEraBlockData(block_data))))
-                },
-                chainsync::NextResponse::Await => Ok(None),
-            }
-        }
-
-        /// Sends the next chain update through the follower's chain update channel.
-        async fn send_next_chain_update(
-            client: &mut PeerClient, chain_update_tx: mpsc::Sender<crate::Result<ChainUpdate>>,
-        ) -> bool {
-            loop {
-                let res = Self::next_from_client(client).await;
-
-                match res {
-                    Err(err) => {
-                        if chain_update_tx.send(Err(err)).await.is_err() {
-                            return false;
-                        }
-                    },
-                    Ok(next_response) => {
-                        if let Some(chain_update) = next_response {
-                            if chain_update_tx.send(Ok(chain_update)).await.is_err() {
-                                return false;
-                            }
-
-                            return true;
-                        }
-                    },
-                }
-            }
-        }
-    }
-}
-
-/// Sets the N2N remote client's read pointer.
-async fn set_client_read_pointer(client: &mut PeerClient, at: PointOrTip) -> Result<Option<Point>> {
-    match at {
-        PointOrTip::Point(Point::Origin) => {
-            client
-                .chainsync()
-                .intersect_origin()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Point(p @ Point::Specific(..)) => {
-            client
-                .chainsync()
-                .find_intersect(vec![p])
-                .await
-                .map(|(point, _)| point)
-                .map_err(Error::Chainsync)
-        },
-        PointOrTip::Tip => {
-            client
-                .chainsync()
-                .intersect_tip()
-                .await
-                .map(Some)
-                .map_err(Error::Chainsync)
-        },
-    }
-}
-
-/// Finds the tip point.
-///
-/// NOTE: This changes the client's read pointer position.
-#[inline]
-async fn resolve_tip(client: &mut PeerClient) -> Result<Point> {
-    client
-        .chainsync()
-        .intersect_tip()
-        .await
-        .map_err(Error::Chainsync)
-}
-
-/// Reads a block from the network using the N2N client.
-async fn read_block_from_network(
-    blockfetch_client: &mut PeerClient, point: Point,
-) -> Result<MultiEraBlockData> {
-    // Used in tracing
-    let slot = point.slot_or_default();
-
-    let block_data = blockfetch_client
-        .blockfetch()
-        .fetch_single(point)
-        .await
-        .map_err(Error::Blockfetch)?;
-
-    tracing::trace!(slot, "Block read from n2n");
-    Ok(MultiEraBlockData(block_data))
-}
-
-/// Reads a range of blocks from the network using the N2N client.
-async fn read_block_range_from_network(
-    blockfetch_client: &mut PeerClient, from: Point, to: Point,
-) -> Result<Vec<MultiEraBlockData>> {
-    // Used in tracing
-    let from_slot = from.slot_or_default();
-    let to_slot = to.slot_or_default();
-
-    let data_vec = blockfetch_client
-        .blockfetch()
-        .fetch_range((from, to))
-        .await
-        .map_err(Error::Blockfetch)?
-        .into_iter()
-        .map(MultiEraBlockData)
-        .collect();
-
-    tracing::trace!(from_slot, to_slot, "Block range read from n2n");
-
-    Ok(data_vec)
 }

@@ -1,7 +1,7 @@
 [package]
 name = "cardano-chain-follower"
 edition.workspace = true
-version.workspace = true
+version = "0.2.0"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -11,12 +11,85 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+mithril-client.workspace = true
 pallas.workspace = true
 pallas-hardano.workspace = true
+pallas-crypto.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"] }
+tokio.workspace = true
+tokio-util.workspace = true
+tokio-stream.workspace = true
 tracing.workspace = true
+dashmap.workspace = true
+url.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+async-trait.workspace = true
+dirs.workspace = true
+futures.workspace = true
+async-compression.workspace = true
+tokio-tar.workspace = true
+humantime.workspace = true
+crossbeam-skiplist.workspace = true
+strum.workspace = true
+ouroboros.workspace = true
+hex.workspace = true
+rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+mimalloc = {workspace = true, optional = true}
+memx.workspace = true
+fmmap.workspace = true
+minicbor.workspace = true
+heed = {workspace = true, optional = true}
+brotli.workspace = true
+zstd.workspace = true
+c509-certificate.workspace = true
+x509-cert.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber.workspace = true
+test-log.workspace = true
+clap.workspace = true
+
+# Note, these features are for support of features exposed by dependencies.
+[features]
+default = ["rustls-tls-native-roots"]
+
+# Enable the MiMalloc global allocator
+# Only used for examples.
+mimalloc = ["dep:mimalloc"]
+
+# These features are for support of dependent crates only.
+# They do not change the operation of the main crate.
+native-tls = [
+    "reqwest/native-tls",
+    "mithril-client/native-tls",
+]
+native-tls-alpn = [
+    "reqwest/native-tls-alpn",
+    "mithril-client/native-tls-alpn",
+]
+native-tls-vendored = [
+    "reqwest/native-tls-vendored",
+    "mithril-client/native-tls-vendored",
+]
+
+rustls-tls = [
+    "reqwest/rustls-tls",
+    "mithril-client/rustls-tls",
+]
+rustls-tls-manual-roots = [
+    "reqwest/rustls-tls-manual-roots",
+    "mithril-client/rustls-tls-manual-roots",
+]
+rustls-tls-webpki-roots = [
+    "reqwest/rustls-tls-webpki-roots",
+    "mithril-client/rustls-tls-webpki-roots",
+]
+rustls-tls-native-roots = [
+    "reqwest/rustls-tls-native-roots",
+    "mithril-client/rustls-tls-native-roots",
+]
