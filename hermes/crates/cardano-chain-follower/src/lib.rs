@@ -7,6 +7,7 @@ mod chain_sync_ready;
 mod chain_update;
 mod error;
 mod follow;
+mod metadata;
 mod mithril_query;
 mod mithril_snapshot;
 mod mithril_snapshot_config;
