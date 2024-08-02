@@ -1,6 +1,7 @@
 //! Hermes virtual file system.
 
 mod bootstrap;
+mod ipfs;
 mod permission;
 
 use std::io::{Read, Write};
