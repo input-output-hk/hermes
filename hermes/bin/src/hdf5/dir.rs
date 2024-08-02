@@ -397,24 +397,17 @@ mod tests {
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
         assert!(dir
-            .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
+            .get_file(format!("{base_dir_name}/{file_1_name}").into())
             .is_ok());
         assert!(dir
-            .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
+            .get_file(format!("{base_dir_name}/{file_2_name}").into())
             .is_ok());
 
         assert!(dir
-            .get_dir(&Path::new(vec![
-                base_dir_name.into(),
-                child_dir_name.into()
-            ]))
+            .get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
             .is_ok());
         assert!(dir
-            .get_file(Path::new(vec![
-                base_dir_name.into(),
-                child_dir_name.into(),
-                file_3_name.into()
-            ]))
+            .get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
             .is_ok());
 
         // Remove directory from package
@@ -425,23 +418,16 @@ mod tests {
         assert!(dir.remove_dir(base_dir_name.into()).is_ok());
         assert!(dir.get_dir(&base_dir_name.into()).is_err());
         assert!(dir
-            .get_file(Path::new(vec![base_dir_name.into(), file_1_name.into()]))
+            .get_file(format!("{base_dir_name}/{file_1_name}").into())
             .is_err());
         assert!(dir
-            .get_file(Path::new(vec![base_dir_name.into(), file_2_name.into()]))
+            .get_file(format!("{base_dir_name}/{file_2_name}").into())
             .is_err());
         assert!(dir
-            .get_dir(&Path::new(vec![
-                base_dir_name.into(),
-                child_dir_name.into()
-            ]))
+            .get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
             .is_err());
         assert!(dir
-            .get_file(Path::new(vec![
-                base_dir_name.into(),
-                child_dir_name.into(),
-                file_3_name.into()
-            ]))
+            .get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
             .is_err());
     }
 

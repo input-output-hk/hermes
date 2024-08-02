@@ -9,11 +9,6 @@ use crate::utils::parse_path;
 pub(crate) struct Path(Vec<String>);
 
 impl Path {
-    /// Create new `PackagePath` from path components.
-    pub(crate) fn new(path_elements: Vec<String>) -> Self {
-        Self(path_elements)
-    }
-
     /// Create new `PackagePath` from str.
     pub(crate) fn from_str(path: &str) -> Self {
         Self(parse_path(path))
@@ -31,6 +26,7 @@ impl Path {
     }
 
     /// Push a new path element to the path at the end.
+    #[allow(dead_code)]
     pub(crate) fn push_elem(&mut self, value: String) {
         self.0.push(value);
     }
