@@ -1,9 +1,14 @@
 //! IO Streams host implementation for WASM runtime.
 
+use std::io::{Read, Seek, Write};
+
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::wasi::io::streams::{
-        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+    runtime_extensions::{
+        bindings::wasi::io::streams::{
+            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+        },
+        wasi::descriptors::{Descriptor, NUL_REP, STDERR_REP, STDOUT_REP},
     },
 };
 
@@ -38,9 +43,64 @@ impl HostInputStream for HermesRuntimeContext {
     /// Read bytes from a stream, after blocking until at least one byte can
     /// be read. Except for blocking, behavior is identical to `read`.
     fn blocking_read(
-        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        todo!()
+        // NUL_REP always returns 0 bytes.
+        if resource.rep() == NUL_REP {
+            return Ok(Ok(Vec::new()));
+        }
+
+        let seek_start = match self.wasi_context_mut().input_stream_mut(resource.rep()) {
+            Some(input_stream) => input_stream.at(),
+            None => return Ok(Err(StreamError::Closed)),
+        };
+
+        let buf = match self.wasi_context_mut().descriptor_mut(resource.rep()) {
+            Some(fd) => {
+                match fd {
+                    Descriptor::File(f) => {
+                        let Ok(f_size) = f.size().and_then(|size| {
+                            TryInto::<u64>::try_into(size).map_err(|e| anyhow::anyhow!(e))
+                        }) else {
+                            // TODO: Probably should return LastOperationFailed here
+                            return Ok(Err(StreamError::Closed));
+                        };
+
+                        if f_size == 0 || seek_start >= f_size {
+                            return Ok(Ok(Vec::new()));
+                        }
+
+                        // At this point seek_start < f_size, so subtracting is safe
+                        let Ok(read_len) = len.min(f_size - seek_start).try_into() else {
+                            return Ok(Err(StreamError::Closed));
+                        };
+
+                        let mut buf = vec![0u8; read_len];
+
+                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
+                            return Ok(Err(StreamError::Closed));
+                        }
+
+                        if f.read(&mut buf).is_err() {
+                            return Ok(Err(StreamError::Closed));
+                        }
+
+                        buf
+                    },
+                    Descriptor::Dir(_) => todo!(),
+                }
+            },
+            None => {
+                return Ok(Err(StreamError::Closed));
+            },
+        };
+
+        match self.wasi_context_mut().input_stream_mut(resource.rep()) {
+            Some(input_stream) => input_stream.advance(buf.len() as u64),
+            None => return Ok(Err(StreamError::Closed)),
+        }
+
+        Ok(Ok(buf))
     }
 
     /// Skip bytes from a stream. Returns number of bytes skipped.
@@ -56,13 +116,19 @@ impl HostInputStream for HermesRuntimeContext {
     /// Skip bytes from a stream, after blocking until at least one byte
     /// can be skipped. Except for blocking behavior, identical to `skip`.
     fn blocking_skip(
-        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self, rep: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        let skipped = match self.blocking_read(rep, len)? {
+            Ok(buf) => buf.len(),
+            Err(e) => return Ok(Err(e)),
+        };
+
+        Ok(Ok(skipped as u64))
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
+        self.wasi_context_mut().remove_input_stream(rep.rep());
+        Ok(())
     }
 }
 
@@ -79,7 +145,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn check_write(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        Ok(Ok(1024 * 1024))
     }
 
     /// Perform a write. This function never blocks.
@@ -120,9 +186,78 @@ impl HostOutputStream for HermesRuntimeContext {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_and_flush(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
+        &mut self, rep: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        match rep.rep() {
+            NUL_REP => {
+                // Discard all bytes.
+                return Ok(Ok(()));
+            },
+            STDOUT_REP => {
+                if std::io::stdout().write_all(&contents).is_err() {
+                    return Ok(Err(StreamError::Closed));
+                }
+
+                if std::io::stdout().flush().is_err() {
+                    return Ok(Err(StreamError::Closed));
+                }
+
+                return Ok(Ok(()));
+            },
+            STDERR_REP => {
+                if std::io::stderr().write_all(&contents).is_err() {
+                    return Ok(Err(StreamError::Closed));
+                }
+
+                if std::io::stderr().flush().is_err() {
+                    return Ok(Err(StreamError::Closed));
+                }
+
+                return Ok(Ok(()));
+            },
+            _ => {},
+        }
+
+        let seek_start = match self.wasi_context_mut().output_stream_mut(rep.rep()) {
+            Some(output_stream) => output_stream.at(),
+            None => return Ok(Err(StreamError::Closed)),
+        };
+
+        match self.wasi_context_mut().descriptor_mut(rep.rep()) {
+            Some(fd) => {
+                match fd {
+                    // TODO: I believe it's better to return a LastOperationFailed error if
+                    // any write operations fail.
+                    Descriptor::File(f) => {
+                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
+                            return Ok(Err(StreamError::Closed));
+                        }
+
+                        if f.write_all(&contents).is_err() {
+                            return Ok(Err(StreamError::Closed));
+                        }
+
+                        if f.flush().is_err() {
+                            return Ok(Err(StreamError::Closed));
+                        }
+                    },
+                    Descriptor::Dir(_) => return Ok(Err(StreamError::Closed)),
+                }
+            },
+            None => return Ok(Err(StreamError::Closed)),
+        };
+
+        match self.wasi_context_mut().output_stream_mut(rep.rep()) {
+            Some(output_stream) => {
+                match contents.len().try_into() {
+                    Ok(len) => output_stream.advance(len),
+                    Err(_) => return Ok(Err(StreamError::Closed)),
+                }
+            },
+            None => return Ok(Err(StreamError::Closed)),
+        }
+
+        Ok(Ok(()))
     }
 
     /// Request to flush buffered output. This function never blocks.
@@ -223,8 +358,9 @@ impl HostOutputStream for HermesRuntimeContext {
         todo!()
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
+        self.wasi_context_mut().remove_output_stream(rep.rep());
+        Ok(())
     }
 }
 

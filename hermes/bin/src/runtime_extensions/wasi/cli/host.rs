@@ -4,9 +4,12 @@ use tracing::warn;
 
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::wasi::{
-        cli,
-        io::streams::{InputStream, OutputStream},
+    runtime_extensions::{
+        bindings::wasi::{
+            cli,
+            io::streams::{InputStream, OutputStream},
+        },
+        wasi::descriptors::{NUL_REP, STDERR_REP, STDOUT_REP},
     },
 };
 
@@ -45,20 +48,20 @@ impl cli::exit::Host for HermesRuntimeContext {
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
-        Ok(wasmtime::component::Resource::new_own(0))
+        Ok(wasmtime::component::Resource::new_own(NUL_REP))
     }
 }
 
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stdout to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(0))
+        Ok(wasmtime::component::Resource::new_own(STDOUT_REP))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stderr to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(0))
+        Ok(wasmtime::component::Resource::new_own(STDERR_REP))
     }
 }
