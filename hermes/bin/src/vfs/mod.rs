@@ -35,6 +35,10 @@ impl Vfs {
     pub(crate) const USR_DIR: &'static str = "usr";
     /// Virtual file system `usr/lib` directory name.
     pub(crate) const USR_LIB_DIR: &'static str = "usr/lib";
+    /// Virtual file system `var` directory name.
+    pub(crate) const VAR_DIR: &'static str = "var";
+    /// Virtual file system `var/ipfs` directory name.
+    pub(crate) const IPFS_DIR: &'static str = "var/ipfs";
 }
 
 impl Vfs {
