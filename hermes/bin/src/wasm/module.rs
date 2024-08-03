@@ -182,7 +182,7 @@ pub mod bench {
         let module =
             Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
 
-        let app_name = HermesAppName("integration-test".to_owned());
+        let app_name = ApplicationName("integration-test".to_owned());
 
         let hermes_home_dir = Cli::hermes_home().unwrap();
 
@@ -197,7 +197,7 @@ pub mod bench {
                 .execute_event(
                     &Event,
                     HermesRuntimeContext::new(
-                        HermesAppName("app 1".to_string()),
+                        app_name,
                         module.id().clone(),
                         "init".to_string(),
                         0,
