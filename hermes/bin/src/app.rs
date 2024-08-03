@@ -20,9 +20,6 @@ impl std::fmt::Display for HermesAppName {
     }
 }
 
-/// Convenient type alias for indexed apps map (`HermesAppName` -> `HermesApp`)
-pub(crate) type IndexedApps = HashMap<HermesAppName, HermesApp>;
-
 /// Hermes app
 pub(crate) struct HermesApp {
     /// App name

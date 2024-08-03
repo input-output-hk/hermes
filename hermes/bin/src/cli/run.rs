@@ -12,7 +12,7 @@ use crate::{
         app::ApplicationPackage,
         sign::certificate::{self, Certificate},
     },
-    reactor::HermesReactor,
+    reactor,
     vfs::VfsBootstrapper,
 };
 
@@ -58,8 +58,9 @@ impl Run {
         }
         let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
 
-        let mut reactor = HermesReactor::new(vec![app])?;
-        reactor.wait()?;
+        reactor::init()?;
+        reactor::load_app(app)?;
+        std::thread::yield_now();
 
         Ok(())
     }

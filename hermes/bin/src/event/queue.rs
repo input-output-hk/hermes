@@ -1,20 +1,14 @@
 //! Hermes event queue implementation.
 
 use std::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc,
-    },
-    thread::{self, JoinHandle},
+    sync::mpsc::{Receiver, Sender},
+    thread::{self},
 };
 
 use once_cell::sync::OnceCell;
 
 use super::{HermesEvent, TargetApp, TargetModule};
-use crate::{
-    app::{HermesAppName, IndexedApps},
-    reactor,
-};
+use crate::{app::HermesAppName, reactor};
 
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
@@ -31,13 +25,8 @@ pub(crate) struct AlreadyInitializedError;
 
 /// Failed when event queue not been initialized.
 #[derive(thiserror::Error, Debug, Clone)]
-#[error("Event queue not been initialized. Call `HermesEventQueue::init` first.")]
+#[error("Event queue not been initialized. Call `init` first.")]
 pub(crate) struct NotInitializedError;
-
-/// Event loop has crashed unexpectedly.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Event loop has crashed unexpectedly.")]
-pub(crate) struct EventLoopPanicsError;
 
 /// Hermes event queue.
 /// It is a singleton struct.
@@ -46,42 +35,22 @@ struct HermesEventQueue {
     sender: Sender<HermesEvent>,
 }
 
-/// Hermes event queue execution loop thread handler
-pub(crate) struct HermesEventLoopHandler {
-    /// Hermes event queue execution loop thread handler
-    handle: Option<JoinHandle<()>>,
-}
-
-impl HermesEventLoopHandler {
-    /// Join the event loop thread
-    ///
-    /// # Errors:
-    /// - `EventLoopPanicsError`
-    pub(crate) fn join(&mut self) -> anyhow::Result<()> {
-        if let Some(handle) = self.handle.take() {
-            handle.join().map_err(|_| EventLoopPanicsError)?;
-        }
-        Ok(())
-    }
-}
-
 /// Creates a new instance of the `HermesEventQueue`.
 /// Runs an event loop thread.
 ///
 /// # Errors:
 /// - `AlreadyInitializedError`
-pub(crate) fn init(indexed_apps: Arc<IndexedApps>) -> anyhow::Result<HermesEventLoopHandler> {
+pub(crate) fn init() -> anyhow::Result<()> {
     let (sender, receiver) = std::sync::mpsc::channel();
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
         .map_err(|_| AlreadyInitializedError)?;
 
-    Ok(HermesEventLoopHandler {
-        handle: Some(thread::spawn(move || {
-            event_execution_loop(&indexed_apps, receiver);
-        })),
-    })
+    thread::spawn(move || {
+        event_execution_loop(receiver);
+    });
+    Ok(())
 }
 
 /// Add event into the event queue
@@ -98,8 +67,9 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 }
 
 /// Executes provided Hermes event filtering by target module.
+#[allow(clippy::unwrap_used)]
 fn targeted_module_event_execution(target_app_name: &HermesAppName, event: &HermesEvent) {
-    let Some(app) = reactor::get_app(target_app_name) else {
+    let Some(app) = reactor::get_app(target_app_name).unwrap() else {
         tracing::error!("Target app not found, app name: {target_app_name}");
         return;
     };
@@ -123,10 +93,11 @@ fn targeted_module_event_execution(target_app_name: &HermesAppName, event: &Herm
 }
 
 /// Executes provided Hermes event filtering by target app.
-fn targeted_app_event_execution(_indexed_apps: &IndexedApps, event: &HermesEvent) {
+#[allow(clippy::unwrap_used)]
+fn targeted_app_event_execution(event: &HermesEvent) {
     match event.target_app() {
         TargetApp::All => {
-            for target_app_name in reactor::get_all_app_names() {
+            for target_app_name in reactor::get_all_app_names().unwrap() {
                 targeted_module_event_execution(&target_app_name, event);
             }
         },
@@ -139,8 +110,8 @@ fn targeted_app_event_execution(_indexed_apps: &IndexedApps, event: &HermesEvent
 }
 
 /// Executes Hermes events from the provided receiver .
-fn event_execution_loop(indexed_apps: &IndexedApps, receiver: Receiver<HermesEvent>) {
+fn event_execution_loop(receiver: Receiver<HermesEvent>) {
     for event in receiver {
-        targeted_app_event_execution(indexed_apps, &event);
+        targeted_app_event_execution(&event);
     }
 }
