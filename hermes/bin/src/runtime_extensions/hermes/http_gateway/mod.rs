@@ -6,7 +6,7 @@ use dashmap::DashMap;
 use gateway_task::spawn;
 use rusty_ulid::Ulid;
 
-use crate::{app::HermesAppName, vfs::Vfs};
+use crate::{app::ApplicationName, vfs::Vfs};
 
 mod event;
 mod gateway_task;
@@ -18,7 +18,7 @@ pub(crate) struct State {
     /// UID for wasm instance
     pub(crate) instance: Ulid,
     /// Virtual file system for each app
-    pub(crate) vfs: DashMap<HermesAppName, Arc<Vfs>>,
+    pub(crate) vfs: DashMap<ApplicationName, Arc<Vfs>>,
 }
 
 ///  State.

@@ -23,7 +23,7 @@ use super::{
     STATE,
 };
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     event::{HermesEvent, TargetApp, TargetModule},
 };
 
@@ -188,7 +188,7 @@ fn compose_http_event(
 fn serve_static_data(path: &str, app_name: &AppName) -> anyhow::Result<Response<Body>> {
     let app_vfs = STATE
         .vfs
-        .get(&HermesAppName(app_name.0.clone()))
+        .get(&ApplicationName(app_name.0.clone()))
         .ok_or(anyhow::anyhow!("Cannot obtain app vfs {:?}", app_name))?;
 
     let file = app_vfs.read(path)?;

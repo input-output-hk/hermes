@@ -20,7 +20,7 @@ use tokio::{
 };
 
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
@@ -211,17 +211,17 @@ struct AppIpfsState {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// List of uploaded files per app.
-    published_files: DashMap<HermesAppName, HashSet<IpfsPath>>,
+    published_files: DashMap<ApplicationName, HashSet<IpfsPath>>,
     /// List of pinned files per app.
-    pinned_files: DashMap<HermesAppName, HashSet<IpfsPath>>,
+    pinned_files: DashMap<ApplicationName, HashSet<IpfsPath>>,
     /// List of DHT values per app.
-    dht_keys: DashMap<HermesAppName, HashSet<DhtKey>>,
+    dht_keys: DashMap<ApplicationName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
-    topic_subscriptions: DashMap<PubsubTopic, HashSet<HermesAppName>>,
+    topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
     /// Collection of stream join handles per topic subscription.
     subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
-    evicted_peers: DashMap<HermesAppName, HashSet<PeerId>>,
+    evicted_peers: DashMap<ApplicationName, HashSet<PeerId>>,
 }
 
 impl AppIpfsState {
@@ -239,7 +239,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `ipfs_path` from file added by an app.
-    fn added_file(&self, app_name: HermesAppName, ipfs_path: IpfsPath) {
+    fn added_file(&self, app_name: ApplicationName, ipfs_path: IpfsPath) {
         self.published_files
             .entry(app_name)
             .or_default()
@@ -248,7 +248,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `ipfs_path` of file pinned by an app.
-    fn pinned_file(&self, app_name: HermesAppName, ipfs_path: IpfsPath) {
+    fn pinned_file(&self, app_name: ApplicationName, ipfs_path: IpfsPath) {
         self.pinned_files
             .entry(app_name)
             .or_default()
@@ -257,7 +257,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `dht_key` of DHT value added by an app.
-    fn added_dht_key(&self, app_name: HermesAppName, dht_key: DhtKey) {
+    fn added_dht_key(&self, app_name: ApplicationName, dht_key: DhtKey) {
         self.dht_keys
             .entry(app_name)
             .or_default()
@@ -266,7 +266,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `topic` subscription added by an app.
-    fn added_app_topic_subscription(&self, app_name: HermesAppName, topic: PubsubTopic) {
+    fn added_app_topic_subscription(&self, app_name: ApplicationName, topic: PubsubTopic) {
         self.topic_subscriptions
             .entry(topic)
             .or_default()
@@ -285,14 +285,14 @@ impl AppIpfsState {
     }
 
     /// Returns a list of apps subscribed to a topic.
-    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<HermesAppName> {
+    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<ApplicationName> {
         self.topic_subscriptions
             .get(topic)
             .map_or(vec![], |apps| apps.value().iter().cloned().collect())
     }
 
     /// Add `peer_id` of evicted peer by an app.
-    fn evicted_peer(&self, app_name: HermesAppName, peer_id: PeerId) {
+    fn evicted_peer(&self, app_name: ApplicationName, peer_id: PeerId) {
         self.evicted_peers
             .entry(app_name)
             .or_default()

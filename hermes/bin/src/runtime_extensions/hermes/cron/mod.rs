@@ -338,7 +338,7 @@ impl Ord for CronComponent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::HermesAppName;
+    use crate::app::ApplicationName;
 
     // Define lower limit for the schedule component values.
     const FIRST: u8 = 1;
@@ -346,8 +346,8 @@ mod tests {
     const LAST: u8 = 59;
 
     // Create `HermesAppName` from `&str`.
-    pub(crate) fn hermes_app_name(name: &str) -> HermesAppName {
-        HermesAppName(name.into())
+    pub(crate) fn hermes_app_name(name: &str) -> ApplicationName {
+        ApplicationName(name.into())
     }
 
     #[test]

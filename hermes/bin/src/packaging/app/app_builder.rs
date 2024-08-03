@@ -2,14 +2,14 @@
 
 use super::ApplicationPackage;
 use crate::{
-    app::{HermesApp, HermesAppName},
+    app::Application,
     vfs::{PermissionLevel, Vfs, VfsBootstrapper},
 };
 
 /// Build application from the application package.
 pub(crate) fn build_app<P: AsRef<std::path::Path>>(
     package: &ApplicationPackage, vfs_dir_path: P,
-) -> anyhow::Result<HermesApp> {
+) -> anyhow::Result<Application> {
     let app_name = package.get_app_name()?;
     let mut bootstrapper = VfsBootstrapper::new(vfs_dir_path, app_name.clone());
     mount_to_vfs(package, &mut bootstrapper)?;
@@ -20,7 +20,7 @@ pub(crate) fn build_app<P: AsRef<std::path::Path>>(
         let module = module_info.get_component()?;
         modules.push(module);
     }
-    let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
+    let app = Application::new(app_name, vfs, modules);
 
     Ok(app)
 }

@@ -12,18 +12,18 @@ use crate::{
 
 /// Hermes App Name type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct HermesAppName(pub(crate) String);
+pub(crate) struct ApplicationName(pub(crate) String);
 
-impl std::fmt::Display for HermesAppName {
+impl std::fmt::Display for ApplicationName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
 /// Hermes application
-pub(crate) struct HermesApp {
+pub(crate) struct Application {
     /// Application name
-    name: HermesAppName,
+    name: ApplicationName,
 
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Module>,
@@ -32,22 +32,22 @@ pub(crate) struct HermesApp {
     vfs: Arc<Vfs>,
 }
 
-impl HermesApp {
+impl Application {
     /// Create a new Hermes app
-    pub(crate) fn new(app_name: HermesAppName, vfs: Vfs, modules: Vec<Module>) -> Self {
+    pub(crate) fn new(app_name: String, vfs: Vfs, modules: Vec<Module>) -> Self {
         let indexed_modules = modules
             .into_iter()
             .map(|module| (module.id().clone(), module))
             .collect();
         Self {
-            name: app_name,
+            name: ApplicationName(app_name),
             indexed_modules,
             vfs: Arc::new(vfs),
         }
     }
 
     /// Get app name
-    pub(crate) fn name(&self) -> &HermesAppName {
+    pub(crate) fn name(&self) -> &ApplicationName {
         &self.name
     }
 
@@ -91,7 +91,7 @@ impl HermesApp {
 
 /// Dispatch event
 pub(crate) fn module_dispatch_event(
-    module: &Module, app_name: HermesAppName, module_id: ModuleId, vfs: Arc<Vfs>,
+    module: &Module, app_name: ApplicationName, module_id: ModuleId, vfs: Arc<Vfs>,
     event: &dyn HermesEventPayload,
 ) -> anyhow::Result<()> {
     let runtime_ctx = HermesRuntimeContext::new(

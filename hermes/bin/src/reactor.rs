@@ -4,7 +4,7 @@ use dashmap::{mapref::one::Ref, DashMap};
 use once_cell::sync::OnceCell;
 
 use crate::{
-    app::{HermesApp, HermesAppName},
+    app::{Application, ApplicationName},
     event,
     runtime_extensions::hermes::init,
 };
@@ -26,7 +26,7 @@ pub(crate) struct NotInitializedError;
 /// This object orchestrates all Hermes apps within all core parts of the Hermes.
 struct Reactor {
     /// Loaded hermes apps
-    apps: DashMap<HermesAppName, HermesApp>,
+    apps: DashMap<ApplicationName, Application>,
 }
 
 /// Initialize Hermes Reactor.
@@ -44,7 +44,7 @@ pub(crate) fn init() -> anyhow::Result<()> {
 }
 
 /// Load Hermes application into the Hermes Reactor.
-pub(crate) fn load_app(app: HermesApp) -> anyhow::Result<()> {
+pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
 
     let app_name = app.name().clone();
@@ -56,14 +56,14 @@ pub(crate) fn load_app(app: HermesApp) -> anyhow::Result<()> {
 
 /// Get Hermes application from the Hermes Reactor.
 pub(crate) fn get_app(
-    app_name: &HermesAppName,
-) -> anyhow::Result<Option<Ref<HermesAppName, HermesApp>>> {
+    app_name: &ApplicationName,
+) -> anyhow::Result<Option<Ref<ApplicationName, Application>>> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
     Ok(reactor.apps.get(app_name))
 }
 
 /// Get all available Hermes application names from the Hermes Reactor.
-pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<HermesAppName>> {
+pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<ApplicationName>> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
     Ok(reactor.apps.iter().map(|val| val.key().clone()).collect())
 }

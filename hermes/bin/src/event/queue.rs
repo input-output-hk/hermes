@@ -8,7 +8,7 @@ use std::{
 use once_cell::sync::OnceCell;
 
 use super::{HermesEvent, TargetApp, TargetModule};
-use crate::{app::HermesAppName, reactor};
+use crate::{app::ApplicationName, reactor};
 
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
@@ -67,7 +67,7 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 }
 
 /// Executes provided Hermes event filtering by target module.
-fn targeted_module_event_execution(target_app_name: &HermesAppName, event: &HermesEvent) {
+fn targeted_module_event_execution(target_app_name: &ApplicationName, event: &HermesEvent) {
     let Ok(Some(app)) = reactor::get_app(target_app_name) else {
         return;
     };

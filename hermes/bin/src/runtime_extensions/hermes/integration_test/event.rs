@@ -10,7 +10,7 @@ use once_cell::sync::OnceCell;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{module_dispatch_event, HermesAppName},
+    app::{module_dispatch_event, ApplicationName},
     event::HermesEventPayload,
     runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
     vfs::VfsBootstrapper,
@@ -87,7 +87,7 @@ impl HermesEventPayload for OnBenchEvent {
 pub fn execute_event(
     module: &mut Module, test: u32, run: bool, event_type: EventType,
 ) -> anyhow::Result<Option<TestResult>> {
-    let app_name = HermesAppName("integration-test".to_owned());
+    let app_name = ApplicationName("integration-test".to_owned());
 
     let hermes_home_dir = TempDir::new()?;
 
