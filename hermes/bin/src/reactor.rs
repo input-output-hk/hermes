@@ -2,11 +2,50 @@
 
 use std::sync::Arc;
 
+use dashmap::{mapref::one::Ref, DashMap};
+use once_cell::sync::Lazy;
+
 use crate::{
-    app::{HermesApp, IndexedApps},
+    app::{HermesApp, HermesAppName, IndexedApps},
     event,
     runtime_extensions::hermes::init,
 };
+
+/// Global Hermes reactor state
+static REACTOR_STATE: Lazy<Reactor> = Lazy::new(|| {
+    Reactor {
+        apps: DashMap::new(),
+    }
+});
+
+/// Hermes Reactor struct.
+/// This object orchestrates all Hermes apps within all core parts of the Hermes.
+struct Reactor {
+    /// Loaded hermes apps
+    apps: DashMap<HermesAppName, HermesApp>,
+}
+
+/// Load Hermes application into the Hermes Reactor.
+#[allow(dead_code)]
+pub(crate) fn load_app(app: HermesApp) {
+    REACTOR_STATE.apps.insert(app.app_name().clone(), app);
+}
+
+/// Get Hermes application from the Hermes Reactor.
+#[allow(dead_code)]
+pub(crate) fn get_app(app_name: &HermesAppName) -> Option<Ref<HermesAppName, HermesApp>> {
+    REACTOR_STATE.apps.get(app_name)
+}
+
+/// Get all available Hermes application names from the Hermes Reactor.
+#[allow(dead_code)]
+pub(crate) fn get_all_app_names() -> Vec<HermesAppName> {
+    REACTOR_STATE
+        .apps
+        .iter()
+        .map(|val| val.key().clone())
+        .collect()
+}
 
 /// Hermes Reactor struct
 pub(crate) struct HermesReactor {
