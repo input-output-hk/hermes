@@ -67,10 +67,8 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 }
 
 /// Executes provided Hermes event filtering by target module.
-#[allow(clippy::unwrap_used)]
 fn targeted_module_event_execution(target_app_name: &HermesAppName, event: &HermesEvent) {
-    let Some(app) = reactor::get_app(target_app_name).unwrap() else {
-        tracing::error!("Target app not found, app name: {target_app_name}");
+    let Ok(Some(app)) = reactor::get_app(target_app_name) else {
         return;
     };
 
@@ -93,12 +91,13 @@ fn targeted_module_event_execution(target_app_name: &HermesAppName, event: &Herm
 }
 
 /// Executes provided Hermes event filtering by target app.
-#[allow(clippy::unwrap_used)]
 fn targeted_app_event_execution(event: &HermesEvent) {
     match event.target_app() {
         TargetApp::All => {
-            for target_app_name in reactor::get_all_app_names().unwrap() {
-                targeted_module_event_execution(&target_app_name, event);
+            if let Ok(target_apps) = reactor::get_all_app_names() {
+                for target_app_name in target_apps {
+                    targeted_module_event_execution(&target_app_name, event);
+                }
             }
         },
         TargetApp::List(target_apps) => {

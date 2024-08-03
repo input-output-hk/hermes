@@ -20,15 +20,15 @@ impl std::fmt::Display for HermesAppName {
     }
 }
 
-/// Hermes app
+/// Hermes application
 pub(crate) struct HermesApp {
-    /// App name
-    app_name: HermesAppName,
+    /// Application name
+    name: HermesAppName,
 
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Module>,
 
-    /// App `Vfs` instance
+    /// Application's `Vfs` instance
     vfs: Arc<Vfs>,
 }
 
@@ -40,15 +40,15 @@ impl HermesApp {
             .map(|module| (module.id().clone(), module))
             .collect();
         Self {
-            app_name,
+            name: app_name,
             indexed_modules,
             vfs: Arc::new(vfs),
         }
     }
 
     /// Get app name
-    pub(crate) fn app_name(&self) -> &HermesAppName {
-        &self.app_name
+    pub(crate) fn name(&self) -> &HermesAppName {
+        &self.name
     }
 
     /// Get vfs
@@ -62,7 +62,7 @@ impl HermesApp {
         for module in self.indexed_modules.values() {
             module_dispatch_event(
                 module,
-                self.app_name.clone(),
+                self.name.clone(),
                 module.id().clone(),
                 self.vfs.clone(),
                 event,
@@ -81,7 +81,7 @@ impl HermesApp {
             .ok_or(anyhow::anyhow!("Module {module_id} not found"))?;
         module_dispatch_event(
             module,
-            self.app_name.clone(),
+            self.name.clone(),
             module_id,
             self.vfs.clone(),
             event,

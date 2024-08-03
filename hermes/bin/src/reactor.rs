@@ -44,11 +44,12 @@ pub(crate) fn init() -> anyhow::Result<()> {
 }
 
 /// Load Hermes application into the Hermes Reactor.
-#[allow(dead_code)]
 pub(crate) fn load_app(app: HermesApp) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
-    let app_name = app.app_name().clone();
+
+    let app_name = app.name().clone();
     reactor.apps.insert(app_name.clone(), app);
+
     init::emit_init_event(app_name)?;
     Ok(())
 }
