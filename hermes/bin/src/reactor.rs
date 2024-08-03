@@ -30,7 +30,7 @@ struct Reactor {
 }
 
 /// Initialize Hermes Reactor.
-/// Setup and runs all necesarry services.
+/// Setup and runs all necessary services.
 pub(crate) fn init() -> anyhow::Result<()> {
     event::queue::init()?;
 
