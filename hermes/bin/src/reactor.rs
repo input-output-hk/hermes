@@ -57,9 +57,12 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 /// Get Hermes application from the Hermes Reactor.
 pub(crate) fn get_app(
     app_name: &ApplicationName,
-) -> anyhow::Result<Option<Ref<ApplicationName, Application>>> {
+) -> anyhow::Result<Ref<ApplicationName, Application>> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
-    Ok(reactor.apps.get(app_name))
+    reactor
+        .apps
+        .get(app_name)
+        .ok_or(anyhow::anyhow!("Application {app_name} not found"))
 }
 
 /// Get all available Hermes application names from the Hermes Reactor.

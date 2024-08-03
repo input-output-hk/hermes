@@ -20,11 +20,11 @@ use tracing::info;
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
-    STATE,
 };
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, TargetApp, TargetModule},
+    reactor,
 };
 
 /// Everything that hits /api routes to Webasm Component Modules
@@ -37,10 +37,6 @@ const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 /// returning an error if the corresponding channel has hung up,
 /// or if it waits more than timeout of arbitrary 1 second
 const EVENT_TIMEOUT: u64 = 1;
-
-/// Application name
-#[derive(Debug)]
-pub(crate) struct AppName(pub String);
 
 /// hostname (node name)
 #[derive(Debug)]
@@ -62,7 +58,7 @@ pub(crate) fn not_found() -> anyhow::Result<Response<Body>> {
 
 /// Extractor that resolves the hostname of the request.
 /// Hostname is resolved through the Host header
-pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hostname)> {
+pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationName, Hostname)> {
     let host = headers
         .get("Host")
         .ok_or(anyhow!("No host header"))?
@@ -74,7 +70,7 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(AppName, Hos
         .split_once('.')
         .ok_or(anyhow::anyhow!("Malformed Host header"))?;
 
-    Ok((AppName(app.to_owned()), Hostname(host.to_owned())))
+    Ok((ApplicationName(app.to_owned()), Hostname(host.to_owned())))
 }
 
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
@@ -102,7 +98,7 @@ pub(crate) async fn router(
         .iter()
         .any(|host| host.0 == resolved_host.0.as_str())
     {
-        route_to_hermes(req, AppName(app_name.0.clone())).await?
+        route_to_hermes(req, app_name.clone()).await?
     } else {
         return Ok(error_response("Hostname not valid".to_owned())?);
     };
@@ -125,7 +121,9 @@ pub(crate) async fn router(
 }
 
 /// Route single request to hermes backend
-async fn route_to_hermes(req: Request<Body>, app_name: AppName) -> anyhow::Result<Response<Body>> {
+async fn route_to_hermes(
+    req: Request<Body>, app_name: ApplicationName,
+) -> anyhow::Result<Response<Body>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
@@ -185,13 +183,9 @@ fn compose_http_event(
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data(path: &str, app_name: &AppName) -> anyhow::Result<Response<Body>> {
-    let app_vfs = STATE
-        .vfs
-        .get(&ApplicationName(app_name.0.clone()))
-        .ok_or(anyhow::anyhow!("Cannot obtain app vfs {:?}", app_name))?;
-
-    let file = app_vfs.read(path)?;
+fn serve_static_data(path: &str, app_name: &ApplicationName) -> anyhow::Result<Response<Body>> {
+    let app = reactor::get_app(app_name)?;
+    let file = app.vfs().read(path)?;
 
     Ok(Response::new(file.into()))
 }

@@ -20,7 +20,6 @@ pub(crate) struct HermesRuntimeContext {
     exc_counter: u32,
 
     /// App Virtual file system
-    #[allow(dead_code)]
     vfs: Arc<Vfs>,
 }
 
@@ -64,7 +63,8 @@ impl HermesRuntimeContext {
     }
 
     /// Get virtual file system
-    pub(crate) fn vfs(&self) -> Arc<Vfs> {
-        self.vfs.clone()
+    #[allow(dead_code)]
+    pub(crate) fn vfs(&self) -> &Vfs {
+        self.vfs.as_ref()
     }
 }
