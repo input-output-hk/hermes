@@ -39,13 +39,11 @@ impl HermesRuntimeContext {
     }
 
     /// Get the application name
-    #[allow(dead_code)]
     pub(crate) fn app_name(&self) -> &ApplicationName {
         &self.app_name
     }
 
     /// Get the module id
-    #[allow(dead_code)]
     pub(crate) fn module_id(&self) -> &ModuleId {
         &self.module_id
     }
