@@ -187,7 +187,7 @@ pub mod bench {
         let hermes_home_dir = Cli::hermes_home().unwrap();
 
         let vfs = std::sync::Arc::new(
-            VfsBootstrapper::new(hermes_home_dir, app_name.to_string())
+            VfsBootstrapper::new(hermes_home_dir, app_name.clone().to_string())
                 .bootstrap()
                 .unwrap(),
         );
