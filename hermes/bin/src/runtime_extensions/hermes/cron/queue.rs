@@ -322,7 +322,6 @@ mod tests {
 
     /// Initialize the `CronEventQueue` and the `HermesEventQueue` with
     /// the `HermesApp` named `HermesAppName(APP_NAME.to_string())`.
-    #[allow(clippy::unwrap_used)]
     fn initialize_queue(temp_dir: &TempDir) -> CronEventQueue {
         let queue = CronEventQueue::new(None);
         let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
@@ -336,7 +335,6 @@ mod tests {
     }
 
     /// Convert now plus `chrono::TimeDelta` to a `CronDuration`.
-    #[allow(clippy::unwrap_used)]
     fn get_triggering_timestamp(delta: chrono::TimeDelta) -> CronDuration {
         let trigger_date = chrono::Utc::now() + delta;
         trigger_date
@@ -421,7 +419,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_cron_queue_pop_from_app_queue() {
         // Start a queue with no sender channel.
         let queue = CronEventQueue::new(None);
@@ -461,7 +458,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_cron_queue_trigger_needs_hermes_event_queue() {
         let queue = CronEventQueue::new(None);
         let hermes_app_name = hermes_app_name(APP_NAME);
@@ -479,7 +475,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_immediately() {
         let dir = TempDir::new().unwrap();
 
@@ -495,7 +490,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task() {
         let dir = TempDir::new().unwrap();
 
@@ -520,7 +514,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task_cleans_up_after_dispatch() {
         let dir = TempDir::new().unwrap();
 
