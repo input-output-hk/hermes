@@ -2,10 +2,11 @@
 
 use tracing::{span, Level};
 
-pub(crate) mod app_config;
+mod app_config;
 pub(crate) mod bindings;
 pub mod hermes;
-pub(crate) mod wasi;
+mod resource_manager;
+mod wasi;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
