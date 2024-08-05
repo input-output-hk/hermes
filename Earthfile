@@ -1,7 +1,7 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:feat/add-expect-usage AS mdlint-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:feat/add-expect-usage AS cspell-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.1.23 AS mdlint-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.1.23 AS cspell-ci
 
 FROM debian:stable-slim
 
