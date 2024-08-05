@@ -214,7 +214,7 @@ mod tests {
         // (/[a-zA-Z0-9-_]+)+: One or more directories, starting with slash, separated by
         // slashes; each directory must consist of one or more characters of your charset.
         // (...)+|/: Explicitly allow just a single slash
-        let regex = Regex::new(VALID_PATH).expect("Invalid regex pattern");
+        let regex = Regex::new(VALID_PATH).unwrap();
 
         // valid
         let example_one = "/abc/def";
@@ -228,7 +228,7 @@ mod tests {
                 assert_eq!(
                     captures
                         .get(0)
-                        .expect("Cannot capture regex pattern")
+                        .unwrap()
                         .as_str(),
                     valid
                 );

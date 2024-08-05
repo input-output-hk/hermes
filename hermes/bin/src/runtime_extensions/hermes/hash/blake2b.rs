@@ -112,7 +112,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(64);
 
-        let result = blake2b_impl(&buf, outlen).expect("Failed to hash blake2b-512");
+        let result = blake2b_impl(&buf, outlen).unwrap();
 
         assert_eq!(
             result.as_ref(),
@@ -125,7 +125,7 @@ mod tests_blake2b {
         let buf = Bstr::from("test test");
         let outlen = Some(32);
 
-        let result = blake2b_impl(&buf, outlen).expect("Failed to hash blake2b-256");
+        let result = blake2b_impl(&buf, outlen).unwrap();
 
         assert_eq!(
             result.as_ref(),
@@ -136,7 +136,7 @@ mod tests_blake2b {
     fn blake2b_512_with_default_outlen() {
         let buf = Bstr::from("test test");
 
-        let result = blake2b_impl(&buf, None).expect("Failed to hash blake2b-512 default outlen");
+        let result = blake2b_impl(&buf, None).unwrap();
 
         assert_eq!(
             result.as_ref(),
@@ -166,7 +166,7 @@ mod tests_blake2b {
         let outlen = Some(64);
 
         let result =
-            blake2bmac_impl(&buf, outlen, &key, None, None).expect("Failed to hash blake2bmac-512");
+            blake2bmac_impl(&buf, outlen, &key, None, None).unwrap();
 
         assert_eq!(
         result.as_ref(),

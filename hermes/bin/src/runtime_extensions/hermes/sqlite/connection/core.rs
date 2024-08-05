@@ -115,8 +115,8 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_pragma() -> Result<(), Errno> {
-        let db_ptr = init()?;
+    fn test_validate_pragma() {
+        let db_ptr = init().unwrap();
 
         let sql = "PRAGMA page_size;";
         let stmt_ptr = prepare(db_ptr, sql);
@@ -128,24 +128,24 @@ mod tests {
 
         assert!(matches!(stmt_ptr, Err(Errno::ForbiddenPragmaCommand)));
 
-        close(db_ptr)
+        close(db_ptr).unwrap();
     }
 
     #[test]
-    fn test_prepare_simple() -> Result<(), Errno> {
-        let db_ptr = init()?;
+    fn test_prepare_simple() {
+        let db_ptr = init().unwrap();
 
         let sql = "SELECT 1;";
 
-        let stmt_ptr = prepare(db_ptr, sql)?;
+        let stmt_ptr = prepare(db_ptr, sql).unwrap();
 
-        finalize(stmt_ptr)?;
+        finalize(stmt_ptr).unwrap();
 
-        close(db_ptr)
+        close(db_ptr).unwrap();
     }
 
     #[test]
-    fn test_execute_create_schema_simple() -> Result<(), Errno> {
+    fn test_execute_create_schema_simple() {
         let db_ptr = init()?;
 
         let create_table_sql = r"
@@ -156,35 +156,33 @@ mod tests {
             );
         ";
 
-        execute(db_ptr, create_table_sql)?;
+        execute(db_ptr, create_table_sql).unwrap();
 
-        close(db_ptr)
+        close(db_ptr).unwrap();
     }
 
     #[test]
-    fn test_err_info() -> Result<(), Errno> {
-        let db_ptr = init()?;
+    fn test_err_info() {
+        let db_ptr = init().unwrap();
 
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
         ";
         let result = execute(db_ptr, insert_user_sql);
 
-        let err_info = errcode(db_ptr).expect("should return error info");
+        let err_info = errcode(db_ptr).unwrap();
 
-        close(db_ptr)?;
+        close(db_ptr).unwrap();
 
         assert!(result.is_err());
 
         assert_eq!(err_info.code, 1);
         assert_eq!(err_info.message, String::from("no such table: user"));
-
-        Ok(())
     }
 
     #[test]
-    fn test_execute_create_schema_multiple() -> Result<(), Errno> {
-        let db_ptr = init()?;
+    fn test_execute_create_schema_multiple() {
+        let db_ptr = init().unwrap();
 
         let create_table_sql = r"
             CREATE TABLE user (
@@ -197,29 +195,29 @@ mod tests {
                 bio TEXT NOT NULL
             );
         ";
-        execute(db_ptr, create_table_sql)?;
+        execute(db_ptr, create_table_sql).unwrap();
 
         let insert_user_sql = r"
             INSERT INTO user(name, email) VALUES('testing', 'sample');
         ";
-        execute(db_ptr, insert_user_sql)?;
+        execute(db_ptr, insert_user_sql).unwrap();
 
         let insert_order_sql = r"
             INSERT INTO profile(bio) VALUES('testing');
         ";
-        execute(db_ptr, insert_order_sql)?;
+        execute(db_ptr, insert_order_sql).unwrap();
 
         let err_info = errcode(db_ptr);
 
         assert!(err_info.is_none());
 
-        close(db_ptr)
+        close(db_ptr).unwrap();
     }
 
     #[test]
-    fn test_close_simple() -> Result<(), Errno> {
-        let db_ptr = init()?;
+    fn test_close_simple() {
+        let db_ptr = init().unwrap();
 
-        close(db_ptr)
+        close(db_ptr).unwrap();
     }
 }

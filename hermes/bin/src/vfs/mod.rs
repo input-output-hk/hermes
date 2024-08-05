@@ -81,13 +81,13 @@ mod tests {
     #[test]
     fn read_write_file_test() {
         // bootstrap
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let vfs_name = "test_vfs".to_string();
 
         let bootstrapper = VfsBootstrapper::new(dir.path(), vfs_name.clone());
 
-        let vfs = bootstrapper.bootstrap().expect("Cannot bootstrap");
+        let vfs = bootstrapper.bootstrap().unwrap();
 
         let file_name = "www.txt";
         let file_content = b"web_server";
@@ -101,9 +101,9 @@ mod tests {
         );
 
         vfs.write(file_name, file_content)
-            .expect("Cannot write to VFS");
+            .unwrap();
 
-        let written_data = vfs.read(file_name).expect("Cannot read from VFS");
+        let written_data = vfs.read(file_name).unwrap();
         assert_eq!(written_data.as_slice(), file_content);
     }
 }

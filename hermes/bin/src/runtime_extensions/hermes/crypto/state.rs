@@ -169,7 +169,7 @@ mod tests_crypto_state {
 
     #[test]
     fn test_basic_func_resource() {
-        let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+        let prv = XPrv::from_bytes_verified(KEY1).unwrap();
         let app_name: ApplicationName = ApplicationName("App name".to_string());
         // Set the global state.
         set_state(app_name.clone());
@@ -201,7 +201,7 @@ mod tests_crypto_state {
 
         let res_holder = CRYPTO_INTERNAL_STATE
             .get(&app_name)
-            .expect("App name not found");
+            .unwrap();
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
     }
@@ -220,11 +220,11 @@ mod tests_crypto_state {
         for _ in 0..20 {
             let handle = thread::spawn(|| {
                 let app_name: ApplicationName = ApplicationName("App name 2".to_string());
-                let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
+                let prv1 = XPrv::from_bytes_verified(KEY1).unwrap();
                 // Adding resource
                 add_resource(&app_name, prv1.clone());
                 let app_name: ApplicationName = ApplicationName("App name 2".to_string());
-                let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
+                let prv2 = XPrv::from_bytes_verified(KEY2).unwrap();
                 // Adding resource.
                 add_resource(&app_name, prv2.clone());
             });
@@ -233,16 +233,16 @@ mod tests_crypto_state {
 
         // Wait for all threads to finish.
         for handle in handles {
-            handle.join().expect("Thread panicked");
+            handle.join().unwrap();
         }
 
         // Checking the results.
-        let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
-        let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
+        let prv1 = XPrv::from_bytes_verified(KEY1).unwrap();
+        let prv2 = XPrv::from_bytes_verified(KEY2).unwrap();
 
         let res_holder = CRYPTO_INTERNAL_STATE
             .get(&app_name)
-            .expect("App name not found");
+            .unwrap();
 
         // Maps should contains 2 resources.
         assert_eq!(res_holder.id_to_resource_map.len(), 2);
