@@ -114,7 +114,6 @@ where WitType: 'static
     /// Removes the resource from the resource manager.
     /// Similar to the `drop` function, resource is releasing and consumed by this
     /// function, thats why it is passed by value.
-    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn delete_resource(
         &self, app_name: ApplicationName, resource: wasmtime::component::Resource<WitType>,
     ) {
