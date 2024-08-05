@@ -197,7 +197,7 @@ pub mod bench {
                 .execute_event(
                     &Event,
                     HermesRuntimeContext::new(
-                        app_name,
+                        app_name.to_owned(),
                         module.id().clone(),
                         "init".to_string(),
                         0,
