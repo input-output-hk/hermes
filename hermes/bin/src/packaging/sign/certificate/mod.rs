@@ -93,13 +93,11 @@ pub(crate) mod tests {
         let certificate_path = dir.path().join("cert.pem");
         std::fs::write(&certificate_path, certificate_str()).unwrap();
 
-        let cert =
-            Certificate::from_file(certificate_path).unwrap();
+        let cert = Certificate::from_file(certificate_path).unwrap();
 
         let cert_public_key = cert.subject_public_key().unwrap();
 
-        let expected_public_key =
-            PublicKey::from_str(&public_key_str()).unwrap();
+        let expected_public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         assert_eq!(cert_public_key, expected_public_key);
     }

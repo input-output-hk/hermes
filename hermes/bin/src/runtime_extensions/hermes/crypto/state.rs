@@ -199,9 +199,7 @@ mod tests_crypto_state {
         let drop_id_2 = delete_resource(&app_name, 2);
         assert_eq!(drop_id_2, None);
 
-        let res_holder = CRYPTO_INTERNAL_STATE
-            .get(&app_name)
-            .unwrap();
+        let res_holder = CRYPTO_INTERNAL_STATE.get(&app_name).unwrap();
         assert_eq!(res_holder.id_to_resource_map.len(), 0);
         assert_eq!(res_holder.resource_to_id_map.len(), 0);
     }
@@ -240,9 +238,7 @@ mod tests_crypto_state {
         let prv1 = XPrv::from_bytes_verified(KEY1).unwrap();
         let prv2 = XPrv::from_bytes_verified(KEY2).unwrap();
 
-        let res_holder = CRYPTO_INTERNAL_STATE
-            .get(&app_name)
-            .unwrap();
+        let res_holder = CRYPTO_INTERNAL_STATE.get(&app_name).unwrap();
 
         // Maps should contains 2 resources.
         assert_eq!(res_holder.id_to_resource_map.len(), 2);

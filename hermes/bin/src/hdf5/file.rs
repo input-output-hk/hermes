@@ -161,9 +161,7 @@ mod tests {
 
         let package_name = tmp_dir.child("test.hdf5");
         let package = hdf5::File::create(package_name).unwrap();
-        let group = package
-            .as_group()
-            .unwrap();
+        let group = package.as_group().unwrap();
 
         let file_name = "test.txt";
 
@@ -177,8 +175,7 @@ mod tests {
         let written = file.write(file_content).unwrap();
         assert_eq!(written, file_content.len());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let mut buffer = [0; 12];
         assert_eq!(buffer.len(), file_content.len());
         let read = file.read(&mut buffer).unwrap();
@@ -188,16 +185,12 @@ mod tests {
         assert_eq!(read, file_content.len());
         assert_eq!(buffer.as_slice(), file_content.as_slice());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let new_file_content = b"new_file_content";
-        let written = file
-            .write(new_file_content)
-            .unwrap();
+        let written = file.write(new_file_content).unwrap();
         assert_eq!(written, new_file_content.len());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let mut buffer = [0; 16];
         assert_eq!(buffer.len(), new_file_content.len());
         let read = file.read(&mut buffer).unwrap();

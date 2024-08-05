@@ -100,8 +100,7 @@ mod tests {
             "Cannot write to the 'read only' directory"
         );
 
-        vfs.write(file_name, file_content)
-            .unwrap();
+        vfs.write(file_name, file_content).unwrap();
 
         let written_data = vfs.read(file_name).unwrap();
         assert_eq!(written_data.as_slice(), file_content);

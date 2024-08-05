@@ -225,13 +225,7 @@ mod tests {
 
         for valid in valid_path {
             if let Some(captures) = regex.captures(valid) {
-                assert_eq!(
-                    captures
-                        .get(0)
-                        .unwrap()
-                        .as_str(),
-                    valid
-                );
+                assert_eq!(captures.get(0).unwrap().as_str(), valid);
             }
 
             assert!(is_valid_path(valid).is_ok());

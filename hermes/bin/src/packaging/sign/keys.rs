@@ -129,11 +129,9 @@ pub(crate) mod tests {
         let dir = TempDir::new().unwrap();
 
         let private_key_path = dir.path().join("private.pem");
-        std::fs::write(&private_key_path, private_key_str())
-            .unwrap();
+        std::fs::write(&private_key_path, private_key_str()).unwrap();
 
-        let _key =
-            PrivateKey::from_file(private_key_path).unwrap();
+        let _key = PrivateKey::from_file(private_key_path).unwrap();
     }
 
     #[test]
@@ -143,14 +141,12 @@ pub(crate) mod tests {
         let public_key_path = dir.path().join("public.pem");
         std::fs::write(&public_key_path, public_key_str()).unwrap();
 
-        let _key =
-            PublicKey::from_file(public_key_path).unwrap();
+        let _key = PublicKey::from_file(public_key_path).unwrap();
     }
 
     #[test]
     fn public_private_key_test() {
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).unwrap();
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
         let public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         assert_eq!(private_key.public_key(), public_key);
@@ -158,8 +154,7 @@ pub(crate) mod tests {
 
     #[test]
     fn sign_test() {
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).unwrap();
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
         let public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         let msg = b"test";

@@ -165,8 +165,7 @@ mod tests_blake2b {
         let key = Bstr::from("key");
         let outlen = Some(64);
 
-        let result =
-            blake2bmac_impl(&buf, outlen, &key, None, None).unwrap();
+        let result = blake2bmac_impl(&buf, outlen, &key, None, None).unwrap();
 
         assert_eq!(
         result.as_ref(),

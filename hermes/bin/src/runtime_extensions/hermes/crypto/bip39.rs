@@ -335,16 +335,14 @@ mod tests_bip39 {
     #[test]
     fn test_jap_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
-        mnemonic_to_xprv(MNEMONIC_JAPANESE, "")
-            .unwrap();
+        mnemonic_to_xprv(MNEMONIC_JAPANESE, "").unwrap();
     }
 
     #[test]
     fn test_mnemonic_with_passphrase_to_xprv() {
         let passphrase = "test cat";
         // Valid mnemonic with passphrase, shouldn't fail.
-        mnemonic_to_xprv(MNEMONIC_ENG, passphrase)
-            .unwrap();
+        mnemonic_to_xprv(MNEMONIC_ENG, passphrase).unwrap();
     }
 
     #[test]
@@ -355,8 +353,7 @@ mod tests_bip39 {
 
     #[test]
     fn test_generate_mnemonic_prefix() {
-        let mnemonic = generate_new_mnemonic(12, vec![], Some("English".to_string()))
-            .unwrap();
+        let mnemonic = generate_new_mnemonic(12, vec![], Some("English".to_string())).unwrap();
         Mnemonic::parse(mnemonic.join(" ")).unwrap();
         let mnemonic =
             generate_new_mnemonic(12, vec!["project".to_string()], Some("English".to_string()))
@@ -401,8 +398,7 @@ mod tests_bip39 {
     fn test_generate_mnemonic_validity() {
         for _ in 0..20 {
             let prefix = vec!["project".to_string(), "cat".to_string()];
-            let mnemonic = generate_new_mnemonic(12, prefix, Some("English".to_string()))
-                .unwrap();
+            let mnemonic = generate_new_mnemonic(12, prefix, Some("English".to_string())).unwrap();
             Mnemonic::parse(mnemonic.join(" ")).unwrap();
         }
     }
