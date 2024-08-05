@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
-use crate::{app::HermesAppName, vfs::Vfs, wasm::module::ModuleId};
+use crate::{app::ApplicationName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
 #[derive(Clone, Debug)]
 pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
-    app_name: HermesAppName,
+    app_name: ApplicationName,
 
     /// module's id
     module_id: ModuleId,
@@ -20,14 +20,13 @@ pub(crate) struct HermesRuntimeContext {
     exc_counter: u32,
 
     /// App Virtual file system
-    #[allow(dead_code)]
     vfs: Arc<Vfs>,
 }
 
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
-        app_name: HermesAppName, module_id: ModuleId, event_name: String, exc_counter: u32,
+        app_name: ApplicationName, module_id: ModuleId, event_name: String, exc_counter: u32,
         vfs: Arc<Vfs>,
     ) -> Self {
         Self {
@@ -40,13 +39,11 @@ impl HermesRuntimeContext {
     }
 
     /// Get the application name
-    #[allow(dead_code)]
-    pub(crate) fn app_name(&self) -> &HermesAppName {
+    pub(crate) fn app_name(&self) -> &ApplicationName {
         &self.app_name
     }
 
     /// Get the module id
-    #[allow(dead_code)]
     pub(crate) fn module_id(&self) -> &ModuleId {
         &self.module_id
     }
@@ -64,7 +61,8 @@ impl HermesRuntimeContext {
     }
 
     /// Get virtual file system
-    pub(crate) fn vfs(&self) -> Arc<Vfs> {
-        self.vfs.clone()
+    #[allow(dead_code)]
+    pub(crate) fn vfs(&self) -> &Vfs {
+        self.vfs.as_ref()
     }
 }

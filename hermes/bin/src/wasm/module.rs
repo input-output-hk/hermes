@@ -157,7 +157,7 @@ impl Module {
 pub mod bench {
     use super::*;
     use crate::{
-        app::HermesAppName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
+        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
     };
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
@@ -182,12 +182,12 @@ pub mod bench {
         let module =
             Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
 
-        let app_name = HermesAppName("integration-test".to_owned());
+        let app_name = ApplicationName("integration-test".to_owned());
 
         let hermes_home_dir = Cli::hermes_home().unwrap();
 
         let vfs = std::sync::Arc::new(
-            VfsBootstrapper::new(hermes_home_dir, app_name.to_string())
+            VfsBootstrapper::new(hermes_home_dir, app_name.clone().to_string())
                 .bootstrap()
                 .unwrap(),
         );
@@ -197,7 +197,7 @@ pub mod bench {
                 .execute_event(
                     &Event,
                     HermesRuntimeContext::new(
-                        HermesAppName("app 1".to_string()),
+                        app_name.to_owned(),
                         module.id().clone(),
                         "init".to_string(),
                         0,

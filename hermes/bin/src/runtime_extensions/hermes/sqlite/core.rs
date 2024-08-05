@@ -6,7 +6,7 @@ use libsqlite3_sys::{
 };
 
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     runtime_extensions::{
         app_config::{get_app_in_memory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg},
         bindings::hermes::sqlite::api::Errno,
@@ -18,7 +18,7 @@ const PAGE_SIZE: u32 = 4_096;
 
 /// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(
-    readonly: bool, memory: bool, app_name: HermesAppName,
+    readonly: bool, memory: bool, app_name: ApplicationName,
 ) -> Result<*mut sqlite3, Errno> {
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 
@@ -101,14 +101,14 @@ mod tests {
     use serial_test::file_serial;
 
     use super::*;
-    use crate::{app::HermesAppName, runtime_extensions::hermes::sqlite::connection::core};
+    use crate::{app::ApplicationName, runtime_extensions::hermes::sqlite::connection::core};
 
     const TMP_DIR: &str = "tmp-dir";
 
     #[test]
     #[file_serial]
     fn test_open_success() -> Result<(), Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
         let config =
             get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
         let db_file = config.db_file.clone().expect("cannot find the db path");
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     #[file_serial]
     fn test_open_readonly() -> Result<(), Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
         let config =
             get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
         let db_file = config.db_file.clone().expect("cannot find the db path");
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     #[file_serial]
     fn test_open_readonly_without_existing_file() -> Result<(), Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
 
         let db_ptr = open(true, false, app_name);
 
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_open_in_memory() -> Result<(), Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
 
         let db_ptr = open(false, true, app_name)?;
 
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_open_in_memory_readonly() -> Result<(), Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
 
         let db_ptr = open(true, true, app_name)?;
 

@@ -3,7 +3,7 @@
 use dashmap::DashMap;
 
 use crate::{
-    app::HermesAppName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
+    app::ApplicationName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
     wasm::module::ModuleId,
 };
 
@@ -32,7 +32,7 @@ struct SubscriptionState {
 }
 
 /// Triple representing the key of the subscription state map.
-type ModuleStateKey = (HermesAppName, ModuleId, cardano_chain_follower::Network);
+type ModuleStateKey = (ApplicationName, ModuleId, cardano_chain_follower::Network);
 
 /// Cardano Runtime Extension state.
 struct State {
@@ -74,7 +74,7 @@ pub(super) enum SubscriptionType {
 
 /// Subscribes a module or resumes the generation of subscribed events for a module.
 pub(super) fn subscribe(
-    chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
+    chain_id: CardanoBlockchainId, app_name: ApplicationName, module_id: ModuleId,
     sub_type: SubscriptionType,
 ) -> Result<u64> {
     let network = chain_id.into();
@@ -120,7 +120,7 @@ pub(super) fn subscribe(
 
 /// Unsubscribes a module or stops the generation of subscribed events for a module.
 pub(super) fn unsubscribe(
-    chain_id: CardanoBlockchainId, app_name: HermesAppName, module_id: ModuleId,
+    chain_id: CardanoBlockchainId, app_name: ApplicationName, module_id: ModuleId,
     opts: crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions,
 ) -> Result<()> {
     use crate::runtime_extensions::bindings::hermes::cardano::api::UnsubscribeOptions;
@@ -173,7 +173,7 @@ impl From<CardanoBlockchainId> for cardano_chain_follower::Network {
 mod test {
     use super::{read_block, subscribe, unsubscribe, SubscriptionType};
     use crate::{
-        app::HermesAppName,
+        app::ApplicationName,
         runtime_extensions::bindings::hermes::cardano::api::{
             CardanoBlockchainId, UnsubscribeOptions,
         },
@@ -182,7 +182,7 @@ mod test {
     #[test]
     #[ignore = "Just for testing locally"]
     fn subscription_works() {
-        let app_name = HermesAppName("test_app_it_works".to_string());
+        let app_name = ApplicationName("test_app_it_works".to_string());
         let module_id = crate::wasm::module::ModuleId(rusty_ulid::Ulid::generate());
 
         subscribe(

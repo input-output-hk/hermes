@@ -48,7 +48,9 @@ pub(crate) enum IpfsCommand {
 }
 
 /// Handle IPFS commands in asynchronous task.
-pub(crate) async fn ipfs_command_handler(hermes_node: HermesIpfs, mut queue_rx: mpsc::Receiver<IpfsCommand>) -> anyhow::Result<()> {
+pub(crate) async fn ipfs_command_handler(
+    hermes_node: HermesIpfs, mut queue_rx: mpsc::Receiver<IpfsCommand>,
+) -> anyhow::Result<()> {
     while let Some(ipfs_command) = queue_rx.recv().await {
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {

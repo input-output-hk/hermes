@@ -10,7 +10,10 @@ pub(crate) use api::{
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
 use dashmap::DashMap;
-use hermes_ipfs::{AddIpfsFile, Cid, IpfsPath as BaseIpfsPath, MessageId as PubsubMessageId, IpfsBuilder, HermesIpfs};
+use hermes_ipfs::{
+    AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
+    MessageId as PubsubMessageId,
+};
 use once_cell::sync::Lazy;
 use task::{ipfs_command_handler, IpfsCommand};
 use tokio::{
@@ -20,7 +23,7 @@ use tokio::{
 };
 
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
@@ -48,8 +51,9 @@ static HERMES_IPFS: Lazy<HermesIpfsNode> = Lazy::new(|| {
             .with_default()
             .set_default_listener()
             .disable_tls()
-            .set_disk_storage(ipfs_data_path.clone())
-    ).unwrap_or_else(|err| {
+            .set_disk_storage(ipfs_data_path.clone()),
+    )
+    .unwrap_or_else(|err| {
         tracing::error!("Failed to bootstrap IPFS node: {}", err);
         HermesIpfsNode::default()
     })
@@ -59,7 +63,7 @@ static HERMES_IPFS: Lazy<HermesIpfsNode> = Lazy::new(|| {
 pub(crate) struct HermesIpfsNode {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
-    /// State related to `HermesAppName`
+    /// State related to `ApplicationName`
     apps: AppIpfsState,
 }
 
@@ -251,15 +255,15 @@ impl Default for HermesIpfsNode {
 /// IPFS app state
 struct AppIpfsState {
     /// List of pinned files per app.
-    pinned_files: DashMap<HermesAppName, HashSet<Cid>>,
+    pinned_files: DashMap<ApplicationName, HashSet<Cid>>,
     /// List of DHT values per app.
-    dht_keys: DashMap<HermesAppName, HashSet<DhtKey>>,
+    dht_keys: DashMap<ApplicationName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
-    topic_subscriptions: DashMap<PubsubTopic, HashSet<HermesAppName>>,
+    topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
     /// Collection of stream join handles per topic subscription.
     subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
-    evicted_peers: DashMap<HermesAppName, HashSet<PeerId>>,
+    evicted_peers: DashMap<ApplicationName, HashSet<PeerId>>,
 }
 
 impl AppIpfsState {
@@ -275,7 +279,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `ipfs_path` of file pinned by an app.
-    fn pinned_file(&self, app_name: HermesAppName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+    fn pinned_file(&self, app_name: ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
         let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         self.pinned_files
@@ -287,7 +291,7 @@ impl AppIpfsState {
     }
 
     /// Un-pin a file with `ipfs_path` pinned by an app.
-    fn unpinned_file(&self, app_name: &HermesAppName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+    fn unpinned_file(&self, app_name: &ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
         let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         self.pinned_files
@@ -301,14 +305,14 @@ impl AppIpfsState {
 
     #[allow(dead_code)]
     /// List of pinned files by an app.
-    pub(crate) fn list_pinned_files(&self, app_name: &HermesAppName) -> Vec<String> {
+    pub(crate) fn list_pinned_files(&self, app_name: &ApplicationName) -> Vec<String> {
         self.pinned_files.get(app_name).map_or(vec![], |cids| {
             cids.iter().map(std::string::ToString::to_string).collect()
         })
     }
 
     /// Keep track of `dht_key` of DHT value added by an app.
-    fn added_dht_key(&self, app_name: HermesAppName, dht_key: DhtKey) {
+    fn added_dht_key(&self, app_name: ApplicationName, dht_key: DhtKey) {
         self.dht_keys
             .entry(app_name)
             .or_default()
@@ -317,7 +321,7 @@ impl AppIpfsState {
     }
 
     /// Keep track of `topic` subscription added by an app.
-    fn added_app_topic_subscription(&self, app_name: HermesAppName, topic: PubsubTopic) {
+    fn added_app_topic_subscription(&self, app_name: ApplicationName, topic: PubsubTopic) {
         self.topic_subscriptions
             .entry(topic)
             .or_default()
@@ -336,14 +340,14 @@ impl AppIpfsState {
     }
 
     /// Returns a list of apps subscribed to a topic.
-    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<HermesAppName> {
+    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<ApplicationName> {
         self.topic_subscriptions
             .get(topic)
             .map_or(vec![], |apps| apps.value().iter().cloned().collect())
     }
 
     /// Add `peer_id` of evicted peer by an app.
-    fn evicted_peer(&self, app_name: HermesAppName, peer_id: PeerId) {
+    fn evicted_peer(&self, app_name: ApplicationName, peer_id: PeerId) {
         self.evicted_peers
             .entry(app_name)
             .or_default()

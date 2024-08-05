@@ -105,6 +105,7 @@ lintfix
 localizable
 lookaside
 maindbname
+mapref
 mdlint
 mdns
 miniprotocol

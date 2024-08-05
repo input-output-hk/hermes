@@ -9,10 +9,10 @@ use dashmap::DashMap;
 use ed25519_bip32::XPrv;
 use once_cell::sync::Lazy;
 
-use crate::app::HermesAppName;
+use crate::app::ApplicationName;
 
 /// Map of app name to resource holder
-type State = DashMap<HermesAppName, ResourceHolder>;
+type State = DashMap<ApplicationName, ResourceHolder>;
 
 /// Wrapper for `XPrv` to implement Hash used in `DashMap`
 #[derive(Eq, Clone, PartialEq)]
@@ -105,12 +105,12 @@ pub(super) fn get_state() -> &'static State {
 }
 
 /// Set the state according to the app context.
-pub(crate) fn set_state(app_name: HermesAppName) {
+pub(crate) fn set_state(app_name: ApplicationName) {
     CRYPTO_INTERNAL_STATE.insert(app_name, ResourceHolder::new());
 }
 
 /// Get the resource from the state using id if possible.
-pub(crate) fn get_resource(app_name: &HermesAppName, id: u32) -> Option<XPrv> {
+pub(crate) fn get_resource(app_name: &ApplicationName, id: u32) -> Option<XPrv> {
     if let Some(res_holder) = CRYPTO_INTERNAL_STATE.get(app_name) {
         return res_holder.get_resource_from_id(id);
     }
@@ -119,7 +119,7 @@ pub(crate) fn get_resource(app_name: &HermesAppName, id: u32) -> Option<XPrv> {
 
 /// Add the resource of `XPrv` to the state if possible.
 /// Return the id if successful.
-pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> {
+pub(crate) fn add_resource(app_name: &ApplicationName, xprv: XPrv) -> Option<u32> {
     if let Some(mut res_holder) = CRYPTO_INTERNAL_STATE.get_mut(app_name) {
         let wrapped_xprv = WrappedXPrv::from(xprv.clone());
         // Check whether the resource already exists.
@@ -135,7 +135,7 @@ pub(crate) fn add_resource(app_name: &HermesAppName, xprv: XPrv) -> Option<u32> 
 }
 
 /// Delete the resource from the state using id if possible.
-pub(crate) fn delete_resource(app_name: &HermesAppName, id: u32) -> Option<u32> {
+pub(crate) fn delete_resource(app_name: &ApplicationName, id: u32) -> Option<u32> {
     if let Some(mut res_holder) = CRYPTO_INTERNAL_STATE.get_mut(app_name) {
         return res_holder.drop(id);
     }
@@ -170,7 +170,7 @@ mod tests_crypto_state {
     #[test]
     fn test_basic_func_resource() {
         let prv = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
-        let app_name: HermesAppName = HermesAppName("App name".to_string());
+        let app_name: ApplicationName = ApplicationName("App name".to_string());
         // Set the global state.
         set_state(app_name.clone());
 
@@ -208,7 +208,7 @@ mod tests_crypto_state {
 
     #[test]
     fn test_thread_safe_insert_resources() {
-        let app_name: HermesAppName = HermesAppName("App name 2".to_string());
+        let app_name: ApplicationName = ApplicationName("App name 2".to_string());
 
         // Setup initial state.
         set_state(app_name.clone());
@@ -219,11 +219,11 @@ mod tests_crypto_state {
         // Spawning 20 threads.
         for _ in 0..20 {
             let handle = thread::spawn(|| {
-                let app_name: HermesAppName = HermesAppName("App name 2".to_string());
+                let app_name: ApplicationName = ApplicationName("App name 2".to_string());
                 let prv1 = XPrv::from_bytes_verified(KEY1).expect("Invalid private key");
                 // Adding resource
                 add_resource(&app_name, prv1.clone());
-                let app_name: HermesAppName = HermesAppName("App name 2".to_string());
+                let app_name: ApplicationName = ApplicationName("App name 2".to_string());
                 let prv2 = XPrv::from_bytes_verified(KEY2).expect("Invalid private key");
                 // Adding resource.
                 add_resource(&app_name, prv2.clone());

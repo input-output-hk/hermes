@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::app::HermesAppName;
+use crate::app::ApplicationName;
 
 /// Configuration struct for `SQLite` database.
 ///
@@ -20,8 +20,8 @@ pub(crate) struct SqliteConfig {
 }
 
 /// Gets `SQLite` config for persistent datastore
-pub(crate) fn get_app_persistent_sqlite_db_cfg(app_name: HermesAppName) -> Option<SqliteConfig> {
-    let HermesAppName(name) = app_name;
+pub(crate) fn get_app_persistent_sqlite_db_cfg(app_name: ApplicationName) -> Option<SqliteConfig> {
+    let ApplicationName(name) = app_name;
 
     if name.is_empty() {
         return None;
@@ -34,8 +34,8 @@ pub(crate) fn get_app_persistent_sqlite_db_cfg(app_name: HermesAppName) -> Optio
 }
 
 /// Gets `SQLite` config for in-memory datastore
-pub(crate) fn get_app_in_memory_sqlite_db_cfg(app_name: HermesAppName) -> Option<SqliteConfig> {
-    let HermesAppName(name) = app_name;
+pub(crate) fn get_app_in_memory_sqlite_db_cfg(app_name: ApplicationName) -> Option<SqliteConfig> {
+    let ApplicationName(name) = app_name;
 
     if name.is_empty() {
         return None;

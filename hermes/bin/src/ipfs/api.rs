@@ -1,7 +1,7 @@
 //! Hermes IPFS State API
 use super::{is_valid_dht_content, is_valid_pubsub_content, HERMES_IPFS};
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, MessageId, PeerId,
         PubsubTopic,
@@ -10,20 +10,18 @@ use crate::{
 
 /// Add File to IPFS
 pub(crate) fn hermes_ipfs_add_file(
-    app_name: &HermesAppName, contents: IpfsFile,
+    app_name: &ApplicationName, contents: IpfsFile,
 ) -> Result<IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs_path = HERMES_IPFS.file_add(contents)?.to_string();
     tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
-    HERMES_IPFS
-        .apps
-        .pinned_file(app_name.clone(), &ipfs_path)?;
+    HERMES_IPFS.apps.pinned_file(app_name.clone(), &ipfs_path)?;
     Ok(ipfs_path)
 }
 
 /// Validate IPFS Content from DHT or `PubSub`
 pub(crate) fn hermes_ipfs_content_validate(
-    app_name: &HermesAppName, content: &IpfsContent,
+    app_name: &ApplicationName, content: &IpfsContent,
 ) -> bool {
     match content {
         IpfsContent::Dht((k, v)) => {
@@ -42,7 +40,7 @@ pub(crate) fn hermes_ipfs_content_validate(
 
 /// Get File from Ipfs
 pub(crate) fn hermes_ipfs_get_file(
-    app_name: &HermesAppName, path: &IpfsPath,
+    app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<IpfsFile, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
     let content = HERMES_IPFS.file_get(path)?;
@@ -52,7 +50,7 @@ pub(crate) fn hermes_ipfs_get_file(
 
 /// Pin IPFS File
 pub(crate) fn hermes_ipfs_pin_file(
-    app_name: &HermesAppName, path: &IpfsPath,
+    app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
     let status = HERMES_IPFS.file_pin(path)?;
@@ -63,7 +61,7 @@ pub(crate) fn hermes_ipfs_pin_file(
 
 /// Un-pin IPFS File
 pub(crate) fn hermes_ipfs_unpin_file(
-    app_name: &HermesAppName, path: &IpfsPath,
+    app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, path = %path, "un-pin IPFS file");
     let status = HERMES_IPFS.file_unpin(path)?;
@@ -74,7 +72,7 @@ pub(crate) fn hermes_ipfs_unpin_file(
 
 /// Get DHT Value
 pub(crate) fn hermes_ipfs_get_dht_value(
-    app_name: &HermesAppName, key: DhtKey,
+    app_name: &ApplicationName, key: DhtKey,
 ) -> Result<DhtValue, Errno> {
     let key_str = format!("{key:x?}");
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "get DHT value");
@@ -85,7 +83,7 @@ pub(crate) fn hermes_ipfs_get_dht_value(
 
 /// Put DHT Value
 pub(crate) fn hermes_ipfs_put_dht_value(
-    app_name: &HermesAppName, key: DhtKey, value: DhtValue,
+    app_name: &ApplicationName, key: DhtKey, value: DhtValue,
 ) -> Result<bool, Errno> {
     let key_str = format!("{key:x?}");
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "putting DHT value");
@@ -97,16 +95,14 @@ pub(crate) fn hermes_ipfs_put_dht_value(
 
 /// Subscribe to a topic
 pub(crate) fn hermes_ipfs_subscribe(
-    app_name: &HermesAppName, topic: PubsubTopic,
+    app_name: &ApplicationName, topic: PubsubTopic,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
     if HERMES_IPFS.apps.topic_subscriptions_contains(&topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
         let handle = HERMES_IPFS.pubsub_subscribe(&topic)?;
-        HERMES_IPFS
-            .apps
-            .added_topic_stream(topic.clone(), handle);
+        HERMES_IPFS.apps.added_topic_stream(topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
     HERMES_IPFS
@@ -117,7 +113,7 @@ pub(crate) fn hermes_ipfs_subscribe(
 
 /// Publish message to a topic
 pub(crate) fn hermes_ipfs_publish(
-    _app_name: &HermesAppName, topic: &PubsubTopic, message: MessageData,
+    _app_name: &ApplicationName, topic: &PubsubTopic, message: MessageData,
 ) -> Result<MessageId, Errno> {
     HERMES_IPFS
         .pubsub_publish(topic.to_string(), message)
@@ -126,7 +122,7 @@ pub(crate) fn hermes_ipfs_publish(
 
 /// Evict Peer from node
 pub(crate) fn hermes_ipfs_evict_peer(
-    app_name: &HermesAppName, peer: PeerId,
+    app_name: &ApplicationName, peer: PeerId,
 ) -> Result<bool, Errno> {
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicting peer");
     let status = HERMES_IPFS.peer_evict(&peer.to_string())?;
@@ -137,6 +133,6 @@ pub(crate) fn hermes_ipfs_evict_peer(
 
 #[allow(dead_code)]
 /// List pinned files
-pub(crate) fn hermes_ipfs_ls(app_name: &HermesAppName) -> Vec<String> {
+pub(crate) fn hermes_ipfs_ls(app_name: &ApplicationName) -> Vec<String> {
     HERMES_IPFS.apps.list_pinned_files(app_name)
 }

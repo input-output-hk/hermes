@@ -1,52 +1,74 @@
 //! Hermes Reactor implementation.
 
-use std::sync::Arc;
+use dashmap::{mapref::one::Ref, DashMap};
+use once_cell::sync::OnceCell;
 
 use crate::{
-    app::{HermesApp, IndexedApps},
+    app::{Application, ApplicationName},
     event,
     runtime_extensions::hermes::init,
 };
 
-/// Hermes Reactor struct
-pub(crate) struct HermesReactor {
-    /// Hermes apps
-    #[allow(dead_code)]
-    indexed_apps: Arc<IndexedApps>,
-    /// Hermes event queue loop thread handler.
-    event_loop: event::queue::HermesEventLoopHandler,
+/// Global Hermes reactor state
+static REACTOR_STATE: OnceCell<Reactor> = OnceCell::new();
+
+/// Failed when reactor already been initialized.
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("Reactor already been initialized.")]
+pub(crate) struct AlreadyInitializedError;
+
+/// Failed when event queue not been initialized.
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("Reactor not been initialized. Call `HermesEventQueue::init` first.")]
+pub(crate) struct NotInitializedError;
+
+/// Hermes Reactor struct.
+/// This object orchestrates all Hermes apps within all core parts of the Hermes.
+struct Reactor {
+    /// Loaded hermes apps
+    apps: DashMap<ApplicationName, Application>,
 }
 
-impl HermesReactor {
-    /// Create a new Hermes Reactor.
-    /// Runs all necessary tasks in separate threads.
-    pub(crate) fn new(apps: Vec<HermesApp>) -> anyhow::Result<Self> {
-        // Loading apps
-        let target_apps = apps.iter().map(|app| app.app_name().clone()).collect();
+/// Initialize Hermes Reactor.
+/// Setup and runs all necessary services.
+pub(crate) fn init() -> anyhow::Result<()> {
+    event::queue::init()?;
 
-        let indexed_apps: Arc<IndexedApps> = Arc::new(
-            apps.into_iter()
-                .map(|app| (app.app_name().clone(), app))
-                .collect(),
-        );
-
-        let event_loop = event::queue::init(indexed_apps.clone())?;
-
-        // Emit Init event for loaded apps
-        init::emit_init_event(target_apps)?;
-
-        Ok(Self {
-            indexed_apps,
-            event_loop,
+    REACTOR_STATE
+        .set(Reactor {
+            apps: DashMap::new(),
         })
-    }
+        .map_err(|_| AlreadyInitializedError)?;
 
-    /// Waits for all threads to finish.
-    /// # Note:
-    /// This is a blocking call.
-    pub(crate) fn wait(&mut self) -> anyhow::Result<()> {
-        self.event_loop.join()
-    }
+    Ok(())
+}
+
+/// Load Hermes application into the Hermes Reactor.
+pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
+    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+
+    let app_name = app.name().clone();
+    reactor.apps.insert(app_name.clone(), app);
+
+    init::emit_init_event(app_name)?;
+    Ok(())
+}
+
+/// Get Hermes application from the Hermes Reactor.
+pub(crate) fn get_app(
+    app_name: &ApplicationName,
+) -> anyhow::Result<Ref<ApplicationName, Application>> {
+    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+    reactor
+        .apps
+        .get(app_name)
+        .ok_or(anyhow::anyhow!("Application {app_name} not found"))
+}
+
+/// Get all available Hermes application names from the Hermes Reactor.
+pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<ApplicationName>> {
+    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+    Ok(reactor.apps.iter().map(|val| val.key().clone()).collect())
 }
 
 #[cfg(test)]
@@ -54,7 +76,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn init_hermes_reactor_test() {
-        let _reactor = HermesReactor::new(vec![]).expect("Could not initialize Hermes reactor.");
+    fn init_test() {
+        init().expect("Could not initialize Hermes reactor.");
     }
 }
