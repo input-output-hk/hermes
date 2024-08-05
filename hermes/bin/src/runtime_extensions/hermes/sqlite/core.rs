@@ -158,7 +158,7 @@ mod tests {
 
         let db_ptr = open(false, true, app_name).unwrap();
 
-        core::close(db_ptr).unwrap()
+        core::close(db_ptr).unwrap();
     }
 
     #[test]
@@ -167,6 +167,6 @@ mod tests {
 
         let db_ptr = open(true, true, app_name).unwrap();
 
-        core::close(db_ptr).unwrap()
+        core::close(db_ptr).unwrap();
     }
 }

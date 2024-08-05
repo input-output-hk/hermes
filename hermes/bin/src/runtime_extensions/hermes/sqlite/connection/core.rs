@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_execute_create_schema_simple() {
-        let db_ptr = init()?;
+        let db_ptr = init().unwrap();
 
         let create_table_sql = r"
             CREATE TABLE IF NOT EXISTS people (
