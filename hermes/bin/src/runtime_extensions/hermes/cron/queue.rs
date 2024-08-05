@@ -11,7 +11,7 @@ use super::{
     Error,
 };
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     runtime_extensions::bindings::hermes::cron::api::{CronEventTag, CronTagged},
 };
 
@@ -28,23 +28,23 @@ pub(crate) struct CronJobDelay {
 #[derive(Debug)]
 pub(crate) enum CronJob {
     /// Add a new cron job for the given app.
-    Add(HermesAppName, OnCronEvent, oneshot::Sender<bool>),
+    Add(ApplicationName, OnCronEvent, oneshot::Sender<bool>),
     /// List all the cron jobs for the given app.
     List(
-        HermesAppName,
+        ApplicationName,
         Option<CronEventTag>,
         oneshot::Sender<Vec<(CronTagged, bool)>>,
     ),
     /// Add a delayed cron job for the given app.
-    Delay(HermesAppName, CronJobDelay, oneshot::Sender<bool>),
+    Delay(ApplicationName, CronJobDelay, oneshot::Sender<bool>),
     /// Remove a cron job from the given app.
-    Remove(HermesAppName, CronTagged, oneshot::Sender<bool>),
+    Remove(ApplicationName, CronTagged, oneshot::Sender<bool>),
 }
 
 /// The crontab queue task runs in the background.
 pub(crate) struct CronEventQueue {
     /// The crontab events.
-    events: DashMap<HermesAppName, BTreeMap<CronDuration, HashSet<OnCronEvent>>>,
+    events: DashMap<ApplicationName, BTreeMap<CronDuration, HashSet<OnCronEvent>>>,
     /// Send events to the crontab queue.
     sender: Option<mpsc::Sender<CronJob>>,
     /// Next scheduled Cron Task.
@@ -75,7 +75,7 @@ impl CronEventQueue {
 
     /// Add a new crontab entry.
     pub(crate) fn add_event(
-        &self, app_name: HermesAppName, timestamp: CronDuration, on_cron_event: OnCronEvent,
+        &self, app_name: ApplicationName, timestamp: CronDuration, on_cron_event: OnCronEvent,
     ) {
         self.events
             .entry(app_name)
@@ -91,7 +91,7 @@ impl CronEventQueue {
 
     /// List all the crontab entries for the given app.
     pub(crate) fn ls_events(
-        &self, app_name: &HermesAppName, cron_tagged: &Option<CronEventTag>,
+        &self, app_name: &ApplicationName, cron_tagged: &Option<CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
             app.iter().fold(vec![], |mut v, (_, cron_events)| {
@@ -115,7 +115,7 @@ impl CronEventQueue {
     }
 
     /// Remove a crontab entry for the given app.
-    pub(crate) fn rm_event(&self, app_name: &HermesAppName, cron_tagged: &CronTagged) -> bool {
+    pub(crate) fn rm_event(&self, app_name: &ApplicationName, cron_tagged: &CronTagged) -> bool {
         let mut response = false;
         if let Some(mut app) = self.events.get_mut(app_name) {
             app.retain(|_ts, events| {
@@ -193,7 +193,7 @@ impl CronEventQueue {
     ///
     /// This method will also re-schedule the events that have `last = false`.
     fn pop_app_queues_and_send(
-        &self, trigger_time: CronDuration, ts: CronDuration, app_names: &HashSet<HermesAppName>,
+        &self, trigger_time: CronDuration, ts: CronDuration, app_names: &HashSet<ApplicationName>,
     ) -> anyhow::Result<()> {
         for app_name in app_names {
             if let Some(events) = self.pop_from_app_queue(app_name, ts) {
@@ -216,7 +216,7 @@ impl CronEventQueue {
     ///
     /// Because the `BTreeMap` is sorted, the first item is the smallest timestamp..
     fn pop_from_app_queue(
-        &self, app_name: &HermesAppName, timestamp: CronDuration,
+        &self, app_name: &ApplicationName, timestamp: CronDuration,
     ) -> Option<HashSet<OnCronEvent>> {
         self.events
             .get_mut(app_name)
@@ -225,9 +225,9 @@ impl CronEventQueue {
 
     /// Get the next timestamp to schedule, collected from all the `BTreeMap`s belonging
     /// to each `HermesAppName` in the queue.
-    fn next_in_queue(&self) -> Option<(CronDuration, HashSet<HermesAppName>)> {
+    fn next_in_queue(&self) -> Option<(CronDuration, HashSet<ApplicationName>)> {
         // Start by fetching the first entry of every app, and putting it into a `BtreeMap`.
-        let mut next_events: BTreeMap<CronDuration, HashSet<HermesAppName>> = self
+        let mut next_events: BTreeMap<CronDuration, HashSet<ApplicationName>> = self
             .events
             .iter()
             .fold(BTreeMap::new(), |mut acc, mut_ref| {
@@ -260,14 +260,14 @@ fn new_waiting_task(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc, thread::sleep};
+    use std::thread::sleep;
 
     use temp_dir::TempDir;
 
     use super::*;
     use crate::{
-        app::HermesApp, event::queue::HermesEventLoopHandler,
-        runtime_extensions::hermes::cron::tests::hermes_app_name, vfs::VfsBootstrapper,
+        app::Application, runtime_extensions::hermes::cron::tests::hermes_app_name,
+        vfs::VfsBootstrapper,
     };
 
     const APP_NAME: &str = "test";
@@ -323,17 +323,16 @@ mod tests {
     /// Initialize the `CronEventQueue` and the `HermesEventQueue` with
     /// the `HermesApp` named `HermesAppName(APP_NAME.to_string())`.
     #[allow(clippy::unwrap_used)]
-    fn initialize_queue(temp_dir: &TempDir) -> (CronEventQueue, HermesEventLoopHandler) {
+    fn initialize_queue(temp_dir: &TempDir) -> CronEventQueue {
         let queue = CronEventQueue::new(None);
-        let hermes_app_name = hermes_app_name(APP_NAME);
         let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
             .bootstrap()
             .unwrap();
-        let hermes_app = HermesApp::new(hermes_app_name.clone(), vfs, vec![]);
-        let handler =
-            crate::event::queue::init(Arc::new(HashMap::from([(hermes_app_name, hermes_app)])))
-                .unwrap();
-        (queue, handler)
+        let hermes_app = Application::new(APP_NAME.to_string(), vfs, vec![]);
+
+        crate::reactor::init().unwrap();
+        crate::reactor::load_app(hermes_app).unwrap();
+        queue
     }
 
     /// Convert now plus `chrono::TimeDelta` to a `CronDuration`.
@@ -472,8 +471,7 @@ mod tests {
         queue.add_event(hermes_app_name.clone(), 0.into(), cron_entry_1());
         assert!(queue.trigger().is_err());
 
-        // Initialize the `HermesEventQueue`
-        let _hermes_event_queue = crate::event::queue::init(Arc::new(HashMap::new())).unwrap();
+        crate::event::queue::init().unwrap();
         // Event dispatch is triggered.
         queue.add_event(hermes_app_name.clone(), 0.into(), cron_entry_1());
         // Triggering to `HermesEventQueue` works.
@@ -485,7 +483,7 @@ mod tests {
     fn test_cron_queue_triggers_immediately() {
         let dir = TempDir::new().expect("Failed to create temp dir");
 
-        let (queue, _handler) = initialize_queue(&dir);
+        let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // With a timestamp in the past, triggering the queue will not create a waiting_event,
@@ -501,7 +499,7 @@ mod tests {
     fn test_cron_queue_triggers_waiting_task() {
         let dir = TempDir::new().expect("Failed to create temp dir");
 
-        let (queue, _handler) = initialize_queue(&dir);
+        let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // With a timestamp in the future, triggering the queue will create a waiting task that
@@ -526,7 +524,7 @@ mod tests {
     fn test_cron_queue_triggers_waiting_task_cleans_up_after_dispatch() {
         let dir = TempDir::new().expect("Failed to create temp dir");
 
-        let (queue, _handler) = initialize_queue(&dir);
+        let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
         // Adding a new event with a timestamp that is sooner, will replace the waiting_event.

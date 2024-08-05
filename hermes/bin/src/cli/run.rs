@@ -6,14 +6,12 @@ use clap::Args;
 use console::Emoji;
 
 use crate::{
-    app::{HermesApp, HermesAppName},
     cli::Cli,
     packaging::{
-        app::ApplicationPackage,
+        app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
     },
-    reactor::HermesReactor,
-    vfs::VfsBootstrapper,
+    reactor,
 };
 
 /// Run cli command
@@ -42,24 +40,17 @@ impl Run {
         let package = ApplicationPackage::from_file(self.app_package)?;
         package.validate(self.untrusted)?;
 
-        let app_name = package.get_metadata()?.get_name()?;
-
-        println!("{} Bootstrapping virtual filesystem", Emoji::new("🗄️", ""));
         let hermes_home_dir = Cli::hermes_home()?;
-        let mut bootstrapper = VfsBootstrapper::new(hermes_home_dir, app_name.clone());
-        package.mount_to_vfs(&mut bootstrapper)?;
-        let vfs = bootstrapper.bootstrap()?;
+        let app = build_app(&package, hermes_home_dir)?;
 
-        println!("{} Running application {app_name}\n", Emoji::new("🚀", ""),);
-        let mut modules = Vec::new();
-        for module_info in package.get_modules()? {
-            let module = module_info.get_component()?;
-            modules.push(module);
-        }
-        let app = HermesApp::new(HermesAppName(app_name), vfs, modules);
-
-        let mut reactor = HermesReactor::new(vec![app])?;
-        reactor.wait()?;
+        reactor::init()?;
+        println!(
+            "{} Loading application {}...",
+            Emoji::new("🛠️", ""),
+            app.name()
+        );
+        reactor::load_app(app)?;
+        std::thread::yield_now();
 
         Ok(())
     }

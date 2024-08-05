@@ -26,13 +26,15 @@ pub(crate) struct SignCommand {
 impl SignCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
-        println!("{} Sign wasm module package...", Emoji::new("📝", ""));
+        println!("{} Sign module package", Emoji::new("📝", ""));
 
         let private_key = PrivateKey::from_file(self.private_key)?;
         let cert = Certificate::from_file(self.cert)?;
         let package = ModulePackage::from_file(self.package)?;
 
+        println!("{} Verifying package", Emoji::new("🧐", ""));
         package.validate(true)?;
+        println!("{} Signing package", Emoji::new("🖊️.", ""));
         package.sign(&private_key, &cert)?;
 
         println!("{} Done", Emoji::new("✅", ""));

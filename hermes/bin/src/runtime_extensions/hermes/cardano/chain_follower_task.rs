@@ -8,7 +8,7 @@ use tracing::{error, instrument, trace, warn};
 
 use super::{ModuleStateKey, Result, STATE};
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     event::{HermesEvent, TargetApp, TargetModule},
     runtime_extensions::bindings::hermes::cardano::api::{BlockSrc, CardanoBlockchainId},
     wasm::module::ModuleId,
@@ -97,7 +97,7 @@ impl Handle {
 
 /// Spawns a new Chain Follower task in the current Tokio runtime.
 pub fn spawn(
-    follower: cardano_chain_follower::Follower, app_name: HermesAppName, module_id: ModuleId,
+    follower: cardano_chain_follower::Follower, app_name: ApplicationName, module_id: ModuleId,
     chain_id: CardanoBlockchainId,
 ) -> Handle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
@@ -114,7 +114,7 @@ pub fn spawn(
 #[instrument(skip(cmd_rx, follower), fields(app_name = %app_name, module_id = %module_id))]
 async fn executor(
     mut cmd_rx: CommandReceiver, mut follower: cardano_chain_follower::Follower,
-    app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
+    app_name: ApplicationName, module_id: ModuleId, chain_id: CardanoBlockchainId,
 ) {
     let network = chain_id.into();
     let module_state_key = (app_name, module_id, network);

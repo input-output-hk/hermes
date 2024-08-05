@@ -130,7 +130,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        app::HermesAppName,
+        app::ApplicationName,
         runtime_extensions::hermes::sqlite::{
             connection::core::{self, close, execute, prepare},
             core::open,
@@ -140,7 +140,7 @@ mod tests {
     const TMP_DIR: &str = "tmp-dir";
 
     fn init() -> Result<*mut sqlite3, Errno> {
-        let app_name = HermesAppName(String::from(TMP_DIR));
+        let app_name = ApplicationName(String::from(TMP_DIR));
 
         open(false, true, app_name)
     }
