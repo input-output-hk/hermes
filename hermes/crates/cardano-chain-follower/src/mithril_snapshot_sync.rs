@@ -712,8 +712,14 @@ pub(crate) async fn background_mithril_update(
 
     let mut current_snapshot = recover_existing_snapshot(&cfg, &tx).await;
 
+    let mut retry_count = 0u32;
+
     loop {
-        debug!("Background Mithril Updater - New Loop");
+        if cfg.max_retry.is_some_and(|max| retry_count > max) {
+            break;
+        }
+
+        debug!("Background Mithril Updater - New Loop ({})", retry_count);
 
         cleanup(&cfg).await;
 
@@ -740,7 +746,13 @@ pub(crate) async fn background_mithril_update(
         .await
         {
             error!("Failed to Download or Validate a snapshot.");
-            continue;
+
+            if cfg.halt_on_error {
+                break;
+            } else {
+                retry_count += 1;
+                continue;
+            }
         }
 
         // Download was A-OK - Update the new immutable tip.
@@ -752,7 +764,13 @@ pub(crate) async fn background_mithril_update(
                     "Failed to Get Tip from Snapshot for {}:  {error}",
                     cfg.chain
                 );
-                continue;
+
+                if cfg.halt_on_error {
+                    break;
+                } else {
+                    retry_count += 1;
+                    continue;
+                }
             },
         };
 
@@ -765,7 +783,13 @@ pub(crate) async fn background_mithril_update(
                     "New Tip is not more advanced than the old tip for: {}",
                     cfg.chain
                 );
-                continue;
+
+                if cfg.halt_on_error {
+                    break;
+                } else {
+                    retry_count += 1;
+                    continue;
+                }
             }
         }
 
@@ -794,6 +818,14 @@ pub(crate) async fn background_mithril_update(
                             "Failed to send new tip to the live updater for: {}:  {error}",
                             cfg.chain
                         );
+
+
+                        if cfg.halt_on_error {
+                            break;
+                        } else {
+                            retry_count += 1;
+                            continue;
+                        }
                     };
                 }
             },
@@ -802,6 +834,14 @@ pub(crate) async fn background_mithril_update(
                     chain = cfg.chain.to_string(),
                     "Failed to activate new snapshot : {err}"
                 );
+
+
+                if cfg.halt_on_error {
+                    break;
+                } else {
+                    retry_count += 1;
+                    continue;
+                }
             },
         }
     }

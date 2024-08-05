@@ -312,7 +312,7 @@ async fn aria2_download(dest: &Path, url: &str) -> MithrilResult<()> {
     let dest = format!("--dir={}", dest.to_string_lossy());
     let dest_file = format!("--out={DOWNLOAD_FILE_NAME}");
 
-    let mut process = Command::new("aria2c")
+    let mut process = Command::new("aria2")
         .args(["-x", "16", "-s", "16", &dest, &dest_file, url])
         .kill_on_drop(true)
         .stdin(Stdio::piped())
