@@ -1,30 +1,20 @@
 //! Crypto host implementation for WASM runtime.
 
-use ed25519_bip32::XPrv;
-use once_cell::sync::Lazy;
-
-use super::bip32_ed25519::check_signature;
+use super::{
+    bip32_ed25519::{check_signature, derive_new_private_key, get_public_key, sign_data},
+    bip39::{generate_new_mnemonic, mnemonic_to_xprv},
+    state::get_state,
+};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::{
-        bindings::hermes::{
-            binary::api::Bstr,
-            crypto::api::{
-                Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno, Host,
-                HostBip32Ed25519, MnemonicPhrase, Passphrase, Path,
-            },
+    runtime_extensions::bindings::hermes::{
+        binary::api::Bstr,
+        crypto::api::{
+            Bip32Ed25519, Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno, Host,
+            HostBip32Ed25519, MnemonicPhrase, Passphrase, Path,
         },
-        hermes::crypto::{
-            bip32_ed25519::{derive_new_private_key, get_public_key, sign_data},
-            bip39::{generate_new_mnemonic, mnemonic_to_xprv},
-        },
-        resource_manager::ApplicationResourceManager,
     },
 };
-
-/// Global state to hold the private key resources.
-static PRIVATE_KEY_RESOURCES: Lazy<ApplicationResourceManager<Bip32Ed25519, XPrv>> =
-    Lazy::new(ApplicationResourceManager::new);
 
 impl HostBip32Ed25519 for HermesRuntimeContext {
     /// Create a new ED25519-BIP32 Crypto resource
@@ -40,14 +30,14 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         let xprv = mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
             .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
-        Ok(PRIVATE_KEY_RESOURCES.create_resource(self.app_name().clone(), xprv))
+        Ok(get_state().create_resource(self.app_name().clone(), xprv))
     }
 
     /// Get the public key for this private key.
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
-        let private_key = PRIVATE_KEY_RESOURCES.get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
         let public_key = get_public_key(&private_key);
         Ok(public_key)
     }
@@ -60,7 +50,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
-        let private_key = PRIVATE_KEY_RESOURCES.get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
         let sig = sign_data(&private_key, &data);
         Ok(sig)
     }
@@ -80,7 +70,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
-        let private_key = PRIVATE_KEY_RESOURCES.get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
         let check_sig = check_signature(&private_key, &data, sig);
         Ok(check_sig)
     }
@@ -95,15 +85,15 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        let private_key = PRIVATE_KEY_RESOURCES.get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         let new_private_key = derive_new_private_key(private_key, &path)
             .map_err(|_| wasmtime::Error::msg("Error deriving new private key"))?;
-        Ok(PRIVATE_KEY_RESOURCES.create_resource(self.app_name().clone(), new_private_key))
+        Ok(get_state().create_resource(self.app_name().clone(), new_private_key))
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
-        PRIVATE_KEY_RESOURCES.delete_resource(self.app_name().clone(), res);
+        get_state().delete_resource(self.app_name().clone(), res);
         Ok(())
     }
 }
