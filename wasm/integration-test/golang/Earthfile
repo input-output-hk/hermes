@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:v3.1.8 AS rust-tools
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:v3.1.22 AS rust-tools
 
 IMPORT ../../wasi AS wasi
 IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
