@@ -9,7 +9,7 @@ use crate::app::ApplicationName;
 /// `ResourceManager` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 /// the `wasmtime::component::Resource<WitType>` object.
-/// - `RustType` actually the type which is binded to the `WitType` and holds all the data
+/// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
 pub(crate) struct ResourceManager<WitType, RustType> {
     /// Map of id to resource object.
@@ -64,7 +64,7 @@ where WitType: 'static
     }
 
     /// Removes the resource from the resource manager.
-    /// Similar to the `drop` function, resouce is releasing and consumed by this
+    /// Similar to the `drop` function, resource is releasing and consumed by this
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn delete_resource(&self, resource: wasmtime::component::Resource<WitType>) {
@@ -75,7 +75,7 @@ where WitType: 'static
 /// `ApplicationResourceManager` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 /// the `wasmtime::component::Resource<WitType>` object.
-/// - `RustType` actually the type which is binded to the `WitType` and holds all the data
+/// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
 pub(crate) struct ApplicationResourceManager<WitType, RustType> {
     /// Map of app name to resources.
@@ -112,7 +112,7 @@ where WitType: 'static
     }
 
     /// Removes the resource from the resource manager.
-    /// Similar to the `drop` function, resouce is releasing and consumed by this
+    /// Similar to the `drop` function, resource is releasing and consumed by this
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn delete_resource(
