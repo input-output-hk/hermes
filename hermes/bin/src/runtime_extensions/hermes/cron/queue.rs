@@ -481,7 +481,7 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_immediately() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_cron_queue_triggers_waiting_task_cleans_up_after_dispatch() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let queue = initialize_queue(&dir);
         let hermes_app_name = hermes_app_name(APP_NAME);
