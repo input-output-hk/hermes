@@ -9,27 +9,36 @@ use dashmap::DashMap;
 use crate::app::ApplicationName;
 
 /// `ResourceManager` struct.
-pub(crate) struct ResourceManager<T> {
+/// - `WitType` represents the type from the wit file definitions and which will appear in
+/// the `wasmtime::component::Resource<WitType>` object.
+/// - `RustType` actually the type which is binded to the `WitType` and holds all the data
+///   needed for the `WitType`.
+pub(crate) struct ResourceManager<WitType, RustType> {
     /// Map of id to resource object.
-    state: DashMap<u32, T>,
+    state: DashMap<u32, RustType>,
     /// Next available address id of the resource.
     available_address: AtomicU32,
+    /// `WitType` type phantom.
+    _phantom: std::marker::PhantomData<WitType>,
 }
 
-impl<T> ResourceManager<T>
-where T: 'static
+impl<WitType, RustType> ResourceManager<WitType, RustType>
+where WitType: 'static
 {
     /// Creates new `ResourceManager` instance.
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
             available_address: AtomicU32::default(),
+            _phantom: std::marker::PhantomData,
         }
     }
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
-    pub(crate) fn create_resource(&mut self, object: T) -> wasmtime::component::Resource<T> {
+    pub(crate) fn create_resource(
+        &self, object: RustType,
+    ) -> wasmtime::component::Resource<WitType> {
         let mut available_address = self.available_address.load(Ordering::Acquire);
         self.state.insert(available_address, object);
 
@@ -47,9 +56,9 @@ where T: 'static
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn get_object(
-        &self, resource: &wasmtime::component::Resource<T>,
-    ) -> wasmtime::Result<T>
-    where T: Clone {
+        &self, resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<RustType>
+    where RustType: Clone {
         self.state
             .get(&resource.rep())
             .map(|r| r.value().clone())
@@ -60,35 +69,42 @@ where T: 'static
     /// Similar to the `drop` function, resouce is releasing and consumed by this
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
-    pub(crate) fn delete_resource(&mut self, resource: wasmtime::component::Resource<T>) {
+    pub(crate) fn delete_resource(&self, resource: wasmtime::component::Resource<WitType>) {
         self.state.remove(&resource.rep());
     }
 }
 
 /// `ApplicationResourceManager` struct.
-pub(crate) struct ApplicationResourceManager<T> {
+/// - `WitType` represents the type from the wit file definitions and which will appear in
+/// the `wasmtime::component::Resource<WitType>` object.
+/// - `RustType` actually the type which is binded to the `WitType` and holds all the data
+///   needed for the `WitType`.
+pub(crate) struct ApplicationResourceManager<WitType, RustType> {
     /// Map of id to resource object.
-    state: DashMap<(ApplicationName, u32), T>,
+    state: DashMap<(ApplicationName, u32), RustType>,
     /// Next available address id of the resource.
     available_address: AtomicU32,
+    /// `WitType` type phantom.
+    _phantom: std::marker::PhantomData<WitType>,
 }
 
-impl<T> ApplicationResourceManager<T>
-where T: 'static
+impl<WitType, RustType> ApplicationResourceManager<WitType, RustType>
+where WitType: 'static
 {
     /// Creates new `ApplicationResourceManager` instance.
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
             available_address: AtomicU32::default(),
+            _phantom: std::marker::PhantomData,
         }
     }
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn create_resource(
-        &mut self, app_name: ApplicationName, object: T,
-    ) -> wasmtime::component::Resource<T> {
+        &self, app_name: ApplicationName, object: RustType,
+    ) -> wasmtime::component::Resource<WitType> {
         let mut available_address = self.available_address.load(Ordering::Acquire);
         self.state.insert((app_name, available_address), object);
 
@@ -106,9 +122,9 @@ where T: 'static
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn get_object(
-        &self, app_name: ApplicationName, resource: &wasmtime::component::Resource<T>,
-    ) -> wasmtime::Result<T>
-    where T: Clone {
+        &self, app_name: ApplicationName, resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<RustType>
+    where RustType: Clone {
         self.state
             .get(&(app_name, resource.rep()))
             .map(|r| r.value().clone())
@@ -120,7 +136,7 @@ where T: 'static
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn delete_resource(
-        &mut self, app_name: ApplicationName, resource: wasmtime::component::Resource<T>,
+        &self, app_name: ApplicationName, resource: wasmtime::component::Resource<WitType>,
     ) {
         self.state.remove(&(app_name, resource.rep()));
     }
