@@ -14,8 +14,8 @@ pub(crate) struct File {
 }
 
 impl File {
-    /// Create a new `File` instance.
-    pub(crate) fn new(file: hermes_hdf5::File, permission: PermissionLevel) -> Self {
+    /// Open an existing `File` instance.
+    pub(super) fn open(file: hermes_hdf5::File, permission: PermissionLevel) -> Self {
         Self { file, permission }
     }
 
@@ -87,13 +87,11 @@ mod tests {
 
         let package_name = dir.child("test.hdf5");
         let package = hdf5_lib::File::create(package_name).unwrap();
-        let group = package
-            .as_group()
-            .expect("Failed to get a root group from package.");
+        let hdf5_dir = hermes_hdf5::Dir::new(package.as_group().unwrap());
 
         let file_name = "test.txt";
-        let hdf5_file = hermes_hdf5::File::create(&group, file_name).unwrap();
-        let file = File::new(hdf5_file, PermissionLevel::ReadAndWrite);
+        let hdf5_file = hdf5_dir.create_file(file_name.into()).unwrap();
+        let file = File::open(hdf5_file, PermissionLevel::ReadAndWrite);
 
         assert_eq!(file.name(), file_name.to_string());
 
@@ -113,7 +111,7 @@ mod tests {
 
         let file_name = "test.txt";
         let hdf5_file = hermes_hdf5::File::create(&group, file_name).unwrap();
-        let mut file = File::new(hdf5_file, PermissionLevel::Read);
+        let mut file = File::open(hdf5_file, PermissionLevel::Read);
 
         let content = b"content";
         assert!(file.write(content).is_err());

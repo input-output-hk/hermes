@@ -1,16 +1,23 @@
 //! Hermes virtual file system.
 
 mod bootstrap;
+mod dir;
 mod file;
 mod permission;
 
 use std::io::{Read, Write};
 
 pub(crate) use bootstrap::VfsBootstrapper;
+pub(crate) use file::File;
 pub(crate) use permission::PermissionLevel;
 use permission::PermissionsState;
 
 use crate::hdf5 as hermes_hdf5;
+
+/// Read only error.
+#[derive(thiserror::Error, Debug)]
+#[error("Permission denied, read only permission.")]
+pub(crate) struct ReadOnlyPermissionError;
 
 /// Hermes virtual file system type.
 #[derive(Debug)]
@@ -58,7 +65,7 @@ impl Vfs {
         let permission = self.permissions.get_permission(path);
         anyhow::ensure!(
             permission == PermissionLevel::ReadAndWrite,
-            "Permission denied, file does not has write permission."
+            ReadOnlyPermissionError
         );
 
         let path: hermes_hdf5::Path = path.into();
@@ -70,6 +77,41 @@ impl Vfs {
         let _unused = file.write(buffer)?;
         file.flush()?;
 
+        Ok(())
+    }
+
+    /// Get file if present from path.
+    /// Return error if file does not exist by the provided path.
+    #[allow(dead_code)]
+    pub(crate) fn get_file(&self, path: &str) -> anyhow::Result<File> {
+        let permission = self.permissions.get_permission(path);
+        let hdf5_file = self.root.get_file(path.into())?;
+        let file = File::open(hdf5_file, permission);
+        Ok(file)
+    }
+
+    /// Create a new file
+    #[allow(dead_code)]
+    pub(crate) fn create_file(&self, path: &str) -> anyhow::Result<File> {
+        let permission = self.permissions.get_permission(path);
+        anyhow::ensure!(
+            permission == PermissionLevel::ReadAndWrite,
+            ReadOnlyPermissionError
+        );
+        let hdf5_file = self.root.create_file(path.into())?;
+        let file = File::open(hdf5_file, PermissionLevel::ReadAndWrite);
+        Ok(file)
+    }
+
+    /// Remove a file.
+    #[allow(dead_code)]
+    pub(crate) fn remove_file(&self, path: &str) -> anyhow::Result<()> {
+        let permission = self.permissions.get_permission(path);
+        anyhow::ensure!(
+            permission == PermissionLevel::ReadAndWrite,
+            ReadOnlyPermissionError
+        );
+        self.root.remove_file(path.into())?;
         Ok(())
     }
 }
