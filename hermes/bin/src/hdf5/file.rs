@@ -165,6 +165,8 @@ mod tests {
         let file = File::create(&group, file_name).expect("Failed to create a new file.");
         assert!(group.dataset(file_name).is_ok());
 
+        assert_eq!(file.name(), file_name.to_string());
+
         std_io_read_write_seek_test(file);
     }
 }

@@ -17,34 +17,35 @@ pub(crate) mod tests {
     pub(crate) fn std_io_read_write_seek_test(
         mut obj: impl std::io::Read + std::io::Write + std::io::Seek,
     ) {
-        let content = b"content";
-        let written = obj.write(content).unwrap();
-        assert_eq!(written, content.len());
-        let written = obj.write(content).unwrap();
-        assert_eq!(written, content.len());
+        const CONTENT: &[u8] = b"content";
+        const NEW_CONTENT: &[u8] = b"new_content";
+
+        let written = obj.write(CONTENT).unwrap();
+        assert_eq!(written, CONTENT.len());
+        let written = obj.write(CONTENT).unwrap();
+        assert_eq!(written, CONTENT.len());
 
         obj.seek(std::io::SeekFrom::Start(0))
             .expect("Failed to seek.");
-        let mut buffer = [0; 12];
-        assert_eq!(buffer.len(), content.len());
+        let mut buffer = [0; CONTENT.len()];
+        assert_eq!(buffer.len(), CONTENT.len());
         let read = obj.read(&mut buffer).unwrap();
-        assert_eq!(read, content.len());
-        assert_eq!(buffer.as_slice(), content.as_slice());
+        assert_eq!(read, CONTENT.len());
+        assert_eq!(buffer.as_slice(), CONTENT);
         let read = obj.read(&mut buffer).unwrap();
-        assert_eq!(read, content.len());
-        assert_eq!(buffer.as_slice(), content.as_slice());
+        assert_eq!(read, CONTENT.len());
+        assert_eq!(buffer.as_slice(), CONTENT);
 
         obj.seek(std::io::SeekFrom::Start(0)).unwrap();
-        let new_file_content = b"new_content";
-        let written = obj.write(new_file_content).unwrap();
-        assert_eq!(written, new_file_content.len());
+        let written = obj.write(NEW_CONTENT).unwrap();
+        assert_eq!(written, NEW_CONTENT.len());
 
         obj.seek(std::io::SeekFrom::Start(0)).unwrap();
-        let mut buffer = [0; 16];
-        assert_eq!(buffer.len(), new_file_content.len());
+        let mut buffer = [0; NEW_CONTENT.len()];
+        assert_eq!(buffer.len(), NEW_CONTENT.len());
         let read = obj.read(&mut buffer).unwrap();
-        assert_eq!(read, new_file_content.len());
-        assert_eq!(buffer.as_slice(), new_file_content.as_slice());
+        assert_eq!(read, NEW_CONTENT.len());
+        assert_eq!(buffer.as_slice(), NEW_CONTENT);
     }
 
     #[test]

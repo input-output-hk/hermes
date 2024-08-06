@@ -1,12 +1,15 @@
-//! Hermes virtual file system file object.
+//! Hermes virtual file system file object implementation.
 
-#![allow(dead_code, missing_docs, clippy::missing_docs_in_private_items)]
+#![allow(dead_code)]
 
 use super::PermissionLevel;
 use crate::hdf5 as hermes_hdf5;
 
+/// Hermes virtual file system file struct.
 pub(crate) struct File {
+    /// HDF5 file.
     file: hermes_hdf5::File,
+    /// File permission level.
     permission: PermissionLevel,
 }
 
@@ -91,6 +94,8 @@ mod tests {
         let file_name = "test.txt";
         let hdf5_file = hermes_hdf5::File::create(&group, file_name).unwrap();
         let file = File::new(hdf5_file, PermissionLevel::ReadAndWrite);
+
+        assert_eq!(file.name(), file_name.to_string());
 
         std_io_read_write_seek_test(file);
     }
