@@ -93,7 +93,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
-        get_state().delete_resource(self.app_name().clone(), res);
+        get_state().delete_resource(self.app_name().clone(), res)?;
         Ok(())
     }
 }

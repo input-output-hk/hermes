@@ -60,15 +60,24 @@ where WitType: 'static
         self.state
             .get(&resource.rep())
             .map(|r| r.value().clone())
-            .ok_or(wasmtime::Error::msg("Resource not found"))
+            .ok_or(wasmtime::Error::msg(
+                "Cannot get resource object, not found",
+            ))
     }
 
     /// Removes the resource from the resource manager.
     /// Similar to the `drop` function, resource is releasing and consumed by this
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
-    pub(crate) fn delete_resource(&self, resource: wasmtime::component::Resource<WitType>) {
-        self.state.remove(&resource.rep());
+    pub(crate) fn delete_resource(
+        &self, resource: wasmtime::component::Resource<WitType>,
+    ) -> anyhow::Result<RustType> {
+        self.state
+            .remove(&resource.rep())
+            .map(|(_, v)| v)
+            .ok_or(wasmtime::Error::msg(
+                "Cannot delete resource object, not found",
+            ))
     }
 }
 
@@ -97,7 +106,11 @@ where WitType: 'static
     pub(crate) fn create_resource(
         &self, app_name: ApplicationName, object: RustType,
     ) -> wasmtime::component::Resource<WitType> {
-        let app_state = self.state.entry(app_name).or_insert(ResourceManager::new());
+        let app_state = self
+            .state
+            .entry(app_name)
+            .or_insert(ResourceManager::new())
+            .downgrade();
         app_state.create_resource(object)
     }
 
@@ -107,7 +120,11 @@ where WitType: 'static
         &self, app_name: ApplicationName, resource: &wasmtime::component::Resource<WitType>,
     ) -> wasmtime::Result<RustType>
     where RustType: Clone {
-        let app_state = self.state.entry(app_name).or_insert(ResourceManager::new());
+        let app_state = self
+            .state
+            .entry(app_name)
+            .or_insert(ResourceManager::new())
+            .downgrade();
         app_state.get_object(resource)
     }
 
@@ -116,8 +133,12 @@ where WitType: 'static
     /// function, thats why it is passed by value.
     pub(crate) fn delete_resource(
         &self, app_name: ApplicationName, resource: wasmtime::component::Resource<WitType>,
-    ) {
-        let app_state = self.state.entry(app_name).or_insert(ResourceManager::new());
-        app_state.delete_resource(resource);
+    ) -> anyhow::Result<RustType> {
+        let app_state = self
+            .state
+            .entry(app_name)
+            .or_insert(ResourceManager::new())
+            .downgrade();
+        app_state.delete_resource(resource)
     }
 }

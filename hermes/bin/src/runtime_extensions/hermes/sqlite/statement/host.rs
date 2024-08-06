@@ -1,6 +1,6 @@
 //! `SQLite` statement host implementation for WASM runtime.
 
-use super::{super::state, core};
+use super::{super::state::get_statement_state, core};
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{Errno, HostStatement, Statement, Value},
@@ -16,13 +16,8 @@ impl HostStatement for HermesRuntimeContext {
     fn bind(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32, value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_stmt_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `bind`"))?;
-
+        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-
         Ok(core::bind(stmt_ptr as *mut _, index, value))
     }
 
@@ -33,11 +28,7 @@ impl HostStatement for HermesRuntimeContext {
     fn step(
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_stmt_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `step`"))?;
-
+        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
         Ok(core::step(stmt_ptr as *mut _))
     }
 
@@ -57,13 +48,8 @@ impl HostStatement for HermesRuntimeContext {
     fn column(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        let stmt_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_stmt_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `column`"))?;
-
+        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-
         Ok(core::column(stmt_ptr as *mut _, index))
     }
 
@@ -80,20 +66,15 @@ impl HostStatement for HermesRuntimeContext {
     fn finalize(
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_stmt_state()
-            .delete_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `finalize`"))?;
+        let stmt_ptr = get_statement_state().delete_resource(self.app_name().clone(), resource)?;
 
         Ok(core::finalize(stmt_ptr as *mut _))
     }
 
     fn drop(&mut self, resource: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
-        let stmt_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_stmt_state()
-            .delete_object_by_id(resource.rep());
-
-        if let Some(stmt_ptr) = stmt_ptr {
+        if let Ok(stmt_ptr) =
+            get_statement_state().delete_resource(self.app_name().clone(), resource)
+        {
             let _ = core::finalize(stmt_ptr as *mut _);
         }
 

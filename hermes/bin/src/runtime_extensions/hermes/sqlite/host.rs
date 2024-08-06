@@ -1,6 +1,6 @@
 //! `SQLite` host implementation for WASM runtime.
 
-use super::{core, state};
+use super::{core, state::get_db_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
@@ -24,14 +24,9 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
-                let db_id = state::InternalState::get_or_create_resource(self.app_name().clone())
-                    .get_db_state()
-                    .add_object(db_ptr as _)
-                    .ok_or_else(|| {
-                        wasmtime::Error::msg("Internal state error while calling `open`")
-                    })?;
+                let db_id = get_db_state().create_resource(self.app_name().clone(), db_ptr as _);
 
-                Ok(Ok(wasmtime::component::Resource::new_own(db_id)))
+                Ok(Ok(db_id))
             },
             Err(err) => Ok(Err(err)),
         }
