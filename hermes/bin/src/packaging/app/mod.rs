@@ -279,7 +279,7 @@ impl ApplicationPackage {
 
         let mut modules = Vec::with_capacity(lib_dirs.len());
         for dir in lib_dirs {
-            let name = dir.path().pop_elem();
+            let name = dir.name();
             let package = ModulePackage::from_package(Package::mount(dir));
 
             let usr_lib_module = usr_lib.get_dir(&name.as_str().into())?;

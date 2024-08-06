@@ -16,14 +16,9 @@ impl Dir {
         Self(group)
     }
 
-    /// Return dir `Path`.
-    pub(crate) fn path(&self) -> Path {
-        Path::from_str(&self.0.name())
-    }
-
     /// Return dir name.
     pub(crate) fn name(&self) -> String {
-        self.path().pop_elem()
+        Path::from_str(&self.0.name()).pop_elem()
     }
 
     /// Mount directory from the another HDF5 package to the provided path.

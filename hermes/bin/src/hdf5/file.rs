@@ -37,14 +37,9 @@ impl File {
         Self { hdf5_ds, pos: 0 }
     }
 
-    /// Return file `Path`.
-    pub(crate) fn path(&self) -> Path {
-        Path::from_str(&self.hdf5_ds.name())
-    }
-
     /// Return file name.
     pub(crate) fn name(&self) -> String {
-        self.path().pop_elem()
+        Path::from_str(&self.hdf5_ds.name()).pop_elem()
     }
 
     /// Return file size.
