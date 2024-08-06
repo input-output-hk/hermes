@@ -10,8 +10,42 @@ pub(crate) fn parse_path(path: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    #[allow(clippy::unwrap_used)]
+    pub(crate) fn std_io_read_write_seek_test(
+        mut obj: impl std::io::Read + std::io::Write + std::io::Seek,
+    ) {
+        let content = b"content";
+        let written = obj.write(content).unwrap();
+        assert_eq!(written, content.len());
+        let written = obj.write(content).unwrap();
+        assert_eq!(written, content.len());
+
+        obj.seek(std::io::SeekFrom::Start(0))
+            .expect("Failed to seek.");
+        let mut buffer = [0; 12];
+        assert_eq!(buffer.len(), content.len());
+        let read = obj.read(&mut buffer).unwrap();
+        assert_eq!(read, content.len());
+        assert_eq!(buffer.as_slice(), content.as_slice());
+        let read = obj.read(&mut buffer).unwrap();
+        assert_eq!(read, content.len());
+        assert_eq!(buffer.as_slice(), content.as_slice());
+
+        obj.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let new_file_content = b"new_content";
+        let written = obj.write(new_file_content).unwrap();
+        assert_eq!(written, new_file_content.len());
+
+        obj.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let mut buffer = [0; 16];
+        assert_eq!(buffer.len(), new_file_content.len());
+        let read = obj.read(&mut buffer).unwrap();
+        assert_eq!(read, new_file_content.len());
+        assert_eq!(buffer.as_slice(), new_file_content.as_slice());
+    }
 
     #[test]
     fn parse_path_test() {

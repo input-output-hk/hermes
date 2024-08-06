@@ -43,7 +43,7 @@ impl File {
     }
 
     /// Return file size.
-    fn size(&self) -> anyhow::Result<usize> {
+    pub(crate) fn size(&self) -> anyhow::Result<usize> {
         let shape = self.hdf5_ds.space()?.shape();
         let size = shape
             .first()
@@ -144,11 +144,10 @@ impl std::io::Seek for File {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Seek, Write};
-
     use temp_dir::TempDir;
 
     use super::*;
+    use crate::utils::tests::std_io_read_write_seek_test;
 
     #[test]
     fn file_test() {
@@ -163,40 +162,9 @@ mod tests {
         let file_name = "test.txt";
 
         assert!(group.dataset(file_name).is_err());
-        let mut file = File::create(&group, file_name).expect("Failed to create a new file.");
+        let file = File::create(&group, file_name).expect("Failed to create a new file.");
         assert!(group.dataset(file_name).is_ok());
 
-        let file_content = b"file_content";
-        let written = file.write(file_content).expect("Failed to write to file.");
-        assert_eq!(written, file_content.len());
-        let written = file.write(file_content).expect("Failed to write to file.");
-        assert_eq!(written, file_content.len());
-
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
-        let mut buffer = [0; 12];
-        assert_eq!(buffer.len(), file_content.len());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
-        assert_eq!(read, file_content.len());
-        assert_eq!(buffer.as_slice(), file_content.as_slice());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
-        assert_eq!(read, file_content.len());
-        assert_eq!(buffer.as_slice(), file_content.as_slice());
-
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
-        let new_file_content = b"new_file_content";
-        let written = file
-            .write(new_file_content)
-            .expect("Failed to write to file.");
-        assert_eq!(written, new_file_content.len());
-
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
-        let mut buffer = [0; 16];
-        assert_eq!(buffer.len(), new_file_content.len());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
-        assert_eq!(read, new_file_content.len());
-        assert_eq!(buffer.as_slice(), new_file_content.as_slice());
+        std_io_read_write_seek_test(file);
     }
 }
