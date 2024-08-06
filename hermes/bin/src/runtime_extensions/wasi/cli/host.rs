@@ -23,7 +23,7 @@ impl cli::environment::Host for HermesRuntimeContext {
     /// in the component model, this import function should return the same
     /// values each time it is called.
     fn get_environment(&mut self) -> wasmtime::Result<Vec<(String, String)>> {
-        todo!()
+        Ok(Vec::new())
     }
 
     /// Get the POSIX-style arguments to the program.

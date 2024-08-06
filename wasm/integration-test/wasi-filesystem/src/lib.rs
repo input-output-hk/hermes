@@ -59,7 +59,16 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
         let test_fns = tests::test_fns();
 
         if let Some((test_name, test_fn)) = test_fns.get(test as usize) {
-            let status = if run { test_fn().is_ok() } else { true };
+            let status = if run {
+                test_fn()
+                    .map_err(|e| {
+                        eprintln!("{e:?}");
+                        e
+                    })
+                    .is_ok()
+            } else {
+                true
+            };
 
             Some(TestResult {
                 name: test_name.to_string(),

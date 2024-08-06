@@ -1,11 +1,12 @@
 use anyhow::Result;
 use std::io::{Read as _, Seek, Write};
 
-pub type TestCases = [(&'static str, fn() -> Result<()>); 5];
+pub type TestCases = [(&'static str, fn() -> Result<()>); 6];
 
 pub const fn test_fns() -> TestCases {
     [
         ("Write, seek then read", test_write_seek_and_read),
+        ("Append", test_append),
         ("Create then delete", test_create_and_delete),
         ("Seek", test_seek),
         ("Create exclusive flags", test_create_exclusive_flags),
@@ -27,6 +28,26 @@ fn test_write_seek_and_read() -> Result<()> {
 
     if bs.as_slice() != contents {
         anyhow::bail!("Unexpected file contents");
+    }
+
+    Ok(())
+}
+
+fn test_append() -> Result<()> {
+    let test_file_path = "test6.txt";
+    let contents = b"test";
+    let append = b"case";
+    let expected = b"testcase";
+
+    std::fs::write(test_file_path, contents)?;
+
+    std::fs::File::options()
+        .append(true)
+        .open(test_file_path)?
+        .write_all(append)?;
+
+    if std::fs::read(test_file_path)? != expected {
+        anyhow::bail!("Failed to append to file");
     }
 
     Ok(())

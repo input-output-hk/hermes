@@ -8,7 +8,10 @@ use crate::{
         bindings::wasi::io::streams::{
             Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
         },
-        wasi::descriptors::{Descriptor, NUL_REP, STDERR_REP, STDOUT_REP},
+        wasi::{
+            descriptors::{Descriptor, NUL_REP, STDERR_REP, STDOUT_REP},
+            state::STATE,
+        },
     },
 };
 
@@ -50,12 +53,18 @@ impl HostInputStream for HermesRuntimeContext {
             return Ok(Ok(Vec::new()));
         }
 
-        let seek_start = match self.wasi_context_mut().input_stream_mut(resource.rep()) {
+        let seek_start = match STATE
+            .get_mut(self.app_name())
+            .input_stream_mut(resource.rep())
+        {
             Some(input_stream) => input_stream.at(),
             None => return Ok(Err(StreamError::Closed)),
         };
 
-        let buf = match self.wasi_context_mut().descriptor_mut(resource.rep()) {
+        let buf = match STATE
+            .get_mut(self.app_name())
+            .descriptor_mut(resource.rep())
+        {
             Some(fd) => {
                 match fd {
                     Descriptor::File(f) => {
@@ -95,7 +104,10 @@ impl HostInputStream for HermesRuntimeContext {
             },
         };
 
-        match self.wasi_context_mut().input_stream_mut(resource.rep()) {
+        match STATE
+            .get_mut(self.app_name())
+            .input_stream_mut(resource.rep())
+        {
             Some(input_stream) => input_stream.advance(buf.len() as u64),
             None => return Ok(Err(StreamError::Closed)),
         }
@@ -127,7 +139,9 @@ impl HostInputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        self.wasi_context_mut().remove_input_stream(rep.rep());
+        STATE
+            .get_mut(self.app_name())
+            .remove_input_stream(rep.rep());
         Ok(())
     }
 }
@@ -218,12 +232,12 @@ impl HostOutputStream for HermesRuntimeContext {
             _ => {},
         }
 
-        let seek_start = match self.wasi_context_mut().output_stream_mut(rep.rep()) {
+        let seek_start = match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
             Some(output_stream) => output_stream.at(),
             None => return Ok(Err(StreamError::Closed)),
         };
 
-        match self.wasi_context_mut().descriptor_mut(rep.rep()) {
+        match STATE.get_mut(self.app_name()).descriptor_mut(rep.rep()) {
             Some(fd) => {
                 match fd {
                     // TODO: I believe it's better to return a LastOperationFailed error if
@@ -247,7 +261,7 @@ impl HostOutputStream for HermesRuntimeContext {
             None => return Ok(Err(StreamError::Closed)),
         };
 
-        match self.wasi_context_mut().output_stream_mut(rep.rep()) {
+        match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
             Some(output_stream) => {
                 match contents.len().try_into() {
                     Ok(len) => output_stream.advance(len),
@@ -359,7 +373,9 @@ impl HostOutputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
-        self.wasi_context_mut().remove_output_stream(rep.rep());
+        STATE
+            .get_mut(self.app_name())
+            .remove_output_stream(rep.rep());
         Ok(())
     }
 }

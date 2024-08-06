@@ -16,7 +16,7 @@ pub(crate) enum Error {
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Contains all data needed to execute the WASI APIs.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct WasiContext {
     /// Descriptors currently opened in this context.
     descriptors: HashMap<u32, Descriptor>,
@@ -29,16 +29,6 @@ pub(crate) struct WasiContext {
 }
 
 impl WasiContext {
-    /// Creates a new empty WASI context.
-    pub fn new() -> Self {
-        Self {
-            descriptors: HashMap::new(),
-            input_streams: HashMap::new(),
-            output_streams: HashMap::new(),
-            preopens: Vec::new(),
-        }
-    }
-
     /// Stores a new [`Descriptor`] in this WASI context.
     ///
     /// Returns the identifier used to reference the descriptor.

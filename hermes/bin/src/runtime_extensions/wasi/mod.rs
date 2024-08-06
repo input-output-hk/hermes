@@ -8,6 +8,7 @@ pub(crate) mod filesystem;
 pub(crate) mod http;
 pub(crate) mod io;
 pub(crate) mod random;
+mod state;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
