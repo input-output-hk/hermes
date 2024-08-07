@@ -40,7 +40,7 @@ use crate::{
 ///
 /// The IPFS Node is initialized in a separate thread and the sender channel is stored in
 /// the `HermesIpfsNode`.
-static HERMES_IPFS: Lazy<HermesIpfsNode> = Lazy::new(|| {
+pub(crate) static HERMES_IPFS: Lazy<HermesIpfsNode> = Lazy::new(|| {
     let hermes_home_dir = crate::cli::Cli::hermes_home().unwrap_or_else(|err| {
         tracing::error!("Failed to get Hermes home directory: {}", err);
         ".hermes".into()
@@ -126,7 +126,7 @@ impl HermesIpfsNode {
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FileGetError`: Failed to get the file
-    fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
+    pub(crate) fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
