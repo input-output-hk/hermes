@@ -124,13 +124,10 @@ reqwest = { version = "0.12.5, >=0.0.0", default-features = false, features = [
     "hickory-dns",
     "macos-system-configuration",
 ] }
-mithril-client = { git = "https://github.com/input-output-hk/mithril.git", rev = "5ae2a7c7b0e977627edead521807b374d869ed84", version = "0.8.4", default-features = false, features = [
+mithril-client = { git = "https://github.com/input-output-hk/catalyst-mithril.git", branch = "fix/lgpl-licence", default-features = false, features = [
     "full",
+    "num-integer-backend"
 ] }
-# This crate pulls in the LGPL-3.0+ Rug Library.  If this is a problem we need to modify it upstream to allow selection of numeric backend.
-#mithril-stm = { git = "https://github.com/input-output-hk/mithril.git", rev = "5ae2a7c7b0e977627edead521807b374d869ed84", version = ">=0.0.0, 0.3.22", default-features = false, features = [
-#    "num-integer-backend",
-#] }
 mimalloc = "0.1.43"
 bytes = "1.6.0"
 tar = "0.4.41"
