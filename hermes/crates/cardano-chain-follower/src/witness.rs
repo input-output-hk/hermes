@@ -1,9 +1,10 @@
 //! Transaction Witness
 use std::fmt::{Display, Formatter};
 
-use blake2b_simd::{self, Params};
 use dashmap::DashMap;
 use pallas::{codec::utils::Bytes, ledger::traverse::MultiEraTx};
+
+use crate::utility::blake2b_244;
 
 /// `WitnessMap` type of `DashMap` with
 /// key as [u8; 28] = (`blake2b_244` hash of the public key)
@@ -92,14 +93,6 @@ impl Display for TxWitness {
         }
         Ok(())
     }
-}
-
-/// Convert the given value to `blake2b_244` array.
-pub(crate) fn blake2b_244(value: &[u8]) -> anyhow::Result<[u8; 28]> {
-    let h = Params::new().hash_length(28).hash(value);
-    let b = h.as_bytes();
-    b.try_into()
-        .map_err(|_| anyhow::anyhow!("Invalid length of blake2b_244, expected 28 got {}", b.len()))
 }
 
 #[cfg(test)]

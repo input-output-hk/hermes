@@ -20,6 +20,7 @@ mod network;
 mod point;
 mod snapshot_id;
 mod stats;
+mod utility;
 mod witness;
 
 pub use chain_sync_config::ChainSyncConfig;

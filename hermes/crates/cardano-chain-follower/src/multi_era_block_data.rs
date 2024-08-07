@@ -9,6 +9,7 @@ use crate::{
     error::Error,
     point::{ORIGIN_POINT, UNKNOWN_POINT},
     stats::stats_invalid_block,
+    witness::TxWitness,
     Network, Point,
 };
 
@@ -41,6 +42,9 @@ pub struct MultiEraBlockInner {
     previous: Point,
     /// The decoded multi-era block.
     data: SelfReferencedMultiEraBlock,
+    /// A map of public key hashes to the public key and transaction numbers they are in.
+    #[allow(dead_code)]
+    witness_map: Option<TxWitness>,
 }
 
 /// Multi-era block.
@@ -85,6 +89,8 @@ impl MultiEraBlock {
         };
         let self_ref_block = builder.try_build()?;
         let decoded_block = self_ref_block.borrow_block();
+
+        let witness_map = TxWitness::new(&decoded_block.txs()).ok();
 
         let slot = decoded_block.slot();
 
@@ -132,6 +138,7 @@ impl MultiEraBlock {
                 point,
                 previous: previous.clone(),
                 data: self_ref_block,
+                witness_map,
             }),
         })
     }
@@ -199,6 +206,12 @@ impl MultiEraBlock {
     #[must_use]
     pub fn chain(&self) -> Network {
         self.inner.chain
+    }
+
+    /// Returns the witness map for the block.
+    #[allow(dead_code)]
+    pub(crate) fn witness_map(&self) -> Option<&TxWitness> {
+        self.inner.witness_map.as_ref()
     }
 }
 
@@ -315,7 +328,7 @@ pub(crate) mod tests {
             .expect("Failed to decode hex block.")
     }
 
-    /// Allegra Test Block data
+    /// Alonzo Test Block data
     pub(crate) fn alonzo_block() -> Vec<u8> {
         hex::decode(include_str!("./../test_data/allegra.block"))
             .expect("Failed to decode hex block.")
