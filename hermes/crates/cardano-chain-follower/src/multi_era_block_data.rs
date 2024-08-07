@@ -334,6 +334,12 @@ pub(crate) mod tests {
             .expect("Failed to decode hex block.")
     }
 
+    /// Babbage Test Block data
+    pub(crate) fn babbage_block() -> Vec<u8> {
+        hex::decode(include_str!("./../test_data/babbage.block"))
+            .expect("Failed to decode hex block.")
+    }
+
     /// An array of test blocks
     fn test_blocks() -> Vec<TestRecord> {
         vec![

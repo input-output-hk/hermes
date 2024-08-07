@@ -99,22 +99,36 @@ impl Display for TxWitness {
 mod tests {
 
     use super::*;
-    use crate::multi_era_block_data::tests::alonzo_block;
+    use crate::multi_era_block_data::tests::{alonzo_block, babbage_block};
 
     #[test]
     fn tx_witness() {
         let alonzo = alonzo_block();
         let alonzo_block = pallas::ledger::traverse::MultiEraBlock::decode(&alonzo)
-            .expect("Fail to decode MultiEraBlock");
-        let txs = alonzo_block.txs();
-        let tx_witness = TxWitness::new(&txs).expect("Fail to create TxWitness");
+            .expect("Failed to decode MultiEraBlock");
+        let txs_alonzo = alonzo_block.txs();
+        let tx_witness_alonzo = TxWitness::new(&txs_alonzo).expect("Failed to create TxWitness");
         let vkey1: [u8; 28] =
             hex::decode("6082eb618d161a704207a0b3a9609e820111570d94d1e711b005386c")
                 .expect("Fail to decode vkey1")
                 .try_into()
                 .expect("Invalid length of vkey1");
-        println!("{tx_witness}");
-        assert!(tx_witness.get_witness_addr(&vkey1).is_some());
-        assert!(tx_witness.check_witness_in_tx(&vkey1, 0));
+        println!("{tx_witness_alonzo}");
+        assert!(tx_witness_alonzo.get_witness_addr(&vkey1).is_some());
+        assert!(tx_witness_alonzo.check_witness_in_tx(&vkey1, 0));
+
+        let babbage = babbage_block();
+        let babbage_block = pallas::ledger::traverse::MultiEraBlock::decode(&babbage)
+            .expect("Failed to decode MultiEraBlock");
+        let txs_babbage = babbage_block.txs();
+        let tx_witness_babbage = TxWitness::new(&txs_babbage).expect("Failed to create TxWitness");
+        let vkey2: [u8; 28] =
+            hex::decode("52e63f22c5107ed776b70f7b92248b02552fd08f3e747bc745099441")
+                .expect("Fail to decode vkey2")
+                .try_into()
+                .expect("Invalid length of vkey2");
+        println!("{tx_witness_babbage}");
+        assert!(tx_witness_babbage.get_witness_addr(&vkey2).is_some());
+        assert!(tx_witness_babbage.check_witness_in_tx(&vkey2, 0));
     }
 }
