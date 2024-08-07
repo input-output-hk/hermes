@@ -96,6 +96,16 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
+# test-download-chain - Test on downloading a mithril snapshot from the preprod chain without syncing.
+test-download-mithril-snapshot:
+    FROM +builder
+
+    RUN apk add --no-cache m4
+
+    # RUN RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
+    #     cargo run -r --package cardano-chain-follower --example follow_chains --features mimalloc -- \
+    #     --preprod --stop-at-tip --halt-on-error \
+    #     && echo "Mithril Snapshot download succeeded."
 
 # all-hosts-build : Test which runs check with all supported host tooling.  
 # Needs qemu or rosetta to run.
