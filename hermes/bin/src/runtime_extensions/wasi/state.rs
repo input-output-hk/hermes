@@ -7,10 +7,10 @@ use dashmap::{
 use once_cell::sync::Lazy;
 
 use super::context::WasiContext;
-use crate::app::HermesAppName;
+use crate::app::ApplicationName;
 
 /// Holds WASI context for each application.
-pub(super) struct State(DashMap<HermesAppName, WasiContext>);
+pub(super) struct State(DashMap<ApplicationName, WasiContext>);
 
 impl State {
     /// Creates a new state.
@@ -21,7 +21,9 @@ impl State {
     /// Returns a mutable reference to the context of the given application.
     ///
     /// Creates a default one if it doesn't exist.
-    pub(super) fn get_mut(&self, app_name: &HermesAppName) -> RefMut<HermesAppName, WasiContext> {
+    pub(super) fn get_mut(
+        &self, app_name: &ApplicationName,
+    ) -> RefMut<ApplicationName, WasiContext> {
         if let Some(r) = self.0.get_mut(app_name) {
             r
         } else {
@@ -32,7 +34,7 @@ impl State {
     /// Returns a reference to the context of the given application.
     ///
     /// Creates a default one if it doesn't exist.
-    pub(super) fn get(&self, app_name: &HermesAppName) -> Ref<HermesAppName, WasiContext> {
+    pub(super) fn get(&self, app_name: &ApplicationName) -> Ref<ApplicationName, WasiContext> {
         if let Some(r) = self.0.get(app_name) {
             r
         } else {
