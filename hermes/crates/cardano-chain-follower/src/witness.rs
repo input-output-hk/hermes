@@ -3,8 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use blake2b_simd::{self, Params};
 use dashmap::DashMap;
-use pallas::codec::utils::Bytes;
-use pallas::ledger::traverse::MultiEraTx;
+use pallas::{codec::utils::Bytes, ledger::traverse::MultiEraTx};
 
 /// `WitnessMap` type of `DashMap` with
 /// key as [u8; 28] = (`blake2b_244` hash of the public key)
