@@ -280,7 +280,7 @@ impl PartialOrd<Point> for MultiEraBlock {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::ops::Add;
 
     use anyhow::Ok;
@@ -316,7 +316,7 @@ mod tests {
     }
 
     /// Allegra Test Block data
-    fn alonzo_block() -> Vec<u8> {
+    pub(crate) fn alonzo_block() -> Vec<u8> {
         hex::decode(include_str!("./../test_data/allegra.block"))
             .expect("Failed to decode hex block.")
     }
