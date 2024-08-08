@@ -159,6 +159,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn check_write(
         &mut self, _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
+        /// The number of bytes permitted for the next call to `write`.
         const PERMITTED_BYTES_TO_WRITE_NUM: u64 = 1024 * 1024;
         Ok(Ok(PERMITTED_BYTES_TO_WRITE_NUM))
     }
