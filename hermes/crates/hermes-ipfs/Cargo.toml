@@ -21,8 +21,7 @@ tokio.workspace = true
 # Dependencies used by examples
 clap = { workspace = true, features = ["derive"] }
 dirs.workspace = true
-tracing-subscriber.workspace = true
+lipsum.workspace = true
+rand.workspace = true
 rustyline-async.workspace = true
-lipsum = "0.9.1"
-ratatui = "0.27.0"
-rand = "0.8.5"
+tracing-subscriber.workspace = true
