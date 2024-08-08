@@ -13,7 +13,7 @@ gen-bindings:
 
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
-# build - builds the IPFS integration test wasm component
+# build - builds the http integration test wasm component
 build:
     DO rust-ci+SETUP
 
