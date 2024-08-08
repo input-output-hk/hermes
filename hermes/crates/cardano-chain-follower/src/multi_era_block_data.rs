@@ -1,4 +1,11 @@
 //! Multi Era CBOR Encoded Block Data
+//! 
+//! Data about how the block/transactions can be encoded is found here:
+//! https://github.com/IntersectMBO/cardano-ledger/blob/78b32d585fd4a0340fb2b184959fb0d46f32c8d2/eras/conway/impl/cddl-files/conway.cddl
+//! 
+//! DO NOT USE the documentation/cddl definitions from the head of this repo because it currently
+//! lacks most of the documentation needed to understand the format and is also incorrectly generated
+//! and contains errors that will be difficult to discern.
 
 use std::{cmp::Ordering, fmt::Display, sync::Arc};
 
