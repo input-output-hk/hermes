@@ -6,17 +6,20 @@ use hermes_ipfs::Cid;
 
 use crate::{ipfs::HERMES_IPFS, runtime_extensions::bindings::hermes::ipfs::api::Errno};
 
-#[allow(dead_code)]
 /// IPFS virtual file.
+#[allow(dead_code)]
 struct IpfsVirtualFile(Cid);
 
 impl Read for IpfsVirtualFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let ipfs = HERMES_IPFS.get().ok_or_else(|| {
+            tracing::error!("IPFS service is uninitialized");
+            Error::from(ErrorKind::Other)
+        })?;
         // Read data from IPFS and store it in `buf`.
         let mut slice = &mut buf[..];
         slice.write_all(
-            HERMES_IPFS
-                .file_get(&self.0.into())
+            ipfs.file_get(&self.0.into())
                 .map_err(|e| {
                     if e == Errno::InvalidCid {
                         Error::from(ErrorKind::NotFound)

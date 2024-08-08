@@ -130,22 +130,26 @@ pub(crate) async fn ipfs_command_handler(
 
 /// Handler function for topic message streams.
 fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Message) {
-    let msg_topic = msg.topic.into_string();
-    let on_topic_event = OnTopicEvent {
-        message: PubsubMessage {
-            topic: msg_topic.clone(),
-            message: msg.data,
-            publisher: msg.source.map(|p| p.to_string()),
-        },
-    };
-    let app_names = HERMES_IPFS.apps.subscribed_apps(&msg_topic);
-    // Dispatch Hermes Event
-    if let Err(err) = send(HermesEvent::new(
-        on_topic_event.clone(),
-        crate::event::TargetApp::List(app_names),
-        crate::event::TargetModule::All,
-    )) {
-        tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+    if let Some(ipfs) = HERMES_IPFS.get() {
+        let msg_topic = msg.topic.into_string();
+        let on_topic_event = OnTopicEvent {
+            message: PubsubMessage {
+                topic: msg_topic.clone(),
+                message: msg.data,
+                publisher: msg.source.map(|p| p.to_string()),
+            },
+        };
+        let app_names = ipfs.apps.subscribed_apps(&msg_topic);
+        // Dispatch Hermes Event
+        if let Err(err) = send(HermesEvent::new(
+            on_topic_event.clone(),
+            crate::event::TargetApp::List(app_names),
+            crate::event::TargetModule::All,
+        )) {
+            tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+        }
+    } else {
+        tracing::error!("failed to send on_topic_event. IPFS is uninitialized");
     }
 }
 

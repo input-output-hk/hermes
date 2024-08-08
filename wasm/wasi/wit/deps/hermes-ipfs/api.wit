@@ -61,6 +61,8 @@ interface api {
         pubsub-publish-error,
         /// Unable to subscribe to IPFS topic.
         pubsub-subscribe-error,
+        /// IPFS service is unavailable.
+        service-unavailable,
     }
 
     /// Puts a DHT key-value into IPFS.

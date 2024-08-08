@@ -13,9 +13,10 @@ pub(crate) fn hermes_ipfs_add_file(
     app_name: &ApplicationName, contents: IpfsFile,
 ) -> Result<IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
-    let ipfs_path = HERMES_IPFS.file_add(contents)?.to_string();
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    let ipfs_path = ipfs.file_add(contents)?.to_string();
     tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
-    HERMES_IPFS.apps.pinned_file(app_name.clone(), &ipfs_path)?;
+    ipfs.apps.pinned_file(app_name.clone(), &ipfs_path)?;
     Ok(ipfs_path)
 }
 
@@ -42,8 +43,9 @@ pub(crate) fn hermes_ipfs_content_validate(
 pub(crate) fn hermes_ipfs_get_file(
     app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<IpfsFile, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
-    let content = HERMES_IPFS.file_get(path)?;
+    let content = ipfs.file_get(path)?;
     tracing::debug!(app_name = %app_name, path = %path, "got IPFS file");
     Ok(content)
 }
@@ -52,10 +54,11 @@ pub(crate) fn hermes_ipfs_get_file(
 pub(crate) fn hermes_ipfs_pin_file(
     app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
-    let status = HERMES_IPFS.file_pin(path)?;
+    let status = ipfs.file_pin(path)?;
     tracing::debug!(app_name = %app_name, path = %path, "pinned IPFS file");
-    HERMES_IPFS.apps.pinned_file(app_name.clone(), path)?;
+    ipfs.apps.pinned_file(app_name.clone(), path)?;
     Ok(status)
 }
 
@@ -63,10 +66,11 @@ pub(crate) fn hermes_ipfs_pin_file(
 pub(crate) fn hermes_ipfs_unpin_file(
     app_name: &ApplicationName, path: &IpfsPath,
 ) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "un-pin IPFS file");
-    let status = HERMES_IPFS.file_unpin(path)?;
+    let status = ipfs.file_unpin(path)?;
     tracing::debug!(app_name = %app_name, path = %path, "un-pinned IPFS file");
-    HERMES_IPFS.apps.unpinned_file(app_name, path)?;
+    ipfs.apps.unpinned_file(app_name, path)?;
     Ok(status)
 }
 
@@ -74,9 +78,10 @@ pub(crate) fn hermes_ipfs_unpin_file(
 pub(crate) fn hermes_ipfs_get_dht_value(
     app_name: &ApplicationName, key: DhtKey,
 ) -> Result<DhtValue, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let key_str = format!("{key:x?}");
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "get DHT value");
-    let value = HERMES_IPFS.dht_get(key)?;
+    let value = ipfs.dht_get(key)?;
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "got DHT value");
     Ok(value)
 }
@@ -85,11 +90,12 @@ pub(crate) fn hermes_ipfs_get_dht_value(
 pub(crate) fn hermes_ipfs_put_dht_value(
     app_name: &ApplicationName, key: DhtKey, value: DhtValue,
 ) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let key_str = format!("{key:x?}");
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "putting DHT value");
-    let status = HERMES_IPFS.dht_put(key.clone(), value)?;
+    let status = ipfs.dht_put(key.clone(), value)?;
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "have put DHT value");
-    HERMES_IPFS.apps.added_dht_key(app_name.clone(), key);
+    ipfs.apps.added_dht_key(app_name.clone(), key);
     Ok(status)
 }
 
@@ -97,16 +103,16 @@ pub(crate) fn hermes_ipfs_put_dht_value(
 pub(crate) fn hermes_ipfs_subscribe(
     app_name: &ApplicationName, topic: PubsubTopic,
 ) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    if HERMES_IPFS.apps.topic_subscriptions_contains(&topic) {
+    if ipfs.apps.topic_subscriptions_contains(&topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = HERMES_IPFS.pubsub_subscribe(&topic)?;
-        HERMES_IPFS.apps.added_topic_stream(topic.clone(), handle);
+        let handle = ipfs.pubsub_subscribe(&topic)?;
+        ipfs.apps.added_topic_stream(topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
-    HERMES_IPFS
-        .apps
+    ipfs.apps
         .added_app_topic_subscription(app_name.clone(), topic);
     Ok(true)
 }
@@ -115,8 +121,8 @@ pub(crate) fn hermes_ipfs_subscribe(
 pub(crate) fn hermes_ipfs_publish(
     _app_name: &ApplicationName, topic: &PubsubTopic, message: MessageData,
 ) -> Result<MessageId, Errno> {
-    HERMES_IPFS
-        .pubsub_publish(topic.to_string(), message)
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    ipfs.pubsub_publish(topic.to_string(), message)
         .map(|m| m.0 .0)
 }
 
@@ -124,15 +130,17 @@ pub(crate) fn hermes_ipfs_publish(
 pub(crate) fn hermes_ipfs_evict_peer(
     app_name: &ApplicationName, peer: PeerId,
 ) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicting peer");
-    let status = HERMES_IPFS.peer_evict(&peer.to_string())?;
+    let status = ipfs.peer_evict(&peer.to_string())?;
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicted peer");
-    HERMES_IPFS.apps.evicted_peer(app_name.clone(), peer);
+    ipfs.apps.evicted_peer(app_name.clone(), peer);
     Ok(status)
 }
 
 #[allow(dead_code)]
 /// List pinned files
-pub(crate) fn hermes_ipfs_ls(app_name: &ApplicationName) -> Vec<String> {
-    HERMES_IPFS.apps.list_pinned_files(app_name)
+pub(crate) fn hermes_ipfs_ls(app_name: &ApplicationName) -> Result<Vec<String>, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    Ok(ipfs.apps.list_pinned_files(app_name))
 }

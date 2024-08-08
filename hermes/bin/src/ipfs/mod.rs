@@ -2,7 +2,7 @@
 mod api;
 mod task;
 
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, path::Path, str::FromStr};
 
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
@@ -14,7 +14,7 @@ use hermes_ipfs::{
     AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
     MessageId as PubsubMessageId,
 };
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use task::{ipfs_command_handler, IpfsCommand};
 use tokio::{
     runtime::Builder,
@@ -40,24 +40,23 @@ use crate::{
 ///
 /// The IPFS Node is initialized in a separate thread and the sender channel is stored in
 /// the `HermesIpfsNode`.
-pub(crate) static HERMES_IPFS: Lazy<HermesIpfsNode> = Lazy::new(|| {
-    let hermes_home_dir = crate::cli::Cli::hermes_home().unwrap_or_else(|err| {
-        tracing::error!("Failed to get Hermes home directory: {}", err);
-        ".hermes".into()
-    });
-    let ipfs_data_path = hermes_home_dir.as_path().join("ipfs");
-    HermesIpfsNode::bootstrap(
+pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
+
+/// Bootstrap `HERMES_IPFS` node.
+pub(crate) fn bootstrap_ipfs(base_dir: &Path) -> anyhow::Result<()> {
+    let ipfs_data_path = base_dir.join("ipfs");
+    let ipfs_node = HermesIpfsNode::init(
         IpfsBuilder::new()
             .with_default()
             .set_default_listener()
             .disable_tls()
             .set_disk_storage(ipfs_data_path.clone()),
-    )
-    .unwrap_or_else(|err| {
-        tracing::error!("Failed to bootstrap IPFS node: {}", err);
-        HermesIpfsNode::default()
-    })
-});
+    )?;
+    HERMES_IPFS
+        .set(ipfs_node)
+        .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
+    Ok(())
+}
 
 /// Hermes IPFS Internal Node
 pub(crate) struct HermesIpfsNode {
@@ -68,24 +67,28 @@ pub(crate) struct HermesIpfsNode {
 }
 
 impl HermesIpfsNode {
-    /// Create and bootstrap a new `HermesIpfsNode`
-    pub(crate) fn bootstrap(builder: IpfsBuilder) -> anyhow::Result<Self> {
+    /// Create, initialize, and bootstrap a new `HermesIpfsNode`
+    pub(crate) fn init(builder: IpfsBuilder) -> anyhow::Result<Self> {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
         let _handle = std::thread::spawn(move || {
-            drop(runtime.block_on(async move {
-                // Build and start IPFS node
+            // Build and start IPFS node
+            let _unused = runtime.block_on(async move {
                 let node = builder.start().await?;
-                // Bootstrap the node with default addresses
-                let addrs = node.default_bootstrap().await?;
+                // Add default addresses for bootstrapping
+                let addresses = node.default_bootstrap().await?;
+                // Connect to bootstrap nodes.
                 node.bootstrap().await?;
-                tracing::debug!("Bootstrapped IPFS node with default addresses: {:?}", addrs);
+                tracing::debug!(
+                    "Bootstrapped IPFS node with default addresses: {:?}",
+                    addresses
+                );
                 let hermes_node: HermesIpfs = node.into();
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
-                drop(tokio::join!(h));
+                let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
-            }));
+            });
             std::process::exit(0);
         });
         Ok(Self {
