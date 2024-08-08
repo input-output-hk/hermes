@@ -9,8 +9,9 @@ use derive_more::{Display, From, Into};
 pub use libipld::Cid;
 /// IPLD
 pub use libipld::Ipld;
-use libp2p::gossipsub::MessageId as PubsubMessageId;
-/// libp2p re-export.
+/// `rust_ipfs` re-export.
+pub use rust_ipfs;
+/// libp2p re-exports.
 pub use rust_ipfs::libp2p::futures::{pin_mut, stream::BoxStream, FutureExt, StreamExt};
 /// Peer Info type.
 pub use rust_ipfs::p2p::PeerInfo;
@@ -24,18 +25,89 @@ pub use rust_ipfs::Ipfs;
 pub use rust_ipfs::Multiaddr;
 /// Peer ID type.
 pub use rust_ipfs::PeerId;
+/// Storage type for IPFS node.
+pub use rust_ipfs::StorageType;
 /// Stream for `PubSub` Topic Subscriptions.
 pub use rust_ipfs::SubscriptionStream;
 /// Builder type for IPFS Node configuration.
-pub use rust_ipfs::UninitializedIpfsNoop as IpfsBuilder;
-use rust_ipfs::{dag::ResolveError, unixfs::AddOpt, PubsubEvent, Quorum};
+use rust_ipfs::UninitializedIpfsNoop;
+use rust_ipfs::{
+    dag::ResolveError,
+    libp2p::gossipsub::{Message as PubsubMessage, MessageId as PubsubMessageId},
+    unixfs::AddOpt,
+    PubsubEvent, Quorum,
+};
 
 #[derive(Debug, Display, From, Into)]
 /// `PubSub` Message ID.
 pub struct MessageId(pub PubsubMessageId);
 
-/// Hermes IPFS
-#[allow(dead_code)]
+/// Builder type for IPFS Node configuration.
+pub struct IpfsBuilder(UninitializedIpfsNoop);
+
+impl IpfsBuilder {
+    #[must_use]
+    /// Create a new` IpfsBuilder`.
+    pub fn new() -> Self {
+        Self(UninitializedIpfsNoop::new())
+    }
+
+    #[must_use]
+    /// Set the default configuration for the IPFS node.
+    pub fn with_default(self) -> Self {
+        Self(self.0.with_default())
+    }
+
+    #[must_use]
+    /// Set the default listener for the IPFS node.
+    pub fn set_default_listener(self) -> Self {
+        Self(self.0.set_default_listener())
+    }
+
+    #[must_use]
+    /// Set the storage type for the IPFS node to local disk.
+    ///
+    /// ## Parameters
+    pub fn set_disk_storage<T: Into<std::path::PathBuf>>(self, storage_path: T) -> Self {
+        Self(
+            self.0
+                .set_storage_type(rust_ipfs::StorageType::Disk(storage_path.into())),
+        )
+    }
+
+    #[must_use]
+    /// Set the transport configuration for the IPFS node.
+    pub fn set_transport_configuration(self, transport: rust_ipfs::p2p::TransportConfig) -> Self {
+        Self(self.0.set_transport_configuration(transport))
+    }
+
+    #[must_use]
+    /// Disable TLS for the IPFS node.
+    pub fn disable_tls(self) -> Self {
+        let transport = rust_ipfs::p2p::TransportConfig {
+            enable_quic: false,
+            enable_secure_websocket: false,
+            ..Default::default()
+        };
+        Self(self.0.set_transport_configuration(transport))
+    }
+
+    /// Start the IPFS node.
+    ///
+    /// ## Errors
+    /// Returns an error if the IPFS daemon fails to start.
+    pub async fn start(self) -> anyhow::Result<Ipfs> {
+        self.0.start().await
+    }
+}
+
+impl Default for IpfsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Hermes IPFS Node.
 pub struct HermesIpfs {
     /// IPFS node
     node: Ipfs,
@@ -52,13 +124,13 @@ impl HermesIpfs {
     ///
     /// Returns an error if the IPFS daemon fails to start.
     pub async fn start() -> anyhow::Result<Self> {
-        // TODO(saibatizoku):
         let node: Ipfs = IpfsBuilder::new()
             .with_default()
             .set_default_listener()
+            // TODO(saibatizoku): Re-Enable default transport config when libp2p Cert bug is fixed
+            .disable_tls()
             .start()
             .await?;
-
         Ok(HermesIpfs { node })
     }
 
@@ -85,7 +157,7 @@ impl HermesIpfs {
     ///
     /// ## Parameters
     ///
-    /// * `ipfs_path` - `GetIpfsFile(String)` Path used to get the file from IPFS.
+    /// * `ipfs_path` - `GetIpfsFile(IpfsPath)` Path used to get the file from IPFS.
     ///
     /// ## Returns
     ///
@@ -135,6 +207,25 @@ impl HermesIpfs {
     /// Returns an error if checking pin fails.
     pub async fn is_pinned(&self, cid: &Cid) -> anyhow::Result<bool> {
         self.node.is_pinned(cid).await
+    }
+
+    /// List all pins in the IPFS node.
+    ///
+    /// ## Parameters
+    /// * `cid` - `Option<Cid>` Optional content identifier to list pins.
+    ///  If `None`, lists all pins.
+    ///
+    /// ## Errors
+    /// Returns an error if listing pins fails.
+    pub async fn list_pins(&self) -> anyhow::Result<Vec<Cid>> {
+        // List all kinds of pins by setting `None` as the argument.
+        let pins_stream = self.node.list_pins(None).await;
+        pin_mut!(pins_stream);
+        let mut pins = vec![];
+        while let Some(pinned) = pins_stream.next().await {
+            pins.push(pinned?.0);
+        }
+        Ok(pins)
     }
 
     /// Remove pinned content from IPFS.
@@ -475,6 +566,12 @@ impl From<(Option<String>, Vec<u8>)> for AddIpfsFile {
 /// Path to get the file from IPFS
 pub struct GetIpfsFile(IpfsPath);
 
+impl From<Cid> for GetIpfsFile {
+    fn from(value: Cid) -> Self {
+        GetIpfsFile(value.into())
+    }
+}
+
 impl From<IpfsPath> for GetIpfsFile {
     fn from(value: IpfsPath) -> Self {
         GetIpfsFile(value)
@@ -493,4 +590,16 @@ impl FromStr for GetIpfsFile {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(GetIpfsFile(s.parse()?))
     }
+}
+
+/// Handle stream of messages from the IPFS pubsub topic
+pub fn subscription_stream_task(
+    stream: SubscriptionStream, handler: fn(PubsubMessage),
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        pin_mut!(stream);
+        while let Some(msg) = stream.next().await {
+            handler(msg);
+        }
+    })
 }

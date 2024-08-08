@@ -7,6 +7,7 @@ use console::Emoji;
 
 use crate::{
     cli::Cli,
+    ipfs::bootstrap_ipfs,
     packaging::{
         app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
@@ -41,6 +42,7 @@ impl Run {
         package.validate(self.untrusted)?;
 
         let hermes_home_dir = Cli::hermes_home()?;
+        bootstrap_ipfs(hermes_home_dir.as_path())?;
         let app = build_app(&package, hermes_home_dir)?;
 
         reactor::init()?;
