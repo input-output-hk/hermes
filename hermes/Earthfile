@@ -86,6 +86,7 @@ test-wasm-integration:
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
     RUN cargo test --release --test wasm-component-integration-tests -- --list
