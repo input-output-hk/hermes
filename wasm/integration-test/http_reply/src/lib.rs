@@ -1,4 +1,4 @@
-//! Hermes http module integration test with WASM runtime.
+//! Hermes http reply module integration test with WASM runtime.
 //! Generate `hermes.rs` with `earthly +gen-bindings` before writing the test.
 
 // Allow everything since this is generated code.
