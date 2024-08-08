@@ -14,4 +14,4 @@ bindings.rs
 *.pdb
 
 # Auto-generated while executing the code locally
-bin/hermes_datastore.db
+bin/hermes_datastore.db*
