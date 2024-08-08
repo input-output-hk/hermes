@@ -6,8 +6,8 @@
 mod hermes;
 use hermes::{
     exports::hermes::{
+        http_gateway::event::{Bstr, Headers, HttpResponse},
         integration_test::event::TestResult,
-        http_gateway::event::{Bstr, Headers, HttpResponse}
     },
     hermes::{
         cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
@@ -26,13 +26,15 @@ fn test_file_add_and_get_and_pin(run: bool) -> Option<TestResult> {
         if let Ok(ipfs_path) = ipfs_api::file_add(&IPFS_DEMO_FILE.to_vec()) {
             let contents_match = ipfs_api::file_get(&ipfs_path)
                 .map_or(false, |ipfs_file| ipfs_file == IPFS_DEMO_FILE);
-            let expected_status_is_true = ipfs_api::file_pin(&ipfs_path)
-                .map_or(false, |status| status);
+            let expected_status_is_true =
+                ipfs_api::file_pin(&ipfs_path).map_or(false, |status| status);
             contents_match && expected_status_is_true
         } else {
             false
         }
-    } else { true };
+    } else {
+        true
+    };
 
     Some(TestResult {
         name: "IPFS File Add/Get".to_string(),
@@ -52,7 +54,9 @@ fn test_dht_put_and_get(run: bool) -> Option<TestResult> {
         } else {
             false
         }
-    } else { true };
+    } else {
+        true
+    };
     Some(TestResult {
         name: "IPFS DHT Put/Get".to_string(),
         status,
@@ -213,7 +217,12 @@ impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
-    fn reply(_body: Bstr, _headers: Headers, _path: String, method: String,) -> Option<HttpResponse> {
+    fn reply(
+        _body: Bstr,
+        _headers: Headers,
+        _path: String,
+        method: String,
+    ) -> Option<HttpResponse> {
         None
     }
 }
