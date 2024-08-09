@@ -15,5 +15,5 @@ static STATE: once_cell::sync::Lazy<()> = once_cell::sync::Lazy::new(|| {
 /// New context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {
     // Init state event
-    let _ = STATE;
+    let () = *STATE;
 }
