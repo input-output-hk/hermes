@@ -93,7 +93,7 @@ mod tests {
             host: None,
             path: Some("file.txt".to_string()),
         };
-        let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
+        let resource = ResourceBuilder::from_uri(uri).unwrap();
         assert_eq!(resource, ResourceBuilder::Fs("file.txt".into()));
 
         let uri = Uri {
@@ -101,7 +101,7 @@ mod tests {
             host: None,
             path: Some("file.txt".to_string()),
         };
-        let resource = ResourceBuilder::from_uri(uri).expect("Cannot create resource from uri");
+        let resource = ResourceBuilder::from_uri(uri).unwrap();
         assert_eq!(resource, ResourceBuilder::Fs("file.txt".into()));
 
         let uri = Uri {

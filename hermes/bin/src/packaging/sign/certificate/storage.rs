@@ -49,12 +49,12 @@ mod tests {
 
     #[test]
     fn storage_test() {
-        let cert = Certificate::from_str(&certificate_str()).expect("Cannot create cert");
-        let cert_hash = cert.hash().expect("Failed to get certificate hash.");
+        let cert = Certificate::from_str(&certificate_str()).unwrap();
+        let cert_hash = cert.hash().unwrap();
 
         assert!(get_certificate(&cert_hash).is_none());
 
-        add_certificate(cert).expect("Failed to add certificate.");
+        add_certificate(cert).unwrap();
 
         assert!(get_certificate(&cert_hash).is_some());
     }

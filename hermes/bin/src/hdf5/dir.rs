@@ -212,23 +212,17 @@ mod tests {
 
     #[test]
     fn create_dir_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
         let package_name = tmp_dir.child("test.hdf5");
-        let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
-        let dir = Dir::new(package.as_group().expect("Failed to create a root group."));
+        let package = hdf5::File::create(package_name).unwrap();
+        let dir = Dir::new(package.as_group().unwrap());
 
         let dir_1 = "dir_1";
         let dir_2 = "dir_2";
         let dir_3 = "dir_3";
-        let new_dir = dir
-            .create_dir(dir_1.into())
-            .expect("Failed to create directories in package.");
-        let new_dir = new_dir
-            .create_dir(dir_2.into())
-            .expect("Failed to create directories in package.");
-        new_dir
-            .create_dir(dir_3.into())
-            .expect("Failed to create directories in package.");
+        let new_dir = dir.create_dir(dir_1.into()).unwrap();
+        let new_dir = new_dir.create_dir(dir_2.into()).unwrap();
+        new_dir.create_dir(dir_3.into()).unwrap();
 
         assert!(dir.get_dir(&dir_1.into()).is_ok());
         assert!(dir.get_dir(&format!("{dir_1}/{dir_2}").into()).is_ok());
@@ -242,46 +236,33 @@ mod tests {
 
     #[test]
     fn mount_dir_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
-        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
-            .expect("Failed to create a new package.");
-        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+        let tmp_dir = TempDir::new().unwrap();
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5")).unwrap();
+        let dir1 = Dir::new(package1.as_group().unwrap());
 
-        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
-            .expect("Failed to create a new package.");
-        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5")).unwrap();
+        let dir2 = Dir::new(package2.as_group().unwrap());
 
         let child_dir_name = "child_dir";
         let child_dir_path = Path::from_str(child_dir_name);
 
-        let child_dir = dir2
-            .create_dir(child_dir_path.clone())
-            .expect("Failed to create dir.");
-        child_dir
-            .create_dir(child_dir_path)
-            .expect("Failed to create dir.");
+        let child_dir = dir2.create_dir(child_dir_path.clone()).unwrap();
+        child_dir.create_dir(child_dir_path).unwrap();
 
         let mounted_dir_name = "mounted_dir";
         assert!(dir1.get_dir(&mounted_dir_name.into()).is_err());
-        assert_eq!(
-            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
-            0
-        );
+        assert_eq!(dir1.get_dirs(&"".into()).unwrap().len(), 0);
 
-        dir1.mount_dir(&dir2, mounted_dir_name.into())
-            .expect("Failed to mount dir.");
+        dir1.mount_dir(&dir2, mounted_dir_name.into()).unwrap();
 
         assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
-        assert_eq!(
-            dir1.get_dirs(&"".into()).expect("Failed to get dirs").len(),
-            1
-        );
+        assert_eq!(dir1.get_dirs(&"".into()).unwrap().len(), 1);
         assert!(dir1
             .get_dir(&format!("{mounted_dir_name}/{child_dir_name}").into())
             .is_ok());
         assert_eq!(
             dir1.get_dirs(&format!("{mounted_dir_name}/{child_dir_name}").into())
-                .expect("Failed to get dirs")
+                .unwrap()
                 .len(),
             1
         );
@@ -292,61 +273,48 @@ mod tests {
 
     #[test]
     fn mount_file_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
-        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5"))
-            .expect("Failed to create a new package.");
-        let dir1 = Dir::new(package1.as_group().expect("Failed to create a root group."));
+        let tmp_dir = TempDir::new().unwrap();
+        let package1 = hdf5::File::create(tmp_dir.child("test1.hdf5")).unwrap();
+        let dir1 = Dir::new(package1.as_group().unwrap());
 
-        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5"))
-            .expect("Failed to create a new package.");
-        let dir2 = Dir::new(package2.as_group().expect("Failed to create a root group."));
+        let package2 = hdf5::File::create(tmp_dir.child("test2.hdf5")).unwrap();
+        let dir2 = Dir::new(package2.as_group().unwrap());
 
         let file_name = "file.txt";
         let file_content = b"file_content";
-        let mut file = dir2
-            .create_file(file_name.into())
-            .expect("Failed to create file.");
-        file.write_all(file_content).expect("Failed to write file.");
+        let mut file = dir2.create_file(file_name.into()).unwrap();
+        file.write_all(file_content).unwrap();
 
         assert!(dir1.get_file(file_name.into()).is_err());
-        dir1.mount_file(&file, file_name.into())
-            .expect("Failed to mount file.");
+        dir1.mount_file(&file, file_name.into()).unwrap();
 
-        let mut mounted_file = dir1
-            .get_file(file_name.into())
-            .expect("Failed to get file.");
+        let mut mounted_file = dir1.get_file(file_name.into()).unwrap();
         let mut mounted_file_content = Vec::new();
-        mounted_file
-            .read_to_end(&mut mounted_file_content)
-            .expect("Failed to read file's data.");
+        mounted_file.read_to_end(&mut mounted_file_content).unwrap();
 
         assert_eq!(mounted_file_content, file_content);
     }
 
     #[test]
     fn copy_resource_file() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
         let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
-        let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
-        let dir = Dir::new(package.as_group().expect("Failed to create a root group."));
+        let package = hdf5::File::create(package_name).unwrap();
+        let dir = Dir::new(package.as_group().unwrap());
 
         let file_1_name = "file_1";
         let file_1 = tmp_dir.child(file_1_name);
-        std::fs::write(&file_1, file_content).expect("Failed to create a file.");
+        std::fs::write(&file_1, file_content).unwrap();
 
         dir.copy_resource_file(&FsResource::new(file_1), file_1_name.into())
-            .expect("Failed to copy file to package.");
+            .unwrap();
 
-        let mut file_1 = dir
-            .get_file(file_1_name.into())
-            .expect("Failed to get file.");
+        let mut file_1 = dir.get_file(file_1_name.into()).unwrap();
 
         let mut data = Vec::new();
-        file_1
-            .read_to_end(&mut data)
-            .expect("Failed to read file's data.");
+        file_1.read_to_end(&mut data).unwrap();
         assert_eq!(data.as_slice(), file_content);
 
         // Remove file from package
@@ -360,40 +328,36 @@ mod tests {
 
     #[test]
     fn copy_resource_dir_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
         let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
-        let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
-        let dir = Dir::new(package.as_group().expect("Failed to create a root group."));
+        let package = hdf5::File::create(package_name).unwrap();
+        let dir = Dir::new(package.as_group().unwrap());
 
         let base_dir_name = "base_dir";
         let fs_base_dir = tmp_dir.child(base_dir_name);
-        std::fs::create_dir(&fs_base_dir).expect("Failed to create directory.");
+        std::fs::create_dir(&fs_base_dir).unwrap();
 
         let file_1_name = "file_1";
         let file_1 = fs_base_dir.join(file_1_name);
-        std::fs::write(file_1, file_content).expect("Failed to create file_1 file.");
+        std::fs::write(file_1, file_content).unwrap();
 
         let file_2_name = "file_2";
         let file_2 = fs_base_dir.join(file_2_name);
-        std::fs::write(file_2, file_content).expect("Failed to create file_2 file.");
+        std::fs::write(file_2, file_content).unwrap();
 
         let child_dir_name = "child_dir";
         let fs_child_dir = fs_base_dir.join(child_dir_name);
-        std::fs::create_dir(&fs_child_dir).expect(
-            "Failed to create child_dir
-    directory.",
-        );
+        std::fs::create_dir(&fs_child_dir).unwrap();
 
         let file_3_name = "file_3";
         let file_3 = fs_child_dir.join(file_3_name);
-        std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
+        std::fs::write(file_3, file_content).unwrap();
 
-        dir.create_dir(base_dir_name.into())
-            .expect("Failed to create dir.");
+        dir.create_dir(base_dir_name.into()).unwrap();
         dir.copy_resource_dir(&FsResource::new(fs_base_dir), &base_dir_name.into())
-            .expect("Failed to copy dir to package.");
+            .unwrap();
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
         assert!(dir
@@ -433,7 +397,7 @@ mod tests {
 
     #[test]
     fn copy_dir_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
 
         // prepare fist dir
         let content_name = "file_1";
@@ -441,33 +405,21 @@ mod tests {
         let content = BytesResource::new(content_name.to_string(), content_data);
 
         let package_1_name = tmp_dir.child("test1.hdf5");
-        let package_1 =
-            hdf5::File::create(package_1_name).expect("Failed to create a new package.");
-        let dir_1 = Dir::new(
-            package_1
-                .as_group()
-                .expect("Failed to create a root group."),
-        );
+        let package_1 = hdf5::File::create(package_1_name).unwrap();
+        let dir_1 = Dir::new(package_1.as_group().unwrap());
 
         dir_1
             .copy_resource_file(&content, content_name.into())
-            .expect("Failed to copy file to dir.");
+            .unwrap();
 
         // prepare second dir even from another package
         let package_2_name = tmp_dir.child("test2.hdf5");
-        let package_2 =
-            hdf5::File::create(package_2_name).expect("Failed to create a new package.");
-        let dir_2 = Dir::new(
-            package_2
-                .as_group()
-                .expect("Failed to create a root group."),
-        );
+        let package_2 = hdf5::File::create(package_2_name).unwrap();
+        let dir_2 = Dir::new(package_2.as_group().unwrap());
 
         // copy content from first dir from first package to second dir in second package
         assert!(dir_2.get_file(content_name.into()).is_err());
-        dir_2
-            .copy_dir(&dir_1, &"".into())
-            .expect("Failed to copy package to package.");
+        dir_2.copy_dir(&dir_1, &"".into()).unwrap();
         assert!(dir_2.get_file(content_name.into()).is_ok());
     }
 }

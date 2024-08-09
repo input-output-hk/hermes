@@ -126,41 +126,36 @@ pub(crate) mod tests {
 
     #[test]
     fn private_key_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let private_key_path = dir.path().join("private.pem");
-        std::fs::write(&private_key_path, private_key_str())
-            .expect("Cannot create private.pem file");
+        std::fs::write(&private_key_path, private_key_str()).unwrap();
 
-        let _key =
-            PrivateKey::from_file(private_key_path).expect("Cannot create private key from file");
+        let _key = PrivateKey::from_file(private_key_path).unwrap();
     }
 
     #[test]
     fn public_key_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let public_key_path = dir.path().join("public.pem");
-        std::fs::write(&public_key_path, public_key_str()).expect("Cannot create public.pem file");
+        std::fs::write(&public_key_path, public_key_str()).unwrap();
 
-        let _key =
-            PublicKey::from_file(public_key_path).expect("Cannot create public key from file");
+        let _key = PublicKey::from_file(public_key_path).unwrap();
     }
 
     #[test]
     fn public_private_key_test() {
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let public_key = PublicKey::from_str(&public_key_str()).expect("Cannot create public key");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         assert_eq!(private_key.public_key(), public_key);
     }
 
     #[test]
     fn sign_test() {
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let public_key = PublicKey::from_str(&public_key_str()).expect("Cannot create public key");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         let msg = b"test";
 

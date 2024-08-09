@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn manifest_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
         let dir_path = dir.path();
 
         {
@@ -171,8 +171,8 @@ mod tests {
                     },
                     "share": "share"
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(&path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "module_name".to_string(),
                 metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
@@ -205,8 +205,8 @@ mod tests {
                     },
                     "share": "/share"
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "module".to_string(),
                 metadata: ResourceBuilder::Fs("/metadata.json".into()),
@@ -229,8 +229,8 @@ mod tests {
             let manifest_json_data = serde_json::json!({
                 "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(&path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "module".to_string(),
                 metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),

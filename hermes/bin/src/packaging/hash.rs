@@ -95,7 +95,7 @@ mod tests {
             hex
         );
 
-        let decoded_hash = Blake2b256::from_hex(&hex).expect("Could not decode hash from hex.");
+        let decoded_hash = Blake2b256::from_hex(&hex).unwrap();
         assert_eq!(hash, decoded_hash);
     }
 

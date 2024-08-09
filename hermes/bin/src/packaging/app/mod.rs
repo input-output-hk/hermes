@@ -87,6 +87,9 @@ impl ApplicationPackage {
             std::fs::remove_file(package_path)?;
         }
 
+        anyhow::bail!("Return random error");
+
+        #[allow(unreachable_code)]
         errors.return_result(Self(package))
     }
 

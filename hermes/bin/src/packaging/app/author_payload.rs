@@ -263,15 +263,14 @@ mod tests {
     #[test]
     fn signature_payload_encoding_test() {
         let hash = Blake2b256::hash(b"test");
-        let schema_validator =
-            SchemaValidator::from_str(SIGNATURE_PAYLOAD_SCHEMA).expect("Invalid schema");
+        let schema_validator = SchemaValidator::from_str(SIGNATURE_PAYLOAD_SCHEMA).unwrap();
 
         {
             let payload_builder = SignaturePayloadBuilder::new(hash.clone(), hash.clone());
             let payload = payload_builder.build();
 
             let json = payload.to_json();
-            schema_validator.validate(&json).expect("Invalid JSON");
+            schema_validator.validate(&json).unwrap();
 
             let expected_json = serde_json::json!({
                 "metadata": hash.to_hex(),
@@ -279,7 +278,7 @@ mod tests {
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
+            let payload = SignaturePayload::from_json(json).unwrap();
             assert_eq!(payload, payload);
         }
 
@@ -294,7 +293,7 @@ mod tests {
             let payload = payload_builder.build();
 
             let json = payload.to_json();
-            schema_validator.validate(&json).expect("Invalid JSON");
+            schema_validator.validate(&json).unwrap();
 
             let expected_json = serde_json::json!({
                 "metadata": hash.to_hex(),
@@ -310,7 +309,7 @@ mod tests {
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
+            let payload = SignaturePayload::from_json(json).unwrap();
             assert_eq!(payload, payload);
         }
 
@@ -327,7 +326,7 @@ mod tests {
             let payload = payload_builder.build();
 
             let json = payload.to_json();
-            schema_validator.validate(&json).expect("Invalid JSON");
+            schema_validator.validate(&json).unwrap();
 
             let expected_json = serde_json::json!({
                 "metadata": hash.to_hex(),
@@ -345,7 +344,7 @@ mod tests {
             });
             assert_eq!(json, expected_json);
 
-            let payload = SignaturePayload::from_json(json).expect("Cannot parse JSON");
+            let payload = SignaturePayload::from_json(json).unwrap();
             assert_eq!(payload, payload);
         }
     }

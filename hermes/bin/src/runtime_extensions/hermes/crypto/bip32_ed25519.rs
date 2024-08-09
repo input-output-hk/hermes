@@ -218,8 +218,7 @@ mod tests_bip32_ed25519 {
     #[test]
     fn test_derive_new_private_key() {
         let xprv = XPrv::from_extended_and_chaincode(&XPRV1, &CHAINCODE1);
-        let derived_xprv =
-            derive_new_private_key(xprv, "m/1852'/1815'/0'/2/0").expect("Derivation failed");
+        let derived_xprv = derive_new_private_key(xprv, "m/1852'/1815'/0'/2/0").unwrap();
         assert_eq!(derived_xprv.to_string(), "b8ab42f1aacbcdb3ae858e3a3df88142b3ed27a2d3f432024e0d943fc1e597442d57545d84c8db2820b11509d944093bc605350e60c533b8886a405bd59eed6dcf356648fe9e9219d83e989c8ff5b5b337e2897b6554c1ab4e636de791fe5427");
     }
 }

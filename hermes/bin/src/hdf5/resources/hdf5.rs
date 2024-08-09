@@ -77,68 +77,46 @@ mod tests {
 
     #[test]
     fn hdf5_resource_test() {
-        let dir = TempDir::new().expect("Failed to create temp dir");
-        let package =
-            hdf5::File::create(dir.child("test.hdf5")).expect("Failed to create a hdf5 package");
-        let root_dir = Dir::new(package.as_group().expect("Failed to make a group"));
+        let dir = TempDir::new().unwrap();
+        let package = hdf5::File::create(dir.child("test.hdf5")).unwrap();
+        let root_dir = Dir::new(package.as_group().unwrap());
 
         let dir_1_name = "dir_1";
-        let dir_1 = root_dir
-            .create_dir(dir_1_name.into())
-            .expect("Failed to create a dir");
+        let dir_1 = root_dir.create_dir(dir_1_name.into()).unwrap();
 
         let dir_2_name = "dir_2";
-        let dir_2 = dir_1
-            .create_dir(dir_2_name.into())
-            .expect("Failed to create a dir");
+        let dir_2 = dir_1.create_dir(dir_2_name.into()).unwrap();
 
         let file_1_name = "file_1";
-        dir_2
-            .create_file(file_1_name.into())
-            .expect("Failed to create a file");
+        dir_2.create_file(file_1_name.into()).unwrap();
 
         let resource = Hdf5Resource::Dir(root_dir);
 
-        assert_eq!(resource.name().expect("Failed to get name"), String::new());
+        assert_eq!(resource.name().unwrap(), String::new());
         assert!(resource.is_dir());
         assert!(!resource.is_file());
         assert!(resource.get_reader().is_err());
 
-        let resources = resource
-            .get_directory_content()
-            .expect("Failed to get resources");
+        let resources = resource.get_directory_content().unwrap();
         assert_eq!(resources.len(), 1);
         for resource in resources {
-            assert_eq!(
-                resource.name().expect("Failed to get name"),
-                dir_1_name.to_string()
-            );
+            assert_eq!(resource.name().unwrap(), dir_1_name.to_string());
             assert!(resource.is_dir());
             assert!(!resource.is_file());
             assert!(resource.get_reader().is_err());
 
-            let resources = resource
-                .get_directory_content()
-                .expect("Failed to get resources");
+            let resources = resource.get_directory_content().unwrap();
             assert_eq!(resources.len(), 1);
             for resource in resources {
-                assert_eq!(
-                    resource.name().expect("Failed to get name"),
-                    dir_2_name.to_string()
-                );
+                assert_eq!(resource.name().unwrap(), dir_2_name.to_string());
                 assert!(resource.is_dir());
                 assert!(!resource.is_file());
                 assert!(resource.get_reader().is_err());
 
-                let resources = resource
-                    .get_directory_content()
-                    .expect("Failed to get resources");
+                let resources = resource.get_directory_content().unwrap();
                 assert_eq!(resources.len(), 1);
                 for resource in resources {
-                    assert_eq!(
-                        resource.name().expect("Failed to get name"),
-                        file_1_name.to_string()
-                    );
+                    assert_eq!(resource.name().unwrap(), file_1_name.to_string());
                     assert!(!resource.is_dir());
                     assert!(resource.is_file());
                     assert!(resource.get_reader().is_ok());

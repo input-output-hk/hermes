@@ -255,30 +255,21 @@ mod tests {
         let payload = serde_json::json!({ "key": "value" });
         let signature = Signature::new(payload);
 
-        let bytes = signature
-            .to_bytes()
-            .expect("Failed to serialize signature.");
-        let decoded_signature = Signature::<serde_json::Value>::from_bytes(&bytes)
-            .expect("Failed to deserialize signature.");
+        let bytes = signature.to_bytes().unwrap();
+        let decoded_signature = Signature::<serde_json::Value>::from_bytes(&bytes).unwrap();
         assert_eq!(signature, decoded_signature);
 
-        let cose_sign = CoseSign::from_slice(bytes.as_slice()).expect("Failed to decode CoseSign.");
-        assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign
-                .clone()
-                .to_vec()
-                .expect("Failed to encode CoseSign.")
-        )
-        .is_ok());
+        let cose_sign = CoseSign::from_slice(bytes.as_slice()).unwrap();
+        assert!(
+            Signature::<serde_json::Value>::from_bytes(&cose_sign.clone().to_vec().unwrap())
+                .is_ok()
+        );
 
         let mut cose_sign_modified_alg = cose_sign.clone();
         cose_sign_modified_alg.protected.original_data = None;
         cose_sign_modified_alg.protected.header.alg = None;
         assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_alg
-                .clone()
-                .to_vec()
-                .expect("Failed to encode CoseSign.")
+            &cose_sign_modified_alg.clone().to_vec().unwrap()
         )
         .is_err());
 
@@ -287,9 +278,7 @@ mod tests {
             coset::RegisteredLabelWithPrivate::Assigned(iana::Algorithm::ES256),
         );
         assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_alg
-                .to_vec()
-                .expect("Failed to encode CoseSign.")
+            &cose_sign_modified_alg.to_vec().unwrap()
         )
         .is_err());
 
@@ -300,10 +289,7 @@ mod tests {
             .header
             .content_type = None;
         assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_content_type
-                .clone()
-                .to_vec()
-                .expect("Failed to encode CoseSign.")
+            &cose_sign_modified_content_type.clone().to_vec().unwrap()
         )
         .is_err());
 
@@ -315,10 +301,7 @@ mod tests {
             iana::CoapContentFormat::Cbor,
         ));
         assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_content_type
-                .clone()
-                .to_vec()
-                .expect("Failed to encode CoseSign.")
+            &cose_sign_modified_content_type.clone().to_vec().unwrap()
         )
         .is_err());
     }
@@ -328,17 +311,12 @@ mod tests {
         let payload = serde_json::json!({ "key": "value" });
         let mut signature = Signature::new(payload);
 
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let certificate = Certificate::from_str(&certificate_str()).expect("Cannot create cert");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
-        signature
-            .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature.");
+        signature.add_sign(&private_key, &certificate).unwrap();
         assert_eq!(signature.cose_signatures.len(), 1);
-        signature
-            .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature twice with the same private key.");
+        signature.add_sign(&private_key, &certificate).unwrap();
         assert_eq!(signature.cose_signatures.len(), 1);
 
         let another_private_key = PrivateKey::from_str(&format!(
@@ -347,7 +325,7 @@ mod tests {
             "MC4CAQAwBQYDK2VwBCIEIP1iI3LF7h89yY6QZmhDp4Y5FmTQ4oasbz2lEiaqqTz5",
             "-----END PRIVATE KEY-----"
         ))
-        .expect("Failed to create private key.");
+        .unwrap();
         assert_ne!(private_key, another_private_key);
 
         assert!(
@@ -363,34 +341,27 @@ mod tests {
         let payload = serde_json::json!({ "key": "value" });
         let mut signature = Signature::new(payload);
 
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Cannot create private key");
-        let certificate = Certificate::from_str(&certificate_str()).expect("Cannot create cert");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
         assert!(
             signature.verify().is_err(),
             "Empty signature must be invalid."
         );
 
-        signature
-            .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature.");
+        signature.add_sign(&private_key, &certificate).unwrap();
 
         assert!(
             signature.verify().is_err(),
             "Missing certificate in the storage."
         );
 
-        certificate::storage::add_certificate(certificate)
-            .expect("Failed to add certificate to the storage.");
-        signature.verify().expect("Failed to verify signature.");
+        certificate::storage::add_certificate(certificate).unwrap();
+        signature.verify().unwrap();
 
         // corrupt signature
-        let bytes = signature
-            .to_bytes()
-            .expect("Failed to serialize signature.");
-        let mut cose_sign =
-            CoseSign::from_slice(bytes.as_slice()).expect("Failed to decode CoseSign.");
+        let bytes = signature.to_bytes().unwrap();
+        let mut cose_sign = CoseSign::from_slice(bytes.as_slice()).unwrap();
         // change payload
         cose_sign.payload = Some(
             serde_json::json!("corrupted")
@@ -398,10 +369,8 @@ mod tests {
                 .as_bytes()
                 .to_vec(),
         );
-        let signature = Signature::<serde_json::Value>::from_bytes(
-            &cose_sign.to_vec().expect("Failed to encode CoseSign."),
-        )
-        .expect("Failed to decode signature.");
+        let signature =
+            Signature::<serde_json::Value>::from_bytes(&cose_sign.to_vec().unwrap()).unwrap();
 
         assert!(signature.verify().is_err(), "Corrupted signature.");
     }
@@ -411,19 +380,13 @@ mod tests {
         let payload = serde_json::json!({ "key": "value" });
         let mut signature = Signature::new(payload.clone());
 
-        let private_key =
-            PrivateKey::from_str(&private_key_str()).expect("Failed to create private key.");
-        let certificate =
-            Certificate::from_str(&certificate_str()).expect("Failed to create cert.");
+        let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
+        let certificate = Certificate::from_str(&certificate_str()).unwrap();
 
-        signature
-            .add_sign(&private_key, &certificate)
-            .expect("Failed to add signature.");
+        signature.add_sign(&private_key, &certificate).unwrap();
 
-        let bytes = signature
-            .to_bytes()
-            .expect("Failed to serialize signature.");
-        let cose_sign = CoseSign::from_slice(bytes.as_slice()).expect("Failed to decode CoseSign.");
+        let bytes = signature.to_bytes().unwrap();
+        let cose_sign = CoseSign::from_slice(bytes.as_slice()).unwrap();
 
         assert_eq!(
             cose_sign.protected.header.alg,
@@ -439,17 +402,10 @@ mod tests {
         );
         assert_eq!(cose_sign.payload, Some(payload.to_string().into_bytes()));
 
-        let first_signature = cose_sign
-            .signatures
-            .first()
-            .expect("Failed to get first signature.");
+        let first_signature = cose_sign.signatures.first().unwrap();
         assert_eq!(
             first_signature.protected.header.key_id,
-            certificate
-                .hash()
-                .expect("Failed to get certificate hash.")
-                .to_bytes()
-                .to_vec()
+            certificate.hash().unwrap().to_bytes().to_vec()
         );
     }
 }

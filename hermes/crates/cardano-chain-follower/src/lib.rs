@@ -171,5 +171,4 @@ pub fn network_genesis_values(network: &Network) -> Option<GenesisValues> {
 #[allow(dead_code)]
 fn validate_multiera_block(_block: &MultiEraBlock) {
     // (fsgr): Not sure about hwo the validation will be done in here yet.
-    todo!()
 }

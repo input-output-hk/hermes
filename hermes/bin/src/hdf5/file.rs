@@ -157,50 +157,43 @@ mod tests {
 
     #[test]
     fn file_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
 
         let package_name = tmp_dir.child("test.hdf5");
-        let package = hdf5::File::create(package_name).expect("Failed to create a new package.");
-        let group = package
-            .as_group()
-            .expect("Failed to get a root group from package.");
+        let package = hdf5::File::create(package_name).unwrap();
+        let group = package.as_group().unwrap();
 
         let file_name = "test.txt";
 
         assert!(group.dataset(file_name).is_err());
-        let mut file = File::create(&group, file_name).expect("Failed to create a new file.");
+        let mut file = File::create(&group, file_name).unwrap();
         assert!(group.dataset(file_name).is_ok());
 
         let file_content = b"file_content";
-        let written = file.write(file_content).expect("Failed to write to file.");
+        let written = file.write(file_content).unwrap();
         assert_eq!(written, file_content.len());
-        let written = file.write(file_content).expect("Failed to write to file.");
+        let written = file.write(file_content).unwrap();
         assert_eq!(written, file_content.len());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let mut buffer = [0; 12];
         assert_eq!(buffer.len(), file_content.len());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        let read = file.read(&mut buffer).unwrap();
         assert_eq!(read, file_content.len());
         assert_eq!(buffer.as_slice(), file_content.as_slice());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        let read = file.read(&mut buffer).unwrap();
         assert_eq!(read, file_content.len());
         assert_eq!(buffer.as_slice(), file_content.as_slice());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let new_file_content = b"new_file_content";
-        let written = file
-            .write(new_file_content)
-            .expect("Failed to write to file.");
+        let written = file.write(new_file_content).unwrap();
         assert_eq!(written, new_file_content.len());
 
-        file.seek(std::io::SeekFrom::Start(0))
-            .expect("Failed to seek.");
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
         let mut buffer = [0; 16];
         assert_eq!(buffer.len(), new_file_content.len());
-        let read = file.read(&mut buffer).expect("Failed to read from file.");
+        let read = file.read(&mut buffer).unwrap();
         assert_eq!(read, new_file_content.len());
         assert_eq!(buffer.as_slice(), new_file_content.as_slice());
     }

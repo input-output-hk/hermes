@@ -107,74 +107,66 @@ mod tests {
 
     #[test]
     #[file_serial]
-    fn test_open_success() -> Result<(), Errno> {
+    fn test_open_success() {
         let app_name = ApplicationName(String::from(TMP_DIR));
-        let config =
-            get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
-        let db_file = config.db_file.clone().expect("cannot find the db path");
+        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
+        let db_file = config.db_file.clone().unwrap();
 
-        let db_ptr = open(false, false, app_name)?;
-        core::close(db_ptr)?;
+        let db_ptr = open(false, false, app_name).unwrap();
+        core::close(db_ptr).unwrap();
 
         let has_db_file = Path::new(&db_file).exists();
         let is_remove_success = fs::remove_file(Path::new(&db_file));
 
         assert!(has_db_file && is_remove_success.is_ok());
-
-        Ok(())
     }
 
     #[test]
     #[file_serial]
-    fn test_open_readonly() -> Result<(), Errno> {
+    fn test_open_readonly() {
         let app_name = ApplicationName(String::from(TMP_DIR));
-        let config =
-            get_app_persistent_sqlite_db_cfg(app_name.clone()).expect("cannot find the config");
-        let db_file = config.db_file.clone().expect("cannot find the db path");
+        let config = get_app_persistent_sqlite_db_cfg(app_name.clone()).unwrap();
+        let db_file = config.db_file.clone().unwrap();
 
         let file_result = File::create(&db_file);
 
         assert!(file_result.is_ok());
 
-        let db_ptr = open(true, false, app_name)?;
+        let db_ptr = open(true, false, app_name).unwrap();
 
         let has_db_file = Path::new(&db_file).exists();
         let is_remove_success = fs::remove_file(Path::new(&db_file));
 
-        core::close(db_ptr)?;
+        core::close(db_ptr).unwrap();
 
         assert!(has_db_file && is_remove_success.is_ok());
-
-        Ok(())
     }
 
     #[test]
     #[file_serial]
-    fn test_open_readonly_without_existing_file() -> Result<(), Errno> {
+    fn test_open_readonly_without_existing_file() {
         let app_name = ApplicationName(String::from(TMP_DIR));
 
         let db_ptr = open(true, false, app_name);
 
         assert!(db_ptr.is_err());
-
-        Ok(())
     }
 
     #[test]
-    fn test_open_in_memory() -> Result<(), Errno> {
+    fn test_open_in_memory() {
         let app_name = ApplicationName(String::from(TMP_DIR));
 
-        let db_ptr = open(false, true, app_name)?;
+        let db_ptr = open(false, true, app_name).unwrap();
 
-        core::close(db_ptr)
+        core::close(db_ptr).unwrap();
     }
 
     #[test]
-    fn test_open_in_memory_readonly() -> Result<(), Errno> {
+    fn test_open_in_memory_readonly() {
         let app_name = ApplicationName(String::from(TMP_DIR));
 
-        let db_ptr = open(true, true, app_name)?;
+        let db_ptr = open(true, true, app_name).unwrap();
 
-        core::close(db_ptr)
+        core::close(db_ptr).unwrap();
     }
 }

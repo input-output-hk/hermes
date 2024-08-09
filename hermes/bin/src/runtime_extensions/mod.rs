@@ -1,5 +1,7 @@
 //! Hermes runtime extensions
 
+#![allow(clippy::todo)]
+
 use tracing::{span, Level};
 
 pub(crate) mod app_config;

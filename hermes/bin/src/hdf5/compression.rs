@@ -92,27 +92,19 @@ mod tests {
     /// it and checks the difference.
     #[test]
     fn blosc_compression_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let compressed_file_name = dir.child("compressed_test.hdf5");
-        let compressed_hdf5_file =
-            File::create(&compressed_file_name).expect("cannot create HDF5 file");
+        let compressed_hdf5_file = File::create(&compressed_file_name).unwrap();
         let uncompressed_file_name = dir.child("uncompressed_test.hdf5");
-        let uncompressed_hdf5_file =
-            File::create(&uncompressed_file_name).expect("cannot create HDF5 file");
+        let uncompressed_hdf5_file = File::create(&uncompressed_file_name).unwrap();
 
         let src_dir_path = Path::new("src");
-        copy_dir_recursively_to_package(src_dir_path, &compressed_hdf5_file, true)
-            .expect("Cannot copy src dir to compressed package");
-        copy_dir_recursively_to_package(src_dir_path, &uncompressed_hdf5_file, false)
-            .expect("Cannot copy src dir to uncompressed package");
+        copy_dir_recursively_to_package(src_dir_path, &compressed_hdf5_file, true).unwrap();
+        copy_dir_recursively_to_package(src_dir_path, &uncompressed_hdf5_file, false).unwrap();
 
-        let compressed_size = std::fs::read(compressed_file_name)
-            .expect("Cannot read hdf5 package bytes")
-            .len();
-        let uncompressed_size = std::fs::read(uncompressed_file_name)
-            .expect("Cannot read hdf5 package bytes")
-            .len();
+        let compressed_size = std::fs::read(compressed_file_name).unwrap().len();
+        let uncompressed_size = std::fs::read(uncompressed_file_name).unwrap().len();
         assert!(
             compressed_size < uncompressed_size,
             "compressed package size: {compressed_size}, uncompressed package size: {uncompressed_size}",
