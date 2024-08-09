@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SCHEMA_VERSION"],"fn":["create_schema"]};

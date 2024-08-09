@@ -1,0 +1,51 @@
+Application: {
+  label: root
+  shape: circle
+}
+var: {
+  shape: circle
+}
+www: {
+  shape: circle
+}
+data: {
+  shape: circle
+}
+wasm: {
+  label: modules
+  shape: circle
+}
+
+Application -> var: Group
+Application -> wasm: Group
+var -> data: Group
+var -> www: Group
+
+site_1: {
+  shape: circle
+}
+
+www -> site_1: Group
+
+data -> "user_registration.template": File
+
+module_a: {
+  shape: circle
+}
+module_N: {
+  shape: circle
+}
+
+wasm -> module_a: Group
+wasm -> module_N: Group
+
+a_wat: {
+  label: wasm_module_a.wat
+}
+
+c_wat: {
+  label: wasm_module_N.wat
+}
+
+module_a -> a_wat: File
+module_N -> c_wat: File

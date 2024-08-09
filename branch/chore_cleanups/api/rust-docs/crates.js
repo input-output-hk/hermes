@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["cardano_chain_follower","follow_chain_updates","follow_chain_updates_mithril","hermes","read_block","read_block_mithril","read_block_range","read_block_range_mithril"];

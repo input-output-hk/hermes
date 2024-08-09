@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"hermes":[["impl Subcommand for <a class=\"enum\" href=\"hermes/cli/app/enum.Commands.html\" title=\"enum hermes::cli::app::Commands\">Commands</a>"],["impl Subcommand for <a class=\"enum\" href=\"hermes/cli/enum.Commands.html\" title=\"enum hermes::cli::Commands\">Commands</a>"],["impl Subcommand for <a class=\"enum\" href=\"hermes/cli/module/enum.Commands.html\" title=\"enum hermes::cli::module::Commands\">Commands</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

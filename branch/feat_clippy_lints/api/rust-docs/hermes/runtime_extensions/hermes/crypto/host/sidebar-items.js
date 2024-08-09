@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["PRIVATE_KEY_RESOURCES"]};

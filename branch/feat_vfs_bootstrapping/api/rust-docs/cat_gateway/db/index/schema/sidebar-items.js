@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CREATE_NAMESPACE_CQL","CREATE_TABLE_TXI_BY_STAKE_ADDRESS_CQL","CREATE_TABLE_TXO_ASSETS_BY_STAKE_ADDRESS_CQL","CREATE_TABLE_TXO_BY_STAKE_ADDRESS_CQL","SCHEMA_VERSION"],"fn":["create_namespace","create_schema","create_txi_tables","create_txo_tables","namespace"]};

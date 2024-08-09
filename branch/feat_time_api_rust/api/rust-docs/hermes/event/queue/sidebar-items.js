@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["event_dispatch","event_execution_loop","init","send","targeted_event_execution"],"static":["EVENT_QUEUE_INSTANCE"],"struct":["HermesEventLoopHandler","HermesEventQueue"]};
