@@ -48,7 +48,7 @@ impl File {
     }
 
     /// Return file size.
-    fn size(&self) -> anyhow::Result<usize> {
+    pub(crate) fn size(&self) -> anyhow::Result<usize> {
         let shape = self.hdf5_ds.space()?.shape();
         let size = shape
             .first()
