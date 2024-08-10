@@ -16,7 +16,7 @@ impl HostStatement for HermesRuntimeContext {
     fn bind(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32, value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
+        let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
         Ok(core::bind(stmt_ptr as *mut _, index, value))
     }
@@ -28,7 +28,7 @@ impl HostStatement for HermesRuntimeContext {
     fn step(
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
+        let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
         Ok(core::step(stmt_ptr as *mut _))
     }
 
@@ -48,7 +48,7 @@ impl HostStatement for HermesRuntimeContext {
     fn column(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        let stmt_ptr = get_statement_state().get_object(self.app_name().clone(), &resource)?;
+        let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
         Ok(core::column(stmt_ptr as *mut _, index))
     }
@@ -66,15 +66,13 @@ impl HostStatement for HermesRuntimeContext {
     fn finalize(
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = get_statement_state().delete_resource(self.app_name().clone(), resource)?;
+        let stmt_ptr = get_statement_state().delete_resource(self.app_name(), resource)?;
 
         Ok(core::finalize(stmt_ptr as *mut _))
     }
 
     fn drop(&mut self, resource: wasmtime::component::Resource<Statement>) -> wasmtime::Result<()> {
-        if let Ok(stmt_ptr) =
-            get_statement_state().delete_resource(self.app_name().clone(), resource)
-        {
+        if let Ok(stmt_ptr) = get_statement_state().delete_resource(self.app_name(), resource) {
             let _ = core::finalize(stmt_ptr as *mut _);
         }
 

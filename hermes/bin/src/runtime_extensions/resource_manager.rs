@@ -1,6 +1,9 @@
 //! Generalized, type safe `wasmtime::component::Resource<T>` manager implementation.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::{
+    any::type_name,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use dashmap::DashMap;
 
@@ -59,9 +62,7 @@ where WitType: 'static
         self.state
             .get(&resource.rep())
             .map(|r| r.value().clone())
-            .ok_or(wasmtime::Error::msg(
-                "Cannot get resource object, not found",
-            ))
+            .ok_or(Self::resource_not_found_err())
     }
 
     /// Removes the resource from the resource manager.
@@ -74,9 +75,17 @@ where WitType: 'static
         self.state
             .remove(&resource.rep())
             .map(|(_, v)| v)
-            .ok_or(wasmtime::Error::msg(
-                "Cannot delete resource object, not found",
-            ))
+            .ok_or(Self::resource_not_found_err())
+    }
+
+    /// Resource not found error message.
+    fn resource_not_found_err() -> wasmtime::Error {
+        let msg = format!(
+            "Resource <{}, {}> not found, need to add resource first by calling `add_resource`",
+            type_name::<WitType>(),
+            type_name::<RustType>()
+        );
+        wasmtime::Error::msg(msg)
     }
 }
 
@@ -100,30 +109,34 @@ where WitType: 'static
         }
     }
 
+    /// Adds new application to the resource manager.
+    #[allow(dead_code)]
+    pub(crate) fn add_app(&self, app_name: ApplicationName) {
+        self.state.insert(app_name, ResourceManager::new());
+    }
+
+    /// Removes application and all associated resources from the resource manager.
+    #[allow(dead_code)]
+    pub(crate) fn remove_app(&self, app_name: &ApplicationName) {
+        self.state.remove(app_name);
+    }
+
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn create_resource(
-        &self, app_name: ApplicationName, object: RustType,
-    ) -> wasmtime::component::Resource<WitType> {
-        let app_state = self
-            .state
-            .entry(app_name)
-            .or_insert(ResourceManager::new())
-            .downgrade();
-        app_state.create_resource(object)
+        &self, app_name: &ApplicationName, object: RustType,
+    ) -> wasmtime::Result<wasmtime::component::Resource<WitType>> {
+        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
+        Ok(app_state.create_resource(object))
     }
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn get_object(
-        &self, app_name: ApplicationName, resource: &wasmtime::component::Resource<WitType>,
+        &self, app_name: &ApplicationName, resource: &wasmtime::component::Resource<WitType>,
     ) -> wasmtime::Result<RustType>
     where RustType: Clone {
-        let app_state = self
-            .state
-            .entry(app_name)
-            .or_insert(ResourceManager::new())
-            .downgrade();
+        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
         app_state.get_object(resource)
     }
 
@@ -131,14 +144,20 @@ where WitType: 'static
     /// Similar to the `drop` function, resource is releasing and consumed by this
     /// function, thats why it is passed by value.
     pub(crate) fn delete_resource(
-        &self, app_name: ApplicationName, resource: wasmtime::component::Resource<WitType>,
+        &self, app_name: &ApplicationName, resource: wasmtime::component::Resource<WitType>,
     ) -> anyhow::Result<RustType> {
-        let app_state = self
-            .state
-            .entry(app_name)
-            .or_insert(ResourceManager::new())
-            .downgrade();
+        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
         app_state.delete_resource(resource)
+    }
+
+    /// Application not found error message.
+    fn app_not_found_err() -> wasmtime::Error {
+        let msg = format!(
+        "Application not found for resource <{}, {}>, need to add application first by calling `add_app`",
+        type_name::<WitType>(),
+        type_name::<RustType>()
+    );
+        wasmtime::Error::msg(msg)
     }
 }
 
@@ -171,28 +190,48 @@ mod tests {
         let app_name_2 = ApplicationName("app_2".to_string());
 
         let object = 100;
-        let resource = resource_manager.create_resource(app_name_1.clone(), object);
-        let copied_resource = wasmtime::component::Resource::new_borrow(resource.rep());
+        {
+            assert!(resource_manager
+                .create_resource(&app_name_1, object)
+                .is_err());
+            resource_manager.add_app(app_name_1.clone());
 
-        assert_eq!(
-            resource_manager
-                .get_object(app_name_1.clone(), &resource)
-                .unwrap(),
-            object
-        );
-        assert!(resource_manager
-            .get_object(app_name_2.clone(), &resource)
-            .is_err(),);
+            let resource = resource_manager
+                .create_resource(&app_name_1, object)
+                .unwrap();
+            resource_manager.remove_app(&app_name_1);
 
-        assert!(resource_manager
-            .delete_resource(app_name_1.clone(), resource)
-            .is_ok());
+            assert!(resource_manager.get_object(&app_name_1, &resource).is_err());
+            assert!(resource_manager
+                .delete_resource(&app_name_1, resource)
+                .is_err());
+        }
 
-        assert!(resource_manager
-            .get_object(app_name_1.clone(), &copied_resource)
-            .is_err());
-        assert!(resource_manager
-            .delete_resource(app_name_1.clone(), copied_resource)
-            .is_err());
+        {
+            resource_manager.add_app(app_name_1.clone());
+
+            let resource = resource_manager
+                .create_resource(&app_name_1, object)
+                .unwrap();
+
+            let copied_resource = wasmtime::component::Resource::new_borrow(resource.rep());
+
+            assert_eq!(
+                resource_manager.get_object(&app_name_1, &resource).unwrap(),
+                object
+            );
+            assert!(resource_manager.get_object(&app_name_2, &resource).is_err(),);
+
+            assert!(resource_manager
+                .delete_resource(&app_name_1, resource)
+                .is_ok());
+
+            assert!(resource_manager
+                .get_object(&app_name_1, &copied_resource)
+                .is_err());
+            assert!(resource_manager
+                .delete_resource(&app_name_1, copied_resource)
+                .is_err());
+        }
     }
 }

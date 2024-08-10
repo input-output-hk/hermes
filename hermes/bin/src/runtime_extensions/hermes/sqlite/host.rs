@@ -24,7 +24,7 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
-                let db_id = get_db_state().create_resource(self.app_name().clone(), db_ptr as _);
+                let db_id = get_db_state().create_resource(self.app_name(), db_ptr as _)?;
 
                 Ok(Ok(db_id))
             },

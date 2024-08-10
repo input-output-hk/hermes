@@ -25,7 +25,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn close(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = get_db_state().delete_resource(self.app_name().clone(), resource)?;
+        let db_ptr = get_db_state().delete_resource(self.app_name(), resource)?;
 
         Ok(core::close(db_ptr as *mut _))
     }
@@ -39,7 +39,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn errcode(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let db_ptr = get_db_state().get_object(self.app_name().clone(), &resource)?;
+        let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
         Ok(core::errcode(db_ptr as *mut _))
     }
@@ -60,7 +60,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_ptr = get_db_state().get_object(self.app_name().clone(), &resource)?;
+        let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
         let result = core::prepare(db_ptr as *mut _, sql.as_str());
 
@@ -69,8 +69,8 @@ impl HostSqlite for HermesRuntimeContext {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stmt = get_statement_state()
-                        .create_resource(self.app_name().clone(), stmt_ptr as _);
+                    let stmt =
+                        get_statement_state().create_resource(self.app_name(), stmt_ptr as _)?;
 
                     Ok(Ok(stmt))
                 }
@@ -88,13 +88,13 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = get_db_state().get_object(self.app_name().clone(), &resource)?;
+        let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
         Ok(core::execute(db_ptr as *mut _, sql.as_str()))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
-        if let Ok(db_ptr) = get_db_state().delete_resource(self.app_name().clone(), rep) {
+        if let Ok(db_ptr) = get_db_state().delete_resource(self.app_name(), rep) {
             let _ = core::close(db_ptr as *mut _);
         }
 

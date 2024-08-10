@@ -30,14 +30,14 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         let xprv = mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
             .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
-        Ok(get_state().create_resource(self.app_name().clone(), xprv))
+        get_state().create_resource(self.app_name(), xprv)
     }
 
     /// Get the public key for this private key.
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
-        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name(), &resource)?;
         let public_key = get_public_key(&private_key);
         Ok(public_key)
     }
@@ -50,7 +50,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
-        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name(), &resource)?;
         let sig = sign_data(&private_key, &data);
         Ok(sig)
     }
@@ -70,7 +70,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
-        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name(), &resource)?;
         let check_sig = check_signature(&private_key, &data, sig);
         Ok(check_sig)
     }
@@ -85,15 +85,15 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        let private_key = get_state().get_object(self.app_name().clone(), &resource)?;
+        let private_key = get_state().get_object(self.app_name(), &resource)?;
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         let new_private_key = derive_new_private_key(private_key, &path)
             .map_err(|_| wasmtime::Error::msg("Error deriving new private key"))?;
-        Ok(get_state().create_resource(self.app_name().clone(), new_private_key))
+        get_state().create_resource(self.app_name(), new_private_key)
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
-        get_state().delete_resource(self.app_name().clone(), res)?;
+        get_state().delete_resource(self.app_name(), res)?;
         Ok(())
     }
 }
