@@ -1,8 +1,8 @@
 //! Multi Era CBOR Encoded Block Data
-//! 
+//!
 //! Data about how the block/transactions can be encoded is found here:
-//! https://github.com/IntersectMBO/cardano-ledger/blob/78b32d585fd4a0340fb2b184959fb0d46f32c8d2/eras/conway/impl/cddl-files/conway.cddl
-//! 
+//! <https://github.com/IntersectMBO/cardano-ledger/blob/78b32d585fd4a0340fb2b184959fb0d46f32c8d2/eras/conway/impl/cddl-files/conway.cddl>
+//!
 //! DO NOT USE the documentation/cddl definitions from the head of this repo because it currently
 //! lacks most of the documentation needed to understand the format and is also incorrectly generated
 //! and contains errors that will be difficult to discern.
@@ -14,6 +14,7 @@ use tracing::debug;
 
 use crate::{
     error::Error,
+    meta_data::DecodedTransactionMetadata,
     point::{ORIGIN_POINT, UNKNOWN_POINT},
     stats::stats_invalid_block,
     Network, Point,
@@ -25,7 +26,7 @@ use crate::{
 /// `borrow_raw_data()` and `borrow_block()`
 #[self_referencing]
 #[derive(Debug)]
-struct SelfReferencedMultiEraBlock {
+pub(crate) struct SelfReferencedMultiEraBlock {
     /// The CBOR encoded data of a multi-era block.
     raw_data: Vec<u8>,
 
@@ -38,6 +39,7 @@ struct SelfReferencedMultiEraBlock {
 
 /// Multi-era block - inner.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MultiEraBlockInner {
     /// What blockchain was the block produced on.
     pub chain: Network,
@@ -48,6 +50,8 @@ pub struct MultiEraBlockInner {
     previous: Point,
     /// The decoded multi-era block.
     data: SelfReferencedMultiEraBlock,
+    /// Decoded Metadata in the transactions in the block.
+    metadata: DecodedTransactionMetadata,
 }
 
 /// Multi-era block.
@@ -132,6 +136,8 @@ impl MultiEraBlock {
             }
         }
 
+        let metadata = DecodedTransactionMetadata::new(decoded_block);
+
         Ok(Self {
             fork,
             inner: Arc::new(MultiEraBlockInner {
@@ -139,6 +145,7 @@ impl MultiEraBlock {
                 point,
                 previous: previous.clone(),
                 data: self_ref_block,
+                metadata,
             }),
         })
     }
