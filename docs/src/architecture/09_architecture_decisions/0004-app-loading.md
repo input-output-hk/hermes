@@ -19,13 +19,15 @@ Hermes application package could be corrupted or modified.
 
 ## Decision
 
-During the each application loading and running process application package should be provide and all possible validations and initialization should be performed based on the package data.
+During the each application loading and running process application package should be provide
+and all possible validations and initialization should be performed based on the package data.
 
 ## Risks
 
-* Potential bad UX user experience for each application running, because such validations and state preparation could take some time.
+* Potential bad UX user experience for each application running,
+  because such validations and state preparation could take some time.
 
-## Alternatives 
+## Alternatives
 
 Split loading application (installing) and running into two different procedures.
 So during loading all validations will be performed along with state initialization and saved somewhere.
