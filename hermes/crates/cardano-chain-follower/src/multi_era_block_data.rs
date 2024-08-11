@@ -14,7 +14,7 @@ use tracing::debug;
 
 use crate::{
     error::Error,
-    meta_data::DecodedTransactionMetadata,
+    metadata,
     point::{ORIGIN_POINT, UNKNOWN_POINT},
     stats::stats_invalid_block,
     Network, Point,
@@ -51,7 +51,7 @@ pub struct MultiEraBlockInner {
     /// The decoded multi-era block.
     data: SelfReferencedMultiEraBlock,
     /// Decoded Metadata in the transactions in the block.
-    metadata: DecodedTransactionMetadata,
+    metadata: metadata::DecodedTransaction,
 }
 
 /// Multi-era block.
@@ -136,7 +136,7 @@ impl MultiEraBlock {
             }
         }
 
-        let metadata = DecodedTransactionMetadata::new(decoded_block);
+        let metadata = metadata::DecodedTransaction::new(decoded_block);
 
         Ok(Self {
             fork,
@@ -661,55 +661,4 @@ mod tests {
             assert!(block.is_err());
         }
     }
-
-    // #[test]
-    // #[allow(clippy::unwrap_used)]
-    // fn test_comparisons() {
-    // let origin1 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
-    // let origin2 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
-    // let early_block = LiveBlock::new(
-    // Point::Specific(100u64, vec![]),
-    // MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
-    // );
-    // let early_block2 = LiveBlock::new(
-    // Point::Specific(100u64, vec![]),
-    // MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
-    // );
-    // let late_block = LiveBlock::new(
-    // Point::Specific(10000u64, vec![]),
-    // MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
-    // );
-    // let late_block2 = LiveBlock::new(
-    // Point::Specific(10000u64, vec![]),
-    // MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
-    // );
-    //
-    // assert!(origin1 == origin2);
-    // assert!(origin2 == origin1);
-    //
-    // assert!(origin1 < early_block);
-    // assert!(origin2 < late_block);
-    //
-    // assert!(origin1 <= early_block);
-    // assert!(origin2 <= late_block);
-    //
-    // assert!(early_block > origin1);
-    // assert!(late_block > origin2);
-    //
-    // assert!(early_block >= origin1);
-    // assert!(late_block >= origin2);
-    //
-    // assert!(early_block < late_block);
-    // assert!(late_block > early_block);
-    //
-    // assert!(early_block <= late_block);
-    // assert!(late_block >= early_block);
-    //
-    // assert!(early_block == early_block2);
-    // assert!(late_block == late_block2);
-    //
-    // assert!(origin1 != early_block);
-    // assert!(origin2 != late_block);
-    // assert!(early_block != late_block);
-    // }
 }

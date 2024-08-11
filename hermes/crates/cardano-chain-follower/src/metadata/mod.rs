@@ -2,13 +2,16 @@
 
 use std::sync::Arc;
 
-use anyhow::bail;
+use cip36::Cip36;
 use crossbeam_skiplist::SkipMap;
-use minicbor::Decoder;
-use pallas::ledger::traverse::MultiEraBlock;
-use tracing::{debug, error, warn};
+use pallas::ledger::traverse::{MultiEraBlock, MultiEraTx};
+use raw_aux_data::RawAuxData;
+use tracing::error;
+
+use crate::utils::{i16_from_saturating, usize_from_saturating};
 
 mod cip36;
+mod raw_aux_data;
 
 /// List of all validation errors (as strings) Metadata is considered Valid if this list is empty.
 pub type ValidationReport = Vec<String>;
@@ -17,242 +20,19 @@ pub type ValidationReport = Vec<String>;
 /// Must match the key they relate too, but the consumer needs to check this.
 #[derive(Debug)]
 pub enum DecodedMetadataValues {
-    /// Json Metadata
-    Json(serde_json::Value),
+    // Json Metadata // TODO
+    // Json(serde_json::Value), // TODO
     /// CIP-36/CIP-15 Catalyst Registration metadata.
-    Cip36(Option<()>),
+    Cip36(Arc<Cip36>),
 }
 
 /// An individual decoded metadata item.
 #[derive(Debug)]
 pub struct DecodedMetadataItem {
     /// The decoded metadata itself.
-    value: DecodedMetadataValues,
+    pub value: DecodedMetadataValues,
     /// Validation report for this metadata item.
-    report: ValidationReport,
-}
-
-/// What type of smart contract is this list.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::Display)]
-pub enum SmartContractType {
-    /// Native smart contracts
-    Native,
-    /// Plutus smart contracts (with version number 1-x)
-    Plutus(u64),
-}
-
-// We CAN NOT use the Pallas library metadata decoding because it does not preserve raw metadata
-// values which are critical for performing operations like signature checks on data.
-// So we have a bespoke metadata decoder here.
-#[derive(Debug)]
-struct RawAuxData {
-    /// Metadata: key = label, value = raw metadata bytes
-    metadata: SkipMap<u64, Arc<Vec<u8>>>,
-    /// Scripts: 1 = Native, 2 = Plutus V1, 3 = Plutus V2, 4 = Plutus V3
-    scripts: SkipMap<SmartContractType, Arc<Vec<Vec<u8>>>>,
-}
-
-impl RawAuxData {
-    /// Create a new `RawDecodedMetadata`.
-    fn new(aux_data: &[u8]) -> Self {
-        let mut raw_decoded_data = Self {
-            metadata: SkipMap::new(),
-            scripts: SkipMap::new(),
-        };
-
-        let mut decoder = Decoder::new(aux_data);
-
-        match decoder.datatype() {
-            Ok(minicbor::data::Type::Map) => {
-                if let Err(error) = Self::decode_shelley_map(&mut raw_decoded_data, &mut decoder) {
-                    error!("Failed to Deserialize Shelley Metadata: {error}");
-                }
-            },
-            Ok(minicbor::data::Type::Array) => {
-                if let Err(error) =
-                    Self::decode_shelley_ma_array(&mut raw_decoded_data, &mut decoder)
-                {
-                    error!("Failed to Deserialize Shelley-MA Metadata: {error}");
-                }
-            },
-            Ok(minicbor::data::Type::Tag) => {
-                if let Err(error) =
-                    Self::decode_alonzo_plus_map(&mut raw_decoded_data, &mut decoder)
-                {
-                    error!("Failed to Deserialize Alonzo+ Metadata: {error}");
-                }
-            },
-            Ok(unexpected) => {
-                error!("Unexpected datatype for Aux data: {unexpected}");
-            },
-            Err(error) => {
-                error!("Error decoding metadata: {error}");
-            },
-        }
-
-        raw_decoded_data
-    }
-
-    /// Decode the Shelley map of metadata.
-    fn decode_shelley_map(
-        raw_decoded_data: &mut Self, decoder: &mut minicbor::Decoder,
-    ) -> anyhow::Result<()> {
-        let entries = match decoder.map() {
-            Ok(Some(entries)) => entries,
-            Ok(None) => {
-                bail!("Indefinite Map found decoding Metadata. Invalid.");
-            },
-            Err(error) => {
-                bail!("Error decoding metadata: {error}");
-            },
-        };
-
-        debug!("Decoding shelley metadata map with {} entries", entries);
-
-        let raw_metadata = decoder.input();
-
-        for _ in 0..entries {
-            let key = match decoder.u64() {
-                Ok(key) => key,
-                Err(error) => {
-                    bail!("Error decoding metadata key: {error}");
-                },
-            };
-            let value_start = decoder.position();
-            if let Err(error) = decoder.skip() {
-                bail!("Error decoding metadata value:  {error}");
-            }
-            let value_end = decoder.position();
-            let Some(value_slice) = raw_metadata.get(value_start..value_end) else {
-                bail!("Invalid metadata value found. Unable to extract raw value slice.");
-            };
-            let value = value_slice.to_vec();
-
-            debug!("Decoded metadata key: {key}, value: {value:?}");
-
-            let _unused = raw_decoded_data.metadata.insert(key, Arc::new(value));
-        }
-
-        Ok(())
-    }
-
-    /// Decode a Shelley-MA Auxiliary Data Array
-    fn decode_shelley_ma_array(
-        raw_decoded_data: &mut Self, decoder: &mut minicbor::Decoder,
-    ) -> anyhow::Result<()> {
-        match decoder.array() {
-            Ok(Some(entries)) => {
-                if entries != 2 {
-                    bail!(
-                        "Invalid number of entries in Metadata Array. Expected 2, found {entries}."
-                    );
-                }
-            },
-            Ok(None) => {
-                bail!("Indefinite Array found decoding Metadata. Invalid.");
-            },
-            Err(error) => {
-                bail!("Error decoding metadata: {error}");
-            },
-        };
-
-        // First entry is the metadata map, so just decode that now.
-        Self::decode_shelley_map(raw_decoded_data, decoder)?;
-        // Second entry is an array of native scripts.
-        Self::decode_script_array(raw_decoded_data, decoder, SmartContractType::Native)?;
-
-        Ok(())
-    }
-
-    /// Decode a Shelley-MA Auxiliary Data Array
-    fn decode_alonzo_plus_map(
-        raw_decoded_data: &mut Self, decoder: &mut minicbor::Decoder,
-    ) -> anyhow::Result<()> {
-        match decoder.tag() {
-            Ok(tag) => {
-                if tag.as_u64() != 259 {
-                    bail!("Invalid tag for alonzo+ aux data. Expected 259, found {tag}.");
-                }
-            },
-            Err(error) => {
-                bail!("Error decoding tag for alonzo+ aux data: {error}");
-            },
-        }
-
-        let entries = match decoder.map() {
-            Ok(Some(entries)) => entries,
-            Ok(None) => bail!("Indefinite Map found decoding Alonzo+ Metadata. Invalid."),
-            Err(error) => bail!("Error decoding Alonzo+ Metadata: {error}"),
-        };
-
-        // iterate the map
-        for _ in 0..entries {
-            let aux_type_key = match decoder.u64() {
-                Ok(key) => key,
-                Err(error) => {
-                    bail!("Error decoding Alonzo+ Metadata Aux Data Type Key: {error}");
-                },
-            };
-
-            let contract_type = match aux_type_key {
-                0 => {
-                    if raw_decoded_data.metadata.is_empty() {
-                        Self::decode_shelley_map(raw_decoded_data, decoder)?;
-                        continue;
-                    }
-                    bail!("Multiple Alonzo+ Metadata entries found. Invalid.");
-                },
-                1 => SmartContractType::Native,
-                _ => {
-                    if aux_type_key > 4 {
-                        warn!(
-                            "Auxiliary Type Key > 4 detected, assuming its a plutus script > V3."
-                        );
-                    }
-                    SmartContractType::Plutus(aux_type_key - 1)
-                },
-            };
-
-            if raw_decoded_data.scripts.contains_key(&contract_type) {
-                bail!("Multiple Alonzo+ Scripts of type {contract_type} found. Invalid.");
-            }
-
-            Self::decode_script_array(raw_decoded_data, decoder, contract_type)?;
-        }
-        Ok(())
-    }
-
-    /// Decode an array of smart contract scripts
-    fn decode_script_array(
-        raw_decoded_data: &mut Self, decoder: &mut minicbor::Decoder,
-        contract_type: SmartContractType,
-    ) -> anyhow::Result<()> {
-        let mut scripts: Vec<Vec<u8>> = Vec::new();
-
-        let entries = match decoder.array() {
-            Ok(Some(entries)) => entries,
-            Ok(None) => {
-                bail!("Indefinite Script Array found decoding Metadata. Invalid.");
-            },
-            Err(error) => {
-                bail!("Error decoding metadata: {error}");
-            },
-        };
-
-        for _entry in 0..entries {
-            let script = match decoder.bytes() {
-                Ok(script) => script,
-                Err(error) => bail!("Error decoding script data from metadata: {error}"),
-            };
-            scripts.push(script.to_vec());
-        }
-
-        let _unused = raw_decoded_data
-            .scripts
-            .insert(contract_type, Arc::new(scripts));
-
-        Ok(())
-    }
+    pub report: ValidationReport,
 }
 
 /// Decoded Metadata for a single transaction.
@@ -261,64 +41,81 @@ impl RawAuxData {
 /// 61284 is the primary label, so decoded metadata
 /// will be under that label.
 #[derive(Debug)]
-struct DecodedMetadata(SkipMap<u64, Arc<DecodedMetadataItem>>);
+pub(crate) struct DecodedMetadata(SkipMap<u64, Arc<DecodedMetadataItem>>);
+
+impl DecodedMetadata {
+    /// Create new decoded metadata for a transaction.
+    fn new(slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData) -> Self {
+        let decoded_metadata = Self(SkipMap::new());
+
+        // Process each known type of metadata here, and record the decoded result.
+        Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true);
+
+        decoded_metadata
+    }
+
+    /// Get the decoded metadata item at the given slot, or None if it doesn't exist.
+    pub fn get(&self, primary_label: u64) -> Option<Arc<DecodedMetadataItem>> {
+        let entry = self.0.get(&primary_label)?;
+        let value = entry.value();
+        Some(value.clone())
+    }
+}
 
 /// Decoded Metadata for a all transactions in a block.
 /// The Key for both entries is the Transaction offset in the block.
 #[derive(Debug)]
-pub struct DecodedTransactionMetadata {
+pub struct DecodedTransaction {
     /// The Raw Auxiliary Data for each transaction in the block.
     raw: SkipMap<i16, RawAuxData>,
     /// The Decoded Metadata for each transaction in the block.
     decoded: SkipMap<i16, DecodedMetadata>,
 }
 
-/// Convert a u32 to an i16. (saturate if out of range.)
-fn i16_from_u32(value: u32) -> i16 {
-    match value.try_into() {
-        Ok(value) => value,
-        Err(_) => i16::MAX,
-    }
-}
+impl DecodedTransaction {
+    /// Insert another transaction worth of data into the Decoded Aux Data
+    fn insert(&mut self, slot: u64, txn_idx: u32, cbor_data: &[u8], transactions: &[MultiEraTx]) {
+        let txn_offset = i16_from_saturating(txn_idx);
+        let txn_idx = usize_from_saturating(txn_offset);
 
-impl DecodedTransactionMetadata {
+        let Some(txn) = transactions.get(txn_idx) else {
+            error!("No transaction at index {txn_idx} trying to decode metadata.");
+            return;
+        };
+
+        let txn_raw_aux_data = RawAuxData::new(cbor_data);
+        let txn_metadata = DecodedMetadata::new(slot, txn, &txn_raw_aux_data);
+
+        self.raw.insert(txn_offset, txn_raw_aux_data);
+        self.decoded.insert(txn_offset, txn_metadata);
+    }
+
     /// Create a new `DecodedTransactionMetadata`.
-    pub fn new(block: &MultiEraBlock) -> Self {
+    pub(crate) fn new(block: &MultiEraBlock) -> Self {
+        let mut decoded_aux_data = DecodedTransaction {
+            raw: SkipMap::new(),
+            decoded: SkipMap::new(),
+        };
         let raw_aux_data = SkipMap::new();
         let decoded_metadata = SkipMap::new();
+
+        let transactions = block.txs();
+        let slot = block.slot();
 
         if let Some(_metadata) = block.as_byron() {
             // Nothing to do here.
         } else if let Some(alonzo_block) = block.as_alonzo() {
-            alonzo_block
-                .auxiliary_data_set
-                .iter()
-                .for_each(|(txn_idx, metadata)| {
-                    let data = metadata.raw_cbor();
-                    debug!("Decoded Alonzo Metadata {txn_idx}:");
-                    let txn_raw_aux_data = RawAuxData::new(data);
-                    raw_aux_data.insert(i16_from_u32(*txn_idx), txn_raw_aux_data);
-                });
+            for (txn_idx, metadata) in alonzo_block.auxiliary_data_set.iter() {
+                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+            }
         } else if let Some(babbage_block) = block.as_babbage() {
-            babbage_block
-                .auxiliary_data_set
-                .iter()
-                .for_each(|(txn_idx, metadata)| {
-                    let data = metadata.raw_cbor();
-                    debug!("Decoded Babbage Metadata {txn_idx}:");
-                    let txn_raw_aux_data = RawAuxData::new(data);
-                    raw_aux_data.insert(i16_from_u32(*txn_idx), txn_raw_aux_data);
-                });
+            for (txn_idx, metadata) in babbage_block.auxiliary_data_set.iter() {
+                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+            }
         } else if let Some(conway_block) = block.as_conway() {
-            conway_block
-                .auxiliary_data_set
-                .iter()
-                .for_each(|(txn_idx, metadata)| {
-                    let data = metadata.raw_cbor();
-                    debug!("Decoded Conway Metadata {txn_idx}:");
-                    let txn_raw_aux_data = RawAuxData::new(data);
-                    raw_aux_data.insert(i16_from_u32(*txn_idx), txn_raw_aux_data);
-                });
+            for (txn_idx, metadata) in conway_block.auxiliary_data_set.iter() {
+                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+            }
         } else {
             error!("Undecodable metadata, unknown Era");
         };
@@ -327,5 +124,13 @@ impl DecodedTransactionMetadata {
             raw: raw_aux_data,
             decoded: decoded_metadata,
         }
+    }
+
+    /// Get metadata for a given label in a transaction if it exists.
+    pub fn get_metadata(&self, txn_idx: i16, label: u64) -> Option<Arc<DecodedMetadataItem>> {
+        let txn_metadata = self.decoded.get(&txn_idx)?;
+        let txn_metadata = txn_metadata.value();
+        let label_metadata = txn_metadata.get(label)?;
+        Some(label_metadata)
     }
 }
