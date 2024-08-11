@@ -31,7 +31,7 @@ and all possible validations and initialization should be performed based on the
 
 Split loading application (installing) and running into two different procedures.
 So during loading all validations will be performed along with state initialization and saved somewhere.
-Run procedure will not require an original applicaiton package
+Run procedure will not require an original application package
 and will pick up already validated and initialized data to run application.
 
 ## Consequences
