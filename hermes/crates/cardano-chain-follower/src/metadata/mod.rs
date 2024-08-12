@@ -6,7 +6,7 @@ use cip36::Cip36;
 use crossbeam_skiplist::SkipMap;
 use pallas::ledger::traverse::{MultiEraBlock, MultiEraTx};
 use raw_aux_data::RawAuxData;
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::{utils::usize_from_saturating, Network};
 
@@ -50,9 +50,9 @@ impl DecodedMetadata {
         // Process each known type of metadata here, and record the decoded result.
         Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true, chain);
 
-        if !decoded_metadata.0.is_empty() {
-            debug!("Decoded Metadata final: {decoded_metadata:?}");
-        }
+        //if !decoded_metadata.0.is_empty() {
+        //    debug!("Decoded Metadata final: {decoded_metadata:?}");
+        //}
         decoded_metadata
     }
 

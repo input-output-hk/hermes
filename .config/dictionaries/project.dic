@@ -118,8 +118,8 @@ mdlint
 mdns
 memeq
 memx
-Metadatum
 metadatum
+Metadatum
 mimalloc
 minicbor
 miniprotocol
@@ -170,8 +170,8 @@ redb
 redoc
 REMOVEDIR
 renameat
-Repr
 repr
+Repr
 reqwest
 retriggering
 rulelist
@@ -190,6 +190,7 @@ scanorder
 scanstatus
 Sched
 seckey
+SIGNDATA
 skiplist
 slotno
 smac
@@ -228,8 +229,8 @@ voteplan
 voteplans
 wallclock
 wasi
-wasip
 WASI
+wasip
 wasmtime
 webasm
 webassembly
