@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use dashmap::DashMap;
 use pallas::{codec::utils::Bytes, ledger::traverse::MultiEraTx};
 
-use crate::utility::blake2b_244;
+use crate::utils::blake2b_244;
 
 /// `WitnessMap` type of `DashMap` with
 /// key as [u8; 28] = (`blake2b_244` hash of the public key)
