@@ -2,6 +2,7 @@
 
 use std::io::{Read, Seek, Write};
 
+use super::get_intput_streams_state;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
@@ -48,69 +49,20 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_read(
         &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        // NUL_REP always returns 0 bytes.
-        if resource.rep() == NUL_REP {
-            return Ok(Ok(Vec::new()));
-        }
-
-        let seek_start = match STATE
-            .get_mut(self.app_name())
-            .input_stream_mut(resource.rep())
-        {
-            Some(input_stream) => input_stream.at(),
-            None => return Ok(Err(StreamError::Closed)),
+        let Ok(mut stream) = get_intput_streams_state().get_object(self.app_name(), &resource)
+        else {
+            println!("Failed to get input stream resource");
+            return Ok(Err(StreamError::Closed));
         };
 
-        let buf = match STATE
-            .get_mut(self.app_name())
-            .descriptor_mut(resource.rep())
-        {
-            Some(fd) => {
-                match fd {
-                    Descriptor::File(f) => {
-                        let Ok(f_size) = f.size().and_then(|size| {
-                            TryInto::<u64>::try_into(size).map_err(|e| anyhow::anyhow!(e))
-                        }) else {
-                            // TODO: Probably should return LastOperationFailed here
-                            return Ok(Err(StreamError::Closed));
-                        };
-
-                        if f_size == 0 || seek_start >= f_size {
-                            return Ok(Ok(Vec::new()));
-                        }
-
-                        // At this point seek_start < f_size, so subtracting is safe
-                        let Ok(read_len) = len.min(f_size - seek_start).try_into() else {
-                            return Ok(Err(StreamError::Closed));
-                        };
-
-                        let mut buf = vec![0u8; read_len];
-
-                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.read(&mut buf).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        buf
-                    },
-                    Descriptor::Dir(_) => todo!(),
-                }
-            },
-            None => {
-                return Ok(Err(StreamError::Closed));
-            },
+        let Ok(len) = usize::try_from(len) else {
+            return Ok(Err(StreamError::Closed));
         };
-
-        match STATE
-            .get_mut(self.app_name())
-            .input_stream_mut(resource.rep())
-        {
-            Some(input_stream) => input_stream.advance(buf.len() as u64),
-            None => return Ok(Err(StreamError::Closed)),
-        }
+        let mut buf = vec![0u8; len];
+        let Ok(read_len) = stream.read(&mut buf) else {
+            return Ok(Err(StreamError::Closed));
+        };
+        buf.truncate(read_len);
 
         Ok(Ok(buf))
     }
@@ -139,9 +91,7 @@ impl HostInputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        STATE
-            .get_mut(self.app_name())
-            .remove_input_stream(rep.rep());
+        get_intput_streams_state().delete_resource(self.app_name(), rep)?;
         Ok(())
     }
 }

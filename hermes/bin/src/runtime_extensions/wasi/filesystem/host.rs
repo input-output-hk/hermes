@@ -1,5 +1,7 @@
 //! Filesystem host implementation for WASM runtime.
 
+use std::io::{Seek, SeekFrom};
+
 use crate::{
     hdf5::Path,
     runtime_context::HermesRuntimeContext,
@@ -15,7 +17,7 @@ use crate::{
             },
             io::streams::{InputStream, OutputStream},
         },
-        wasi::state::STATE,
+        wasi::{self, io::streams::get_intput_streams_state, state::STATE},
     },
 };
 
@@ -29,21 +31,22 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     ///
     /// Note: This allows using `read-stream`, which is similar to `read` in POSIX.
     fn read_via_stream(
-        &mut self, descriptor: wasmtime::component::Resource<Descriptor>, offset: Filesize,
+        &mut self, res: wasmtime::component::Resource<Descriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<InputStream>, ErrorCode>> {
-        let res = STATE
-            .get_mut(self.app_name())
-            .put_input_stream(descriptor.rep(), offset);
+        let state = STATE.get(self.app_name());
+        let Some(descriptor) = state.descriptor(res.rep()) else {
+            return Ok(Err(ErrorCode::NoEntry));
+        };
 
-        if let Err(e) = res {
-            match e {
-                crate::runtime_extensions::wasi::context::Error::NoEntry => {
-                    return Ok(Err(ErrorCode::NoEntry))
-                },
-            }
-        }
+        let mut file = match descriptor {
+            wasi::descriptors::Descriptor::File(f) => f.clone(),
+            wasi::descriptors::Descriptor::Dir(_) => return Ok(Err(ErrorCode::IsDirectory)),
+        };
+        file.seek(SeekFrom::Start(offset))?;
 
-        Ok(Ok(wasmtime::component::Resource::new_own(descriptor.rep())))
+        Ok(Ok(
+            get_intput_streams_state().create_resource(self.app_name(), Box::new(file))?
+        ))
     }
 
     /// Return a stream for writing to a file, if available.
