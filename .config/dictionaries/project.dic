@@ -141,6 +141,7 @@ pollable
 Pozhylenkov
 pread
 preopened
+preopen
 preopens
 preprod
 psql

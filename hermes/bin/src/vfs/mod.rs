@@ -76,6 +76,11 @@ impl Vfs {
 
         Ok(())
     }
+
+    /// Get the root directory of the VFS.
+    pub(crate) fn root(&self) -> &hermes_hdf5::Dir {
+        &self.root
+    }
 }
 #[cfg(test)]
 mod tests {
