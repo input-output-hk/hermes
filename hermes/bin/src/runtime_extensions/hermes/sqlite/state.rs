@@ -1,5 +1,3 @@
-// cspell: words mapref
-
 //! Internal state implementation for the `SQLite` module.
 
 use std::collections::HashMap;
@@ -7,7 +5,7 @@ use std::collections::HashMap;
 use dashmap::{mapref::one::RefMut, DashMap};
 use once_cell::sync::Lazy;
 
-use crate::app::HermesAppName;
+use crate::app::ApplicationName;
 
 /// The object pointer used specifically with C objects like `sqlite3` or `sqlite3_stmt`.
 type ObjectPointer = usize;
@@ -91,7 +89,7 @@ impl ResourceState {
 }
 
 /// Map of app name to resource holder
-type State = DashMap<HermesAppName, ResourceState>;
+type State = DashMap<ApplicationName, ResourceState>;
 
 /// Global state to hold `SQLite` resources.
 static SQLITE_INTERNAL_STATE: Lazy<State> = Lazy::new(State::new);
@@ -102,8 +100,8 @@ pub(crate) struct InternalState;
 impl InternalState {
     /// Set the state according to the app context.
     pub(crate) fn get_or_create_resource<'a>(
-        app_name: HermesAppName,
-    ) -> RefMut<'a, HermesAppName, ResourceState> {
+        app_name: ApplicationName,
+    ) -> RefMut<'a, ApplicationName, ResourceState> {
         SQLITE_INTERNAL_STATE
             .entry(app_name)
             .or_insert_with(ResourceState::new)

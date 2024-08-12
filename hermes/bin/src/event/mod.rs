@@ -3,7 +3,7 @@
 pub(crate) mod queue;
 
 use crate::{
-    app::HermesAppName,
+    app::ApplicationName,
     wasm::module::{ModuleId, ModuleInstance},
 };
 
@@ -31,7 +31,7 @@ pub(crate) enum TargetApp {
     #[allow(dead_code)]
     All,
     /// Execute for a specific list of apps
-    List(Vec<HermesAppName>),
+    List(Vec<ApplicationName>),
 }
 
 /// Target WASM module to execute the event

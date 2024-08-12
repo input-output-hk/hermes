@@ -16,13 +16,13 @@ build:
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO --args "build --target wasm32-wasip1 --release" \
-        --output="wasm32-wasip1/release/cardano_rte_test_component.wasm"
+        --output="wasm32-wasip1/release/wasi_filesystem.wasm"
 
     COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm wasi_snapshot_preview1.wasm
 
-    RUN wasm-tools component new -o cardano.wasm target/wasm32-wasip1/release/cardano_rte_test_component.wasm --adapt wasi_snapshot_preview1.wasm
+    RUN wasm-tools component new -o wasi-filesystem.wasm target/wasm32-wasip1/release/wasi_filesystem.wasm --adapt wasi_snapshot_preview1.wasm
 
-    SAVE ARTIFACT cardano.wasm
+    SAVE ARTIFACT wasi-filesystem.wasm
 
 # local-bindings : saves the Hermes rust bindings locally. This is useful for local development.
 local-bindings:

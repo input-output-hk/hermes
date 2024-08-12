@@ -29,7 +29,7 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
-        println!("{} Build wasm module package...", Emoji::new("📦", ""));
+        println!("{} Build module package", Emoji::new("📦", ""));
 
         let manifest_dir = self
             .manifest
@@ -46,6 +46,7 @@ impl PackageCommand {
             })
             .unwrap_or(manifest_dir.into());
 
+        println!("{} Building package...", Emoji::new("🛠️", ""));
         let manifest = Manifest::from_file(&self.manifest)?;
         let package_name = self.name.as_deref();
         let build_time = Utc::now();

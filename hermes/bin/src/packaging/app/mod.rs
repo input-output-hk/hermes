@@ -1,11 +1,13 @@
 //! Hermes application package.
 
+mod app_builder;
 mod author_payload;
 mod manifest;
 mod module_info;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use app_builder::build_app;
 use chrono::{DateTime, Utc};
 pub(crate) use manifest::{Manifest, ManifestModule};
 pub(crate) use module_info::AppModuleInfo;
@@ -28,7 +30,6 @@ use crate::{
         resources::{BytesResource, ResourceTrait},
         Dir, File, Path,
     },
-    vfs::{PermissionLevel, Vfs, VfsBootstrapper},
 };
 
 /// Hermes application package.
@@ -113,9 +114,8 @@ impl ApplicationPackage {
                 }
 
                 for module_info in modules {
-                    let module_package = module_info.package;
-                    let module_name = module_info.name;
-                    module_package
+                    let module_name = module_info.get_name();
+                    module_info
                         .validate(untrusted)
                         .map_err(|err| {
                             anyhow::anyhow!("Invalid module package `{module_name}`:\n{err}")
@@ -189,11 +189,9 @@ impl ApplicationPackage {
         let mut signature_payload_builder =
             author_payload::SignaturePayloadBuilder::new(metadata_hash.clone(), icon_hash.clone());
 
-        let usr_module_path = Path::new(vec![Self::USR_DIR.into(), Self::LIB_DIR.into()]);
         for module_info in self.get_modules()? {
-            let module_name = module_info.name;
-            let module_package = module_info.package;
-            let module_sign = module_package.get_signature()?.ok_or(anyhow::anyhow!(
+            let module_name = module_info.get_name();
+            let module_sign = module_info.get_signature()?.ok_or(anyhow::anyhow!(
                 "Module {module_name} not signed, missing author.cose signature"
             ))?;
             let module_sign_hash = Blake2b256::hash(module_sign.to_bytes()?.as_slice());
@@ -204,14 +202,24 @@ impl ApplicationPackage {
                     module_sign_hash,
                 );
 
-            let mut usr_module_config_path = usr_module_path.clone();
-            usr_module_config_path.push_elem(Self::MODULE_CONFIG_FILE.into());
+            let usr_module_config_path: Path = format!(
+                "{}/{}/{}",
+                Self::USR_LIB_DIR,
+                module_name,
+                Self::MODULE_CONFIG_FILE
+            )
+            .into();
             if let Some(config_hash) = self.0.calculate_file_hash(usr_module_config_path)? {
                 signature_payload_module_builder.with_config(config_hash);
             }
 
-            let mut usr_module_share_path = usr_module_path.clone();
-            usr_module_share_path.push_elem(Self::MODULE_SHARE_DIR.into());
+            let usr_module_share_path: Path = format!(
+                "{}/{}/{}",
+                Self::USR_LIB_DIR,
+                module_name,
+                Self::MODULE_SHARE_DIR
+            )
+            .into();
             if let Some(share_hash) = self.0.calculate_dir_hash(&usr_module_share_path)? {
                 signature_payload_module_builder.with_share(share_hash);
             }
@@ -229,15 +237,20 @@ impl ApplicationPackage {
         Ok(signature_payload_builder.build())
     }
 
+    /// Get application package name.
+    pub(crate) fn get_app_name(&self) -> anyhow::Result<String> {
+        self.get_metadata()?.get_name()
+    }
+
     /// Get icon `File` object from package.
-    pub(super) fn get_icon_file(&self) -> anyhow::Result<File> {
+    fn get_icon_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::ICON_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::ICON_FILE.to_string()).into())
     }
 
     /// Get metadata `File` object from package.
-    pub(super) fn get_metadata_file(&self) -> anyhow::Result<File> {
+    fn get_metadata_file(&self) -> anyhow::Result<File> {
         self.0
             .get_file(Self::METADATA_FILE.into())
             .map_err(|_| MissingPackageFileError(Self::METADATA_FILE.to_string()).into())
@@ -275,91 +288,20 @@ impl ApplicationPackage {
                 .get_file(Self::MODULE_CONFIG_FILE.into())
                 .ok();
 
-            let module_info = AppModuleInfo {
-                name,
-                package,
-                app_config,
-                app_share,
-            };
+            let module_info = AppModuleInfo::new(name, package, app_config, app_share);
             modules.push(module_info);
         }
         Ok(modules)
     }
 
     /// Get www dir from package if present.
-    pub(super) fn get_www_dir(&self) -> Option<Dir> {
+    fn get_www_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_WWW_DIR.into()).ok()
     }
 
     /// Get share dir from package if present.
-    pub(super) fn get_share_dir(&self) -> Option<Dir> {
+    fn get_share_dir(&self) -> Option<Dir> {
         self.0.get_dir(&Self::SRV_SHARE_DIR.into()).ok()
-    }
-
-    /// Mount `ApplicationPackage` content to the `Vfs`
-    pub(crate) fn mount_to_vfs(&self, bootstrapper: &mut VfsBootstrapper) -> anyhow::Result<()> {
-        let root_path = "/".to_string();
-        bootstrapper.with_mounted_file(
-            root_path.clone(),
-            self.get_icon_file()?,
-            PermissionLevel::Read,
-        );
-        bootstrapper.with_mounted_file(
-            root_path.clone(),
-            self.get_metadata_file()?,
-            PermissionLevel::Read,
-        );
-        if let Some(share_dir) = self.get_share_dir() {
-            bootstrapper.with_mounted_dir(root_path.clone(), share_dir, PermissionLevel::Read);
-        }
-        if let Some(www_dir) = self.get_www_dir() {
-            bootstrapper.with_mounted_dir(root_path, www_dir, PermissionLevel::Read);
-        }
-
-        for module_info in self.get_modules()? {
-            let lib_module_dir_path = format!("{}/{}", Vfs::LIB_DIR, module_info.get_name());
-            bootstrapper.with_dir_to_create(lib_module_dir_path.clone(), PermissionLevel::Read);
-
-            bootstrapper.with_mounted_file(
-                lib_module_dir_path.clone(),
-                module_info.get_metadata_file()?,
-                PermissionLevel::Read,
-            );
-            bootstrapper.with_mounted_file(
-                lib_module_dir_path.clone(),
-                module_info.get_component_file()?,
-                PermissionLevel::Read,
-            );
-            if let Some(config_schema) = module_info.get_config_schema_file() {
-                bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
-                    config_schema,
-                    PermissionLevel::Read,
-                );
-            }
-            if let Some(config) = module_info.get_config_file() {
-                bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
-                    config,
-                    PermissionLevel::Read,
-                );
-            }
-            if let Some(settings_schema) = module_info.get_settings_schema_file() {
-                bootstrapper.with_mounted_file(
-                    lib_module_dir_path.clone(),
-                    settings_schema,
-                    PermissionLevel::Read,
-                );
-            }
-            if let Some(share_dir) = module_info.get_share() {
-                bootstrapper.with_mounted_dir(
-                    lib_module_dir_path,
-                    share_dir,
-                    PermissionLevel::Read,
-                );
-            }
-        }
-        Ok(())
     }
 
     /// Validate and write all content of the `Manifest` to the provided `package`.

@@ -2,14 +2,16 @@
 
 #![allow(clippy::module_name_repetitions)]
 
+use std::sync::Arc;
+
 use anyhow::Ok;
 use crossbeam_queue::SegQueue;
 use once_cell::sync::OnceCell;
 use temp_dir::TempDir;
 
 use crate::{
-    app::HermesAppName,
-    event::{queue::event_dispatch, HermesEventPayload},
+    app::{module_dispatch_event, ApplicationName},
+    event::HermesEventPayload,
     runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
     vfs::VfsBootstrapper,
     wasm::module::Module,
@@ -85,36 +87,38 @@ impl HermesEventPayload for OnBenchEvent {
 pub fn execute_event(
     module: &mut Module, test: u32, run: bool, event_type: EventType,
 ) -> anyhow::Result<Option<TestResult>> {
-    let app_name = HermesAppName("integration-test".to_owned());
+    let app_name = ApplicationName("integration-test".to_owned());
 
     let hermes_home_dir = TempDir::new()?;
 
-    let vfs = VfsBootstrapper::new(hermes_home_dir.path(), app_name.to_string())
-        .bootstrap()?
-        .into();
+    let vfs =
+        Arc::new(VfsBootstrapper::new(hermes_home_dir.path(), app_name.to_string()).bootstrap()?);
 
     let result = match event_type {
         EventType::Bench => {
             let on_bench_event = Box::new(OnBenchEvent { test, run });
-            event_dispatch(
+            if let Err(err) = module_dispatch_event(
+                module,
                 app_name,
                 module.id().clone(),
-                module,
+                vfs.clone(),
                 on_bench_event.as_ref(),
-                vfs,
-            );
-            // module.execute_event(&on_bench_event)?;
+            ) {
+                tracing::error!("{err}");
+            }
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
         EventType::Test => {
             let on_test_event = Box::new(OnTestEvent { test, run });
-            event_dispatch(
+            if let Err(err) = module_dispatch_event(
+                module,
                 app_name,
                 module.id().clone(),
-                module,
+                vfs.clone(),
                 on_test_event.as_ref(),
-                vfs,
-            );
+            ) {
+                tracing::error!("{err}");
+            }
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
     };

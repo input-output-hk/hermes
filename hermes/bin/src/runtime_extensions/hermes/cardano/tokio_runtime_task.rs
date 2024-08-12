@@ -5,7 +5,7 @@ use tracing::{error, instrument, trace};
 
 use super::{Result, STATE};
 use crate::{
-    app::HermesAppName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
+    app::ApplicationName, runtime_extensions::bindings::hermes::cardano::api::CardanoBlockchainId,
     wasm::module::ModuleId,
 };
 
@@ -14,7 +14,7 @@ enum Command {
     /// Instructs the Tokio runtime background thread to spawn a new chain follower.
     SpawnFollower {
         /// Name of the app that the follower will be tied to.
-        app_name: HermesAppName,
+        app_name: ApplicationName,
         /// ID of the module that the follower will be tied to.
         module_id: ModuleId,
         /// Cardano blockchain that the follower will connect to.
@@ -60,7 +60,7 @@ impl Handle {
     ///
     /// Returns Err if the chain follower executor task could not be spawned.
     pub fn spawn_follower_sync(
-        &self, app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
+        &self, app_name: ApplicationName, module_id: ModuleId, chain_id: CardanoBlockchainId,
         follow_from: cardano_chain_follower::PointOrTip,
     ) -> Result<(
         super::chain_follower_task::Handle,
@@ -159,7 +159,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
 /// Spawns a follower which will follow the given chain and sets its starting point to the
 /// given point.
 async fn spawn_follower(
-    app_name: HermesAppName, module_id: ModuleId, chain_id: CardanoBlockchainId,
+    app_name: ApplicationName, module_id: ModuleId, chain_id: CardanoBlockchainId,
     follow_from: cardano_chain_follower::PointOrTip,
 ) -> Result<(
     super::chain_follower_task::Handle,
