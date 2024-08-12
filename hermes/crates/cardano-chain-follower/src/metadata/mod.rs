@@ -1,16 +1,16 @@
 //! Metadata decoding and validating.
 
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use cip36::Cip36;
 use crossbeam_skiplist::SkipMap;
 use pallas::ledger::traverse::{MultiEraBlock, MultiEraTx};
 use raw_aux_data::RawAuxData;
-use tracing::error;
+use tracing::{debug, error};
 
-use crate::utils::{i16_from_saturating, usize_from_saturating};
+use crate::{utils::usize_from_saturating, Network};
 
-mod cip36;
+pub mod cip36;
 mod raw_aux_data;
 
 /// List of all validation errors (as strings) Metadata is considered Valid if this list is empty.
@@ -40,17 +40,19 @@ pub struct DecodedMetadataItem {
 /// For example, CIP15/36 uses labels 61284 & 61285,
 /// 61284 is the primary label, so decoded metadata
 /// will be under that label.
-#[derive(Debug)]
 pub(crate) struct DecodedMetadata(SkipMap<u64, Arc<DecodedMetadataItem>>);
 
 impl DecodedMetadata {
     /// Create new decoded metadata for a transaction.
-    fn new(slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData) -> Self {
+    fn new(chain: Network, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData) -> Self {
         let decoded_metadata = Self(SkipMap::new());
 
         // Process each known type of metadata here, and record the decoded result.
-        Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true);
+        Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true, chain);
 
+        if !decoded_metadata.0.is_empty() {
+            debug!("Decoded Metadata final: {decoded_metadata:?}");
+        }
         decoded_metadata
     }
 
@@ -62,21 +64,35 @@ impl DecodedMetadata {
     }
 }
 
+impl Debug for DecodedMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("DecodedMetadata {")?;
+        for kv in &self.0 {
+            let k = kv.key();
+            let v = kv.value().clone();
+            f.write_fmt(format_args!("{k:?}:{v:?} "))?;
+        }
+        f.write_str("}")
+    }
+}
+
 /// Decoded Metadata for a all transactions in a block.
 /// The Key for both entries is the Transaction offset in the block.
 #[derive(Debug)]
 pub struct DecodedTransaction {
     /// The Raw Auxiliary Data for each transaction in the block.
-    raw: SkipMap<i16, RawAuxData>,
+    raw: SkipMap<usize, RawAuxData>,
     /// The Decoded Metadata for each transaction in the block.
-    decoded: SkipMap<i16, DecodedMetadata>,
+    decoded: SkipMap<usize, DecodedMetadata>,
 }
 
 impl DecodedTransaction {
     /// Insert another transaction worth of data into the Decoded Aux Data
-    fn insert(&mut self, slot: u64, txn_idx: u32, cbor_data: &[u8], transactions: &[MultiEraTx]) {
-        let txn_offset = i16_from_saturating(txn_idx);
-        let txn_idx = usize_from_saturating(txn_offset);
+    fn insert(
+        &mut self, chain: Network, slot: u64, txn_idx: u32, cbor_data: &[u8],
+        transactions: &[MultiEraTx],
+    ) {
+        let txn_idx = usize_from_saturating(txn_idx);
 
         let Some(txn) = transactions.get(txn_idx) else {
             error!("No transaction at index {txn_idx} trying to decode metadata.");
@@ -84,20 +100,18 @@ impl DecodedTransaction {
         };
 
         let txn_raw_aux_data = RawAuxData::new(cbor_data);
-        let txn_metadata = DecodedMetadata::new(slot, txn, &txn_raw_aux_data);
+        let txn_metadata = DecodedMetadata::new(chain, slot, txn, &txn_raw_aux_data);
 
-        self.raw.insert(txn_offset, txn_raw_aux_data);
-        self.decoded.insert(txn_offset, txn_metadata);
+        self.raw.insert(txn_idx, txn_raw_aux_data);
+        self.decoded.insert(txn_idx, txn_metadata);
     }
 
-    /// Create a new `DecodedTransactionMetadata`.
-    pub(crate) fn new(block: &MultiEraBlock) -> Self {
+    /// Create a new `DecodedTransaction`.
+    pub(crate) fn new(chain: Network, block: &MultiEraBlock) -> Self {
         let mut decoded_aux_data = DecodedTransaction {
             raw: SkipMap::new(),
             decoded: SkipMap::new(),
         };
-        let raw_aux_data = SkipMap::new();
-        let decoded_metadata = SkipMap::new();
 
         let transactions = block.txs();
         let slot = block.slot();
@@ -106,31 +120,34 @@ impl DecodedTransaction {
             // Nothing to do here.
         } else if let Some(alonzo_block) = block.as_alonzo() {
             for (txn_idx, metadata) in alonzo_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
             }
         } else if let Some(babbage_block) = block.as_babbage() {
             for (txn_idx, metadata) in babbage_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
             }
         } else if let Some(conway_block) = block.as_conway() {
             for (txn_idx, metadata) in conway_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(slot, *txn_idx, metadata.raw_cbor(), &transactions);
+                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
             }
         } else {
             error!("Undecodable metadata, unknown Era");
         };
 
-        Self {
-            raw: raw_aux_data,
-            decoded: decoded_metadata,
-        }
+        decoded_aux_data
     }
 
     /// Get metadata for a given label in a transaction if it exists.
-    pub fn get_metadata(&self, txn_idx: i16, label: u64) -> Option<Arc<DecodedMetadataItem>> {
+    pub fn get_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<DecodedMetadataItem>> {
         let txn_metadata = self.decoded.get(&txn_idx)?;
         let txn_metadata = txn_metadata.value();
-        let label_metadata = txn_metadata.get(label)?;
-        Some(label_metadata)
+        txn_metadata.get(label)
+    }
+
+    /// Get raw metadata for a given label in a transaction if it exists.
+    pub fn get_raw_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<Vec<u8>>> {
+        let txn_metadata = self.raw.get(&txn_idx)?;
+        let txn_metadata = txn_metadata.value();
+        txn_metadata.get_metadata(label)
     }
 }

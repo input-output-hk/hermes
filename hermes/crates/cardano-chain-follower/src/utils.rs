@@ -1,6 +1,7 @@
 //! Simple general purpose utility functions.
 
 /// Convert T to an i16. (saturate if out of range.)
+#[allow(dead_code)]
 pub(crate) fn i16_from_saturating<T: TryInto<i16>>(value: T) -> i16 {
     match value.try_into() {
         Ok(value) => value,
