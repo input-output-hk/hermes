@@ -18,7 +18,7 @@ impl HostStatement for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-        Ok(core::bind(stmt_ptr as *mut _, index, value))
+        Ok(core::bind(*stmt_ptr as *mut _, index, value))
     }
 
     /// Advances a statement to the next result row or to completion.
@@ -29,7 +29,7 @@ impl HostStatement for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
         let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
-        Ok(core::step(stmt_ptr as *mut _))
+        Ok(core::step(*stmt_ptr as *mut _))
     }
 
     /// Returns information about a single column of the current result row of a query.
@@ -50,7 +50,7 @@ impl HostStatement for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<Value, Errno>> {
         let stmt_ptr = get_statement_state().get_object(self.app_name(), &resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-        Ok(core::column(stmt_ptr as *mut _, index))
+        Ok(core::column(*stmt_ptr as *mut _, index))
     }
 
     /// Destroys a prepared statement object. If the most recent evaluation of the

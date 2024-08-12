@@ -41,7 +41,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Option<ErrorInfo>> {
         let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
-        Ok(core::errcode(db_ptr as *mut _))
+        Ok(core::errcode(*db_ptr as *mut _))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -62,7 +62,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
         let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
-        let result = core::prepare(db_ptr as *mut _, sql.as_str());
+        let result = core::prepare(*db_ptr as *mut _, sql.as_str());
 
         match result {
             Ok(stmt_ptr) => {
@@ -90,7 +90,7 @@ impl HostSqlite for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<(), Errno>> {
         let db_ptr = get_db_state().get_object(self.app_name(), &resource)?;
 
-        Ok(core::execute(db_ptr as *mut _, sql.as_str()))
+        Ok(core::execute(*db_ptr as *mut _, sql.as_str()))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {

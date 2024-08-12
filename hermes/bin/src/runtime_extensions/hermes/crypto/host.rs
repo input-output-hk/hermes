@@ -87,7 +87,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
         let private_key = get_state().get_object(self.app_name(), &resource)?;
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
-        let new_private_key = derive_new_private_key(private_key, &path)
+        let new_private_key = derive_new_private_key(private_key.clone(), &path)
             .map_err(|_| wasmtime::Error::msg("Error deriving new private key"))?;
         get_state().create_resource(self.app_name(), new_private_key)
     }

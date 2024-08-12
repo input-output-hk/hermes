@@ -2,6 +2,7 @@
 
 use std::{
     any::type_name,
+    ops::DerefMut,
     sync::atomic::{AtomicU32, Ordering},
 };
 
@@ -55,13 +56,11 @@ where WitType: 'static
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
-    pub(crate) fn get_object(
-        &self, resource: &wasmtime::component::Resource<WitType>,
-    ) -> wasmtime::Result<RustType>
-    where RustType: Clone {
+    pub(crate) fn get_object<'a>(
+        &'a self, resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
         self.state
-            .get(&resource.rep())
-            .map(|r| r.value().clone())
+            .get_mut(&resource.rep())
             .ok_or(Self::resource_not_found_err())
     }
 
@@ -97,6 +96,8 @@ where WitType: 'static
 pub(crate) struct ApplicationResourceManager<WitType, RustType> {
     /// Map of app name to resources.
     state: DashMap<ApplicationName, ResourceManager<WitType, RustType>>,
+    /// resources
+    resources: ResourceManager<WitType, RustType>,
 }
 
 impl<WitType, RustType> ApplicationResourceManager<WitType, RustType>
@@ -106,6 +107,7 @@ where WitType: 'static
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
+            resources: ResourceManager::new(),
         }
     }
 
@@ -126,18 +128,17 @@ where WitType: 'static
     pub(crate) fn create_resource(
         &self, app_name: &ApplicationName, object: RustType,
     ) -> wasmtime::Result<wasmtime::component::Resource<WitType>> {
-        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        Ok(app_state.create_resource(object))
+        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
+        Ok(self.resources.create_resource(object))
     }
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
-    pub(crate) fn get_object(
-        &self, app_name: &ApplicationName, resource: &wasmtime::component::Resource<WitType>,
-    ) -> wasmtime::Result<RustType>
-    where RustType: Clone {
-        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        app_state.get_object(resource)
+    pub(crate) fn get_object<'a>(
+        &'a self, app_name: &ApplicationName, resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
+        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
+        self.resources.get_object(resource)
     }
 
     /// Removes the resource from the resource manager.
@@ -146,8 +147,8 @@ where WitType: 'static
     pub(crate) fn delete_resource(
         &self, app_name: &ApplicationName, resource: wasmtime::component::Resource<WitType>,
     ) -> anyhow::Result<RustType> {
-        let app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        app_state.delete_resource(resource)
+        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
+        self.resources.delete_resource(resource)
     }
 
     /// Application not found error message.
@@ -176,7 +177,7 @@ mod tests {
         let resource = resource_manager.create_resource(object);
         let copied_resource = wasmtime::component::Resource::new_borrow(resource.rep());
 
-        assert_eq!(resource_manager.get_object(&resource).unwrap(), object);
+        assert_eq!(*resource_manager.get_object(&resource).unwrap(), object);
         assert!(resource_manager.delete_resource(resource).is_ok());
         assert!(resource_manager.get_object(&copied_resource).is_err());
         assert!(resource_manager.delete_resource(copied_resource).is_err());
@@ -217,7 +218,7 @@ mod tests {
             let copied_resource = wasmtime::component::Resource::new_borrow(resource.rep());
 
             assert_eq!(
-                resource_manager.get_object(&app_name_1, &resource).unwrap(),
+                *resource_manager.get_object(&app_name_1, &resource).unwrap(),
                 object
             );
             assert!(resource_manager.get_object(&app_name_2, &resource).is_err(),);
