@@ -1,4 +1,11 @@
 //! Multi Era CBOR Encoded Block Data
+//!
+//! Data about how the block/transactions can be encoded is found here:
+//! <https://github.com/IntersectMBO/cardano-ledger/blob/78b32d585fd4a0340fb2b184959fb0d46f32c8d2/eras/conway/impl/cddl-files/conway.cddl>
+//!
+//! DO NOT USE the documentation/cddl definitions from the head of this repo because it currently
+//! lacks most of the documentation needed to understand the format and is also incorrectly generated
+//! and contains errors that will be difficult to discern.
 
 use std::{cmp::Ordering, fmt::Display, sync::Arc};
 
@@ -7,6 +14,7 @@ use tracing::debug;
 
 use crate::{
     error::Error,
+    metadata,
     point::{ORIGIN_POINT, UNKNOWN_POINT},
     stats::stats_invalid_block,
     witness::TxWitness,
@@ -19,7 +27,7 @@ use crate::{
 /// `borrow_raw_data()` and `borrow_block()`
 #[self_referencing]
 #[derive(Debug)]
-struct SelfReferencedMultiEraBlock {
+pub(crate) struct SelfReferencedMultiEraBlock {
     /// The CBOR encoded data of a multi-era block.
     raw_data: Vec<u8>,
 
@@ -32,6 +40,7 @@ struct SelfReferencedMultiEraBlock {
 
 /// Multi-era block - inner.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct MultiEraBlockInner {
     /// What blockchain was the block produced on.
     pub chain: Network,
@@ -42,6 +51,8 @@ pub struct MultiEraBlockInner {
     previous: Point,
     /// The decoded multi-era block.
     data: SelfReferencedMultiEraBlock,
+    /// Decoded Metadata in the transactions in the block.
+    metadata: metadata::DecodedTransaction,
     /// A map of public key hashes to the public key and transaction numbers they are in.
     #[allow(dead_code)]
     witness_map: Option<TxWitness>,
@@ -131,6 +142,8 @@ impl MultiEraBlock {
             }
         }
 
+        let metadata = metadata::DecodedTransaction::new(decoded_block);
+
         Ok(Self {
             fork,
             inner: Arc::new(MultiEraBlockInner {
@@ -138,6 +151,7 @@ impl MultiEraBlock {
                 point,
                 previous: previous.clone(),
                 data: self_ref_block,
+                metadata,
                 witness_map,
             }),
         })
@@ -666,55 +680,4 @@ pub(crate) mod tests {
             assert!(block.is_err());
         }
     }
-
-    // #[test]
-    // #[allow(clippy::unwrap_used)]
-    // fn test_comparisons() {
-    // let origin1 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
-    // let origin2 = LiveBlock::new(Point::Origin, MultiEraBlock::new(vec![]).unwrap());
-    // let early_block = LiveBlock::new(
-    // Point::Specific(100u64, vec![]),
-    // MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
-    // );
-    // let early_block2 = LiveBlock::new(
-    // Point::Specific(100u64, vec![]),
-    // MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
-    // );
-    // let late_block = LiveBlock::new(
-    // Point::Specific(10000u64, vec![]),
-    // MultiEraBlock::new(vec![1, 2, 3]).unwrap(),
-    // );
-    // let late_block2 = LiveBlock::new(
-    // Point::Specific(10000u64, vec![]),
-    // MultiEraBlock::new(vec![4, 5, 6]).unwrap(),
-    // );
-    //
-    // assert!(origin1 == origin2);
-    // assert!(origin2 == origin1);
-    //
-    // assert!(origin1 < early_block);
-    // assert!(origin2 < late_block);
-    //
-    // assert!(origin1 <= early_block);
-    // assert!(origin2 <= late_block);
-    //
-    // assert!(early_block > origin1);
-    // assert!(late_block > origin2);
-    //
-    // assert!(early_block >= origin1);
-    // assert!(late_block >= origin2);
-    //
-    // assert!(early_block < late_block);
-    // assert!(late_block > early_block);
-    //
-    // assert!(early_block <= late_block);
-    // assert!(late_block >= early_block);
-    //
-    // assert!(early_block == early_block2);
-    // assert!(late_block == late_block2);
-    //
-    // assert!(origin1 != early_block);
-    // assert!(origin2 != late_block);
-    // assert!(early_block != late_block);
-    // }
 }

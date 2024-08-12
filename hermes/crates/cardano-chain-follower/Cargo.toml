@@ -47,6 +47,9 @@ brotli.workspace = true
 zstd.workspace = true
 c509-certificate.workspace = true
 x509-cert.workspace = true
+ed25519-dalek.workspace = true
+blake2b_simd.workspace = true
+num-traits.workspace = true
 blake2b_simd.workspace = true
 
 [dev-dependencies]

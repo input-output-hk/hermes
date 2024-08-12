@@ -24,7 +24,7 @@ test-mithril-download:
 run-mithril-download-example:
     cargo build -r --package cardano-chain-follower --example follow_chains --features mimalloc
     RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
-    ./target/release/examples/follow_chains --mainnet
+    ./target/release/examples/follow_chains --preprod
 
 # Run long running developer test for mithril downloading.
 debug-heap-mithril-download-example:

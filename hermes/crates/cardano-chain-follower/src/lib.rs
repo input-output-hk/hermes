@@ -20,6 +20,7 @@ mod network;
 mod point;
 mod snapshot_id;
 mod stats;
+mod utils;
 mod utility;
 mod witness;
 
