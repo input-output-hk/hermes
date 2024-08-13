@@ -88,18 +88,16 @@ pub(crate) mod tests {
 
     #[test]
     fn certificate_from_file_test() {
-        let dir = TempDir::new().expect("cannot create temp dir");
+        let dir = TempDir::new().unwrap();
 
         let certificate_path = dir.path().join("cert.pem");
-        std::fs::write(&certificate_path, certificate_str()).expect("Cannot create cert.pem file");
+        std::fs::write(&certificate_path, certificate_str()).unwrap();
 
-        let cert =
-            Certificate::from_file(certificate_path).expect("Cannot create certificate from file");
+        let cert = Certificate::from_file(certificate_path).unwrap();
 
-        let cert_public_key = cert.subject_public_key().expect("Cannot get public key");
+        let cert_public_key = cert.subject_public_key().unwrap();
 
-        let expected_public_key =
-            PublicKey::from_str(&public_key_str()).expect("Cannot parse public key");
+        let expected_public_key = PublicKey::from_str(&public_key_str()).unwrap();
 
         assert_eq!(cert_public_key, expected_public_key);
     }

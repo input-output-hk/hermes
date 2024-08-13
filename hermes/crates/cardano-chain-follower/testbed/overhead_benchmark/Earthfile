@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot:v3.1.8 AS mithril-snapshot-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mithril_snapshot:v3.1.24 AS mithril-snapshot-ci
 IMPORT ../../../.. AS hermes
 
 build:

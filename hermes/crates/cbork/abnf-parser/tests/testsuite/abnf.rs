@@ -5,7 +5,7 @@ use abnf_parser::parse_abnf;
 #[test]
 /// # Panics
 fn parse_abnf_files() {
-    let entries = fs::read_dir("tests/abnf").expect("`tests/abnf` directory must exist");
+    let entries = fs::read_dir("tests/abnf").unwrap();
 
     let mut file_paths: Vec<_> = entries
         .filter_map(Result::ok)
@@ -30,7 +30,7 @@ fn parse_abnf_files() {
     // test for valid files
     let mut err_messages = vec![];
     for file_path in valid_file_paths {
-        let content = fs::read_to_string(file_path).expect("failed to read a file");
+        let content = fs::read_to_string(file_path).unwrap();
 
         if let Err(e) = parse_abnf(&content) {
             err_messages.push(format!("{}) {file_path:?} {e}", err_messages.len() + 1));
@@ -39,7 +39,7 @@ fn parse_abnf_files() {
 
     // test for invalid files
     for file_path in invalid_file_paths {
-        let content = fs::read_to_string(file_path).expect("failed to read a file");
+        let content = fs::read_to_string(file_path).unwrap();
 
         let result = parse_abnf(&content);
 

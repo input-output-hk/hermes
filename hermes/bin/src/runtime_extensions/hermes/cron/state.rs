@@ -345,7 +345,6 @@ mod tests {
     const APP_NAME: &str = "test";
 
     // triggers every minute, three days from now
-    #[allow(clippy::unwrap_used)]
     fn crontab_future_dow(tag: &str, days_from_now: i64) -> CronTagged {
         let dow = (chrono::Utc::now() + chrono::TimeDelta::try_days(days_from_now).unwrap())
             .weekday()
@@ -377,7 +376,6 @@ mod tests {
     const IS_NOT_LAST: bool = false;
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_internal_state_with_no_tokio_task() {
         // start the state without a cron queue task thread
         let state = InternalState::new(None);
@@ -407,7 +405,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     // **NOTE**: in order to test the `cron_queue_*` functions,
     // custom `CronTagged`s are used, by setting the `dow` to be at least 2 days from now
     // and never more than 6 days ahead. This way, the events won't be dispatched for the
