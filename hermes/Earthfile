@@ -114,7 +114,7 @@ test-download-mithril-snapshot:
 
     RUN --no-cache du -sh /root/.local/share/follow_chains
 
-    RUN echo "test-1" && RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
+    RUN RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
         time -f "\nReal Time: %E\nUser Time: %U\nSystem Time: %S" \
         ./target/release/examples/follow_chains \
         --preprod --stop-at-tip --halt-on-error \
