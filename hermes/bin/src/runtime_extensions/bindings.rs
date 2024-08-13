@@ -15,7 +15,5 @@ bindgen!({
     path: "../../wasm/wasi/wit",
     with: {
         "wasi:filesystem/types/descriptor": super::wasi::descriptors::Descriptor,
-        "wasi:io/streams/input-stream": super::wasi::descriptors::Stream,
-        "wasi:io/streams/output-stream": super::wasi::descriptors::Stream,
     }
 });

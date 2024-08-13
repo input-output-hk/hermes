@@ -1,18 +1,10 @@
 //! IO Streams host implementation for WASM runtime.
 
-use std::io::{Read, Seek, Write};
-
-use super::get_intput_streams_state;
+use super::{get_intput_streams_state, get_output_streams_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::{
-        bindings::wasi::io::streams::{
-            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
-        },
-        wasi::{
-            descriptors::{Descriptor, NUL_REP, STDERR_REP, STDOUT_REP},
-            state::STATE,
-        },
+    runtime_extensions::bindings::wasi::io::streams::{
+        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
 };
 
@@ -151,75 +143,12 @@ impl HostOutputStream for HermesRuntimeContext {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_and_flush(
-        &mut self, rep: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
+        &mut self, res: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        match rep.rep() {
-            NUL_REP => {
-                // Discard all bytes.
-                return Ok(Ok(()));
-            },
-            STDOUT_REP => {
-                if std::io::stdout().write_all(&contents).is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
+        let mut stream = get_output_streams_state().get_object(self.app_name(), &res)?;
 
-                if std::io::stdout().flush().is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                return Ok(Ok(()));
-            },
-            STDERR_REP => {
-                if std::io::stderr().write_all(&contents).is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                if std::io::stderr().flush().is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                return Ok(Ok(()));
-            },
-            _ => {},
-        }
-
-        let seek_start = match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
-            Some(output_stream) => output_stream.at(),
-            None => return Ok(Err(StreamError::Closed)),
-        };
-
-        match STATE.get_mut(self.app_name()).descriptor_mut(rep.rep()) {
-            Some(fd) => {
-                match fd {
-                    // TODO: I believe it's better to return a LastOperationFailed error if
-                    // any write operations fail.
-                    Descriptor::File(f) => {
-                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.write_all(&contents).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.flush().is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-                    },
-                    Descriptor::Dir(_) => return Ok(Err(StreamError::Closed)),
-                }
-            },
-            None => return Ok(Err(StreamError::Closed)),
-        };
-
-        match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
-            Some(output_stream) => {
-                match contents.len().try_into() {
-                    Ok(len) => output_stream.advance(len),
-                    Err(_) => return Ok(Err(StreamError::Closed)),
-                }
-            },
-            None => return Ok(Err(StreamError::Closed)),
+        if stream.write_all(&contents).is_err() {
+            return Ok(Err(StreamError::Closed));
         }
 
         Ok(Ok(()))
@@ -324,9 +253,7 @@ impl HostOutputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
-        STATE
-            .get_mut(self.app_name())
-            .remove_output_stream(rep.rep());
+        get_output_streams_state().delete_resource(self.app_name(), rep)?;
         Ok(())
     }
 }

@@ -2,28 +2,14 @@
 
 use std::collections::HashMap;
 
-use super::descriptors::{Descriptor, Stream};
+use super::descriptors::Descriptor;
 use crate::hdf5::Dir;
-
-/// WASI context errors.
-pub(crate) enum Error {
-    /// Represents trying to reference a descriptor or stream identifier that does not
-    /// exist.
-    NoEntry,
-}
-
-/// WASI context result type.
-pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// Contains all data needed to execute the WASI APIs.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WasiContext {
     /// Descriptors currently opened in this context.
     descriptors: HashMap<u32, Descriptor>,
-    /// Input streams currently opened in this context.
-    input_streams: HashMap<u32, Stream>,
-    /// Output streams currently opened in this context.
-    output_streams: HashMap<u32, Stream>,
     /// List of preopen directories in this context.
     preopens: Vec<(u32, String)>,
 }
@@ -52,8 +38,6 @@ impl WasiContext {
     /// This also closes the handle and the streams associated with it.
     pub fn remove_descriptor(&mut self, rep: u32) {
         self.descriptors.remove(&rep);
-        self.input_streams.remove(&rep);
-        self.output_streams.remove(&rep);
     }
 
     /// Gets a reference to the [`Descriptor`] with the given identifier.
@@ -68,33 +52,6 @@ impl WasiContext {
     /// Returns [`None`] if there's not descriptor with the given id.
     pub fn descriptor_mut(&mut self, rep: u32) -> Option<&mut Descriptor> {
         self.descriptors.get_mut(&rep)
-    }
-
-    /// Stores in this WASI context a new output stream associated to the
-    /// [`Descriptor`] with the given identifier.
-    ///
-    /// Fails if there's no descriptor with the given id.
-    pub fn put_output_stream(&mut self, desc_rep: u32, offset: u64) -> Result<()> {
-        if !self.descriptors.contains_key(&desc_rep) {
-            return Err(Error::NoEntry);
-        }
-
-        self.output_streams.insert(desc_rep, Stream::new(offset));
-
-        Ok(())
-    }
-
-    /// Removes the output stream associated with the given descriptor identifier.
-    pub fn remove_output_stream(&mut self, desc_rep: u32) {
-        self.output_streams.remove(&desc_rep);
-    }
-
-    /// Gets a mutable reference to the output stream associated with the given
-    /// descriptor identifier.
-    ///
-    /// Returns [`None`] if there's not such output stream.
-    pub fn output_stream_mut(&mut self, desc_rep: u32) -> Option<&mut Stream> {
-        self.output_streams.get_mut(&desc_rep)
     }
 
     /// Adds a preopen directory to the preopens list.

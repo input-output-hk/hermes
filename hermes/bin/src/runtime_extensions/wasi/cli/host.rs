@@ -9,10 +9,7 @@ use crate::{
             cli,
             io::streams::{InputStream, OutputStream},
         },
-        wasi::{
-            descriptors::{STDERR_REP, STDOUT_REP},
-            io::streams::get_intput_streams_state,
-        },
+        wasi::io::streams::{get_intput_streams_state, get_output_streams_state},
     },
 };
 
@@ -58,13 +55,13 @@ impl cli::stdin::Host for HermesRuntimeContext {
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stdout to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(STDOUT_REP))
+        get_output_streams_state().create_resource(self.app_name(), Box::new(std::io::empty()))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stderr to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(STDERR_REP))
+        get_output_streams_state().create_resource(self.app_name(), Box::new(std::io::empty()))
     }
 }

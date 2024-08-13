@@ -17,7 +17,11 @@ use crate::{
             },
             io::streams::{InputStream, OutputStream},
         },
-        wasi::{self, io::streams::get_intput_streams_state, state::STATE},
+        wasi::{
+            self,
+            io::streams::{get_intput_streams_state, get_output_streams_state},
+            state::STATE,
+        },
     },
 };
 
@@ -37,7 +41,6 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         let Some(descriptor) = state.descriptor(res.rep()) else {
             return Ok(Err(ErrorCode::NoEntry));
         };
-
         let mut file = match descriptor {
             wasi::descriptors::Descriptor::File(f) => f.clone(),
             wasi::descriptors::Descriptor::Dir(_) => return Ok(Err(ErrorCode::IsDirectory)),
@@ -56,21 +59,21 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     /// Note: This allows using `write-stream`, which is similar to `write` in
     /// POSIX.
     fn write_via_stream(
-        &mut self, descriptor: wasmtime::component::Resource<Descriptor>, offset: Filesize,
+        &mut self, res: wasmtime::component::Resource<Descriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let res = STATE
-            .get_mut(self.app_name())
-            .put_output_stream(descriptor.rep(), offset);
+        let state = STATE.get(self.app_name());
+        let Some(descriptor) = state.descriptor(res.rep()) else {
+            return Ok(Err(ErrorCode::NoEntry));
+        };
+        let mut file = match descriptor {
+            wasi::descriptors::Descriptor::File(f) => f.clone(),
+            wasi::descriptors::Descriptor::Dir(_) => return Ok(Err(ErrorCode::IsDirectory)),
+        };
+        file.seek(SeekFrom::Start(offset))?;
 
-        if let Err(e) = res {
-            match e {
-                crate::runtime_extensions::wasi::context::Error::NoEntry => {
-                    return Ok(Err(ErrorCode::NoEntry))
-                },
-            }
-        }
-
-        Ok(Ok(wasmtime::component::Resource::new_own(descriptor.rep())))
+        Ok(Ok(
+            get_output_streams_state().create_resource(self.app_name(), Box::new(file))?
+        ))
     }
 
     /// Return a stream for appending to a file, if available.
@@ -80,35 +83,21 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     /// Note: This allows using `write-stream`, which is similar to `write` with
     /// `O_APPEND` in in POSIX.
     fn append_via_stream(
-        &mut self, descriptor: wasmtime::component::Resource<Descriptor>,
+        &mut self, res: wasmtime::component::Resource<Descriptor>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let mut app_state = STATE.get_mut(self.app_name());
-
-        let offset = match app_state.descriptor(descriptor.rep()) {
-            Some(Descriptor::File(f)) => {
-                let Ok(offset) = f.size().and_then(|size| {
-                    TryInto::<u64>::try_into(size).map_err(|e| anyhow::anyhow!(e))
-                }) else {
-                    return Ok(Err(ErrorCode::Io));
-                };
-
-                offset
-            },
-            Some(Descriptor::Dir(_)) => return Ok(Err(ErrorCode::IsDirectory)),
-            None => return Ok(Err(ErrorCode::BadDescriptor)),
+        let state = STATE.get(self.app_name());
+        let Some(descriptor) = state.descriptor(res.rep()) else {
+            return Ok(Err(ErrorCode::NoEntry));
         };
+        let mut file = match descriptor {
+            wasi::descriptors::Descriptor::File(f) => f.clone(),
+            wasi::descriptors::Descriptor::Dir(_) => return Ok(Err(ErrorCode::IsDirectory)),
+        };
+        file.seek(SeekFrom::End(0))?;
 
-        let res = app_state.put_output_stream(descriptor.rep(), offset);
-
-        if let Err(e) = res {
-            match e {
-                crate::runtime_extensions::wasi::context::Error::NoEntry => {
-                    return Ok(Err(ErrorCode::NoEntry))
-                },
-            }
-        }
-
-        Ok(Ok(wasmtime::component::Resource::new_own(descriptor.rep())))
+        Ok(Ok(
+            get_output_streams_state().create_resource(self.app_name(), Box::new(file))?
+        ))
     }
 
     /// Provide file advisory information on a descriptor.
