@@ -23,9 +23,11 @@ bare_urls = "deny"
 unescaped_backticks = "deny"
 
 [workspace.lints.clippy]
-pedantic = "deny"
+pedantic = { level = "deny", priority = -1 }
 unwrap_used = "deny"
 expect_used = "deny"
+todo = "deny"
+unimplemented = "deny"
 exit = "deny"
 get_unwrap = "deny"
 index_refutable_slice = "deny"

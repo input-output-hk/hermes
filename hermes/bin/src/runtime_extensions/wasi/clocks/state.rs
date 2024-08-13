@@ -80,7 +80,6 @@ pub(crate) fn wall_clock_res() -> Datetime {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

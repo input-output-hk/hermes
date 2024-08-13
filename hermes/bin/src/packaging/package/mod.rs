@@ -123,24 +123,24 @@ mod tests {
 
     #[test]
     fn calculate_file_hash_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
         let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
-        let package = Package::create(package_name).expect("Failed to create a new package.");
+        let package = Package::create(package_name).unwrap();
 
         let file_1_name = "file_1";
         let file_1 = tmp_dir.child(file_1_name);
-        std::fs::write(&file_1, file_content).expect("Failed to create a file.");
+        std::fs::write(&file_1, file_content).unwrap();
 
         package
             .copy_resource_file(&FsResource::new(file_1), file_1_name.into())
-            .expect("Failed to copy file to package.");
+            .unwrap();
 
         let hash = package
             .calculate_file_hash(file_1_name.into())
-            .expect("Failed to calculate file hash.")
-            .expect("Failed to get file hash from package.");
+            .unwrap()
+            .unwrap();
 
         let expected_hash = Blake2b256::hash(file_content);
         assert_eq!(expected_hash, hash);
@@ -148,47 +148,43 @@ mod tests {
 
     #[test]
     fn calculate_dir_hash_test() {
-        let tmp_dir = TempDir::new().expect("Failed to create temp dir.");
+        let tmp_dir = TempDir::new().unwrap();
         let file_content = "test".as_bytes();
 
         let package_name = tmp_dir.child("test.hdf5");
-        let package = Package::create(package_name).expect("Failed to create a new package.");
+        let package = Package::create(package_name).unwrap();
 
         let dir_name = "dir";
         let dir = tmp_dir.child(dir_name);
-        std::fs::create_dir(&dir).expect("Failed to create directory.");
+        std::fs::create_dir(&dir).unwrap();
 
         let file_1_name = "file_1";
         let file_1 = dir.join(file_1_name);
-        std::fs::write(file_1, file_content).expect("Failed to create file_1 file.");
+        std::fs::write(file_1, file_content).unwrap();
 
         let file_2_name = "file_2";
         let file_2 = dir.join(file_2_name);
-        std::fs::write(file_2, file_content).expect("Failed to create file_2 file.");
+        std::fs::write(file_2, file_content).unwrap();
 
         let child_dir_name = "child_dir";
         let child_dir = dir.join(child_dir_name);
-        std::fs::create_dir(&child_dir).expect("Failed to create child_dir directory.");
+        std::fs::create_dir(&child_dir).unwrap();
 
         let file_3_name = "file_3";
         let file_3 = child_dir.join(file_3_name);
-        std::fs::write(file_3, file_content).expect("Failed to create file_3 file.");
+        std::fs::write(file_3, file_content).unwrap();
 
         let root_dir_name = "root_dir";
-        let root_dir = package
-            .create_dir(root_dir_name.into())
-            .expect("Failed to create dir.");
-        root_dir
-            .create_dir(dir_name.into())
-            .expect("Failed to create dir.");
+        let root_dir = package.create_dir(root_dir_name.into()).unwrap();
+        root_dir.create_dir(dir_name.into()).unwrap();
         root_dir
             .copy_resource_dir(&FsResource::new(dir), &dir_name.into())
-            .expect("Failed to copy dir to package.");
+            .unwrap();
 
         let hash = package
             .calculate_dir_hash(&format!("{root_dir_name}/{dir_name}").into())
-            .expect("Failed to calculate dir hash.")
-            .expect("Failed to get dir hash from package.");
+            .unwrap()
+            .unwrap();
 
         let mut hasher = Blake2b256Hasher::new();
         hasher.update(file_1_name.as_bytes());

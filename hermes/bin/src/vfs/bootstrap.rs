@@ -211,7 +211,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn vfs_bootstrap_test() {
         let tmp_dir = TempDir::new().unwrap();
 
@@ -266,7 +265,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn vfs_bootstrap_with_mount_test() {
         let tmp_dir = TempDir::new().unwrap();
 
@@ -336,7 +334,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn vfs_bootstrap_existing_test() {
         let tmp_dir = TempDir::new().unwrap();
 

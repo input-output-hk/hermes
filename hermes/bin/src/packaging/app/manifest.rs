@@ -161,7 +161,7 @@ mod tests {
     #[test]
     #[allow(clippy::too_many_lines)]
     fn manifest_from_file_test() {
-        let dir = TempDir::new().expect("Failed to create temp dir.");
+        let dir = TempDir::new().unwrap();
         let dir_path = dir.path();
 
         {
@@ -180,8 +180,8 @@ mod tests {
                     "www": "www",
                     "share": "share"
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(&path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "app_name".to_string(),
                 icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
@@ -213,8 +213,8 @@ mod tests {
                     "www": "/www",
                     "share": "/share"
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(&path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "app_name".to_string(),
                 icon: ResourceBuilder::Fs("/icon.svg".into()),
@@ -243,8 +243,8 @@ mod tests {
                     "www": "www",
                     "share": "share"
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
-            let manifest = Manifest::from_file(&path).expect("Cannot create manifest");
+            std::fs::write(&path, manifest_json_data).unwrap();
+            let manifest = Manifest::from_file(&path).unwrap();
             assert_eq!(manifest, Manifest {
                 name: "app".to_string(),
                 icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
@@ -265,7 +265,7 @@ mod tests {
             let manifest_json_data = serde_json::json!({
                     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
                 }).to_string();
-            std::fs::write(&path, manifest_json_data).expect("Cannot create manifest.json file");
+            std::fs::write(&path, manifest_json_data).unwrap();
             assert!(Manifest::from_file(&path).is_err());
         }
     }
