@@ -68,14 +68,6 @@ pub struct MithrilSnapshotConfig {
     pub aggregator_url: String,
     /// The Genesis Key needed for a network to do Mithril snapshot validation.
     pub genesis_key: String,
-    /// Specifies the maximum number of retry attempts when an error occurs.
-    /// If set to `None`, there is no limit to the number of retry
-    /// attempts, and the process will keep retrying indefinitely until it succeeds or is
-    /// manually stopped.
-    pub max_retry: Option<u32>,
-    /// Determines whether the process should be halted when an error occurs while running
-    /// the configuration.
-    pub halt_on_error: bool,
 }
 
 impl MithrilSnapshotConfig {
@@ -89,8 +81,6 @@ impl MithrilSnapshotConfig {
             path: chain.default_mithril_path(),
             aggregator_url: chain.default_mithril_aggregator(),
             genesis_key: chain.default_mithril_genesis_key(),
-            max_retry: None,
-            halt_on_error: false,
         }
     }
 
@@ -523,8 +513,6 @@ mod tests {
             path: PathBuf::new(),
             aggregator_url: String::new(),
             genesis_key: "1234abcd".to_string(),
-            max_retry: None,
-            halt_on_error: false,
         };
 
         assert!(config.validate_genesis_vkey().is_ok());
@@ -534,8 +522,6 @@ mod tests {
             path: PathBuf::new(),
             aggregator_url: String::new(),
             genesis_key: "1234abcz".to_string(),
-            max_retry: None,
-            halt_on_error: false,
         };
 
         assert!(invalid_config.validate_genesis_vkey().is_err());
