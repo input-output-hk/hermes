@@ -13,7 +13,4 @@ use wasmtime::component::bindgen;
 bindgen!({
     world: "hermes",
     path: "../../wasm/wasi/wit",
-    with: {
-        "wasi:filesystem/types/descriptor": super::wasi::descriptors::Descriptor,
-    }
 });
