@@ -145,7 +145,7 @@ impl Cip36 {
             let Some(key) =
                 cip36.decode_map_key(&mut decoder, &mut validation_report, decoded_metadata)
             else {
-                debug!("decoded 3: {decoded_metadata:?}");
+                debug!("decoded 3: {decoded_metadata:?} : {raw_cip36:02x?}");
                 return;
             };
 
@@ -163,7 +163,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 4: {decoded_metadata:?}");
+                            debug!("decoded 4: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -176,7 +176,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 5: {decoded_metadata:?}");
+                            debug!("decoded 5: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -191,7 +191,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 6: {decoded_metadata:?}");
+                            debug!("decoded 6: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -205,7 +205,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 7: {decoded_metadata:?}");
+                            debug!("decoded 7: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -214,7 +214,7 @@ impl Cip36 {
                             .decode_purpose(&mut decoder, &mut validation_report, decoded_metadata)
                             .is_none()
                         {
-                            debug!("decoded 8: {decoded_metadata:?}");
+                            debug!("decoded 8: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
