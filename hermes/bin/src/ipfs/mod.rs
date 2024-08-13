@@ -74,7 +74,6 @@ pub(crate) struct HermesIpfsNode {
 impl HermesIpfsNode {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(builder: IpfsBuilder, default_bootstrap: bool) -> anyhow::Result<Self> {
-        tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
         let _handle = std::thread::spawn(move || {

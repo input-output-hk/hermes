@@ -45,6 +45,7 @@ impl Run {
 
         // enable bootstrapping the IPFS node to default addresses
         let default_bootstrap = true;
+        tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
         let app = build_app(&package, hermes_home_dir)?;
 
