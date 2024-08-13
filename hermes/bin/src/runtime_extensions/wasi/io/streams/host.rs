@@ -51,7 +51,6 @@ impl HostInputStream for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
         let Ok(mut stream) = get_intput_streams_state().get_object(self.app_name(), &resource)
         else {
-            println!("Failed to get input stream resource");
             return Ok(Err(StreamError::Closed));
         };
 
