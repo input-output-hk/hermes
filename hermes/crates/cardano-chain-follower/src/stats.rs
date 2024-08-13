@@ -600,11 +600,17 @@ pub(crate) fn mithril_sync_failure(chain: Network, failure: MithrilSyncFailures)
     };
 
     match failure {
-        MithrilSyncFailures::DownloadOrValidation => chain_stats.mithril.download_or_validation_failed += 1,
+        MithrilSyncFailures::DownloadOrValidation => {
+            chain_stats.mithril.download_or_validation_failed += 1;
+        },
         MithrilSyncFailures::FailedToGetTip => chain_stats.mithril.failed_to_get_tip += 1,
         MithrilSyncFailures::TipDidNotAdvance => chain_stats.mithril.tip_did_not_advance += 1,
-        MithrilSyncFailures::TipFailedToSendToUpdater => chain_stats.mithril.tip_failed_to_send_to_updater += 1,
-        MithrilSyncFailures::FailedToActivateNewSnapshot => chain_stats.mithril.failed_to_activate_new_snapshot += 1,
+        MithrilSyncFailures::TipFailedToSendToUpdater => {
+            chain_stats.mithril.tip_failed_to_send_to_updater += 1;
+        },
+        MithrilSyncFailures::FailedToActivateNewSnapshot => {
+            chain_stats.mithril.failed_to_activate_new_snapshot += 1;
+        },
     }
 }
 

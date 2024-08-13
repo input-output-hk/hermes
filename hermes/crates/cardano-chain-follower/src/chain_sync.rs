@@ -418,11 +418,6 @@ async fn live_sync_backfill_and_purge(
     // Wait for first Mithril Update advice, which triggers a BACKFILL of the Live Data.
     let Some(update) = rx.recv().await else {
         error!("Mithril Sync Failed, can not continue chain sync either.");
-
-        if cfg.mithril_cfg.halt_on_error {
-            std::process::exit(1);
-        }
-
         return;
     };
 

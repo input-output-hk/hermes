@@ -27,7 +27,7 @@ use crate::{
     mithril_turbo_downloader::MithrilTurboDownloader,
     network::Network,
     snapshot_id::SnapshotId,
-    stats::{self, mithril_validation_state},
+    stats::{self, mithril_sync_failure, mithril_validation_state},
     MultiEraBlock,
 };
 
@@ -693,14 +693,8 @@ pub(crate) async fn background_mithril_update(
 
     let mut current_snapshot = recover_existing_snapshot(&cfg, &tx).await;
 
-    let mut retry_count = 0u32;
-
     loop {
-        if cfg.max_retry.is_some_and(|max| retry_count > max) {
-            break;
-        }
-
-        debug!("Background Mithril Updater - New Loop ({})", retry_count);
+        debug!("Background Mithril Updater - New Loop");
 
         cleanup(&cfg).await;
 
@@ -727,11 +721,7 @@ pub(crate) async fn background_mithril_update(
         .await
         {
             error!("Failed to Download or Validate a snapshot.");
-
-            if cfg.halt_on_error {
-                break;
-            }
-            retry_count += 1;
+            mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::DownloadOrValidation);
             continue;
         }
 
@@ -744,11 +734,7 @@ pub(crate) async fn background_mithril_update(
                     "Failed to Get Tip from Snapshot for {}:  {error}",
                     cfg.chain
                 );
-
-                if cfg.halt_on_error {
-                    break;
-                }
-                retry_count += 1;
+                mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::FailedToGetTip);
                 continue;
             },
         };
@@ -762,11 +748,7 @@ pub(crate) async fn background_mithril_update(
                     "New Tip is not more advanced than the old tip for: {}",
                     cfg.chain
                 );
-
-                if cfg.halt_on_error {
-                    break;
-                }
-                retry_count += 1;
+                mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::TipDidNotAdvance);
                 continue;
             }
         }
@@ -796,11 +778,10 @@ pub(crate) async fn background_mithril_update(
                             "Failed to send new tip to the live updater for: {}:  {error}",
                             cfg.chain
                         );
-
-                        if cfg.halt_on_error {
-                            break;
-                        }
-                        retry_count += 1;
+                        mithril_sync_failure(
+                            cfg.chain,
+                            stats::MithrilSyncFailures::TipFailedToSendToUpdater,
+                        );
                         continue;
                     };
                 }
@@ -810,11 +791,10 @@ pub(crate) async fn background_mithril_update(
                     chain = cfg.chain.to_string(),
                     "Failed to activate new snapshot : {err}"
                 );
-
-                if cfg.halt_on_error {
-                    break;
-                }
-                retry_count += 1;
+                mithril_sync_failure(
+                    cfg.chain,
+                    stats::MithrilSyncFailures::FailedToActivateNewSnapshot,
+                );
                 continue;
             },
         }

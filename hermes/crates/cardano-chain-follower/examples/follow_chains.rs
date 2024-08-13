@@ -57,11 +57,8 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
 }
 
 /// Start syncing a particular network
-async fn start_sync_for(network: &Network, matches: ArgMatches) -> Result<(), Box<dyn Error>> {
-    let halt_on_error = matches.get_flag("halt-on-error");
-
-    let mut cfg = ChainSyncConfig::default_for(*network);
-    cfg.mithril_cfg.halt_on_error = halt_on_error;
+async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
+    let cfg = ChainSyncConfig::default_for(*network);
 
     info!(chain = cfg.chain.to_string(), "Starting Sync");
 
@@ -85,6 +82,7 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     let all_tip_blocks = matches.get_flag("all-tip-blocks");
     let all_live_blocks = matches.get_flag("all-live-blocks");
     let stop_at_tip = matches.get_flag("stop-at-tip");
+    let halt_on_error = matches.get_flag("halt-on-error");
 
     let mut current_era = String::new();
     let mut last_update: Option<ChainUpdate> = None;
@@ -240,6 +238,16 @@ async fn follow_for(network: Network, matches: ArgMatches) {
             let stats = Statistics::new(network);
 
             info!("Json Metrics:  {}", stats.as_json(true));
+
+            if halt_on_error
+                && (stats.mithril.download_or_validation_failed > 0
+                    || stats.mithril.failed_to_get_tip > 0
+                    || stats.mithril.tip_did_not_advance > 0
+                    || stats.mithril.tip_failed_to_send_to_updater > 0
+                    || stats.mithril.failed_to_activate_new_snapshot > 0)
+            {
+                break;
+            }
         }
     }
 
@@ -282,7 +290,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // First we need to actually start the underlying sync tasks for each blockchain.
     for network in &networks {
-        start_sync_for(network, matches.clone()).await?;
+        start_sync_for(network).await?;
     }
 
     // Make a follower for the network.
