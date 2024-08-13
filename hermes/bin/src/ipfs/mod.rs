@@ -43,7 +43,11 @@ use crate::{
 pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
 
 /// Bootstrap `HERMES_IPFS` node.
-pub(crate) fn bootstrap_ipfs(base_dir: &Path) -> anyhow::Result<()> {
+///
+/// ## Errors
+///
+/// Returns errors if IPFS node fails to start.
+pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()> {
     let ipfs_data_path = base_dir.join("ipfs");
     let ipfs_node = HermesIpfsNode::init(
         IpfsBuilder::new()
@@ -51,6 +55,7 @@ pub(crate) fn bootstrap_ipfs(base_dir: &Path) -> anyhow::Result<()> {
             .set_default_listener()
             .disable_tls()
             .set_disk_storage(ipfs_data_path.clone()),
+            default_bootstrap
     )?;
     HERMES_IPFS
         .set(ipfs_node)
@@ -68,7 +73,7 @@ pub(crate) struct HermesIpfsNode {
 
 impl HermesIpfsNode {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
-    pub(crate) fn init(builder: IpfsBuilder) -> anyhow::Result<Self> {
+    pub(crate) fn init(builder: IpfsBuilder, default_bootstrap: bool) -> anyhow::Result<Self> {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
@@ -76,14 +81,16 @@ impl HermesIpfsNode {
             // Build and start IPFS node
             let _unused = runtime.block_on(async move {
                 let node = builder.start().await?;
-                // Add default addresses for bootstrapping
-                let addresses = node.default_bootstrap().await?;
-                // Connect to bootstrap nodes.
-                node.bootstrap().await?;
-                tracing::debug!(
-                    "Bootstrapped IPFS node with default addresses: {:?}",
-                    addresses
-                );
+                if default_bootstrap {
+                    // Add default addresses for bootstrapping
+                    let addresses = node.default_bootstrap().await?;
+                    // Connect to bootstrap nodes.
+                    node.bootstrap().await?;
+                    tracing::debug!(
+                        "Bootstrapped IPFS node with default addresses: {:?}",
+                        addresses
+                        );
+                }
                 let hermes_node: HermesIpfs = node.into();
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
