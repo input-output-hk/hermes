@@ -17,6 +17,7 @@ use crate::{
     metadata,
     point::{ORIGIN_POINT, UNKNOWN_POINT},
     stats::stats_invalid_block,
+    witness::TxWitness,
     Network, Point,
 };
 
@@ -52,6 +53,9 @@ pub struct MultiEraBlockInner {
     data: SelfReferencedMultiEraBlock,
     /// Decoded Metadata in the transactions in the block.
     metadata: metadata::DecodedTransaction,
+    /// A map of public key hashes to the public key and transaction numbers they are in.
+    #[allow(dead_code)]
+    witness_map: Option<TxWitness>,
 }
 
 /// Multi-era block.
@@ -96,6 +100,8 @@ impl MultiEraBlock {
         };
         let self_ref_block = builder.try_build()?;
         let decoded_block = self_ref_block.borrow_block();
+
+        let witness_map = TxWitness::new(&decoded_block.txs()).ok();
 
         let slot = decoded_block.slot();
 
@@ -146,6 +152,7 @@ impl MultiEraBlock {
                 previous: previous.clone(),
                 data: self_ref_block,
                 metadata,
+                witness_map,
             }),
         })
     }
@@ -228,6 +235,12 @@ impl MultiEraBlock {
     pub fn txn_raw_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<Vec<u8>>> {
         self.inner.metadata.get_raw_metadata(txn_idx, label)
     }
+
+    /// Returns the witness map for the block.
+    #[allow(dead_code)]
+    pub(crate) fn witness_map(&self) -> Option<&TxWitness> {
+        self.inner.witness_map.as_ref()
+    }
 }
 
 impl Display for MultiEraBlock {
@@ -308,7 +321,7 @@ impl PartialOrd<Point> for MultiEraBlock {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::ops::Add;
 
     use anyhow::Ok;
@@ -343,9 +356,15 @@ mod tests {
             .expect("Failed to decode hex block.")
     }
 
-    /// Allegra Test Block data
-    fn alonzo_block() -> Vec<u8> {
+    /// Alonzo Test Block data
+    pub(crate) fn alonzo_block() -> Vec<u8> {
         hex::decode(include_str!("./../test_data/allegra.block"))
+            .expect("Failed to decode hex block.")
+    }
+
+    /// Babbage Test Block data
+    pub(crate) fn babbage_block() -> Vec<u8> {
+        hex::decode(include_str!("./../test_data/babbage.block"))
             .expect("Failed to decode hex block.")
     }
 
