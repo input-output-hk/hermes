@@ -48,20 +48,23 @@ impl cli::exit::Host for HermesRuntimeContext {
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
-        get_intput_streams_state().create_resource(self.app_name(), Box::new(std::io::empty()))
+        let app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
 
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stdout to Hermes' logging api.
-        get_output_streams_state().create_resource(self.app_name(), Box::new(std::io::empty()))
+        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stderr to Hermes' logging api.
-        get_output_streams_state().create_resource(self.app_name(), Box::new(std::io::empty()))
+        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }

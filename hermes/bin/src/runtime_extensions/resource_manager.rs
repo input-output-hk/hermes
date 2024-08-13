@@ -96,8 +96,6 @@ where WitType: 'static
 pub(crate) struct ApplicationResourceManager<WitType, RustType> {
     /// Map of app name to resources.
     state: DashMap<ApplicationName, ResourceManager<WitType, RustType>>,
-    /// resources
-    resources: ResourceManager<WitType, RustType>,
 }
 
 impl<WitType, RustType> ApplicationResourceManager<WitType, RustType>
@@ -107,48 +105,27 @@ where WitType: 'static
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
-            resources: ResourceManager::new(),
         }
     }
 
     /// Adds new application to the resource manager.
-    #[allow(dead_code)]
     pub(crate) fn add_app(&self, app_name: ApplicationName) {
         self.state.insert(app_name, ResourceManager::new());
+    }
+
+    /// Get application state from the resource manager.
+    pub(crate) fn get_app_state<'a>(
+        &'a self, app_name: &ApplicationName,
+    ) -> anyhow::Result<impl DerefMut<Target = ResourceManager<WitType, RustType>> + 'a> {
+        self.state
+            .get_mut(app_name)
+            .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
     }
 
     /// Removes application and all associated resources from the resource manager.
     #[allow(dead_code)]
     pub(crate) fn remove_app(&self, app_name: &ApplicationName) {
         self.state.remove(app_name);
-    }
-
-    /// Creates a new owned resource from the given object.
-    /// Stores a resources link to the original object in the resource manager.
-    pub(crate) fn create_resource(
-        &self, app_name: &ApplicationName, object: RustType,
-    ) -> wasmtime::Result<wasmtime::component::Resource<WitType>> {
-        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        Ok(self.resources.create_resource(object))
-    }
-
-    /// Creates a new owned resource from the given object.
-    /// Stores a resources link to the original object in the resource manager.
-    pub(crate) fn get_object<'a>(
-        &'a self, app_name: &ApplicationName, resource: &wasmtime::component::Resource<WitType>,
-    ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
-        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        self.resources.get_object(resource)
-    }
-
-    /// Removes the resource from the resource manager.
-    /// Similar to the `drop` function, resource is releasing and consumed by this
-    /// function, thats why it is passed by value.
-    pub(crate) fn delete_resource(
-        &self, app_name: &ApplicationName, resource: wasmtime::component::Resource<WitType>,
-    ) -> anyhow::Result<RustType> {
-        let _app_state = self.state.get(app_name).ok_or(Self::app_not_found_err())?;
-        self.resources.delete_resource(resource)
     }
 
     /// Application not found error message.
@@ -188,51 +165,11 @@ mod tests {
     fn test_app_resource_manager() {
         let resource_manager = ApplicationResourceManager::<WitType, u32>::new();
         let app_name_1 = ApplicationName("app_1".to_string());
-        let app_name_2 = ApplicationName("app_2".to_string());
 
-        let object = 100;
-        {
-            assert!(resource_manager
-                .create_resource(&app_name_1, object)
-                .is_err());
-            resource_manager.add_app(app_name_1.clone());
-
-            let resource = resource_manager
-                .create_resource(&app_name_1, object)
-                .unwrap();
-            resource_manager.remove_app(&app_name_1);
-
-            assert!(resource_manager.get_object(&app_name_1, &resource).is_err());
-            assert!(resource_manager
-                .delete_resource(&app_name_1, resource)
-                .is_err());
-        }
-
-        {
-            resource_manager.add_app(app_name_1.clone());
-
-            let resource = resource_manager
-                .create_resource(&app_name_1, object)
-                .unwrap();
-
-            let copied_resource = wasmtime::component::Resource::new_borrow(resource.rep());
-
-            assert_eq!(
-                *resource_manager.get_object(&app_name_1, &resource).unwrap(),
-                object
-            );
-            assert!(resource_manager.get_object(&app_name_2, &resource).is_err(),);
-
-            assert!(resource_manager
-                .delete_resource(&app_name_1, resource)
-                .is_ok());
-
-            assert!(resource_manager
-                .get_object(&app_name_1, &copied_resource)
-                .is_err());
-            assert!(resource_manager
-                .delete_resource(&app_name_1, copied_resource)
-                .is_err());
-        }
+        assert!(resource_manager.get_app_state(&app_name_1).is_err());
+        resource_manager.add_app(app_name_1.clone());
+        assert!(resource_manager.get_app_state(&app_name_1).is_ok());
+        resource_manager.remove_app(&app_name_1);
+        assert!(resource_manager.get_app_state(&app_name_1).is_err());
     }
 }

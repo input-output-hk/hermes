@@ -34,7 +34,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn read_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<InputStream>, ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
         let mut file = match &*descriptor {
@@ -43,9 +44,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         };
         file.seek(SeekFrom::Start(offset))?;
 
-        Ok(Ok(
-            get_intput_streams_state().create_resource(self.app_name(), Box::new(file))?
-        ))
+        let input_streams_app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        Ok(Ok(input_streams_app_state.create_resource(Box::new(file))))
     }
 
     /// Return a stream for writing to a file, if available.
@@ -57,7 +57,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn write_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
         let mut file = match &*descriptor {
@@ -66,9 +67,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         };
         file.seek(SeekFrom::Start(offset))?;
 
-        Ok(Ok(
-            get_output_streams_state().create_resource(self.app_name(), Box::new(file))?
-        ))
+        let output_streams_app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(Ok(output_streams_app_state.create_resource(Box::new(file))))
     }
 
     /// Return a stream for appending to a file, if available.
@@ -80,7 +80,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn append_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
         let mut file = match &*descriptor {
@@ -89,9 +90,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         };
         file.seek(SeekFrom::End(0))?;
 
-        Ok(Ok(
-            get_output_streams_state().create_resource(self.app_name(), Box::new(file))?
-        ))
+        let output_streams_app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(Ok(output_streams_app_state.create_resource(Box::new(file))))
     }
 
     /// Provide file advisory information on a descriptor.
@@ -141,7 +141,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn get_type(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<DescriptorType, ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
 
@@ -258,7 +259,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn stat(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<DescriptorStat, ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
 
@@ -345,10 +347,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, _path_flags: PathFlags,
         path: String, open_flags: OpenFlags, _flags: DescriptorFlags,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<WasiDescriptor>, ErrorCode>> {
-        let create = open_flags.contains(OpenFlags::CREATE);
-        let exclusive = open_flags.contains(OpenFlags::EXCLUSIVE);
-
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
         let dir = match &*descriptor {
@@ -356,6 +356,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
             Descriptor::File(_) => return Ok(Err(ErrorCode::NotDirectory)),
         };
 
+        let create = open_flags.contains(OpenFlags::CREATE);
+        let exclusive = open_flags.contains(OpenFlags::EXCLUSIVE);
         let f = match dir.get_file(Path::from_str(&path)) {
             Ok(f) => {
                 if create && exclusive {
@@ -390,9 +392,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
             f
         };
 
-        Ok(Ok(
-            get_state().create_resource(self.app_name(), Descriptor::File(f))?
-        ))
+        Ok(Ok(app_state.create_resource(Descriptor::File(f))))
     }
 
     /// Read the contents of a symbolic link.
@@ -449,7 +449,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn unlink_file_at(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        let Ok(descriptor) = get_state().get_object(self.app_name(), &res) else {
+        let app_state = get_state().get_app_state(self.app_name())?;
+        let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
 
@@ -522,7 +523,8 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     }
 
     fn drop(&mut self, res: wasmtime::component::Resource<WasiDescriptor>) -> wasmtime::Result<()> {
-        get_state().delete_resource(self.app_name(), res)?;
+        let app_state = get_state().get_app_state(self.app_name())?;
+        app_state.delete_resource(res)?;
         Ok(())
     }
 }
@@ -566,7 +568,8 @@ impl filesystem::preopens::Host for HermesRuntimeContext {
         &mut self,
     ) -> wasmtime::Result<Vec<(wasmtime::component::Resource<WasiDescriptor>, String)>> {
         let vfs_root = self.vfs().root().clone();
-        let res = get_state().create_resource(self.app_name(), Descriptor::Dir(vfs_root))?;
+        let app_state = get_state().get_app_state(self.app_name())?;
+        let res = app_state.create_resource(Descriptor::Dir(vfs_root));
         Ok(vec![(res, "/".to_string())])
     }
 }
