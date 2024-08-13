@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use crossbeam_skiplist::SkipMap;
-use minicbor::Decoder;
-use tracing::{debug, error, warn};
+use minicbor::{data::Type, Decoder};
+use tracing::{error, warn};
 
 /// What type of smart contract is this list.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::Display)]
@@ -20,7 +20,7 @@ pub enum SmartContractType {
 // values which are critical for performing operations like signature checks on data.
 // So we have a bespoke metadata decoder here.
 #[derive(Debug)]
-pub struct RawAuxData {
+pub(crate) struct RawAuxData {
     /// Metadata: key = label, value = raw metadata bytes
     metadata: SkipMap<u64, Arc<Vec<u8>>>,
     /// Scripts: 1 = Native, 2 = Plutus V1, 3 = Plutus V2, 4 = Plutus V3
@@ -40,28 +40,28 @@ impl RawAuxData {
         match decoder.datatype() {
             Ok(minicbor::data::Type::Map) => {
                 if let Err(error) = Self::decode_shelley_map(&mut raw_decoded_data, &mut decoder) {
-                    error!("Failed to Deserialize Shelley Metadata: {error}");
+                    error!("Failed to Deserialize Shelley Metadata: {error}: {aux_data:02x?}");
                 }
             },
             Ok(minicbor::data::Type::Array) => {
                 if let Err(error) =
                     Self::decode_shelley_ma_array(&mut raw_decoded_data, &mut decoder)
                 {
-                    error!("Failed to Deserialize Shelley-MA Metadata: {error}");
+                    error!("Failed to Deserialize Shelley-MA Metadata: {error}: {aux_data:02x?}");
                 }
             },
             Ok(minicbor::data::Type::Tag) => {
                 if let Err(error) =
                     Self::decode_alonzo_plus_map(&mut raw_decoded_data, &mut decoder)
                 {
-                    error!("Failed to Deserialize Alonzo+ Metadata: {error}");
+                    error!("Failed to Deserialize Alonzo+ Metadata: {error}: {aux_data:02x?}");
                 }
             },
             Ok(unexpected) => {
-                error!("Unexpected datatype for Aux data: {unexpected}");
+                error!("Unexpected datatype for Aux data: {unexpected}: {aux_data:02x?}");
             },
             Err(error) => {
-                error!("Error decoding metadata: {error}");
+                error!("Error decoding metadata: {error}: {aux_data:02x?}");
             },
         }
 
@@ -75,14 +75,15 @@ impl RawAuxData {
         let entries = match decoder.map() {
             Ok(Some(entries)) => entries,
             Ok(None) => {
-                bail!("Indefinite Map found decoding Metadata. Invalid.");
+                // Sadly... Indefinite Maps are allowed in Cardano CBOR Encoding.
+                u64::MAX
             },
             Err(error) => {
                 bail!("Error decoding metadata: {error}");
             },
         };
 
-        debug!("Decoding shelley metadata map with {} entries", entries);
+        // debug!("Decoding shelley metadata map with {} entries", entries);
 
         let raw_metadata = decoder.input();
 
@@ -103,9 +104,24 @@ impl RawAuxData {
             };
             let value = value_slice.to_vec();
 
-            debug!("Decoded metadata key: {key}, value: {value:?}");
+            // debug!("Decoded metadata key: {key}, value: {value:?}");
 
             let _unused = raw_decoded_data.metadata.insert(key, Arc::new(value));
+
+            // Look for End Sentinel IF its an indefinite MAP (which we know because entries is u64::MAX).
+            if entries == u64::MAX {
+                match decoder.datatype() {
+                    Ok(Type::Break) => {
+                        // Skip over the break token.
+                        let _unused = decoder.skip();
+                        break;
+                    },
+                    Ok(_) => (), // Not break, so do next loop, should be the next key.
+                    Err(error) => {
+                        bail!("Error checking indefinite metadata map end sentinel: {error}");
+                    },
+                }
+            }
         }
 
         Ok(())
@@ -214,12 +230,28 @@ impl RawAuxData {
             },
         };
 
+        let raw_metadata = decoder.input();
+
         for _entry in 0..entries {
-            let script = match decoder.bytes() {
-                Ok(script) => script,
-                Err(error) => bail!("Error decoding script data from metadata: {error}"),
-            };
-            scripts.push(script.to_vec());
+            if contract_type == SmartContractType::Native {
+                // Native Scripts are actually CBOR arrays, so capture their data as bytes for
+                // later processing.
+                let value_start = decoder.position();
+                if let Err(error) = decoder.skip() {
+                    bail!("Error decoding native script value:  {error}");
+                }
+                let value_end = decoder.position();
+                let Some(value_slice) = raw_metadata.get(value_start..value_end) else {
+                    bail!("Invalid metadata value found. Unable to extract native script slice.");
+                };
+                scripts.push(value_slice.to_vec());
+            } else {
+                let script = match decoder.bytes() {
+                    Ok(script) => script,
+                    Err(error) => bail!("Error decoding script data from metadata: {error}"),
+                };
+                scripts.push(script.to_vec());
+            }
         }
 
         let _unused = raw_decoded_data
@@ -230,7 +262,7 @@ impl RawAuxData {
     }
 
     /// Get Raw metadata for a given metadata label, if it exists.
-    pub fn get_metadata(&self, label: u64) -> Option<Arc<Vec<u8>>> {
+    pub(crate) fn get_metadata(&self, label: u64) -> Option<Arc<Vec<u8>>> {
         self.metadata.get(&label).map(|v| v.value().clone())
     }
 }

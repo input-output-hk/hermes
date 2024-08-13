@@ -5,6 +5,9 @@ use std::sync::Arc;
 use ed25519_dalek::Verifier;
 use minicbor::Decoder;
 use pallas::ledger::traverse::MultiEraTx;
+use tracing::debug;
+
+use crate::Network;
 
 use super::{
     DecodedMetadata, DecodedMetadataItem, DecodedMetadataValues, RawAuxData, ValidationReport,
@@ -17,6 +20,12 @@ pub const SIG_LABEL: u64 = 61285;
 
 /// Project Catalyst Purpose
 pub const PROJECT_CATALYST_PURPOSE: u64 = 0;
+
+/// Signdata Preamble = `{ 61284: ?? }`
+/// CBOR Decoded =
+/// A1       # map(1)
+/// 19 EF64  # unsigned(61284)
+pub const SIGNDATA_PREAMBLE: [u8; 4] = [0xa1, 0x19, 0xef, 0x64];
 
 /// Ed25519 Public Key
 type Ed25519PubKey = ed25519_dalek::VerifyingKey;
@@ -82,7 +91,7 @@ impl Cip36 {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn decode_and_validate(
         decoded_metadata: &DecodedMetadata, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData,
-        catalyst_strict: bool,
+        catalyst_strict: bool, chain: Network,
     ) {
         let k61284 = raw_aux_data.get_metadata(LABEL);
         let k61285 = raw_aux_data.get_metadata(SIG_LABEL);
@@ -97,6 +106,13 @@ impl Cip36 {
             return;
         }
 
+        //if let Some(reg) = k61284.as_ref() {
+        //    debug!("CIP36 Metadata Detected: {slot}, {reg:02x?}");
+        //}
+        //if let Some(sig) = k61285.as_ref() {
+        //    debug!("CIP36 Signature Detected: {slot}, {sig:02x?}");
+        //}
+
         // Any Decode/Validation errors go here.
         let mut validation_report = ValidationReport::new();
 
@@ -107,6 +123,7 @@ impl Cip36 {
                 &mut validation_report,
                 decoded_metadata,
             );
+            debug!("decoded 1: {decoded_metadata:?}");
             return;
         };
 
@@ -118,6 +135,7 @@ impl Cip36 {
         let Some(cip36_map_entries) =
             cip36.decode_map_entries(&mut decoder, &mut validation_report, decoded_metadata)
         else {
+            debug!("decoded 2: {decoded_metadata:?}");
             return;
         };
 
@@ -127,6 +145,7 @@ impl Cip36 {
             let Some(key) =
                 cip36.decode_map_key(&mut decoder, &mut validation_report, decoded_metadata)
             else {
+                debug!("decoded 3: {decoded_metadata:?}");
                 return;
             };
 
@@ -144,6 +163,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
+                            debug!("decoded 4: {decoded_metadata:?}");
                             return;
                         }
                     },
@@ -156,6 +176,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
+                            debug!("decoded 5: {decoded_metadata:?}");
                             return;
                         }
                     },
@@ -166,9 +187,11 @@ impl Cip36 {
                                 &mut validation_report,
                                 decoded_metadata,
                                 txn,
+                                chain,
                             )
                             .is_none()
                         {
+                            debug!("decoded 6: {decoded_metadata:?}");
                             return;
                         }
                     },
@@ -182,6 +205,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
+                            debug!("decoded 7: {decoded_metadata:?}");
                             return;
                         }
                     },
@@ -190,6 +214,7 @@ impl Cip36 {
                             .decode_purpose(&mut decoder, &mut validation_report, decoded_metadata)
                             .is_none()
                         {
+                            debug!("decoded 8: {decoded_metadata:?}");
                             return;
                         }
                     },
@@ -220,6 +245,9 @@ impl Cip36 {
                 .push("The CIP36 Metadata Nonce is missing from the data.".to_string());
         }
 
+        if !decoded_metadata.0.is_empty() {
+            debug!("decoded 9: {decoded_metadata:?}");
+        }
         // If we get this far, decode the signature, and verify it.
         cip36.validate_signature(&raw_cip36, k61285, &mut validation_report, decoded_metadata);
     }
@@ -345,7 +373,7 @@ impl Cip36 {
     /// Decode the Payment Address Metadata in the CIP36 Metadata map.
     fn decode_payment_address(
         &mut self, decoder: &mut Decoder, validation_report: &mut ValidationReport,
-        decoded_metadata: &DecodedMetadata, txn: &MultiEraTx,
+        decoded_metadata: &DecodedMetadata, _txn: &MultiEraTx, chain: Network,
     ) -> Option<usize> {
         let raw_address = match decoder.bytes() {
             Ok(address) => address,
@@ -402,14 +430,9 @@ impl Cip36 {
         if header_type == 8 {
             validation_report.push("Byron Addresses are unsupported".to_string());
         } else {
-            let valid = match txn.network_id() {
-                Some(pallas::ledger::primitives::conway::NetworkId::One) => network_tag == 0,
-                Some(pallas::ledger::primitives::conway::NetworkId::Two) => network_tag == 1,
-                None => {
-                    validation_report
-                        .push("Unable to discriminate NetworkID from Transaction".into());
-                    false
-                },
+            let valid = match chain {
+                Network::Mainnet => network_tag == 1,
+                Network::Preprod | Network::Preview => network_tag == 0,
             };
             if !valid {
                 validation_report.push(format!(
@@ -562,7 +585,7 @@ impl Cip36 {
                 },
                 minicbor::data::Type::Array => {
                     // CIP 36 type registration (multiple voting keys).
-                    self.cip36 = Some(false);
+                    self.cip36 = Some(true);
                     match decoder.array() {
                         Ok(Some(entries)) => {
                             for _entry in 0..entries {
@@ -611,11 +634,19 @@ impl Cip36 {
             },
         }
 
+        if self.strict_catalyst && self.voting_keys.len() != 1 {
+            validation_report.push(format!(
+                "Catalyst Supports only a single Voting Key per registration.  Found {}",
+                self.voting_keys.len()
+            ));
+        }
+
         Some(self.voting_keys.len())
     }
 
     /// Decode a signature from the Signature metadata in 61285
     /// Also checks that the signature is valid against the public key.
+    #[allow(clippy::too_many_lines)]
     fn validate_signature(
         &mut self, metadata: &Arc<Vec<u8>>, sig_metadata: Option<Arc<Vec<u8>>>,
         validation_report: &mut ValidationReport, decoded_metadata: &DecodedMetadata,
@@ -717,7 +748,19 @@ impl Cip36 {
         };
 
         // Now we have both the Public Key and the signature. So calculate the hash of the metadata.
-        let hash = blake2b_simd::Params::new().hash_length(32).hash(metadata);
+        let hash = blake2b_simd::Params::new()
+            .hash_length(32)
+            .to_state()
+            .update(&SIGNDATA_PREAMBLE)
+            .update(metadata)
+            .finalize();
+
+        //debug!(
+        //    "Hash = {:02x?}, pk = {:02x?}, sig = {:02x?}",
+        //    hash.as_bytes(),
+        //    pk.as_ref(),
+        //    sig.to_bytes()
+        //);
 
         if let Err(error) = pk.verify(hash.as_bytes(), &sig) {
             self.signed = false;
@@ -731,6 +774,15 @@ impl Cip36 {
 
         // If we get this far then we have a valid CIP36 Signature (Doesn't mean there aren't other issues).
         self.signed = true;
+
+        // Record the fully validated Cip36 metadata
+        decoded_metadata.0.insert(
+            LABEL,
+            Arc::new(DecodedMetadataItem {
+                value: DecodedMetadataValues::Cip36(Arc::new(self.clone()).clone()),
+                report: validation_report.clone(),
+            }),
+        );
 
         Some(true)
     }

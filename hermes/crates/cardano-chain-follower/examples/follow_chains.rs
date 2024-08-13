@@ -16,7 +16,8 @@ static GLOBAL: MiMalloc = MiMalloc;
 use std::error::Error;
 
 use cardano_chain_follower::{
-    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Network, Statistics, ORIGIN_POINT, TIP_POINT,
+    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Metadata, Network, Statistics, ORIGIN_POINT,
+    TIP_POINT,
 };
 use clap::{arg, ArgAction, ArgMatches, Command};
 use tokio::time::Instant;
@@ -70,9 +71,8 @@ async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
 const RUNNING_UPDATE_INTERVAL: u64 = 100_000;
 
 /// Try and follow a chain continuously, from Genesis until Tip.
-//#[allow(clippy::panic)]
+#[allow(clippy::too_many_lines)]
 async fn follow_for(network: Network, matches: ArgMatches) {
-    // loop {
     info!(chain = network.to_string(), "Following");
     let mut follower = ChainFollower::new(network, ORIGIN_POINT, TIP_POINT).await;
 
@@ -163,6 +163,63 @@ async fn follow_for(network: Network, matches: ArgMatches) {
             break;
         }
 
+        // Inspect the transactions in the block.
+        let mut dump_raw_aux_data = false;
+        for (tx_idx, _tx) in block.txs().iter().enumerate() {
+            if let Some(decoded_metadata) = chain_update
+                .data
+                .txn_metadata(tx_idx, Metadata::cip36::LABEL)
+            {
+                if !last_update_shown {
+                    info!(
+                        chain = network.to_string(),
+                        "Chain Update {updates}:{}", chain_update
+                    );
+                    // We already showed the last update, no need to show it again.
+                    last_update_shown = true;
+                }
+
+                let raw_size = match chain_update
+                    .data
+                    .txn_raw_metadata(tx_idx, Metadata::cip36::LABEL)
+                {
+                    Some(raw) => format!("Raw Size: {}", raw.len()),
+                    None => "Error: Cip36 Raw Metadata is missing".to_string(),
+                };
+
+                #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
+                if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
+                    if !cip36.signed {
+                        dump_raw_aux_data = true;
+                    }
+                }
+
+                info!(
+                    chain = network.to_string(),
+                    "Cip36 {tx_idx}:{:?} - {raw_size}", decoded_metadata
+                );
+            }
+        }
+
+        if dump_raw_aux_data {
+            if let Some(x) = block.as_alonzo() {
+                info!(
+                    chain = network.to_string(),
+                    "Raw Aux Data: {:02x?}", x.auxiliary_data_set
+                );
+            } else if let Some(x) = block.as_babbage() {
+                info!(
+                    chain = network.to_string(),
+                    "Raw Aux Data: {:02x?}", x.auxiliary_data_set
+                );
+            } else if let Some(x) = block.as_conway() {
+                info!(
+                    chain = network.to_string(),
+                    "Raw Aux Data: {:02x?}", x.auxiliary_data_set
+                );
+            }
+        }
+
         prev_hash = Some(block.hash());
         last_update = Some(chain_update);
 
@@ -190,8 +247,6 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     info!("Json Metrics:  {}", stats.as_json(true));
 
     info!(chain = network.to_string(), "Following Completed.");
-
-    //}
 }
 
 #[tokio::main]

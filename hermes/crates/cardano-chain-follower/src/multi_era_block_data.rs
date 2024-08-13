@@ -142,7 +142,7 @@ impl MultiEraBlock {
             }
         }
 
-        let metadata = metadata::DecodedTransaction::new(decoded_block);
+        let metadata = metadata::DecodedTransaction::new(chain, decoded_block);
 
         Ok(Self {
             fork,
@@ -220,6 +220,20 @@ impl MultiEraBlock {
     #[must_use]
     pub fn chain(&self) -> Network {
         self.inner.chain
+    }
+
+    /// Get The Decoded Metadata fora a transaction and known label from the block
+    #[must_use]
+    pub fn txn_metadata(
+        &self, txn_idx: usize, label: u64,
+    ) -> Option<Arc<metadata::DecodedMetadataItem>> {
+        self.inner.metadata.get_metadata(txn_idx, label)
+    }
+
+    /// Get The Raw Metadata fora a transaction and known label from the block
+    #[must_use]
+    pub fn txn_raw_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<Vec<u8>>> {
+        self.inner.metadata.get_raw_metadata(txn_idx, label)
     }
 
     /// Returns the witness map for the block.
