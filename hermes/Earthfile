@@ -112,8 +112,6 @@ test-download-mithril-snapshot:
     # Initialize a private directory to store downloaded snapshot data.
     CACHE --sharing private --chmod 0666 --id mithril-dl /root/.local/share/follow_chains
 
-    RUN --no-cache du -sh /root/.local/share/follow_chains
-
     RUN RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
         time -f "\nReal Time: %E\nUser Time: %U\nSystem Time: %S" \
         ./target/release/examples/follow_chains \
