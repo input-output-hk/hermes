@@ -3,15 +3,12 @@
 use std::collections::HashMap;
 
 use super::descriptors::Descriptor;
-use crate::hdf5::Dir;
 
 /// Contains all data needed to execute the WASI APIs.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WasiContext {
     /// Descriptors currently opened in this context.
     descriptors: HashMap<u32, Descriptor>,
-    /// List of preopen directories in this context.
-    preopens: Vec<(u32, String)>,
 }
 
 impl WasiContext {
@@ -52,19 +49,5 @@ impl WasiContext {
     /// Returns [`None`] if there's not descriptor with the given id.
     pub fn descriptor_mut(&mut self, rep: u32) -> Option<&mut Descriptor> {
         self.descriptors.get_mut(&rep)
-    }
-
-    /// Adds a preopen directory to the preopens list.
-    pub fn put_preopen_dir(&mut self, path: String, dir: Dir) -> u32 {
-        let rep = self.put_descriptor(Descriptor::Dir(dir));
-        self.preopens.push((rep, path));
-
-        rep
-    }
-
-    /// Returns the list of descriptor identifiers and paths of the current preopen
-    /// directories.
-    pub fn preopen_dirs(&self) -> &Vec<(u32, String)> {
-        &self.preopens
     }
 }

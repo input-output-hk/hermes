@@ -574,14 +574,14 @@ impl filesystem::preopens::Host for HermesRuntimeContext {
     fn get_directories(
         &mut self,
     ) -> wasmtime::Result<Vec<(wasmtime::component::Resource<Descriptor>, String)>> {
-        let preopens = STATE
-            .get(self.app_name())
-            .preopen_dirs()
-            .iter()
-            .cloned()
-            .map(|(rep, path)| (wasmtime::component::Resource::new_own(rep), path))
-            .collect();
+        let vfs_root = self.vfs().root().clone();
+        let repr = STATE
+            .get_mut(self.app_name())
+            .put_descriptor(wasi::descriptors::Descriptor::Dir(vfs_root));
 
-        Ok(preopens)
+        Ok(vec![(
+            wasmtime::component::Resource::new_own(repr),
+            "/".to_string(),
+        )])
     }
 }
