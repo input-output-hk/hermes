@@ -73,8 +73,9 @@ pub struct MithrilSnapshotConfig {
     /// attempts, and the process will keep retrying indefinitely until it succeeds or is
     /// manually stopped.
     pub max_retry: Option<u32>,
-    /// Determines whether the process should be halted when an error occurs while running the configuration.
-    pub halt_on_error: bool
+    /// Determines whether the process should be halted when an error occurs while running
+    /// the configuration.
+    pub halt_on_error: bool,
 }
 
 impl MithrilSnapshotConfig {

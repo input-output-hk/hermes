@@ -13,7 +13,8 @@ use crate::{utils::usize_from_saturating, Network};
 pub mod cip36;
 mod raw_aux_data;
 
-/// List of all validation errors (as strings) Metadata is considered Valid if this list is empty.
+/// List of all validation errors (as strings) Metadata is considered Valid if this list
+/// is empty.
 pub type ValidationReport = Vec<String>;
 
 /// Possible Decoded Metadata Values.
@@ -50,7 +51,7 @@ impl DecodedMetadata {
         // Process each known type of metadata here, and record the decoded result.
         Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true, chain);
 
-        //if !decoded_metadata.0.is_empty() {
+        // if !decoded_metadata.0.is_empty() {
         //    debug!("Decoded Metadata final: {decoded_metadata:?}");
         //}
         decoded_metadata

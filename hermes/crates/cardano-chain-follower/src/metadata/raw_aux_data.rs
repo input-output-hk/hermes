@@ -16,9 +16,9 @@ pub enum SmartContractType {
     Plutus(u64),
 }
 
-// We CAN NOT use the Pallas library metadata decoding because it does not preserve raw metadata
-// values which are critical for performing operations like signature checks on data.
-// So we have a bespoke metadata decoder here.
+// We CAN NOT use the Pallas library metadata decoding because it does not preserve raw
+// metadata values which are critical for performing operations like signature checks on
+// data. So we have a bespoke metadata decoder here.
 #[derive(Debug)]
 pub(crate) struct RawAuxData {
     /// Metadata: key = label, value = raw metadata bytes
@@ -108,7 +108,8 @@ impl RawAuxData {
 
             let _unused = raw_decoded_data.metadata.insert(key, Arc::new(value));
 
-            // Look for End Sentinel IF its an indefinite MAP (which we know because entries is u64::MAX).
+            // Look for End Sentinel IF its an indefinite MAP (which we know because entries is
+            // u64::MAX).
             if entries == u64::MAX {
                 match decoder.datatype() {
                     Ok(Type::Break) => {

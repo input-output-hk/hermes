@@ -422,7 +422,7 @@ async fn live_sync_backfill_and_purge(
         if cfg.mithril_cfg.halt_on_error {
             std::process::exit(1);
         }
-        
+
         return;
     };
 

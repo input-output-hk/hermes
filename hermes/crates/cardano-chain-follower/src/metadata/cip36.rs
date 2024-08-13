@@ -7,11 +7,10 @@ use minicbor::Decoder;
 use pallas::ledger::traverse::MultiEraTx;
 use tracing::debug;
 
-use crate::Network;
-
 use super::{
     DecodedMetadata, DecodedMetadataItem, DecodedMetadataValues, RawAuxData, ValidationReport,
 };
+use crate::Network;
 
 /// CIP36 Metadata Label
 pub const LABEL: u64 = 61284;
@@ -25,7 +24,7 @@ pub const PROJECT_CATALYST_PURPOSE: u64 = 0;
 /// CBOR Decoded =
 /// A1       # map(1)
 /// 19 EF64  # unsigned(61284)
-pub const SIGNDATA_PREAMBLE: [u8; 4] = [0xa1, 0x19, 0xef, 0x64];
+pub const SIGNDATA_PREAMBLE: [u8; 4] = [0xA1, 0x19, 0xEF, 0x64];
 
 /// Ed25519 Public Key
 type Ed25519PubKey = ed25519_dalek::VerifyingKey;
@@ -77,17 +76,18 @@ impl Cip36 {
     /// * <https://github.com/cardano-foundation/CIPs/tree/master/CIP-0036>
     ///
     /// # Parameters
-    /// * `decoded_metadata` - Decoded Metadata - Will be updated only if CIP36 Metadata is found.
+    /// * `decoded_metadata` - Decoded Metadata - Will be updated only if CIP36 Metadata
+    ///   is found.
     /// * `slot` - Current Slot
-    /// * `txn` - Transaction Aux data was attached to and to be validated/decoded against.
-    ///     Not used for CIP36 Metadata.
+    /// * `txn` - Transaction Aux data was attached to and to be validated/decoded
+    ///   against. Not used for CIP36 Metadata.
     /// * `raw_aux_data` - Raw Auxiliary Data for the transaction.
-    /// * `catalyst_strict` - Strict Catalyst Validation - otherwise Catalyst Specific rules/workarounds are not applied.
+    /// * `catalyst_strict` - Strict Catalyst Validation - otherwise Catalyst Specific
+    ///   rules/workarounds are not applied.
     ///
     /// # Returns
     ///
     /// Nothing.  IF CIP36 Metadata is found it will be updated in `decoded_metadata`.
-    ///
     #[allow(clippy::too_many_lines)]
     pub(crate) fn decode_and_validate(
         decoded_metadata: &DecodedMetadata, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData,
@@ -101,15 +101,16 @@ impl Cip36 {
             ..Default::default()
         };
 
-        // If there is NO Cip36/Cip15 Metadata then nothing to decode or validate, so quickly exit.
+        // If there is NO Cip36/Cip15 Metadata then nothing to decode or validate, so quickly
+        // exit.
         if k61284.is_none() && k61285.is_none() {
             return;
         }
 
-        //if let Some(reg) = k61284.as_ref() {
+        // if let Some(reg) = k61284.as_ref() {
         //    debug!("CIP36 Metadata Detected: {slot}, {reg:02x?}");
         //}
-        //if let Some(sig) = k61285.as_ref() {
+        // if let Some(sig) = k61285.as_ref() {
         //    debug!("CIP36 Signature Detected: {slot}, {sig:02x?}");
         //}
 
@@ -397,7 +398,7 @@ impl Cip36 {
         };
 
         // See: https://cips.cardano.org/cip/CIP-19 for details on address decoding.
-        let network_tag = header_byte & 0x0f;
+        let network_tag = header_byte & 0x0F;
         let header_type = header_byte >> 4;
         match header_type {
             0..=3 => {
@@ -441,7 +442,8 @@ impl Cip36 {
             }
         }
 
-        // Addresses are only payable if they are a normal payment address and not a script address.
+        // Addresses are only payable if they are a normal payment address and not a script
+        // address.
         self.payable = header_type <= 7 && (header_type & 0x1 == 0);
         self.payment_addr = raw_address.to_vec();
 
@@ -466,7 +468,8 @@ impl Cip36 {
         };
 
         if pub_key.len() == ed25519_dalek::PUBLIC_KEY_LENGTH {
-            // Safe to use `unwrap()` here because the length is fixed and we know it's 32 bytes long.
+            // Safe to use `unwrap()` here because the length is fixed and we know it's 32 bytes
+            // long.
             #[allow(clippy::unwrap_used)]
             let pub_key: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = pub_key.try_into().unwrap();
             match ed25519_dalek::VerifyingKey::from_bytes(&pub_key) {
@@ -568,61 +571,64 @@ impl Cip36 {
         decoded_metadata: &DecodedMetadata,
     ) -> Option<usize> {
         match decoder.datatype() {
-            Ok(key_type) => match key_type {
-                minicbor::data::Type::Bytes => {
-                    // CIP 15 type registration (single voting key).
-                    self.cip36 = Some(false);
-                    let vk = self.decode_ed25519_pub_key(
-                        decoder,
-                        validation_report,
-                        decoded_metadata,
-                        "Voting Public Key",
-                    )?;
-                    self.voting_keys.push(VotingPubKey {
-                        voting_pk: vk,
-                        weight: 1,
-                    });
-                },
-                minicbor::data::Type::Array => {
-                    // CIP 36 type registration (multiple voting keys).
-                    self.cip36 = Some(true);
-                    match decoder.array() {
-                        Ok(Some(entries)) => {
-                            for _entry in 0..entries {
-                                self.decode_delegation(
-                                    decoder,
-                                    validation_report,
-                                    decoded_metadata,
-                                )?;
-                            }
-                        },
-                        Ok(None) => {
-                            self.decoding_failed(
+            Ok(key_type) => {
+                match key_type {
+                    minicbor::data::Type::Bytes => {
+                        // CIP 15 type registration (single voting key).
+                        self.cip36 = Some(false);
+                        let vk = self.decode_ed25519_pub_key(
+                            decoder,
+                            validation_report,
+                            decoded_metadata,
+                            "Voting Public Key",
+                        )?;
+                        self.voting_keys.push(VotingPubKey {
+                            voting_pk: vk,
+                            weight: 1,
+                        });
+                    },
+                    minicbor::data::Type::Array => {
+                        // CIP 36 type registration (multiple voting keys).
+                        self.cip36 = Some(true);
+                        match decoder.array() {
+                            Ok(Some(entries)) => {
+                                for _entry in 0..entries {
+                                    self.decode_delegation(
+                                        decoder,
+                                        validation_report,
+                                        decoded_metadata,
+                                    )?;
+                                }
+                            },
+                            Ok(None) => {
+                                self.decoding_failed(
                                 "Error Decoding CIP36 Delegations Array: Indefinite Array is invalid encoding.",
                                 validation_report,
                                 decoded_metadata,
                             );
-                        },
-                        Err(err) => {
-                            self.decoding_failed(
-                                format!("Error Decoding CIP36 Delegations Array: {err}").as_str(),
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
-                        },
-                    }
-                },
-                _ => {
-                    self.decoding_failed(
-                        format!(
-                            "Error inspecting Voting Key type: Unexpected CBOR Type {key_type}"
-                        )
-                        .as_str(),
-                        validation_report,
-                        decoded_metadata,
-                    );
-                },
+                            },
+                            Err(err) => {
+                                self.decoding_failed(
+                                    format!("Error Decoding CIP36 Delegations Array: {err}")
+                                        .as_str(),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    },
+                    _ => {
+                        self.decoding_failed(
+                            format!(
+                                "Error inspecting Voting Key type: Unexpected CBOR Type {key_type}"
+                            )
+                            .as_str(),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                    },
+                }
             },
             Err(error) => {
                 self.decoding_failed(
@@ -716,16 +722,18 @@ impl Cip36 {
         }
 
         let sig: ed25519_dalek::Signature = match decoder.bytes() {
-            Ok(sig) => match ed25519_dalek::Signature::from_slice(sig) {
-                Ok(sig) => sig,
-                Err(err) => {
-                    self.decoding_failed(
-                        format!("CIP36 Signature Decoding failed: {err}",).as_str(),
-                        validation_report,
-                        decoded_metadata,
-                    );
-                    return None;
-                },
+            Ok(sig) => {
+                match ed25519_dalek::Signature::from_slice(sig) {
+                    Ok(sig) => sig,
+                    Err(err) => {
+                        self.decoding_failed(
+                            format!("CIP36 Signature Decoding failed: {err}",).as_str(),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    },
+                }
             },
             Err(error) => {
                 self.decoding_failed(
@@ -747,7 +755,8 @@ impl Cip36 {
             return None;
         };
 
-        // Now we have both the Public Key and the signature. So calculate the hash of the metadata.
+        // Now we have both the Public Key and the signature. So calculate the hash of the
+        // metadata.
         let hash = blake2b_simd::Params::new()
             .hash_length(32)
             .to_state()
@@ -755,7 +764,7 @@ impl Cip36 {
             .update(metadata)
             .finalize();
 
-        //debug!(
+        // debug!(
         //    "Hash = {:02x?}, pk = {:02x?}, sig = {:02x?}",
         //    hash.as_bytes(),
         //    pk.as_ref(),
@@ -772,7 +781,8 @@ impl Cip36 {
             return None;
         };
 
-        // If we get this far then we have a valid CIP36 Signature (Doesn't mean there aren't other issues).
+        // If we get this far then we have a valid CIP36 Signature (Doesn't mean there aren't
+        // other issues).
         self.signed = true;
 
         // Record the fully validated Cip36 metadata

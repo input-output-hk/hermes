@@ -730,10 +730,9 @@ pub(crate) async fn background_mithril_update(
 
             if cfg.halt_on_error {
                 break;
-            } else {
-                retry_count += 1;
-                continue;
             }
+            retry_count += 1;
+            continue;
         }
 
         // Download was A-OK - Update the new immutable tip.
@@ -748,10 +747,9 @@ pub(crate) async fn background_mithril_update(
 
                 if cfg.halt_on_error {
                     break;
-                } else {
-                    retry_count += 1;
-                    continue;
                 }
+                retry_count += 1;
+                continue;
             },
         };
 
@@ -767,10 +765,9 @@ pub(crate) async fn background_mithril_update(
 
                 if cfg.halt_on_error {
                     break;
-                } else {
-                    retry_count += 1;
-                    continue;
                 }
+                retry_count += 1;
+                continue;
             }
         }
 
@@ -800,13 +797,11 @@ pub(crate) async fn background_mithril_update(
                             cfg.chain
                         );
 
-
                         if cfg.halt_on_error {
                             break;
-                        } else {
-                            retry_count += 1;
-                            continue;
                         }
+                        retry_count += 1;
+                        continue;
                     };
                 }
             },
@@ -816,13 +811,11 @@ pub(crate) async fn background_mithril_update(
                     "Failed to activate new snapshot : {err}"
                 );
 
-
                 if cfg.halt_on_error {
                     break;
-                } else {
-                    retry_count += 1;
-                    continue;
                 }
+                retry_count += 1;
+                continue;
             },
         }
     }
