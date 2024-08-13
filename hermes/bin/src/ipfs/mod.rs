@@ -55,7 +55,7 @@ pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()>
             .set_default_listener()
             .disable_tls()
             .set_disk_storage(ipfs_data_path.clone()),
-            default_bootstrap
+        default_bootstrap,
     )?;
     HERMES_IPFS
         .set(ipfs_node)
@@ -89,7 +89,7 @@ impl HermesIpfsNode {
                     tracing::debug!(
                         "Bootstrapped IPFS node with default addresses: {:?}",
                         addresses
-                        );
+                    );
                 }
                 let hermes_node: HermesIpfs = node.into();
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
