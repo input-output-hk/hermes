@@ -37,6 +37,8 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
             arg!(--"all-live-blocks" "Show all live blocks.").action(ArgAction::SetTrue),
             arg!(--"all-tip-blocks" "Show all blocks read from the Peer as TIP.")
                 .action(ArgAction::SetTrue),
+            arg!(--"halt-on-error" "Stop the process when an error occurs without retrying.")
+                .action(ArgAction::SetTrue),
         ])
         .get_matches();
 
@@ -55,8 +57,12 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
 }
 
 /// Start syncing a particular network
-async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
-    let cfg = ChainSyncConfig::default_for(*network);
+async fn start_sync_for(network: &Network, matches: ArgMatches) -> Result<(), Box<dyn Error>> {
+    let halt_on_error = matches.get_flag("halt-on-error");
+
+    let mut cfg = ChainSyncConfig::default_for(*network);
+    cfg.mithril_cfg.halt_on_error = halt_on_error;
+
     info!(chain = cfg.chain.to_string(), "Starting Sync");
 
     if let Err(error) = cfg.run().await {
@@ -276,7 +282,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // First we need to actually start the underlying sync tasks for each blockchain.
     for network in &networks {
-        start_sync_for(network).await?;
+        start_sync_for(network, matches.clone()).await?;
     }
 
     // Make a follower for the network.

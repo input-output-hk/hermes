@@ -97,6 +97,27 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
+# test-download-chain - Test on downloading a mithril snapshot from the preprod chain without syncing.
+test-download-mithril-snapshot:
+    FROM +build
+
+    # Install deps for compilation.
+    RUN apt-get update && apt-get install -y m4
+
+    RUN cargo build -r --package cardano-chain-follower --example follow_chains --features mimalloc
+
+    # Install deps for the binary.
+    RUN apt-get update \
+        && apt-get install -y time aria2
+
+    # Initialize a private directory to store downloaded snapshot data.
+    CACHE --sharing private --chmod 0666 --id mithril-dl /root/.local/share/follow_chains
+
+    RUN RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
+        time -f "\nReal Time: %E\nUser Time: %U\nSystem Time: %S" \
+        ./target/release/examples/follow_chains \
+        --preprod --stop-at-tip --halt-on-error \
+        && echo "Mithril Snapshot download succeeded."
 
 # all-hosts-build : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.
