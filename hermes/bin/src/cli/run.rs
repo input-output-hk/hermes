@@ -43,7 +43,7 @@ impl Run {
 
         let hermes_home_dir = Cli::hermes_home()?;
 
-        // enable boostrapping the IPFS node to default addresses
+        // enable bootstrapping the IPFS node to default addresses
         let default_bootstrap = true;
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
         let app = build_app(&package, hermes_home_dir)?;

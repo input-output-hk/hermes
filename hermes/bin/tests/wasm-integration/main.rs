@@ -45,7 +45,7 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
 /// Initialize the IPFS node
 fn init_ipfs() -> anyhow::Result<()> {
     let base_dir = temp_dir::TempDir::new()?;
-    // disable boostrapping the IPFS node to default addresses for testing
+    // disable bootstrapping the IPFS node to default addresses for testing
     let default_bootstrap = false;
     hermes::ipfs::bootstrap(base_dir.path(), default_bootstrap)
 }
