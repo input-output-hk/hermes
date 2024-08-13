@@ -31,7 +31,7 @@ mod tests_log_msg {
     fn test_log_message() {
         let config = LoggerConfig::default();
 
-        init(&config).expect("Error initializing logger");
+        init(&config).unwrap();
 
         // Test with valid data
         let level = Level::Warn;

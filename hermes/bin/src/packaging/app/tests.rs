@@ -34,7 +34,6 @@ struct AppModulePackageContent {
     config: Config,
 }
 
-#[allow(clippy::unwrap_used)]
 fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageContent {
     let metadata = Metadata::<ApplicationPackage>::from_reader(
         serde_json::json!(
@@ -94,7 +93,6 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
     }
 }
 
-#[allow(clippy::unwrap_used)]
 fn prepare_package_dir(
     app_name: String, override_module_name: &[String], build_date: DateTime<Utc>,
     dir: &std::path::Path, app_package_content: &mut ApplicationPackageContent,
@@ -168,7 +166,7 @@ fn prepare_package_dir(
     }
 }
 
-#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+#[allow(clippy::indexing_slicing)]
 fn check_app_integrity(
     app_content: &ApplicationPackageContent, app_package: &ApplicationPackage, manifest: &Manifest,
 ) {
@@ -221,7 +219,6 @@ fn check_app_integrity(
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn from_dir_test() {
     let dir = TempDir::new().unwrap();
 
@@ -254,7 +251,6 @@ fn from_dir_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn author_sing_test() {
     let dir = TempDir::new().unwrap();
 
@@ -299,7 +295,6 @@ fn author_sing_test() {
     assert!(package.validate(false).is_ok());
 }
 
-#[allow(clippy::unwrap_used)]
 fn author_sign_package(package: &ApplicationPackage) {
     let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
     let certificate = Certificate::from_str(&certificate_str()).unwrap();
@@ -316,7 +311,6 @@ fn author_sign_package(package: &ApplicationPackage) {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_metadata_test() {
     let dir = TempDir::new().unwrap();
 
@@ -384,7 +378,6 @@ fn corrupted_metadata_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_icon_test() {
     let dir = TempDir::new().unwrap();
 
@@ -437,7 +430,6 @@ fn corrupted_icon_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_share_dir_test() {
     let dir = TempDir::new().unwrap();
 
@@ -494,7 +486,6 @@ fn corrupted_share_dir_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_www_dir_test() {
     let dir = TempDir::new().unwrap();
 
@@ -548,7 +539,6 @@ fn corrupted_www_dir_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_module_config_test() {
     let dir = TempDir::new().unwrap();
 
@@ -617,7 +607,6 @@ fn corrupted_module_config_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_module_share_dir_test() {
     let dir = TempDir::new().unwrap();
 

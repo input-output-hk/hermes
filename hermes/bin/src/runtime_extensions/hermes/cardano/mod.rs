@@ -191,7 +191,7 @@ mod test {
             module_id.clone(),
             SubscriptionType::Rollbacks,
         )
-        .expect("subscribed");
+        .unwrap();
 
         subscribe(
             CardanoBlockchainId::Preprod,
@@ -199,7 +199,7 @@ mod test {
             module_id.clone(),
             SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
         )
-        .expect("subscribed");
+        .unwrap();
 
         subscribe(
             CardanoBlockchainId::Preprod,
@@ -207,7 +207,7 @@ mod test {
             module_id.clone(),
             SubscriptionType::Transactions,
         )
-        .expect("subscribed");
+        .unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -219,12 +219,12 @@ mod test {
                 cardano_chain_follower::Point::Specific(
                     49_075_522,
                     hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                        .expect("decode hex value"),
+                        .unwrap(),
                 )
                 .into(),
             ),
         )
-        .expect("subscribed");
+        .unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -234,7 +234,7 @@ mod test {
             module_id.clone(),
             UnsubscribeOptions::BLOCK,
         )
-        .expect("subscribed");
+        .unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -244,7 +244,7 @@ mod test {
             module_id.clone(),
             UnsubscribeOptions::STOP,
         )
-        .expect("subscribed");
+        .unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -254,7 +254,7 @@ mod test {
             module_id,
             SubscriptionType::Continue,
         )
-        .expect("subscribed");
+        .unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(100));
     }
@@ -267,12 +267,12 @@ mod test {
             cardano_chain_follower::Point::Specific(
                 49_075_522,
                 hex::decode("b7639b523f320643236ab0fc04b7fd381dedd42c8d6b6433b5965a5062411396")
-                    .expect("decode hex value"),
+                    .unwrap(),
             )
             .into(),
         )
-        .expect("read");
+        .unwrap();
 
-        assert_eq!(block_data.decode().expect("valid block").slot(), 49_075_522);
+        assert_eq!(block_data.decode().unwrap().slot(), 49_075_522);
     }
 }

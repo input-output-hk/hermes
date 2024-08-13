@@ -29,7 +29,6 @@ pub(crate) struct PackageDirContent {
     pub(crate) file: (String, Vec<u8>),
 }
 
-#[allow(clippy::unwrap_used)]
 pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
     let metadata = Metadata::<ModulePackage>::from_reader(
         serde_json::json!(
@@ -85,7 +84,6 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
     }
 }
 
-#[allow(clippy::unwrap_used)]
 pub(crate) fn prepare_package_dir_dir(dir: &std::path::Path, package_dir: &PackageDirContent) {
     std::fs::create_dir(dir.join(&package_dir.child_dir_name)).unwrap();
     std::fs::write(
@@ -96,7 +94,6 @@ pub(crate) fn prepare_package_dir_dir(dir: &std::path::Path, package_dir: &Packa
     .unwrap();
 }
 
-#[allow(clippy::unwrap_used)]
 pub(crate) fn prepare_module_package_dir(
     module_name: String, dir: &std::path::Path, module_package_content: &ModulePackageContent,
 ) -> Manifest {
@@ -163,7 +160,6 @@ pub(crate) fn prepare_module_package_dir(
     }
 }
 
-#[allow(clippy::unwrap_used)]
 pub(crate) fn check_package_dir_integrity(dir: &Dir, dir_content: &PackageDirContent) {
     let child_dir = dir
         .get_dir(&dir_content.child_dir_name.as_str().into())
@@ -178,7 +174,6 @@ pub(crate) fn check_package_dir_integrity(dir: &Dir, dir_content: &PackageDirCon
     assert_eq!(child_dir_file_content, dir_content.file.1);
 }
 
-#[allow(clippy::unwrap_used)]
 pub(crate) fn check_module_package_integrity(
     module_content: &ModulePackageContent, module_package: &ModulePackage,
 ) {
@@ -207,7 +202,6 @@ pub(crate) fn check_module_package_integrity(
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn from_dir_test() {
     let dir = TempDir::new().unwrap();
 
@@ -232,7 +226,6 @@ fn from_dir_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn sign_test() {
     let dir = TempDir::new().unwrap();
 
@@ -265,7 +258,6 @@ fn sign_test() {
     assert!(package.validate(false).is_ok());
 }
 
-#[allow(clippy::unwrap_used)]
 fn sign_package(package: &ModulePackage) {
     let private_key = PrivateKey::from_str(&private_key_str()).unwrap();
     let certificate = Certificate::from_str(&certificate_str()).unwrap();
@@ -275,7 +267,6 @@ fn sign_package(package: &ModulePackage) {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_metadata_test() {
     let dir = TempDir::new().unwrap();
 
@@ -337,7 +328,6 @@ fn corrupted_metadata_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_component_test() {
     let dir = TempDir::new().unwrap();
 
@@ -398,7 +388,6 @@ fn corrupted_component_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_config_test() {
     let dir = TempDir::new().unwrap();
 
@@ -460,7 +449,6 @@ fn corrupted_config_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_config_schema_test() {
     let dir = TempDir::new().unwrap();
 
@@ -522,7 +510,6 @@ fn corrupted_config_schema_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_settings_schema_test() {
     let dir = TempDir::new().unwrap();
 
@@ -584,7 +571,6 @@ fn corrupted_settings_schema_test() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn corrupted_share_dir_test() {
     let dir = TempDir::new().unwrap();
 
