@@ -123,8 +123,8 @@ mod tests {
         let txs_babbage = babbage_block.txs();
         let tx_witness_babbage = TxWitness::new(&txs_babbage).expect("Failed to create TxWitness");
         let vkey2_hash: [u8; 28] =
-            hex::decode("142cd3a8cfb9eec2ad65727db491f6ca9a3ed348b5a512025d7e66e9")
-                .expect("Fail to decode vkey2_hash")
+            hex::decode("ba4ab50bdecca85162f3b8114739bc5ba3aaa6490e2b1d15ad0f9c66")
+                .expect("Failed to decode vkey2_hash")
                 .try_into()
                 .expect("Invalid length of vkey2_hash");
         println!("{tx_witness_babbage}");
