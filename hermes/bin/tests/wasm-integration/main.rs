@@ -27,6 +27,7 @@ use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{fmt::time, FmtSubscriber};
 
 /// Init the logger
+#[allow(dead_code)]
 fn init_logger() -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
         .json()
@@ -53,7 +54,7 @@ fn init_ipfs() -> anyhow::Result<()> {
 fn main() -> Result<(), Box<dyn Error>> {
     // This is necessary otherwise the logging functions inside hermes are silent during the
     // test run.
-    init_logger()?;
+    // init_logger()?;
     // This causes issues with normal test runs, so comment out for now.
     // info!("Starting Hermes WASM integration tests");
 
