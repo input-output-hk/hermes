@@ -7,7 +7,7 @@ use x509_cert::{der::Decode as x509Decode, Certificate};
 // ------------------x509------------------------
 
 /// A struct of X509 certificate.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct X509DerCert(Vec<u8>);
 
 impl Decode<'_, ()> for X509DerCert {
@@ -22,7 +22,7 @@ impl Decode<'_, ()> for X509DerCert {
 // ------------------c509-----------------------
 
 /// Enum of possible c509 certificate.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) enum C509Cert {
     /// A c509 certificate in metadatum reference.
     C509CertInMetadatumReference(C509CertInMetadatumReference),
@@ -59,7 +59,7 @@ impl Decode<'_, ()> for C509Cert {
 }
 
 /// A struct of c509 certificate in metadatum reference.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct C509CertInMetadatumReference {
     /// Transaction output field.
     txn_output_field: u8,

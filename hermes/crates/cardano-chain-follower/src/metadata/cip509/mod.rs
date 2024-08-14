@@ -1,103 +1,31 @@
-//! x509 metadata
+//! Cardano Improvement Proposal 509 (CIP-509) metadata module.
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
 mod rbac;
+mod x509_chunks;
 
-use std::io::Read;
+use std::sync::Arc;
 
 use minicbor::{decode, Decode, Decoder};
-use rbac::X509RbacMetadata;
+use pallas::ledger::traverse::MultiEraTx;
 use strum::FromRepr;
+use x509_chunks::X509Chunks;
 
-/// Enum of compression algorithms used to compress chunks.
-#[derive(FromRepr, Debug, PartialEq)]
-#[repr(u8)]
-pub enum CompressionAlgorithm {
-    /// Raw data, no compression.
-    Raw = 10,
-    /// Brotli compression.
-    Brotli = 11,
-    /// Zstd compression.
-    Zstd = 12,
-}
+use crate::Network;
 
-/// Struct of x509 chunks.
-#[derive(Debug, PartialEq)]
-struct X509Chunks {
-    /// The compression algorithm used to compress the data.
-    chunk_type: CompressionAlgorithm,
-    /// The decompressed data.
-    chunk_data: X509RbacMetadata,
-}
+use super::{
+    raw_aux_data::RawAuxData, DecodedMetadata, DecodedMetadataItem, DecodedMetadataValues,
+    ValidationReport,
+};
 
-impl X509Chunks {
-    /// Create new instance of `X509Chunks`.
-    fn new(chunk_type: CompressionAlgorithm, chunk_data: X509RbacMetadata) -> Self {
-        Self {
-            chunk_type,
-            chunk_data,
-        }
-    }
-}
+#[allow(dead_code)]
+/// CIP509 label.
+pub const LABEL: u64 = 509;
 
-impl Decode<'_, ()> for X509Chunks {
-    fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
-        // Determine the algorithm
-        let algorithm = CompressionAlgorithm::from_repr(d.u8()?)
-            .ok_or(decode::Error::message("Invalid chunk data type"))?;
-
-        // Decompress the data
-        let decompressed = decompress(d, &algorithm)
-            .map_err(|e| decode::Error::message(format!("Failed to decompress {e}")))?;
-
-        // Decode the decompressed data.
-        let mut decoder = Decoder::new(&decompressed);
-        let chunk_data = X509RbacMetadata::decode(&mut decoder, &mut ())
-            .map_err(|e| decode::Error::message(format!("Failed to decode {e}")))?;
-
-        Ok(X509Chunks {
-            chunk_type: algorithm,
-            chunk_data,
-        })
-    }
-}
-
-/// Decompress the data using the given algorithm.
-fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Result<Vec<u8>> {
-    let chunk_len = d
-        .array()
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?
-        .ok_or(anyhow::anyhow!("Error indefinite array in X509Chunks"))?;
-    // Vector containing the concatenated chunks
-    let mut concat_chunk = vec![];
-    for _ in 0..chunk_len {
-        let chunk_data = d.bytes().map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        concat_chunk.extend_from_slice(chunk_data);
-    }
-
-    let mut buffer = vec![];
-
-    match algorithm {
-        CompressionAlgorithm::Raw => {
-            buffer.extend_from_slice(concat_chunk.as_slice());
-        },
-        CompressionAlgorithm::Zstd => {
-            zstd::stream::copy_decode(concat_chunk.as_slice(), &mut buffer)?;
-        },
-        CompressionAlgorithm::Brotli => {
-            let mut decoder = brotli::Decompressor::new(concat_chunk.as_slice(), 4096);
-            decoder
-                .read_to_end(&mut buffer)
-                .map_err(|_| anyhow::anyhow!("Failed to decompress using Brotli algorithm"))?;
-        },
-    }
-    Ok(buffer)
-}
-
-/// x509 metadatum.
-#[derive(Debug, PartialEq)]
-pub(crate) struct X509Metadatum {
+/// CIP509 metadatum.
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct Cip509 {
     /// `UUIDv4` Purpose .
     purpose: [u8; 16], // (bytes .size 16)
     /// Transaction inputs hash.
@@ -111,17 +39,17 @@ pub(crate) struct X509Metadatum {
 }
 
 #[allow(clippy::module_name_repetitions)]
-impl X509Metadatum {
-    /// Create a new instance of `X509Metadatum`.
-    fn new() -> Self {
-        Self {
-            purpose: [0; 16],
-            txn_inputs_hash: [0; 16],
-            prv_tx_id: None,
-            x509_chunks: X509Chunks::new(CompressionAlgorithm::Raw, X509RbacMetadata::new()),
-            validation_signature: vec![],
-        }
-    }
+impl Cip509 {
+    /// Create a new instance of `Cip509`.
+    // fn new() -> Self {
+    //     Self {
+    //         purpose: [0; 16],
+    //         txn_inputs_hash: [0; 16],
+    //         prv_tx_id: None,
+    //         x509_chunks: X509Chunks::new(CompressionAlgorithm::Raw, X509RbacMetadata::new()),
+    //         validation_signature: vec![],
+    //     }
+    // }
 
     /// Set the purpose.
     fn set_purpose(&mut self, purpose: [u8; 16]) {
@@ -147,13 +75,59 @@ impl X509Metadatum {
     fn set_validation_signature(&mut self, validation_signature: Vec<u8>) {
         self.validation_signature = validation_signature;
     }
+
+    #[allow(dead_code)]
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn decode_and_validate(
+        decoded_metadata: &DecodedMetadata, slot: u64, _txn: &MultiEraTx,
+        raw_aux_data: &RawAuxData, _chain: Network,
+    ) {
+        let Some(k509) = raw_aux_data.get_metadata(LABEL) else {
+            return;
+        };
+
+        let mut _validation_report = ValidationReport::new();
+
+
+        let cip509_slice = k509.as_slice();
+
+        println!("cip509_slice: {:?}", cip509_slice);
+        let mut decoder = Decoder::new(cip509_slice);
+        if slot == 67865376 {
+            let x509_metadatum = Cip509::decode(&mut decoder, &mut ());
+            println!("x509_metadatum: {:?}", x509_metadatum);
+            decoded_metadata.0.insert(
+                LABEL,
+                Arc::new(DecodedMetadataItem {
+                    value: DecodedMetadataValues::Cip509(Arc::new(x509_metadatum.unwrap()).clone()),
+                    report: _validation_report.clone(),
+                }),
+            );
+        }
+    }
+
+    /// Decoding of the CIP509 metadata failed, and can not continue.
+    #[allow(dead_code)]
+    fn decoding_failed(
+        &self, reason: &str, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata,
+    ) {
+        validation_report.push(reason.into());
+        decoded_metadata.0.insert(
+            LABEL,
+            Arc::new(DecodedMetadataItem {
+                value: DecodedMetadataValues::Cip509(Arc::new(self.clone()).clone()),
+                report: validation_report.clone(),
+            }),
+        );
+    }
 }
 
 /// Enum of x509 metadatum with its associated unsigned integer value.
 #[allow(clippy::module_name_repetitions)]
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub enum X509MetadatumInt {
+pub enum Cip509Int {
     /// Purpose.
     Purpose = 0,
     /// Transaction inputs hash.
@@ -164,38 +138,36 @@ pub enum X509MetadatumInt {
     ValidationSignature = 99,
 }
 
-impl Decode<'_, ()> for X509Metadatum {
+impl Decode<'_, ()> for Cip509 {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
-        let map_len = d.map()?.ok_or(decode::Error::message(
-            "Error indefinite array in X509Metadatum",
-        ))?;
-        let mut x509_metadatum = X509Metadatum::new();
+        let map_len = d.map().expect("ka1 ").unwrap();
+        // .ok_or(decode::Error::message("Error indefinite array in Cip509"))?;
+        let mut x509_metadatum = Cip509::default();
         for _ in 0..map_len {
             // Use probe to peak
             let key = d.probe().u8()?;
-
-            if let Some(key) = X509MetadatumInt::from_repr(key) {
+            if let Some(key) = Cip509Int::from_repr(key) {
                 // Consuming the int
                 d.u8()?;
                 match key {
-                    X509MetadatumInt::Purpose => {
+                    Cip509Int::Purpose => {
                         x509_metadatum.set_purpose(
                             d.bytes()?.try_into().map_err(|_| {
                                 decode::Error::message("Invalid data size of Purpose")
                             })?,
                         );
                     },
-                    X509MetadatumInt::TxInputsHash => {
+                    Cip509Int::TxInputsHash => {
                         x509_metadatum.set_txn_inputs_hash(d.bytes()?.try_into().map_err(
                             |_| decode::Error::message("Invalid data size of TxInputsHash"),
                         )?);
                     },
-                    X509MetadatumInt::PreviousTxId => {
+                    Cip509Int::PreviousTxId => {
                         x509_metadatum.set_prv_tx_id(d.bytes()?.try_into().map_err(|_| {
                             decode::Error::message("Invalid data size of PreviousTxId")
                         })?);
                     },
-                    X509MetadatumInt::ValidationSignature => {
+                    Cip509Int::ValidationSignature => {
                         let validation_signature = d.bytes()?;
                         if validation_signature.is_empty() || validation_signature.len() > 64 {
                             return Err(decode::Error::message(

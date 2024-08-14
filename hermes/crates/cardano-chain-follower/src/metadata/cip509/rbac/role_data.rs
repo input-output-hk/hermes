@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use minicbor::{decode, Decode, Decoder};
 use strum::FromRepr;
 
+use crate::metadata::cip509::decode_any;
+
 use super::X509RbacMetadataInt;
-use crate::metadata::x509::decode_any;
 
 /// Struct of role data.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub(crate) struct RoleData {
     /// Role number.
     role_number: u8,
@@ -115,12 +116,18 @@ impl Decode<'_, ()> for RoleData {
 }
 
 /// Enum of key reference.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum KeyReference {
     /// Key local reference.
     KeyLocalRef(KeyLocalRef),
     /// Key hash.
     KeyHash(Vec<u8>),
+}
+
+impl Default for KeyReference {
+    fn default() -> Self {
+        KeyReference::KeyHash(Vec::new())
+    }
 }
 
 impl Decode<'_, ()> for KeyReference {
@@ -134,7 +141,7 @@ impl Decode<'_, ()> for KeyReference {
 }
 
 /// Struct of key local reference.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct KeyLocalRef {
     /// Local reference.
     local_ref: LocalRefInt,
@@ -143,7 +150,7 @@ struct KeyLocalRef {
 }
 
 /// Enum of local reference with its associated unsigned integer value.
-#[derive(FromRepr, Debug, PartialEq)]
+#[derive(FromRepr, Debug, PartialEq, Clone)]
 #[repr(u8)]
 enum LocalRefInt {
     /// x509 certificates.

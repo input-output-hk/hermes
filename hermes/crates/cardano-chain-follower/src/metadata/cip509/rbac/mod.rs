@@ -17,7 +17,7 @@ use strum::FromRepr;
 use super::decode_any;
 
 /// Struct of x509 RBAC metadata.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub(crate) struct X509RbacMetadata {
     /// Optional list of x509 certificates.
     x509_certs: Option<Vec<X509DerCert>>,
@@ -100,28 +100,35 @@ impl Decode<'_, ()> for X509RbacMetadata {
         let map_len = d.map()?.ok_or(decode::Error::message(
             "Error indefinite map in X509RbacMetadata",
         ))?;
+        
         let mut x509_rbac_metadata = X509RbacMetadata::new();
+        
         for _ in 0..map_len {
             let key = d.u16()?;
             if let Some(key) = X509RbacMetadataInt::from_repr(key) {
                 match key {
                     X509RbacMetadataInt::X509Certs => {
+                        
                         let x509_certs = decode_array(d)?;
                         x509_rbac_metadata.set_x509_certs(x509_certs);
                     },
                     X509RbacMetadataInt::C509Certs => {
+                        
                         let c509_certs = decode_array(d)?;
                         x509_rbac_metadata.set_c509_certs(c509_certs);
                     },
                     X509RbacMetadataInt::PubKeys => {
+                        
                         let pub_keys = decode_array(d)?;
                         x509_rbac_metadata.set_pub_keys(pub_keys);
                     },
                     X509RbacMetadataInt::RevocationList => {
+                        
                         let revocation_list = decode_revocation_list(d)?;
                         x509_rbac_metadata.set_revocation_list(revocation_list);
                     },
                     X509RbacMetadataInt::RoleSet => {
+                        
                         let role_set = decode_array(d)?;
                         x509_rbac_metadata.set_role_set(role_set);
                     },
@@ -141,7 +148,9 @@ impl Decode<'_, ()> for X509RbacMetadata {
 
 /// Decode an array of type T.
 fn decode_array<'b, T>(d: &mut Decoder<'b>) -> Result<Vec<T>, decode::Error>
-where T: Decode<'b, ()> {
+where
+    T: Decode<'b, ()>,
+{
     let len = d.array()?.ok_or(decode::Error::message(
         "Error indefinite array in X509RbacMetadata",
     ))?;
@@ -167,4 +176,21 @@ fn decode_revocation_list(d: &mut Decoder) -> Result<Vec<[u8; 16]>, decode::Erro
         revocation_list.push(arr);
     }
     Ok(revocation_list)
+}
+
+#[cfg(test)]
+mod tests {
+    use minicbor::{Decode, Decoder};
+
+    use super::X509RbacMetadata;
+
+    #[test]
+    fn t() {
+        let data = "a50a81590238308202343082019da00302010202145afc371daf301793cf0b1835a118c2f90363d5d9300d06092a864886f70d01010b05003045310b30090603550406130241553113301106035504080c0a536f6d652d53746174653121301f060355040a0c18496e7465726e6574205769646769747320507479204c7464301e170d3234303731313038353733365a170d3235303731313038353733365a3045310b30090603550406130241553113301106035504080c0a536f6d652d53746174653121301f060355040a0c18496e7465726e6574205769646769747320507479204c746430819f300d06092a864886f70d010101050003818d0030818902818100cd28e20b157ca70c85433c1689b1d5890ec479bdd1ffdcc5647ae12be9badf4af20764cd24bd64130831a57506dfbbdd3e924c96b259c6ccedf24d6a25618f0819643c739f145b733c3c94333e5937b499ada9a4ffc127457c7cb557f2f5623dcadea1e06f09129db9584b0aee949244b3252b52afde5d385c65e563a6efb07f0203010001a321301f301d0603551d0e0416041492eb169818b833588321957a846077aa239cf3a0300d06092a864886f70d01010b0500038181002e5f73333ce667e4172b252416eaa1d2e9681f59943724b4f366a8b930443ca6b69b12dd9debee9c8a6307695ee1884da4b00136195d1d8223d1c253ff408edfc8ed03af1819244c35d3843855fb9af86e84fb7636fa3f4a0fc396f6fb6fd16d3bcebde68a8bd81be61e8ee7d77e9f7f9804e03ebc31b4581313c955a667658b1481588c8b004301f50d6b52464320746573742043411a63b0cd001a6955b90047010123456789ab01582102b1216ab96e5b3b3340f5bdf02e693f16213a04525ed44450b1019c2dfd3838ab010058406fc903015259a38c0800a3d0b2969ca21977e8ed6ec344964d4e1c6b37c8fb541274c3bb81b2f53073c5f101a5ac2a92886583b6a2679b6e682d2a26945ed0b2181e81d9800558203b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da2918288250667e69bd56a0fbd2d4db363e3bb017a150431d7b744dcc4ac4359b7ee7ffa7be33186481a5000001820a000250667e69bd56a0fbd2d4db363e3bb017a103000a6454657374";
+        let hex_data = hex::decode(data).expect("Failed to decode hex data");
+        let mut decoder = Decoder::new(&hex_data);
+        let _metadata =
+            X509RbacMetadata::decode(&mut decoder, &mut ()).expect("Failed to decode metadata");
+        
+    }
 }

@@ -3,9 +3,10 @@
 use minicbor::{data::Tag, decode, Decode, Decoder};
 
 /// Enum of possible public key type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub(crate) enum SimplePublicKeyType {
     /// Undefined indicates skipped element.
+    #[default]
     Undefined,
     /// Deleted indicates the key is deleted.
     Deleted,
@@ -48,19 +49,15 @@ impl Decode<'_, ()> for SimplePublicKeyType {
                             Err(decode::Error::message("Invalid length for Ed25519 key"))
                         }
                     },
-                    _ => {
-                        Err(decode::Error::message(
-                            "Unknown tag for SimplePublicKeyType",
-                        ))
-                    },
+                    _ => Err(decode::Error::message(
+                        "Unknown tag for SimplePublicKeyType",
+                    )),
                 }
             },
             minicbor::data::Type::Undefined => Ok(SimplePublicKeyType::Undefined),
-            _ => {
-                Err(decode::Error::message(
-                    "Invalid datatype for SimplePublicKeyType",
-                ))
-            },
+            _ => Err(decode::Error::message(
+                "Invalid datatype for SimplePublicKeyType",
+            )),
         }
     }
 }
