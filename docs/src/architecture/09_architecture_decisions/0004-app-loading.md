@@ -8,10 +8,7 @@
 
 ## Context
 
-Hermes as an engine which runs user's developed applications,
-obviously should have a functionality to load a and run provided assembled application.
-This procedure must validate application on the integrity and correctness,
-prepare application's state, before actually executing application itself.
+Hermes, as an engine that runs user-developed applications, should have the functionality to load and execute the provided assembled application. This process must validate the application's integrity and correctness and prepare the application's state before executing it.
 
 ## Assumptions
 
