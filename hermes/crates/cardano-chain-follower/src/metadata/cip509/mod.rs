@@ -2,24 +2,31 @@
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
+mod decode_helper;
 mod rbac;
 mod x509_chunks;
 
 use std::sync::Arc;
 
+use decode_helper::{
+    decode_array_len, decode_bytes, decode_i64, decode_map_len, decode_string, decode_u64,
+    decode_u8,
+};
 use minicbor::{decode, Decode, Decoder};
-use pallas::ledger::traverse::MultiEraTx;
+use pallas::{
+    codec::minicbor::{Encode, Encoder},
+    ledger::traverse::MultiEraTx,
+};
 use strum::FromRepr;
+use tracing::debug;
 use x509_chunks::X509Chunks;
-
-use crate::Network;
 
 use super::{
     raw_aux_data::RawAuxData, DecodedMetadata, DecodedMetadataItem, DecodedMetadataValues,
     ValidationReport,
 };
+use crate::{utils::blake2b_128, Network};
 
-#[allow(dead_code)]
 /// CIP509 label.
 pub const LABEL: u64 = 509;
 
@@ -79,36 +86,47 @@ impl Cip509 {
     #[allow(dead_code)]
     #[allow(clippy::too_many_lines)]
     pub(crate) fn decode_and_validate(
-        decoded_metadata: &DecodedMetadata, slot: u64, _txn: &MultiEraTx,
+        decoded_metadata: &DecodedMetadata, _slot: u64, txn: &MultiEraTx,
         raw_aux_data: &RawAuxData, _chain: Network,
     ) {
+        // Get the CIP509 metadata if possible
         let Some(k509) = raw_aux_data.get_metadata(LABEL) else {
             return;
         };
 
-        let mut _validation_report = ValidationReport::new();
+        let cip509 = Cip509::default();
 
+        let mut validation_report = ValidationReport::new();
 
         let cip509_slice = k509.as_slice();
 
-        println!("cip509_slice: {:?}", cip509_slice);
+        // println!("cip509_slice: {:?}", cip509_slice);
         let mut decoder = Decoder::new(cip509_slice);
-        if slot == 67865376 {
-            let x509_metadatum = Cip509::decode(&mut decoder, &mut ());
-            println!("x509_metadatum: {:?}", x509_metadatum);
-            decoded_metadata.0.insert(
-                LABEL,
-                Arc::new(DecodedMetadataItem {
-                    value: DecodedMetadataValues::Cip509(Arc::new(x509_metadatum.unwrap()).clone()),
-                    report: _validation_report.clone(),
-                }),
-            );
-        }
+        // if slot == 67865376 {
+        let _cip509_metadatum = match Cip509::decode(&mut decoder, &mut ()) {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                cip509.validation_failure(
+                    &format!("Failed to decode CIP509 metadata {e}"),
+                    &mut validation_report,
+                    decoded_metadata,
+                );
+                return;
+            },
+        };
+
+        // println!("cip509_metadatum: {:?}", cip509_metadatum.clone());
+
+        println!(
+            "Validate {:?}",
+            cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata)
+        );
     }
 
-    /// Decoding of the CIP509 metadata failed, and can not continue.
+    // }
+
     #[allow(dead_code)]
-    fn decoding_failed(
+    fn validation_failure(
         &self, reason: &str, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata,
     ) {
@@ -120,6 +138,122 @@ impl Cip509 {
                 report: validation_report.clone(),
             }),
         );
+    }
+
+    /// Transaction inputs hash validation.
+    /// Must exist and match the hash of the transaction inputs.
+    fn validate_txn_inputs_hash(
+        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata,
+    ) -> Option<bool> {
+        let mut buffer = Vec::new();
+        let mut e = Encoder::new(&mut buffer);
+        match txn {
+            MultiEraTx::AlonzoCompatible(tx, _) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                match e.array(inputs.len() as u64) {
+                    Ok(_) => {},
+                    Err(e) => self.validation_failure(
+                        &format!(
+                            "Failed to encode array of transaction input in Alonzo validate_txn_inputs_hash {e}"
+                        ),
+                        validation_report,
+                        decoded_metadata,
+                    ),
+                }
+                for input in inputs {
+                    match input.encode(&mut e, &mut ()) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            self.validation_failure(
+                            &format!(
+                                "Failed to encode transaction input in Alonzo validate_txn_inputs_hash {e}"
+                            ),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                            return None;
+                        },
+                    }
+                }
+            },
+            MultiEraTx::Babbage(tx) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                match e.array(inputs.len() as u64) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        self.validation_failure(
+                        &format!(
+                            "Failed to encode array of transaction input in Babbage validate_txn_inputs_hash {e}"
+                        ),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                        return None;
+                    },
+                }
+                for input in inputs {
+                    match input.encode(&mut e, &mut ()) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            self.validation_failure(
+                            &format!(
+                                "Failed to encode transaction input in Babbage validate_txn_inputs_hash {e}"
+                            ),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                            return None;
+                        },
+                    }
+                }
+            },
+            MultiEraTx::Conway(tx) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                match e.array(inputs.len() as u64) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        self.validation_failure(
+                        &format!(
+                            "Failed to encode array of transaction in Conway validate_txn_inputs_hash {e}"
+                        ),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                        return None;
+                    },
+                }
+                for input in &inputs {
+                    match input.encode(&mut e, &mut ()) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            self.validation_failure(
+                            &format!(
+                                "Failed to encode transaction input in Conway validate_txn_inputs_hash {e}"
+                            ),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                            return None;
+                        },
+                    }
+                }
+            },
+            _ => {},
+        }
+        let inputs_hash = match blake2b_128(&buffer.clone()) {
+            Ok(hash) => hash,
+            Err(e) => {
+                self.validation_failure(
+                    &format!("Failed to hash transaction inputs in validate_txn_inputs_hash {e}"),
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        };
+        debug!("txn_inputs_hash {:?}", hex::encode(inputs_hash));
+        Some(inputs_hash != self.txn_inputs_hash)
     }
 }
 
@@ -140,35 +274,42 @@ pub enum Cip509Int {
 
 impl Decode<'_, ()> for Cip509 {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
-        let map_len = d.map().expect("ka1 ").unwrap();
-        // .ok_or(decode::Error::message("Error indefinite array in Cip509"))?;
+        let map_len = decode_map_len(d, "CIP509")?;
         let mut x509_metadatum = Cip509::default();
         for _ in 0..map_len {
             // Use probe to peak
             let key = d.probe().u8()?;
             if let Some(key) = Cip509Int::from_repr(key) {
                 // Consuming the int
-                d.u8()?;
+                decode_u8(d, "CIP509")?;
                 match key {
                     Cip509Int::Purpose => {
                         x509_metadatum.set_purpose(
-                            d.bytes()?.try_into().map_err(|_| {
+                            decode_bytes(d, "CIP509 purpose")?.try_into().map_err(|_| {
                                 decode::Error::message("Invalid data size of Purpose")
                             })?,
                         );
                     },
                     Cip509Int::TxInputsHash => {
-                        x509_metadatum.set_txn_inputs_hash(d.bytes()?.try_into().map_err(
-                            |_| decode::Error::message("Invalid data size of TxInputsHash"),
-                        )?);
+                        x509_metadatum.set_txn_inputs_hash(
+                            decode_bytes(d, "CIP509 txn inputs hash")?
+                                .try_into()
+                                .map_err(|_| {
+                                    decode::Error::message("Invalid data size of TxInputsHash")
+                                })?,
+                        );
                     },
                     Cip509Int::PreviousTxId => {
-                        x509_metadatum.set_prv_tx_id(d.bytes()?.try_into().map_err(|_| {
-                            decode::Error::message("Invalid data size of PreviousTxId")
-                        })?);
+                        x509_metadatum.set_prv_tx_id(
+                            decode_bytes(d, "CIP509 previous tx ID")?
+                                .try_into()
+                                .map_err(|_| {
+                                    decode::Error::message("Invalid data size of PreviousTxId")
+                                })?,
+                        );
                     },
                     Cip509Int::ValidationSignature => {
-                        let validation_signature = d.bytes()?;
+                        let validation_signature = decode_bytes(d, "CIP509 validation signature")?;
                         if validation_signature.is_empty() || validation_signature.len() > 64 {
                             return Err(decode::Error::message(
                                 "Invalid data size of ValidationSignature",
@@ -190,12 +331,10 @@ impl Decode<'_, ()> for Cip509 {
 /// Decode any in CDDL, only support basic datatype
 pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
     match d.datatype()? {
-        minicbor::data::Type::Bytes => Ok(d.bytes()?.to_vec()),
-        minicbor::data::Type::String => Ok(d.str()?.as_bytes().to_vec()),
+        minicbor::data::Type::Bytes => Ok(decode_bytes(d, "Any")?.to_vec()),
+        minicbor::data::Type::String => Ok(decode_string(d, "Any")?.as_bytes().to_vec()),
         minicbor::data::Type::Array => {
-            let arr_len = d.array()?.ok_or(decode::Error::message(
-                "Error indefinite length in decoding any",
-            ))?;
+            let arr_len = decode_array_len(d, "Any")?;
             let mut buffer = vec![];
             for _ in 0..arr_len {
                 buffer.extend_from_slice(&decode_any(d)?);
@@ -205,11 +344,11 @@ pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
         minicbor::data::Type::U8
         | minicbor::data::Type::U16
         | minicbor::data::Type::U32
-        | minicbor::data::Type::U64 => Ok(d.u64()?.to_be_bytes().to_vec()),
+        | minicbor::data::Type::U64 => Ok(decode_u64(d, "Any")?.to_be_bytes().to_vec()),
         minicbor::data::Type::I8
         | minicbor::data::Type::I16
         | minicbor::data::Type::I32
-        | minicbor::data::Type::I64 => Ok(d.i64()?.to_be_bytes().to_vec()),
+        | minicbor::data::Type::I64 => Ok(decode_i64(d, "Any")?.to_be_bytes().to_vec()),
         _ => Err(decode::Error::message("Data type not supported")),
     }
 }
