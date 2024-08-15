@@ -3,7 +3,9 @@ use std::io::Read;
 use minicbor::{decode, Decode, Decoder};
 use strum::FromRepr;
 
-use super::rbac::X509RbacMetadata;
+use crate::metadata::cip509::decode_helper::{decode_array_len, decode_bytes};
+
+use super::{decode_helper::decode_u8, rbac::Cip509RbacMetadata};
 
 /// Enum of compression algorithms used to compress chunks.
 #[derive(FromRepr, Debug, PartialEq, Clone, Default)]
@@ -24,13 +26,13 @@ pub(crate) struct X509Chunks {
     /// The compression algorithm used to compress the data.
     chunk_type: CompressionAlgorithm,
     /// The decompressed data.
-    chunk_data: X509RbacMetadata,
+    chunk_data: Cip509RbacMetadata,
 }
 
 #[allow(dead_code)]
 impl X509Chunks {
     /// Create new instance of `X509Chunks`.
-    fn new(chunk_type: CompressionAlgorithm, chunk_data: X509RbacMetadata) -> Self {
+    fn new(chunk_type: CompressionAlgorithm, chunk_data: Cip509RbacMetadata) -> Self {
         Self {
             chunk_type,
             chunk_data,
@@ -41,7 +43,7 @@ impl X509Chunks {
 impl Decode<'_, ()> for X509Chunks {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
         // Determine the algorithm
-        let algo = d.u8()?;
+        let algo = decode_u8(d, "algorithm in X509Chunks")?;
         let algorithm = CompressionAlgorithm::from_repr(algo)
             .ok_or(decode::Error::message("Invalid chunk data type"))?;
 
@@ -51,7 +53,7 @@ impl Decode<'_, ()> for X509Chunks {
 
         // Decode the decompressed data.
         let mut decoder = Decoder::new(&decompressed);
-        let chunk_data = X509RbacMetadata::decode(&mut decoder, &mut ())
+        let chunk_data = Cip509RbacMetadata::decode(&mut decoder, &mut ())
             .map_err(|e| decode::Error::message(format!("Failed to decode {e}")))?;
 
         Ok(X509Chunks {
@@ -63,15 +65,12 @@ impl Decode<'_, ()> for X509Chunks {
 
 /// Decompress the data using the given algorithm.
 fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Result<Vec<u8>> {
-    let chunk_len = d
-        .array()
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?
-        .ok_or(anyhow::anyhow!("Error indefinite array in X509Chunks"))?;
+    let chunk_len = decode_array_len(d, "decompression in X509Chunks")?;
     // Vector containing the concatenated chunks
     let mut concat_chunk = vec![];
     for _ in 0..chunk_len {
-        let chunk_data = d.bytes().map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        concat_chunk.extend_from_slice(chunk_data);
+        let chunk_data = decode_bytes(d, "decompression in X509Chunks")?;
+        concat_chunk.extend_from_slice(&chunk_data);
     }
 
     let mut buffer = vec![];

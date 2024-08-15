@@ -4,6 +4,10 @@ use c509_certificate::c509::C509;
 use minicbor::{decode, Decode, Decoder};
 use x509_cert::{der::Decode as x509Decode, Certificate};
 
+use crate::metadata::cip509::decode_helper::{
+    decode_array_len, decode_bytes, decode_u64, decode_u8,
+};
+
 // ------------------x509------------------------
 
 /// A struct of X509 certificate.
@@ -12,8 +16,8 @@ pub(crate) struct X509DerCert(Vec<u8>);
 
 impl Decode<'_, ()> for X509DerCert {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
-        let data = d.bytes()?;
-        Certificate::from_der(data)
+        let data = decode_bytes(d, "X509DerCert")?;
+        Certificate::from_der(&data)
             .map_err(|_| decode::Error::message("Invalid x509 certificate"))?;
         Ok(Self(data.to_vec()))
     }
@@ -33,9 +37,7 @@ pub(crate) enum C509Cert {
 impl Decode<'_, ()> for C509Cert {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
         if d.datatype()? == minicbor::data::Type::Array {
-            let arr_len = d
-                .array()?
-                .ok_or(decode::Error::message("Error indefinite array in C509Cert"))?;
+            let arr_len = decode_array_len(d, "C509Cert")?;
             // C509CertInMetadatumReference must have 3 items
             if arr_len == 3 {
                 Ok(Self::C509CertInMetadatumReference(
@@ -48,8 +50,8 @@ impl Decode<'_, ()> for C509Cert {
             }
         } else {
             // Consuming the c509 bytes
-            let c509 = d.bytes()?;
-            let mut c509_d = Decoder::new(c509);
+            let c509 = decode_bytes(d, "C509Cert")?;
+            let mut c509_d = Decoder::new(&c509);
             Ok(Self::C509Certificate(Box::new(C509::decode(
                 &mut c509_d,
                 ctx,
@@ -71,18 +73,16 @@ pub(crate) struct C509CertInMetadatumReference {
 
 impl Decode<'_, ()> for C509CertInMetadatumReference {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
-        let txn_output_field = d.u8()?;
-        let txn_output_index = d.u64()?;
+        let txn_output_field = decode_u8(d, "txn output field in C509CertInMetadatumReference")?;
+        let txn_output_index = decode_u64(d, "txn output index in C509CertInMetadatumReference")?;
         let cert_ref = match d.datatype()? {
             minicbor::data::Type::Array => {
-                let len = d.array()?.ok_or(decode::Error::message(
-                    "Error indefinite array in C509CertInMetadatumReference",
-                ))?;
+                let len = decode_array_len(d, "cert ref in C509CertInMetadatumReference")?;
                 let arr: Result<Vec<u64>, _> = (0..len).map(|_| d.u64()).collect();
                 arr.map(Some)
             },
             minicbor::data::Type::Null => Ok(None),
-            _ => Ok(Some(vec![d.u64()?])),
+            _ => Ok(Some(vec![decode_u64(d, "C509CertInMetadatumReference")?])),
         }?;
         Ok(Self {
             txn_output_field,

@@ -5,9 +5,11 @@ use std::collections::HashMap;
 use minicbor::{decode, Decode, Decoder};
 use strum::FromRepr;
 
-use crate::metadata::cip509::decode_any;
-
-use super::X509RbacMetadataInt;
+use super::Cip509RbacMetadataInt;
+use crate::metadata::cip509::{
+    decode_any,
+    decode_helper::{decode_array_len, decode_bytes, decode_map_len, decode_u64, decode_u8},
+};
 
 /// Struct of role data.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -81,16 +83,14 @@ impl RoleData {
 
 impl Decode<'_, ()> for RoleData {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
-        let map_len = d
-            .map()?
-            .ok_or(decode::Error::message("role set has indefinite length"))?;
+        let map_len = decode_map_len(d, "RoleData")?;
         let mut role_data = RoleData::new();
         for _ in 0..map_len {
-            let key = d.u8()?;
+            let key = decode_u8(d, "key in RoleData")?;
             if let Some(key) = RoleDataInt::from_repr(key) {
                 match key {
                     RoleDataInt::RoleNumber => {
-                        role_data.set_role_number(d.u8()?);
+                        role_data.set_role_number(decode_u8(d, "RoleNumber in RoleData")?);
                     },
                     RoleDataInt::RoleSigningKey => {
                         role_data.set_role_signing_key(KeyReference::decode(d, ctx)?);
@@ -99,7 +99,7 @@ impl Decode<'_, ()> for RoleData {
                         role_data.set_role_encryption_key(KeyReference::decode(d, ctx)?);
                     },
                     RoleDataInt::PaymentKey => {
-                        role_data.set_payment_key(d.u64()?);
+                        role_data.set_payment_key(decode_u64(d, "PaymentKey in RoleData")?);
                     },
                 }
             } else {
@@ -134,7 +134,9 @@ impl Decode<'_, ()> for KeyReference {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
         match d.datatype()? {
             minicbor::data::Type::Array => Ok(Self::KeyLocalRef(KeyLocalRef::decode(d, ctx)?)),
-            minicbor::data::Type::Bytes => Ok(Self::KeyHash(d.bytes()?.to_vec())),
+            minicbor::data::Type::Bytes => {
+                Ok(Self::KeyHash(decode_bytes(d, "KeyHash in KeyReference")?))
+            },
             _ => Err(decode::Error::message("Invalid data type for KeyReference")),
         }
     }
@@ -154,19 +156,19 @@ struct KeyLocalRef {
 #[repr(u8)]
 enum LocalRefInt {
     /// x509 certificates.
-    X509Certs = X509RbacMetadataInt::X509Certs as u8, // 10
+    X509Certs = Cip509RbacMetadataInt::X509Certs as u8, // 10
     /// c509 certificates.
-    C509Certs = X509RbacMetadataInt::C509Certs as u8, // 20
+    C509Certs = Cip509RbacMetadataInt::C509Certs as u8, // 20
     /// Public keys.
-    PubKeys = X509RbacMetadataInt::PubKeys as u8, // 30
+    PubKeys = Cip509RbacMetadataInt::PubKeys as u8, // 30
 }
 
 impl Decode<'_, ()> for KeyLocalRef {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
-        d.array()?;
-        let local_ref = LocalRefInt::from_repr(d.u8()?)
+        decode_array_len(d, "KeyLocalRef")?;
+        let local_ref = LocalRefInt::from_repr(decode_u8(d, "LocalRef in KeyLocalRef")?)
             .ok_or(decode::Error::message("Invalid local reference"))?;
-        let key_offset = d.u64()?;
+        let key_offset = decode_u64(d, "KeyOffset in KeyLocalRef")?;
         Ok(Self {
             local_ref,
             key_offset,
