@@ -56,6 +56,12 @@ where WitType: 'static
 
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
+    ///
+    /// NOTE: `&mut self` is used to enable the `rustc` borrow checker and prevent
+    /// potential deadlocking of the `DashMap`.
+    /// As `ResourceManager` not supposed to be used in any other cases rather than as a
+    /// field of `ApplicationResourceManager` (so no any `static` variable of this
+    /// type will be created), it is fine to add `&mut self` for this method.
     pub(crate) fn get_object<'a>(
         &'a mut self, resource: &wasmtime::component::Resource<WitType>,
     ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
@@ -117,6 +123,12 @@ where WitType: 'static
     }
 
     /// Get application state from the resource manager.
+    /// To increase performance and reduce locking time, it's better to call
+    /// `drop(app_state)` immediatly when the `app_state` is not needed anymore and dont
+    /// wait until it will be released by the compiler.
+    ///
+    /// **Locking behaviour:** May deadlock if called when holding any sort of reference
+    /// into the map.
     pub(crate) fn get_app_state<'a>(
         &'a self, app_name: &ApplicationName,
     ) -> anyhow::Result<impl DerefMut<Target = ResourceManager<WitType, RustType>> + 'a> {
@@ -175,6 +187,19 @@ mod tests {
             assert!(resource_manager.get_app_state(&app_name_1).is_ok());
             resource_manager.remove_app(&app_name_1);
             assert!(resource_manager.get_app_state(&app_name_1).is_err());
+        }
+
+        {
+            // Check preserving app state when instantiating the same app twice
+            let object = 100;
+            resource_manager.add_app(app_name_1.clone());
+            let app_state = resource_manager.get_app_state(&app_name_1).unwrap();
+            let res = app_state.create_resource(object);
+
+            drop(app_state);
+            resource_manager.add_app(app_name_1.clone());
+            let mut app_state = resource_manager.get_app_state(&app_name_1).unwrap();
+            assert!(app_state.get_object(&res).is_ok());
         }
     }
 }
