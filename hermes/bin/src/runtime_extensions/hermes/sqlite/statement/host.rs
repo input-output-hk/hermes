@@ -16,7 +16,7 @@ impl HostStatement for HermesRuntimeContext {
     fn bind(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32, value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let app_state = get_statement_state().get_app_state(self.app_name())?;
+        let mut app_state = get_statement_state().get_app_state(self.app_name())?;
         let stmt_ptr = app_state.get_object(&resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
         Ok(core::bind(*stmt_ptr as *mut _, index, value))
@@ -29,7 +29,7 @@ impl HostStatement for HermesRuntimeContext {
     fn step(
         &mut self, resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let app_state = get_statement_state().get_app_state(self.app_name())?;
+        let mut app_state = get_statement_state().get_app_state(self.app_name())?;
         let stmt_ptr = app_state.get_object(&resource)?;
         Ok(core::step(*stmt_ptr as *mut _))
     }
@@ -50,7 +50,7 @@ impl HostStatement for HermesRuntimeContext {
     fn column(
         &mut self, resource: wasmtime::component::Resource<Statement>, index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        let app_state = get_statement_state().get_app_state(self.app_name())?;
+        let mut app_state = get_statement_state().get_app_state(self.app_name())?;
         let stmt_ptr = app_state.get_object(&resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
         Ok(core::column(*stmt_ptr as *mut _, index))

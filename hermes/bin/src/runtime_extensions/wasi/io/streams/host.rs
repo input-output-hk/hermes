@@ -41,7 +41,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_read(
         &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        let app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        let mut app_state = get_intput_streams_state().get_app_state(self.app_name())?;
         let Ok(mut stream) = app_state.get_object(&resource) else {
             return Ok(Err(StreamError::Closed));
         };
@@ -146,7 +146,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn blocking_write_and_flush(
         &mut self, res: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        let mut app_state = get_output_streams_state().get_app_state(self.app_name())?;
         let mut stream = app_state.get_object(&res)?;
 
         if stream.write_all(&contents).is_err() {

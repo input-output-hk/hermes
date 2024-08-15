@@ -34,7 +34,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn read_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<InputStream>, ErrorCode>> {
-        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let mut fs_app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -57,7 +57,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn write_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, offset: Filesize,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let mut fs_app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -80,7 +80,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn append_via_stream(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ErrorCode>> {
-        let fs_app_state = get_state().get_app_state(self.app_name())?;
+        let mut fs_app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = fs_app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -141,7 +141,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn get_type(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<DescriptorType, ErrorCode>> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -259,7 +259,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn stat(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<DescriptorStat, ErrorCode>> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -347,7 +347,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, _path_flags: PathFlags,
         path: String, open_flags: OpenFlags, _flags: DescriptorFlags,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<WasiDescriptor>, ErrorCode>> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };
@@ -391,7 +391,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         } else {
             f
         };
-
+        drop(descriptor);
         Ok(Ok(app_state.create_resource(Descriptor::File(f))))
     }
 
@@ -449,7 +449,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     fn unlink_file_at(
         &mut self, res: wasmtime::component::Resource<WasiDescriptor>, path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let Ok(descriptor) = app_state.get_object(&res) else {
             return Ok(Err(ErrorCode::BadDescriptor));
         };

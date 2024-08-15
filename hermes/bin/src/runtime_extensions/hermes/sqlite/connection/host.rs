@@ -40,7 +40,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn errcode(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let app_state = get_db_state().get_app_state(self.app_name())?;
+        let mut app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = app_state.get_object(&resource)?;
 
         Ok(core::errcode(*db_ptr as *mut _))
@@ -62,7 +62,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_app_state = get_db_state().get_app_state(self.app_name())?;
+        let mut db_app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = db_app_state.get_object(&resource)?;
 
         let result = core::prepare(*db_ptr as *mut _, sql.as_str());
@@ -91,7 +91,7 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let app_state = get_db_state().get_app_state(self.app_name())?;
+        let mut app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = app_state.get_object(&resource)?;
 
         Ok(core::execute(*db_ptr as *mut _, sql.as_str()))

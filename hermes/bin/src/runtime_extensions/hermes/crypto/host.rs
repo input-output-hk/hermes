@@ -39,7 +39,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn public_key(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let private_key = app_state.get_object(&resource)?;
         let public_key = get_public_key(&private_key);
         Ok(public_key)
@@ -53,7 +53,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn sign_data(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let private_key = app_state.get_object(&resource)?;
         let sig = sign_data(&private_key, &data);
         Ok(sig)
@@ -74,7 +74,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
         let private_key = app_state.get_object(&resource)?;
         let check_sig = check_signature(&private_key, &data, sig);
         Ok(check_sig)
@@ -90,12 +90,13 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     fn derive(
         &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let mut app_state = get_state().get_app_state(self.app_name())?;
 
         let private_key = app_state.get_object(&resource)?;
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
         let new_private_key = derive_new_private_key(private_key.clone(), &path)
             .map_err(|_| wasmtime::Error::msg("Error deriving new private key"))?;
+        drop(private_key);
         Ok(app_state.create_resource(new_private_key))
     }
 

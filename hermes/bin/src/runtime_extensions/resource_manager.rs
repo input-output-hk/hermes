@@ -57,7 +57,7 @@ where WitType: 'static
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn get_object<'a>(
-        &'a self, resource: &wasmtime::component::Resource<WitType>,
+        &'a mut self, resource: &wasmtime::component::Resource<WitType>,
     ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
         self.state
             .get_mut(&resource.rep())
@@ -109,8 +109,11 @@ where WitType: 'static
     }
 
     /// Adds new application to the resource manager.
+    /// If the application state already exists, do nothing.
     pub(crate) fn add_app(&self, app_name: ApplicationName) {
-        self.state.insert(app_name, ResourceManager::new());
+        if !self.state.contains_key(&app_name) {
+            self.state.insert(app_name, ResourceManager::new());
+        }
     }
 
     /// Get application state from the resource manager.
@@ -148,7 +151,7 @@ mod tests {
     #[test]
     #[allow(clippy::unwrap_used)]
     fn test_resource_manager() {
-        let resource_manager = ResourceManager::<WitType, u32>::new();
+        let mut resource_manager = ResourceManager::<WitType, u32>::new();
 
         let object = 100;
         let resource = resource_manager.create_resource(object);
@@ -166,10 +169,12 @@ mod tests {
         let resource_manager = ApplicationResourceManager::<WitType, u32>::new();
         let app_name_1 = ApplicationName("app_1".to_string());
 
-        assert!(resource_manager.get_app_state(&app_name_1).is_err());
-        resource_manager.add_app(app_name_1.clone());
-        assert!(resource_manager.get_app_state(&app_name_1).is_ok());
-        resource_manager.remove_app(&app_name_1);
-        assert!(resource_manager.get_app_state(&app_name_1).is_err());
+        {
+            assert!(resource_manager.get_app_state(&app_name_1).is_err());
+            resource_manager.add_app(app_name_1.clone());
+            assert!(resource_manager.get_app_state(&app_name_1).is_ok());
+            resource_manager.remove_app(&app_name_1);
+            assert!(resource_manager.get_app_state(&app_name_1).is_err());
+        }
     }
 }
