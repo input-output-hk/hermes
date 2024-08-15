@@ -177,7 +177,8 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 5: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
+                            // debug!("decoded 5: {decoded_metadata:?} : {validation_report:?} :
+                            // {raw_cip36:02x?}");
                             return;
                         }
                     },

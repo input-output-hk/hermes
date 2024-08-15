@@ -111,6 +111,7 @@ libtest
 linkat
 lintfix
 localizable
+logcall
 lookaside
 maindbname
 mapref
@@ -224,8 +225,8 @@ upnp
 utimensat
 vitss
 vkey
-vkeywitness
 VKEYS
+vkeywitness
 voteplan
 voteplans
 wallclock

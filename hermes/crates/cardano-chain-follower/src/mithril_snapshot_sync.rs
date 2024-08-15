@@ -10,6 +10,7 @@ use std::{
 use chrono::{TimeDelta, Utc};
 use crossbeam_skiplist::SkipSet;
 use humantime::format_duration;
+use logcall::logcall;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
 use tokio::{
     fs::remove_dir_all,
@@ -17,6 +18,7 @@ use tokio::{
     time::{sleep, Duration},
 };
 use tracing::{debug, error};
+use tracing_log::log;
 
 use crate::{
     error::{Error, Result},
@@ -248,6 +250,8 @@ pub(crate) const MITHRIL_IMMUTABLE_SUB_DIRECTORY: &str = "immutable";
 ///
 /// This function returns the tip block point, and the block point immediately proceeding
 /// it in a tuple.
+#[allow(clippy::indexing_slicing)]
+#[logcall(ok = "debug", err = "error")]
 pub(crate) async fn get_mithril_tip(chain: Network, path: &Path) -> Result<MultiEraBlock> {
     let mut path = path.to_path_buf();
     path.push(MITHRIL_IMMUTABLE_SUB_DIRECTORY);
@@ -257,20 +261,16 @@ pub(crate) async fn get_mithril_tip(chain: Network, path: &Path) -> Result<Multi
         path.to_string_lossy()
     );
 
-    // Read the Tip, and if we don't get one, or we error, its an error.
-    let tip = get_mithril_tip_point(&path).await?;
+    // Read the Tip (fuzzy), and if we don't get one, or we error, its an error.
+    // has to be Fuzzy, because we intend to iterate and don't know the previous.
+    // Nor is there a subsequent block we can use as next.
+    let tip = get_mithril_tip_point(&path).await?.as_fuzzy();
     debug!("Mithril Tip: {tip}");
 
     // Decode and read the tip from the Immutable chain.
     let tip_iterator = MithrilSnapshotIterator::new(chain, &path, &tip, None).await?;
     let Some(tip_block) = tip_iterator.next().await else {
         error!("Failed to fetch the TIP block from the immutable chain.");
-
-        // or forcibly capture the backtrace regardless of environment variable configuration
-        debug!(
-            "Custom backtrace: {}",
-            std::backtrace::Backtrace::force_capture()
-        );
 
         return Err(Error::MithrilSnapshot(None));
     };
