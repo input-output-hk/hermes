@@ -116,15 +116,7 @@ impl MultiEraBlock {
         //}
 
         // Validate that the Block point is valid.
-        if previous.is_origin() {
-            if slot > 1 {
-                debug!("Bad Previous Block: Slot {slot}");
-
-                return Err(Error::Codec(format!(
-                "Previous block must not be Origin, for any other block than Origin or slot 1. Was {slot}"
-            )));
-            }
-        } else {
+        if !previous.is_origin() {
             // Every 21600 Blocks, Byron Era has duplicated sequential slot#'s.
             // So this filters them out from the sequential point check.
             // The Hash chain is still checked.
