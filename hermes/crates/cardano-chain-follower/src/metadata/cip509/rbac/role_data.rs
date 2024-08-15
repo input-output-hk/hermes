@@ -49,57 +49,30 @@ pub enum RoleDataInt {
 
 #[allow(clippy::module_name_repetitions)]
 impl RoleData {
-    /// Create a new instance of `RoleData`.
-    fn new() -> Self {
-        Self {
-            role_number: 0,
-            role_signing_key: None,
-            role_encryption_key: None,
-            payment_key: None,
-            role_extended_data_keys: HashMap::new(),
-        }
-    }
-
-    /// Set the role number.
-    fn set_role_number(&mut self, role_number: u8) {
-        self.role_number = role_number;
-    }
-
-    /// Set the role signing key.
-    fn set_role_signing_key(&mut self, key: KeyReference) {
-        self.role_signing_key = Some(key);
-    }
-
-    /// Set the role encryption key.
-    fn set_role_encryption_key(&mut self, key: KeyReference) {
-        self.role_encryption_key = Some(key);
-    }
-
-    /// Set the payment key.
-    fn set_payment_key(&mut self, key: u64) {
-        self.payment_key = Some(key);
+    pub(crate) fn get_role_number(&self) -> u8 {
+        self.role_number
     }
 }
 
 impl Decode<'_, ()> for RoleData {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
         let map_len = decode_map_len(d, "RoleData")?;
-        let mut role_data = RoleData::new();
+        let mut role_data = RoleData::default();
         for _ in 0..map_len {
             let key = decode_u8(d, "key in RoleData")?;
             if let Some(key) = RoleDataInt::from_repr(key) {
                 match key {
                     RoleDataInt::RoleNumber => {
-                        role_data.set_role_number(decode_u8(d, "RoleNumber in RoleData")?);
+                        role_data.role_number = decode_u8(d, "RoleNumber in RoleData")?;
                     },
                     RoleDataInt::RoleSigningKey => {
-                        role_data.set_role_signing_key(KeyReference::decode(d, ctx)?);
+                        role_data.role_signing_key = Some(KeyReference::decode(d, ctx)?);
                     },
                     RoleDataInt::RoleEncryptionKey => {
-                        role_data.set_role_encryption_key(KeyReference::decode(d, ctx)?);
+                        role_data.role_encryption_key = Some(KeyReference::decode(d, ctx)?);
                     },
                     RoleDataInt::PaymentKey => {
-                        role_data.set_payment_key(decode_u64(d, "PaymentKey in RoleData")?);
+                        role_data.payment_key = Some(decode_u64(d, "PaymentKey in RoleData")?);
                     },
                 }
             } else {
