@@ -20,8 +20,7 @@ During each application loading and running process, the application package sho
 
 ## Risks
 
-* Potential bad UX user experience for each application running,
-  because such validations and state preparation could take some time.
+* Potential bad  user experience (UX) for each application run due to time consumption in validations and state preparation 
 
 ## Alternatives
 
