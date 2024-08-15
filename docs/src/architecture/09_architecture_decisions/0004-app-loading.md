@@ -19,8 +19,7 @@ Hermes application package could be corrupted or modified.
 
 ## Decision
 
-During the each application loading and running process application package should be provide
-and all possible validations and initialization should be performed based on the package data.
+During each application loading and running process, the application package should be provided. All possible validations and initialization should be performed based on the package data.
 
 ## Risks
 
