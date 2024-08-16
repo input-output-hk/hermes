@@ -3,10 +3,10 @@
 use once_cell::sync::Lazy;
 
 use crate::runtime_extensions::{
-    bindings::wasi::filesystem, resource_manager::ApplicationResourceManager,
+    bindings::wasi::filesystem, resource_manager::ApplicationResourceStorage,
 };
 /// Map of app name to descriptors.
-pub(crate) type Descriptors = ApplicationResourceManager<filesystem::types::Descriptor, Descriptor>;
+pub(crate) type Descriptors = ApplicationResourceStorage<filesystem::types::Descriptor, Descriptor>;
 
 /// Represents an open file or directory.
 #[derive(Clone, Debug)]

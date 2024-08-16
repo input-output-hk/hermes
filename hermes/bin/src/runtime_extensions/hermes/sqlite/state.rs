@@ -4,17 +4,17 @@ use once_cell::sync::Lazy;
 
 use crate::runtime_extensions::{
     bindings::hermes::sqlite::api::{Sqlite, Statement},
-    resource_manager::ApplicationResourceManager,
+    resource_manager::ApplicationResourceStorage,
 };
 
 /// The object pointer used specifically with C objects like `sqlite3` or `sqlite3_stmt`.
 pub(super) type ObjectPointer = usize;
 
 /// Map of app name to db resource holder
-pub(super) type DbState = ApplicationResourceManager<Sqlite, ObjectPointer>;
+pub(super) type DbState = ApplicationResourceStorage<Sqlite, ObjectPointer>;
 
 /// Map of app name to db statement resource holder
-pub(super) type StatementState = ApplicationResourceManager<Statement, ObjectPointer>;
+pub(super) type StatementState = ApplicationResourceStorage<Statement, ObjectPointer>;
 
 /// Global state to hold `SQLite` db resources.
 static SQLITE_DB_STATE: Lazy<DbState> = Lazy::new(DbState::new);

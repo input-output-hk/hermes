@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 
 use crate::runtime_extensions::{
     bindings::wasi::io::streams::{InputStream, OutputStream},
-    resource_manager::ApplicationResourceManager,
+    resource_manager::ApplicationResourceStorage,
 };
 
 /// Helper super trait for `InputStream` which wraps a `std::io::Read` and
@@ -13,7 +13,7 @@ pub(crate) trait InputStreamTrait: std::io::Read + std::io::Seek + Send + Sync {
 impl<T: std::io::Read + std::io::Seek + Send + Sync> InputStreamTrait for T {}
 
 /// Map of app name to input streams resource holder.
-pub(crate) type InputStreams = ApplicationResourceManager<InputStream, Box<dyn InputStreamTrait>>;
+pub(crate) type InputStreams = ApplicationResourceStorage<InputStream, Box<dyn InputStreamTrait>>;
 
 /// Global state to hold the input streams resources.
 static INPUT_STREAMS_STATE: Lazy<InputStreams> = Lazy::new(InputStreams::new);
@@ -25,7 +25,7 @@ impl<T: std::io::Write + std::io::Seek + Send + Sync> OutputStreamTrait for T {}
 
 /// Map of app name to output streams resource holder.
 pub(crate) type OutputStreams =
-    ApplicationResourceManager<OutputStream, Box<dyn OutputStreamTrait>>;
+    ApplicationResourceStorage<OutputStream, Box<dyn OutputStreamTrait>>;
 
 /// Global state to hold the input streams resources.
 static OUTPUT_STREAMS_STATE: Lazy<OutputStreams> = Lazy::new(OutputStreams::new);

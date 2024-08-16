@@ -10,12 +10,12 @@ use dashmap::DashMap;
 
 use crate::app::ApplicationName;
 
-/// `ResourceManager` struct.
+/// `ResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 /// the `wasmtime::component::Resource<WitType>` object.
 /// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
-pub(crate) struct ResourceManager<WitType, RustType> {
+pub(crate) struct ResourceStorage<WitType, RustType> {
     /// Map of id to resource object.
     state: DashMap<u32, RustType>,
     /// Next available address id of the resource.
@@ -24,10 +24,10 @@ pub(crate) struct ResourceManager<WitType, RustType> {
     _phantom: std::marker::PhantomData<WitType>,
 }
 
-impl<WitType, RustType> ResourceManager<WitType, RustType>
+impl<WitType, RustType> ResourceStorage<WitType, RustType>
 where WitType: 'static
 {
-    /// Creates new `ResourceManager` instance.
+    /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
@@ -46,7 +46,7 @@ where WitType: 'static
 
         // Increment the value of the available address to 1,
         // so that it can be used for the next resource.
-        // Under the assumption that `ResourceManager` will not handle too many resources at once,
+        // Under the assumption that `ResourceStorage` will not handle too many resources at once,
         // and will not hold resources for too long, saturating increment is safe.
         self.available_address
             .store(available_address.saturating_add(1), Ordering::Release);
@@ -59,8 +59,8 @@ where WitType: 'static
     ///
     /// NOTE: `&mut self` is used to enable the `rustc` borrow checker and prevent
     /// potential deadlocking of the `DashMap`.
-    /// As `ResourceManager` not supposed to be used in any other cases rather than as a
-    /// field of `ApplicationResourceManager` (so no any `static` variable of this
+    /// As `ResourceStorage` not supposed to be used in any other cases rather than as a
+    /// field of `ApplicationResourceStorage` (so no any `static` variable of this
     /// type will be created), it is fine to add `&mut self` for this method.
     pub(crate) fn get_object<'a>(
         &'a mut self, resource: &wasmtime::component::Resource<WitType>,
@@ -94,20 +94,20 @@ where WitType: 'static
     }
 }
 
-/// `ApplicationResourceManager` struct.
+/// `ApplicationResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 /// the `wasmtime::component::Resource<WitType>` object.
 /// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
-pub(crate) struct ApplicationResourceManager<WitType, RustType> {
+pub(crate) struct ApplicationResourceStorage<WitType, RustType> {
     /// Map of app name to resources.
-    state: DashMap<ApplicationName, ResourceManager<WitType, RustType>>,
+    state: DashMap<ApplicationName, ResourceStorage<WitType, RustType>>,
 }
 
-impl<WitType, RustType> ApplicationResourceManager<WitType, RustType>
+impl<WitType, RustType> ApplicationResourceStorage<WitType, RustType>
 where WitType: 'static
 {
-    /// Creates new `ApplicationResourceManager` instance.
+    /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
             state: DashMap::new(),
@@ -118,7 +118,7 @@ where WitType: 'static
     /// If the application state already exists, do nothing.
     pub(crate) fn add_app(&self, app_name: ApplicationName) {
         if !self.state.contains_key(&app_name) {
-            self.state.insert(app_name, ResourceManager::new());
+            self.state.insert(app_name, ResourceStorage::new());
         }
     }
 
@@ -131,7 +131,7 @@ where WitType: 'static
     /// into the map.
     pub(crate) fn get_app_state<'a>(
         &'a self, app_name: &ApplicationName,
-    ) -> anyhow::Result<impl DerefMut<Target = ResourceManager<WitType, RustType>> + 'a> {
+    ) -> anyhow::Result<impl DerefMut<Target = ResourceStorage<WitType, RustType>> + 'a> {
         self.state
             .get_mut(app_name)
             .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
@@ -161,8 +161,8 @@ mod tests {
     struct WitType;
 
     #[test]
-    fn test_resource_manager() {
-        let mut resource_manager = ResourceManager::<WitType, u32>::new();
+    fn test_resource_storage() {
+        let mut resource_manager = ResourceStorage::<WitType, u32>::new();
 
         let object = 100;
         let resource = resource_manager.create_resource(object);
@@ -175,8 +175,8 @@ mod tests {
     }
 
     #[test]
-    fn test_app_resource_manager() {
-        let resource_manager = ApplicationResourceManager::<WitType, u32>::new();
+    fn test_app_resource_storage() {
+        let resource_manager = ApplicationResourceStorage::<WitType, u32>::new();
         let app_name_1 = ApplicationName("app_1".to_string());
 
         {
