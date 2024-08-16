@@ -1,6 +1,6 @@
 //! Enum of possible Cardano networks.
 
-use std::{ffi::OsStr, path::PathBuf, str::FromStr};
+use std::{ffi::OsStr, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use pallas::{
@@ -11,8 +11,6 @@ use pallas::{
 // use strum_macros;
 use tracing::debug;
 
-use crate::error::Error;
-
 /// Default name of the executable if we can't derive it.
 pub(crate) const DEFAULT_EXE_NAME: &str = "cardano_chain_follower";
 /// ENV VAR name for the data path.
@@ -22,8 +20,20 @@ pub(crate) const ENVVAR_MITHRIL_EXE_NAME: &str = "MITHRIL_EXE_NAME";
 
 /// Enum of possible Cardano networks.
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, strum::EnumIter, strum::VariantNames,
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    strum::EnumIter,
+    strum::VariantNames,
+    strum::EnumString,
+    strum::Display,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum Network {
     /// Cardano mainnet network.
     Mainnet,
@@ -34,8 +44,6 @@ pub enum Network {
 }
 
 // Mainnet Defaults.
-/// The human readable name of the Cardano mainnet network.
-const MAINNET_NAME: &str = "mainnet";
 /// Mainnet Default Public Cardano Relay.
 const DEFAULT_MAINNET_RELAY: &str = "backbone.cardano.iog.io:3001";
 /// Main-net Mithril Signature genesis vkey.
@@ -45,8 +53,6 @@ const DEFAULT_MAINNET_MITHRIL_AGGREGATOR: &str =
     "https://aggregator.release-mainnet.api.mithril.network/aggregator";
 
 // Preprod Defaults
-/// The human readable name of the Cardano pre-production network.
-const PREPROD_NAME: &str = "preprod";
 /// Preprod Default Public Cardano Relay.
 const DEFAULT_PREPROD_RELAY: &str = "preprod-node.play.dev.cardano.org:3001";
 /// Preprod network Mithril Signature genesis vkey.
@@ -56,8 +62,6 @@ const DEFAULT_PREPROD_MITHRIL_AGGREGATOR: &str =
     "https://aggregator.release-preprod.api.mithril.network/aggregator";
 
 // Preview Defaults
-/// The human readable name of the Cardano preview network.
-const PREVIEW_NAME: &str = "preview";
 /// Preview Default Public Cardano Relay.
 const DEFAULT_PREVIEW_RELAY: &str = "preview-node.play.dev.cardano.org:3001";
 /// Preview network Mithril Signature genesis vkey.
@@ -172,29 +176,6 @@ impl Network {
     }
 }
 
-impl FromStr for Network {
-    type Err = Error;
-
-    fn from_str(input: &str) -> std::result::Result<Network, Self::Err> {
-        match input {
-            MAINNET_NAME => Ok(Network::Mainnet),
-            PREPROD_NAME => Ok(Network::Preprod),
-            PREVIEW_NAME => Ok(Network::Preview),
-            _ => Err(Error::ParseNetwork),
-        }
-    }
-}
-
-impl std::fmt::Display for Network {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Network::Mainnet => write!(f, "{MAINNET_NAME}"),
-            Network::Preprod => write!(f, "{PREPROD_NAME}"),
-            Network::Preview => write!(f, "{PREVIEW_NAME}"),
-        }
-    }
-}
-
 impl From<Network> for u64 {
     fn from(network: Network) -> Self {
         match network {
@@ -207,6 +188,8 @@ impl From<Network> for u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use anyhow::Ok;
 
     use super::*;
@@ -216,6 +199,14 @@ mod tests {
         let mainnet = Network::from_str("mainnet")?;
         let preprod = Network::from_str("preprod")?;
         let preview = Network::from_str("preview")?;
+
+        assert_eq!(mainnet, Network::Mainnet);
+        assert_eq!(preprod, Network::Preprod);
+        assert_eq!(preview, Network::Preview);
+
+        let mainnet = Network::from_str("Mainnet")?;
+        let preprod = Network::from_str("Preprod")?;
+        let preview = Network::from_str("Preview")?;
 
         assert_eq!(mainnet, Network::Mainnet);
         assert_eq!(preprod, Network::Preprod);
