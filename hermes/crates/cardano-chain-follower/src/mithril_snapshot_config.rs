@@ -2,6 +2,7 @@
 
 use std::{
     path::{Path, PathBuf},
+    str::FromStr,
     sync::LazyLock,
 };
 
@@ -356,12 +357,7 @@ impl MithrilSnapshotConfig {
         // Check we have a snapshot, and its for our network.
         match snapshots.first() {
             Some(snapshot) => {
-                if snapshot.beacon.network != self.chain.to_string() {
-                    return Err(Error::MithrilClientNetworkMismatch(
-                        self.chain,
-                        snapshot.beacon.network.clone(),
-                    ));
-                }
+                let _aggregator_network = Network::from_str(&snapshot.beacon.network)?;
             },
             None => return Err(Error::MithrilClientNoSnapshots(self.chain, url)),
         }
