@@ -13,12 +13,7 @@ use ouroboros::self_referencing;
 use tracing::debug;
 
 use crate::{
-    error::Error,
-    metadata,
-    point::{ORIGIN_POINT, UNKNOWN_POINT},
-    stats::stats_invalid_block,
-    witness::TxWitness,
-    Network, Point,
+    error::Error, metadata, stats::stats_invalid_block, witness::TxWitness, Network, Point,
 };
 
 /// Self-referencing CBOR encoded data of a multi-era block.
@@ -108,34 +103,33 @@ impl MultiEraBlock {
 
         let point = Point::new(slot, decoded_block.hash().to_vec());
 
-        debug!("New Block: {slot} {point} {}", *previous);
+        let byron_block = matches!(
+            decoded_block,
+            pallas::ledger::traverse::MultiEraBlock::Byron(_)
+        );
+
+        // debug!("New Block: {slot} {point} {}", *previous);
+
+        // Dump the early mainnet blocks because somethings funny in there.
+        // if slot == 0 || slot == 21600 {
+        //    debug!("Block of interest {slot} {:?}", decoded_block);
+        //}
 
         // Validate that the Block point is valid.
-        if *previous == ORIGIN_POINT {
-            if decoded_block.header().previous_hash().is_some() {
-                // or forcibly capture the backtrace regardless of environment variable
-                // configuration
-                debug!(
-                    "Bad Previous Block: {}",
-                    std::backtrace::Backtrace::force_capture()
-                );
-
-                return Err(Error::Codec(
-                    "Previous block must not be Origin, for any other block than Origin"
-                        .to_string(),
-                ));
-            }
-        } else {
-            if *previous >= slot {
+        if !previous.is_origin() {
+            // Every 21600 Blocks, Byron Era has duplicated sequential slot#'s.
+            // So this filters them out from the sequential point check.
+            // The Hash chain is still checked.
+            if (!byron_block || ((slot % 21600) != 0)) && *previous >= slot {
                 return Err(Error::Codec(format!(
                     "Previous slot is not less than current slot:{slot}"
                 )));
             }
 
             // Special case, when the previous block is actually UNKNOWN, we can't check it.
-            if *previous != UNKNOWN_POINT
-                // Otherwise, we make sure the hash chain is intact
-                && !previous.cmp_hash(&decoded_block.header().previous_hash())
+            if !previous.is_unknown()
+                    // Otherwise, we make sure the hash chain is intact
+                    && !previous.cmp_hash(&decoded_block.header().previous_hash())
             {
                 debug!("{}, {:?}", previous, decoded_block.header().previous_hash());
 

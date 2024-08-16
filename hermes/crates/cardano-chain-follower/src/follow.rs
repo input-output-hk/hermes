@@ -98,7 +98,9 @@ impl ChainFollower {
 
             if let Some(follower) = self.mithril_follower.as_mut() {
                 if let Some(next) = follower.next().await {
+                    // debug!("Pre Previous update 3 : {:?}", self.previous);
                     self.previous = self.current.clone();
+                    // debug!("Post Previous update 3 : {:?}", self.previous);
                     self.current = next.point();
                     self.fork = 0; // Mithril Immutable data is always Fork 0.
                     let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
@@ -117,7 +119,11 @@ impl ChainFollower {
                     ChainUpdate::new(chain_update::Kind::ImmutableBlockRollForward, false, block);
                 return Some(update);
             }
-            error!("Mithril Tip Block is not in snapshot. Should not happen.");
+            error!(
+                tip = ?self.mithril_tip,
+                current = ?current_mithril_tip,
+                "Mithril Tip Block is not in snapshot. Should not happen."
+            );
         }
 
         None
@@ -181,7 +187,9 @@ impl ChainFollower {
             if update_type == chain_update::Kind::Rollback {
                 rollback(self.chain, stats::RollbackType::Follower, rollback_depth);
             }
+            // debug!("Pre Previous update 4 : {:?}", self.previous);
             self.previous = self.current.clone();
+            // debug!("Post Previous update 4 : {:?}", self.previous);
             self.current = next_block.point().clone();
             self.fork = next_block.fork();
 

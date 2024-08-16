@@ -130,6 +130,115 @@ impl Point {
         ))
     }
 
+    /// Creates a new Fuzzy `Point` from a concrete point.
+    ///
+    /// Will not alter either TIP or ORIGIN points.
+    #[must_use]
+    pub fn as_fuzzy(&self) -> Self {
+        if *self == TIP_POINT {
+            TIP_POINT
+        } else {
+            match self.0 {
+                pallas::network::miniprotocols::Point::Specific(slot, _) => Self::fuzzy(slot),
+                pallas::network::miniprotocols::Point::Origin => ORIGIN_POINT,
+            }
+        }
+    }
+
+    /// Check if a Point is Fuzzy.
+    ///
+    /// Even though we don't know the hash for TIP or Origin, neither of these points
+    /// are considered to be fuzzy.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let slot = 42;
+    /// let point = Point::fuzzy(slot);
+    ///
+    /// assert!(point.is_fuzzy());
+    /// ```
+    #[must_use]
+    pub fn is_fuzzy(&self) -> bool {
+        if *self == TIP_POINT {
+            false
+        } else {
+            match self.0 {
+                pallas::network::miniprotocols::Point::Specific(_, ref hash) => hash.is_empty(),
+                pallas::network::miniprotocols::Point::Origin => false,
+            }
+        }
+    }
+
+    /// Check if a Point is the origin.
+    ///
+    /// Origin is the synthetic Origin point, and ALSO any point thats at slot zero with a
+    /// hash.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let slot = 42;
+    /// let point = Point::fuzzy(slot);
+    ///
+    /// assert!(!point.is_origin());
+    /// ```
+    #[must_use]
+    pub fn is_origin(&self) -> bool {
+        match self.0 {
+            pallas::network::miniprotocols::Point::Specific(slot, ref hash) => {
+                slot == 0 && !hash.is_empty()
+            },
+            pallas::network::miniprotocols::Point::Origin => true,
+        }
+    }
+
+    /// Check if a Point is actually unknown.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let point = Point::fuzzy(0);
+    ///
+    /// assert!(point.is_unknown());
+    /// ```
+    #[must_use]
+    pub fn is_unknown(&self) -> bool {
+        match self.0 {
+            pallas::network::miniprotocols::Point::Specific(slot, ref hash) => {
+                slot == 0 && hash.is_empty()
+            },
+            pallas::network::miniprotocols::Point::Origin => false,
+        }
+    }
+
+    /// Check if a Point is actually unknown.
+    ///
+    /// # Examples
+    ///
+    /// ```rs
+    /// use cardano_chain_follower::Point;
+    ///
+    /// let point = Point::fuzzy(0);
+    ///
+    /// assert!(point.is_unknown());
+    /// ```
+    #[must_use]
+    pub fn is_tip(&self) -> bool {
+        match self.0 {
+            pallas::network::miniprotocols::Point::Specific(slot, ref hash) => {
+                slot == u64::MAX && hash.is_empty()
+            },
+            pallas::network::miniprotocols::Point::Origin => false,
+        }
+    }
+
     /// Compares the hash stored in the `Point` with a known hash.
     /// It returns `true` if the hashes match and `false` otherwise. If the
     /// provided hash is `None`, the function checks if the `Point` has an

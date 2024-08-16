@@ -59,6 +59,16 @@ pub struct Mithril {
     pub validate_failures: u64,
     /// Blocks that failed to deserialize from the mithril immutable chain.
     pub invalid_blocks: u64,
+    /// Download Or Validation Failed
+    pub download_or_validation_failed: u64,
+    /// Failed to get tip from mithril snapshot.
+    pub failed_to_get_tip: u64,
+    /// Tip failed to advance
+    pub tip_did_not_advance: u64,
+    /// Failed to send new tip to updater.
+    pub tip_failed_to_send_to_updater: u64,
+    /// Failed to activate new snapshot
+    pub failed_to_activate_new_snapshot: u64,
 }
 
 impl Mithril {
@@ -558,6 +568,49 @@ pub(crate) fn mithril_validation_state(chain: Network, mithril_state: MithrilVal
         MithrilValidationState::Start => chain_stats.mithril.validate_start = Utc::now(),
         MithrilValidationState::Failed => chain_stats.mithril.validate_failures += 1,
         MithrilValidationState::Finish => chain_stats.mithril.validate_end = Utc::now(),
+    }
+}
+
+/// Mithril Sync Failures.
+#[derive(Copy, Clone)]
+pub(crate) enum MithrilSyncFailures {
+    /// Download Or Validation Failed
+    DownloadOrValidation,
+    /// Failed to get tip from mithril snapshot.
+    FailedToGetTip,
+    /// Tip failed to advance
+    TipDidNotAdvance,
+    /// Failed to send new tip to updater.
+    TipFailedToSendToUpdater,
+    /// Failed to activate new snapshot
+    FailedToActivateNewSnapshot,
+}
+
+/// Record when Mithril Cert validation starts, ends or fails).
+pub(crate) fn mithril_sync_failure(chain: Network, failure: MithrilSyncFailures) {
+    // This will actually always succeed.
+    let Some(stats) = lookup_stats(chain) else {
+        return;
+    };
+
+    let Ok(mut chain_stats) = stats.write() else {
+        // Worst case if this fails (it never should) is we stop updating stats.
+        error!("Stats RwLock should never be able to error.");
+        return;
+    };
+
+    match failure {
+        MithrilSyncFailures::DownloadOrValidation => {
+            chain_stats.mithril.download_or_validation_failed += 1;
+        },
+        MithrilSyncFailures::FailedToGetTip => chain_stats.mithril.failed_to_get_tip += 1,
+        MithrilSyncFailures::TipDidNotAdvance => chain_stats.mithril.tip_did_not_advance += 1,
+        MithrilSyncFailures::TipFailedToSendToUpdater => {
+            chain_stats.mithril.tip_failed_to_send_to_updater += 1;
+        },
+        MithrilSyncFailures::FailedToActivateNewSnapshot => {
+            chain_stats.mithril.failed_to_activate_new_snapshot += 1;
+        },
     }
 }
 
