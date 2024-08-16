@@ -164,7 +164,7 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            debug!("decoded 4: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
+                            // debug!("decoded 4: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -723,18 +723,16 @@ impl Cip36 {
         }
 
         let sig: ed25519_dalek::Signature = match decoder.bytes() {
-            Ok(sig) => {
-                match ed25519_dalek::Signature::from_slice(sig) {
-                    Ok(sig) => sig,
-                    Err(err) => {
-                        self.decoding_failed(
-                            format!("CIP36 Signature Decoding failed: {err}",).as_str(),
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
-                }
+            Ok(sig) => match ed25519_dalek::Signature::from_slice(sig) {
+                Ok(sig) => sig,
+                Err(err) => {
+                    self.decoding_failed(
+                        format!("CIP36 Signature Decoding failed: {err}",).as_str(),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                },
             },
             Err(error) => {
                 self.decoding_failed(
