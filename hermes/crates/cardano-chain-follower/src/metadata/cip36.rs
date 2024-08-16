@@ -796,3 +796,90 @@ impl Cip36 {
         Some(true)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crossbeam_skiplist::SkipMap;
+
+    use super::*;
+
+    fn create_empty_cip36(strict: bool) -> Cip36 {
+        Cip36 {
+            cip36: Some(true),
+            voting_keys: vec![],
+            stake_pk: None,
+            payment_addr: vec![],
+            payable: false,
+            raw_nonce: 0,
+            nonce: 0,
+            purpose: 0,
+            signed: false,
+            strict_catalyst: strict,
+        }
+    }
+
+    #[test]
+    fn test_decode_purpose_1() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(true);
+        let mut decoder = Decoder::new(&[ 0x00 ]); // unsigned(0)
+        let mut report = ValidationReport::new();
+
+        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.purpose, 0);
+        assert_eq!(res, Some(0));
+    }
+
+    #[test]
+    fn test_decode_purpose_2() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(true);
+        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]); // unsigned(12345)
+        let mut report = ValidationReport::new();
+
+        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 1);
+        assert_eq!(cip36.purpose, 12345);
+        assert_eq!(res, Some(12345));
+    }
+
+    #[test]
+    fn test_decode_purpose_3() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]); // unsigned(12345)
+        let mut report = ValidationReport::new();
+
+        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.purpose, 12345);
+        assert_eq!(res, Some(12345));
+    }
+
+    #[test]
+    fn test_decode_purpose_4() {
+        let bytes_cases: &[&[u8]] = &[
+            &[ 0x80 ], // array(0)
+            &[ 0xA0 ], // map(0)
+            &[ 0x21 ], // negative(1)
+            &[ 0xF9, 0x3C, 0x00 ] // primitive(15360) - 1.0
+        ];
+
+        for bytes in bytes_cases {
+            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let mut cip36 = create_empty_cip36(false);
+            let mut decoder = Decoder::new(bytes);
+            let mut report = ValidationReport::new();
+    
+            let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+    
+            assert_eq!(report.len(), 1);
+            assert_eq!(cip36.purpose, 0);
+            assert_eq!(res, None);
+        }
+    }
+}
