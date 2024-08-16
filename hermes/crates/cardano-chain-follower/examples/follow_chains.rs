@@ -39,6 +39,10 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
                 .action(ArgAction::SetTrue),
             arg!(--"halt-on-error" "Stop the process when an error occurs without retrying.")
                 .action(ArgAction::SetTrue),
+            arg!(--"bad-cip36" "Dump Bad Cip36 registrations detected.")
+                .action(ArgAction::SetTrue),
+            arg!(--"largest-metadata" "Dump The largest transaction metadata we find (as we find it).")
+                .action(ArgAction::SetTrue),
         ])
         .get_matches();
 
@@ -57,11 +61,8 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
 }
 
 /// Start syncing a particular network
-async fn start_sync_for(network: &Network, matches: ArgMatches) -> Result<(), Box<dyn Error>> {
-    let halt_on_error = matches.get_flag("halt-on-error");
-
-    let mut cfg = ChainSyncConfig::default_for(*network);
-    cfg.mithril_cfg.halt_on_error = halt_on_error;
+async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
+    let cfg = ChainSyncConfig::default_for(*network);
 
     info!(chain = cfg.chain.to_string(), "Starting Sync");
 
@@ -85,6 +86,9 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     let all_tip_blocks = matches.get_flag("all-tip-blocks");
     let all_live_blocks = matches.get_flag("all-live-blocks");
     let stop_at_tip = matches.get_flag("stop-at-tip");
+    let halt_on_error = matches.get_flag("halt-on-error");
+    let bad_cip36 = matches.get_flag("bad-cip36");
+    let largest_metadata = matches.get_flag("largest-metadata");
 
     let mut current_era = String::new();
     let mut last_update: Option<ChainUpdate> = None;
@@ -97,6 +101,8 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     let mut follow_all = false;
 
     let mut last_metrics_time = Instant::now();
+
+    let mut biggest_aux_data: usize = 0;
 
     while let Some(chain_update) = follower.next().await {
         updates += 1;
@@ -176,34 +182,34 @@ async fn follow_for(network: Network, matches: ArgMatches) {
                 .data
                 .txn_metadata(tx_idx, Metadata::cip36::LABEL)
             {
-                if !last_update_shown {
-                    info!(
-                        chain = network.to_string(),
-                        "Chain Update {updates}:{}", chain_update
-                    );
-                    // We already showed the last update, no need to show it again.
-                    last_update_shown = true;
-                }
-
                 let raw_size = match chain_update
                     .data
                     .txn_raw_metadata(tx_idx, Metadata::cip36::LABEL)
                 {
-                    Some(raw) => format!("Raw Size: {}", raw.len()),
-                    None => "Error: Cip36 Raw Metadata is missing".to_string(),
+                    Some(raw) => raw.len(),
+                    None => 0,
                 };
 
-                #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
-                if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
-                    if !cip36.signed {
-                        dump_raw_aux_data = true;
-                    }
+                if largest_metadata && raw_size > biggest_aux_data {
+                    biggest_aux_data = raw_size;
+                    dump_raw_aux_data = true;
                 }
 
-                info!(
-                    chain = network.to_string(),
-                    "Cip36 {tx_idx}:{:?} - {raw_size}", decoded_metadata
-                );
+                if bad_cip36 {
+                    #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
+                    if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
+                        if !cip36.signed {
+                            dump_raw_aux_data = true;
+                        }
+                        if !decoded_metadata.report.is_empty() {
+                            info!(
+                                chain = network.to_string(),
+                                "Cip36 {tx_idx}:{:?} - {raw_size}", decoded_metadata
+                            );
+                            dump_raw_aux_data = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -240,6 +246,16 @@ async fn follow_for(network: Network, matches: ArgMatches) {
             let stats = Statistics::new(network);
 
             info!("Json Metrics:  {}", stats.as_json(true));
+
+            if halt_on_error
+                && (stats.mithril.download_or_validation_failed > 0
+                    || stats.mithril.failed_to_get_tip > 0
+                    || stats.mithril.tip_did_not_advance > 0
+                    || stats.mithril.tip_failed_to_send_to_updater > 0
+                    || stats.mithril.failed_to_activate_new_snapshot > 0)
+            {
+                break;
+            }
         }
     }
 
@@ -282,7 +298,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // First we need to actually start the underlying sync tasks for each blockchain.
     for network in &networks {
-        start_sync_for(network, matches.clone()).await?;
+        start_sync_for(network).await?;
     }
 
     // Make a follower for the network.

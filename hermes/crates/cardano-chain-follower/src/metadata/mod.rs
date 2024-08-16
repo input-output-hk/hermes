@@ -114,27 +114,46 @@ impl DecodedTransaction {
             decoded: SkipMap::new(),
         };
 
-        let transactions = block.txs();
-        let slot = block.slot();
+        if block.has_aux_data() {
+            let transactions = block.txs();
+            let slot = block.slot();
 
-        if let Some(_metadata) = block.as_byron() {
-            // Nothing to do here.
-        } else if let Some(alonzo_block) = block.as_alonzo() {
-            for (txn_idx, metadata) in alonzo_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
-            }
-        } else if let Some(babbage_block) = block.as_babbage() {
-            for (txn_idx, metadata) in babbage_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
-            }
-        } else if let Some(conway_block) = block.as_conway() {
-            for (txn_idx, metadata) in conway_block.auxiliary_data_set.iter() {
-                decoded_aux_data.insert(chain, slot, *txn_idx, metadata.raw_cbor(), &transactions);
-            }
-        } else {
-            error!("Undecodable metadata, unknown Era");
-        };
-
+            if let Some(_metadata) = block.as_byron() {
+                // Nothing to do here.
+            } else if let Some(alonzo_block) = block.as_alonzo() {
+                for (txn_idx, metadata) in alonzo_block.auxiliary_data_set.iter() {
+                    decoded_aux_data.insert(
+                        chain,
+                        slot,
+                        *txn_idx,
+                        metadata.raw_cbor(),
+                        &transactions,
+                    );
+                }
+            } else if let Some(babbage_block) = block.as_babbage() {
+                for (txn_idx, metadata) in babbage_block.auxiliary_data_set.iter() {
+                    decoded_aux_data.insert(
+                        chain,
+                        slot,
+                        *txn_idx,
+                        metadata.raw_cbor(),
+                        &transactions,
+                    );
+                }
+            } else if let Some(conway_block) = block.as_conway() {
+                for (txn_idx, metadata) in conway_block.auxiliary_data_set.iter() {
+                    decoded_aux_data.insert(
+                        chain,
+                        slot,
+                        *txn_idx,
+                        metadata.raw_cbor(),
+                        &transactions,
+                    );
+                }
+            } else {
+                error!("Undecodable metadata, unknown Era");
+            };
+        }
         decoded_aux_data
     }
 
