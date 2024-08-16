@@ -329,22 +329,20 @@ mod tests_bip39 {
     #[test]
     fn test_eng_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
-        mnemonic_to_xprv(MNEMONIC_ENG, "").expect("Failed to convert English mnemonic to xprv");
+        mnemonic_to_xprv(MNEMONIC_ENG, "").unwrap();
     }
 
     #[test]
     fn test_jap_mnemonic_to_xprv() {
         // Valid mnemonic, shouldn't fail.
-        mnemonic_to_xprv(MNEMONIC_JAPANESE, "")
-            .expect("Failed to convert Japanese mnemonic to xprv");
+        mnemonic_to_xprv(MNEMONIC_JAPANESE, "").unwrap();
     }
 
     #[test]
     fn test_mnemonic_with_passphrase_to_xprv() {
         let passphrase = "test cat";
         // Valid mnemonic with passphrase, shouldn't fail.
-        mnemonic_to_xprv(MNEMONIC_ENG, passphrase)
-            .expect("Failed to convert English mnemonic with passphrase to xprv");
+        mnemonic_to_xprv(MNEMONIC_ENG, passphrase).unwrap();
     }
 
     #[test]
@@ -355,34 +353,33 @@ mod tests_bip39 {
 
     #[test]
     fn test_generate_mnemonic_prefix() {
-        let mnemonic = generate_new_mnemonic(12, vec![], Some("English".to_string()))
-            .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        let mnemonic = generate_new_mnemonic(12, vec![], Some("English".to_string())).unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
         let mnemonic =
             generate_new_mnemonic(12, vec!["project".to_string()], Some("English".to_string()))
-                .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+                .unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
         let mnemonic = generate_new_mnemonic(
             12,
             vec!["project".to_string(), "cat".to_string()],
             Some("English".to_string()),
         )
-        .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        .unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
         let mnemonic = generate_new_mnemonic(
             12,
             vec!["project".to_string(), "cat".to_string(), "test".to_string()],
             Some("English".to_string()),
         )
-        .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        .unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
         let mnemonic = generate_new_mnemonic(
             12,
             vec!["project".to_string(), "cat".to_string(), "test".to_string()],
             None,
         )
-        .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        .unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
     }
     #[test]
     // Disable unicode error for linter
@@ -393,17 +390,16 @@ mod tests_bip39 {
             vec!["たいみんぐ".to_string(), "うけたまわる".to_string()],
             Some("Japanese".to_string()),
         )
-        .expect("Failed to generate mnemonic");
-        Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+        .unwrap();
+        Mnemonic::parse(mnemonic.join(" ")).unwrap();
     }
 
     #[test]
     fn test_generate_mnemonic_validity() {
         for _ in 0..20 {
             let prefix = vec!["project".to_string(), "cat".to_string()];
-            let mnemonic = generate_new_mnemonic(12, prefix, Some("English".to_string()))
-                .expect("Failed to generate mnemonic");
-            Mnemonic::parse(mnemonic.join(" ")).expect("Fail to parse mnemonic");
+            let mnemonic = generate_new_mnemonic(12, prefix, Some("English".to_string())).unwrap();
+            Mnemonic::parse(mnemonic.join(" ")).unwrap();
         }
     }
 

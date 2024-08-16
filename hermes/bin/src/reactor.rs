@@ -77,6 +77,6 @@ mod tests {
 
     #[test]
     fn init_test() {
-        init().expect("Could not initialize Hermes reactor.");
+        init().unwrap();
     }
 }
