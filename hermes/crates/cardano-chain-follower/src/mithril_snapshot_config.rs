@@ -357,7 +357,13 @@ impl MithrilSnapshotConfig {
         // Check we have a snapshot, and its for our network.
         match snapshots.first() {
             Some(snapshot) => {
-                let _aggregator_network = Network::from_str(&snapshot.beacon.network)?;
+                let _aggregator_network =
+                    Network::from_str(&snapshot.beacon.network).map_err(|_err| {
+                        Error::MithrilClientNetworkMismatch(
+                            self.chain,
+                            snapshot.beacon.network.clone(),
+                        )
+                    })?;
             },
             None => return Err(Error::MithrilClientNoSnapshots(self.chain, url)),
         }
