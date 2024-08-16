@@ -161,7 +161,6 @@ mod tests {
     struct WitType;
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_resource_manager() {
         let mut resource_manager = ResourceManager::<WitType, u32>::new();
 
@@ -176,7 +175,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::unwrap_used)]
     fn test_app_resource_manager() {
         let resource_manager = ApplicationResourceManager::<WitType, u32>::new();
         let app_name_1 = ApplicationName("app_1".to_string());
