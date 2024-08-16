@@ -8,7 +8,10 @@
 
 ## Context
 
-Hermes, as an engine that runs user-developed applications, should have the functionality to load and execute the provided assembled application. This process must validate the application's integrity and correctness and prepare the application's state before executing it.
+Hermes, as an engine that runs user-developed applications, should have the functionality to load and
+execute the provided assembled application.
+This process must validate the application's integrity and correctness and prepare the application's state
+before executing it.
 
 ## Assumptions
 
@@ -16,11 +19,13 @@ Hermes application package could be corrupted or modified.
 
 ## Decision
 
-During each application loading and running process, the application package should be provided. All possible validations and initialization should be performed based on the package data.
+During each application loading and running process, the application package should be provided.
+All possible validations and initialization should be performed based on the package data.
 
 ## Risks
 
-* Potential bad  user experience (UX) for each application run due to time consumption in validations and state preparation 
+* Potential bad  user experience (UX) for each application run due to time consumption in validations and
+  state preparation
 
 ## Alternatives
 
