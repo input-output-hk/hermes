@@ -18,7 +18,7 @@ use crate::{
             },
             io::streams::{InputStream, OutputStream},
         },
-        wasi::io::streams::{get_intput_streams_state, get_output_streams_state},
+        wasi::io::streams::{get_input_streams_state, get_output_streams_state},
     },
 };
 
@@ -44,7 +44,7 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         };
         file.seek(SeekFrom::Start(offset))?;
 
-        let input_streams_app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        let input_streams_app_state = get_input_streams_state().get_app_state(self.app_name())?;
         Ok(Ok(input_streams_app_state.create_resource(Box::new(file))))
     }
 

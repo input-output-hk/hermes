@@ -1,6 +1,6 @@
 //! IO Streams host implementation for WASM runtime.
 
-use super::{get_intput_streams_state, get_output_streams_state};
+use super::{get_input_streams_state, get_output_streams_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::wasi::io::streams::{
@@ -41,7 +41,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_read(
         &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        let mut app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        let mut app_state = get_input_streams_state().get_app_state(self.app_name())?;
         let Ok(mut stream) = app_state.get_object(&resource) else {
             return Ok(Err(StreamError::Closed));
         };
@@ -82,7 +82,7 @@ impl HostInputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        let app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        let app_state = get_input_streams_state().get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
     }

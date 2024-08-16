@@ -124,10 +124,10 @@ where WitType: 'static
 
     /// Get application state from the resource manager.
     /// To increase performance and reduce locking time, it's better to call
-    /// `drop(app_state)` immediatly when the `app_state` is not needed anymore and dont
+    /// `drop(app_state)` immediately when the `app_state` is not needed anymore and don't
     /// wait until it will be released by the compiler.
     ///
-    /// **Locking behaviour:** May deadlock if called when holding any sort of reference
+    /// **Locking behavior:** May deadlock if called when holding any sort of reference
     /// into the map.
     pub(crate) fn get_app_state<'a>(
         &'a self, app_name: &ApplicationName,

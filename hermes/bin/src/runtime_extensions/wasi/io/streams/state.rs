@@ -31,7 +31,7 @@ pub(crate) type OutputStreams =
 static OUTPUT_STREAMS_STATE: Lazy<OutputStreams> = Lazy::new(OutputStreams::new);
 
 /// Get the input streams state.
-pub(crate) fn get_intput_streams_state() -> &'static InputStreams {
+pub(crate) fn get_input_streams_state() -> &'static InputStreams {
     &INPUT_STREAMS_STATE
 }
 

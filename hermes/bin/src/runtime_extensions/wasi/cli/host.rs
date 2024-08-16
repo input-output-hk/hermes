@@ -9,7 +9,7 @@ use crate::{
             cli,
             io::streams::{InputStream, OutputStream},
         },
-        wasi::io::streams::{get_intput_streams_state, get_output_streams_state},
+        wasi::io::streams::{get_input_streams_state, get_output_streams_state},
     },
 };
 
@@ -48,7 +48,7 @@ impl cli::exit::Host for HermesRuntimeContext {
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
-        let app_state = get_intput_streams_state().get_app_state(self.app_name())?;
+        let app_state = get_input_streams_state().get_app_state(self.app_name())?;
         Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
