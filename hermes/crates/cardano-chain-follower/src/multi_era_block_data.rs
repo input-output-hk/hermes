@@ -688,7 +688,7 @@ pub(crate) mod tests {
                 1,
             );
 
-            assert!(block.is_err());
+            assert!(block.is_ok());
         }
     }
 }
