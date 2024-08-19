@@ -1,9 +1,11 @@
 [workspace]
 package.edition = "2021"
+package.license = "MIT OR Apache-2.0"
 resolver = "2"
 members = [
     "cddl-parser",
     "abnf-parser",
+    "cddl-linter",
 ]
 
 [workspace.lints.rust]
