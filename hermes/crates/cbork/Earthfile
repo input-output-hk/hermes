@@ -8,7 +8,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.1.24 AS rust-ci
 builder:
     DO rust-ci+SETUP
 
-    COPY --dir .cargo .config cddl-parser abnf-parser .
+    COPY --dir .cargo .config cddl-parser abnf-parser cddl-linter .
     COPY Cargo.toml clippy.toml deny.toml rustfmt.toml .
 
     # RUN cargo generate-lockfile
