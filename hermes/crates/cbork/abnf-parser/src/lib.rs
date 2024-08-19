@@ -1,12 +1,12 @@
+//! A parser for ABNF, utilized for parsing in accordance with RFC 5234.
+
 // cspell: words Naur
 
 #![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
 
-//! A parser for ABNF, utilized for parsing in accordance with RFC 5234.
-
 use std::fmt::Debug;
 
-use derive_more::{Display, From};
+use derive_more::From;
 pub use pest::Parser;
 use pest::{error::Error, iterators::Pairs};
 
@@ -27,14 +27,13 @@ pub mod abnf_test {
     pub struct ABNFTestParser;
 }
 
-#[derive(Debug)]
-#[allow(dead_code)]
 /// Abstract Syntax Tree (AST) representing parsed ABNF syntax.
-pub struct AST<'a>(Pairs<'a, abnf::Rule>);
+#[derive(Debug)]
+pub struct AST<'a>(pub Pairs<'a, abnf::Rule>);
 
 /// Represents an error that may occur during ABNF parsing.
-#[derive(Display, Debug, From)]
-/// Error type for ABNF parsing.
+#[derive(thiserror::Error, Debug, From)]
+#[error("{0}")]
 pub struct ABNFError(Error<abnf::Rule>);
 
 /// Parses the input string containing ABNF (Augmented Backus-Naur Form) syntax and

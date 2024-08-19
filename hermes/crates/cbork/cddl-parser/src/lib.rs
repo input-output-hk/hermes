@@ -1,6 +1,6 @@
-#![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
-
 //! A parser for CDDL, utilized for parsing in accordance with RFC 8610.
+
+#![allow(missing_docs)] // TODO(apskhem): Temporary, to bo removed in a subsequent PR
 
 use std::fmt::Debug;
 
@@ -60,9 +60,9 @@ pub enum Extension {
 // CDDL Standard Postlude - read from an external file
 pub const POSTLUDE: &str = include_str!("grammar/postlude.cddl");
 
+/// Abstract Syntax Tree (AST) representing parsed CDDL syntax.
 // TODO: this is temporary. need to add more pragmatic nodes
 #[derive(Debug)]
-/// Abstract Syntax Tree (AST) representing parsed CDDL syntax.
 pub enum AST<'a> {
     /// Represents the AST for RFC 8610 CDDL rules.
     RFC8610(Pairs<'a, rfc_8610::Rule>),
@@ -74,17 +74,18 @@ pub enum AST<'a> {
 
 /// Represents different types of errors related to different types of extension.
 #[derive(Display, Debug)]
-pub enum CDDLErrorType {
+enum CDDLErrorType {
     /// An error related to RFC 8610 extension.
     RFC8610(Error<rfc_8610::Rule>),
     /// An error related to RFC 9165 extension.
     RFC9165(Error<rfc_9165::Rule>),
     /// An error related to CDDL modules extension.
-    CDDL(Error<cddl::Rule>),
+    Cddl(Error<cddl::Rule>),
 }
 
 /// Represents an error that may occur during CDDL parsing.
-#[derive(Display, Debug, From)]
+#[derive(thiserror::Error, Debug, From)]
+#[error("{0}")]
 pub struct CDDLError(CDDLErrorType);
 
 /// Parses and checks semantically a CDDL input string.
@@ -134,11 +135,11 @@ pub fn parse_cddl<'a>(
         Extension::CDDLParser => {
             cddl::RFC8610Parser::parse(cddl::Rule::cddl, input)
                 .map(AST::CDDL)
-                .map_err(CDDLErrorType::CDDL)
+                .map_err(CDDLErrorType::Cddl)
         },
     };
 
-    result.map_err(|e| Box::new(CDDLError::from(e)))
+    result.map_err(CDDLError).map_err(Box::new)
 }
 
 #[cfg(test)]
