@@ -4,7 +4,7 @@
 linting cli tool,
 enabling users to check their CDDL code for errors, inconsistencies, and compliance with the CDDL specification.
 
-# Install
+## Install
 
 To install this tool run
 ```shell
