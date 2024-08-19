@@ -24,6 +24,7 @@ builder:
 check:
     FROM +builder
 
+    RUN --no-cache echo 0
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
 # Test which runs check with all supported host tooling.  Needs qemu or rosetta to run.
