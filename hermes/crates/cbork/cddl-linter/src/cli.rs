@@ -10,6 +10,7 @@ use console::{style, Emoji};
 pub(crate) struct Cli {
     /// Path to the CDDL files definition.
     /// It could path to the standalone file, or to the directory.
+    /// So all files with the `.cddl` extension inside the directory will be linted.
     path: PathBuf,
 }
 
