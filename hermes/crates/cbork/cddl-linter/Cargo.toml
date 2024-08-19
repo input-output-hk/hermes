@@ -10,7 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-cddl-parser = { path = "../cddl-parser" }
+cddl-parser = { path = "../cddl-parser", version = "0.1.0" }
 clap = { version = "4.5.3",  features = ["derive", "env"] }
 anyhow = "1.0.71"
 console = "0.15.8"
