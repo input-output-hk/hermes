@@ -56,3 +56,19 @@ pub(crate) fn blake2b_128(value: &[u8]) -> anyhow::Result<[u8; 16]> {
     b.try_into()
         .map_err(|_| anyhow::anyhow!("Invalid length of blake2b_128, expected 16 got {}", b.len()))
 }
+
+/// Cardano chain.
+const CARDANO: &str = "cardano";
+
+/// Extracting public key from dns.
+/// eg. cardano://....
+pub(crate) fn extract_pk_dns(domain: &str) -> Option<String> {
+    let mut p = domain.split("://");
+    let chain = p.next()?;
+    let pk = p.next()?;
+    if chain == CARDANO {
+        Some(pk.to_string())
+    } else {
+        None
+    }
+}
