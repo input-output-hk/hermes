@@ -5,6 +5,7 @@ mod cli;
 mod errors;
 mod event;
 mod hdf5;
+mod ipfs;
 mod logger;
 mod packaging;
 mod reactor;

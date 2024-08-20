@@ -1,18 +1,21 @@
-//! Hermes IPFS Internal State
+//! Hermes IPFS service.
 mod api;
 mod task;
 
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, path::Path, str::FromStr};
 
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
     hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
+    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
 use dashmap::DashMap;
-use hermes_ipfs::{AddIpfsFile, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId};
-use once_cell::sync::Lazy;
-use task::{ipfs_task, IpfsCommand};
+use hermes_ipfs::{
+    AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
+    MessageId as PubsubMessageId,
+};
+use once_cell::sync::OnceCell;
+use task::{ipfs_command_handler, IpfsCommand};
 use tokio::{
     runtime::Builder,
     sync::{mpsc, oneshot},
@@ -26,48 +29,78 @@ use crate::{
     },
 };
 
-/// Hermes IPFS Internal State
+/// Hermes IPFS Internal Node
 ///
-/// This is a wrapper around `HermesIpfsState` which provides a singleton instance of the
+/// This is a wrapper around `HermesIpfsNode` which provides a singleton instance of the
 /// IPFS state.
 ///
-/// This is done to ensure the IPFS state is initialized only once when the
-/// `HermesIpfsState` is first used. This is done to avoid any issues that may arise if
-/// the IPFS state is initialized multiple times.
+/// This is done to ensure the IPFS Node is initialized only once when the
+/// `HermesIpfsNode` is first used. This is done to avoid any issues that may arise if
+/// the IPFS Node is initialized multiple times.
 ///
-/// The IPFS state is initialized in a separate thread and the sender channel is stored in
-/// the `HermesIpfsState`.
-static HERMES_IPFS_STATE: Lazy<HermesIpfsState> = Lazy::new(|| {
-    let sender = if let Ok(runtime) = Builder::new_current_thread().enable_all().build() {
-        let (sender, receiver) = mpsc::channel(1);
-        let _handle = std::thread::spawn(move || {
-            runtime.block_on(async move {
-                let h = tokio::spawn(ipfs_task(receiver));
-                drop(tokio::join!(h));
-            });
-            std::process::exit(0);
-        });
-        Some(sender)
-    } else {
-        // Failed to start the IPFS task
-        tracing::error!("Failed to start the IPFS task");
-        None
-    };
-    HermesIpfsState::new(sender)
-});
+/// The IPFS Node is initialized in a separate thread and the sender channel is stored in
+/// the `HermesIpfsNode`.
+pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
 
-/// Hermes IPFS Internal State
-struct HermesIpfsState {
-    /// State related to `HermesAppName`
+/// Bootstrap `HERMES_IPFS` node.
+///
+/// ## Errors
+///
+/// Returns errors if IPFS node fails to start.
+pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()> {
+    let ipfs_data_path = base_dir.join("ipfs");
+    let ipfs_node = HermesIpfsNode::init(
+        IpfsBuilder::new()
+            .with_default()
+            .set_default_listener()
+            .disable_tls()
+            .set_disk_storage(ipfs_data_path.clone()),
+        default_bootstrap,
+    )?;
+    HERMES_IPFS
+        .set(ipfs_node)
+        .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
+    Ok(())
+}
+
+/// Hermes IPFS Internal Node
+pub(crate) struct HermesIpfsNode {
+    /// Send events to the IPFS node.
+    sender: Option<mpsc::Sender<IpfsCommand>>,
+    /// State related to `ApplicationName`
     apps: AppIpfsState,
 }
 
-impl HermesIpfsState {
-    /// Create a new `HermesIpfsState`
-    fn new(sender: Option<mpsc::Sender<IpfsCommand>>) -> Self {
-        Self {
-            apps: AppIpfsState::new(sender),
-        }
+impl HermesIpfsNode {
+    /// Create, initialize, and bootstrap a new `HermesIpfsNode`
+    pub(crate) fn init(builder: IpfsBuilder, default_bootstrap: bool) -> anyhow::Result<Self> {
+        let runtime = Builder::new_current_thread().enable_all().build()?;
+        let (sender, receiver) = mpsc::channel(1);
+        let _handle = std::thread::spawn(move || {
+            // Build and start IPFS node
+            let _unused = runtime.block_on(async move {
+                let node = builder.start().await?;
+                if default_bootstrap {
+                    // Add default addresses for bootstrapping
+                    let addresses = node.default_bootstrap().await?;
+                    // Connect to bootstrap nodes.
+                    node.bootstrap().await?;
+                    tracing::debug!(
+                        "Bootstrapped IPFS node with default addresses: {:?}",
+                        addresses
+                    );
+                }
+                let hermes_node: HermesIpfs = node.into();
+                let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
+                let (..) = tokio::join!(h);
+                Ok::<(), anyhow::Error>(())
+            });
+            std::process::exit(0);
+        });
+        Ok(Self {
+            sender: Some(sender),
+            apps: AppIpfsState::new(),
+        })
     }
 
     /// Add file
@@ -79,10 +112,9 @@ impl HermesIpfsState {
     ///
     /// ## Errors
     /// - `Errno::FileAddError`: Failed to add the content
-    fn file_add(&self, contents: IpfsFile) -> Result<IpfsPath, Errno> {
+    fn file_add(&self, contents: IpfsFile) -> Result<hermes_ipfs::IpfsPath, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::FileAddError)?
             .blocking_send(IpfsCommand::AddFile(
@@ -103,11 +135,10 @@ impl HermesIpfsState {
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FileGetError`: Failed to get the file
-    fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
-        let ipfs_path = PathIpfsFile::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+    pub(crate) fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
             .blocking_send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
@@ -125,11 +156,10 @@ impl HermesIpfsState {
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FilePinError`: Failed to pin the file
     fn file_pin(&self, ipfs_path: &IpfsPath) -> Result<bool, Errno> {
-        let ipfs_path = PathIpfsFile::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::FilePinError)?
             .blocking_send(IpfsCommand::PinFile(*cid, cmd_tx))
@@ -137,11 +167,31 @@ impl HermesIpfsState {
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
     }
 
+    /// Un-in file
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidCid`: Invalid CID
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FilePinError`: Failed to pin the file
+    fn file_unpin(&self, ipfs_path: &IpfsPath) -> Result<bool, Errno> {
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::FilePinError)?
+            .blocking_send(IpfsCommand::UnPinFile(*cid, cmd_tx))
+            .map_err(|_| Errno::FilePinError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
+    }
+
     /// Put DHT Key-Value
     fn dht_put(&self, key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::DhtPutError)?
             .blocking_send(IpfsCommand::PutDhtValue(key, value, cmd_tx))
@@ -152,8 +202,7 @@ impl HermesIpfsState {
     /// Get DHT Value by Key
     fn dht_get(&self, key: DhtKey) -> Result<DhtValue, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::DhtGetError)?
             .blocking_send(IpfsCommand::GetDhtValue(key, cmd_tx))
@@ -166,8 +215,7 @@ impl HermesIpfsState {
         &self, topic: PubsubTopic, message: MessageData,
     ) -> Result<PubsubMessageId, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::PubsubPublishError)?
             .blocking_send(IpfsCommand::Publish(topic, message, cmd_tx))
@@ -180,8 +228,7 @@ impl HermesIpfsState {
     /// Subscribe to a `PubSub` topic
     fn pubsub_subscribe(&self, topic: &PubsubTopic) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
             .blocking_send(IpfsCommand::Subscribe(topic.clone(), cmd_tx))
@@ -194,8 +241,7 @@ impl HermesIpfsState {
     /// Evict peer
     fn peer_evict(&self, peer: &PeerId) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.apps
-            .sender
+        self.sender
             .as_ref()
             .ok_or(Errno::PeerEvictionError)?
             .blocking_send(IpfsCommand::EvictPeer(peer.clone(), cmd_tx))
@@ -206,14 +252,19 @@ impl HermesIpfsState {
     }
 }
 
+impl Default for HermesIpfsNode {
+    fn default() -> Self {
+        Self {
+            sender: None,
+            apps: AppIpfsState::new(),
+        }
+    }
+}
+
 /// IPFS app state
 struct AppIpfsState {
-    /// Send events to the IPFS node.
-    sender: Option<mpsc::Sender<IpfsCommand>>,
-    /// List of uploaded files per app.
-    published_files: DashMap<ApplicationName, HashSet<IpfsPath>>,
     /// List of pinned files per app.
-    pinned_files: DashMap<ApplicationName, HashSet<IpfsPath>>,
+    pinned_files: DashMap<ApplicationName, HashSet<Cid>>,
     /// List of DHT values per app.
     dht_keys: DashMap<ApplicationName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
@@ -226,10 +277,8 @@ struct AppIpfsState {
 
 impl AppIpfsState {
     /// Create new `AppIpfsState`
-    fn new(sender: Option<mpsc::Sender<IpfsCommand>>) -> Self {
+    fn new() -> Self {
         Self {
-            sender,
-            published_files: DashMap::default(),
             pinned_files: DashMap::default(),
             dht_keys: DashMap::default(),
             topic_subscriptions: DashMap::default(),
@@ -238,22 +287,37 @@ impl AppIpfsState {
         }
     }
 
-    /// Keep track of `ipfs_path` from file added by an app.
-    fn added_file(&self, app_name: ApplicationName, ipfs_path: IpfsPath) {
-        self.published_files
-            .entry(app_name)
-            .or_default()
-            .value_mut()
-            .insert(ipfs_path);
-    }
-
     /// Keep track of `ipfs_path` of file pinned by an app.
-    fn pinned_file(&self, app_name: ApplicationName, ipfs_path: IpfsPath) {
+    fn pinned_file(&self, app_name: ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+        let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         self.pinned_files
             .entry(app_name)
             .or_default()
             .value_mut()
-            .insert(ipfs_path);
+            .insert(*cid);
+        Ok(())
+    }
+
+    /// Un-pin a file with `ipfs_path` pinned by an app.
+    fn unpinned_file(&self, app_name: &ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+        let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
+        self.pinned_files
+            .entry(app_name.clone())
+            .or_default()
+            .value_mut()
+            .remove(cid);
+        self.pinned_files.remove_if(app_name, |_, v| v.is_empty());
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    /// List of pinned files by an app.
+    pub(crate) fn list_pinned_files(&self, app_name: &ApplicationName) -> Vec<String> {
+        self.pinned_files.get(app_name).map_or(vec![], |cids| {
+            cids.iter().map(std::string::ToString::to_string).collect()
+        })
     }
 
     /// Keep track of `dht_key` of DHT value added by an app.

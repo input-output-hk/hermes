@@ -131,6 +131,7 @@ impl VfsBootstrapper {
         root.create_dir(Vfs::USR_DIR.into())?;
         root.create_dir(Vfs::USR_LIB_DIR.into())?;
         root.create_dir(Vfs::LIB_DIR.into())?;
+        root.create_dir(Vfs::IPFS_DIR.into())?;
         Ok(())
     }
 
@@ -142,6 +143,7 @@ impl VfsBootstrapper {
         permissions.add_permission(Vfs::USR_DIR, PermissionLevel::Read);
         permissions.add_permission(Vfs::USR_LIB_DIR, PermissionLevel::Read);
         permissions.add_permission(Vfs::LIB_DIR, PermissionLevel::Read);
+        permissions.add_permission(Vfs::IPFS_DIR, PermissionLevel::Read);
     }
 
     /// Setup initial content of the VFS.
@@ -240,6 +242,10 @@ mod tests {
             vfs.permissions.get_permission(Vfs::LIB_DIR),
             PermissionLevel::Read
         );
+        assert_eq!(
+            vfs.permissions.get_permission(Vfs::IPFS_DIR),
+            PermissionLevel::Read
+        );
 
         // check VFS structure
         assert!(vfs.root.get_dir(&Vfs::TMP_DIR.into()).is_ok());
@@ -248,6 +254,7 @@ mod tests {
         assert!(vfs.root.get_dir(&Vfs::USR_DIR.into()).is_ok());
         assert!(vfs.root.get_dir(&Vfs::USR_LIB_DIR.into()).is_ok());
         assert!(vfs.root.get_dir(&Vfs::LIB_DIR.into()).is_ok());
+        assert!(vfs.root.get_dir(&Vfs::IPFS_DIR.into()).is_ok());
     }
 
     #[test]
