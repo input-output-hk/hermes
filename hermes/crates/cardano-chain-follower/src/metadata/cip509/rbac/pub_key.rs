@@ -6,7 +6,7 @@ use crate::metadata::cip509::decode_helper::{decode_bytes, decode_tag};
 
 /// Enum of possible public key type.
 #[derive(Debug, PartialEq, Clone, Default)]
-pub(crate) enum SimplePublicKeyType {
+pub enum SimplePublicKeyType {
     /// Undefined indicates skipped element.
     #[default]
     Undefined,

@@ -3,9 +3,8 @@ use std::io::Read;
 use minicbor::{decode, Decode, Decoder};
 use strum::FromRepr;
 
-use crate::metadata::cip509::decode_helper::{decode_array_len, decode_bytes};
-
 use super::{decode_helper::decode_u8, rbac::Cip509RbacMetadata};
+use crate::metadata::cip509::decode_helper::{decode_array_len, decode_bytes};
 
 /// Enum of compression algorithms used to compress chunks.
 #[derive(FromRepr, Debug, PartialEq, Clone, Default)]
@@ -22,21 +21,13 @@ pub enum CompressionAlgorithm {
 
 /// Struct of x509 chunks.
 #[derive(Debug, PartialEq, Clone, Default)]
-pub(crate) struct X509Chunks {
-    /// The compression algorithm used to compress the data.
-    chunk_type: CompressionAlgorithm,
-    /// The decompressed data.
-    chunk_data: Cip509RbacMetadata,
-}
+pub struct X509Chunks(pub Cip509RbacMetadata);
 
 #[allow(dead_code)]
 impl X509Chunks {
     /// Create new instance of `X509Chunks`.
-    fn new(chunk_type: CompressionAlgorithm, chunk_data: Cip509RbacMetadata) -> Self {
-        Self {
-            chunk_type,
-            chunk_data,
-        }
+    fn new(chunk_data: Cip509RbacMetadata) -> Self {
+        Self(chunk_data)
     }
 }
 
@@ -56,10 +47,7 @@ impl Decode<'_, ()> for X509Chunks {
         let chunk_data = Cip509RbacMetadata::decode(&mut decoder, &mut ())
             .map_err(|e| decode::Error::message(format!("Failed to decode {e}")))?;
 
-        Ok(X509Chunks {
-            chunk_type: algorithm,
-            chunk_data,
-        })
+        Ok(X509Chunks(chunk_data))
     }
 }
 

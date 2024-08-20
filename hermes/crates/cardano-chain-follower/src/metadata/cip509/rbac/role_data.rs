@@ -13,18 +13,18 @@ use crate::metadata::cip509::{
 
 /// Struct of role data.
 #[derive(Debug, PartialEq, Clone, Default)]
-pub(crate) struct RoleData {
+pub struct RoleData {
     /// Role number.
-    role_number: u8,
+    pub role_number: u8,
     /// Optional role signing key.
-    role_signing_key: Option<KeyReference>,
+    pub role_signing_key: Option<KeyReference>,
     /// Optional role encryption key.
-    role_encryption_key: Option<KeyReference>,
+    pub role_encryption_key: Option<KeyReference>,
     /// Optional payment key.
-    payment_key: Option<u64>,
+    pub payment_key: Option<u64>,
     /// Optional role extended data keys.
     /// Empty map if no role extended data keys.
-    role_extended_data_keys: HashMap<u8, Vec<u8>>,
+    pub role_extended_data_keys: HashMap<u8, Vec<u8>>,
 }
 
 /// The first valid role extended data key.
@@ -45,13 +45,6 @@ pub enum RoleDataInt {
     RoleEncryptionKey = 2,
     /// Payment key.
     PaymentKey = 3,
-}
-
-#[allow(clippy::module_name_repetitions)]
-impl RoleData {
-    pub(crate) fn get_role_number(&self) -> u8 {
-        self.role_number
-    }
 }
 
 impl Decode<'_, ()> for RoleData {
@@ -90,7 +83,7 @@ impl Decode<'_, ()> for RoleData {
 
 /// Enum of key reference.
 #[derive(Debug, PartialEq, Clone)]
-enum KeyReference {
+pub enum KeyReference {
     /// Key local reference.
     KeyLocalRef(KeyLocalRef),
     /// Key hash.
@@ -117,7 +110,7 @@ impl Decode<'_, ()> for KeyReference {
 
 /// Struct of key local reference.
 #[derive(Debug, PartialEq, Clone)]
-struct KeyLocalRef {
+pub struct KeyLocalRef {
     /// Local reference.
     local_ref: LocalRefInt,
     /// Key offset.

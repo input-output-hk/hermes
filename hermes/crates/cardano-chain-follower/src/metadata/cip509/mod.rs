@@ -4,6 +4,10 @@
 
 mod decode_helper;
 mod rbac;
+use x509_cert::{
+    der::{oid::db::rfc4519::DOMAIN_COMPONENT, Decode as _},
+    ext::pkix::ID_CE_SUBJECT_ALT_NAME,
+};
 mod x509_chunks;
 
 use std::sync::Arc;
@@ -30,59 +34,93 @@ use crate::{utils::blake2b_128, Network};
 /// CIP509 label.
 pub const LABEL: u64 = 509;
 
+/// DNS in subject alternative name.
+const DNS_NAME: [u8; 10] = [9, 146, 38, 137, 147, 242, 44, 100, 4, 15];
+
 /// CIP509 metadatum.
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Cip509 {
     /// `UUIDv4` Purpose .
-    purpose: [u8; 16], // (bytes .size 16)
+    pub purpose: [u8; 16], // (bytes .size 16)
     /// Transaction inputs hash.
-    txn_inputs_hash: [u8; 16], // bytes .size 16
+    pub txn_inputs_hash: [u8; 16], // bytes .size 16
     /// Optional previous transaction ID.
-    prv_tx_id: Option<[u8; 32]>, // bytes .size 32
+    pub prv_tx_id: Option<[u8; 32]>, // bytes .size 32
     /// x509 chunks.
-    x509_chunks: X509Chunks, // chunk_type => [ + x509_chunk ]
+    pub x509_chunks: X509Chunks, // chunk_type => [ + x509_chunk ]
     /// Validation signature.
-    validation_signature: Vec<u8>, // bytes size (1..64)
+    pub validation_signature: Vec<u8>, // bytes size (1..64)
+}
+
+/// Enum of x509 metadatum with its associated unsigned integer value.
+#[allow(clippy::module_name_repetitions)]
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u8)]
+pub(crate) enum Cip509Int {
+    /// Purpose.
+    Purpose = 0,
+    /// Transaction inputs hash.
+    TxInputsHash = 1,
+    /// Previous transaction ID.
+    PreviousTxId = 2,
+    /// Validation signature.
+    ValidationSignature = 99,
+}
+
+impl Decode<'_, ()> for Cip509 {
+    fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
+        let map_len = decode_map_len(d, "CIP509")?;
+        let mut x509_metadatum = Cip509::default();
+        for _ in 0..map_len {
+            // Use probe to peak
+            let key = d.probe().u8()?;
+            if let Some(key) = Cip509Int::from_repr(key) {
+                // Consuming the int
+                decode_u8(d, "CIP509")?;
+                match key {
+                    Cip509Int::Purpose => {
+                        x509_metadatum.purpose = decode_bytes(d, "CIP509 purpose")?
+                            .try_into()
+                            .map_err(|_| decode::Error::message("Invalid data size of Purpose"))?;
+                    },
+                    Cip509Int::TxInputsHash => {
+                        x509_metadatum.txn_inputs_hash = decode_bytes(d, "CIP509 txn inputs hash")?
+                            .try_into()
+                            .map_err(|_| {
+                                decode::Error::message("Invalid data size of TxInputsHash")
+                            })?;
+                    },
+                    Cip509Int::PreviousTxId => {
+                        x509_metadatum.prv_tx_id = Some(
+                            decode_bytes(d, "CIP509 previous tx ID")?
+                                .try_into()
+                                .map_err(|_| {
+                                    decode::Error::message("Invalid data size of PreviousTxId")
+                                })?,
+                        );
+                    },
+                    Cip509Int::ValidationSignature => {
+                        let validation_signature = decode_bytes(d, "CIP509 validation signature")?;
+                        if validation_signature.is_empty() || validation_signature.len() > 64 {
+                            return Err(decode::Error::message(
+                                "Invalid data size of ValidationSignature",
+                            ));
+                        }
+                        x509_metadatum.validation_signature = validation_signature.to_vec();
+                    },
+                }
+            } else {
+                // Handle the x509 chunks 10 11 12
+                let x509_chunks = X509Chunks::decode(d, ctx)?;
+                x509_metadatum.x509_chunks = x509_chunks;
+            }
+        }
+        Ok(x509_metadatum)
+    }
 }
 
 #[allow(clippy::module_name_repetitions)]
 impl Cip509 {
-    /// Create a new instance of `Cip509`.
-    // fn new() -> Self {
-    //     Self {
-    //         purpose: [0; 16],
-    //         txn_inputs_hash: [0; 16],
-    //         prv_tx_id: None,
-    //         x509_chunks: X509Chunks::new(CompressionAlgorithm::Raw, X509RbacMetadata::new()),
-    //         validation_signature: vec![],
-    //     }
-    // }
-
-    /// Set the purpose.
-    fn set_purpose(&mut self, purpose: [u8; 16]) {
-        self.purpose = purpose;
-    }
-
-    /// Set the transaction inputs hash.
-    fn set_txn_inputs_hash(&mut self, txn_inputs_hash: [u8; 16]) {
-        self.txn_inputs_hash = txn_inputs_hash;
-    }
-
-    /// Set the previous transaction ID.
-    fn set_prv_tx_id(&mut self, prv_tx_id: [u8; 32]) {
-        self.prv_tx_id = Some(prv_tx_id);
-    }
-
-    /// Set the x509 chunks.
-    fn set_x509_chunks(&mut self, x509_chunks: X509Chunks) {
-        self.x509_chunks = x509_chunks;
-    }
-
-    /// Set the validation signature.
-    fn set_validation_signature(&mut self, validation_signature: Vec<u8>) {
-        self.validation_signature = validation_signature;
-    }
-
     #[allow(dead_code)]
     #[allow(clippy::too_many_lines)]
     pub(crate) fn decode_and_validate(
@@ -103,7 +141,7 @@ impl Cip509 {
         // println!("cip509_slice: {:?}", cip509_slice);
         let mut decoder = Decoder::new(cip509_slice);
         // if slot == 67865376 {
-        let _cip509_metadatum = match Cip509::decode(&mut decoder, &mut ()) {
+        let cip509_metadatum = match Cip509::decode(&mut decoder, &mut ()) {
             Ok(metadata) => metadata,
             Err(e) => {
                 cip509.validation_failure(
@@ -117,13 +155,21 @@ impl Cip509 {
 
         // println!("cip509_metadatum: {:?}", cip509_metadatum.clone());
 
+        // Validate the transaction inputs hash
         println!(
             "Validate {:?}",
             cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata)
         );
-    }
 
-    // }
+        // Validate the public key
+        println!("slot: {:?}", _slot);
+        if let Some(role_set) = cip509_metadatum.x509_chunks.0.role_set {
+            for role in role_set {
+                println!("role: {:?}", role.role_number);
+                cip509.validate_required_signer(txn, &mut validation_report, decoded_metadata);
+            }
+        }
+    }
 
     #[allow(dead_code)]
     fn validation_failure(
@@ -138,6 +184,62 @@ impl Cip509 {
                 report: validation_report.clone(),
             }),
         );
+    }
+
+    fn validate_required_signer(
+        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata,
+    ) {
+        match txn {
+            MultiEraTx::AlonzoCompatible(tx, _) => {
+                if let Some(certs) = &self.x509_chunks.0.x509_certs {
+                    for cert in certs {
+                        // Get the DER certificate
+                        let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
+                            Ok(cert) => cert,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to decode x509 certificate DER {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return;
+                            },
+                        };
+
+                        // Check the subject alternative name DNS name
+                        if let Some(exts) = der_cert.tbs_certificate.extensions {
+                            for ext in exts {
+                                // Subject Alternative Name
+                                if ext.extn_id == ID_CE_SUBJECT_ALT_NAME {
+                                    let ext_bytes = ext.extn_value.as_bytes();
+                                    // Check if the extension value starts with the domain name bytes
+                                    if ext_bytes.starts_with(&DNS_NAME) {
+                                        println!("DNS Domain: {:?}", &ext_bytes[DNS_NAME.len()..]);
+                                    }
+                                }
+                            }
+                        }
+                        // Check the subject domain component
+                        for rdn in der_cert.tbs_certificate.subject.0 {
+                            rdn.0.iter().for_each(|attr| {
+                                if attr.oid == DOMAIN_COMPONENT {
+                                    println!("Domain Component: {:?}", attr.value);
+                                }
+                            });
+                        }
+                    }
+                }
+                println!("require {:?}", tx.transaction_body.required_signers)
+            },
+            MultiEraTx::Babbage(tx) => {
+                println!("require {:?}", tx.transaction_body.required_signers)
+            },
+            MultiEraTx::Conway(tx) => {
+                println!("require {:?}", tx.transaction_body.required_signers)
+            },
+            _ => todo!(),
+        }
     }
 
     /// Transaction inputs hash validation.
@@ -254,77 +356,6 @@ impl Cip509 {
         };
         debug!("txn_inputs_hash {:?}", hex::encode(inputs_hash));
         Some(inputs_hash != self.txn_inputs_hash)
-    }
-}
-
-/// Enum of x509 metadatum with its associated unsigned integer value.
-#[allow(clippy::module_name_repetitions)]
-#[derive(FromRepr, Debug, PartialEq)]
-#[repr(u8)]
-pub enum Cip509Int {
-    /// Purpose.
-    Purpose = 0,
-    /// Transaction inputs hash.
-    TxInputsHash = 1,
-    /// Previous transaction ID.
-    PreviousTxId = 2,
-    /// Validation signature.
-    ValidationSignature = 99,
-}
-
-impl Decode<'_, ()> for Cip509 {
-    fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
-        let map_len = decode_map_len(d, "CIP509")?;
-        let mut x509_metadatum = Cip509::default();
-        for _ in 0..map_len {
-            // Use probe to peak
-            let key = d.probe().u8()?;
-            if let Some(key) = Cip509Int::from_repr(key) {
-                // Consuming the int
-                decode_u8(d, "CIP509")?;
-                match key {
-                    Cip509Int::Purpose => {
-                        x509_metadatum.set_purpose(
-                            decode_bytes(d, "CIP509 purpose")?.try_into().map_err(|_| {
-                                decode::Error::message("Invalid data size of Purpose")
-                            })?,
-                        );
-                    },
-                    Cip509Int::TxInputsHash => {
-                        x509_metadatum.set_txn_inputs_hash(
-                            decode_bytes(d, "CIP509 txn inputs hash")?
-                                .try_into()
-                                .map_err(|_| {
-                                    decode::Error::message("Invalid data size of TxInputsHash")
-                                })?,
-                        );
-                    },
-                    Cip509Int::PreviousTxId => {
-                        x509_metadatum.set_prv_tx_id(
-                            decode_bytes(d, "CIP509 previous tx ID")?
-                                .try_into()
-                                .map_err(|_| {
-                                    decode::Error::message("Invalid data size of PreviousTxId")
-                                })?,
-                        );
-                    },
-                    Cip509Int::ValidationSignature => {
-                        let validation_signature = decode_bytes(d, "CIP509 validation signature")?;
-                        if validation_signature.is_empty() || validation_signature.len() > 64 {
-                            return Err(decode::Error::message(
-                                "Invalid data size of ValidationSignature",
-                            ));
-                        }
-                        x509_metadatum.set_validation_signature(validation_signature.to_vec());
-                    },
-                }
-            } else {
-                // Handle the x509 chunks 10 11 12
-                let x509_chunks = X509Chunks::decode(d, ctx)?;
-                x509_metadatum.set_x509_chunks(x509_chunks);
-            }
-        }
-        Ok(x509_metadatum)
     }
 }
 

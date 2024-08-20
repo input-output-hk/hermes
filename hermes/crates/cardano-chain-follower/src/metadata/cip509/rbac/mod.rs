@@ -21,21 +21,21 @@ use super::{
 
 /// Struct of Cip509 RBAC metadata.
 #[derive(Debug, PartialEq, Clone, Default)]
-pub(crate) struct Cip509RbacMetadata {
+pub struct Cip509RbacMetadata {
     /// Optional list of x509 certificates.
-    x509_certs: Option<Vec<X509DerCert>>,
+    pub x509_certs: Option<Vec<X509DerCert>>,
     /// Optional list of c509 certificates.
     /// The value can be either the c509 certificate or c509 metadatum reference.
-    c509_certs: Option<Vec<C509Cert>>,
+    pub c509_certs: Option<Vec<C509Cert>>,
     /// Optional list of Public keys.
-    pub_keys: Option<Vec<SimplePublicKeyType>>,
+    pub pub_keys: Option<Vec<SimplePublicKeyType>>,
     /// Optional list of revocation list.
-    revocation_list: Option<Vec<[u8; 16]>>,
+    pub revocation_list: Option<Vec<[u8; 16]>>,
     /// Optional list of role data.
-    role_set: Option<Vec<RoleData>>,
+    pub role_set: Option<Vec<RoleData>>,
     /// Optional map of purpose key data.
     /// Empty map if no purpose key data is present.
-    purpose_key_data: HashMap<u16, Vec<u8>>,
+    pub purpose_key_data: HashMap<u16, Vec<u8>>,
 }
 
 /// The first valid purpose key.

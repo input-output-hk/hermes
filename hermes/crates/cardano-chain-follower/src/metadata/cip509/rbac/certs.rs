@@ -12,7 +12,7 @@ use crate::metadata::cip509::decode_helper::{
 
 /// A struct of X509 certificate.
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct X509DerCert(Vec<u8>);
+pub struct X509DerCert(pub Vec<u8>);
 
 impl Decode<'_, ()> for X509DerCert {
     fn decode(d: &mut Decoder, _ctx: &mut ()) -> Result<Self, decode::Error> {
@@ -27,7 +27,7 @@ impl Decode<'_, ()> for X509DerCert {
 
 /// Enum of possible c509 certificate.
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) enum C509Cert {
+pub enum C509Cert {
     /// A c509 certificate in metadatum reference.
     C509CertInMetadatumReference(C509CertInMetadatumReference),
     /// A c509 certificate.
@@ -62,7 +62,7 @@ impl Decode<'_, ()> for C509Cert {
 
 /// A struct of c509 certificate in metadatum reference.
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct C509CertInMetadatumReference {
+pub struct C509CertInMetadatumReference {
     /// Transaction output field.
     txn_output_field: u8,
     /// Transaction output index.
