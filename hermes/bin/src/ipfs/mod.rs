@@ -53,7 +53,6 @@ pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()>
         IpfsBuilder::new()
             .with_default()
             .set_default_listener()
-            .disable_tls()
             .set_disk_storage(ipfs_data_path.clone()),
         default_bootstrap,
     )?;

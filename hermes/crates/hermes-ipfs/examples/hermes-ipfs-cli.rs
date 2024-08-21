@@ -48,8 +48,6 @@ async fn main() -> anyhow::Result<()> {
     let builder = IpfsBuilder::new()
         .with_default()
         .set_default_listener()
-        // TODO(saibatizoku): Re-Enable default transport config when libp2p Cert bug is fixed
-        .disable_tls()
         .set_disk_storage(ipfs_data_path);
     let hermes_node: HermesIpfs = builder.start().await?.into();
     match args.command {
