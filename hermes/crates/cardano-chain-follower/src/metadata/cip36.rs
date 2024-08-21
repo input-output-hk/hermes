@@ -822,42 +822,42 @@ mod tests {
     fn test_decode_purpose_1() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(true);
-        let mut decoder = Decoder::new(&[ 0x00 ]); // unsigned(0)
+        let mut decoder = Decoder::new(&[ 0x00 ]);
         let mut report = ValidationReport::new();
 
-        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+        let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
 
         assert_eq!(report.len(), 0);
         assert_eq!(cip36.purpose, 0);
-        assert_eq!(res, Some(0));
+        assert_eq!(rc, Some(0));
     }
 
     #[test]
     fn test_decode_purpose_2() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(true);
-        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]); // unsigned(12345)
+        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]);
         let mut report = ValidationReport::new();
 
-        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+        let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
 
         assert_eq!(report.len(), 1);
         assert_eq!(cip36.purpose, 12345);
-        assert_eq!(res, Some(12345));
+        assert_eq!(rc, Some(12345));
     }
 
     #[test]
     fn test_decode_purpose_3() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
-        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]); // unsigned(12345)
+        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]);
         let mut report = ValidationReport::new();
 
-        let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+        let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
 
         assert_eq!(report.len(), 0);
         assert_eq!(cip36.purpose, 12345);
-        assert_eq!(res, Some(12345));
+        assert_eq!(rc, Some(12345));
     }
 
     #[test]
@@ -875,11 +875,84 @@ mod tests {
             let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
     
-            let res = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
+            let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
     
             assert_eq!(report.len(), 1);
             assert_eq!(cip36.purpose, 0);
-            assert_eq!(res, None);
+            assert_eq!(rc, None);
+        }
+    }
+
+    #[test]
+    // valid `nonce`, strict = false, raw_nonce > slot
+    fn test_decode_nonce_1() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&[ 0x1B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF ]);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 0);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.raw_nonce, u64::MAX);
+        assert_eq!(cip36.nonce, u64::MAX);
+        assert_eq!(rc, Some(u64::MAX));
+    }
+
+    #[test]
+    // valid `nonce`, strict = false, raw_nonce < slot
+    fn test_decode_nonce_2() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&[ 0x01 ]);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 99);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.raw_nonce, 1);
+        assert_eq!(cip36.nonce, 1);
+        assert_eq!(rc, Some(1));
+    }
+
+    #[test]
+    // valid `nonce`, strict = true, raw_nonce > slot
+    fn test_decode_nonce_3() {
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(true);
+        let mut decoder = Decoder::new(&[ 0x10 ]);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 1);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.raw_nonce, 16);
+        assert_eq!(cip36.nonce, 1);
+        assert_eq!(rc, Some(1));
+    }
+
+    #[test]
+    // valid `nonce`, errors
+    fn test_decode_nonce_4() {
+        let bytes_cases: &[&[u8]] = &[
+            &[ 0x80 ], // array(0)
+            &[ 0xA0 ], // map(0)
+            &[ 0x21 ], // negative(1)
+            &[ 0xF9, 0x3C, 0x00 ] // primitive(15360) - 1.0
+        ];
+
+        for bytes in bytes_cases {
+            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let mut cip36 = create_empty_cip36(false);
+            let mut decoder = Decoder::new(bytes);
+            let mut report = ValidationReport::new();
+    
+            let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 0);
+    
+            assert_eq!(report.len(), 1);
+            assert_eq!(cip36.raw_nonce, 0);
+            assert_eq!(cip36.nonce, 0);
+            assert_eq!(rc, None);
         }
     }
 }
