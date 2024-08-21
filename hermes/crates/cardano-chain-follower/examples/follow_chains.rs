@@ -16,8 +16,8 @@ static GLOBAL: MiMalloc = MiMalloc;
 use std::error::Error;
 
 use cardano_chain_follower::{
-    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Metadata, Network, Statistics, ORIGIN_POINT,
-    TIP_POINT,
+    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Metadata, Network, Point, Statistics,
+    ORIGIN_POINT, TIP_POINT,
 };
 use clap::{arg, ArgAction, ArgMatches, Command};
 use tokio::time::Instant;
@@ -27,6 +27,14 @@ use tracing_subscriber::EnvFilter;
 /// Process our CLI Arguments
 fn process_argument() -> (Vec<Network>, ArgMatches) {
     let matches = Command::new("follow_chains")
+        .subcommand(
+            Command::new("get-block")
+        .about("Get block information from a slot number")
+        .args(&[
+            arg!(<NETWORK> "Network to get block from (preprod, preview, mainnet)").required(true),
+            arg!(<POINT> "The absolute slot number in the blockchain").value_parser(clap::value_parser!(u64)).required(true),
+        ])
+        .arg_required_else_help(true),)
         .args(&[
             arg!(--preprod "Follow Preprod network").action(ArgAction::SetTrue),
             arg!(--preview "Follow Preview network").action(ArgAction::SetTrue),
@@ -271,6 +279,74 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     info!(chain = network.to_string(), "Following Completed.");
 }
 
+/// Get a block from specified network and absolute slot number.
+async fn get_block(network: Network, p: u64) {
+    let point = Point::fuzzy(p);
+
+    let block = ChainFollower::get_block(network, point).await;
+    match block {
+        Some(b) => {
+            info!("Get Block: {:?}", b);
+        },
+        None => {
+            error!("Block not found");
+        },
+    }
+}
+
+/// Handle get-block subcommand
+async fn handle_get_block(matches: &clap::ArgMatches) -> Result<(), Box<dyn Error>> {
+    let network = match matches.get_one::<String>("NETWORK") {
+        Some(s) => match s.as_str() {
+            "preprod" => Network::Preprod,
+            "preview" => Network::Preview,
+            "mainnet" => Network::Mainnet,
+            _ => {
+                error!("Invalid network specified: {}", s);
+                return Ok(());
+            },
+        },
+        None => {
+            error!("Network argument is missing.");
+            return Ok(());
+        },
+    };
+
+    if let Some(&point) = matches.get_one::<u64>("POINT") {
+        info!("Spawning get_block task");
+        // Start sync for network
+        start_sync_for(&network).await?;
+        // Spawn the get_block task
+        tokio::spawn(get_block(network, point)).await?;
+    } else {
+        error!("Slot number is missing.");
+    }
+
+    Ok(())
+}
+
+/// Handle default case.
+async fn handle_default_case(
+    networks: &[Network], matches: clap::ArgMatches,
+) -> Result<(), Box<dyn Error>> {
+    // Start sync tasks for each network
+    for network in networks {
+        start_sync_for(network).await?;
+    }
+
+    let mut tasks = Vec::new();
+    for network in networks {
+        tasks.push(tokio::spawn(follow_for(*network, matches.clone())));
+    }
+
+    // Wait for all tasks to finish
+    for task in tasks {
+        task.await?;
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
@@ -296,20 +372,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     #[cfg(feature = "mimalloc")]
     info!("mimalloc global allocator: enabled");
 
-    // First we need to actually start the underlying sync tasks for each blockchain.
-    for network in &networks {
-        start_sync_for(network).await?;
-    }
-
-    // Make a follower for the network.
-    let mut tasks = Vec::new();
-    for network in &networks {
-        tasks.push(tokio::spawn(follow_for(*network, matches.clone())));
-    }
-
-    // Wait for all followers to finish.
-    for task in tasks {
-        task.await?;
+    match matches.subcommand() {
+        Some(("get-block", sub_matches)) => {
+            handle_get_block(sub_matches).await?;
+        },
+        _ => {
+            handle_default_case(&networks, matches).await?;
+        },
     }
 
     // Keep running for 1 minute after last follower reaches its tip.

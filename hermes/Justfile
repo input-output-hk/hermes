@@ -47,3 +47,8 @@ debug-heap-mithril-download-example:
     RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
     heaptrack ./target/debug/examples/follow_chains --preprod
 
+# Run a get block example for preprod with a specific slot number.
+run-get-block-example: code_format
+    cargo build -r --package cardano-chain-follower --example follow_chains --features mimalloc
+    RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
+    ./target/release/examples/follow_chains get-block preprod 68521586
