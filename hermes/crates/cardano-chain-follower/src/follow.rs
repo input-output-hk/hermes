@@ -109,7 +109,9 @@ impl ChainFollower {
             }
         }
 
-        if self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip {
+        if (self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip)
+            && self.current < self.mithril_tip
+        {
             let snapshot = MithrilSnapshot::new(self.chain);
             if let Some(block) = snapshot.read_block_at(&current_mithril_tip).await {
                 // The Mithril Tip has moved forwards.
@@ -145,7 +147,9 @@ impl ChainFollower {
 
         // In most cases we will be able to get the next block.
         if next_block.is_none() {
-            next_block = get_live_block(self.chain, &self.current, 1, true);
+            // If we don't know the previous block, get the block requested.
+            let advance = if self.previous.is_unknown() { 0 } else { 1 };
+            next_block = get_live_block(self.chain, &self.current, advance, true);
         }
 
         // If we can't get the next consecutive block, then
@@ -291,8 +295,9 @@ impl ChainFollower {
     /// block.
     pub async fn get_block(chain: Network, point: Point) -> Option<ChainUpdate> {
         // Get the block from the chain.
-        let mut follower = Self::new(chain, point.clone(), point).await;
-
+        // This function suppose to run only once, so the end point
+        // can be set to `TIP_POINT`
+        let mut follower = Self::new(chain, point, TIP_POINT).await;
         follower.next().await
     }
 
