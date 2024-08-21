@@ -1,6 +1,7 @@
 //! Hermes virtual file system.
 
 mod bootstrap;
+mod ipfs;
 mod permission;
 
 use std::io::{Read, Write};
@@ -25,6 +26,8 @@ impl Vfs {
     pub(crate) const ETC_DIR: &'static str = "etc";
     /// Virtual file system file extension.
     pub(crate) const FILE_EXTENSION: &'static str = "hfs";
+    /// Virtual file system `ipfs` directory name.
+    pub(crate) const IPFS_DIR: &'static str = "ipfs";
     /// Virtual file system `lib` directory name.
     pub(crate) const LIB_DIR: &'static str = "lib";
     /// Virtual file system `srv` directory name.
