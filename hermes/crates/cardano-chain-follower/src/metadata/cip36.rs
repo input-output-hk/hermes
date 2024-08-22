@@ -1002,6 +1002,29 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_stake_pub_2() {
+        let bytes_cases: &[Vec<u8>] = &[
+            vec![],
+            hex::decode(
+                // 0xe3cd2404c84de65f96918f18d5b445bcb933a7cda18eeded7945dd19 (28 bytes)
+                "581CE3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD19"
+            ).expect("cannot decode hex")
+        ];
+
+        for bytes in bytes_cases {
+            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let mut cip36 = create_empty_cip36(false);
+            let mut decoder = Decoder::new(&bytes);
+            let mut report = ValidationReport::new();
+
+            let rc = cip36.decode_stake_pub(&mut decoder, &mut report, &decoded_metadata);
+
+            assert_eq!(report.len(), 1);
+            assert_eq!(rc, None);
+        }
+    }
+
+    #[test]
     // cip-36 version
     fn test_decode_voting_key_1() {
         let hex_data = hex::decode(
@@ -1039,5 +1062,33 @@ mod tests {
         assert_eq!(cip36.cip36, Some(false));
         assert_eq!(cip36.voting_keys.len(), 1);
         assert_eq!(rc, Some(1));
+    }
+
+    #[test]
+    // cip-36 version
+    fn test_decode_voting_key_3() {
+        let bytes_cases: &[Vec<u8>] = &[
+            vec![],
+            hex::decode(
+                // [[]] (empty)
+                "8180"
+            ).expect("cannot decode hex"),
+            hex::decode(
+                // [["0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0"]] (without weight)
+                "818158200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0"
+            ).expect("cannot decode hex")
+        ];
+
+        for bytes in bytes_cases {
+            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let mut cip36 = create_empty_cip36(false);
+            let mut decoder = Decoder::new(&bytes);
+            let mut report = ValidationReport::new();
+    
+            let rc = cip36.decode_voting_key(&mut decoder, &mut report, &decoded_metadata);
+    
+            assert_eq!(report.len(), 1);
+            assert_eq!(rc, None);
+        }
     }
 }
