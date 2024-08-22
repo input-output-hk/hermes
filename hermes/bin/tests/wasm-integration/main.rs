@@ -27,6 +27,7 @@ use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{fmt::time, FmtSubscriber};
 
 /// Init the logger
+#[allow(dead_code)]
 fn init_logger() -> Result<(), SetGlobalDefaultError> {
     let subscriber = FmtSubscriber::builder()
         .json()
@@ -42,12 +43,22 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
     tracing::subscriber::set_global_default(subscriber)
 }
 
+/// Initialize the IPFS node
+fn init_ipfs() -> anyhow::Result<()> {
+    let base_dir = temp_dir::TempDir::new()?;
+    // disable bootstrapping the IPFS node to default addresses for testing
+    let default_bootstrap = false;
+    hermes::ipfs::bootstrap(base_dir.path(), default_bootstrap)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     // This is necessary otherwise the logging functions inside hermes are silent during the
     // test run.
-    init_logger()?;
+    // init_logger()?;
     // This causes issues with normal test runs, so comment out for now.
     // info!("Starting Hermes WASM integration tests");
+
+    init_ipfs()?;
 
     let args = Arguments::from_args();
     let tests = collect_tests()?;

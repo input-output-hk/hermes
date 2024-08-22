@@ -27,6 +27,7 @@ chaincode
 chainsync
 childs
 chrono
+cids
 ciphertext
 codegen
 codepoints
@@ -102,6 +103,7 @@ libipld
 libp2p
 linkat
 lintfix
+lipsum
 localizable
 lookaside
 maindbname
@@ -148,6 +150,7 @@ pubkey
 pubspec
 pwrite
 qpsg
+quic
 rapidoc
 readlinkat
 redoc
