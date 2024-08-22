@@ -957,6 +957,24 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_stake_pub_1() {
+        let hex_data = hex::decode(
+            // 0xe3cd2404c84de65f96918f18d5b445bcb933a7cda18eeded7945dd191e432369
+            "5820E3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD191E432369"
+        ).expect("cannot decode hex");
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&hex_data);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_stake_pub(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 0);
+        assert!(cip36.stake_pk.is_some());
+        assert_eq!(rc, Some(1));
+    }
+
+    #[test]
     // cip-36 version
     fn test_decode_voting_key_1() {
         let hex_data = hex::decode(
