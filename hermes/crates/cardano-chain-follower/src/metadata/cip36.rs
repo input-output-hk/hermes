@@ -957,6 +957,33 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_payment_address_1() {
+        let hex_data = hex::decode(
+            // 0x004777561e7d9ec112ec307572faec1aff61ff0cfed68df4cd5c847f1872b617657881e30ad17c46e4010c9cb3ebb2440653a34d32219c83e9
+            "5839004777561E7D9EC112EC307572FAEC1AFF61FF0CFED68DF4CD5C847F1872B617657881E30AD17C46E4010C9CB3EBB2440653A34D32219C83E9"
+        ).expect("cannot decode hex");
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&hex_data);
+        let mut report = ValidationReport::new();
+        let multi_era_tx: *const MultiEraTx = std::ptr::null();
+        let multi_era_tx = unsafe { &*multi_era_tx };
+
+        let rc = cip36.decode_payment_address(
+            &mut decoder,
+            &mut
+            report, &decoded_metadata,
+            multi_era_tx,
+            Network::Preprod
+        );
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.payable, true);
+        assert_eq!(cip36.payment_addr.len(), 57);
+        assert_eq!(rc, Some(57));
+    }
+
+    #[test]
     fn test_decode_stake_pub_1() {
         let hex_data = hex::decode(
             // 0xe3cd2404c84de65f96918f18d5b445bcb933a7cda18eeded7945dd191e432369
