@@ -805,7 +805,7 @@ mod tests {
 
     fn create_empty_cip36(strict: bool) -> Cip36 {
         Cip36 {
-            cip36: Some(true),
+            cip36: None,
             voting_keys: vec![],
             stake_pk: None,
             payment_addr: vec![],
@@ -954,5 +954,45 @@ mod tests {
             assert_eq!(cip36.nonce, 0);
             assert_eq!(rc, None);
         }
+    }
+
+    #[test]
+    // cip-36 version
+    fn test_decode_voting_key_1() {
+        let hex_data = hex::decode(
+            // [["0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0", 1]]
+            "818258200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A001"
+        ).expect("cannot decode hex");
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&hex_data);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_voting_key(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.cip36, Some(true));
+        assert_eq!(cip36.voting_keys.len(), 1);
+        assert_eq!(rc, Some(1));
+    }
+
+    #[test]
+    // cip-15 version
+    fn test_decode_voting_key_2() {
+        let hex_data = hex::decode(
+            // 0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0
+            "58200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0"
+        ).expect("cannot decode hex");
+        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let mut cip36 = create_empty_cip36(false);
+        let mut decoder = Decoder::new(&hex_data);
+        let mut report = ValidationReport::new();
+
+        let rc = cip36.decode_voting_key(&mut decoder, &mut report, &decoded_metadata);
+
+        assert_eq!(report.len(), 0);
+        assert_eq!(cip36.cip36, Some(false));
+        assert_eq!(cip36.voting_keys.len(), 1);
+        assert_eq!(rc, Some(1));
     }
 }
