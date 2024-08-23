@@ -932,7 +932,6 @@ mod tests {
     }
 
     #[test]
-    // valid `nonce`, errors
     fn test_decode_nonce_4() {
         let bytes_cases: &[&[u8]] = &[
             &[ 0x80 ], // array(0)
@@ -1065,7 +1064,6 @@ mod tests {
     }
 
     #[test]
-    // cip-36 version
     fn test_decode_voting_key_3() {
         let bytes_cases: &[Vec<u8>] = &[
             vec![],
