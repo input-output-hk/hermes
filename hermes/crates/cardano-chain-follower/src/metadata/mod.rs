@@ -26,7 +26,7 @@ pub enum DecodedMetadataValues {
     // Json(serde_json::Value), // TODO
     /// CIP-36/CIP-15 Catalyst Registration metadata.
     Cip36(Arc<Cip36>),
-    /// FIXME - Doc
+    /// CIP-509 RBAC metadata.
     Cip509(Arc<Cip509>),
 }
 
@@ -48,13 +48,15 @@ pub(crate) struct DecodedMetadata(SkipMap<u64, Arc<DecodedMetadataItem>>);
 
 impl DecodedMetadata {
     /// Create new decoded metadata for a transaction.
-    fn new(chain: Network, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData) -> Self {
+    fn new(
+        chain: Network, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData, txn_idx: usize,
+    ) -> Self {
         let decoded_metadata = Self(SkipMap::new());
 
         // Process each known type of metadata here, and record the decoded result.
         Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true, chain);
-        Cip509::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, chain);
-        //if !decoded_metadata.0.is_empty() {
+        Cip509::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, chain, txn_idx);
+        // if !decoded_metadata.0.is_empty() {
         //    debug!("Decoded Metadata final: {decoded_metadata:?}");
         //}
         decoded_metadata
@@ -104,7 +106,7 @@ impl DecodedTransaction {
         };
 
         let txn_raw_aux_data = RawAuxData::new(cbor_data);
-        let txn_metadata = DecodedMetadata::new(chain, slot, txn, &txn_raw_aux_data);
+        let txn_metadata = DecodedMetadata::new(chain, slot, txn, &txn_raw_aux_data, txn_idx);
 
         self.raw.insert(txn_idx, txn_raw_aux_data);
         self.decoded.insert(txn_idx, txn_metadata);
