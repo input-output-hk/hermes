@@ -42,7 +42,6 @@ mimalloc = {workspace = true, optional = true}
 memx.workspace = true
 fmmap.workspace = true
 minicbor.workspace = true
-heed = {workspace = true, optional = true}
 brotli.workspace = true
 zstd.workspace = true
 c509-certificate.workspace = true
@@ -52,6 +51,7 @@ blake2b_simd.workspace = true
 num-traits.workspace = true
 logcall.workspace = true
 tracing-log.workspace = true
+tar.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
