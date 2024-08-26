@@ -167,3 +167,7 @@ brotli = "6.0.0"
 c509-certificate = { git = "https://github.com/input-output-hk/catalyst-voices.git", package = "c509-certificate", branch = "fix/c509-cleanup"}
 num-traits = "0.2.19"
 logcall = "0.1.9"
+der = "0.7.9"
+der-parser = "9.0.0"
+utf8-decode = "1.0.1"
+bech32 = "0.11.0"
