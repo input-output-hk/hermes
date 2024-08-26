@@ -76,7 +76,7 @@ pub(crate) enum Cip509Int {
 impl Decode<'_, ()> for Cip509 {
     fn decode(d: &mut Decoder, ctx: &mut ()) -> Result<Self, decode::Error> {
         let map_len = decode_map_len(d, "CIP509")?;
-        let mut x509_metadatum = Cip509::default();
+        let mut cip509_metadatum = Cip509::default();
         for _ in 0..map_len {
             // Use probe to peak
             let key = d.probe().u8()?;
@@ -85,19 +85,19 @@ impl Decode<'_, ()> for Cip509 {
                 decode_u8(d, "CIP509")?;
                 match key {
                     Cip509Int::Purpose => {
-                        x509_metadatum.purpose = decode_bytes(d, "CIP509 purpose")?
+                        cip509_metadatum.purpose = decode_bytes(d, "CIP509 purpose")?
                             .try_into()
                             .map_err(|_| decode::Error::message("Invalid data size of Purpose"))?;
                     },
                     Cip509Int::TxInputsHash => {
-                        x509_metadatum.txn_inputs_hash = decode_bytes(d, "CIP509 txn inputs hash")?
+                        cip509_metadatum.txn_inputs_hash = decode_bytes(d, "CIP509 txn inputs hash")?
                             .try_into()
                             .map_err(|_| {
                                 decode::Error::message("Invalid data size of TxInputsHash")
                             })?;
                     },
                     Cip509Int::PreviousTxId => {
-                        x509_metadatum.prv_tx_id = Some(
+                        cip509_metadatum.prv_tx_id = Some(
                             decode_bytes(d, "CIP509 previous tx ID")?
                                 .try_into()
                                 .map_err(|_| {
@@ -112,16 +112,16 @@ impl Decode<'_, ()> for Cip509 {
                                 "Invalid data size of ValidationSignature",
                             ));
                         }
-                        x509_metadatum.validation_signature = validation_signature.to_vec();
+                        cip509_metadatum.validation_signature = validation_signature.to_vec();
                     },
                 }
             } else {
                 // Handle the x509 chunks 10 11 12
                 let x509_chunks = X509Chunks::decode(d, ctx)?;
-                x509_metadatum.x509_chunks = x509_chunks;
+                cip509_metadatum.x509_chunks = x509_chunks;
             }
         }
-        Ok(x509_metadatum)
+        Ok(cip509_metadatum)
     }
 }
 
@@ -412,7 +412,7 @@ impl Cip509 {
                 );
             })
             .ok();
-        
+
         Some(true)
     }
 
