@@ -90,11 +90,12 @@ impl Decode<'_, ()> for Cip509 {
                             .map_err(|_| decode::Error::message("Invalid data size of Purpose"))?;
                     },
                     Cip509Int::TxInputsHash => {
-                        cip509_metadatum.txn_inputs_hash = decode_bytes(d, "CIP509 txn inputs hash")?
-                            .try_into()
-                            .map_err(|_| {
-                                decode::Error::message("Invalid data size of TxInputsHash")
-                            })?;
+                        cip509_metadatum.txn_inputs_hash =
+                            decode_bytes(d, "CIP509 txn inputs hash")?
+                                .try_into()
+                                .map_err(|_| {
+                                    decode::Error::message("Invalid data size of TxInputsHash")
+                                })?;
                     },
                     Cip509Int::PreviousTxId => {
                         cip509_metadatum.prv_tx_id = Some(
@@ -194,137 +195,7 @@ impl Cip509 {
     ) -> Option<bool> {
         let mut pk_addrs = Vec::new();
         match txn {
-            MultiEraTx::AlonzoCompatible(_tx, _) => {
-                if let Some(certs) = &self.x509_chunks.0.x509_certs {
-                    for cert in certs {
-                        // Attempt to decode the DER certificate
-                        let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
-                            Ok(cert) => cert,
-                            Err(e) => {
-                                self.validation_failure(
-                                    &format!("Failed to decode x509 certificate DER {e}"),
-                                    validation_report,
-                                    decoded_metadata,
-                                );
-                                return None;
-                            },
-                        };
-
-                        // Check for extensions and look for the Subject Alternative Name extension
-                        if let Some(san_ext) = der_cert
-                            .tbs_certificate
-                            .extensions
-                            .as_ref()
-                            .and_then(|exts| {
-                                exts.iter()
-                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
-                            })
-                        {
-                            // Parse the Subject Alternative Name extension
-                            if let Ok(parsed_seq) =
-                                parse_der_sequence(san_ext.extn_value.as_bytes())
-                            {
-                                for data in parsed_seq.1.ref_iter() {
-                                    // Look for a Context-specific primitive type with tag number 6
-                                    // (raw_tag 134)
-                                    if data.header.raw_tag() == Some(&[URI]) {
-                                        match data.content.as_slice() {
-                                            Ok(content) => {
-                                                // Decode the UTF-8 string
-                                                let addr: String =
-                                                    Utf8Decoder::new(content.iter().copied())
-                                                        .filter_map(Result::ok)
-                                                        .collect();
-                                                // Extract the CIP19 hash and push into array.
-                                                if let Some(h) = extract_cip19_hash(&addr) {
-                                                    warn!("Extracted CIP19 hash: {:?}", h);
-                                                    pk_addrs.push(h);
-                                                }
-                                            },
-                                            Err(e) => {
-                                                self.validation_failure(
-                                                    &format!(
-                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
-                                                    ),
-                                                    validation_report,
-                                                    decoded_metadata,
-                                                );
-                                                return None;
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            MultiEraTx::Babbage(_tx) => {
-                if let Some(certs) = &self.x509_chunks.0.x509_certs {
-                    for cert in certs {
-                        // Attempt to decode the DER certificate
-                        let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
-                            Ok(cert) => cert,
-                            Err(e) => {
-                                self.validation_failure(
-                                    &format!("Failed to decode x509 certificate DER {e}"),
-                                    validation_report,
-                                    decoded_metadata,
-                                );
-                                return None;
-                            },
-                        };
-
-                        // Check for extensions and look for the Subject Alternative Name extension
-                        if let Some(san_ext) = der_cert
-                            .tbs_certificate
-                            .extensions
-                            .as_ref()
-                            .and_then(|exts| {
-                                exts.iter()
-                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
-                            })
-                        {
-                            // Parse the Subject Alternative Name extension
-                            if let Ok(parsed_seq) =
-                                parse_der_sequence(san_ext.extn_value.as_bytes())
-                            {
-                                for data in parsed_seq.1.ref_iter() {
-                                    // Look for a Context-specific primitive type with tag number 6
-                                    // (raw_tag 134)
-                                    if data.header.raw_tag() == Some(&[URI]) {
-                                        match data.content.as_slice() {
-                                            Ok(content) => {
-                                                // Decode the UTF-8 string
-                                                let addr: String =
-                                                    Utf8Decoder::new(content.iter().copied())
-                                                        .filter_map(Result::ok)
-                                                        .collect();
-                                                // Extract the CIP19 hash and push into array.
-                                                if let Some(h) = extract_cip19_hash(&addr) {
-                                                    warn!("Extracted CIP19 hash: {:?}", h);
-                                                    pk_addrs.push(h);
-                                                }
-                                            },
-                                            Err(e) => {
-                                                self.validation_failure(
-                                                    &format!(
-                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
-                                                    ),
-                                                    validation_report,
-                                                    decoded_metadata,
-                                                );
-                                                return None;
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            MultiEraTx::Conway(_tx) => {
+            MultiEraTx::AlonzoCompatible(_, _) | MultiEraTx::Babbage(_) | MultiEraTx::Conway(_) => {
                 if let Some(certs) = &self.x509_chunks.0.x509_certs {
                     for cert in certs {
                         // Attempt to decode the DER certificate
