@@ -77,6 +77,5 @@ fn decompress(d: &mut Decoder, algorithm: &CompressionAlgorithm) -> anyhow::Resu
                 .map_err(|_| anyhow::anyhow!("Failed to decompress using Brotli algorithm"))?;
         },
     }
-    println!("buff {:?}", buffer);
     Ok(buffer)
 }

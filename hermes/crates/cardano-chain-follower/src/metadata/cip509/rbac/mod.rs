@@ -144,9 +144,7 @@ impl Decode<'_, ()> for Cip509RbacMetadata {
 
 /// Decode an array of type T.
 fn decode_array_rbac<'b, T>(d: &mut Decoder<'b>, from: &str) -> Result<Vec<T>, decode::Error>
-where
-    T: Decode<'b, ()>,
-{
+where T: Decode<'b, ()> {
     let len = decode_array_len(d, &format!("{from} Cip509RbacMetadata"))?;
     let mut vec = Vec::with_capacity(usize::try_from(len).map_err(decode::Error::message)?);
     for _ in 0..len {
