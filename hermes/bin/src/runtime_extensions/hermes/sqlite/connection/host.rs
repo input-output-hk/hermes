@@ -2,11 +2,12 @@
 
 //! `SQLite` connection object host implementation for WASM runtime.
 
-use super::{super::state, core};
+use super::{super::state::get_db_state, core};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::sqlite::api::{
-        Errno, ErrorInfo, HostSqlite, Sqlite, Statement,
+    runtime_extensions::{
+        bindings::hermes::sqlite::api::{Errno, ErrorInfo, HostSqlite, Sqlite, Statement},
+        hermes::sqlite::state::get_statement_state,
     },
 };
 
@@ -24,10 +25,8 @@ impl HostSqlite for HermesRuntimeContext {
     fn close(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_db_state()
-            .delete_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `close`"))?;
+        let app_state = get_db_state().get_app_state(self.app_name())?;
+        let db_ptr = app_state.delete_resource(resource)?;
 
         Ok(core::close(db_ptr as *mut _))
     }
@@ -41,12 +40,10 @@ impl HostSqlite for HermesRuntimeContext {
     fn errcode(
         &mut self, resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_db_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `errcode`"))?;
+        let mut app_state = get_db_state().get_app_state(self.app_name())?;
+        let db_ptr = app_state.get_object(&resource)?;
 
-        Ok(core::errcode(db_ptr as *mut _))
+        Ok(core::errcode(*db_ptr as *mut _))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -65,27 +62,20 @@ impl HostSqlite for HermesRuntimeContext {
     fn prepare(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_db_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `prepare`"))?;
+        let mut db_app_state = get_db_state().get_app_state(self.app_name())?;
+        let db_ptr = db_app_state.get_object(&resource)?;
 
-        let result = core::prepare(db_ptr as *mut _, sql.as_str());
+        let result = core::prepare(*db_ptr as *mut _, sql.as_str());
 
         match result {
             Ok(stmt_ptr) => {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stmt_id =
-                        state::InternalState::get_or_create_resource(self.app_name().clone())
-                            .get_stmt_state()
-                            .add_object(stmt_ptr as _)
-                            .ok_or_else(|| {
-                                wasmtime::Error::msg("Internal state error while calling `prepare`")
-                            })?;
+                    let stm_app_state = get_statement_state().get_app_state(self.app_name())?;
+                    let stmt = stm_app_state.create_resource(stmt_ptr as _);
 
-                    Ok(Ok(wasmtime::component::Resource::new_own(stmt_id)))
+                    Ok(Ok(stmt))
                 }
             },
             Err(errno) => Ok(Err(errno)),
@@ -101,20 +91,15 @@ impl HostSqlite for HermesRuntimeContext {
     fn execute(
         &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_db_state()
-            .get_object_by_id(resource.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Internal state error while calling `execute`"))?;
+        let mut app_state = get_db_state().get_app_state(self.app_name())?;
+        let db_ptr = app_state.get_object(&resource)?;
 
-        Ok(core::execute(db_ptr as *mut _, sql.as_str()))
+        Ok(core::execute(*db_ptr as *mut _, sql.as_str()))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
-        let db_ptr = state::InternalState::get_or_create_resource(self.app_name().clone())
-            .get_db_state()
-            .delete_object_by_id(rep.rep());
-
-        if let Some(db_ptr) = db_ptr {
+        let app_state = get_db_state().get_app_state(self.app_name())?;
+        if let Ok(db_ptr) = app_state.delete_resource(rep) {
             let _ = core::close(db_ptr as *mut _);
         }
 

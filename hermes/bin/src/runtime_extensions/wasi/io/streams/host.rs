@@ -1,17 +1,10 @@
 //! IO Streams host implementation for WASM runtime.
 
-use std::io::{Read, Seek, Write};
-
+use super::{get_input_streams_state, get_output_streams_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::{
-        bindings::wasi::io::streams::{
-            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
-        },
-        wasi::{
-            descriptors::{Descriptor, NUL_REP, STDERR_REP, STDOUT_REP},
-            state::STATE,
-        },
+    runtime_extensions::bindings::wasi::io::streams::{
+        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
     },
 };
 
@@ -48,69 +41,19 @@ impl HostInputStream for HermesRuntimeContext {
     fn blocking_read(
         &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        // NUL_REP always returns 0 bytes.
-        if resource.rep() == NUL_REP {
-            return Ok(Ok(Vec::new()));
-        }
-
-        let seek_start = match STATE
-            .get_mut(self.app_name())
-            .input_stream_mut(resource.rep())
-        {
-            Some(input_stream) => input_stream.at(),
-            None => return Ok(Err(StreamError::Closed)),
+        let mut app_state = get_input_streams_state().get_app_state(self.app_name())?;
+        let Ok(mut stream) = app_state.get_object(&resource) else {
+            return Ok(Err(StreamError::Closed));
         };
 
-        let buf = match STATE
-            .get_mut(self.app_name())
-            .descriptor_mut(resource.rep())
-        {
-            Some(fd) => {
-                match fd {
-                    Descriptor::File(f) => {
-                        let Ok(f_size) = f.size().and_then(|size| {
-                            TryInto::<u64>::try_into(size).map_err(|e| anyhow::anyhow!(e))
-                        }) else {
-                            // TODO: Probably should return LastOperationFailed here
-                            return Ok(Err(StreamError::Closed));
-                        };
-
-                        if f_size == 0 || seek_start >= f_size {
-                            return Ok(Ok(Vec::new()));
-                        }
-
-                        // At this point seek_start < f_size, so subtracting is safe
-                        let Ok(read_len) = len.min(f_size - seek_start).try_into() else {
-                            return Ok(Err(StreamError::Closed));
-                        };
-
-                        let mut buf = vec![0u8; read_len];
-
-                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.read(&mut buf).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        buf
-                    },
-                    Descriptor::Dir(_) => todo!(),
-                }
-            },
-            None => {
-                return Ok(Err(StreamError::Closed));
-            },
+        let Ok(len) = usize::try_from(len) else {
+            return Ok(Err(StreamError::Closed));
         };
-
-        match STATE
-            .get_mut(self.app_name())
-            .input_stream_mut(resource.rep())
-        {
-            Some(input_stream) => input_stream.advance(buf.len() as u64),
-            None => return Ok(Err(StreamError::Closed)),
-        }
+        let mut buf = vec![0u8; len];
+        let Ok(read_len) = stream.read(&mut buf) else {
+            return Ok(Err(StreamError::Closed));
+        };
+        buf.truncate(read_len);
 
         Ok(Ok(buf))
     }
@@ -139,9 +82,8 @@ impl HostInputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
-        STATE
-            .get_mut(self.app_name())
-            .remove_input_stream(rep.rep());
+        let app_state = get_input_streams_state().get_app_state(self.app_name())?;
+        app_state.delete_resource(rep)?;
         Ok(())
     }
 }
@@ -202,75 +144,13 @@ impl HostOutputStream for HermesRuntimeContext {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_and_flush(
-        &mut self, rep: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
+        &mut self, res: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        match rep.rep() {
-            NUL_REP => {
-                // Discard all bytes.
-                return Ok(Ok(()));
-            },
-            STDOUT_REP => {
-                if std::io::stdout().write_all(&contents).is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
+        let mut app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        let mut stream = app_state.get_object(&res)?;
 
-                if std::io::stdout().flush().is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                return Ok(Ok(()));
-            },
-            STDERR_REP => {
-                if std::io::stderr().write_all(&contents).is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                if std::io::stderr().flush().is_err() {
-                    return Ok(Err(StreamError::Closed));
-                }
-
-                return Ok(Ok(()));
-            },
-            _ => {},
-        }
-
-        let seek_start = match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
-            Some(output_stream) => output_stream.at(),
-            None => return Ok(Err(StreamError::Closed)),
-        };
-
-        match STATE.get_mut(self.app_name()).descriptor_mut(rep.rep()) {
-            Some(fd) => {
-                match fd {
-                    // TODO: I believe it's better to return a LastOperationFailed error if
-                    // any write operations fail.
-                    Descriptor::File(f) => {
-                        if f.seek(std::io::SeekFrom::Start(seek_start)).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.write_all(&contents).is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-
-                        if f.flush().is_err() {
-                            return Ok(Err(StreamError::Closed));
-                        }
-                    },
-                    Descriptor::Dir(_) => return Ok(Err(StreamError::Closed)),
-                }
-            },
-            None => return Ok(Err(StreamError::Closed)),
-        };
-
-        match STATE.get_mut(self.app_name()).output_stream_mut(rep.rep()) {
-            Some(output_stream) => {
-                match contents.len().try_into() {
-                    Ok(len) => output_stream.advance(len),
-                    Err(_) => return Ok(Err(StreamError::Closed)),
-                }
-            },
-            None => return Ok(Err(StreamError::Closed)),
+        if stream.write_all(&contents).is_err() {
+            return Ok(Err(StreamError::Closed));
         }
 
         Ok(Ok(()))
@@ -375,9 +255,8 @@ impl HostOutputStream for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
-        STATE
-            .get_mut(self.app_name())
-            .remove_output_stream(rep.rep());
+        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        app_state.delete_resource(rep)?;
         Ok(())
     }
 }

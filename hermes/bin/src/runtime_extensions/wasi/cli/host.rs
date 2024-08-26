@@ -9,7 +9,7 @@ use crate::{
             cli,
             io::streams::{InputStream, OutputStream},
         },
-        wasi::descriptors::{NUL_REP, STDERR_REP, STDOUT_REP},
+        wasi::io::streams::{get_input_streams_state, get_output_streams_state},
     },
 };
 
@@ -48,20 +48,23 @@ impl cli::exit::Host for HermesRuntimeContext {
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
-        Ok(wasmtime::component::Resource::new_own(NUL_REP))
+        let app_state = get_input_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
 
 impl cli::stdout::Host for HermesRuntimeContext {
     fn get_stdout(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stdout to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(STDOUT_REP))
+        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
 
 impl cli::stderr::Host for HermesRuntimeContext {
     fn get_stderr(&mut self) -> wasmtime::Result<wasmtime::component::Resource<OutputStream>> {
         // TODO: Redirect stderr to Hermes' logging api.
-        Ok(wasmtime::component::Resource::new_own(STDERR_REP))
+        let app_state = get_output_streams_state().get_app_state(self.app_name())?;
+        Ok(app_state.create_resource(Box::new(std::io::empty())))
     }
 }
