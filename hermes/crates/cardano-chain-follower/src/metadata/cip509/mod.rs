@@ -2,12 +2,13 @@
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
+use der_parser::der::parse_der_sequence;
+use tracing::warn;
+use utf8_decode::Decoder as Utf8Decoder;
+
 mod decode_helper;
 mod rbac;
-use x509_cert::{
-    der::{oid::db::rfc4519::DOMAIN_COMPONENT, Decode as _},
-    ext::pkix::ID_CE_SUBJECT_ALT_NAME,
-};
+use x509_cert::{der::Decode as _, ext::pkix::ID_CE_SUBJECT_ALT_NAME};
 mod x509_chunks;
 
 use std::sync::Arc;
@@ -29,13 +30,18 @@ use super::{
     raw_aux_data::RawAuxData, DecodedMetadata, DecodedMetadataItem, DecodedMetadataValues,
     ValidationReport,
 };
-use crate::{utils::blake2b_128, Network};
+use crate::{
+    utils::{blake2b_128, compare_key_hash, extract_cip19_hash},
+    witness::TxWitness,
+    Network,
+};
 
 /// CIP509 label.
 pub const LABEL: u64 = 509;
 
-/// DNS in subject alternative name.
-const DNS_NAME: [u8; 10] = [9, 146, 38, 137, 147, 242, 44, 100, 4, 15];
+/// Context-specific primitive type with tag number 6 (raw_tag 134) for
+/// uniform resource identifier (URI) in the subject alternative name extension.
+pub(crate) const URI: u8 = 134;
 
 /// CIP509 metadatum.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -52,7 +58,7 @@ pub struct Cip509 {
     pub validation_signature: Vec<u8>, // bytes size (1..64)
 }
 
-/// Enum of x509 metadatum with its associated unsigned integer value.
+/// Enum of CIP509 metadatum with its associated unsigned integer value.
 #[allow(clippy::module_name_repetitions)]
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
@@ -121,31 +127,24 @@ impl Decode<'_, ()> for Cip509 {
 
 #[allow(clippy::module_name_repetitions)]
 impl Cip509 {
-    #[allow(dead_code)]
-    #[allow(clippy::too_many_lines)]
+    /// Decode and validate CIP509 metadata.
     pub(crate) fn decode_and_validate(
         decoded_metadata: &DecodedMetadata, _slot: u64, txn: &MultiEraTx,
-        raw_aux_data: &RawAuxData, _chain: Network,
+        raw_aux_data: &RawAuxData, _chain: Network, txn_idx: usize,
     ) {
         // Get the CIP509 metadata if possible
         let Some(k509) = raw_aux_data.get_metadata(LABEL) else {
             return;
         };
 
-        let cip509 = Cip509::default();
-
         let mut validation_report = ValidationReport::new();
+        let mut decoder = Decoder::new(k509.as_slice());
 
-        let cip509_slice = k509.as_slice();
-
-        // println!("cip509_slice: {:?}", cip509_slice);
-        let mut decoder = Decoder::new(cip509_slice);
-        // if slot == 67865376 {
-        let cip509_metadatum = match Cip509::decode(&mut decoder, &mut ()) {
+        let cip509 = match Cip509::decode(&mut decoder, &mut ()) {
             Ok(metadata) => metadata,
             Err(e) => {
-                cip509.validation_failure(
-                    &format!("Failed to decode CIP509 metadata {e}"),
+                Cip509::default().validation_failure(
+                    &format!("Failed to decode CIP509 metadata: {e}"),
                     &mut validation_report,
                     decoded_metadata,
                 );
@@ -153,25 +152,27 @@ impl Cip509 {
             },
         };
 
-        // println!("cip509_metadatum: {:?}", cip509_metadatum.clone());
-
-        // Validate the transaction inputs hash
-        println!(
-            "Validate {:?}",
-            cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata)
-        );
+        // Validate transaction inputs hash
+        cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata);
 
         // Validate the public key
-        println!("slot: {:?}", _slot);
-        if let Some(role_set) = cip509_metadatum.x509_chunks.0.role_set {
-            for role in role_set {
-                println!("role: {:?}", role.role_number);
-                cip509.validate_required_signer(txn, &mut validation_report, decoded_metadata);
+        // FIXME - Remove this
+        if _slot == 68906742 {
+            if let Some(role_set) = &cip509.x509_chunks.0.role_set {
+                // Only care about the role number 0
+                if role_set.iter().any(|role| role.role_number == 0) {
+                    cip509.validate_public_key(
+                        txn,
+                        &mut validation_report,
+                        decoded_metadata,
+                        txn_idx,
+                    );
+                }
             }
         }
     }
 
-    #[allow(dead_code)]
+    // Handle validation failure.
     fn validation_failure(
         &self, reason: &str, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata,
@@ -186,15 +187,17 @@ impl Cip509 {
         );
     }
 
-    fn validate_required_signer(
+    /// Validate the public key in the certificate with witness set in transaciton.
+    fn validate_public_key(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
-        decoded_metadata: &DecodedMetadata,
-    ) {
+        decoded_metadata: &DecodedMetadata, txn_idx: usize,
+    ) -> Option<bool> {
+        let mut pk_addrs = Vec::new();
         match txn {
-            MultiEraTx::AlonzoCompatible(tx, _) => {
+            MultiEraTx::AlonzoCompatible(_tx, _) => {
                 if let Some(certs) = &self.x509_chunks.0.x509_certs {
                     for cert in certs {
-                        // Get the DER certificate
+                        // Attempt to decode the DER certificate
                         let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
                             Ok(cert) => cert,
                             Err(e) => {
@@ -203,43 +206,214 @@ impl Cip509 {
                                     validation_report,
                                     decoded_metadata,
                                 );
-                                return;
+                                return None;
                             },
                         };
 
-                        // Check the subject alternative name DNS name
-                        if let Some(exts) = der_cert.tbs_certificate.extensions {
-                            for ext in exts {
-                                // Subject Alternative Name
-                                if ext.extn_id == ID_CE_SUBJECT_ALT_NAME {
-                                    let ext_bytes = ext.extn_value.as_bytes();
-                                    // Check if the extension value starts with the domain name bytes
-                                    if ext_bytes.starts_with(&DNS_NAME) {
-                                        println!("DNS Domain: {:?}", &ext_bytes[DNS_NAME.len()..]);
+                        // Check for extensions and look for the Subject Alternative Name extension
+                        if let Some(san_ext) = der_cert
+                            .tbs_certificate
+                            .extensions
+                            .as_ref()
+                            .and_then(|exts| {
+                                exts.iter()
+                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
+                            })
+                        {
+                            // Parse the Subject Alternative Name extension
+                            if let Ok(parsed_seq) =
+                                parse_der_sequence(san_ext.extn_value.as_bytes())
+                            {
+                                for data in parsed_seq.1.ref_iter() {
+                                    // Look for a Context-specific primitive type with tag number 6
+                                    // (raw_tag 134)
+                                    if data.header.raw_tag() == Some(&[URI]) {
+                                        match data.content.as_slice() {
+                                            Ok(content) => {
+                                                // Decode the UTF-8 string
+                                                let addr: String =
+                                                    Utf8Decoder::new(content.iter().copied())
+                                                        .filter_map(Result::ok)
+                                                        .collect();
+                                                // Extract the CIP19 hash and push into array.
+                                                if let Some(h) = extract_cip19_hash(&addr) {
+                                                    warn!("Extracted CIP19 hash: {:?}", h);
+                                                    pk_addrs.push(h);
+                                                }
+                                            },
+                                            Err(e) => {
+                                                self.validation_failure(
+                                                    &format!(
+                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
+                                                    ),
+                                                    validation_report,
+                                                    decoded_metadata,
+                                                );
+                                                return None;
+                                            },
+                                        }
                                     }
                                 }
                             }
                         }
-                        // Check the subject domain component
-                        for rdn in der_cert.tbs_certificate.subject.0 {
-                            rdn.0.iter().for_each(|attr| {
-                                if attr.oid == DOMAIN_COMPONENT {
-                                    println!("Domain Component: {:?}", attr.value);
+                    }
+                }
+            },
+            MultiEraTx::Babbage(_tx) => {
+                if let Some(certs) = &self.x509_chunks.0.x509_certs {
+                    for cert in certs {
+                        // Attempt to decode the DER certificate
+                        let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
+                            Ok(cert) => cert,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to decode x509 certificate DER {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        };
+
+                        // Check for extensions and look for the Subject Alternative Name extension
+                        if let Some(san_ext) = der_cert
+                            .tbs_certificate
+                            .extensions
+                            .as_ref()
+                            .and_then(|exts| {
+                                exts.iter()
+                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
+                            })
+                        {
+                            // Parse the Subject Alternative Name extension
+                            if let Ok(parsed_seq) =
+                                parse_der_sequence(san_ext.extn_value.as_bytes())
+                            {
+                                for data in parsed_seq.1.ref_iter() {
+                                    // Look for a Context-specific primitive type with tag number 6
+                                    // (raw_tag 134)
+                                    if data.header.raw_tag() == Some(&[URI]) {
+                                        match data.content.as_slice() {
+                                            Ok(content) => {
+                                                // Decode the UTF-8 string
+                                                let addr: String =
+                                                    Utf8Decoder::new(content.iter().copied())
+                                                        .filter_map(Result::ok)
+                                                        .collect();
+                                                // Extract the CIP19 hash and push into array.
+                                                if let Some(h) = extract_cip19_hash(&addr) {
+                                                    warn!("Extracted CIP19 hash: {:?}", h);
+                                                    pk_addrs.push(h);
+                                                }
+                                            },
+                                            Err(e) => {
+                                                self.validation_failure(
+                                                    &format!(
+                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
+                                                    ),
+                                                    validation_report,
+                                                    decoded_metadata,
+                                                );
+                                                return None;
+                                            },
+                                        }
+                                    }
                                 }
-                            });
+                            }
                         }
                     }
                 }
-                println!("require {:?}", tx.transaction_body.required_signers)
             },
-            MultiEraTx::Babbage(tx) => {
-                println!("require {:?}", tx.transaction_body.required_signers)
+            MultiEraTx::Conway(_tx) => {
+                if let Some(certs) = &self.x509_chunks.0.x509_certs {
+                    for cert in certs {
+                        // Attempt to decode the DER certificate
+                        let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
+                            Ok(cert) => cert,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to decode x509 certificate DER {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        };
+
+                        // Check for extensions and look for the Subject Alternative Name extension
+                        if let Some(san_ext) = der_cert
+                            .tbs_certificate
+                            .extensions
+                            .as_ref()
+                            .and_then(|exts| {
+                                exts.iter()
+                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
+                            })
+                        {
+                            // Parse the Subject Alternative Name extension
+                            if let Ok(parsed_seq) =
+                                parse_der_sequence(san_ext.extn_value.as_bytes())
+                            {
+                                for data in parsed_seq.1.ref_iter() {
+                                    // Look for a Context-specific primitive type with tag number 6
+                                    // (raw_tag 134)
+                                    if data.header.raw_tag() == Some(&[URI]) {
+                                        match data.content.as_slice() {
+                                            Ok(content) => {
+                                                // Decode the UTF-8 string
+                                                let addr: String =
+                                                    Utf8Decoder::new(content.iter().copied())
+                                                        .filter_map(Result::ok)
+                                                        .collect();
+                                                // Extract the CIP19 hash and push into array.
+                                                if let Some(h) = extract_cip19_hash(&addr) {
+                                                    warn!("Extracted CIP19 hash: {:?}", h);
+                                                    pk_addrs.push(h);
+                                                }
+                                            },
+                                            Err(e) => {
+                                                self.validation_failure(
+                                                    &format!(
+                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
+                                                    ),
+                                                    validation_report,
+                                                    decoded_metadata,
+                                                );
+                                                return None;
+                                            },
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
-            MultiEraTx::Conway(tx) => {
-                println!("require {:?}", tx.transaction_body.required_signers)
+            _ => {
+                self.validation_failure(
+                    "Unsupported transaction era for public key validation",
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
             },
-            _ => todo!(),
         }
+
+        // TODO - Fix this clone array
+        // Create TxWitness
+        let witnesses = TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
+
+        compare_key_hash(pk_addrs, witnesses, txn_idx as u8)
+            .map_err(|e| {
+                self.validation_failure(
+                    &format!("Failed to compare public keys with witnesses {e}"),
+                    validation_report,
+                    decoded_metadata,
+                );
+            })
+            .ok();
+        
+        Some(true)
     }
 
     /// Transaction inputs hash validation.
@@ -255,25 +429,28 @@ impl Cip509 {
                 let inputs = tx.transaction_body.inputs.clone();
                 match e.array(inputs.len() as u64) {
                     Ok(_) => {},
-                    Err(e) => self.validation_failure(
+                    Err(e) => {
+                        self.validation_failure(
                         &format!(
-                            "Failed to encode array of transaction input in Alonzo validate_txn_inputs_hash {e}"
+                            "Failed to encode array of transaction input in validate_txn_inputs_hash {e}"
                         ),
                         validation_report,
                         decoded_metadata,
-                    ),
+                    );
+                        return None;
+                    },
                 }
                 for input in inputs {
                     match input.encode(&mut e, &mut ()) {
                         Ok(_) => {},
                         Err(e) => {
                             self.validation_failure(
-                            &format!(
-                                "Failed to encode transaction input in Alonzo validate_txn_inputs_hash {e}"
+                                &format!(
+                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
                             ),
-                            validation_report,
-                            decoded_metadata,
-                        );
+                                validation_report,
+                                decoded_metadata,
+                            );
                             return None;
                         },
                     }
@@ -286,7 +463,7 @@ impl Cip509 {
                     Err(e) => {
                         self.validation_failure(
                         &format!(
-                            "Failed to encode array of transaction input in Babbage validate_txn_inputs_hash {e}"
+                            "Failed to encode array of transaction input in validate_txn_inputs_hash {e}"
                         ),
                         validation_report,
                         decoded_metadata,
@@ -299,12 +476,12 @@ impl Cip509 {
                         Ok(_) => {},
                         Err(e) => {
                             self.validation_failure(
-                            &format!(
-                                "Failed to encode transaction input in Babbage validate_txn_inputs_hash {e}"
+                                &format!(
+                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
                             ),
-                            validation_report,
-                            decoded_metadata,
-                        );
+                                validation_report,
+                                decoded_metadata,
+                            );
                             return None;
                         },
                     }
@@ -316,12 +493,12 @@ impl Cip509 {
                     Ok(_) => {},
                     Err(e) => {
                         self.validation_failure(
-                        &format!(
-                            "Failed to encode array of transaction in Conway validate_txn_inputs_hash {e}"
+                            &format!(
+                            "Failed to encode array of transaction in validate_txn_inputs_hash {e}"
                         ),
-                        validation_report,
-                        decoded_metadata,
-                    );
+                            validation_report,
+                            decoded_metadata,
+                        );
                         return None;
                     },
                 }
@@ -330,18 +507,25 @@ impl Cip509 {
                         Ok(_) => {},
                         Err(e) => {
                             self.validation_failure(
-                            &format!(
-                                "Failed to encode transaction input in Conway validate_txn_inputs_hash {e}"
+                                &format!(
+                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
                             ),
-                            validation_report,
-                            decoded_metadata,
-                        );
+                                validation_report,
+                                decoded_metadata,
+                            );
                             return None;
                         },
                     }
                 }
             },
-            _ => {},
+            _ => {
+                self.validation_failure(
+                    "Unsupported transaction era for transaction inputs hash validation",
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
         }
         let inputs_hash = match blake2b_128(&buffer.clone()) {
             Ok(hash) => hash,
@@ -354,8 +538,11 @@ impl Cip509 {
                 return None;
             },
         };
-        debug!("txn_inputs_hash {:?}", hex::encode(inputs_hash));
-        Some(inputs_hash != self.txn_inputs_hash)
+        debug!(
+            "txn_inputs_hash {:?} {:?}",
+            inputs_hash, self.txn_inputs_hash
+        );
+        Some(inputs_hash == self.txn_inputs_hash)
     }
 }
 
