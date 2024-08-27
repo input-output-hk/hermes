@@ -72,7 +72,6 @@ pub struct Inner {
 macro_rules! changed_file {
     ($self:ident, $rel_file:ident, $abs_file:ident, $new_size:ident) => {
         $self.chg_files.fetch_add(1, Ordering::SeqCst);
-        $self.ddup_size.fetch_add($new_size, Ordering::SeqCst);
         if $abs_file.extension() == Some(OsStr::new("chunk")) {
             $self.new_chunks.insert($abs_file);
         }
@@ -83,7 +82,6 @@ macro_rules! changed_file {
 macro_rules! new_file {
     ($self:ident, $rel_file:ident, $abs_file:ident, $new_size:ident) => {
         $self.new_files.fetch_add(1, Ordering::SeqCst);
-        $self.ddup_size.fetch_add($new_size, Ordering::SeqCst);
         if $abs_file.extension() == Some(OsStr::new("chunk")) {
             $self.new_chunks.insert($abs_file);
         }
@@ -127,6 +125,9 @@ impl Inner {
             if !self.check_for_extract(&rel_file, entry.header().entry_type()) {
                 continue;
             }
+
+            // Count total files processed.
+            self.tot_files.fetch_add(1, Ordering::SeqCst);
 
             let tmp_dir = self.cfg.tmp_path();
             let latest_snapshot = latest_mithril_snapshot_data(self.cfg.chain);
