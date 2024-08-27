@@ -320,20 +320,6 @@ impl ParallelDownloadProcessorInner {
         Ok(Arc::new(bytes))
     }
 
-    // Check if we need to send `DlChunk` to the consumer, or queue it for re ordering.
-    // fn check_to_send(&self, chunk: DlChunk) -> Result<Option<DlChunk>> {
-    // let next = match self.next_chunk.read() {
-    // Ok(next) => next,
-    // Err(error) => bail!("Failed to acquire read lock on next chunk: {}", error),
-    // };
-    //
-    // if chunk.chunk_num == *next {
-    // return Ok(Some(chunk));
-    // }
-    // self.reorder_queue.insert(chunk.chunk_num, chunk);
-    // Ok(None)
-    // }
-
     /// Queue Chunk to processor.
     ///
     /// Reorders chunks and sends to the consumer.
@@ -341,32 +327,6 @@ impl ParallelDownloadProcessorInner {
         self.reorder_queue.insert(chunk.chunk_num, chunk);
         self.new_chunk_queue_tx.send(Some(()))?;
         Ok(())
-        // if let Some(chunk) = self.check_to_send(chunk)? {
-        // Send first consecutive chunk without needing to insert into reorder queue
-        // first. result_queue_tx.send(chunk)?;
-        //
-        // If we should be sending, then get a write lock, so we can do it without race
-        // conditions.
-        // let mut next = match self.next_chunk.write() {
-        // Ok(next) => next,
-        // Err(error) => bail!("Failed to acquire write lock on next chunk: {}", error),
-        // };
-        // let mut actual_next = *next + 1;
-        //
-        // Send any blocks that are consecutive from the reorder queue.
-        // while self.reorder_queue.contains_key(&actual_next) {
-        // let Some(entry) = self.reorder_queue.pop_front() else {
-        // bail!("Expected to find a chunk in the reorder queue, but did not")
-        // };
-        // let chunk = entry.value();
-        // result_queue_tx.send(chunk.clone())?;
-        //
-        // actual_next += 1;
-        // }
-        // next = actual_next;
-        // }
-        //
-        // Ok(())
     }
 }
 
@@ -541,35 +501,6 @@ impl ParallelDownloadProcessor {
         params
             .next_requested_chunk
             .store(pre_orders, Ordering::SeqCst);
-
-        // Wait for blocks to come back from the workers.
-        // Issue new orders until we either send them all, OR we get an error.
-        // Terminate once we have received all the blocks.
-        // while let Ok(chunk) = rx_queue.recv() {
-        // Check the chunk is the one we expected.
-        // if chunk.chunk_num != next_expected_chunk {
-        // bail!(
-        // "Received unexpected chunk, expected {}, got {}",
-        // next_expected_chunk,
-        // chunk.chunk_num
-        // );
-        // }
-        //
-        // if chunk.chunk_num >= params.last_chunk {
-        // break;
-        // }
-        // next_expected_chunk += 1;
-        //
-        // Send more work to the worker that just finished a work order.
-        // if next_work_order < params.last_chunk {
-        // let _unused = Self::send_work_order(params, chunk.worker, next_work_order)?;
-        // next_work_order += 1;
-        // }
-        //
-        // Send the chunk to the consumer...
-        // This only has a very small buffer, so DL rate will be limited to consumption rate.
-        // stream_queue_tx.send(chunk.chunk)?;
-        // }
 
         Ok(())
     }
