@@ -52,6 +52,11 @@ num-traits.workspace = true
 logcall.workspace = true
 tracing-log.workspace = true
 tar.workspace = true
+ureq.workspace = true
+http.workspace = true
+crossbeam-channel.workspace = true
+hickory-resolver.workspace = true
+moka.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

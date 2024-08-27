@@ -53,6 +53,27 @@ pub(crate) fn u32_from_saturating<
     }
 }
 
+/// Convert an <T> to u64. (saturate if out of range.)
+#[allow(dead_code)] // Its OK if we don't use this general utility function.
+pub(crate) fn u64_from_saturating<
+    T: Copy
+        + TryInto<u64>
+        + std::ops::Sub<Output = T>
+        + std::cmp::PartialOrd<T>
+        + num_traits::identities::Zero,
+>(
+    value: T,
+) -> u64 {
+    if value < T::zero() {
+        u64::MIN
+    } else {
+        match value.try_into() {
+            Ok(converted) => converted,
+            Err(_) => u64::MAX,
+        }
+    }
+}
+
 /// Convert the given value to `blake2b_244` array.
 #[allow(dead_code)] // Its OK if we don't use this general utility function.
 pub(crate) fn blake2b_244(value: &[u8]) -> anyhow::Result<[u8; 28]> {

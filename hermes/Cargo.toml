@@ -165,3 +165,7 @@ brotli = "6.0.0"
 c509-certificate = { git = "https://github.com/input-output-hk/catalyst-voices.git", package = "c509-certificate", branch = "fix/c509-cleanup"}
 num-traits = "0.2.19"
 logcall = "0.1.9"
+ureq = {version = "2.10.1", features=["native-certs"]}
+http = "1.1.0"
+hickory-resolver = { version = "0.24.1", features = ["dns-over-rustls"] }
+moka = { version = "0.12.8", features = ["sync"]}

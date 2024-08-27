@@ -43,6 +43,8 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
                 .action(ArgAction::SetTrue),
             arg!(--"largest-metadata" "Dump The largest transaction metadata we find (as we find it).")
                 .action(ArgAction::SetTrue),
+            arg!(--"high-speed-sync" "Tune the download to get faster sync speeds (~800 Mbits/s).")
+                .action(ArgAction::SetTrue),
         ])
         .get_matches();
 

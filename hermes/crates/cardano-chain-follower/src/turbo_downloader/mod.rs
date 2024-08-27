@@ -3,27 +3,111 @@
 //! Provides the capability to quickly download a large file using parallel connections,
 //! but still process the data sequentially, without requiring the entire file to be
 //! downloaded at once.
+//!
+//! NOTE: This uses synchronous threading and HTTP Gets because Async proved to be highly
+//! variable in its performance.
 
-use std::{sync::Arc, time::Duration};
+use std::{
+    io::Read,
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc, Mutex, OnceLock,
+    },
+    thread,
+    time::Duration,
+};
 
 use anyhow::{bail, Context, Result};
 use crossbeam_skiplist::SkipMap;
-use reqwest::{
+use http::{
     header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE},
     StatusCode,
 };
-use tokio::sync::{
-    mpsc::{self, Receiver, Sender, UnboundedReceiver, UnboundedSender},
-    Mutex, RwLock,
-};
-use tokio_util::bytes::Bytes;
 use tracing::{debug, error};
 
-/// Timeout if connection can not be made in 10 seconds.
-const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
+use crate::utils::u64_from_saturating;
 
-/// Timeout if no data received for 5 seconds.
-const DATA_READ_TIMEOUT: Duration = Duration::from_secs(5);
+/// A Simple DNS Balancing Resolver
+struct BalancingResolver {
+    /// The actual resolver
+    resolver: hickory_resolver::Resolver,
+    /// A Cache of the Sockets we already resolved for a URL.
+    cache: moka::sync::Cache<String, Arc<Vec<SocketAddr>>>,
+}
+
+/// We only have one resolver.
+static RESOLVER: OnceLock<BalancingResolver> = OnceLock::new();
+
+impl BalancingResolver {
+    /// Initialize the resolver, only does something once, but safe to call multiple
+    /// times.
+    fn init(_cfg: &DlConfig) -> Result<()> {
+        // Can ONLY init the Resolver once, just return if we try and do it multiple times.
+        if RESOLVER.get().is_none() {
+            // Construct a new Resolver with default configuration options
+            let resolver = hickory_resolver::Resolver::new(
+                hickory_resolver::config::ResolverConfig::default(),
+                hickory_resolver::config::ResolverOpts::default(),
+            )?;
+
+            let cache = moka::sync::Cache::builder()
+                // We should nto be caching lots of different URL's
+                .max_capacity(10)
+                // Time to live (TTL): 60 minutes
+                .time_to_live(Duration::from_secs(60 * 60))
+                // Time to idle (TTI):  5 minutes
+                .time_to_idle(Duration::from_secs(5 * 60))
+                // Create the cache.
+                .build();
+
+            // We don't really care if this is already set.
+            let _unused = RESOLVER.set(BalancingResolver { resolver, cache });
+        }
+        Ok(())
+    }
+
+    /// Resolve the given URL with the configured resolver.
+    fn resolve(&self, url: &str, worker: usize) -> std::io::Result<Vec<std::net::SocketAddr>> {
+        // debug!("Resolving: {url} for {worker}");
+        let addresses = if let Some(addresses) = self.cache.get(url) {
+            addresses
+        } else {
+            let Some((host, port_str)) = url.split_once(':') else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Could not parse URL",
+                ));
+            };
+
+            let port: u16 = port_str.parse().map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Could not parse port number",
+                )
+            })?;
+
+            let mut all_addresses: Vec<std::net::SocketAddr> = Vec::new();
+            for addr in self.resolver.lookup_ip(host.to_string())?.iter() {
+                all_addresses.push(std::net::SocketAddr::new(addr, port));
+            }
+
+            let addresses = Arc::new(all_addresses);
+            self.cache.insert(url.to_string(), addresses.clone());
+            addresses
+        };
+        let worker_addresses = worker % addresses.len();
+        // Safe because we bound the index with the length of `addresses`.
+        #[allow(clippy::indexing_slicing)]
+        Ok(vec![addresses[worker_addresses]])
+    }
+}
+
+// Timeout if connection can not be made in 10 seconds.
+// const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
+
+// Timeout if no data received for 5 seconds.
+// const DATA_READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Minimum rational size of a chunk in bytes.
 const MIN_CHUNK_SIZE: usize = 1024 * 4; // 4 KB
@@ -42,24 +126,6 @@ pub struct DlConfig {
     pub connection_timeout: Option<Duration>,
     /// Timeout for each data read.
     pub data_read_timeout: Option<Duration>,
-    /// HTTP1 Forced - If both HTTP1 and HTTP2 are forced, then its auto-detected, same if
-    /// neither is forced.
-    pub http1_forced: bool,
-    /// HTTP2 Forced - If both HTTP1 and HTTP2 are forced, then its auto-detected, same if
-    /// neither is forced.
-    pub http2_forced: bool,
-    /// HTTP2 uses an adaptive window size.
-    pub http2_adaptive_window: bool,
-    /// HTTP2 Keep Alive while Idle
-    pub http2_keep_alive_while_idle: bool,
-    /// HTTP2 keep alive interval
-    pub http2_keep_alive_interval: Option<Duration>,
-    /// HTTP2 Maximum Frame Size
-    pub http2_max_frame_size: Option<u32>,
-    /// HTTP2 initial connection window size in bytes.
-    pub http2_initial_connection_window_size: Option<u32>,
-    /// HTTP2 initial stream window size in bytes.
-    pub http2_initial_stream_window_size: Option<u32>,
 }
 
 impl DlConfig {
@@ -98,92 +164,37 @@ impl DlConfig {
         self
     }
 
-    /// Is HTTP1 to be forced?
-    pub fn with_http1(mut self) -> Self {
-        self.http1_forced = true;
-        self
+    /// Resolve DNS addresses using Hickory Resolver
+    fn resolve(url: &str, worker: usize) -> std::io::Result<Vec<std::net::SocketAddr>> {
+        let Some(resolver) = RESOLVER.get() else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Resolver not initialized.",
+            ));
+        };
+
+        resolver.resolve(url, worker)
     }
 
-    /// Is HTTP2 to be forced?
-    pub fn with_http2(mut self) -> Self {
-        self.http2_forced = true;
-        self
-    }
-
-    /// HTTP2 use adaptive window size?
-    pub fn with_adaptive_window(mut self) -> Self {
-        self.http2_adaptive_window = true;
-        self
-    }
-
-    /// HTTP2 keep alive while idle?
-    pub fn with_keepalive_while_idle(mut self) -> Self {
-        self.http2_keep_alive_while_idle = true;
-        self
-    }
-
-    /// HTTP2 keep alive interval?
-    pub fn with_keepalive_interval(mut self, interval: Duration) -> Self {
-        self.http2_keep_alive_interval = Some(interval);
-        self
-    }
-
-    /// HTTP2 set maximum frame size
-    pub fn with_max_frame_size(mut self, max_frame_size: u32) -> Self {
-        self.http2_max_frame_size = Some(max_frame_size);
-        self
-    }
-
-    /// HTTP2 set initial connection window size
-    pub fn with_initial_connection_window(mut self, initial_connection_window: u32) -> Self {
-        self.http2_initial_connection_window_size = Some(initial_connection_window);
-        self
-    }
-
-    /// HTTP2 set initial stream window size
-    pub fn with_initial_stream_window(mut self, initial_stream_window_size: u32) -> Self {
-        self.http2_initial_stream_window_size = Some(initial_stream_window_size);
-        self
-    }
-
-    /// Builds a Reqwest client.  
+    /// Builds a `UReq` Agent.  
     ///
     /// Because we need multiple clients to prevent all traffic being forced onto a single
     /// connection when HTTP2 is used, the client can NOT be supplied by the user.
     /// Instead we create a new one here based on their configuration.
-    pub(crate) fn make_http_conn(&self) -> Result<reqwest::Client> {
-        let mut client_builder = reqwest::ClientBuilder::new();
-
-        if self.http1_forced && !self.http2_forced {
-            client_builder = client_builder.http1_only();
-        };
-
-        if self.http2_forced && !self.http1_forced {
-            client_builder = client_builder.http2_prior_knowledge();
-        };
+    pub(crate) fn make_http_agent(&self, worker: usize) -> ureq::Agent {
+        let mut agent = ureq::AgentBuilder::new();
 
         if let Some(timeout) = self.connection_timeout {
-            client_builder = client_builder.connect_timeout(timeout);
+            agent = agent.timeout_connect(timeout);
         }
 
         if let Some(timeout) = self.data_read_timeout {
-            client_builder = client_builder.read_timeout(timeout);
+            agent = agent.timeout_read(timeout);
         }
 
-        if self.http2_adaptive_window {
-            client_builder = client_builder.http2_adaptive_window(true);
-        }
+        let agent = agent.resolver(move |url: &str| Self::resolve(url, worker));
 
-        if self.http2_keep_alive_while_idle {
-            client_builder = client_builder.http2_keep_alive_while_idle(true);
-        }
-
-        client_builder = client_builder.http2_keep_alive_interval(self.http2_keep_alive_interval);
-        client_builder = client_builder.http2_max_frame_size(self.http2_max_frame_size);
-        client_builder = client_builder
-            .http2_initial_connection_window_size(self.http2_initial_connection_window_size);
-
-        Ok(client_builder.build()?)
+        agent.build()
     }
 }
 
@@ -195,17 +206,13 @@ impl Default for DlConfig {
             queue_ahead: 3,
             connection_timeout: None,
             data_read_timeout: None,
-            http1_forced: false,
-            http2_forced: true,
-            http2_adaptive_window: true,
-            http2_keep_alive_while_idle: false,
-            http2_keep_alive_interval: None,
-            http2_max_frame_size: None,
-            http2_initial_connection_window_size: None,
-            http2_initial_stream_window_size: None,
         }
     }
 }
+
+/// An Individual Downloaded block of data.
+/// Wrapped in an ARC so its cheap to clone and pass between threads.
+type DlBlock = Arc<Vec<u8>>;
 
 /// Downloaded Chunk (or error if it fails).
 #[derive(Clone)]
@@ -215,17 +222,13 @@ struct DlChunk {
     /// Index of the chunk in the file.
     chunk_num: usize,
     /// The data from the chunk. (None == failed)
-    #[allow(dead_code)]
-    chunk: Option<Bytes>,
+    chunk: Option<DlBlock>,
 }
 
 /// Download Chunk Work Order.
 /// This is simply the number of the chunk next to fetch.
 /// When finished, the queue is just closed.
 type DlWorkOrder = usize;
-
-/// A Stream Queue and residual block storage.
-type StreamQueue = (Option<(Bytes, usize)>, Receiver<Option<Bytes>>);
 
 /// Parallel Download Processor Inner struct.
 ///
@@ -242,18 +245,31 @@ struct ParallelDownloadProcessorInner {
     last_chunk: usize,
     /// Skip map used to reorder incoming chunks back into sequential order.
     reorder_queue: SkipMap<usize, DlChunk>,
-    /// The next required/expected chunk to send in order.
-    next_chunk: RwLock<usize>,
     /// A queue for each worker to send them new work orders.
-    work_queue: SkipMap<usize, UnboundedSender<DlWorkOrder>>,
-    /// The Data Stream Queue used to send data to a Reader.
-    stream_queue: Mutex<StreamQueue>,
-    /// Realtime Download Statistics, because we really do need them.
-    #[allow(dead_code)]
-    stats: SkipMap<String, Option<()>>, // Just a placeholder for now.
+    work_queue: SkipMap<usize, crossbeam_channel::Sender<DlWorkOrder>>,
+    /// New Chunk Queue - Just says we added a new chunk to the reorder queue.
+    new_chunk_queue_tx: crossbeam_channel::Sender<Option<()>>,
+    /// New Chunk Queue - Just says we added a new chunk to the reorder queue.
+    new_chunk_queue_rx: crossbeam_channel::Receiver<Option<()>>,
+    /// Statistic tracking number of bytes downloaded per worker.
+    bytes_downloaded: Vec<AtomicU64>,
+    /// Left Over Bytes (from the reader)
+    left_over_bytes: Mutex<Option<(Arc<Vec<u8>>, usize)>>,
+    /// Next Expected Chunk
+    next_expected_chunk: AtomicUsize,
+    /// Next Chunk to Request
+    next_requested_chunk: AtomicUsize,
 }
 
 impl ParallelDownloadProcessorInner {
+    /// Get how many bytes were downloaded, total.
+    pub(crate) fn total_bytes(&self) -> u64 {
+        self.bytes_downloaded
+            .iter()
+            .map(|x| x.load(Ordering::SeqCst))
+            .sum::<u64>()
+    }
+
     /// Get start offset of a chunk.
     fn chunk_start(&self, chunk: usize) -> usize {
         self.cfg.chunk_size * chunk
@@ -270,23 +286,17 @@ impl ParallelDownloadProcessorInner {
     }
 
     /// Sends a GET request to download a chunk of the file at the specified range
-    async fn get_range(
-        &self, http_client: &reqwest::Client, chunk: usize,
-    ) -> anyhow::Result<tokio_util::bytes::Bytes> {
+    fn get_range(&self, agent: &ureq::Agent, chunk: usize) -> anyhow::Result<Arc<Vec<u8>>> {
         let range_start = self.chunk_start(chunk);
         let range_end_inclusive = self.chunk_end(chunk);
         let range_header = format!("bytes={range_start}-{range_end_inclusive}");
-        let get_range_response = http_client
+        let get_range_response = agent
             .get(&self.url)
-            .header(RANGE, range_header)
-            .send()
-            .await
-            .context("GET request failed")?;
+            .set(RANGE.as_str(), &range_header)
+            .call()
+            .context("GET ranged request failed")?;
         let addr = get_range_response.remote_addr();
         debug!("Chunk {chunk} from {addr:?}");
-        get_range_response
-            .error_for_status_ref()
-            .context("GET request returned non-success status code")?;
         if get_range_response.status() != StatusCode::PARTIAL_CONTENT {
             bail!(
                 "Response to range request has an unexpected status code (expected {}, found {})",
@@ -294,53 +304,69 @@ impl ParallelDownloadProcessorInner {
                 get_range_response.status()
             )
         }
-        let body = get_range_response
-            .bytes()
-            .await
-            .context("error while streaming body")?;
 
-        Ok(body)
-    }
+        let range_size = range_end_inclusive - range_start + 1;
+        let mut bytes: Vec<u8> = Vec::with_capacity(range_size);
 
-    /// Check if we need to send `DlChunk` to the consumer, or queue it for re ordering.
-    async fn check_to_send(&self, chunk: DlChunk) -> Option<DlChunk> {
-        let next = self.next_chunk.read().await;
-        if chunk.chunk_num == *next {
-            return Some(chunk);
+        let bytes_read = get_range_response
+            .into_reader()
+            .take(u64_from_saturating(range_size))
+            .read_to_end(&mut bytes)?;
+
+        if bytes_read != range_size {
+            bail!("Expected {range_size} bytes in response, but only read {bytes_read}")
         }
-        self.reorder_queue.insert(chunk.chunk_num, chunk);
-        None
+
+        Ok(Arc::new(bytes))
     }
+
+    // Check if we need to send `DlChunk` to the consumer, or queue it for re ordering.
+    // fn check_to_send(&self, chunk: DlChunk) -> Result<Option<DlChunk>> {
+    // let next = match self.next_chunk.read() {
+    // Ok(next) => next,
+    // Err(error) => bail!("Failed to acquire read lock on next chunk: {}", error),
+    // };
+    //
+    // if chunk.chunk_num == *next {
+    // return Ok(Some(chunk));
+    // }
+    // self.reorder_queue.insert(chunk.chunk_num, chunk);
+    // Ok(None)
+    // }
 
     /// Queue Chunk to processor.
     ///
     /// Reorders chunks and sends to the consumer.
-    async fn reorder_queue(
-        &self, chunk: DlChunk, result_queue_tx: &UnboundedSender<DlChunk>,
-    ) -> anyhow::Result<()> {
-        if let Some(chunk) = self.check_to_send(chunk).await {
-            // Send first consecutive chunk without needing to insert into reorder queue first.
-            result_queue_tx.send(chunk)?;
-
-            // If we should be sending, then get a write lock, so we can do it without race
-            // conditions.
-            let mut next = self.next_chunk.write().await;
-            let mut actual_next = *next + 1;
-
-            // Send any blocks that are consecutive from the reorder queue.
-            while self.reorder_queue.contains_key(&actual_next) {
-                let Some(entry) = self.reorder_queue.pop_front() else {
-                    bail!("Expected to find a chunk in the reorder queue, but did not")
-                };
-                let chunk = entry.value();
-                result_queue_tx.send(chunk.clone())?;
-
-                actual_next += 1;
-            }
-            *next = actual_next;
-        }
-
+    fn reorder_queue(&self, chunk: DlChunk) -> anyhow::Result<()> {
+        self.reorder_queue.insert(chunk.chunk_num, chunk);
+        self.new_chunk_queue_tx.send(Some(()))?;
         Ok(())
+        // if let Some(chunk) = self.check_to_send(chunk)? {
+        // Send first consecutive chunk without needing to insert into reorder queue
+        // first. result_queue_tx.send(chunk)?;
+        //
+        // If we should be sending, then get a write lock, so we can do it without race
+        // conditions.
+        // let mut next = match self.next_chunk.write() {
+        // Ok(next) => next,
+        // Err(error) => bail!("Failed to acquire write lock on next chunk: {}", error),
+        // };
+        // let mut actual_next = *next + 1;
+        //
+        // Send any blocks that are consecutive from the reorder queue.
+        // while self.reorder_queue.contains_key(&actual_next) {
+        // let Some(entry) = self.reorder_queue.pop_front() else {
+        // bail!("Expected to find a chunk in the reorder queue, but did not")
+        // };
+        // let chunk = entry.value();
+        // result_queue_tx.send(chunk.clone())?;
+        //
+        // actual_next += 1;
+        // }
+        // next = actual_next;
+        // }
+        //
+        // Ok(())
     }
 }
 
@@ -349,7 +375,6 @@ impl ParallelDownloadProcessorInner {
 /// Uses multiple connection to speed up downloads, but returns data sequentially
 /// so it can be processed without needing to store the whole file in memory or disk.
 #[derive(Clone)]
-#[allow(dead_code)]
 pub(crate) struct ParallelDownloadProcessor(Arc<ParallelDownloadProcessorInner>);
 
 impl ParallelDownloadProcessor {
@@ -364,84 +389,85 @@ impl ParallelDownloadProcessor {
                 MIN_CHUNK_SIZE
             );
         }
-        let http_client = reqwest::ClientBuilder::new()
-            .connect_timeout(CONNECTION_TIMEOUT)
-            .read_timeout(DATA_READ_TIMEOUT)
-            .build()?;
-        let file_size = get_content_length(&http_client, url).await?;
+        let file_size = get_content_length_async(url).await?;
 
         // Get the minimum number of workers we need, just in case the chunk size is bigger than
         // the requested workers can process.
         cfg.workers = file_size.div_ceil(cfg.chunk_size).min(cfg.workers);
 
         let last_chunk = file_size.div_ceil(cfg.chunk_size);
-        let (stream_queue_tx, stream_queue_rx) = mpsc::channel::<Option<Bytes>>(2);
+
+        // Initialize the download statistics
+        let mut bytes_downloaded = Vec::with_capacity(cfg.workers);
+        for _ in 0..cfg.workers {
+            bytes_downloaded.push(AtomicU64::new(0));
+        }
+
+        let new_chunk_queue = crossbeam_channel::unbounded();
+
         let processor = ParallelDownloadProcessor(Arc::new(ParallelDownloadProcessorInner {
             url: String::from(url),
             cfg: cfg.clone(),
             file_size,
             last_chunk,
             reorder_queue: SkipMap::new(),
-            next_chunk: RwLock::new(0),
             work_queue: SkipMap::new(),
-            stream_queue: Mutex::new((None, stream_queue_rx)),
-            stats: SkipMap::new(),
+            new_chunk_queue_rx: new_chunk_queue.1,
+            new_chunk_queue_tx: new_chunk_queue.0,
+            bytes_downloaded,
+            left_over_bytes: Mutex::new(None),
+            next_expected_chunk: AtomicUsize::new(0),
+            next_requested_chunk: AtomicUsize::new(0),
         }));
 
-        processor.start_workers(stream_queue_tx);
+        processor.start_workers()?;
 
         Ok(processor)
     }
 
     /// Starts the worker tasks, they will not start doing any work until `download` is
     /// called, which happens immediately after they are started.
-    fn start_workers(&self, stream_queue_tx: Sender<Option<Bytes>>) {
-        let (result_queue_tx, result_queue_rx) = mpsc::unbounded_channel::<DlChunk>();
+    fn start_workers(&self) -> anyhow::Result<()> {
         for worker in 0..self.0.cfg.workers {
             // The channel is unbounded, because work distribution is controlled to be at most
             // `work_queue` deep per worker. And we don't want anything unexpected to
             // cause the processor to block.
-            let (work_queue_tx, work_queue_rx) = mpsc::unbounded_channel::<DlWorkOrder>();
-            let tx_queue = result_queue_tx.clone();
+            let (work_queue_tx, work_queue_rx) = crossbeam_channel::unbounded::<DlWorkOrder>();
             let params = self.0.clone();
-            tokio::spawn(async move {
-                Self::worker(params, worker, work_queue_rx, tx_queue).await;
+            thread::spawn(move || {
+                Self::worker(&params, worker, &work_queue_rx);
             });
 
             let _unused = self.0.work_queue.insert(worker, work_queue_tx);
         }
 
-        let params = self.0.clone();
-        tokio::spawn(async move {
-            if let Err(error) = Self::download(params, result_queue_rx, stream_queue_tx).await {
-                error!("Failed to download with: {:?}", error);
-            }
-        });
+        self.download()
     }
 
     /// The worker task - It is running in parallel and downloads chunks of the file as
     /// requested.
-    async fn worker(
-        params: Arc<ParallelDownloadProcessorInner>, worker_id: usize,
-        mut work_queue: UnboundedReceiver<DlWorkOrder>, result_queue: UnboundedSender<DlChunk>,
+    fn worker(
+        params: &Arc<ParallelDownloadProcessorInner>, worker_id: usize,
+        work_queue: &crossbeam_channel::Receiver<DlWorkOrder>,
     ) {
         debug!("Worker {worker_id} started");
+
         // Each worker has its own http_client, so there is no cross worker pathology
         // Each worker should be expected to make multiple requests to the same host.
-        let http_client = match params.cfg.make_http_conn() {
-            Ok(client) => client,
-            Err(error) => {
-                error!("Failed to create http1 client: {error}");
-                return;
-            },
-        };
+        // Resolver should never fail to initialize.  However, if it does, we can;t start the
+        // worker.
+        if let Err(error) = BalancingResolver::init(&params.cfg) {
+            error!("Failed to initialize DNS resolver for worker {worker_id}: {error:?}");
+            return;
+        }
+        let http_agent = params.cfg.make_http_agent(worker_id);
 
-        while let Some(next_chunk) = work_queue.recv().await {
+        while let Ok(next_chunk) = work_queue.recv() {
             let mut retries = 0;
             let mut block;
             debug!("Worker {worker_id} DL chunk {next_chunk}");
             loop {
-                block = match params.get_range(&http_client, next_chunk).await {
+                block = match params.get_range(&http_agent, next_chunk) {
                     Ok(block) => Some(block),
                     Err(error) => {
                         error!("Error getting chunk: {:?}, error: {:?}", next_chunk, error);
@@ -457,17 +483,24 @@ impl ParallelDownloadProcessor {
             }
             debug!("Worker {worker_id} DL chunk done {next_chunk}: {retries}");
 
-            if let Err(error) = params
-                .reorder_queue(
-                    DlChunk {
-                        worker: worker_id,
-                        chunk_num: next_chunk,
-                        chunk: block,
-                    },
-                    &result_queue,
-                )
-                .await
-            {
+            if let Some(ref block) = block {
+                if let Some(dl_stat) = params.bytes_downloaded.get(worker_id) {
+                    let this_bytes_downloaded = u64_from_saturating(block.len());
+                    let _last_bytes_downloaded = dl_stat
+                        .fetch_add(this_bytes_downloaded, std::sync::atomic::Ordering::SeqCst);
+                    // debug!("Worker {worker_id} DL chunk {next_chunk}:
+                    // {last_bytes_downloaded} + {this_bytes_downloaded} = {}",
+                    // last_bytes_downloaded+this_bytes_downloaded);
+                } else {
+                    error!("Failed to get bytes downloaded for worker {worker_id}");
+                }
+            }
+
+            if let Err(error) = params.reorder_queue(DlChunk {
+                worker: worker_id,
+                chunk_num: next_chunk,
+                chunk: block,
+            }) {
                 error!("Error sending chunk: {:?}, error: {:?}", next_chunk, error);
                 break;
             };
@@ -477,9 +510,8 @@ impl ParallelDownloadProcessor {
     }
 
     /// Send a work order to a worker.
-    fn send_work_order(
-        params: &Arc<ParallelDownloadProcessorInner>, this_worker: usize, order: DlWorkOrder,
-    ) -> Result<usize> {
+    fn send_work_order(&self, this_worker: usize, order: DlWorkOrder) -> Result<usize> {
+        let params = self.0.clone();
         let next_worker = (this_worker + 1) % params.cfg.workers;
         if let Some(worker_queue) = params.work_queue.get(&this_worker) {
             let queue = worker_queue.value();
@@ -490,74 +522,125 @@ impl ParallelDownloadProcessor {
         Ok(next_worker)
     }
 
-    /// Downloads the file using parallel connections.
+    /// Starts Downloading the file using parallel connections.
     ///
-    /// Can only be called once on Self.
-    async fn download(
-        params: Arc<ParallelDownloadProcessorInner>, mut rx_queue: UnboundedReceiver<DlChunk>,
-        stream_queue_tx: Sender<Option<Bytes>>,
-    ) -> anyhow::Result<()> {
+    /// Should only be called once on self.
+    fn download(&self) -> anyhow::Result<()> {
+        let params = self.0.clone();
         // Pre fill the work queue with orders.
         let max_pre_orders = params.cfg.queue_ahead * params.cfg.workers;
         let pre_orders = max_pre_orders.min(params.last_chunk);
 
         let mut this_worker: usize = 0;
-        let mut next_expected_chunk: usize = 0;
 
         // Fill up the pre-orders into the workers queues.
         for pre_order in 0..pre_orders {
-            this_worker = Self::send_work_order(&params, this_worker, pre_order)?;
+            this_worker = self.send_work_order(this_worker, pre_order)?;
         }
 
-        let mut next_work_order = pre_orders;
+        params
+            .next_requested_chunk
+            .store(pre_orders, Ordering::SeqCst);
 
         // Wait for blocks to come back from the workers.
         // Issue new orders until we either send them all, OR we get an error.
         // Terminate once we have received all the blocks.
-        while let Some(chunk) = rx_queue.recv().await {
-            // Check the chunk is the one we expected.
-            if chunk.chunk_num != next_expected_chunk {
-                bail!(
-                    "Received unexpected chunk, expected {}, got {}",
-                    next_expected_chunk,
-                    chunk.chunk_num
-                );
-            }
-
-            if chunk.chunk_num >= params.last_chunk {
-                break;
-            }
-            next_expected_chunk += 1;
-
-            // Send more work to the worker that just finished a work order.
-            if next_work_order < params.last_chunk {
-                let _unused = Self::send_work_order(&params, chunk.worker, next_work_order)?;
-                next_work_order += 1;
-            }
-
-            // Send the chunk to the consumer...
-            // This only has a very small buffer, so DL rate will be limited to consumption rate.
-            stream_queue_tx.send(chunk.chunk).await?;
-            //#[allow(clippy::no_effect_underscore_binding)]
-            // let _unused = &stream_queue_tx;
-        }
+        // while let Ok(chunk) = rx_queue.recv() {
+        // Check the chunk is the one we expected.
+        // if chunk.chunk_num != next_expected_chunk {
+        // bail!(
+        // "Received unexpected chunk, expected {}, got {}",
+        // next_expected_chunk,
+        // chunk.chunk_num
+        // );
+        // }
+        //
+        // if chunk.chunk_num >= params.last_chunk {
+        // break;
+        // }
+        // next_expected_chunk += 1;
+        //
+        // Send more work to the worker that just finished a work order.
+        // if next_work_order < params.last_chunk {
+        // let _unused = Self::send_work_order(params, chunk.worker, next_work_order)?;
+        // next_work_order += 1;
+        // }
+        //
+        // Send the chunk to the consumer...
+        // This only has a very small buffer, so DL rate will be limited to consumption rate.
+        // stream_queue_tx.send(chunk.chunk)?;
+        // }
 
         Ok(())
+    }
+
+    /// Get current size of data we downloaded.
+    pub(crate) fn dl_size(&self) -> u64 {
+        self.0.total_bytes()
     }
 }
 
 impl std::io::Read for ParallelDownloadProcessor {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let mut rx_queue = self.0.stream_queue.blocking_lock();
+        // There should only ever be one reader, the purpose of this mutex is to give us
+        // mutability it should never actually block.
+        let mut left_over_buffer = self
+            .0
+            .left_over_bytes
+            .lock()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{e:?}")))?;
 
-        let (left_over_bytes, offset) = if let Some((left_over_bytes, offset)) = rx_queue.0.take() {
-            (left_over_bytes, offset)
-        } else {
-            let Some(block) = rx_queue.1.blocking_recv().flatten() else {
-                return Ok(0); // EOF
+        let (left_over_bytes, offset) =
+            if let Some((left_over_bytes, offset)) = left_over_buffer.take() {
+                (left_over_bytes, offset)
+            } else {
+                // Get the next chunk and inc the one we would want next.
+                let next_chunk = self.0.next_expected_chunk.fetch_add(1, Ordering::SeqCst);
+
+                // Wait here until we actually have the next chunk in the reorder queue.
+                while !self.0.reorder_queue.contains_key(&next_chunk) {
+                    if let Err(error) = self.0.new_chunk_queue_rx.recv() {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Next Chunk Queue Error: {error:?}"),
+                        ));
+                    }
+                }
+
+                let Some(chunk) = self.0.reorder_queue.pop_front() else {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Expected Chunk {next_chunk} Didn't get any"),
+                    ));
+                };
+                let chunk = chunk.value();
+                if chunk.chunk_num != next_chunk {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Expected Chunk {next_chunk} Got {}", chunk.chunk_num),
+                    ));
+                }
+                let Some(ref block) = chunk.chunk else {
+                    return Ok(0); // EOF
+                };
+
+                // Got a chunk so lets queue more work from the worker that gave us this block.
+                // Because we are pre-incrementing here, its possible for this to be > maximum
+                // chunks and thats OK.
+                let next_work_order = self.0.next_requested_chunk.fetch_add(1, Ordering::SeqCst);
+
+                // Send more work to the worker that just finished a work order.
+                if next_work_order < self.0.last_chunk {
+                    if let Err(error) = self.send_work_order(chunk.worker, next_work_order) {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Failed to send work order to {} : {error:?}", chunk.worker),
+                        ));
+                    }
+                }
+
+                (block.to_owned(), 0)
             };
-            (block, 0)
-        };
 
         // Send whats leftover or new.
         let bytes_left = left_over_bytes.len() - offset;
@@ -579,7 +662,7 @@ impl std::io::Read for ParallelDownloadProcessor {
 
         // Save whats leftover back inside the mutex, if there is anything.
         if offset + bytes_to_copy != left_over_bytes.len() {
-            rx_queue.0 = Some((left_over_bytes, offset + bytes_to_copy));
+            *left_over_buffer = Some((left_over_bytes, offset + bytes_to_copy));
         }
 
         Ok(bytes_to_copy)
@@ -588,34 +671,51 @@ impl std::io::Read for ParallelDownloadProcessor {
 
 /// Send a HEAD request to obtain the length of the file we want to download (necessary
 /// for calculating the offsets of the chunks)
-async fn get_content_length(http_client: &reqwest::Client, url: &str) -> anyhow::Result<usize> {
-    let head_response = http_client
-        .head(url)
-        .send()
-        .await
-        .context("HEAD request failed")?;
+///
+/// This exists because the `Probe` call made by Mithril is Async, and this makes
+/// interfacing to that easier.
+async fn get_content_length_async(url: &str) -> anyhow::Result<usize> {
+    let url = url.to_owned();
+    match tokio::task::spawn_blocking(move || get_content_length(&url)).await {
+        Ok(result) => result,
+        Err(error) => {
+            error!("get_content_length failed");
+            Err(anyhow::anyhow!("get_content_length failed: {}", error))
+        },
+    }
+}
 
-    head_response
-        .error_for_status_ref()
-        .context("HEAD request returned non-success status code")?;
+/// Send a HEAD request to obtain the length of the file we want to download (necessary
+/// for calculating the offsets of the chunks)
+fn get_content_length(url: &str) -> anyhow::Result<usize> {
+    let response = ureq::head(url).call()?;
 
-    let Some(accept_ranges) = head_response.headers().get(ACCEPT_RANGES) else {
+    if response.status() != StatusCode::OK {
+        bail!(
+            "HEAD request did not return a successful response: {}",
+            response.status_text()
+        );
+    }
+
+    if let Some(accept_ranges) = response.header(ACCEPT_RANGES.as_str()) {
+        if accept_ranges != "bytes" {
+            bail!(
+                "Server doesn't support HTTP range byte requests (Accept-Ranges = {})",
+                accept_ranges
+            );
+        }
+    } else {
         bail!("Server doesn't support HTTP range requests (missing ACCEPT_RANGES header)");
     };
 
-    let accept_ranges = String::from_utf8_lossy(accept_ranges.as_bytes());
-    if accept_ranges != "bytes" {
-        bail!("Server doesn't support HTTP range requests (Accept-Ranges = {accept_ranges})");
-    }
-    let Some(content_length) = head_response.headers().get(CONTENT_LENGTH) else {
+    let content_length = if let Some(content_length) = response.header(CONTENT_LENGTH.as_str()) {
+        let content_length: usize = content_length
+            .parse()
+            .context("Content-Length was not a valid unsigned integer")?;
+        content_length
+    } else {
         bail!("HEAD response did not contain a Content-Length header");
     };
-    let content_length = content_length
-        .to_str()
-        .context("Content-Length header contained invalid UTF8")?;
-    let content_length: usize = content_length
-        .parse()
-        .context("Content-Length was not a valid unsigned integer")?;
 
     Ok(content_length)
 }

@@ -99,13 +99,7 @@ async fn get_snapshot_by_id(
 /// Create a client, should never fail, but return None if it does, because we can't
 /// continue.
 fn create_client(cfg: &MithrilSnapshotConfig) -> Option<(Client, Arc<MithrilTurboDownloader>)> {
-    let downloader = match MithrilTurboDownloader::new(cfg.clone()) {
-        Ok(downloader) => Arc::new(downloader),
-        Err(err) => {
-            error!(chain = cfg.chain.to_string(), "Unexpected Error [{}]: Unable to create Snapshot Downloader. Mithril Snapshots can not update.", err);
-            return None;
-        },
-    };
+    let downloader = Arc::new(MithrilTurboDownloader::new(cfg.clone()));
 
     // This can't fail, because we already tested it works. But just in case...
     let client = match mithril_client::ClientBuilder::aggregator(
