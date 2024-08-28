@@ -57,6 +57,7 @@ http.workspace = true
 crossbeam-channel.workspace = true
 hickory-resolver.workspace = true
 moka.workspace = true
+crossbeam-epoch.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

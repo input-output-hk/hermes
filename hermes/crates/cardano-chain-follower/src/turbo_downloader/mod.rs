@@ -19,7 +19,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
 use http::{
     header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE},
     StatusCode,
@@ -201,8 +201,8 @@ impl DlConfig {
 impl Default for DlConfig {
     fn default() -> Self {
         DlConfig {
-            workers: 16,
-            chunk_size: 2 * 1024 * 1024,
+            workers: 32,
+            chunk_size: 8 * 1024 * 1024,
             queue_ahead: 3,
             connection_timeout: None,
             data_read_timeout: None,
@@ -244,9 +244,9 @@ struct ParallelDownloadProcessorInner {
     /// The last chunk we can request
     last_chunk: usize,
     /// Skip map used to reorder incoming chunks back into sequential order.
-    reorder_queue: SkipMap<usize, DlChunk>,
+    reorder_queue: DashMap<usize, DlChunk>,
     /// A queue for each worker to send them new work orders.
-    work_queue: SkipMap<usize, crossbeam_channel::Sender<DlWorkOrder>>,
+    work_queue: DashMap<usize, crossbeam_channel::Sender<DlWorkOrder>>,
     /// New Chunk Queue - Just says we added a new chunk to the reorder queue.
     new_chunk_queue_tx: crossbeam_channel::Sender<Option<()>>,
     /// New Chunk Queue - Just says we added a new chunk to the reorder queue.
@@ -259,6 +259,17 @@ struct ParallelDownloadProcessorInner {
     next_expected_chunk: AtomicUsize,
     /// Next Chunk to Request
     next_requested_chunk: AtomicUsize,
+}
+
+impl Drop for ParallelDownloadProcessorInner {
+    /// Cleanup the channel and workers.
+    fn drop(&mut self) {
+        debug!("Drop ParallelDownloadProcessorInner");
+        self.reorder_queue.clear();
+        self.reorder_queue.shrink_to_fit();
+        self.work_queue.clear();
+        self.work_queue.shrink_to_fit();
+    }
 }
 
 impl ParallelDownloadProcessorInner {
@@ -370,8 +381,8 @@ impl ParallelDownloadProcessor {
             cfg: cfg.clone(),
             file_size,
             last_chunk,
-            reorder_queue: SkipMap::new(),
-            work_queue: SkipMap::new(),
+            reorder_queue: DashMap::with_capacity((cfg.workers * cfg.queue_ahead) + 1),
+            work_queue: DashMap::with_capacity(cfg.workers + 1),
             new_chunk_queue_rx: new_chunk_queue.1,
             new_chunk_queue_tx: new_chunk_queue.0,
             bytes_downloaded,
@@ -538,13 +549,13 @@ impl std::io::Read for ParallelDownloadProcessor {
                     }
                 }
 
-                let Some(chunk) = self.0.reorder_queue.pop_front() else {
+                let Some((_, chunk)) = self.0.reorder_queue.remove(&next_chunk) else {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         format!("Expected Chunk {next_chunk} Didn't get any"),
                     ));
                 };
-                let chunk = chunk.value();
+
                 if chunk.chunk_num != next_chunk {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
