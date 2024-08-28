@@ -482,13 +482,21 @@ impl ParallelDownloadProcessor {
 
     /// Send a work order to a worker.
     fn send_work_order(&self, this_worker: usize, order: DlWorkOrder) -> Result<usize> {
-        let params = self.0.clone();
-        let next_worker = (this_worker + 1) % params.cfg.workers;
-        if let Some(worker_queue) = params.work_queue.get(&this_worker) {
-            let queue = worker_queue.value();
-            queue.send(order)?;
+        let next_worker = (this_worker + 1) % self.0.cfg.workers;
+        if order < self.0.last_chunk {
+            // let params = self.0.clone();
+            if let Some(worker_queue) = self.0.work_queue.get(&this_worker) {
+                let queue = worker_queue.value();
+                queue.send(order)?;
+            } else {
+                bail!("Expected a work queue for worker: {:?}", this_worker);
+            }
         } else {
-            bail!("Expected a work queue for worker: {:?}", this_worker);
+            // No more work, so remove the work queue from the map.
+            if let Some((_, work_queue)) = self.0.work_queue.remove(&this_worker) {
+                // Close the work queue, which should terminate the worker.
+                drop(work_queue);
+            }
         }
         Ok(next_worker)
     }
@@ -520,10 +528,10 @@ impl ParallelDownloadProcessor {
     pub(crate) fn dl_size(&self) -> u64 {
         self.0.total_bytes()
     }
-}
 
-impl std::io::Read for ParallelDownloadProcessor {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    /// Actual Read function, done like this so we can have a single cleanup on error or
+    /// EOF.
+    fn inner_read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // There should only ever be one reader, the purpose of this mutex is to give us
         // mutability it should never actually block.
         let mut left_over_buffer = self
@@ -572,13 +580,18 @@ impl std::io::Read for ParallelDownloadProcessor {
                 let next_work_order = self.0.next_requested_chunk.fetch_add(1, Ordering::SeqCst);
 
                 // Send more work to the worker that just finished a work order.
-                if next_work_order < self.0.last_chunk {
-                    if let Err(error) = self.send_work_order(chunk.worker, next_work_order) {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to send work order to {} : {error:?}", chunk.worker),
-                        ));
-                    }
+                // Or Stop the worker if there is no more work they can do.
+                if let Err(error) = self.send_work_order(chunk.worker, next_work_order) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to send work order to {} : {error:?}", chunk.worker),
+                    ));
+                }
+
+                // If this was the last chunk, we can stop all the workers and cleanup.
+                if next_chunk == self.0.last_chunk {
+                    debug!("Last Chunk read from workers. Cleaning Up.");
+                    self.cleanup();
                 }
 
                 (block.to_owned(), 0)
@@ -608,6 +621,40 @@ impl std::io::Read for ParallelDownloadProcessor {
         }
 
         Ok(bytes_to_copy)
+    }
+
+    /// Cleanup workers and queues when done.
+    fn cleanup(&self) {
+        // Close all the workers left running.
+        for x in &self.0.work_queue {
+            let worker = x.key();
+            if let Some((_, queue)) = self.0.work_queue.remove(worker) {
+                debug!("Force Closing worker {}", worker);
+                drop(queue);
+            }
+        }
+    }
+}
+
+impl Drop for ParallelDownloadProcessor {
+    fn drop(&mut self) {
+        debug!("ParallelDownloadProcessor::drop");
+        self.cleanup();
+    }
+}
+
+impl std::io::Read for ParallelDownloadProcessor {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let result = self.inner_read(buf);
+        match result {
+            Ok(0) | Err(_) => {
+                debug!("Read finished with Error or EOF - Cleaning up.");
+                self.cleanup();
+            },
+            _ => {},
+        }
+
+        result
     }
 }
 

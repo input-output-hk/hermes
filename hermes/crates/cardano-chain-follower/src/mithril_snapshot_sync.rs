@@ -8,7 +8,7 @@ use std::{
 };
 
 use chrono::{TimeDelta, Utc};
-use crossbeam_skiplist::SkipSet;
+use dashmap::DashSet;
 use humantime::format_duration;
 use logcall::logcall;
 use mithril_client::{Client, MessageBuilder, MithrilCertificate, Snapshot, SnapshotListItem};
@@ -402,7 +402,7 @@ async fn recover_existing_snapshot(
 
     // Note: we pre-validated connection before we ran, so failure here should be transient.
     // Just wait if we fail, and try again later.
-    let (client, _downloader) = connect_client(cfg).await;
+    let (client, downloader) = connect_client(cfg).await;
 
     debug!(
         "Mithril Snapshot background updater for: {} : Client connected.",
@@ -456,6 +456,10 @@ async fn recover_existing_snapshot(
     } else {
         mithril_validation_state(cfg.chain, stats::MithrilValidationState::Finish);
     }
+
+    // Explicitly free the resources claimed by the Mithril Client and Downloader.
+    drop(client);
+    drop(downloader);
 
     current_snapshot
 }
@@ -555,25 +559,21 @@ fn chunk_filename_to_chunk_number(chunk: &Path) -> Option<u64> {
 }
 
 /// Remove any chunks from the chunk list which exceed the `max_chunk`.
-fn trim_chunk_list(chunk_list: &Arc<SkipSet<PathBuf>>, max_chunks: u64) {
-    loop {
-        if let Some(last_chunk) = chunk_list.back().map(|c| c.value().clone()) {
-            if let Some(chunk_index) = chunk_filename_to_chunk_number(&last_chunk) {
-                if chunk_index > max_chunks {
-                    debug!("Removing Non immutable Chunk: {:?}", last_chunk);
-                    chunk_list.pop_back();
-                    continue;
-                }
+fn trim_chunk_list(chunk_list: &Arc<DashSet<PathBuf>>, max_chunks: u64) {
+    chunk_list.retain(|entry| {
+        if let Some(chunk_index) = chunk_filename_to_chunk_number(entry) {
+            if chunk_index > max_chunks {
+                debug!("Removing Non immutable Chunk: {:?}", entry);
+                false
             } else {
-                // Huh, not a valid filename, so purge it.
-                error!("Found an invalid chunk name: {:?}", last_chunk);
-                chunk_list.pop_back();
-                continue;
+                true
             }
+        } else {
+            // Huh, not a valid filename, so purge it.
+            error!("Found an invalid chunk name: {:?}", entry);
+            false
         }
-
-        break;
-    }
+    });
 }
 
 /// Downloads and validates a snapshot from the aggregator.
@@ -659,6 +659,16 @@ async fn sleep_until_next_probable_update(
     DOWNLOAD_ERROR_RETRY_DURATION
 }
 
+/// Cleanup the client explicitly and do a new iteration of the loop.
+macro_rules! next_iteration {
+    ($client:ident, $downloader:ident) => {
+        drop($client);
+        drop($downloader);
+
+        continue;
+    };
+}
+
 /// Handle the background downloading of Mithril snapshots for a given network.
 /// Note: There can ONLY be at most three of these running at any one time.
 /// This is because there can ONLY be one snapshot for each of the three known Cardano
@@ -674,6 +684,7 @@ async fn sleep_until_next_probable_update(
 /// # Returns
 ///
 /// This does not return, it is a background task.
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn background_mithril_update(
     cfg: MithrilSnapshotConfig, tx: Sender<MithrilUpdateMessage>,
 ) {
@@ -700,7 +711,7 @@ pub(crate) async fn background_mithril_update(
             match check_snapshot_to_download(cfg.chain, &client, &current_snapshot).await {
                 SnapshotStatus::Sleep(sleep) => {
                     next_sleep = sleep;
-                    continue;
+                    next_iteration!(client, downloader);
                 },
                 SnapshotStatus::Updated(update) => update,
             };
@@ -716,7 +727,8 @@ pub(crate) async fn background_mithril_update(
         {
             error!("Failed to Download or Validate a snapshot.");
             mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::DownloadOrValidation);
-            continue;
+
+            next_iteration!(client, downloader);
         }
 
         // Download was A-OK - Update the new immutable tip.
@@ -729,7 +741,8 @@ pub(crate) async fn background_mithril_update(
                     cfg.chain
                 );
                 mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::FailedToGetTip);
-                continue;
+
+                next_iteration!(client, downloader);
             },
         };
 
@@ -743,7 +756,7 @@ pub(crate) async fn background_mithril_update(
                     cfg.chain
                 );
                 mithril_sync_failure(cfg.chain, stats::MithrilSyncFailures::TipDidNotAdvance);
-                continue;
+                next_iteration!(client, downloader);
             }
         }
 
@@ -776,7 +789,7 @@ pub(crate) async fn background_mithril_update(
                             cfg.chain,
                             stats::MithrilSyncFailures::TipFailedToSendToUpdater,
                         );
-                        continue;
+                        next_iteration!(client, downloader);
                     };
                 }
             },
@@ -789,8 +802,9 @@ pub(crate) async fn background_mithril_update(
                     cfg.chain,
                     stats::MithrilSyncFailures::FailedToActivateNewSnapshot,
                 );
-                continue;
+                next_iteration!(client, downloader);
             },
         }
+        next_iteration!(client, downloader);
     }
 }

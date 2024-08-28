@@ -15,7 +15,7 @@ use std::{
 use anyhow::{anyhow, bail};
 // use async_compression::tokio::bufread::ZstdDecoder;
 use async_trait::async_trait;
-use crossbeam_skiplist::SkipSet;
+use dashmap::DashSet;
 use fmmap::{
     // tokio::{AsyncMmapFile, AsyncMmapFileExt, AsyncOptions},
     MmapFileExt,
@@ -51,7 +51,7 @@ pub struct Inner {
     /// Configuration for the snapshot sync.
     cfg: MithrilSnapshotConfig,
     /// Last hashmap/list of changed chunks from the previous download
-    new_chunks: Arc<SkipSet<PathBuf>>,
+    new_chunks: Arc<DashSet<PathBuf>>,
 
     /// The number of files that were new in this download.
     new_files: AtomicU64,
@@ -273,7 +273,7 @@ impl MithrilTurboDownloader {
         Self {
             inner: Arc::new(Inner {
                 cfg,
-                new_chunks: Arc::new(SkipSet::new()),
+                new_chunks: Arc::new(DashSet::new()),
                 new_files: AtomicU64::new(0),
                 chg_files: AtomicU64::new(0),
                 tot_files: AtomicU64::new(0),
@@ -285,7 +285,7 @@ impl MithrilTurboDownloader {
     }
 
     /// Take the hashmap for the previous download.
-    pub fn get_new_chunks(&self) -> Arc<SkipSet<PathBuf>> {
+    pub fn get_new_chunks(&self) -> Arc<DashSet<PathBuf>> {
         self.inner.new_chunks.clone()
     }
 

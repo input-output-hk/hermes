@@ -157,7 +157,8 @@ impl DecodedTransaction {
         decoded_aux_data
     }
 
-    /// Get metadata for a given label in a transaction if it exists.
+    /// Get metadata for a given label in a transaction if it exists.    
+    #[must_use]
     pub fn get_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<DecodedMetadataItem>> {
         let txn_metadata = self.decoded.get(&txn_idx)?;
         let txn_metadata = txn_metadata.value();
@@ -165,6 +166,7 @@ impl DecodedTransaction {
     }
 
     /// Get raw metadata for a given label in a transaction if it exists.
+    #[must_use]
     pub fn get_raw_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<Vec<u8>>> {
         let txn_metadata = self.raw.get(&txn_idx)?;
         let txn_metadata = txn_metadata.value();
