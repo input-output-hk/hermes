@@ -201,8 +201,8 @@ impl DlConfig {
 impl Default for DlConfig {
     fn default() -> Self {
         DlConfig {
-            workers: 32,
-            chunk_size: 8 * 1024 * 1024,
+            workers: 16,
+            chunk_size: 2 * 1024 * 1024,
             queue_ahead: 3,
             connection_timeout: None,
             data_read_timeout: None,
