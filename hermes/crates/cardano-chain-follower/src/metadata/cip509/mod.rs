@@ -2,7 +2,9 @@
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
-use der_parser::der::parse_der_sequence;
+use c509_certificate::general_names::general_name::GeneralNameValue;
+use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
+use rbac::certs::C509Cert;
 use tracing::warn;
 use utf8_decode::Decoder as Utf8Decoder;
 
@@ -42,6 +44,9 @@ pub const LABEL: u64 = 509;
 /// Context-specific primitive type with tag number 6 (raw_tag 134) for
 /// uniform resource identifier (URI) in the subject alternative name extension.
 pub(crate) const URI: u8 = 134;
+
+/// Subject Alternative Name OID
+pub(crate) const SUBJECT_ALT_NAME_OID: Oid = oid!(2.5.29 .17);
 
 /// CIP509 metadatum.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -158,7 +163,7 @@ impl Cip509 {
 
         // Validate the public key
         // FIXME - Remove this
-        if _slot == 68906742 {
+        if _slot == 69131472 {
             if let Some(role_set) = &cip509.x509_chunks.0.role_set {
                 // Only care about the role number 0
                 if role_set.iter().any(|role| role.role_number == 0) {
@@ -196,8 +201,9 @@ impl Cip509 {
         let mut pk_addrs = Vec::new();
         match txn {
             MultiEraTx::AlonzoCompatible(_, _) | MultiEraTx::Babbage(_) | MultiEraTx::Conway(_) => {
-                if let Some(certs) = &self.x509_chunks.0.x509_certs {
-                    for cert in certs {
+                // X509 certificate
+                if let Some(x509_certs) = &self.x509_chunks.0.x509_certs {
+                    for cert in x509_certs {
                         // Attempt to decode the DER certificate
                         let der_cert = match x509_cert::Certificate::from_der(&cert.0) {
                             Ok(cert) => cert,
@@ -256,6 +262,69 @@ impl Cip509 {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+                // C509 Certificate
+                if let Some(c509_certs) = &self.x509_chunks.0.c509_certs {
+                    for cert in c509_certs {
+                        match cert {
+                            C509Cert::C509CertInMetadatumReference(_) => {
+                                self.validation_failure(
+                                    &format!("c509 metadatum rederence is currently not supported"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                            },
+                            C509Cert::C509Certificate(c509) => {
+                                for exts in c509.get_tbs_cert().get_extensions().get_inner() {
+                                    if exts.get_registered_oid().get_c509_oid().get_oid()
+                                        == SUBJECT_ALT_NAME_OID
+                                    {
+                                        match exts.get_value() {
+                                            c509_certificate::extensions::extension::ExtensionValue::AlternativeName(alt_name) => {
+                                                match alt_name.get_inner() {
+                                                    c509_certificate::extensions::alt_name::GeneralNamesOrText::GeneralNames(gn) => {
+                                                        for name in gn.get_inner() {
+                                                            if name.get_gn_type() == &c509_certificate::general_names::general_name::GeneralNameTypeRegistry::UniformResourceIdentifier {
+                                                                match name.get_gn_value() {
+                                                                    GeneralNameValue::Text(s) => {
+                                                                        if let Some(h) = extract_cip19_hash(s) {
+                                                                            warn!("Extracted CIP19 hash: {:?}", h);
+                                                                            pk_addrs.push(h);
+                                                                        }
+                                                                    }
+                                                                    _ => {
+                                                                        self.validation_failure(
+                                                                            "Failed to get the value of subject alternative name",
+                                                                            validation_report,
+                                                                            decoded_metadata,
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    _ => {
+                                                        self.validation_failure(
+                                                            "Failed to find c509 general names in subject alternative name",
+                                                            validation_report,
+                                                            decoded_metadata,
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            _ => {
+                                                self.validation_failure(
+                                                    "Failed to get c509 subject alternative name",
+                                                    validation_report,
+                                                    decoded_metadata,
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                         }
                     }
                 }
