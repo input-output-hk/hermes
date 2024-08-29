@@ -4,7 +4,7 @@
 
 use c509_certificate::general_names::general_name::GeneralNameValue;
 use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
-use rbac::certs::C509Cert;
+use rbac::{certs::C509Cert, role_data::RoleData};
 use tracing::warn;
 use utf8_decode::Decoder as Utf8Decoder;
 
@@ -33,7 +33,7 @@ use super::{
     ValidationReport,
 };
 use crate::{
-    utils::{blake2b_128, compare_key_hash, extract_cip19_hash},
+    utils::{blake2b_128, compare_key_hash, extract_cip19_hash, extract_key_hash},
     witness::TxWitness,
     Network,
 };
@@ -166,13 +166,22 @@ impl Cip509 {
         if _slot == 69131472 {
             if let Some(role_set) = &cip509.x509_chunks.0.role_set {
                 // Only care about the role number 0
-                if role_set.iter().any(|role| role.role_number == 0) {
-                    cip509.validate_public_key(
-                        txn,
-                        &mut validation_report,
-                        decoded_metadata,
-                        txn_idx,
-                    );
+                for role in role_set.iter() {
+                    if role.role_number == 0 {
+                        cip509.validate_public_key(
+                            txn,
+                            &mut validation_report,
+                            decoded_metadata,
+                            txn_idx,
+                        );
+                        cip509.validate_payment_key(
+                            txn,
+                            &mut validation_report,
+                            decoded_metadata,
+                            txn_idx,
+                            role,
+                        );
+                    }
                 }
             }
         }
@@ -200,7 +209,7 @@ impl Cip509 {
     ) -> Option<bool> {
         let mut pk_addrs = Vec::new();
         match txn {
-            MultiEraTx::AlonzoCompatible(_, _) | MultiEraTx::Babbage(_) | MultiEraTx::Conway(_) => {
+            MultiEraTx::AlonzoCompatible(..) | MultiEraTx::Babbage(_) | MultiEraTx::Conway(_) => {
                 // X509 certificate
                 if let Some(x509_certs) = &self.x509_chunks.0.x509_certs {
                     for cert in x509_certs {
@@ -483,6 +492,216 @@ impl Cip509 {
             inputs_hash, self.txn_inputs_hash
         );
         Some(inputs_hash == self.txn_inputs_hash)
+    }
+
+    /// Validate the payment key
+    fn validate_payment_key(
+        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata, txn_idx: usize, role_data: &RoleData,
+    ) -> Option<bool> {
+        if let Some(payment_key) = role_data.payment_key {
+            match txn {
+                MultiEraTx::AlonzoCompatible(tx, _) => {
+                    // Negative indicates reference to tx output
+                    if payment_key < 0 {
+                        let index = payment_key.abs() as usize;
+                        let outputs = tx.transaction_body.outputs.clone();
+                        let witnesses =
+                            TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
+                        match outputs.get(index) {
+                            Some(output) => {
+                                if let Some(key) = extract_key_hash(output.address.to_vec()) {
+                                    if compare_key_hash(vec![key.clone()], witnesses, txn_idx as u8)
+                                        .is_ok()
+                                    {
+                                        return Some(true);
+                                    }
+                                } else {
+                                    self.validation_failure(
+                                        "Failed to extract payment key hash from address",
+                                        validation_report,
+                                        decoded_metadata,
+                                    );
+                                    return None;
+                                }
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction outputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    // Positive indicates reference to tx input
+                    } else {
+                        let inputs = tx.transaction_body.inputs.clone();
+                        match inputs.get(payment_key as usize) {
+                            Some(_input) => {
+                                // For inputs check whether the index exists
+                                return Some(true);
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction inputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    }
+                },
+                MultiEraTx::Babbage(tx) => {
+                    // Negative indicates reference to tx output
+                    if payment_key < 0 {
+                        let index = payment_key.abs() as usize;
+                        let outputs = tx.transaction_body.outputs.clone();
+                        let witnesses =
+                            TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
+
+                        match outputs.get(index) {
+                            Some(output) => {
+                                match output {
+                                    pallas::ledger::primitives::babbage::PseudoTransactionOutput::Legacy(o) => {
+                                        if let Some(key) = extract_key_hash(o.address.to_vec()) {
+                                            if compare_key_hash(vec!(key.clone()), witnesses, txn_idx as u8).is_ok() {
+                                                return Some(true);
+                                            }
+                                        } else {
+                                            self.validation_failure(
+                                                "Failed to extract payment key hash from address",
+                                                validation_report,
+                                                decoded_metadata,
+                                            );
+                                            return None;
+                                        }
+                                    },
+                                    pallas::ledger::primitives::babbage::PseudoTransactionOutput::PostAlonzo(o) => {
+                                        if let Some(key) = extract_key_hash(o.address.to_vec()) {
+                                            if compare_key_hash(vec!(key.clone()), witnesses, 0).is_ok() {
+                                                return Some(true);
+                                            }
+                                        } else {
+                                            self.validation_failure(
+                                                "Failed to extract payment key hash from address",
+                                                validation_report,
+                                                decoded_metadata,
+                                            );
+                                            return None;
+                                        }
+                                    },
+                                }
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction outputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    // Positive indicates reference to tx input
+                    } else {
+                        let inputs = tx.transaction_body.inputs.clone();
+                        match inputs.get(payment_key as usize) {
+                            Some(_input) => {
+                                // For inputs check whether the index exists
+                                return Some(true);
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction inputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    }
+                },
+                MultiEraTx::Conway(tx) => {
+                    // Negative indicates reference to tx output
+                    if payment_key < 0 {
+                        let index = payment_key.abs() as usize;
+                        let outputs = tx.transaction_body.outputs.clone();
+                        let witnesses =
+                            TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
+
+                        match outputs.get(index) {
+                            Some(output) => {
+                                match output {
+                                    pallas::ledger::primitives::conway::PseudoTransactionOutput::Legacy(o) => {
+                                        if let Some(key) = extract_key_hash(o.address.to_vec()) {
+                                            if compare_key_hash(vec!(key.clone()), witnesses, txn_idx as u8).is_ok() {
+                                                return Some(true);
+                                            }
+                                        } else {
+                                            self.validation_failure(
+                                                "Failed to extract payment key hash from address",
+                                                validation_report,
+                                                decoded_metadata,
+                                            );
+                                            return None;
+                                        }
+                                    },
+                                    pallas::ledger::primitives::conway::PseudoTransactionOutput::PostAlonzo(o) => {
+                                        if let Some(key) = extract_key_hash(o.address.to_vec()) {
+                                            if compare_key_hash(vec!(key.clone()), witnesses, 0).is_ok() {
+                                                return Some(true);
+                                            }
+                                        } else {
+                                            self.validation_failure(
+                                                "Failed to extract payment key hash from address",
+                                                validation_report,
+                                                decoded_metadata,
+                                            );
+                                            return None;
+                                        }
+                                    },
+                                }
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction outputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    // Positive indicates reference to tx input
+                    } else {
+                        let inputs = tx.transaction_body.inputs.clone();
+                        match inputs.get(payment_key as usize) {
+                            Some(_input) => {
+                                // For inputs check whether the index exists
+                                return Some(true);
+                            },
+                            None => {
+                                self.validation_failure(
+                                    "Role payment key reference index is not found in transaction inputs",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        }
+                    }
+                },
+                _ => {
+                    self.validation_failure(
+                        "Unsupported transaction era for payment key validation",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                },
+            }
+        }
+        return Some(false);
     }
 }
 

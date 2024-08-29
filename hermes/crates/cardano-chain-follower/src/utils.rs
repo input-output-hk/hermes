@@ -63,7 +63,6 @@ pub(crate) fn blake2b_128(value: &[u8]) -> anyhow::Result<[u8; 16]> {
 /// Example input: "web+cardano://addr/<cip-19 address string>"
 /// https://github.com/cardano-foundation/CIPs/tree/6bae5165dde5d803778efa5e93bd408f3317ca03/CPS-0016
 /// URI = scheme ":" ["//" authority] path ["?" query] ["#" fragment]
-#[allow(dead_code)]
 pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
     // Define a regex pattern to match the expected URI format
     let re = Regex::new(r"^.+://addr/(.+)$").ok()?;
@@ -77,11 +76,15 @@ pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
         Some(addr) => {
             let addr = bech32::decode(&addr).ok()?.1;
             // As in CIP19, the first byte is the header, so extract only the payload
-            // TODO - This won't work with payment key
-            Some(addr[1..].to_vec())
+            extract_key_hash(addr)
         },
         None => None,
     }
+}
+
+/// Extract the first 28 nytes from the given key
+pub(crate) fn extract_key_hash(key: Vec<u8>) -> Option<Vec<u8>> {
+    key.get(1..29).map(|slice| slice.to_vec())
 }
 
 /// Compare the given public key bytes with the transaction witness set.
