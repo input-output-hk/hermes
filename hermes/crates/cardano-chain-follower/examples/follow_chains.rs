@@ -357,7 +357,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // First we need to actually start the underlying sync tasks for each blockchain.
     for network in &networks {
-        start_sync_for(network).await?;
+        start_sync_for(network, matches.clone()).await?;
     }
 
     // Make a follower for the network.

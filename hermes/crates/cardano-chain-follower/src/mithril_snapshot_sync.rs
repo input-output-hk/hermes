@@ -88,7 +88,7 @@ async fn get_snapshot_by_id(
 
     // Try and find the current snapshot in the list of available snapshots.
     for snapshot in snapshots {
-        //debug!("Checking Snapshot : {:?}", snapshot);
+        // debug!("Checking Snapshot : {:?}", snapshot);
         if *snapshot_id == snapshot.beacon.immutable_file_number {
             return Some(snapshot);
         }
