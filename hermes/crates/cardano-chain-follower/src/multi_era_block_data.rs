@@ -35,10 +35,9 @@ pub(crate) struct SelfReferencedMultiEraBlock {
 
 /// Multi-era block - inner.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct MultiEraBlockInner {
     /// What blockchain was the block produced on.
-    #[allow(dead_code)]
+    //#[allow(dead_code)]
     pub chain: Network,
     /// The Point on the blockchain this block can be found.
     point: Point,

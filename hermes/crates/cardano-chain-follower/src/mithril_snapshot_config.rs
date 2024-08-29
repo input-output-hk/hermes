@@ -40,9 +40,6 @@ static SYNC_JOIN_HANDLE_MAP: LazyLock<SyncMap> = LazyLock::new(|| {
     map
 });
 
-/// Subdirectory where we download archives.
-const DL_SUBDIR: &str = "dl";
-
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
 
@@ -94,15 +91,6 @@ impl MithrilSnapshotConfig {
     pub fn with_dl_config(mut self, config: DlConfig) -> Self {
         self.dl_config = Some(config);
         self
-    }
-
-    /// Returns the path to Download Mithril Snapshot Archives to.
-    /// Will use a path relative to mithril data path.
-    #[must_use]
-    pub(crate) fn dl_path(&self) -> PathBuf {
-        let mut dl_path = self.path.clone();
-        dl_path.push(DL_SUBDIR);
-        dl_path
     }
 
     /// Try and recover the latest snapshot id from the files on disk.
@@ -184,13 +172,6 @@ impl MithrilSnapshotConfig {
     /// Removes those directories if they exist and all the files they contain.
     pub(crate) async fn cleanup(&self) -> io::Result<()> {
         let mut cleanup_tasks = Vec::new();
-
-        // Cleanup up the Download path. (Finished with the archive)
-        let download = self.dl_path();
-        if download.exists() {
-            debug!("Cleaning up DL @ {}", download.display());
-            cleanup_tasks.push(fs::remove_dir_all(download.clone()));
-        }
 
         // Cleanup up the tmp path. (Shouldn't normally exist, but clean it anyway)
         let tmp = self.tmp_path();
@@ -277,6 +258,11 @@ impl MithrilSnapshotConfig {
         let src_file = snapshot_path.join(relative_file);
         let src_file = src_file.as_path();
         // Hardlink the src file to the tmp file.
+        if let Some(parent) = tmp_file.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                error!("Error creating parent dir {parent:?} for tmp file {tmp_file:?}: {error}");
+            }
+        }
         if let Err(error) = std::fs::hard_link(src_file, tmp_file) {
             error!(
                 "Error linking src file {} to tmp file {} : {}",
@@ -288,6 +274,7 @@ impl MithrilSnapshotConfig {
         }
 
         // And if we made it here, file was successfully de-duped.  YAY.
+        debug!("DeDup OK: {tmp_file:?}");
         Ok(())
     }
 
@@ -514,15 +501,6 @@ mod tests {
         assert_eq!(config.path, network.default_mithril_path());
         assert_eq!(config.aggregator_url, network.default_mithril_aggregator());
         assert_eq!(config.genesis_key, network.default_mithril_genesis_key());
-    }
-
-    #[tokio::test]
-    async fn test_dl_path() {
-        let network = Network::Preprod;
-        let config = MithrilSnapshotConfig::default_for(network);
-        let expected_path = config.path.join("dl");
-
-        assert_eq!(config.dl_path(), expected_path);
     }
 
     #[tokio::test]

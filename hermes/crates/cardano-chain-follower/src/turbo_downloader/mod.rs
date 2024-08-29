@@ -318,8 +318,8 @@ impl ParallelDownloadProcessorInner {
             .set(RANGE.as_str(), &range_header)
             .call()
             .context("GET ranged request failed")?;
-        let addr = get_range_response.remote_addr();
-        debug!("Chunk {chunk} from {addr:?}");
+        // let addr = get_range_response.remote_addr();
+        // debug!("Chunk {chunk} from {addr:?}");
         if get_range_response.status() != StatusCode::PARTIAL_CONTENT {
             bail!(
                 "Response to range request has an unexpected status code (expected {}, found {})",
@@ -454,7 +454,7 @@ impl ParallelDownloadProcessor {
             }
             let mut retries = 0;
             let mut block;
-            debug!("Worker {worker_id} DL chunk {next_chunk}");
+            // debug!("Worker {worker_id} DL chunk {next_chunk}");
             loop {
                 block = match params.get_range(&http_agent, next_chunk) {
                     Ok(block) => Some(block),
@@ -470,7 +470,7 @@ impl ParallelDownloadProcessor {
                 }
                 retries += 1;
             }
-            debug!("Worker {worker_id} DL chunk done {next_chunk}: {retries}");
+            // debug!("Worker {worker_id} DL chunk done {next_chunk}: {retries}");
 
             if let Some(ref block) = block {
                 if let Some(dl_stat) = params.bytes_downloaded.get(worker_id) {
@@ -493,7 +493,7 @@ impl ParallelDownloadProcessor {
                 error!("Error sending chunk: {:?}, error: {:?}", next_chunk, error);
                 break;
             };
-            debug!("Worker {worker_id} DL chunk queued {next_chunk}");
+            // debug!("Worker {worker_id} DL chunk queued {next_chunk}");
         }
         debug!("Worker {worker_id} ended");
     }

@@ -88,6 +88,7 @@ async fn get_snapshot_by_id(
 
     // Try and find the current snapshot in the list of available snapshots.
     for snapshot in snapshots {
+        //debug!("Checking Snapshot : {:?}", snapshot);
         if *snapshot_id == snapshot.beacon.immutable_file_number {
             return Some(snapshot);
         }
@@ -357,8 +358,9 @@ async fn get_latest_validated_mithril_snapshot(
     // does.
     let (actual_latest, _) = get_latest_snapshots(client, chain).await?;
 
-    // IF the mithril data we have is NOT the current latest, it may as well be invalid.
-    if latest_mithril != actual_latest.beacon.immutable_file_number {
+    // IF the mithril data we have is NOT the current latest (or the immediately previous), it
+    // may as well be invalid.
+    if latest_mithril < actual_latest.beacon.immutable_file_number - 1 {
         return None;
     }
 
