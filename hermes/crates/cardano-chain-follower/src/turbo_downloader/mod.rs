@@ -46,10 +46,16 @@ impl BalancingResolver {
         // Can ONLY init the Resolver once, just return if we try and do it multiple times.
         if RESOLVER.get().is_none() {
             // Construct a new Resolver with default configuration options
-            let resolver = hickory_resolver::Resolver::new(
-                hickory_resolver::config::ResolverConfig::default(),
-                hickory_resolver::config::ResolverOpts::default(),
-            )?;
+            let resolver = match hickory_resolver::Resolver::from_system_conf() {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("Failed to initialize DNS Balancing Resolver from system configuration, using Google DNS as fallback: {}", e);
+                    hickory_resolver::Resolver::new(
+                        hickory_resolver::config::ResolverConfig::default(),
+                        hickory_resolver::config::ResolverOpts::default(),
+                    )?
+                },
+            };
 
             let cache = moka::sync::Cache::builder()
                 // We should nto be caching lots of different URL's
@@ -130,35 +136,41 @@ pub struct DlConfig {
 
 impl DlConfig {
     /// Create a new `DlConfig`
+    #[must_use]
     pub fn new() -> Self {
         DlConfig::default()
     }
 
     /// Change the number of workers
+    #[must_use]
     pub fn with_workers(mut self, workers: usize) -> Self {
         self.workers = workers;
         self
     }
 
     /// Change the chunk size
+    #[must_use]
     pub fn with_chunk_size(mut self, chunk_size: usize) -> Self {
         self.chunk_size = chunk_size;
         self
     }
 
     /// Change the number of chunks queued ahead to workers
+    #[must_use]
     pub fn with_queue_ahead(mut self, queue_ahead: usize) -> Self {
         self.queue_ahead = queue_ahead;
         self
     }
 
     /// Change the connection timeout
+    #[must_use]
     pub fn with_connection_timeout(mut self, connection_timeout: Duration) -> Self {
         self.connection_timeout = Some(connection_timeout);
         self
     }
 
     /// Change the data read timeout
+    #[must_use]
     pub fn with_data_read_timeout(mut self, data_read_timeout: Duration) -> Self {
         self.data_read_timeout = Some(data_read_timeout);
         self
@@ -434,6 +446,12 @@ impl ParallelDownloadProcessor {
         let http_agent = params.cfg.make_http_agent(worker_id);
 
         while let Ok(next_chunk) = work_queue.recv() {
+            // Add a small delay to the first chunks for each worker.
+            // So that the leading chunks are more likely to finish downloading first.
+            if next_chunk > 0 && next_chunk < params.cfg.workers {
+                let delay = Duration::from_millis(next_chunk as u64 * 2);
+                thread::sleep(delay);
+            }
             let mut retries = 0;
             let mut block;
             debug!("Worker {worker_id} DL chunk {next_chunk}");
