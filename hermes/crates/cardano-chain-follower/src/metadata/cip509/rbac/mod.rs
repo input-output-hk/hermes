@@ -2,9 +2,9 @@
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-role-registration-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-role-registration-metadata/CIP-XXXX/x509-roles.cddl>
 
-mod certs;
-mod pub_key;
-mod role_data;
+pub mod certs;
+pub mod pub_key;
+pub mod role_data;
 
 use std::collections::HashMap;
 
