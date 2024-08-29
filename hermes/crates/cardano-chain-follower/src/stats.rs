@@ -3,7 +3,7 @@
 use std::sync::{Arc, LazyLock, RwLock};
 
 use chrono::{DateTime, Utc};
-use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
 use serde::Serialize;
 use strum::{EnumIter, IntoEnumIterator};
 use tracing::error;
@@ -187,7 +187,7 @@ pub struct Statistics {
 }
 
 /// Type we use to manage the Sync Task handle map.
-type StatsMap = SkipMap<Network, Arc<RwLock<Statistics>>>;
+type StatsMap = DashMap<Network, Arc<RwLock<Statistics>>>;
 /// The statistics being maintained per chain.
 static STATS_MAP: LazyLock<StatsMap> = LazyLock::new(|| {
     let map = StatsMap::default();
@@ -618,7 +618,7 @@ pub(crate) fn mithril_sync_failure(chain: Network, failure: MithrilSyncFailures)
 // ----------------------------------------------------------
 
 /// The types of rollbacks we track for a chain.
-#[derive(EnumIter, Eq, Ord, PartialEq, PartialOrd, Copy, Clone)]
+#[derive(EnumIter, Eq, Ord, PartialEq, PartialOrd, Copy, Clone, Hash)]
 pub enum RollbackType {
     /// Rollback on the in-memory live chain.
     LiveChain,
@@ -629,11 +629,11 @@ pub enum RollbackType {
 }
 
 /// Individual rollback records.
-type RollbackRecords = SkipMap<u64, Rollback>;
+type RollbackRecords = DashMap<u64, Rollback>;
 /// Rollback Records per rollback type.
-type RollbackTypeMap = SkipMap<RollbackType, Arc<RwLock<RollbackRecords>>>;
+type RollbackTypeMap = DashMap<RollbackType, Arc<RwLock<RollbackRecords>>>;
 /// Record of rollbacks.
-type RollbackMap = SkipMap<Network, RollbackTypeMap>;
+type RollbackMap = DashMap<Network, RollbackTypeMap>;
 /// Statistics of rollbacks detected per chain.
 static ROLLBACKS_MAP: LazyLock<RollbackMap> = LazyLock::new(|| {
     let map = RollbackMap::new();

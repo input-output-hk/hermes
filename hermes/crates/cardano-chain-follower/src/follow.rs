@@ -98,7 +98,9 @@ impl ChainFollower {
 
             if let Some(follower) = self.mithril_follower.as_mut() {
                 if let Some(next) = follower.next().await {
+                    // debug!("Pre Previous update 3 : {:?}", self.previous);
                     self.previous = self.current.clone();
+                    // debug!("Post Previous update 3 : {:?}", self.previous);
                     self.current = next.point();
                     self.fork = 0; // Mithril Immutable data is always Fork 0.
                     let update = ChainUpdate::new(chain_update::Kind::Block, false, next);
@@ -107,7 +109,9 @@ impl ChainFollower {
             }
         }
 
-        if self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip {
+        if (self.mithril_tip.is_none() || current_mithril_tip > self.mithril_tip)
+            && self.current < self.mithril_tip
+        {
             let snapshot = MithrilSnapshot::new(self.chain);
             if let Some(block) = snapshot.read_block_at(&current_mithril_tip).await {
                 // The Mithril Tip has moved forwards.
@@ -117,7 +121,11 @@ impl ChainFollower {
                     ChainUpdate::new(chain_update::Kind::ImmutableBlockRollForward, false, block);
                 return Some(update);
             }
-            error!("Mithril Tip Block is not in snapshot. Should not happen.");
+            error!(
+                tip = ?self.mithril_tip,
+                current = ?current_mithril_tip,
+                "Mithril Tip Block is not in snapshot. Should not happen."
+            );
         }
 
         None
@@ -139,7 +147,9 @@ impl ChainFollower {
 
         // In most cases we will be able to get the next block.
         if next_block.is_none() {
-            next_block = get_live_block(self.chain, &self.current, 1, true);
+            // If we don't know the previous block, get the block requested.
+            let advance = if self.previous.is_unknown() { 0 } else { 1 };
+            next_block = get_live_block(self.chain, &self.current, advance, true);
         }
 
         // If we can't get the next consecutive block, then
@@ -181,7 +191,9 @@ impl ChainFollower {
             if update_type == chain_update::Kind::Rollback {
                 rollback(self.chain, stats::RollbackType::Follower, rollback_depth);
             }
+            // debug!("Pre Previous update 4 : {:?}", self.previous);
             self.previous = self.current.clone();
+            // debug!("Post Previous update 4 : {:?}", self.previous);
             self.current = next_block.point().clone();
             self.fork = next_block.fork();
 
@@ -283,8 +295,9 @@ impl ChainFollower {
     /// block.
     pub async fn get_block(chain: Network, point: Point) -> Option<ChainUpdate> {
         // Get the block from the chain.
-        let mut follower = Self::new(chain, point.clone(), point).await;
-
+        // This function suppose to run only once, so the end point
+        // can be set to `TIP_POINT`
+        let mut follower = Self::new(chain, point, TIP_POINT).await;
         follower.next().await
     }
 
