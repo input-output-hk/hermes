@@ -164,7 +164,8 @@ impl Cip36 {
                             )
                             .is_none()
                         {
-                            // debug!("decoded 4: {decoded_metadata:?} : {validation_report:?} : {raw_cip36:02x?}");
+                            // debug!("decoded 4: {decoded_metadata:?} : {validation_report:?} :
+                            // {raw_cip36:02x?}");
                             return;
                         }
                     },
@@ -723,16 +724,18 @@ impl Cip36 {
         }
 
         let sig: ed25519_dalek::Signature = match decoder.bytes() {
-            Ok(sig) => match ed25519_dalek::Signature::from_slice(sig) {
-                Ok(sig) => sig,
-                Err(err) => {
-                    self.decoding_failed(
-                        format!("CIP36 Signature Decoding failed: {err}",).as_str(),
-                        validation_report,
-                        decoded_metadata,
-                    );
-                    return None;
-                },
+            Ok(sig) => {
+                match ed25519_dalek::Signature::from_slice(sig) {
+                    Ok(sig) => sig,
+                    Err(err) => {
+                        self.decoding_failed(
+                            format!("CIP36 Signature Decoding failed: {err}",).as_str(),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    },
+                }
             },
             Err(error) => {
                 self.decoding_failed(
@@ -822,7 +825,7 @@ mod tests {
     fn test_decode_purpose_1() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(true);
-        let mut decoder = Decoder::new(&[ 0x00 ]);
+        let mut decoder = Decoder::new(&[0x00]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
@@ -836,7 +839,7 @@ mod tests {
     fn test_decode_purpose_2() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(true);
-        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]);
+        let mut decoder = Decoder::new(&[0x19, 0x30, 0x39]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
@@ -850,7 +853,7 @@ mod tests {
     fn test_decode_purpose_3() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
-        let mut decoder = Decoder::new(&[ 0x19, 0x30, 0x39 ]);
+        let mut decoder = Decoder::new(&[0x19, 0x30, 0x39]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
@@ -863,10 +866,10 @@ mod tests {
     #[test]
     fn test_decode_purpose_4() {
         let bytes_cases: &[&[u8]] = &[
-            &[ 0x80 ], // array(0)
-            &[ 0xA0 ], // map(0)
-            &[ 0x21 ], // negative(1)
-            &[ 0xF9, 0x3C, 0x00 ] // primitive(15360) - 1.0
+            &[0x80],             // array(0)
+            &[0xA0],             // map(0)
+            &[0x21],             // negative(1)
+            &[0xF9, 0x3C, 0x00], // primitive(15360) - 1.0
         ];
 
         for bytes in bytes_cases {
@@ -874,9 +877,9 @@ mod tests {
             let mut cip36 = create_empty_cip36(false);
             let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
-    
+
             let rc = cip36.decode_purpose(&mut decoder, &mut report, &decoded_metadata);
-    
+
             assert_eq!(report.len(), 1);
             assert_eq!(cip36.purpose, 0);
             assert_eq!(rc, None);
@@ -888,7 +891,7 @@ mod tests {
     fn test_decode_nonce_1() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
-        let mut decoder = Decoder::new(&[ 0x1B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF ]);
+        let mut decoder = Decoder::new(&[0x1B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 0);
@@ -904,7 +907,7 @@ mod tests {
     fn test_decode_nonce_2() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
-        let mut decoder = Decoder::new(&[ 0x01 ]);
+        let mut decoder = Decoder::new(&[0x01]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 99);
@@ -920,7 +923,7 @@ mod tests {
     fn test_decode_nonce_3() {
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(true);
-        let mut decoder = Decoder::new(&[ 0x10 ]);
+        let mut decoder = Decoder::new(&[0x10]);
         let mut report = ValidationReport::new();
 
         let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 1);
@@ -934,10 +937,10 @@ mod tests {
     #[test]
     fn test_decode_nonce_4() {
         let bytes_cases: &[&[u8]] = &[
-            &[ 0x80 ], // array(0)
-            &[ 0xA0 ], // map(0)
-            &[ 0x21 ], // negative(1)
-            &[ 0xF9, 0x3C, 0x00 ] // primitive(15360) - 1.0
+            &[0x80],             // array(0)
+            &[0xA0],             // map(0)
+            &[0x21],             // negative(1)
+            &[0xF9, 0x3C, 0x00], // primitive(15360) - 1.0
         ];
 
         for bytes in bytes_cases {
@@ -945,9 +948,9 @@ mod tests {
             let mut cip36 = create_empty_cip36(false);
             let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
-    
+
             let rc = cip36.decode_nonce(&mut decoder, &mut report, &decoded_metadata, 0);
-    
+
             assert_eq!(report.len(), 1);
             assert_eq!(cip36.raw_nonce, 0);
             assert_eq!(cip36.nonce, 0);
@@ -970,10 +973,10 @@ mod tests {
 
         let rc = cip36.decode_payment_address(
             &mut decoder,
-            &mut
-            report, &decoded_metadata,
+            &mut report,
+            &decoded_metadata,
             multi_era_tx,
-            Network::Preprod
+            Network::Preprod,
         );
 
         assert_eq!(report.len(), 0);
@@ -986,8 +989,9 @@ mod tests {
     fn test_decode_stake_pub_1() {
         let hex_data = hex::decode(
             // 0xe3cd2404c84de65f96918f18d5b445bcb933a7cda18eeded7945dd191e432369
-            "5820E3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD191E432369"
-        ).expect("cannot decode hex");
+            "5820E3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD191E432369",
+        )
+        .expect("cannot decode hex");
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
@@ -1006,8 +1010,9 @@ mod tests {
             vec![],
             hex::decode(
                 // 0xe3cd2404c84de65f96918f18d5b445bcb933a7cda18eeded7945dd19 (28 bytes)
-                "581CE3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD19"
-            ).expect("cannot decode hex")
+                "581CE3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD19",
+            )
+            .expect("cannot decode hex"),
         ];
 
         for bytes in bytes_cases {
@@ -1028,8 +1033,9 @@ mod tests {
     fn test_decode_voting_key_1() {
         let hex_data = hex::decode(
             // [["0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0", 1]]
-            "818258200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A001"
-        ).expect("cannot decode hex");
+            "818258200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A001",
+        )
+        .expect("cannot decode hex");
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
@@ -1048,8 +1054,9 @@ mod tests {
     fn test_decode_voting_key_2() {
         let hex_data = hex::decode(
             // 0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0
-            "58200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0"
-        ).expect("cannot decode hex");
+            "58200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0",
+        )
+        .expect("cannot decode hex");
         let decoded_metadata = DecodedMetadata(SkipMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
@@ -1069,12 +1076,15 @@ mod tests {
             vec![],
             hex::decode(
                 // [[]] (empty)
-                "8180"
-            ).expect("cannot decode hex"),
+                "8180",
+            )
+            .expect("cannot decode hex"),
             hex::decode(
-                // [["0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0"]] (without weight)
-                "818158200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0"
-            ).expect("cannot decode hex")
+                // [["0x0036ef3e1f0d3f5989e2d155ea54bdb2a72c4c456ccb959af4c94868f473f5a0"]]
+                // (without weight)
+                "818158200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0",
+            )
+            .expect("cannot decode hex"),
         ];
 
         for bytes in bytes_cases {
@@ -1082,9 +1092,9 @@ mod tests {
             let mut cip36 = create_empty_cip36(false);
             let mut decoder = Decoder::new(&bytes);
             let mut report = ValidationReport::new();
-    
+
             let rc = cip36.decode_voting_key(&mut decoder, &mut report, &decoded_metadata);
-    
+
             assert_eq!(report.len(), 1);
             assert_eq!(rc, None);
         }

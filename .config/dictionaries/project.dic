@@ -57,6 +57,7 @@ dreps
 Earthfile
 encryptor
 Errno
+etype
 excalidraw
 fadvise
 fcntl
@@ -115,6 +116,7 @@ logcall
 lookaside
 maindbname
 mapref
+Mbits
 mdlint
 mdns
 memeq
@@ -222,6 +224,7 @@ unixfs
 unlinkat
 untar
 upnp
+ureq
 utimensat
 vitss
 vkey
