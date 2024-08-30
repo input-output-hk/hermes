@@ -6,7 +6,8 @@ use std::{
     sync::LazyLock,
 };
 
-use crossbeam_skiplist::SkipMap;
+use anyhow::bail;
+use dashmap::DashMap;
 use futures::future::join_all;
 use strum::IntoEnumIterator;
 use tokio::{
@@ -24,22 +25,20 @@ use crate::{
     network::Network,
     point::ORIGIN_POINT,
     snapshot_id::SnapshotId,
+    turbo_downloader::DlConfig,
     Point,
 };
 
 /// Type we use to manage the Sync Task handle map.
-type SyncMap = SkipMap<Network, Mutex<Option<JoinHandle<()>>>>;
+type SyncMap = DashMap<Network, Mutex<Option<JoinHandle<()>>>>;
 /// Handle to the mithril sync thread. One for each Network ONLY.
 static SYNC_JOIN_HANDLE_MAP: LazyLock<SyncMap> = LazyLock::new(|| {
-    let map = SkipMap::new();
+    let map = DashMap::new();
     for network in Network::iter() {
         map.insert(network, Mutex::new(None));
     }
     map
 });
-
-/// Subdirectory where we download archives.
-const DL_SUBDIR: &str = "dl";
 
 /// Subdirectory where we unpack archives temporarily.
 const TMP_SUBDIR: &str = "tmp";
@@ -69,6 +68,8 @@ pub struct MithrilSnapshotConfig {
     pub aggregator_url: String,
     /// The Genesis Key needed for a network to do Mithril snapshot validation.
     pub genesis_key: String,
+    /// Downloader configuration.
+    pub dl_config: Option<DlConfig>,
 }
 
 impl MithrilSnapshotConfig {
@@ -82,16 +83,14 @@ impl MithrilSnapshotConfig {
             path: chain.default_mithril_path(),
             aggregator_url: chain.default_mithril_aggregator(),
             genesis_key: chain.default_mithril_genesis_key(),
+            dl_config: None,
         }
     }
 
-    /// Returns the path to Download Mithril Snapshot Archives to.
-    /// Will use a path relative to mithril data path.
-    #[must_use]
-    pub(crate) fn dl_path(&self) -> PathBuf {
-        let mut dl_path = self.path.clone();
-        dl_path.push(DL_SUBDIR);
-        dl_path
+    /// Set a custom downloader configuration.
+    pub fn with_dl_config(mut self, config: DlConfig) -> Self {
+        self.dl_config = Some(config);
+        self
     }
 
     /// Try and recover the latest snapshot id from the files on disk.
@@ -174,13 +173,6 @@ impl MithrilSnapshotConfig {
     pub(crate) async fn cleanup(&self) -> io::Result<()> {
         let mut cleanup_tasks = Vec::new();
 
-        // Cleanup up the Download path. (Finished with the archive)
-        let download = self.dl_path();
-        if download.exists() {
-            debug!("Cleaning up DL @ {}", download.display());
-            cleanup_tasks.push(fs::remove_dir_all(download.clone()));
-        }
-
         // Cleanup up the tmp path. (Shouldn't normally exist, but clean it anyway)
         let tmp = self.tmp_path();
         if tmp.exists() {
@@ -238,30 +230,39 @@ impl MithrilSnapshotConfig {
     /// Deduplicate a file in the tmp directory vs its equivalent in the current snapshot.
     ///
     /// This does not check if they SHOULD be de-duped, only de-dupes the files specified.
-    pub(crate) fn dedup_tmp(&self, tmp_file: &Path, latest_snapshot: &SnapshotData) {
+    pub(crate) fn dedup_tmp(
+        &self, tmp_file: &Path, latest_snapshot: &SnapshotData,
+    ) -> anyhow::Result<()> {
         // Get the matching src file in the latest mithril snapshot to compare against.
         let snapshot_path = latest_snapshot.id().as_ref();
         let tmp_path = self.tmp_path();
 
-        let Ok(relative_file) = tmp_file.strip_prefix(tmp_path) else {
+        let Ok(relative_file) = tmp_file.strip_prefix(&tmp_path) else {
             error!("Failed to get relative path of file.");
-            return;
+            bail!("Failed to strip prefix: {tmp_path:?}");
         };
 
         // IF we make it here, the files are identical, so we can de-dup them safely.
         // Remove the tmp file momentarily.
-        if let Err(error) = std::fs::remove_file(tmp_file) {
-            error!(
-                "Error removing tmp file  {} :  {}",
-                tmp_file.to_string_lossy(),
-                error
-            );
-            return;
+        if tmp_file.exists() {
+            if let Err(error) = std::fs::remove_file(tmp_file) {
+                error!(
+                    "Error removing tmp file  {} :  {}",
+                    tmp_file.to_string_lossy(),
+                    error
+                );
+                bail!("Failed to remove tmp file: {tmp_file:?}");
+            }
         }
 
         let src_file = snapshot_path.join(relative_file);
         let src_file = src_file.as_path();
         // Hardlink the src file to the tmp file.
+        if let Some(parent) = tmp_file.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                error!("Error creating parent dir {parent:?} for tmp file {tmp_file:?}: {error}");
+            }
+        }
         if let Err(error) = std::fs::hard_link(src_file, tmp_file) {
             error!(
                 "Error linking src file {} to tmp file {} : {}",
@@ -269,9 +270,12 @@ impl MithrilSnapshotConfig {
                 tmp_file.to_string_lossy(),
                 error
             );
+            bail!("Failed to link src file: {src_file:?}");
         }
 
         // And if we made it here, file was successfully de-duped.  YAY.
+        debug!("DeDup OK: {tmp_file:?}");
+        Ok(())
     }
 
     /// Returns the path to Latest Tmp Snapshot Data.
@@ -500,21 +504,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_dl_path() {
-        let network = Network::Preprod;
-        let config = MithrilSnapshotConfig::default_for(network);
-        let expected_path = config.path.join("dl");
-
-        assert_eq!(config.dl_path(), expected_path);
-    }
-
-    #[tokio::test]
     async fn test_validate_genesis_vkey() {
         let config = MithrilSnapshotConfig {
             chain: Network::Preprod,
             path: PathBuf::new(),
             aggregator_url: String::new(),
             genesis_key: "1234abcd".to_string(),
+            dl_config: None,
         };
 
         assert!(config.validate_genesis_vkey().is_ok());
@@ -524,92 +520,9 @@ mod tests {
             path: PathBuf::new(),
             aggregator_url: String::new(),
             genesis_key: "1234abcz".to_string(),
+            dl_config: None,
         };
 
         assert!(invalid_config.validate_genesis_vkey().is_err());
     }
-
-    // use std::path::Path;
-    //
-    // use regex::Regex;
-    //
-    // use super::*;
-    // use crate::network::{ENVVAR_MITHRIL_DATA_PATH, ENVVAR_MITHRIL_EXE_NAME};
-    //
-    // fn test_paths(
-    // path: &Path, network: Network, data_root: &str, exe_name: &str, subdir:
-    // Option<&str>, ) {
-    // let mut re_format: String = data_root.to_string();
-    // re_format += exe_name;
-    // re_format += r"\/mithril\/";
-    // re_format += &network.to_string();
-    // if let Some(subdir) = subdir {
-    // re_format += "/";
-    // re_format += subdir;
-    // }
-    //
-    // let re = Regex::new(&re_format).expect("Bad Regex!");
-    // assert!(re.is_match(&path.to_string_lossy()));
-    // }
-    //
-    // const DEFAULT_ROOT: &str = r"^\/home\/[^\/]*\/.local\/share\/";
-    // const DEFAULT_APP: &str = r"cardano_chain_follower-[^\/]*";
-    //
-    // const CUSTOM_EXE: &str = r"MyFollowerExecutable";
-    // const CUSTOM_ROOT: &str = r"\/var\/lib\/";
-    //
-    // #[cfg(target_os = "linux")]
-    // #[test]
-    // fn test_base_path() {
-    // fn test_network(network: Network, root: &str, app: &str) {
-    // test_paths(&network.default_mithril_path(), network, root, app, None);
-    // }
-    // Use the probed EXE name
-    // test_network(Network::Mainnet, DEFAULT_ROOT, DEFAULT_APP);
-    // test_network(Network::Preview, DEFAULT_ROOT, DEFAULT_APP);
-    // test_network(Network::Preprod, DEFAULT_ROOT, DEFAULT_APP);
-    //
-    // Now try and force the EXE Name with an env var.
-    // std::env::set_var(ENVVAR_MITHRIL_EXE_NAME, CUSTOM_EXE);
-    // test_network(Network::Mainnet, DEFAULT_ROOT, CUSTOM_EXE);
-    // test_network(Network::Preview, DEFAULT_ROOT, CUSTOM_EXE);
-    // test_network(Network::Preprod, DEFAULT_ROOT, CUSTOM_EXE);
-    //
-    // Now try and force the Root path with an env var.
-    // std::env::set_var(ENVVAR_MITHRIL_DATA_PATH, CUSTOM_ROOT);
-    // test_network(Network::Mainnet, CUSTOM_ROOT, CUSTOM_EXE);
-    // test_network(Network::Preview, CUSTOM_ROOT, CUSTOM_EXE);
-    // test_network(Network::Preprod, CUSTOM_ROOT, CUSTOM_EXE);
-    // }
-    //
-    // #[cfg(target_os = "linux")]
-    // #[tokio::test]
-    // async fn test_working_paths() {
-    // fn test_network(network: Network) {
-    // let cfg = MithrilSnapshotConfig::default_for(network);
-    //
-    // test_paths(
-    // &cfg.dl_path(),
-    // network,
-    // DEFAULT_ROOT,
-    // DEFAULT_APP,
-    // Some(DL_SUBDIR),
-    // );
-    //
-    // test_paths(
-    // &cfg.tmp_path(),
-    // network,
-    // DEFAULT_ROOT,
-    // DEFAULT_APP,
-    // Some(TMP_SUBDIR),
-    // );
-    //
-    // let latest = latest_mithril_snapshot_id(network);
-    // assert!(latest.tip() != ORIGIN_POINT);
-    // }
-    //
-    // test_network(Network::Mainnet);
-    // test_network(Network::Preprod);
-    // test_network(Network::Preview);
-    // }
 }

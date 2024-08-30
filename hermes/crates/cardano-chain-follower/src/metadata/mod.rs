@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use cip36::Cip36;
 use cip509::Cip509;
-use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
 use pallas::ledger::traverse::{MultiEraBlock, MultiEraTx};
 use raw_aux_data::RawAuxData;
 use tracing::error;
@@ -44,14 +44,14 @@ pub struct DecodedMetadataItem {
 /// For example, CIP15/36 uses labels 61284 & 61285,
 /// 61284 is the primary label, so decoded metadata
 /// will be under that label.
-pub(crate) struct DecodedMetadata(SkipMap<u64, Arc<DecodedMetadataItem>>);
+pub(crate) struct DecodedMetadata(DashMap<u64, Arc<DecodedMetadataItem>>);
 
 impl DecodedMetadata {
     /// Create new decoded metadata for a transaction.
     fn new(
         chain: Network, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData, txn_idx: usize,
     ) -> Self {
-        let decoded_metadata = Self(SkipMap::new());
+        let decoded_metadata = Self(DashMap::new());
 
         // Process each known type of metadata here, and record the decoded result.
         Cip36::decode_and_validate(&decoded_metadata, slot, txn, raw_aux_data, true, chain);
@@ -87,9 +87,9 @@ impl Debug for DecodedMetadata {
 #[derive(Debug)]
 pub struct DecodedTransaction {
     /// The Raw Auxiliary Data for each transaction in the block.
-    raw: SkipMap<usize, RawAuxData>,
+    raw: DashMap<usize, RawAuxData>,
     /// The Decoded Metadata for each transaction in the block.
-    decoded: SkipMap<usize, DecodedMetadata>,
+    decoded: DashMap<usize, DecodedMetadata>,
 }
 
 impl DecodedTransaction {
@@ -115,8 +115,8 @@ impl DecodedTransaction {
     /// Create a new `DecodedTransaction`.
     pub(crate) fn new(chain: Network, block: &MultiEraBlock) -> Self {
         let mut decoded_aux_data = DecodedTransaction {
-            raw: SkipMap::new(),
-            decoded: SkipMap::new(),
+            raw: DashMap::new(),
+            decoded: DashMap::new(),
         };
 
         if block.has_aux_data() {
@@ -162,7 +162,8 @@ impl DecodedTransaction {
         decoded_aux_data
     }
 
-    /// Get metadata for a given label in a transaction if it exists.
+    /// Get metadata for a given label in a transaction if it exists.    
+    #[must_use]
     pub fn get_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<DecodedMetadataItem>> {
         let txn_metadata = self.decoded.get(&txn_idx)?;
         let txn_metadata = txn_metadata.value();
@@ -170,6 +171,7 @@ impl DecodedTransaction {
     }
 
     /// Get raw metadata for a given label in a transaction if it exists.
+    #[must_use]
     pub fn get_raw_metadata(&self, txn_idx: usize, label: u64) -> Option<Arc<Vec<u8>>> {
         let txn_metadata = self.raw.get(&txn_idx)?;
         let txn_metadata = txn_metadata.value();

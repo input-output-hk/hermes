@@ -299,6 +299,10 @@ impl ProtectedLiveChainBlockList {
             while let Some(previous_block) = purge_start_block_entry.prev() {
                 let _unused = previous_block.remove();
             }
+
+            // Try and FORCE the skip map to reclaim its memory
+            crossbeam_epoch::pin().flush();
+            crossbeam_epoch::pin().flush();
         }
 
         Ok(())
