@@ -24,7 +24,10 @@ use minicbor::{
     Decode, Decoder,
 };
 use pallas::{
-    codec::minicbor::{Encode, Encoder},
+    codec::{
+        minicbor::{Encode, Encoder},
+        utils::Bytes,
+    },
     ledger::traverse::MultiEraTx,
 };
 use strum::FromRepr;
@@ -35,7 +38,10 @@ use super::{
     ValidationReport,
 };
 use crate::{
-    utils::{blake2b_128, blake2b_256, compare_key_hash, extract_cip19_hash, extract_key_hash},
+    utils::{
+        blake2b_128, blake2b_256, compare_key_hash, extract_cip19_hash, extract_key_hash,
+        zero_out_last_n_bytes,
+    },
     witness::TxWitness,
     Network,
 };
@@ -173,7 +179,7 @@ impl Cip509 {
         }
 
         // Validate the auxiliary data
-        match cip509.validate_aux(txn, &mut validation_report, decoded_metadata, txn_idx) {
+        match cip509.validate_aux(txn, &mut validation_report, decoded_metadata) {
             Some(b) => info!("Auxiliary data validation success: {}", b),
             None => {
                 cip509.validation_failure(
@@ -348,6 +354,145 @@ impl Cip509 {
         Some(inputs_hash == self.txn_inputs_hash)
     }
 
+    /// Validate the auxiliary data with the auxilliary data hash in the transaction.
+    /// Also log out the pre-computed hash where the validation signatrue (99) set to
+    /// zero.
+    fn validate_aux(
+        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata,
+    ) -> Option<bool> {
+        match txn {
+            MultiEraTx::AlonzoCompatible(tx, _) => match &tx.auxiliary_data {
+                pallas::codec::utils::Nullable::Some(a) => {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
+                            .auxiliary_data_hash
+                            .as_ref()
+                            .or_else(|| {
+                                self.validation_failure(
+                                    "Auxiliary data hash not found in transaction",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                None
+                            })?;
+                    return self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    );
+                },
+                _ => {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                },
+            },
+            MultiEraTx::Babbage(tx) => match &tx.auxiliary_data {
+                pallas::codec::utils::Nullable::Some(a) => {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
+                            .auxiliary_data_hash
+                            .as_ref()
+                            .or_else(|| {
+                                self.validation_failure(
+                                    "Auxiliary data hash not found in transaction",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                None
+                            })?;
+                    return self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    );
+                },
+                _ => {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                },
+            },
+            MultiEraTx::Conway(tx) => match &tx.auxiliary_data {
+                pallas::codec::utils::Nullable::Some(a) => {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
+                            .auxiliary_data_hash
+                            .as_ref()
+                            .or_else(|| {
+                                self.validation_failure(
+                                    "Auxiliary data hash not found in transaction",
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                None
+                            })?;
+                    return self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    );
+                },
+                _ => {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                },
+            },
+            _ => {
+                self.validation_failure(
+                    "Unsupported transaction era for loggin auxillary data",
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        }
+    }
+
+    fn validate_aux_helper(
+        &self, original_aux: &[u8], aux_data_hash: &Bytes,
+        validation_report: &mut ValidationReport, decoded_metadata: &DecodedMetadata,
+    ) -> Option<bool> {
+        let mut vec_aux = original_aux.to_vec();
+
+        // Zero out the last 64 bytes
+        zero_out_last_n_bytes(&mut vec_aux, 64);
+
+        // Log the pre-computed hash with the last 64 bytes set to zero
+        info!("Pre-computed hash {:?}", &vec_aux);
+
+        // Check if we need to compare the hash
+        match blake2b_256(original_aux) {
+            Ok(original_hash) => {
+                return Some(aux_data_hash.as_ref() == original_hash);
+            },
+            Err(e) => {
+                self.validation_failure(
+                    &format!("Cannot hash auxiliary data {}", e),
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        }
+    }
     /// Validate the public key in the certificate with witness set in transaciton.
     fn validate_public_key(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
@@ -719,155 +864,6 @@ impl Cip509 {
             }
         }
         return Some(false);
-    }
-
-    /// Validate the auxiliary data with the auxilliary data hash in the transaction.
-    /// Also log out the pre-computed hash where the validation signatrue (99) set to
-    /// zero.
-    fn validate_aux(
-        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
-        decoded_metadata: &DecodedMetadata, _txn_idx: usize,
-    ) -> Option<bool> {
-        match txn {
-            MultiEraTx::AlonzoCompatible(tx, _) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let mut vec_aux = original_aux.to_vec();
-
-                        // Zero out the last 64 bytes
-                        let aux_len = vec_aux.len();
-                        vec_aux[aux_len - 64..].fill(0);
-
-                        // Log the pre-computed hash with the last 64 bytes set to zero
-                        info!("Pre-computed hash {:?}", &vec_aux);
-
-                        if let Some(auxiliary_data_hash) =
-                            tx.transaction_body.auxiliary_data_hash.as_ref()
-                        {
-                            match blake2b_256(original_aux) {
-                                Ok(original_hash) => {
-                                    let aux_hash_matches =
-                                        auxiliary_data_hash.as_ref() == original_hash;
-                                    return Some(aux_hash_matches);
-                                },
-                                Err(e) => {
-                                    self.validation_failure(
-                                        &format!("Cannot hash auxiliary data {}", e),
-                                        validation_report,
-                                        decoded_metadata,
-                                    );
-                                    return None;
-                                },
-                            }
-                        }
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
-                }
-            },
-            MultiEraTx::Babbage(tx) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let mut vec_aux = original_aux.to_vec();
-
-                        // Zero out the last 64 bytes
-                        let aux_len = vec_aux.len();
-                        vec_aux[aux_len - 64..].fill(0);
-
-                        // Log the pre-computed hash with the last 64 bytes set to zero
-                        info!("Pre-computed hash {:?}", &vec_aux);
-
-                        if let Some(auxiliary_data_hash) =
-                            tx.transaction_body.auxiliary_data_hash.as_ref()
-                        {
-                            match blake2b_256(original_aux) {
-                                Ok(original_hash) => {
-                                    let aux_hash_matches =
-                                        auxiliary_data_hash.as_ref() == original_hash;
-                                    return Some(aux_hash_matches);
-                                },
-                                Err(e) => {
-                                    self.validation_failure(
-                                        &format!("Cannot hash auxiliary data {}", e),
-                                        validation_report,
-                                        decoded_metadata,
-                                    );
-                                    return None;
-                                },
-                            }
-                        }
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
-                }
-            },
-            MultiEraTx::Conway(tx) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let mut vec_aux = original_aux.to_vec();
-
-                        // Zero out the last 64 bytes
-                        let aux_len = vec_aux.len();
-                        vec_aux[aux_len - 64..].fill(0);
-
-                        // Log the pre-computed hash with the last 64 bytes set to zero
-                        info!("Pre-computed hash {:?}", &vec_aux);
-
-                        if let Some(auxiliary_data_hash) =
-                            tx.transaction_body.auxiliary_data_hash.as_ref()
-                        {
-                            match blake2b_256(original_aux) {
-                                Ok(original_hash) => {
-                                    let aux_hash_matches =
-                                        auxiliary_data_hash.as_ref() == original_hash;
-                                    return Some(aux_hash_matches);
-                                },
-                                Err(e) => {
-                                    self.validation_failure(
-                                        &format!("Cannot hash auxiliary data {}", e),
-                                        validation_report,
-                                        decoded_metadata,
-                                    );
-                                    return None;
-                                },
-                            }
-                        }
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
-                }
-            },
-            _ => {
-                self.validation_failure(
-                    "Unsupported transaction era for loggin auxillary data",
-                    validation_report,
-                    decoded_metadata,
-                );
-                return None;
-            },
-        }
-        Some(false)
     }
 }
 
