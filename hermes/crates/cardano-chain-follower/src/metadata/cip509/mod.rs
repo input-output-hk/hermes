@@ -19,13 +19,15 @@ use decode_helper::{
     decode_array_len, decode_bytes, decode_i64, decode_map_len, decode_string, decode_u64,
     decode_u8,
 };
-use minicbor::{decode, Decode, Decoder};
+use minicbor::{
+    decode::{self},
+    Decode, Decoder,
+};
 use pallas::{
     codec::minicbor::{Encode, Encoder},
     ledger::traverse::MultiEraTx,
 };
 use strum::FromRepr;
-use tracing::debug;
 use x509_chunks::X509Chunks;
 
 use super::{
@@ -159,36 +161,79 @@ impl Cip509 {
         };
 
         // Validate transaction inputs hash
-        cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata);
+        match cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata) {
+            Some(b) => info!("Transaction inputs hash validation success: {}", b),
+            None => {
+                cip509.validation_failure(
+                    "Failed to validate transaction inputs hash",
+                    &mut validation_report,
+                    decoded_metadata,
+                );
+            },
+        }
 
-        // Validate the public key
+        // Validate the auxiliary data
+        match cip509.validate_aux(txn, &mut validation_report, decoded_metadata, txn_idx) {
+            Some(b) => info!("Auxiliary data validation success: {}", b),
+            None => {
+                cip509.validation_failure(
+                    "Failed to validate auxiliary data",
+                    &mut validation_report,
+                    decoded_metadata,
+                );
+            },
+        }
+
+        // Validate the role 0
         // FIXME - Remove this
         if _slot == 69131472 {
             if let Some(role_set) = &cip509.x509_chunks.0.role_set {
-                // Only care about the role number 0
+                // Validate only role 0
                 for role in role_set.iter() {
                     if role.role_number == 0 {
-                        cip509.validate_public_key(
+                        // Validate public key to in certificate to the witness set in transaction
+                        match cip509.validate_public_key(
                             txn,
                             &mut validation_report,
                             decoded_metadata,
                             txn_idx,
-                        );
-                        cip509.validate_payment_key(
+                        ) {
+                            Some(b) => {
+                                info!("Public key validation tx id success {}: {}", txn_idx, b);
+                            },
+                            None => {
+                                cip509.validation_failure(
+                                    &format!("Failed to validate public key in tx id {}", txn_idx),
+                                    &mut validation_report,
+                                    decoded_metadata,
+                                );
+                            },
+                        }
+                        match cip509.validate_payment_key(
                             txn,
                             &mut validation_report,
                             decoded_metadata,
                             txn_idx,
                             role,
-                        );
-                        cip509.validate_aux(txn, &mut validation_report, decoded_metadata, txn_idx);
+                        ) {
+                            Some(b) => {
+                                info!("Payment key validation tx id success {}: {}", txn_idx, b);
+                            },
+                            None => {
+                                cip509.validation_failure(
+                                    &format!("Failed to validate payment key in tx id {}", txn_idx),
+                                    &mut validation_report,
+                                    decoded_metadata,
+                                );
+                            },
+                        }
                     }
                 }
             }
         }
     }
 
-    // Handle validation failure.
+    /// Handle validation failure.
     fn validation_failure(
         &self, reason: &str, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata,
@@ -201,6 +246,106 @@ impl Cip509 {
                 report: validation_report.clone(),
             }),
         );
+    }
+
+    /// Transaction inputs hash validation.
+    /// Must exist and match the hash of the transaction inputs.
+    fn validate_txn_inputs_hash(
+        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        decoded_metadata: &DecodedMetadata,
+    ) -> Option<bool> {
+        let mut buffer = Vec::new();
+        let mut e = Encoder::new(&mut buffer);
+        match txn {
+            MultiEraTx::AlonzoCompatible(tx, _) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                if let Err(e) = e.array(inputs.len() as u64) {
+                    self.validation_failure(
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                }
+                for input in &inputs {
+                    if let Err(e) = input.encode(&mut e, &mut ()) {
+                        self.validation_failure(
+                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {}", e),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    }
+                }
+            },
+            MultiEraTx::Babbage(tx) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                if let Err(e) = e.array(inputs.len() as u64) {
+                    self.validation_failure(
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                }
+                for input in &inputs {
+                    if let Err(e) = input.encode(&mut e, &mut ()) {
+                        self.validation_failure(
+                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {}", e),
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    }
+                }
+            },
+            MultiEraTx::Conway(tx) => {
+                let inputs = tx.transaction_body.inputs.clone();
+                if let Err(e) = e.array(inputs.len() as u64) {
+                    self.validation_failure(
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    return None;
+                }
+                for input in &inputs {
+                    match input.encode(&mut e, &mut ()) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            self.validation_failure(
+                                &format!(
+                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
+                            ),
+                                validation_report,
+                                decoded_metadata,
+                            );
+                            return None;
+                        },
+                    }
+                }
+            },
+            _ => {
+                self.validation_failure(
+                    "Unsupported transaction era for transaction inputs hash validation",
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        }
+        let inputs_hash = match blake2b_128(&buffer) {
+            Ok(hash) => hash,
+            Err(e) => {
+                self.validation_failure(
+                    &format!("Failed to hash transaction inputs in validate_txn_inputs_hash {e}"),
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        };
+        Some(inputs_hash == self.txn_inputs_hash)
     }
 
     /// Validate the public key in the certificate with witness set in transaciton.
@@ -364,135 +509,6 @@ impl Cip509 {
             .ok();
 
         Some(true)
-    }
-
-    /// Transaction inputs hash validation.
-    /// Must exist and match the hash of the transaction inputs.
-    fn validate_txn_inputs_hash(
-        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
-        decoded_metadata: &DecodedMetadata,
-    ) -> Option<bool> {
-        let mut buffer = Vec::new();
-        let mut e = Encoder::new(&mut buffer);
-        match txn {
-            MultiEraTx::AlonzoCompatible(tx, _) => {
-                let inputs = tx.transaction_body.inputs.clone();
-                match e.array(inputs.len() as u64) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        self.validation_failure(
-                        &format!(
-                            "Failed to encode array of transaction input in validate_txn_inputs_hash {e}"
-                        ),
-                        validation_report,
-                        decoded_metadata,
-                    );
-                        return None;
-                    },
-                }
-                for input in inputs {
-                    match input.encode(&mut e, &mut ()) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            self.validation_failure(
-                                &format!(
-                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
-                            ),
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
-                        },
-                    }
-                }
-            },
-            MultiEraTx::Babbage(tx) => {
-                let inputs = tx.transaction_body.inputs.clone();
-                match e.array(inputs.len() as u64) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        self.validation_failure(
-                        &format!(
-                            "Failed to encode array of transaction input in validate_txn_inputs_hash {e}"
-                        ),
-                        validation_report,
-                        decoded_metadata,
-                    );
-                        return None;
-                    },
-                }
-                for input in inputs {
-                    match input.encode(&mut e, &mut ()) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            self.validation_failure(
-                                &format!(
-                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
-                            ),
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
-                        },
-                    }
-                }
-            },
-            MultiEraTx::Conway(tx) => {
-                let inputs = tx.transaction_body.inputs.clone();
-                match e.array(inputs.len() as u64) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        self.validation_failure(
-                            &format!(
-                            "Failed to encode array of transaction in validate_txn_inputs_hash {e}"
-                        ),
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
-                }
-                for input in &inputs {
-                    match input.encode(&mut e, &mut ()) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            self.validation_failure(
-                                &format!(
-                                "Failed to encode transaction input in validate_txn_inputs_hash {e}"
-                            ),
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
-                        },
-                    }
-                }
-            },
-            _ => {
-                self.validation_failure(
-                    "Unsupported transaction era for transaction inputs hash validation",
-                    validation_report,
-                    decoded_metadata,
-                );
-                return None;
-            },
-        }
-        let inputs_hash = match blake2b_128(&buffer.clone()) {
-            Ok(hash) => hash,
-            Err(e) => {
-                self.validation_failure(
-                    &format!("Failed to hash transaction inputs in validate_txn_inputs_hash {e}"),
-                    validation_report,
-                    decoded_metadata,
-                );
-                return None;
-            },
-        };
-        debug!(
-            "txn_inputs_hash {:?} {:?}",
-            inputs_hash, self.txn_inputs_hash
-        );
-        Some(inputs_hash == self.txn_inputs_hash)
     }
 
     /// Validate the payment key
@@ -706,7 +722,8 @@ impl Cip509 {
     }
 
     /// Validate the auxiliary data with the auxilliary data hash in the transaction.
-    /// Also log out the pre-computed hash where the validation signatrue (99) set to zero.
+    /// Also log out the pre-computed hash where the validation signatrue (99) set to
+    /// zero.
     fn validate_aux(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata, _txn_idx: usize,
