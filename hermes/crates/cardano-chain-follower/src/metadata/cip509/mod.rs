@@ -5,8 +5,7 @@
 use c509_certificate::general_names::general_name::GeneralNameValue;
 use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
 use rbac::{certs::C509Cert, role_data::RoleData};
-use tracing::{info, warn};
-use utf8_decode::Decoder as Utf8Decoder;
+use tracing::info;
 
 mod decode_helper;
 mod rbac;
@@ -39,8 +38,8 @@ use super::{
 };
 use crate::{
     utils::{
-        blake2b_128, blake2b_256, compare_key_hash, extract_cip19_hash, extract_key_hash,
-        zero_out_last_n_bytes,
+        blake2b_128, blake2b_256, compare_key_hash, decode_utf8, extract_cip19_hash,
+        extract_key_hash, zero_out_last_n_bytes,
     },
     witness::TxWitness,
     Network,
@@ -362,11 +361,12 @@ impl Cip509 {
         decoded_metadata: &DecodedMetadata,
     ) -> Option<bool> {
         match txn {
-            MultiEraTx::AlonzoCompatible(tx, _) => match &tx.auxiliary_data {
-                pallas::codec::utils::Nullable::Some(a) => {
-                    let original_aux = a.raw_cbor();
-                    let aux_data_hash =
-                        tx.transaction_body
+            MultiEraTx::AlonzoCompatible(tx, _) => {
+                match &tx.auxiliary_data {
+                    pallas::codec::utils::Nullable::Some(a) => {
+                        let original_aux = a.raw_cbor();
+                        let aux_data_hash = tx
+                            .transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -377,27 +377,29 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                    return self.validate_aux_helper(
-                        original_aux,
-                        aux_data_hash,
-                        validation_report,
-                        decoded_metadata,
-                    );
-                },
-                _ => {
-                    self.validation_failure(
-                        "Auxiliary data not found in transaction",
-                        validation_report,
-                        decoded_metadata,
-                    );
-                    return None;
-                },
+                        return self.validate_aux_helper(
+                            original_aux,
+                            aux_data_hash,
+                            validation_report,
+                            decoded_metadata,
+                        );
+                    },
+                    _ => {
+                        self.validation_failure(
+                            "Auxiliary data not found in transaction",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    },
+                }
             },
-            MultiEraTx::Babbage(tx) => match &tx.auxiliary_data {
-                pallas::codec::utils::Nullable::Some(a) => {
-                    let original_aux = a.raw_cbor();
-                    let aux_data_hash =
-                        tx.transaction_body
+            MultiEraTx::Babbage(tx) => {
+                match &tx.auxiliary_data {
+                    pallas::codec::utils::Nullable::Some(a) => {
+                        let original_aux = a.raw_cbor();
+                        let aux_data_hash = tx
+                            .transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -408,27 +410,29 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                    return self.validate_aux_helper(
-                        original_aux,
-                        aux_data_hash,
-                        validation_report,
-                        decoded_metadata,
-                    );
-                },
-                _ => {
-                    self.validation_failure(
-                        "Auxiliary data not found in transaction",
-                        validation_report,
-                        decoded_metadata,
-                    );
-                    return None;
-                },
+                        return self.validate_aux_helper(
+                            original_aux,
+                            aux_data_hash,
+                            validation_report,
+                            decoded_metadata,
+                        );
+                    },
+                    _ => {
+                        self.validation_failure(
+                            "Auxiliary data not found in transaction",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    },
+                }
             },
-            MultiEraTx::Conway(tx) => match &tx.auxiliary_data {
-                pallas::codec::utils::Nullable::Some(a) => {
-                    let original_aux = a.raw_cbor();
-                    let aux_data_hash =
-                        tx.transaction_body
+            MultiEraTx::Conway(tx) => {
+                match &tx.auxiliary_data {
+                    pallas::codec::utils::Nullable::Some(a) => {
+                        let original_aux = a.raw_cbor();
+                        let aux_data_hash = tx
+                            .transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -439,21 +443,22 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                    return self.validate_aux_helper(
-                        original_aux,
-                        aux_data_hash,
-                        validation_report,
-                        decoded_metadata,
-                    );
-                },
-                _ => {
-                    self.validation_failure(
-                        "Auxiliary data not found in transaction",
-                        validation_report,
-                        decoded_metadata,
-                    );
-                    return None;
-                },
+                        return self.validate_aux_helper(
+                            original_aux,
+                            aux_data_hash,
+                            validation_report,
+                            decoded_metadata,
+                        );
+                    },
+                    _ => {
+                        self.validation_failure(
+                            "Auxiliary data not found in transaction",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    },
+                }
             },
             _ => {
                 self.validation_failure(
@@ -510,7 +515,7 @@ impl Cip509 {
                             Ok(cert) => cert,
                             Err(e) => {
                                 self.validation_failure(
-                                    &format!("Failed to decode x509 certificate DER {e}"),
+                                    &format!("Failed to decode x509 certificate DER: {}", e),
                                     validation_report,
                                     decoded_metadata,
                                 );
@@ -518,50 +523,71 @@ impl Cip509 {
                             },
                         };
 
-                        // Check for extensions and look for the Subject Alternative Name extension
-                        if let Some(san_ext) = der_cert
-                            .tbs_certificate
-                            .extensions
-                            .as_ref()
-                            .and_then(|exts| {
-                                exts.iter()
-                                    .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
-                            })
-                        {
-                            // Parse the Subject Alternative Name extension
-                            if let Ok(parsed_seq) =
-                                parse_der_sequence(san_ext.extn_value.as_bytes())
-                            {
-                                for data in parsed_seq.1.ref_iter() {
-                                    // Look for a Context-specific primitive type with tag number 6
-                                    // (raw_tag 134)
-                                    if data.header.raw_tag() == Some(&[URI]) {
-                                        match data.content.as_slice() {
-                                            Ok(content) => {
-                                                // Decode the UTF-8 string
-                                                let addr: String =
-                                                    Utf8Decoder::new(content.iter().copied())
-                                                        .filter_map(Result::ok)
-                                                        .collect();
-                                                // Extract the CIP19 hash and push into array.
-                                                if let Some(h) = extract_cip19_hash(&addr) {
-                                                    warn!("Extracted CIP19 hash: {:?}", h);
-                                                    pk_addrs.push(h);
-                                                }
-                                            },
-                                            Err(e) => {
-                                                self.validation_failure(
-                                                    &format!(
-                                                        "Failed to process content for context-specific primitive type with raw tag 134 {e}"
-                                                    ),
-                                                    validation_report,
-                                                    decoded_metadata,
-                                                );
-                                                return None;
-                                            },
+                        // Find the Subject Alternative Name extension
+                        let san_ext =
+                            der_cert
+                                .tbs_certificate
+                                .extensions
+                                .as_ref()
+                                .and_then(|exts| {
+                                    exts.iter()
+                                        .find(|ext| ext.extn_id == ID_CE_SUBJECT_ALT_NAME)
+                                });
+
+                        // Subject Alternative Name extension if it exists
+                        if let Some(san_ext) = san_ext {
+                            match parse_der_sequence(san_ext.extn_value.as_bytes()) {
+                                Ok((_, parsed_seq)) => {
+                                    for data in parsed_seq.ref_iter() {
+                                        // Check for context-specific primitive type with tag number
+                                        // 6 (raw_tag 134)
+                                        if data.header.raw_tag() == Some(&[URI]) {
+                                            match data.content.as_slice() {
+                                                Ok(content) => {
+                                                    // Decode the UTF-8 string
+                                                    let addr: String = match decode_utf8(content) {
+                                                        Ok(addr) => addr,
+                                                        Err(e) => {
+                                                            self.validation_failure(
+                                                                &format!(
+                                                                    "Failed to decode UTF-8 string for context-specific primitive type with raw tag 134: {}",
+                                                                    e
+                                                                ),
+                                                                validation_report,
+                                                                decoded_metadata,
+                                                            );
+                                                            return None;
+                                                        },
+                                                    };
+                                                    // Extract the CIP19 hash and push into array
+                                                    if let Some(h) = extract_cip19_hash(&addr) {
+                                                        // warn!("Extracted CIP19 hash: {:?}", h);
+                                                        pk_addrs.push(h);
+                                                    }
+                                                },
+                                                Err(e) => {
+                                                    self.validation_failure(
+                                                        &format!("Failed to process content for context-specific primitive type with raw tag 134: {}", e),
+                                                        validation_report,
+                                                        decoded_metadata,
+                                                    );
+                                                    return None;
+                                                },
+                                            }
                                         }
                                     }
-                                }
+                                },
+                                Err(e) => {
+                                    self.validation_failure(
+                                        &format!(
+                                            "Failed to parse DER sequence for Subject Alternative Name extension: {}",
+                                            e
+                                        ),
+                                        validation_report,
+                                        decoded_metadata,
+                                    );
+                                    return None;
+                                },
                             }
                         }
                     }
@@ -572,7 +598,7 @@ impl Cip509 {
                         match cert {
                             C509Cert::C509CertInMetadatumReference(_) => {
                                 self.validation_failure(
-                                    &format!("c509 metadatum rederence is currently not supported"),
+                                    "C509 metadatum reference is currently not supported",
                                     validation_report,
                                     decoded_metadata,
                                 );
@@ -591,10 +617,10 @@ impl Cip509 {
                                                                 match name.get_gn_value() {
                                                                     GeneralNameValue::Text(s) => {
                                                                         if let Some(h) = extract_cip19_hash(s) {
-                                                                            warn!("Extracted CIP19 hash: {:?}", h);
+                                                                            // warn!("Extracted CIP19 hash: {:?}", h);
                                                                             pk_addrs.push(h);
                                                                         }
-                                                                    }
+                                                                    },
                                                                     _ => {
                                                                         self.validation_failure(
                                                                             "Failed to get the value of subject alternative name",
@@ -608,16 +634,16 @@ impl Cip509 {
                                                     },
                                                     _ => {
                                                         self.validation_failure(
-                                                            "Failed to find c509 general names in subject alternative name",
+                                                            "Failed to find C509 general names in subject alternative name",
                                                             validation_report,
                                                             decoded_metadata,
                                                         );
                                                     }
                                                 }
-                                            }
+                                            },
                                             _ => {
                                                 self.validation_failure(
-                                                    "Failed to get c509 subject alternative name",
+                                                    "Failed to get C509 subject alternative name",
                                                     validation_report,
                                                     decoded_metadata,
                                                 );

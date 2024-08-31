@@ -162,3 +162,16 @@ pub(crate) fn zero_out_last_n_bytes(vec: &mut Vec<u8>, n: usize) {
         vec[len - n..].fill(0);
     }
 }
+
+/// Decode the given UTF-8 content.
+pub(crate) fn decode_utf8(content: &[u8]) -> anyhow::Result<String> {
+    // Decode the UTF-8 string
+    std::str::from_utf8(content)
+        .map(|s| s.to_string())
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Invalid UTF-8 string, expected valid UTF-8 string but got {:?}",
+                content
+            )
+        })
+}
