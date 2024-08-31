@@ -133,7 +133,7 @@ pub(crate) fn extract_key_hash(key: Vec<u8>) -> Option<Vec<u8>> {
 
 /// Compare the given public key bytes with the transaction witness set.
 pub(crate) fn compare_key_hash(
-    pk_addrs: Vec<Vec<u8>>, witness: TxWitness, txn_idx: u8,
+    pk_addrs: Vec<Vec<u8>>, witness: &TxWitness, txn_idx: u8,
 ) -> anyhow::Result<()> {
     pk_addrs.into_iter().try_for_each(|pk_addr| {
         let pk_addr: [u8; 28] = pk_addr.as_slice().try_into().map_err(|_| {
@@ -153,4 +153,12 @@ pub(crate) fn compare_key_hash(
 
         Ok(())
     })
+}
+
+/// Zero out the last n bytes
+pub(crate) fn zero_out_last_n_bytes(vec: &mut Vec<u8>, n: usize) {
+    let len = vec.len();
+    if len >= n {
+        vec[len - n..].fill(0);
+    }
 }
