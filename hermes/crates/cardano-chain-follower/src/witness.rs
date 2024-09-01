@@ -60,7 +60,9 @@ impl TxWitness {
                         }
                     }
                 },
-                _ => {},
+                _ => {
+                    return Err(anyhow::anyhow!("Unsupported transaction type"));
+                },
             };
         }
         Ok(Self(map))

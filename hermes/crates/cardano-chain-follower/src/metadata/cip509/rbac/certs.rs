@@ -19,7 +19,7 @@ impl Decode<'_, ()> for X509DerCert {
         let data = decode_bytes(d, "X509DerCert")?;
         Certificate::from_der(&data)
             .map_err(|_| decode::Error::message("Invalid x509 certificate"))?;
-        Ok(Self(data.to_vec()))
+        Ok(Self(data.clone()))
     }
 }
 

@@ -148,7 +148,7 @@ impl ChainFollower {
         // In most cases we will be able to get the next block.
         if next_block.is_none() {
             // If we don't know the previous block, get the block requested.
-            let advance = if self.previous.is_unknown() { 0 } else { 1 };
+            let advance = i64::from(!self.previous.is_unknown());
             next_block = get_live_block(self.chain, &self.current, advance, true);
         }
 

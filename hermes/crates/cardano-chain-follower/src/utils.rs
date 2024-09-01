@@ -104,8 +104,9 @@ pub(crate) fn blake2b_128(value: &[u8]) -> anyhow::Result<[u8; 16]> {
 }
 
 /// Extracts the CIP-19 bytes from a URI.
+#[allow(clippy::doc_markdown)]
 /// Example input: "web+cardano://addr/<cip-19 address string>"
-/// https://github.com/cardano-foundation/CIPs/tree/6bae5165dde5d803778efa5e93bd408f3317ca03/CPS-0016
+/// <https://github.com/cardano-foundation/CIPs/tree/6bae5165dde5d803778efa5e93bd408f3317ca03/CPS-0016>
 /// URI = scheme ":" ["//" authority] path ["?" query] ["#" fragment]
 pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
     // Define a regex pattern to match the expected URI format
@@ -120,15 +121,15 @@ pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
         Some(addr) => {
             let addr = bech32::decode(&addr).ok()?.1;
             // As in CIP19, the first byte is the header, so extract only the payload
-            extract_key_hash(addr)
+            extract_key_hash(&addr)
         },
         None => None,
     }
 }
 
 /// Extract the first 28 nytes from the given key
-pub(crate) fn extract_key_hash(key: Vec<u8>) -> Option<Vec<u8>> {
-    key.get(1..29).map(|slice| slice.to_vec())
+pub(crate) fn extract_key_hash(key: &[u8]) -> Option<Vec<u8>> {
+    key.get(1..29).map(<[u8]>::to_vec)
 }
 
 /// Compare the given public key bytes with the transaction witness set.
@@ -156,10 +157,9 @@ pub(crate) fn compare_key_hash(
 }
 
 /// Zero out the last n bytes
-pub(crate) fn zero_out_last_n_bytes(vec: &mut Vec<u8>, n: usize) {
-    let len = vec.len();
-    if len >= n {
-        vec[len - n..].fill(0);
+pub(crate) fn zero_out_last_n_bytes(vec: &mut [u8], n: usize) {
+    if let Some(slice) = vec.get_mut(vec.len().saturating_sub(n)..) {
+        slice.fill(0);
     }
 }
 
@@ -167,7 +167,7 @@ pub(crate) fn zero_out_last_n_bytes(vec: &mut Vec<u8>, n: usize) {
 pub(crate) fn decode_utf8(content: &[u8]) -> anyhow::Result<String> {
     // Decode the UTF-8 string
     std::str::from_utf8(content)
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .map_err(|_| {
             anyhow::anyhow!(
                 "Invalid UTF-8 string, expected valid UTF-8 string but got {:?}",
