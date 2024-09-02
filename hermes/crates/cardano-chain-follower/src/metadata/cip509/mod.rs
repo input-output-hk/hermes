@@ -2,6 +2,7 @@
 //! Doc Reference: <https://github.com/input-output-hk/catalyst-CIPs/tree/x509-envelope-metadata/CIP-XXXX>
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
+// cspell: words pkix
 use c509_certificate::general_names::general_name::GeneralNameValue;
 use decode_helper::{decode_bytes, decode_map_len, decode_u8};
 use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
@@ -354,8 +355,8 @@ impl Cip509 {
         Some(inputs_hash == self.txn_inputs_hash)
     }
 
-    /// Validate the auxiliary data with the auxilliary data hash in the transaction.
-    /// Also log out the pre-computed hash where the validation signatrue (99) set to
+    /// Validate the auxiliary data with the auxiliary data hash in the transaction.
+    /// Also log out the pre-computed hash where the validation signature (99) set to
     /// zero.
     fn validate_aux(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
@@ -492,7 +493,7 @@ impl Cip509 {
         }
     }
 
-    /// Validate the public key in the certificate with witness set in transaciton.
+    /// Validate the public key in the certificate with witness set in transaction.
     #[allow(clippy::too_many_lines)]
     fn validate_public_key(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,

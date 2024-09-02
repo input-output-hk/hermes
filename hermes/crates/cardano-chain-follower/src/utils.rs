@@ -127,7 +127,7 @@ pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
     }
 }
 
-/// Extract the first 28 nytes from the given key
+/// Extract the first 28 bytes from the given key
 pub(crate) fn extract_key_hash(key: &[u8]) -> Option<Vec<u8>> {
     key.get(1..29).map(<[u8]>::to_vec)
 }

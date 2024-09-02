@@ -3,6 +3,7 @@ abcz
 abnf
 ABNF
 addrr
+addrs
 adminer
 alpn
 apskhem
@@ -10,6 +11,7 @@ asyncio
 auditability
 Autoupdate
 backpressure
+bech
 bindgen
 bkioshn
 blockdiag
@@ -59,6 +61,7 @@ encryptor
 Errno
 etype
 excalidraw
+extn
 fadvise
 fcntl
 fdatasync

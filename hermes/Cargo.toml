@@ -1,3 +1,5 @@
+ # cspell: words licence moka
+
 [workspace]
 resolver = "2"
 members = ["bin", "crates/cardano-chain-follower", "crates/hermes-ipfs"]
