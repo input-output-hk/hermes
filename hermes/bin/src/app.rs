@@ -52,7 +52,6 @@ impl Application {
     }
 
     /// Get vfs
-    #[allow(dead_code)]
     pub(crate) fn vfs(&self) -> &Vfs {
         self.vfs.as_ref()
     }
