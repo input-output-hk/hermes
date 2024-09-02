@@ -137,6 +137,7 @@ mkdelay
 mkdirat
 mmap
 moderations
+moka
 MPMC
 Multiaddr
 multiera

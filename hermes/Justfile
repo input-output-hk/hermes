@@ -2,7 +2,7 @@
 #
 # Hermes developer convenience functions
 
-# cspell: words prereqs, commitlog, rustls, nocapture
+# cspell: words prereqs, commitlog, rustls, nocapture, heaptrack
 
 default:
     @just --list --unsorted
@@ -35,7 +35,7 @@ run-mithril-download-example-preprod-high-dl-bandwidth: code_format
     RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
     ./target/release/examples/follow_chains --preprod --mithril-sync-workers 64 --mithril-sync-chunk-size 16 --mithril-sync-queue-ahead=6
 
-run-mithril-download-example-preprod-conservastive-dl-bandwidth: code_format
+run-mithril-download-example-preprod-conservative-dl-bandwidth: code_format
     cargo build -r --package cardano-chain-follower --example follow_chains --features mimalloc
     RUST_LOG="error,follow_chains=debug,cardano_chain_follower=debug,mithril-client=debug" \
     ./target/release/examples/follow_chains --preprod --mithril-sync-workers 8 --mithril-sync-chunk-size 1 --mithril-sync-queue-ahead=2

@@ -1,4 +1,4 @@
- # cspell: words licence moka
+ # cspell: words licence
 
 [workspace]
 resolver = "2"
