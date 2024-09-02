@@ -802,7 +802,7 @@ impl Cip36 {
 
 #[cfg(test)]
 mod tests {
-    use crossbeam_skiplist::SkipMap;
+    use dashmap::DashMap;
 
     use super::*;
 
@@ -823,7 +823,7 @@ mod tests {
 
     #[test]
     fn test_decode_purpose_1() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(true);
         let mut decoder = Decoder::new(&[0x00]);
         let mut report = ValidationReport::new();
@@ -837,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_decode_purpose_2() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(true);
         let mut decoder = Decoder::new(&[0x19, 0x30, 0x39]);
         let mut report = ValidationReport::new();
@@ -851,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_decode_purpose_3() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&[0x19, 0x30, 0x39]);
         let mut report = ValidationReport::new();
@@ -873,7 +873,7 @@ mod tests {
         ];
 
         for bytes in bytes_cases {
-            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let decoded_metadata = DecodedMetadata(DashMap::new());
             let mut cip36 = create_empty_cip36(false);
             let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
@@ -889,7 +889,7 @@ mod tests {
     #[test]
     // valid `nonce`, strict = false, raw_nonce > slot
     fn test_decode_nonce_1() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&[0x1B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
         let mut report = ValidationReport::new();
@@ -905,7 +905,7 @@ mod tests {
     #[test]
     // valid `nonce`, strict = false, raw_nonce < slot
     fn test_decode_nonce_2() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&[0x01]);
         let mut report = ValidationReport::new();
@@ -921,7 +921,7 @@ mod tests {
     #[test]
     // valid `nonce`, strict = true, raw_nonce > slot
     fn test_decode_nonce_3() {
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(true);
         let mut decoder = Decoder::new(&[0x10]);
         let mut report = ValidationReport::new();
@@ -944,7 +944,7 @@ mod tests {
         ];
 
         for bytes in bytes_cases {
-            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let decoded_metadata = DecodedMetadata(DashMap::new());
             let mut cip36 = create_empty_cip36(false);
             let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
@@ -964,7 +964,7 @@ mod tests {
             // 0x004777561e7d9ec112ec307572faec1aff61ff0cfed68df4cd5c847f1872b617657881e30ad17c46e4010c9cb3ebb2440653a34d32219c83e9
             "5839004777561E7D9EC112EC307572FAEC1AFF61FF0CFED68DF4CD5C847F1872B617657881E30AD17C46E4010C9CB3EBB2440653A34D32219C83E9"
         ).expect("cannot decode hex");
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
         let mut report = ValidationReport::new();
@@ -980,7 +980,7 @@ mod tests {
         );
 
         assert_eq!(report.len(), 0);
-        assert_eq!(cip36.payable, true);
+        assert!(cip36.payable);
         assert_eq!(cip36.payment_addr.len(), 57);
         assert_eq!(rc, Some(57));
     }
@@ -992,7 +992,7 @@ mod tests {
             "5820E3CD2404C84DE65F96918F18D5B445BCB933A7CDA18EEDED7945DD191E432369",
         )
         .expect("cannot decode hex");
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
         let mut report = ValidationReport::new();
@@ -1016,9 +1016,9 @@ mod tests {
         ];
 
         for bytes in bytes_cases {
-            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let decoded_metadata = DecodedMetadata(DashMap::new());
             let mut cip36 = create_empty_cip36(false);
-            let mut decoder = Decoder::new(&bytes);
+            let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
 
             let rc = cip36.decode_stake_pub(&mut decoder, &mut report, &decoded_metadata);
@@ -1036,7 +1036,7 @@ mod tests {
             "818258200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A001",
         )
         .expect("cannot decode hex");
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
         let mut report = ValidationReport::new();
@@ -1057,7 +1057,7 @@ mod tests {
             "58200036EF3E1F0D3F5989E2D155EA54BDB2A72C4C456CCB959AF4C94868F473F5A0",
         )
         .expect("cannot decode hex");
-        let decoded_metadata = DecodedMetadata(SkipMap::new());
+        let decoded_metadata = DecodedMetadata(DashMap::new());
         let mut cip36 = create_empty_cip36(false);
         let mut decoder = Decoder::new(&hex_data);
         let mut report = ValidationReport::new();
@@ -1088,9 +1088,9 @@ mod tests {
         ];
 
         for bytes in bytes_cases {
-            let decoded_metadata = DecodedMetadata(SkipMap::new());
+            let decoded_metadata = DecodedMetadata(DashMap::new());
             let mut cip36 = create_empty_cip36(false);
-            let mut decoder = Decoder::new(&bytes);
+            let mut decoder = Decoder::new(bytes);
             let mut report = ValidationReport::new();
 
             let rc = cip36.decode_voting_key(&mut decoder, &mut report, &decoded_metadata);
