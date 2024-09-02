@@ -496,12 +496,11 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
     ///
     /// Implementations are encouraged to provide the following properties:
     ///
-    /// - If the file is not modified or replaced, the computed hash value should
-    /// usually not change.
-    /// - If the object is modified or replaced, the computed hash value should
-    /// usually change.
-    /// - The inputs to the hash should not be easily computable from the
-    /// computed hash.
+    /// - If the file is not modified or replaced, the computed hash value should usually
+    ///   not change.
+    /// - If the object is modified or replaced, the computed hash value should usually
+    ///   change.
+    /// - The inputs to the hash should not be easily computable from the computed hash.
     ///
     /// However, none of these is required.
     fn metadata_hash(

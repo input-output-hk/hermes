@@ -9,8 +9,8 @@ use crate::runtime_extensions::bindings::hermes::{binary::api::Bstr, hash::api::
 /// # Arguments
 ///
 /// - `buf`: A reference to the byte string for which the hash is to be computed.
-/// - `outlen`: Optional output length in bytes. If not specified,
-/// it defaults to 64 bytes.
+/// - `outlen`: Optional output length in bytes. If not specified, it defaults to 64
+///   bytes.
 ///
 /// # Returns
 ///
@@ -42,12 +42,12 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
 /// # Arguments
 ///
 /// - `buf`: A reference to the byte string for which the blake2bMac is to be computed.
-/// - `outlen`: Optional output length in bytes. If not specified,
-/// it defaults to 64 bytes.
+/// - `outlen`: Optional output length in bytes. If not specified, it defaults to 64
+///   bytes.
 /// - `key`: A reference to the byte string used as the key for computing the blake2bMac.
 /// - `salt`: Optional salt value. If not specified, it defaults to an empty byte string.
-/// - `personal`: Optional personalization string. If not specified,
-/// it defaults to an empty byte string.
+/// - `personal`: Optional personalization string. If not specified, it defaults to an
+///   empty byte string.
 ///
 /// # Returns
 ///

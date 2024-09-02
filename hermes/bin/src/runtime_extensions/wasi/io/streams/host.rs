@@ -226,8 +226,8 @@ impl HostOutputStream for HermesRuntimeContext {
     ///
     /// The behavior of splice is equivalent to:
     /// 1. calling `check-write` on the `output-stream`
-    /// 2. calling `read` on the `input-stream` with the smaller of the
-    /// `check-write` permitted length and the `len` provided to `splice`
+    /// 2. calling `read` on the `input-stream` with the smaller of the `check-write`
+    ///    permitted length and the `len` provided to `splice`
     /// 3. calling `write` on the `output-stream` with that read data.
     ///
     /// Any error reported by the call to `check-write`, `read`, or

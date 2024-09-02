@@ -210,8 +210,8 @@ impl HermesIpfs {
     /// List all pins in the IPFS node.
     ///
     /// ## Parameters
-    /// * `cid` - `Option<Cid>` Optional content identifier to list pins.
-    ///  If `None`, lists all pins.
+    /// * `cid` - `Option<Cid>` Optional content identifier to list pins. If `None`, lists
+    ///   all pins.
     ///
     /// ## Errors
     /// Returns an error if listing pins fails.
