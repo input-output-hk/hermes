@@ -139,8 +139,8 @@ impl Decode<'_, ()> for Cip509 {
 impl Cip509 {
     /// Decode and validate CIP509 metadata.
     pub(crate) fn decode_and_validate(
-        decoded_metadata: &DecodedMetadata, _slot: u64, txn: &MultiEraTx,
-        raw_aux_data: &RawAuxData, _chain: Network, txn_idx: usize,
+        decoded_metadata: &DecodedMetadata, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData,
+        _chain: Network, txn_idx: usize,
     ) {
         // Get the CIP509 metadata if possible
         let Some(k509) = raw_aux_data.get_metadata(LABEL) else {
@@ -165,7 +165,7 @@ impl Cip509 {
         // Validate transaction inputs hash
         match cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata) {
             // True if success, otherwise false
-            Some(b) => info!("Transaction inputs hash validation success: {b}"),
+            Some(b) => info!("Slot {slot} Transaction inputs hash validation success: {b}"),
             None => {
                 cip509.validation_failure(
                     "Failed to validate transaction inputs hash",
@@ -178,7 +178,7 @@ impl Cip509 {
         // Validate the auxiliary data
         match cip509.validate_aux(txn, &mut validation_report, decoded_metadata) {
             // True if success, otherwise false
-            Some(b) => info!("Auxiliary data validation success: {b}"),
+            Some(b) => info!("Slot {slot} Auxiliary data validation success: {b}"),
             None => {
                 cip509.validation_failure(
                     "Failed to validate auxiliary data",
@@ -189,51 +189,50 @@ impl Cip509 {
         }
 
         // Validate the role 0
-        // FIXME - Remove this
-        if _slot == 69_131_472 {
-            if let Some(role_set) = &cip509.x509_chunks.0.role_set {
-                // Validate only role 0
-                for role in role_set {
-                    if role.role_number == 0 {
-                        // Validate public key to in certificate to the witness set in transaction
-                        match cip509.validate_public_key(
-                            txn,
-                            &mut validation_report,
-                            decoded_metadata,
-                            txn_idx,
-                        ) {
-                            // True if success, otherwise false
-                            Some(b) => {
-                                info!("Public key validation tx id {txn_idx} success: {b}");
-                            },
-                            None => {
-                                cip509.validation_failure(
-                                    &format!("Failed to validate public key in tx id {txn_idx}"),
-                                    &mut validation_report,
-                                    decoded_metadata,
-                                );
-                            },
-                        }
-                        // Validate payment key reference
-                        match cip509.validate_payment_key(
-                            txn,
-                            &mut validation_report,
-                            decoded_metadata,
-                            txn_idx,
-                            role,
-                        ) {
-                            // True if success, otherwise false
-                            Some(b) => {
-                                info!("Payment key validation tx id {txn_idx} success: {b}");
-                            },
-                            None => {
-                                cip509.validation_failure(
-                                    &format!("Failed to validate payment key in tx id {txn_idx}"),
-                                    &mut validation_report,
-                                    decoded_metadata,
-                                );
-                            },
-                        }
+        if let Some(role_set) = &cip509.x509_chunks.0.role_set {
+            // Validate only role 0
+            for role in role_set {
+                if role.role_number == 0 {
+                    // Validate public key to in certificate to the witness set in transaction
+                    match cip509.validate_public_key(
+                        txn,
+                        &mut validation_report,
+                        decoded_metadata,
+                        txn_idx,
+                    ) {
+                        // True if success, otherwise false
+                        Some(b) => {
+                            info!("Slot {slot} Public key validation tx id {txn_idx} success: {b}");
+                        },
+                        None => {
+                            cip509.validation_failure(
+                                &format!("Failed to validate public key in tx id {txn_idx}"),
+                                &mut validation_report,
+                                decoded_metadata,
+                            );
+                        },
+                    }
+                    // Validate payment key reference
+                    match cip509.validate_payment_key(
+                        txn,
+                        &mut validation_report,
+                        decoded_metadata,
+                        txn_idx,
+                        role,
+                    ) {
+                        // True if success, otherwise false
+                        Some(b) => {
+                            info!(
+                                "Slot {slot} Payment key validation tx id {txn_idx} success: {b}"
+                            );
+                        },
+                        None => {
+                            cip509.validation_failure(
+                                &format!("Failed to validate payment key in tx id {txn_idx}"),
+                                &mut validation_report,
+                                decoded_metadata,
+                            );
+                        },
                     }
                 }
             }
@@ -670,11 +669,11 @@ impl Cip509 {
             },
         };
 
-        let tx = match u8::try_from(txn_idx) {
+        let index = match u8::try_from(txn_idx) {
             Ok(value) => value,
             Err(e) => {
                 self.validation_failure(
-                    &format!("Failed to convert payment_key to usize: {e}"),
+                    &format!("Failed to convert transaction index to usize: {e}"),
                     validation_report,
                     decoded_metadata,
                 );
@@ -682,7 +681,7 @@ impl Cip509 {
             },
         };
         Some(
-            compare_key_hash(pk_addrs, &witnesses, tx)
+            compare_key_hash(&pk_addrs, &witnesses, index)
                 .map_err(|e| {
                     self.validation_failure(
                         &format!("Failed to compare public keys with witnesses {e}"),
@@ -935,7 +934,7 @@ impl Cip509 {
         // Extract the key hash from the output address
         if let Some(key) = extract_key_hash(output_address) {
             // Compare the key hash and return the result
-            return Some(compare_key_hash(vec![key], witness, idx).is_ok());
+            return Some(compare_key_hash(&[key], witness, idx).is_ok());
         }
         self.validation_failure(
             "Failed to extract payment key hash from address",
