@@ -1,3 +1,5 @@
+//! Cbor decoding helper functions for CIP-509 metadata.
+
 use minicbor::{data::Tag, decode, Decoder};
 
 /// Helper function for decoding map.
@@ -60,4 +62,29 @@ pub(crate) fn decode_array_len(d: &mut Decoder, from: &str) -> Result<u64, decod
 pub(crate) fn decode_tag(d: &mut Decoder, from: &str) -> Result<Tag, decode::Error> {
     d.tag()
         .map_err(|e| decode::Error::message(&format!("Failed to decode tag in {from}: {e}")))
+}
+
+/// Decode any in CDDL, only support basic datatype
+pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
+    match d.datatype()? {
+        minicbor::data::Type::Bytes => Ok(decode_bytes(d, "Any")?.clone()),
+        minicbor::data::Type::String => Ok(decode_string(d, "Any")?.as_bytes().to_vec()),
+        minicbor::data::Type::Array => {
+            let arr_len = decode_array_len(d, "Any")?;
+            let mut buffer = vec![];
+            for _ in 0..arr_len {
+                buffer.extend_from_slice(&decode_any(d)?);
+            }
+            Ok(buffer)
+        },
+        minicbor::data::Type::U8
+        | minicbor::data::Type::U16
+        | minicbor::data::Type::U32
+        | minicbor::data::Type::U64 => Ok(decode_u64(d, "Any")?.to_be_bytes().to_vec()),
+        minicbor::data::Type::I8
+        | minicbor::data::Type::I16
+        | minicbor::data::Type::I32
+        | minicbor::data::Type::I64 => Ok(decode_i64(d, "Any")?.to_be_bytes().to_vec()),
+        _ => Err(decode::Error::message("Data type not supported")),
+    }
 }

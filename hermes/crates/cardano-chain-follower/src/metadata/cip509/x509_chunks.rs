@@ -1,3 +1,5 @@
+//! X509 chunks handler where compressed chunks are decompressed and decoded.
+
 use std::io::Read;
 
 use minicbor::{decode, Decode, Decoder};

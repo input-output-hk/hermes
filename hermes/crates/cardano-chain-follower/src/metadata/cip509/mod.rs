@@ -3,6 +3,7 @@
 //! CDDL Reference: <https://github.com/input-output-hk/catalyst-CIPs/blob/x509-envelope-metadata/CIP-XXXX/x509-envelope.cddl>
 
 use c509_certificate::general_names::general_name::GeneralNameValue;
+use decode_helper::{decode_bytes, decode_map_len, decode_u8};
 use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
 use rbac::{certs::C509Cert, role_data::RoleData};
 use tracing::info;
@@ -14,10 +15,6 @@ mod x509_chunks;
 
 use std::sync::Arc;
 
-use decode_helper::{
-    decode_array_len, decode_bytes, decode_i64, decode_map_len, decode_string, decode_u64,
-    decode_u8,
-};
 use minicbor::{
     decode::{self},
     Decode, Decoder,
@@ -48,7 +45,7 @@ use crate::{
 /// CIP509 label.
 pub const LABEL: u64 = 509;
 
-/// Context-specific primitive type with tag number 6 (raw_tag 134) for
+/// Context-specific primitive type with tag number 6 (`raw_tag` 134) for
 /// uniform resource identifier (URI) in the subject alternative name extension.
 pub(crate) const URI: u8 = 134;
 
@@ -125,7 +122,7 @@ impl Decode<'_, ()> for Cip509 {
                                 "Invalid data size of ValidationSignature",
                             ));
                         }
-                        cip509_metadatum.validation_signature = validation_signature.to_vec();
+                        cip509_metadatum.validation_signature = validation_signature;
                     },
                 }
             } else {
@@ -167,7 +164,8 @@ impl Cip509 {
 
         // Validate transaction inputs hash
         match cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata) {
-            Some(b) => info!("Transaction inputs hash validation success: {}", b),
+            // True if success, otherwise false
+            Some(b) => info!("Transaction inputs hash validation success: {b}"),
             None => {
                 cip509.validation_failure(
                     "Failed to validate transaction inputs hash",
@@ -179,7 +177,8 @@ impl Cip509 {
 
         // Validate the auxiliary data
         match cip509.validate_aux(txn, &mut validation_report, decoded_metadata) {
-            Some(b) => info!("Auxiliary data validation success: {}", b),
+            // True if success, otherwise false
+            Some(b) => info!("Auxiliary data validation success: {b}"),
             None => {
                 cip509.validation_failure(
                     "Failed to validate auxiliary data",
@@ -191,10 +190,10 @@ impl Cip509 {
 
         // Validate the role 0
         // FIXME - Remove this
-        if _slot == 69131472 {
+        if _slot == 69_131_472 {
             if let Some(role_set) = &cip509.x509_chunks.0.role_set {
                 // Validate only role 0
-                for role in role_set.iter() {
+                for role in role_set {
                     if role.role_number == 0 {
                         // Validate public key to in certificate to the witness set in transaction
                         match cip509.validate_public_key(
@@ -203,17 +202,19 @@ impl Cip509 {
                             decoded_metadata,
                             txn_idx,
                         ) {
+                            // True if success, otherwise false
                             Some(b) => {
-                                info!("Public key validation tx id success {}: {}", txn_idx, b);
+                                info!("Public key validation tx id {txn_idx} success: {b}");
                             },
                             None => {
                                 cip509.validation_failure(
-                                    &format!("Failed to validate public key in tx id {}", txn_idx),
+                                    &format!("Failed to validate public key in tx id {txn_idx}"),
                                     &mut validation_report,
                                     decoded_metadata,
                                 );
                             },
                         }
+                        // Validate payment key reference
                         match cip509.validate_payment_key(
                             txn,
                             &mut validation_report,
@@ -221,12 +222,13 @@ impl Cip509 {
                             txn_idx,
                             role,
                         ) {
+                            // True if success, otherwise false
                             Some(b) => {
-                                info!("Payment key validation tx id success {}: {}", txn_idx, b);
+                                info!("Payment key validation tx id {txn_idx} success: {b}");
                             },
                             None => {
                                 cip509.validation_failure(
-                                    &format!("Failed to validate payment key in tx id {}", txn_idx),
+                                    &format!("Failed to validate payment key in tx id {txn_idx}"),
                                     &mut validation_report,
                                     decoded_metadata,
                                 );
@@ -266,7 +268,7 @@ impl Cip509 {
                 let inputs = tx.transaction_body.inputs.clone();
                 if let Err(e) = e.array(inputs.len() as u64) {
                     self.validation_failure(
-                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {e}"),
                         validation_report,
                         decoded_metadata,
                     );
@@ -275,7 +277,7 @@ impl Cip509 {
                 for input in &inputs {
                     if let Err(e) = input.encode(&mut e, &mut ()) {
                         self.validation_failure(
-                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {}", e),
+                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {e}"),
                             validation_report,
                             decoded_metadata,
                         );
@@ -287,7 +289,7 @@ impl Cip509 {
                 let inputs = tx.transaction_body.inputs.clone();
                 if let Err(e) = e.array(inputs.len() as u64) {
                     self.validation_failure(
-                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {e}"),
                         validation_report,
                         decoded_metadata,
                     );
@@ -296,7 +298,7 @@ impl Cip509 {
                 for input in &inputs {
                     if let Err(e) = input.encode(&mut e, &mut ()) {
                         self.validation_failure(
-                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {}", e),
+                            &format!("Failed to encode transaction input in validate_txn_inputs_hash: {e}"),
                             validation_report,
                             decoded_metadata,
                         );
@@ -308,7 +310,7 @@ impl Cip509 {
                 let inputs = tx.transaction_body.inputs.clone();
                 if let Err(e) = e.array(inputs.len() as u64) {
                     self.validation_failure(
-                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {}", e),
+                        &format!("Failed to encode array of transaction input in validate_txn_inputs_hash: {e}"),
                         validation_report,
                         decoded_metadata,
                     );
@@ -316,7 +318,7 @@ impl Cip509 {
                 }
                 for input in &inputs {
                     match input.encode(&mut e, &mut ()) {
-                        Ok(_) => {},
+                        Ok(()) => {},
                         Err(e) => {
                             self.validation_failure(
                                 &format!(
@@ -362,11 +364,10 @@ impl Cip509 {
     ) -> Option<bool> {
         match txn {
             MultiEraTx::AlonzoCompatible(tx, _) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let aux_data_hash = tx
-                            .transaction_body
+                if let pallas::codec::utils::Nullable::Some(a) = &tx.auxiliary_data {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -377,29 +378,26 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                        return self.validate_aux_helper(
-                            original_aux,
-                            aux_data_hash,
-                            validation_report,
-                            decoded_metadata,
-                        );
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
+                    self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    )
+                } else {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    None
                 }
             },
             MultiEraTx::Babbage(tx) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let aux_data_hash = tx
-                            .transaction_body
+                if let pallas::codec::utils::Nullable::Some(a) = &tx.auxiliary_data {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -410,29 +408,26 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                        return self.validate_aux_helper(
-                            original_aux,
-                            aux_data_hash,
-                            validation_report,
-                            decoded_metadata,
-                        );
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
+                    self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    )
+                } else {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    None
                 }
             },
             MultiEraTx::Conway(tx) => {
-                match &tx.auxiliary_data {
-                    pallas::codec::utils::Nullable::Some(a) => {
-                        let original_aux = a.raw_cbor();
-                        let aux_data_hash = tx
-                            .transaction_body
+                if let pallas::codec::utils::Nullable::Some(a) = &tx.auxiliary_data {
+                    let original_aux = a.raw_cbor();
+                    let aux_data_hash =
+                        tx.transaction_body
                             .auxiliary_data_hash
                             .as_ref()
                             .or_else(|| {
@@ -443,34 +438,33 @@ impl Cip509 {
                                 );
                                 None
                             })?;
-                        return self.validate_aux_helper(
-                            original_aux,
-                            aux_data_hash,
-                            validation_report,
-                            decoded_metadata,
-                        );
-                    },
-                    _ => {
-                        self.validation_failure(
-                            "Auxiliary data not found in transaction",
-                            validation_report,
-                            decoded_metadata,
-                        );
-                        return None;
-                    },
+                    self.validate_aux_helper(
+                        original_aux,
+                        aux_data_hash,
+                        validation_report,
+                        decoded_metadata,
+                    )
+                } else {
+                    self.validation_failure(
+                        "Auxiliary data not found in transaction",
+                        validation_report,
+                        decoded_metadata,
+                    );
+                    None
                 }
             },
             _ => {
                 self.validation_failure(
-                    "Unsupported transaction era for loggin auxillary data",
+                    "Unsupported transaction era for auxillary data validation",
                     validation_report,
                     decoded_metadata,
                 );
-                return None;
+                None
             },
         }
     }
 
+    /// Helper function for auxiliary data validation.
     fn validate_aux_helper(
         &self, original_aux: &[u8], aux_data_hash: &Bytes,
         validation_report: &mut ValidationReport, decoded_metadata: &DecodedMetadata,
@@ -483,23 +477,24 @@ impl Cip509 {
         // Log the pre-computed hash with the last 64 bytes set to zero
         info!("Pre-computed hash {:?}", &vec_aux);
 
-        // Check if we need to compare the hash
+        // Compare the hash
         match blake2b_256(original_aux) {
             Ok(original_hash) => {
                 return Some(aux_data_hash.as_ref() == original_hash);
             },
             Err(e) => {
                 self.validation_failure(
-                    &format!("Cannot hash auxiliary data {}", e),
+                    &format!("Cannot hash auxiliary data {e}"),
                     validation_report,
                     decoded_metadata,
                 );
-                return None;
+                None
             },
         }
     }
 
     /// Validate the public key in the certificate with witness set in transaciton.
+    #[allow(clippy::too_many_lines)]
     fn validate_public_key(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata, txn_idx: usize,
@@ -515,7 +510,7 @@ impl Cip509 {
                             Ok(cert) => cert,
                             Err(e) => {
                                 self.validation_failure(
-                                    &format!("Failed to decode x509 certificate DER: {}", e),
+                                    &format!("Failed to decode x509 certificate DER: {e}"),
                                     validation_report,
                                     decoded_metadata,
                                 );
@@ -550,8 +545,7 @@ impl Cip509 {
                                                         Err(e) => {
                                                             self.validation_failure(
                                                                 &format!(
-                                                                    "Failed to decode UTF-8 string for context-specific primitive type with raw tag 134: {}",
-                                                                    e
+                                                                    "Failed to decode UTF-8 string for context-specific primitive type with raw tag 134: {e}",
                                                                 ),
                                                                 validation_report,
                                                                 decoded_metadata,
@@ -561,13 +555,12 @@ impl Cip509 {
                                                     };
                                                     // Extract the CIP19 hash and push into array
                                                     if let Some(h) = extract_cip19_hash(&addr) {
-                                                        // warn!("Extracted CIP19 hash: {:?}", h);
                                                         pk_addrs.push(h);
                                                     }
                                                 },
                                                 Err(e) => {
                                                     self.validation_failure(
-                                                        &format!("Failed to process content for context-specific primitive type with raw tag 134: {}", e),
+                                                        &format!("Failed to process content for context-specific primitive type with raw tag 134: {e}"),
                                                         validation_report,
                                                         decoded_metadata,
                                                     );
@@ -580,8 +573,7 @@ impl Cip509 {
                                 Err(e) => {
                                     self.validation_failure(
                                         &format!(
-                                            "Failed to parse DER sequence for Subject Alternative Name extension: {}",
-                                            e
+                                            "Failed to parse DER sequence for Subject Alternative Name extension: {e}",
                                         ),
                                         validation_report,
                                         decoded_metadata,
@@ -617,7 +609,6 @@ impl Cip509 {
                                                                 match name.get_gn_value() {
                                                                     GeneralNameValue::Text(s) => {
                                                                         if let Some(h) = extract_cip19_hash(s) {
-                                                                            // warn!("Extracted CIP19 hash: {:?}", h);
                                                                             pk_addrs.push(h);
                                                                         }
                                                                     },
@@ -632,7 +623,7 @@ impl Cip509 {
                                                             }
                                                         }
                                                     },
-                                                    _ => {
+                                                    c509_certificate::extensions::alt_name::GeneralNamesOrText::Text(_) => {
                                                         self.validation_failure(
                                                             "Failed to find C509 general names in subject alternative name",
                                                             validation_report,
@@ -666,24 +657,45 @@ impl Cip509 {
             },
         }
 
-        // TODO - Fix this clone array
         // Create TxWitness
-        let witnesses = TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
-
-        compare_key_hash(pk_addrs, &witnesses, txn_idx as u8)
-            .map_err(|e| {
+        let witnesses = match TxWitness::new(&[txn.clone()]) {
+            Ok(witnesses) => witnesses,
+            Err(e) => {
                 self.validation_failure(
-                    &format!("Failed to compare public keys with witnesses {e}"),
+                    &format!("Failed to create TxWitness: {e}"),
                     validation_report,
                     decoded_metadata,
                 );
-            })
-            .ok();
+                return None;
+            },
+        };
 
-        Some(true)
+        let tx = match u8::try_from(txn_idx) {
+            Ok(value) => value,
+            Err(e) => {
+                self.validation_failure(
+                    &format!("Failed to convert payment_key to usize: {e}"),
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        };
+        Some(
+            compare_key_hash(pk_addrs, &witnesses, tx)
+                .map_err(|e| {
+                    self.validation_failure(
+                        &format!("Failed to compare public keys with witnesses {e}"),
+                        validation_report,
+                        decoded_metadata,
+                    );
+                })
+                .is_ok(),
+        )
     }
 
     /// Validate the payment key
+    #[allow(clippy::too_many_lines)]
     fn validate_payment_key(
         &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata, txn_idx: usize, role_data: &RoleData,
@@ -697,130 +709,199 @@ impl Cip509 {
                             Ok(witness) => witness,
                             Err(e) => {
                                 self.validation_failure(
-                                    &format!("Failed to create TxWitness: {}", e),
+                                    &format!("Failed to create TxWitness: {e}"),
                                     validation_report,
                                     decoded_metadata,
                                 );
                                 return None;
                             },
                         };
-                        let index = payment_key.abs() as usize;
+                        let index = match usize::try_from(payment_key.abs()) {
+                            Ok(value) => value,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to convert payment_key to usize: {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        };
                         let outputs = tx.transaction_body.outputs.clone();
                         if let Some(output) = outputs.get(index) {
                             return self.validate_payment_output_key_helper(
-                                output.address.to_vec(),
+                                &output.address.to_vec(),
                                 validation_report,
                                 decoded_metadata,
                                 &witness,
                                 txn_idx,
                             );
-                        } else {
-                            self.validation_failure(
-                                "Role payment key reference index is not found in transaction outputs",
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
                         }
-                    // Handle positive payment keys (reference to tx input)
-                    } else {
-                        let inputs = &tx.transaction_body.inputs;
-                        if inputs.get(payment_key as usize).is_none() {
-                            self.validation_failure(
-                                "Role payment key reference index is not found in transaction inputs",
-                                validation_report,
-                                decoded_metadata,
-                            );
-                            return None;
-                        }
-                        return Some(true);
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction outputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
                     }
+                    // Handle positive payment keys (reference to tx input)
+                    let inputs = &tx.transaction_body.inputs;
+                    let index = match usize::try_from(payment_key) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            self.validation_failure(
+                                &format!("Failed to convert payment_key to isize: {e}"),
+                                validation_report,
+                                decoded_metadata,
+                            );
+                            return None;
+                        },
+                    };
+                    if inputs.get(index).is_none() {
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction inputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    }
+                    return Some(true);
                 },
                 MultiEraTx::Babbage(tx) => {
                     // Negative indicates reference to tx output
                     if payment_key < 0 {
-                        let index = payment_key.abs() as usize;
-                        let outputs = tx.transaction_body.outputs.clone();
-                        let witness =
-                            TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
-
-                        match outputs.get(index) {
-                            Some(output) => {
-                                match output {
-                                    pallas::ledger::primitives::babbage::PseudoTransactionOutput::Legacy(o) => {
-                                        return self.validate_payment_output_key_helper(o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
-                                    }
-                                    ,
-                                    pallas::ledger::primitives::babbage::PseudoTransactionOutput::PostAlonzo(o) => {
-                                        return self.validate_payment_output_key_helper(o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx)
-                                    }
-                                    ,
-                                };
-                            },
-                            None => {
+                        let index = match usize::try_from(payment_key.abs()) {
+                            Ok(value) => value,
+                            Err(e) => {
                                 self.validation_failure(
-                                    "Role payment key reference index is not found in transaction outputs",
+                                    &format!("Failed to convert payment_key to usize: {e}"),
                                     validation_report,
                                     decoded_metadata,
                                 );
                                 return None;
                             },
+                        };
+                        let outputs = tx.transaction_body.outputs.clone();
+                        let witness = match TxWitness::new(&[txn.clone()]) {
+                            Ok(witnesses) => witnesses,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to create TxWitness: {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        };
+                        if let Some(output) = outputs.get(index) {
+                            match output {
+                                pallas::ledger::primitives::babbage::PseudoTransactionOutput::Legacy(o) => {
+                                    return self.validate_payment_output_key_helper(&o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
+                                }
+                                ,
+                                pallas::ledger::primitives::babbage::PseudoTransactionOutput::PostAlonzo(o) => {
+                                    return self.validate_payment_output_key_helper(&o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx)
+                                }
+                                ,
+                            };
                         }
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction outputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    }
                     // Positive indicates reference to tx input
-                    } else {
-                        let inputs = &tx.transaction_body.inputs;
-                        if inputs.get(payment_key as usize).is_none() {
+                    let inputs = &tx.transaction_body.inputs;
+                    let index = match usize::try_from(payment_key) {
+                        Ok(value) => value,
+                        Err(e) => {
                             self.validation_failure(
-                                "Role payment key reference index is not found in transaction inputs",
+                                &format!("Failed to convert payment_key to isize: {e}"),
                                 validation_report,
                                 decoded_metadata,
                             );
                             return None;
-                        }
-                        return Some(true);
+                        },
+                    };
+                    if inputs.get(index).is_none() {
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction inputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
                     }
+                    return Some(true);
                 },
                 MultiEraTx::Conway(tx) => {
                     // Negative indicates reference to tx output
                     if payment_key < 0 {
-                        let index = payment_key.abs() as usize;
-                        let outputs = tx.transaction_body.outputs.clone();
-                        let witness =
-                            TxWitness::new(&[txn.clone()]).expect("Failed to create TxWitness");
-
-                        match outputs.get(index) {
-                            Some(output) => {
-                                match output {
-                                    pallas::ledger::primitives::conway::PseudoTransactionOutput::Legacy(o) => {
-                                        return self.validate_payment_output_key_helper(o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
-                                    },
-                                    pallas::ledger::primitives::conway::PseudoTransactionOutput::PostAlonzo(o) => {
-                                        return self.validate_payment_output_key_helper(o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
-                                    },
-                                };
-                            },
-                            None => {
+                        let index = match usize::try_from(payment_key.abs()) {
+                            Ok(value) => value,
+                            Err(e) => {
                                 self.validation_failure(
-                                    "Role payment key reference index is not found in transaction outputs",
+                                    &format!("Failed to convert payment_key to usize: {e}"),
                                     validation_report,
                                     decoded_metadata,
                                 );
                                 return None;
                             },
+                        };
+                        let outputs = tx.transaction_body.outputs.clone();
+                        let witness = match TxWitness::new(&[txn.clone()]) {
+                            Ok(witnesses) => witnesses,
+                            Err(e) => {
+                                self.validation_failure(
+                                    &format!("Failed to create TxWitness: {e}"),
+                                    validation_report,
+                                    decoded_metadata,
+                                );
+                                return None;
+                            },
+                        };
+
+                        if let Some(output) = outputs.get(index) {
+                            match output {
+                                 pallas::ledger::primitives::conway::PseudoTransactionOutput::Legacy(o) => {
+                                     return self.validate_payment_output_key_helper(&o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
+                                 },
+                                 pallas::ledger::primitives::conway::PseudoTransactionOutput::PostAlonzo(o) => {
+                                     return self.validate_payment_output_key_helper(&o.address.to_vec(), validation_report, decoded_metadata, &witness, txn_idx);
+                                 },
+                             };
                         }
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction outputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
+                    }
                     // Positive indicates reference to tx input
-                    } else {
-                        let inputs = &tx.transaction_body.inputs;
-                        if inputs.get(payment_key as usize).is_none() {
+                    let inputs = &tx.transaction_body.inputs;
+                    let index = match usize::try_from(payment_key) {
+                        Ok(value) => value,
+                        Err(e) => {
                             self.validation_failure(
-                                "Role payment key reference index is not found in transaction inputs",
+                                &format!("Failed to convert payment_key to isize: {e}"),
                                 validation_report,
                                 decoded_metadata,
                             );
                             return None;
-                        }
-                        return Some(true);
+                        },
+                    };
+                    // Check whether the index exists in transaction inputs
+                    if inputs.get(index).is_none() {
+                        self.validation_failure(
+                            "Role payment key reference index is not found in transaction inputs",
+                            validation_report,
+                            decoded_metadata,
+                        );
+                        return None;
                     }
+                    return Some(true);
                 },
                 _ => {
                     self.validation_failure(
@@ -832,49 +913,35 @@ impl Cip509 {
                 },
             }
         }
-        return Some(false);
+        Some(false)
     }
 
+    /// Helper function for validating payment output key.
     fn validate_payment_output_key_helper(
-        &self, output_address: Vec<u8>, validation_report: &mut ValidationReport,
+        &self, output_address: &[u8], validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata, witness: &TxWitness, txn_idx: usize,
     ) -> Option<bool> {
-        // Attempt to extract the key hash from the output address
+        let idx = match u8::try_from(txn_idx) {
+            Ok(value) => value,
+            Err(e) => {
+                self.validation_failure(
+                    &format!("Transaction index conversion failed: {e}"),
+                    validation_report,
+                    decoded_metadata,
+                );
+                return None;
+            },
+        };
+        // Extract the key hash from the output address
         if let Some(key) = extract_key_hash(output_address) {
             // Compare the key hash and return the result
-            return Some(compare_key_hash(vec![key], witness, txn_idx as u8).is_ok());
-        } else {
-            self.validation_failure(
-                "Failed to extract payment key hash from address",
-                validation_report,
-                decoded_metadata,
-            );
-            return None;
+            return Some(compare_key_hash(vec![key], witness, idx).is_ok());
         }
-    }
-}
-
-/// Decode any in CDDL, only support basic datatype
-pub(crate) fn decode_any(d: &mut Decoder) -> Result<Vec<u8>, decode::Error> {
-    match d.datatype()? {
-        minicbor::data::Type::Bytes => Ok(decode_bytes(d, "Any")?.to_vec()),
-        minicbor::data::Type::String => Ok(decode_string(d, "Any")?.as_bytes().to_vec()),
-        minicbor::data::Type::Array => {
-            let arr_len = decode_array_len(d, "Any")?;
-            let mut buffer = vec![];
-            for _ in 0..arr_len {
-                buffer.extend_from_slice(&decode_any(d)?);
-            }
-            Ok(buffer)
-        },
-        minicbor::data::Type::U8
-        | minicbor::data::Type::U16
-        | minicbor::data::Type::U32
-        | minicbor::data::Type::U64 => Ok(decode_u64(d, "Any")?.to_be_bytes().to_vec()),
-        minicbor::data::Type::I8
-        | minicbor::data::Type::I16
-        | minicbor::data::Type::I32
-        | minicbor::data::Type::I64 => Ok(decode_i64(d, "Any")?.to_be_bytes().to_vec()),
-        _ => Err(decode::Error::message("Data type not supported")),
+        self.validation_failure(
+            "Failed to extract payment key hash from address",
+            validation_report,
+            decoded_metadata,
+        );
+        None
     }
 }

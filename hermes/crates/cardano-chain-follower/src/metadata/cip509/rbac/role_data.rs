@@ -6,11 +6,8 @@ use minicbor::{decode, Decode, Decoder};
 use strum::FromRepr;
 
 use super::Cip509RbacMetadataInt;
-use crate::metadata::cip509::{
-    decode_any,
-    decode_helper::{
-        decode_array_len, decode_bytes, decode_i64, decode_map_len, decode_u64, decode_u8,
-    },
+use crate::metadata::cip509::decode_helper::{
+    decode_any, decode_array_len, decode_bytes, decode_i64, decode_map_len, decode_u64, decode_u8,
 };
 
 /// Struct of role data.

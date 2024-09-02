@@ -14,9 +14,8 @@ use pub_key::SimplePublicKeyType;
 use role_data::RoleData;
 use strum::FromRepr;
 
-use super::{
-    decode_any,
-    decode_helper::{decode_array_len, decode_bytes, decode_map_len, decode_u16},
+use super::decode_helper::{
+    decode_any, decode_array_len, decode_bytes, decode_map_len, decode_u16,
 };
 
 /// Struct of Cip509 RBAC metadata.
