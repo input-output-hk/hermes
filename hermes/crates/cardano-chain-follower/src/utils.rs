@@ -140,7 +140,7 @@ pub(crate) fn compare_key_hash(
         return Err(anyhow::anyhow!("No public key addresses provided"));
     }
 
-    pk_addrs.into_iter().try_for_each(|pk_addr| {
+    pk_addrs.iter().try_for_each(|pk_addr| {
         let pk_addr: [u8; 28] = pk_addr.as_slice().try_into().map_err(|_| {
             anyhow::anyhow!(
                 "Invalid length for vkey, expected 28 bytes but got {}",
