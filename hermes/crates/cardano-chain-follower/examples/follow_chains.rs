@@ -13,15 +13,16 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use std::{error::Error, time::Duration};
+use std::{error::Error, sync::Arc, time::Duration};
 
 use cardano_chain_follower::{
-    ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Metadata, Network, Statistics, ORIGIN_POINT,
-    TIP_POINT,
+    ChainFollower, ChainSyncConfig, ChainUpdate, Kind,
+    Metadata::{self, DecodedMetadataItem},
+    Network, Statistics, ORIGIN_POINT, TIP_POINT,
 };
 use clap::{arg, ArgAction, ArgMatches, Command};
 use tokio::time::Instant;
-use tracing::{error, info, level_filters::LevelFilter};
+use tracing::{error, info, level_filters::LevelFilter, warn};
 use tracing_subscriber::EnvFilter;
 
 /// Process our CLI Arguments
@@ -39,7 +40,9 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
                 .action(ArgAction::SetTrue),
             arg!(--"halt-on-error" "Stop the process when an error occurs without retrying.")
                 .action(ArgAction::SetTrue),
-            arg!(--"bad-cip36" "Dump Bad Cip36 registrations detected.")
+            arg!(--"bad-cip36" "Dump Bad CIP36 registrations detected.")
+                .action(ArgAction::SetTrue),
+            arg!(--"log-cip509" "Dump CIP509 validation.")
                 .action(ArgAction::SetTrue),
             arg!(--"largest-metadata" "Dump The largest transaction metadata we find (as we find it).")
                 .action(ArgAction::SetTrue),
@@ -147,6 +150,7 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     let stop_at_tip = matches.get_flag("stop-at-tip");
     let halt_on_error = matches.get_flag("halt-on-error");
     let bad_cip36 = matches.get_flag("bad-cip36");
+    let log_cip509 = matches.get_flag("log-cip509");
     let largest_metadata = matches.get_flag("largest-metadata");
 
     let mut current_era = String::new();
@@ -254,24 +258,16 @@ async fn follow_for(network: Network, matches: ArgMatches) {
                     dump_raw_aux_data = true;
                 }
 
+                // If flag bad_cip36 is set, log the CIP36 validation.
                 if bad_cip36 {
-                    #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
-                    if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
-                        if !cip36.signed {
-                            dump_raw_aux_data = true;
-                        }
-                        if !decoded_metadata.report.is_empty() {
-                            info!(
-                                chain = network.to_string(),
-                                "Cip36 {tx_idx}:{:?} - {raw_size}", decoded_metadata
-                            );
-                            dump_raw_aux_data = true;
-                        }
-                    }
+                    dump_raw_aux_data = cip36(&decoded_metadata, network, tx_idx, raw_size);
                 }
             }
+            // If flag log_cipec509 is set, log the CIP509 validation.
+            if log_cip509 {
+                cip509(&chain_update, block.number(), network, tx_idx);
+            }
         }
-
         if dump_raw_aux_data {
             if let Some(x) = block.as_alonzo() {
                 info!(
@@ -328,6 +324,50 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     info!("Json Metrics:  {}", stats.as_json(true));
 
     info!(chain = network.to_string(), "Following Completed.");
+}
+
+/// Helper function for logging CIP36 validation.
+fn cip36(
+    decoded_metadata: &Arc<DecodedMetadataItem>, network: Network, tx_idx: usize, raw_size: usize,
+) -> bool {
+    #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
+    if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
+        if !cip36.signed || !decoded_metadata.report.is_empty() {
+            if !decoded_metadata.report.is_empty() {
+                info!(
+                    chain = network.to_string(),
+                    "CIP36 {tx_idx}: {:?} - {raw_size}", decoded_metadata
+                );
+            }
+            return true;
+        }
+    }
+    false
+}
+
+/// Helper function for logging CIP509 validation.
+fn cip509(chain_update: &ChainUpdate, block_num: u64, network: Network, tx_idx: usize) {
+    if let Some(decoded_metadata) = chain_update
+        .data
+        .txn_metadata(tx_idx, Metadata::cip509::LABEL)
+    {
+        info!("Block Number {}", block_num);
+
+        if let Metadata::DecodedMetadataValues::Cip509(cip509) = &decoded_metadata.value {
+            info!(
+                chain = network.to_string(),
+                "CIP509 {tx_idx}: {:?}", cip509.validation
+            );
+        }
+
+        // If report is not empty, log it, log it as a warning.
+        if !decoded_metadata.report.is_empty() {
+            warn!(
+                chain = network.to_string(),
+                "CIP509 {tx_idx}: {:?}", decoded_metadata.report
+            );
+        }
+    }
 }
 
 #[tokio::main]
