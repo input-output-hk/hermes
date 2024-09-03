@@ -7,7 +7,6 @@ use c509_certificate::general_names::general_name::GeneralNameValue;
 use decode_helper::{decode_bytes, decode_map_len, decode_u8};
 use der_parser::{asn1_rs::oid, der::parse_der_sequence, Oid};
 use rbac::{certs::C509Cert, role_data::RoleData};
-use tracing::info;
 
 mod decode_helper;
 mod rbac;
@@ -66,6 +65,24 @@ pub struct Cip509 {
     pub x509_chunks: X509Chunks, // chunk_type => [ + x509_chunk ]
     /// Validation signature.
     pub validation_signature: Vec<u8>, // bytes size (1..64)
+    /// Validation value, not a part of CIP509, justs storing validity of the data.
+    pub validation: Cip509Validation,
+}
+
+/// Validation value for CIP509 metadatum.
+#[allow(clippy::struct_excessive_bools, clippy::module_name_repetitions)]
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct Cip509Validation {
+    /// Boolean value for the validity of the transaction inputs hash.
+    pub valid_txn_inputs_hash: bool,
+    /// Boolean value for the validity of the auxiliary data.
+    pub valid_aux: bool,
+    /// Bytes of precomputed auxiliary data.
+    pub precomputed_aux: Vec<u8>,
+    /// Boolean value for the validity of the public key.
+    pub valid_public_key: bool,
+    /// Boolean value for the validity of the payment key.
+    pub valid_payment_key: bool,
 }
 
 /// Enum of CIP509 metadatum with its associated unsigned integer value.
@@ -140,8 +157,8 @@ impl Decode<'_, ()> for Cip509 {
 impl Cip509 {
     /// Decode and validate CIP509 metadata.
     pub(crate) fn decode_and_validate(
-        decoded_metadata: &DecodedMetadata, slot: u64, txn: &MultiEraTx, raw_aux_data: &RawAuxData,
-        _chain: Network, txn_idx: usize,
+        decoded_metadata: &DecodedMetadata, _slot: u64, txn: &MultiEraTx,
+        raw_aux_data: &RawAuxData, _chain: Network, txn_idx: usize,
     ) {
         // Get the CIP509 metadata if possible
         let Some(k509) = raw_aux_data.get_metadata(LABEL) else {
@@ -151,7 +168,7 @@ impl Cip509 {
         let mut validation_report = ValidationReport::new();
         let mut decoder = Decoder::new(k509.as_slice());
 
-        let cip509 = match Cip509::decode(&mut decoder, &mut ()) {
+        let mut cip509 = match Cip509::decode(&mut decoder, &mut ()) {
             Ok(metadata) => metadata,
             Err(e) => {
                 Cip509::default().validation_failure(
@@ -165,8 +182,7 @@ impl Cip509 {
 
         // Validate transaction inputs hash
         match cip509.validate_txn_inputs_hash(txn, &mut validation_report, decoded_metadata) {
-            // True if success, otherwise false
-            Some(b) => info!("Slot {slot} Transaction inputs hash validation success: {b}"),
+            Some(b) => cip509.validation.valid_txn_inputs_hash = b,
             None => {
                 cip509.validation_failure(
                     "Failed to validate transaction inputs hash",
@@ -178,8 +194,7 @@ impl Cip509 {
 
         // Validate the auxiliary data
         match cip509.validate_aux(txn, &mut validation_report, decoded_metadata) {
-            // True if success, otherwise false
-            Some(b) => info!("Slot {slot} Auxiliary data validation success: {b}"),
+            Some(b) => cip509.validation.valid_aux = b,
             None => {
                 cip509.validation_failure(
                     "Failed to validate auxiliary data",
@@ -201,10 +216,7 @@ impl Cip509 {
                         decoded_metadata,
                         txn_idx,
                     ) {
-                        // True if success, otherwise false
-                        Some(b) => {
-                            info!("Slot {slot} Public key validation tx id {txn_idx} success: {b}");
-                        },
+                        Some(b) => cip509.validation.valid_public_key = b,
                         None => {
                             cip509.validation_failure(
                                 &format!("Failed to validate public key in tx id {txn_idx}"),
@@ -221,12 +233,7 @@ impl Cip509 {
                         txn_idx,
                         role,
                     ) {
-                        // True if success, otherwise false
-                        Some(b) => {
-                            info!(
-                                "Slot {slot} Payment key validation tx id {txn_idx} success: {b}"
-                            );
-                        },
+                        Some(b) => cip509.validation.valid_payment_key = b,
                         None => {
                             cip509.validation_failure(
                                 &format!("Failed to validate payment key in tx id {txn_idx}"),
@@ -359,7 +366,7 @@ impl Cip509 {
     /// Also log out the pre-computed hash where the validation signature (99) set to
     /// zero.
     fn validate_aux(
-        &self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
+        &mut self, txn: &MultiEraTx, validation_report: &mut ValidationReport,
         decoded_metadata: &DecodedMetadata,
     ) -> Option<bool> {
         match txn {
@@ -466,7 +473,7 @@ impl Cip509 {
 
     /// Helper function for auxiliary data validation.
     fn validate_aux_helper(
-        &self, original_aux: &[u8], aux_data_hash: &Bytes,
+        &mut self, original_aux: &[u8], aux_data_hash: &Bytes,
         validation_report: &mut ValidationReport, decoded_metadata: &DecodedMetadata,
     ) -> Option<bool> {
         let mut vec_aux = original_aux.to_vec();
@@ -474,8 +481,8 @@ impl Cip509 {
         // Zero out the last 64 bytes
         zero_out_last_n_bytes(&mut vec_aux, 64);
 
-        // Log the pre-computed hash with the last 64 bytes set to zero
-        info!("Pre-computed hash {:?}", &vec_aux);
+        // Pre-computed aux with the last 64 bytes set to zero
+        self.validation.precomputed_aux = vec_aux;
 
         // Compare the hash
         match blake2b_256(original_aux) {
