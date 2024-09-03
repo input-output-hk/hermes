@@ -81,6 +81,14 @@ impl SnapshotId {
         self.path.clone()
     }
 
+    /// Get the Blockchain path from this `SnapshotId` only if it actually exists.
+    pub(crate) fn path_if_exists(&self) -> Option<PathBuf> {
+        if self.tip.is_unknown() {
+            return None;
+        }
+        Some(self.path.clone())
+    }
+
     /// Get the Tip of the Immutable Blockchain from this `SnapshotId`
     pub(crate) fn tip(&self) -> Point {
         self.tip.clone()

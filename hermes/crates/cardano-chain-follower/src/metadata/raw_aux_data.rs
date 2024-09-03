@@ -3,12 +3,12 @@
 use std::sync::Arc;
 
 use anyhow::bail;
-use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
 use minicbor::{data::Type, Decoder};
 use tracing::{error, warn};
 
 /// What type of smart contract is this list.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, strum::Display, Hash)]
 pub enum SmartContractType {
     /// Native smart contracts
     Native,
@@ -22,17 +22,17 @@ pub enum SmartContractType {
 #[derive(Debug)]
 pub(crate) struct RawAuxData {
     /// Metadata: key = label, value = raw metadata bytes
-    metadata: SkipMap<u64, Arc<Vec<u8>>>,
+    metadata: DashMap<u64, Arc<Vec<u8>>>,
     /// Scripts: 1 = Native, 2 = Plutus V1, 3 = Plutus V2, 4 = Plutus V3
-    scripts: SkipMap<SmartContractType, Arc<Vec<Vec<u8>>>>,
+    scripts: DashMap<SmartContractType, Arc<Vec<Vec<u8>>>>,
 }
 
 impl RawAuxData {
     /// Create a new `RawDecodedMetadata`.
     pub(crate) fn new(aux_data: &[u8]) -> Self {
         let mut raw_decoded_data = Self {
-            metadata: SkipMap::new(),
-            scripts: SkipMap::new(),
+            metadata: DashMap::new(),
+            scripts: DashMap::new(),
         };
 
         let mut decoder = Decoder::new(aux_data);

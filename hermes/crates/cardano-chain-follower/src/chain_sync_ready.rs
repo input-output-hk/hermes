@@ -3,7 +3,7 @@
 
 use std::{sync::LazyLock, time::Duration};
 
-use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
 use strum::IntoEnumIterator;
 use tokio::{
     sync::{broadcast, oneshot, RwLock},
@@ -73,8 +73,8 @@ impl SyncReadyWaiter {
 /// Lock to prevent using any blockchain data for a network UNTIL it is synced to TIP.
 /// Pre-initialized for all possible blockchains, so it's safe to use `expect` to access a
 /// value.
-static SYNC_READY: LazyLock<SkipMap<Network, RwLock<SyncReady>>> = LazyLock::new(|| {
-    let map = SkipMap::new();
+static SYNC_READY: LazyLock<DashMap<Network, RwLock<SyncReady>>> = LazyLock::new(|| {
+    let map = DashMap::new();
     for network in Network::iter() {
         map.insert(network, RwLock::new(SyncReady::new()));
     }

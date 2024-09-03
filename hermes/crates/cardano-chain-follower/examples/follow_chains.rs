@@ -13,7 +13,7 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
 use cardano_chain_follower::{
     ChainFollower, ChainSyncConfig, ChainUpdate, Kind, Metadata, Network, Point, Statistics,
@@ -51,6 +51,21 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
                 .action(ArgAction::SetTrue),
             arg!(--"largest-metadata" "Dump The largest transaction metadata we find (as we find it).")
                 .action(ArgAction::SetTrue),
+            arg!(--"mithril-sync-workers" <WORKERS> "The number of workers to use when downloading the blockchain snapshot.")
+                .value_parser(clap::value_parser!(u16).range(1..))
+                .action(ArgAction::Set),
+            arg!(--"mithril-sync-chunk-size" <MB> "The size in MB of each chunk downloaded by a worker.")
+                .value_parser(clap::value_parser!(u16).range(1..))
+                .action(ArgAction::Set),
+            arg!(--"mithril-sync-queue-ahead" <NUM> "The number of chunks pre-queued per worker.")
+                .value_parser(clap::value_parser!(u16).range(1..))
+                .action(ArgAction::Set),
+            arg!(--"mithril-sync-connect-timeout" <SECS> "The HTTP Connection Timeout for mithril downloads, in seconds.")
+                .value_parser(clap::value_parser!(u64).range(1..))
+                .action(ArgAction::Set),
+            arg!(--"mithril-sync-data-read-timeout" <SECS> "The HTTP Data Read Timeout for mithril downloads, in seconds.")
+                .value_parser(clap::value_parser!(u64).range(1..))
+                .action(ArgAction::Set),
         ])
         .get_matches();
 
@@ -69,10 +84,54 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
 }
 
 /// Start syncing a particular network
-async fn start_sync_for(network: &Network) -> Result<(), Box<dyn Error>> {
-    let cfg = ChainSyncConfig::default_for(*network);
+async fn start_sync_for(network: &Network, matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+    let mut cfg = ChainSyncConfig::default_for(*network);
 
-    info!(chain = cfg.chain.to_string(), "Starting Sync");
+    let mut mithril_dl_connect_timeout = "Not Set".to_string();
+    let mut mithril_dl_data_timeout = "Not Set".to_string();
+
+    let mut dl_config = cfg.mithril_cfg.dl_config.clone().unwrap_or_default();
+
+    if let Some(workers) = matches.get_one::<u16>("mithril-sync-workers") {
+        dl_config = dl_config.with_workers(*workers as usize);
+    }
+    let mithril_dl_workers = format!("{}", dl_config.workers);
+
+    if let Some(chunk_size) = matches.get_one::<u16>("mithril-sync-chunk-size") {
+        dl_config = dl_config.with_chunk_size(*chunk_size as usize * 1024 * 1024);
+    }
+    let mithril_dl_chunk_size = format!("{} MBytes", dl_config.chunk_size / (1024 * 1024));
+
+    if let Some(queue_ahead) = matches.get_one::<u16>("mithril-sync-queue-ahead") {
+        dl_config = dl_config.with_queue_ahead(*queue_ahead as usize);
+    }
+    let mithril_dl_queue_ahead = format!("{}", dl_config.queue_ahead);
+
+    if let Some(connect_timeout) = matches.get_one::<u64>("mithril-sync-connect-timeout") {
+        dl_config = dl_config.with_connection_timeout(Duration::from_secs(*connect_timeout));
+    }
+    if let Some(connect_timeout) = dl_config.connection_timeout {
+        mithril_dl_connect_timeout = format!("{}", humantime::format_duration(connect_timeout));
+    }
+
+    if let Some(data_timeout) = matches.get_one::<u64>("mithril-sync-data-timeout") {
+        dl_config = dl_config.with_connection_timeout(Duration::from_secs(*data_timeout));
+    }
+    if let Some(data_timeout) = dl_config.data_read_timeout {
+        mithril_dl_data_timeout = format!("{}", humantime::format_duration(data_timeout));
+    }
+
+    cfg.mithril_cfg = cfg.mithril_cfg.with_dl_config(dl_config);
+
+    info!(
+        chain = cfg.chain.to_string(),
+        mithril_sync_dl_workers = mithril_dl_workers,
+        mithril_sync_dl_chunk_size = mithril_dl_chunk_size,
+        mithril_sync_dl_queue_ahead = mithril_dl_queue_ahead,
+        mithril_sync_dl_connect_timeout = mithril_dl_connect_timeout,
+        mithril_sync_dl_data_read_timeout = mithril_dl_data_timeout,
+        "Starting Sync"
+    );
 
     if let Err(error) = cfg.run().await {
         error!("Failed to start sync task for {} : {}", network, error);
@@ -297,14 +356,16 @@ async fn get_block(network: Network, p: u64) {
 /// Handle get-block subcommand
 async fn handle_get_block(matches: &clap::ArgMatches) -> Result<(), Box<dyn Error>> {
     let network = match matches.get_one::<String>("NETWORK") {
-        Some(s) => match s.as_str() {
-            "preprod" => Network::Preprod,
-            "preview" => Network::Preview,
-            "mainnet" => Network::Mainnet,
-            _ => {
-                error!("Invalid network specified: {}", s);
-                return Ok(());
-            },
+        Some(s) => {
+            match s.as_str() {
+                "preprod" => Network::Preprod,
+                "preview" => Network::Preview,
+                "mainnet" => Network::Mainnet,
+                _ => {
+                    error!("Invalid network specified: {}", s);
+                    return Ok(());
+                },
+            }
         },
         None => {
             error!("Network argument is missing.");
@@ -315,7 +376,7 @@ async fn handle_get_block(matches: &clap::ArgMatches) -> Result<(), Box<dyn Erro
     if let Some(&point) = matches.get_one::<u64>("POINT") {
         info!("Spawning get_block task");
         // Start sync for network
-        start_sync_for(&network).await?;
+        start_sync_for(&network, matches).await?;
         // Spawn the get_block task
         tokio::spawn(get_block(network, point)).await?;
     } else {
@@ -331,7 +392,7 @@ async fn handle_default_case(
 ) -> Result<(), Box<dyn Error>> {
     // Start sync tasks for each network
     for network in networks {
-        start_sync_for(network).await?;
+        start_sync_for(network, &matches).await?;
     }
 
     let mut tasks = Vec::new();

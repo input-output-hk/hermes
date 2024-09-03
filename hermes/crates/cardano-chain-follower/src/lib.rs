@@ -20,6 +20,7 @@ mod network;
 mod point;
 mod snapshot_id;
 mod stats;
+pub mod turbo_downloader;
 mod utils;
 mod witness;
 
