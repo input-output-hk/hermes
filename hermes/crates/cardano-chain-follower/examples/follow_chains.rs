@@ -258,12 +258,12 @@ async fn follow_for(network: Network, matches: ArgMatches) {
                     dump_raw_aux_data = true;
                 }
 
-                // If flag bad_cip36 is set, log the CIP36 validation.
+                // If flag `bad_cip36` is set, log the CIP36 validation.
                 if bad_cip36 {
                     dump_raw_aux_data = cip36(&decoded_metadata, network, tx_idx, raw_size);
                 }
             }
-            // If flag log_cipec509 is set, log the CIP509 validation.
+            // If flag `log_cip509` is set, log the CIP509 validation.
             if log_cip509 {
                 cip509(&chain_update, block.number(), network, tx_idx);
             }
