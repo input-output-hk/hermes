@@ -165,7 +165,7 @@ memx = "0.1.32"
 fmmap = {version = "0.3.3", features = ["sync", "tokio-async"]}
 minicbor = {version = "0.24.2", features = ["alloc", "derive", "half"]}
 brotli = "6.0.0"
-c509-certificate = { git = "https://github.com/input-output-hk/catalyst-libs.git", package = "c509-certificate", branch = "fix/cleanup-c509"}
+c509-certificate = { git = "https://github.com/input-output-hk/catalyst-libs.git", package = "c509-certificate", branch = "main"}
 num-traits = "0.2.19"
 logcall = "0.1.9"
 ureq = {version = "2.10.1", features=["native-certs"]}
