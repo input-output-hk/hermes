@@ -330,7 +330,6 @@ async fn follow_for(network: Network, matches: ArgMatches) {
 fn cip36(
     decoded_metadata: &Arc<DecodedMetadataItem>, network: Network, tx_idx: usize, raw_size: usize,
 ) -> bool {
-    #[allow(irrefutable_let_patterns)] // Won't always be irrefutable.
     if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
         if !cip36.signed || !decoded_metadata.report.is_empty() {
             if !decoded_metadata.report.is_empty() {
