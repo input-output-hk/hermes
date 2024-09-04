@@ -89,7 +89,7 @@ pub struct Cip509Validation {
 #[allow(clippy::module_name_repetitions)]
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub(crate) enum Cip509Int {
+pub(crate) enum Cip509IntIdentifier {
     /// Purpose.
     Purpose = 0,
     /// Transaction inputs hash.
@@ -107,16 +107,16 @@ impl Decode<'_, ()> for Cip509 {
         for _ in 0..map_len {
             // Use probe to peak
             let key = d.probe().u8()?;
-            if let Some(key) = Cip509Int::from_repr(key) {
+            if let Some(key) = Cip509IntIdentifier::from_repr(key) {
                 // Consuming the int
                 decode_u8(d, "CIP509")?;
                 match key {
-                    Cip509Int::Purpose => {
+                    Cip509IntIdentifier::Purpose => {
                         cip509_metadatum.purpose = decode_bytes(d, "CIP509 purpose")?
                             .try_into()
                             .map_err(|_| decode::Error::message("Invalid data size of Purpose"))?;
                     },
-                    Cip509Int::TxInputsHash => {
+                    Cip509IntIdentifier::TxInputsHash => {
                         cip509_metadatum.txn_inputs_hash =
                             decode_bytes(d, "CIP509 txn inputs hash")?
                                 .try_into()
@@ -124,7 +124,7 @@ impl Decode<'_, ()> for Cip509 {
                                     decode::Error::message("Invalid data size of TxInputsHash")
                                 })?;
                     },
-                    Cip509Int::PreviousTxId => {
+                    Cip509IntIdentifier::PreviousTxId => {
                         cip509_metadatum.prv_tx_id = Some(
                             decode_bytes(d, "CIP509 previous tx ID")?
                                 .try_into()
@@ -133,7 +133,7 @@ impl Decode<'_, ()> for Cip509 {
                                 })?,
                         );
                     },
-                    Cip509Int::ValidationSignature => {
+                    Cip509IntIdentifier::ValidationSignature => {
                         let validation_signature = decode_bytes(d, "CIP509 validation signature")?;
                         if validation_signature.is_empty() || validation_signature.len() > 64 {
                             return Err(decode::Error::message(
