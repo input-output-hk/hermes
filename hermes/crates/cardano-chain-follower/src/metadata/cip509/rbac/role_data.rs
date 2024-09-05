@@ -73,7 +73,7 @@ impl Decode<'_, ()> for RoleData {
                 }
                 role_data
                     .role_extended_data_keys
-                    .insert(key, decode_any(d)?);
+                    .insert(key, decode_any(d, "Role extended data keys")?);
             }
         }
         Ok(role_data)

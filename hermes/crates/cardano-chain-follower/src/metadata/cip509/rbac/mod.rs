@@ -134,7 +134,7 @@ impl Decode<'_, ()> for Cip509RbacMetadata {
                 }
                 x509_rbac_metadata
                     .purpose_key_data
-                    .insert(key, decode_any(d)?);
+                    .insert(key, decode_any(d, "purpose key")?);
             }
         }
         Ok(x509_rbac_metadata)
