@@ -77,7 +77,6 @@ pub(crate) fn u64_from_saturating<
 }
 
 /// Convert the given value to `blake2b_244` array.
-#[allow(dead_code)] // Its OK if we don't use this general utility function.
 pub(crate) fn blake2b_244(value: &[u8]) -> anyhow::Result<[u8; 28]> {
     let h = Params::new().hash_length(28).hash(value);
     let b = h.as_bytes();
@@ -86,7 +85,6 @@ pub(crate) fn blake2b_244(value: &[u8]) -> anyhow::Result<[u8; 28]> {
 }
 
 /// Convert the given value to `blake2b_256` array.
-#[allow(dead_code)] // Its OK if we don't use this general utility function.
 pub(crate) fn blake2b_256(value: &[u8]) -> anyhow::Result<[u8; 32]> {
     let h = Params::new().hash_length(32).hash(value);
     let b = h.as_bytes();
@@ -94,7 +92,6 @@ pub(crate) fn blake2b_256(value: &[u8]) -> anyhow::Result<[u8; 32]> {
         .map_err(|_| anyhow::anyhow!("Invalid length of blake2b_256, expected 32 got {}", b.len()))
 }
 
-#[allow(dead_code)]
 /// Convert the given value to `blake2b_128` array.
 pub(crate) fn blake2b_128(value: &[u8]) -> anyhow::Result<[u8; 16]> {
     let h = Params::new().hash_length(16).hash(value);
@@ -128,6 +125,7 @@ pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
 }
 
 /// Extract the first 28 bytes from the given key
+/// Refer to <https://cips.cardano.org/cip/CIP-19> for more information.
 pub(crate) fn extract_key_hash(key: &[u8]) -> Option<Vec<u8>> {
     key.get(1..29).map(<[u8]>::to_vec)
 }
@@ -178,4 +176,54 @@ pub(crate) fn decode_utf8(content: &[u8]) -> anyhow::Result<String> {
                 content
             )
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_cip19_hash() {
+        // Test stake data from https://cips.cardano.org/cip/CIP-19
+        // Additional tools to check for bech32 https://slowli.github.io/bech32-buffer/
+        let uri =
+            "web+cardano://addr/stake_test1uqehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gssrtvn";
+        // Given:
+        // e0337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251
+        // The first byte is the header, so extract only the payload
+        let bytes = hex::decode("337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251")
+            .expect("Failed to decode bytes");
+        assert_eq!(
+            extract_cip19_hash(uri).expect("Failed to extract CIP-19 hash"),
+            bytes
+        );
+    }
+
+    #[test]
+    fn test_extract_cip19_hash_invalid_uri() {
+        let uri = "invalid_uri";
+        let result = extract_cip19_hash(uri);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_cip19_hash_non_bech32_address() {
+        let uri = "example://addr/not_bech32";
+        let result = extract_cip19_hash(uri);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_cip19_hash_empty_uri() {
+        let uri = "";
+        let result = extract_cip19_hash(uri);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_cip19_hash_no_address() {
+        let uri = "example://addr/";
+        let result = extract_cip19_hash(uri);
+        assert_eq!(result, None);
+    }
 }
