@@ -101,8 +101,7 @@ pub(crate) fn blake2b_128(value: &[u8]) -> anyhow::Result<[u8; 16]> {
 }
 
 /// Extracts the CIP-19 bytes from a URI.
-#[allow(clippy::doc_markdown)]
-/// Example input: "web+cardano://addr/<cip-19 address string>"
+/// Example input: `web+cardano://addr/<cip-19 address string>`
 /// <https://github.com/cardano-foundation/CIPs/tree/6bae5165dde5d803778efa5e93bd408f3317ca03/CPS-0016>
 /// URI = scheme ":" ["//" authority] path ["?" query] ["#" fragment]
 pub(crate) fn extract_cip19_hash(uri: &str) -> Option<Vec<u8>> {
