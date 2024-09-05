@@ -13,11 +13,11 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use std::{error::Error, sync::Arc, time::Duration};
+use std::{error::Error, time::Duration};
 
 use cardano_chain_follower::{
     ChainFollower, ChainSyncConfig, ChainUpdate, Kind,
-    Metadata::{self, DecodedMetadataItem},
+    Metadata::{self},
     Network, Statistics, ORIGIN_POINT, TIP_POINT,
 };
 use clap::{arg, ArgAction, ArgMatches, Command};
@@ -40,9 +40,11 @@ fn process_argument() -> (Vec<Network>, ArgMatches) {
                 .action(ArgAction::SetTrue),
             arg!(--"halt-on-error" "Stop the process when an error occurs without retrying.")
                 .action(ArgAction::SetTrue),
-            arg!(--"bad-cip36" "Dump Bad CIP36 registrations detected.")
+            arg!(--"log-bad-cip36" "Dump Bad CIP36 registrations detected.")
                 .action(ArgAction::SetTrue),
             arg!(--"log-cip509" "Dump CIP509 validation.")
+                .action(ArgAction::SetTrue),
+            arg!(--"log-raw-aux" "Dump raw auxiliary data.")
                 .action(ArgAction::SetTrue),
             arg!(--"largest-metadata" "Dump The largest transaction metadata we find (as we find it).")
                 .action(ArgAction::SetTrue),
@@ -149,8 +151,9 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     let all_live_blocks = matches.get_flag("all-live-blocks");
     let stop_at_tip = matches.get_flag("stop-at-tip");
     let halt_on_error = matches.get_flag("halt-on-error");
-    let bad_cip36 = matches.get_flag("bad-cip36");
+    let log_bad_cip36 = matches.get_flag("log-bad-cip36");
     let log_cip509 = matches.get_flag("log-cip509");
+    let log_raw_aux = matches.get_flag("log-raw-aux");
     let largest_metadata = matches.get_flag("largest-metadata");
 
     let mut current_era = String::new();
@@ -239,36 +242,24 @@ async fn follow_for(network: Network, matches: ArgMatches) {
         }
 
         // Inspect the transactions in the block.
-        let mut dump_raw_aux_data = false;
         for (tx_idx, _tx) in block.txs().iter().enumerate() {
-            if let Some(decoded_metadata) = chain_update
-                .data
-                .txn_metadata(tx_idx, Metadata::cip36::LABEL)
+            if let Some(aux_data) =
+                update_biggest_aux_data(&chain_update, tx_idx, largest_metadata, biggest_aux_data)
             {
-                let raw_size = match chain_update
-                    .data
-                    .txn_raw_metadata(tx_idx, Metadata::cip36::LABEL)
-                {
-                    Some(raw) => raw.len(),
-                    None => 0,
-                };
+                biggest_aux_data = aux_data;
+            }
 
-                if largest_metadata && raw_size > biggest_aux_data {
-                    biggest_aux_data = raw_size;
-                    dump_raw_aux_data = true;
-                }
-
-                // If flag `bad_cip36` is set, log the CIP36 validation.
-                if bad_cip36 {
-                    dump_raw_aux_data = cip36(&decoded_metadata, network, tx_idx, raw_size);
-                }
+            // If flag `log_bad_cip36` is set, log the CIP36 validation.
+            if log_bad_cip36 {
+                log_bad_cip36_info(&chain_update, network, tx_idx);
             }
             // If flag `log_cip509` is set, log the CIP509 validation.
             if log_cip509 {
-                cip509(&chain_update, block.number(), network, tx_idx);
+                log_cip509_info(&chain_update, block.number(), network, tx_idx);
             }
         }
-        if dump_raw_aux_data {
+
+        if log_raw_aux {
             if let Some(x) = block.as_alonzo() {
                 info!(
                     chain = network.to_string(),
@@ -326,26 +317,57 @@ async fn follow_for(network: Network, matches: ArgMatches) {
     info!(chain = network.to_string(), "Following Completed.");
 }
 
+/// Helper function for updating the biggest aux data.
+fn update_biggest_aux_data(
+    chain_update: &ChainUpdate, tx_idx: usize, largest_metadata: bool, biggest_aux_data: usize,
+) -> Option<usize> {
+    let raw_size_cip36 = match chain_update
+        .data
+        .txn_raw_metadata(tx_idx, Metadata::cip36::LABEL)
+    {
+        Some(raw) => raw.len(),
+        None => 0,
+    };
+
+    let raw_size_cip509 = match chain_update
+        .data
+        .txn_raw_metadata(tx_idx, Metadata::cip509::LABEL)
+    {
+        Some(raw) => raw.len(),
+        None => 0,
+    };
+
+    // Get the maximum raw size from both cip36 and cip509
+    let raw_size = raw_size_cip36.max(raw_size_cip509);
+
+    if largest_metadata && raw_size > biggest_aux_data {
+        return Some(raw_size);
+    }
+
+    None
+}
+
 /// Helper function for logging CIP36 validation.
-fn cip36(
-    decoded_metadata: &Arc<DecodedMetadataItem>, network: Network, tx_idx: usize, raw_size: usize,
-) -> bool {
-    if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
-        if !cip36.signed || !decoded_metadata.report.is_empty() {
-            if !decoded_metadata.report.is_empty() {
+fn log_bad_cip36_info(chain_update: &ChainUpdate, network: Network, tx_idx: usize) {
+    if let Some(decoded_metadata) = chain_update
+        .data
+        .txn_metadata(tx_idx, Metadata::cip36::LABEL)
+    {
+        if let Metadata::DecodedMetadataValues::Cip36(cip36) = &decoded_metadata.value {
+            if (!cip36.signed || !decoded_metadata.report.is_empty())
+                && !decoded_metadata.report.is_empty()
+            {
                 info!(
                     chain = network.to_string(),
-                    "CIP36 {tx_idx}: {:?} - {raw_size}", decoded_metadata
+                    "CIP36 {tx_idx}: {:?}", decoded_metadata
                 );
             }
-            return true;
         }
     }
-    false
 }
 
 /// Helper function for logging CIP509 validation.
-fn cip509(chain_update: &ChainUpdate, block_num: u64, network: Network, tx_idx: usize) {
+fn log_cip509_info(chain_update: &ChainUpdate, block_num: u64, network: Network, tx_idx: usize) {
     if let Some(decoded_metadata) = chain_update
         .data
         .txn_metadata(tx_idx, Metadata::cip509::LABEL)
