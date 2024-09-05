@@ -182,6 +182,8 @@ pub(crate) fn decode_utf8(content: &[u8]) -> anyhow::Result<String> {
 mod tests {
     use super::*;
 
+    // cspell: words stake_test1uqehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gssrtvn
+
     #[test]
     fn test_extract_cip19_hash() {
         // Test stake data from https://cips.cardano.org/cip/CIP-19
