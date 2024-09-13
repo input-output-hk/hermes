@@ -11,7 +11,7 @@ It doesn't matter which network the snapshot is from because the benchmark will 
 There are 2 modes in which the benchmark can be executed:
 
 | Benchmark name           | Description  |
----------------------------|--------------|
+|--------------------------|--------------|
 | pallas                 | When executed with `--bench-name pallas`, the benchmark reads the Mithril snapshot from origin to its tip using only the `pallas` crate mechanisms |
 | cardano&#x2011;chain&#x2011;follower | When executed with `--bench-name cardano-chain-follower` it uses the `cardano-chain-follower` crate to follow the chain from origin to the tip of the specified snapshot |
 
