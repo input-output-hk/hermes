@@ -19,6 +19,7 @@ version = 2
 ignore = [
     { id = "RUSTSEC-2020-0168", reason = "`mach` is used by wasmtime and we have no control over that." },
     { id = "RUSTSEC-2021-0145", reason = "we don't target windows, and don't use a custom global allocator." },
+    { id = "RUSTSEC-2024-0370", reason = "`proc-macro-error` is used by crates we rely on, we can't control what they use."},
 ]
 
 [bans]
@@ -51,6 +52,7 @@ unknown-git = "deny"
 allow-git = [
     "https://github.com/input-output-hk/catalyst-libs.git",
     "https://github.com/input-output-hk/catalyst-pallas.git",
+    "https://github.com/input-output-hk/catalyst-mithril.git",
     "https://github.com/bytecodealliance/wasmtime",
     "https://github.com/aldanor/hdf5-rust",
 ]
@@ -73,6 +75,7 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "MPL-2.0",
+    "Zlib",
 ]
 exceptions = [
     #{ allow = ["Zlib"], crate = "tinyvec" },
