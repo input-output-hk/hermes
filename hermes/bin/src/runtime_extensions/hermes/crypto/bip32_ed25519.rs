@@ -63,10 +63,8 @@ pub(crate) fn check_signature(
 }
 
 /// Derive a new extended private key from the given extended private key.
-/// - V2 derivation scheme is used as it is mention in
-/// [SLIP-0023](https://github.com/satoshilabs/slips/blob/master/slip-0023.md).
-/// - More information about child key derivation can be found in
-/// [BIP32-Ed25519](https://input-output-hk.github.io/adrestia/static/Ed25519_BIP.pdf).
+/// - V2 derivation scheme is used as it is mention in [SLIP-0023](https://github.com/satoshilabs/slips/blob/master/slip-0023.md).
+/// - More information about child key derivation can be found in [BIP32-Ed25519](https://input-output-hk.github.io/adrestia/static/Ed25519_BIP.pdf).
 ///  
 /// # Arguments
 ///

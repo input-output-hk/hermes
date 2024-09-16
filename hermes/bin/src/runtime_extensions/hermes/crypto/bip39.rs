@@ -54,8 +54,8 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 ///
 /// # Arguments
 ///
-/// - `word_count`: The number of words in the mnemonic. Must be a multiple of
-/// 3 and in the range of 12 - 24.
+/// - `word_count`: The number of words in the mnemonic. Must be a multiple of 3 and in
+///   the range of 12 - 24.
 /// - `prefix`: A vector of strings representing the prefix, empty if no prefix.
 /// - `language`: The language of the mnemonic.
 ///

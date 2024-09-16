@@ -82,10 +82,7 @@ pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, E
             SQLITE_FLOAT => Value::Double(sqlite3_column_double(stmt_ptr, index)),
             SQLITE_INTEGER => {
                 let int_value = sqlite3_column_int64(stmt_ptr, index);
-                if int_value >= i64::from(std::i32::MIN) && int_value <= i64::from(std::i32::MAX) {
-                    let int_value =
-                        i32::try_from(int_value).map_err(|_| Errno::ConvertingNumeric)?;
-
+                if let Ok(int_value) = i32::try_from(int_value) {
                     Value::Int32(int_value)
                 } else {
                     Value::Int64(int_value)

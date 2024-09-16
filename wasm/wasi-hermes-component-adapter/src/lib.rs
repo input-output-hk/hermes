@@ -2544,7 +2544,7 @@ pub struct StrTupleList {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-#[allow(missing_docs)]
+#[allow(dead_code, missing_docs)]
 #[allow(clippy::missing_docs_in_private_items)]
 pub struct ReadyList {
     base: *const u32,

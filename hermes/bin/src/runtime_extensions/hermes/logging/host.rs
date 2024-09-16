@@ -47,8 +47,10 @@ impl Host for HermesRuntimeContext {
     /// The format of the backtrace lines is up to the webasm module generating the log.
     /// The individual backtrace entries may contain line breaks if the backtrace entry is
     /// multiline.
+    ///
     /// * Multiline backtrace entries should be de-dented, relative to the first line.
     /// * This is to allow the display to properly format multiline entries.
+    ///
     /// This format is designed to keep the broadest flexibility for multiple languages
     /// capabilities.
     /// The backtrace must be sorted with most recent lines of the backtrace occurring

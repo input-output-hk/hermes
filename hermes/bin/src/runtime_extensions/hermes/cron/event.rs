@@ -169,7 +169,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::assertions_on_constants)]
     fn test_cron_queue() {
         let start = NaiveDate::from_ymd_opt(1970, 1, 1)
             .unwrap()

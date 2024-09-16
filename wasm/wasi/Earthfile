@@ -76,7 +76,7 @@ build:
 build-rust-bindings:
     FROM wasi-hermes-component-adapter+builder
 
-    RUN wit-bindgen rust -w hermes:wasi/hermes ../wasi/wit
+    RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
 

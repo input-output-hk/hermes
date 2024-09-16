@@ -79,10 +79,9 @@ impl Host for HermesRuntimeContext {
     /// ## Returns
     ///
     /// - A list of tuples containing the scheduled crontabs and their tags, along with
-    ///   the current retrigger flag.
-    /// The list is sorted from most crontab that will trigger soonest to latest.
-    /// Crontabs are only listed once, in the case where a crontab may be scheduled
-    /// may times before a later one.
+    ///   the current retrigger flag. The list is sorted from most crontab that will
+    ///   trigger soonest to latest. Crontabs are only listed once, in the case where a
+    ///   crontab may be scheduled may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
     fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
@@ -130,8 +129,8 @@ impl Host for HermesRuntimeContext {
     /// If a particular component is out of its allowable range it will be silently
     /// clamped within the allowable range of each parameter.
     /// Redundant entries will be removed.
-    /// - For example specifying a `month` as `3` and `2-4` will
-    /// remove the individual month and only produce the range.
+    /// - For example specifying a `month` as `3` and `2-4` will remove the individual
+    ///   month and only produce the range.
     fn mkcron(
         &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
     ) -> wasmtime::Result<CronSched> {

@@ -12,7 +12,7 @@ use crate::app::ApplicationName;
 
 /// `ResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
-/// the `wasmtime::component::Resource<WitType>` object.
+///   the `wasmtime::component::Resource<WitType>` object.
 /// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
 pub(crate) struct ResourceStorage<WitType, RustType> {
@@ -96,7 +96,7 @@ where WitType: 'static
 
 /// `ApplicationResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
-/// the `wasmtime::component::Resource<WitType>` object.
+///   the `wasmtime::component::Resource<WitType>` object.
 /// - `RustType` actually the type which is bound to the `WitType` and holds all the data
 ///   needed for the `WitType`.
 pub(crate) struct ApplicationResourceStorage<WitType, RustType> {

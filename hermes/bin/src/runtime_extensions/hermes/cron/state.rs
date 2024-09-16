@@ -139,10 +139,9 @@ impl InternalState {
     /// ## Returns
     ///
     /// - A list of tuples containing the scheduled crontabs and their tags, along with
-    ///   the current retrigger flag.  `Vec<(CronEventTag, bool)>`
-    /// The list is sorted from most crontab that will trigger soonest to latest.
-    /// Crontabs are only listed once, in the case where a crontab may be scheduled
-    /// may times before a later one.
+    ///   the current retrigger flag.  `Vec<(CronEventTag, bool)>` The list is sorted from
+    ///   most crontab that will trigger soonest to latest. Crontabs are only listed once,
+    ///   in the case where a crontab may be scheduled may times before a later one.
     fn ls_crontabs(
         &self, app_name: &ApplicationName, tag: Option<CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
