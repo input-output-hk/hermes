@@ -76,5 +76,7 @@
   "rust-analyzer.rustfmt.extraArgs": [
     "+nightly"
   ],
-  "rust-analyzer.lens.enable": true
+  "rust-analyzer.lens.enable": true,
+  "dependi.rust.informPatchUpdates": true,
+  "dependi.decoration.compatible.style": null
 }
