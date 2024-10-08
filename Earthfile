@@ -1,7 +1,7 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.1.24 AS mdlint-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.1.24 AS cspell-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.2.15 AS mdlint-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.2.15 AS cspell-ci
 
 FROM debian:stable-slim
 
@@ -17,6 +17,10 @@ markdown-check-fix:
 
     DO mdlint-ci+MDLINT_LOCALLY --src=$(echo ${PWD}) --fix=--fix
 
+# clean-spelling-list : Make sure the project dictionary is properly sorted.
+clean-spelling-list:
+    DO cspell-ci+CLEAN
+
 # check-spelling : Check spelling in this repo inside a container.
 check-spelling:
     DO cspell-ci+CHECK
@@ -29,7 +33,6 @@ spell-list-words:
     COPY . .
 
     RUN cspell-cli --words-only --unique "wasm/**" | sort -f
-
 
 # repo-docs : target to store the documentation from the root of the repo.
 repo-docs:
