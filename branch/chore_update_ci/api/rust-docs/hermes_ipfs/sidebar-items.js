@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AddIpfsFile","DhtMode","Ipld","StorageType"],"fn":["subscription_stream_task"],"macro":["pin_mut"],"struct":["GetIpfsFile","HermesIpfs","Ipfs","IpfsBuilder","IpfsPath","MessageId","Multiaddr","PeerId","PeerInfo","SubscriptionStream"],"trait":["FutureExt","StreamExt"],"type":["BoxStream","Cid"]};

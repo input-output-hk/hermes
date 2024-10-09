@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CDDL_FILE_EXTENSION"],"fn":["check_dir_with_print","check_file","check_file_with_print"],"struct":["Cli"]};

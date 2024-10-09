@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bootstrap","file","permission"],"struct":["Vfs"]};

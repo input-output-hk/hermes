@@ -1,0 +1,37 @@
+digraph {
+
+    graph [
+        label="cbork",
+        labelloc=t,
+
+        pad=0.4,
+
+        // Consider rendering the graph using a different layout algorithm, such as:
+        // [dot, neato, twopi, circo, fdp, sfdp]
+        layout=neato,
+        overlap=false,
+        splines="line",
+        rankdir=LR,
+
+        fontname="Helvetica", 
+        fontsize="36",
+    ];
+
+    node [
+        fontname="monospace",
+        fontsize="10",
+        shape="record",
+        style="filled",
+    ];
+
+    edge [
+        fontname="monospace",
+        fontsize="10",
+    ];
+
+    "cbork" [label="crate|cbork", fillcolor="#5397c8"]; // "crate" node
+    "cbork::cli" [label="pub(crate) mod|cli", fillcolor="#f8c04c"]; // "mod" node
+
+    "cbork" -> "cbork::cli" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+
+}

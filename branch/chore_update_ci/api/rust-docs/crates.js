@@ -1,0 +1,2 @@
+window.ALL_CRATES = ["add_file_with_pinning","cardano_chain_follower","concurrent_reads","follow_chain_updates","follow_chain_updates_mithril","hermes","hermes_ipfs","hermes_ipfs_cli","provide_content_dht","pubsub","put_get_dht","read_block","read_block_mithril","read_block_range","read_block_range_mithril","set_read_pointer"];
+//{"start":21,"fragment_lengths":[23,25,19,23,31,9,14,18,22,9,14,13,21,19,27,19]}

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["main"],"mod":["event_queue","runtime_extensions","state","wasm"]};

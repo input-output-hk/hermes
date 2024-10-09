@@ -1,0 +1,376 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+
+    # Terminal theme code
+
+    theme-id: 4
+    dark-theme-id: 4
+  }
+}
+
+root group: {
+  label: / (root)
+  grid-columns: 4
+  grid-gap: 20
+  shape: package
+  style: {
+    font: mono
+  }
+
+  group: {
+    grid-columns: 1
+    style: {
+      opacity: 0
+    }
+
+    explanation: |md
+      # HDF5 File
+    |
+
+    root metadata object: {
+      shape: page
+      label: metadata.json
+      style: {
+        font: mono
+      }
+      tooltip: |md
+        Defines the application.
+
+        + Application Name
+        + Version
+        + Description
+        ? Source Repo
+        + License/s
+        + Link to icon in http served files.
+        ? Link to an OpenAPI Document in http served files.
+        + Minimum Resource requirements
+        ? Optimum Resource requirements
+        ? Maximum Resource requirements
+        ? Requested Permissions
+      |
+    }
+
+    root author signature object: {
+      shape: document
+      label: author.cose
+      style: {
+        font: mono
+      }
+      tooltip: |md
+        Authors identity and Signature over the complete package.
+        May be multiple signatures for multiple authors.
+      |
+    }
+
+    root publisher signature object: {
+      shape: document
+      label: publisher.cose
+      style: {
+        font: mono
+      }
+      style: {
+        opacity: 0.6
+      }
+      tooltip: |md
+        OPTIONAL:
+
+        Publisher identity and Signature over the complete package.
+        May be multiple signatures for multiple publishers.
+      |
+    }
+  }
+
+  srv group: {
+    label: /srv
+    grid-columns: 1
+    grid-gap: 20
+    shape: package
+    style: {
+      font: mono
+    }
+    tooltip: |md
+      Conditionally Optional:
+
+      Data for the service provided by this Application.
+
+      An Application MUST have at least:
+
+      - one `/srv/www` file set; or
+      - one `/lib/<module-name>` WASM package.
+    |
+
+    gap: {
+      label: gap
+      grid-rows: 1
+      grid-gap: 0
+      style: {
+        opacity: 0
+        font-size: 8
+      }
+    }
+
+    srv www group: {
+      label: /www
+      shape: package
+      style: {
+        stroke: "#ffc0cb"
+        fill: "#ffebeb"
+        font: mono
+        opacity: 0.6
+      }
+      tooltip: |md
+        OPTIONAL: 
+
+        Data served on HTTP automatically for the application.
+      |
+    }
+    srv share group: {
+      label: /share
+      shape: package
+      style: {
+        stroke: "#ffc0cb"
+        fill: "#ffebeb"
+        font: mono
+        opacity: 0.6
+      }
+      tooltip: |md
+        OPTIONAL: 
+
+        Data sharable by all Modules in the application.
+      |
+    }
+  }
+
+  usr lib group: {
+    label: /usr/lib
+    grid-columns: 1
+    grid-gap: 20
+    shape: package
+    style: {
+      font: mono
+      opacity: 0.6
+    }
+    tooltip: |md
+      OPTIONAL: 
+
+      Data overrides for the Application.
+    |
+
+    usr lib module1 group: {
+      label: /<module-name-1>
+      shape: package
+      style: {
+        stroke: "#ffc0cb"
+        fill: "#ffebeb"
+        multiple: true
+        font: mono
+        opacity: 0.6
+      }
+      grid-columns: 1
+      grid-gap: 10
+      tooltip: |md
+        OPTIONAL:
+
+        Override individual module contents at application level.
+      |
+
+      gap: {
+        label: gap
+        grid-rows: 1
+        grid-gap: 0
+        style: {
+          opacity: 0
+          font-size: 8
+        }
+      }
+
+      component config override json object: {
+        shape: page
+        label: config.json
+        style: {
+          opacity: 0.6
+          font: mono
+        }
+        tooltip: |md
+          OPTIONAL:
+
+          Modules runtime config file.
+        |
+      }
+
+      gap2: {
+        label: gap
+        grid-rows: 1
+        grid-gap: 0
+        style: {
+          opacity: 0
+          font-size: 8
+        }
+      }
+
+      usr lib module share group: {
+        label: /share
+        shape: package
+        style: {
+          opacity: 0.6
+          stroke: "#98FB98"
+          fill: "#E6FFED"
+          font: mono
+        }
+        tooltip: |md
+          Override/Add Data files specific to this Module.
+        |
+      }
+
+      gap3: {
+        label: gap
+        grid-rows: 1
+        grid-gap: 0
+        style: {
+          opacity: 0
+          font-size: 8
+        }
+      }
+    }
+  }
+
+  lib group: {
+    label: /lib
+    grid-columns: 1
+    grid-gap: 20
+    shape: package
+    tooltip: |md
+      Conditionally Optional:
+
+      WASM Component Module Library.
+
+      An Application MUST have at least:
+
+      - one `/srv/www` file set; or
+      - one `/lib/<module-name>` WASM package.
+    |
+    style: {
+      font: mono
+    }
+
+    lib module1 group: {
+      label: /<module-name-1>
+      grid-rows: 2
+      grid-columns: 1
+      grid-gap: 10
+      shape: package
+      style.multiple: true
+      style: {
+        stroke: "#ffc0cb"
+        fill: "#ffebeb"
+        font: mono
+      }
+
+      tooltip: |md
+        WASM Components are individually packaged and signed
+        before inclusion into an application.
+      |
+
+      component files: {
+        grid-rows: 4
+        grid-columns: 2
+        grid-gap: 10
+        style.opacity: 0
+
+        component metadata object: {
+          shape: page
+          label: metadata.json
+          style: {
+            font: mono
+          }
+          tooltip: |md
+            Defines the module.
+
+            + Module Name
+            + Version
+            + Description
+            ? Source Repo
+            + License/s
+          |
+        }
+        component wasm module object: {
+          shape: page
+          label: module.wasm
+          style: {
+            font: mono
+          }
+          tooltip: |md
+            Compiled WASM Component Module.
+          |
+        }
+        component config json schema object: {
+          shape: page
+          label: config.schema.json
+          style: {
+            opacity: 0.6
+            font: mono
+          }
+          tooltip: |md
+            OPTIONAL:
+
+            Schema for the config.json file.
+          |
+        }
+        component config json object: {
+          shape: page
+          label: config.json
+          style: {
+            opacity: 0.6
+            font: mono
+          }
+          tooltip: |md
+            Conditionally Optional:
+
+            Modules runtime config file.
+
+            MUST Exist if `config.schema.json` exists.
+          |
+        }
+        component settings json schema object: {
+          shape: page
+          label: settings.schema.json
+          style: {
+            opacity: 0.6
+            font: mono
+          }
+          tooltip: |md
+            OPTIONAL:
+
+            Schema for the user option settings.json file.
+          |
+        }
+        component author signature object: {
+          shape: document
+          label: author.cose
+          style: {
+            font: mono
+          }
+          tooltip: |md
+            Authors signature over the wasm module.
+          |
+        }
+      }
+      lib module share group: {
+        label: /share
+        shape: package
+        style: {
+          stroke: "#98FB98"
+          fill: "#E6FFED"
+          font: mono
+          opacity: 0.6
+        }
+        tooltip: |md
+          OPTIONAL: 
+
+          Data files specific to this Module.
+        |
+      }
+    }
+  }
+}

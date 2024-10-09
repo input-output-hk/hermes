@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["StreamError"],"fn":["add_to_linker"],"trait":["Host","HostInputStream","HostOutputStream"],"type":["Error"]};

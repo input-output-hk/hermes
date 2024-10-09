@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_CHAIN_UPDATE_BUFFER_SIZE"],"enum":["ChainUpdate"],"mod":["follow_task"],"struct":["Follower","FollowerConfig","FollowerConfigBuilder"]};

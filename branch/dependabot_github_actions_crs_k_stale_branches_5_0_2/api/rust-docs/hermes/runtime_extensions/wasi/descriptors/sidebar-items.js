@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NUL_REP","STDERR_REP","STDOUT_REP"],"enum":["Descriptor"],"struct":["Stream"]};

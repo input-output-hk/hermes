@@ -1,0 +1,5 @@
+digraph {
+    0 [ label = "hermes" shape = box]
+    1 [ label = "cardano-chain-follower" shape = box]
+}
+

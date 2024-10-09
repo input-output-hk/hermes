@@ -1,0 +1,2 @@
+window.ALL_CRATES = ["add_file_with_pinning","bar","c509","c509_certificate","cardano_chain_follower","cat_gateway","cbork","cbork_abnf_parser","cbork_cddl_parser","concurrent_reads","dbviz","follow_chain_updates","follow_chain_updates_mithril","follow_chains","foo","hermes","hermes_ipfs","hermes_ipfs_cli","provide_content_dht","pubsub","put_get_dht","read_block","read_block_mithril","read_block_range","read_block_range_mithril","set_read_pointer"];
+//{"start":21,"fragment_lengths":[23,6,7,19,25,14,8,20,20,19,8,23,31,16,6,9,14,18,22,9,14,13,21,19,27,19]}

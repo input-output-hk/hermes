@@ -1,0 +1,101 @@
+digraph {
+
+    graph [
+        label="hermes",
+        labelloc=t,
+
+        pad=0.4,
+
+        // Consider rendering the graph using a different layout algorithm, such as:
+        // [dot, neato, twopi, circo, fdp, sfdp]
+        layout=neato,
+        overlap=false,
+        splines="line",
+        rankdir=LR,
+
+        fontname="Helvetica", 
+        fontsize="36",
+    ];
+
+    node [
+        fontname="monospace",
+        fontsize="10",
+        shape="record",
+        style="filled",
+    ];
+
+    edge [
+        fontname="monospace",
+        fontsize="10",
+    ];
+
+    "hermes" [label="crate|hermes", fillcolor="#5397c8"]; // "crate" node
+    "hermes::runtime" [label="pub(crate) mod|runtime", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::extensions" [label="pub(crate) mod|runtime::extensions", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host" [label="pub(crate) mod|runtime::host", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes" [label="pub(crate) mod|runtime::host::hermes", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::binary" [label="pub(crate) mod|runtime::host::hermes::binary", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::cardano" [label="pub(crate) mod|runtime::host::hermes::cardano", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::cbor" [label="pub(crate) mod|runtime::host::hermes::cbor", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::cron" [label="pub(crate) mod|runtime::host::hermes::cron", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::crypto" [label="pub(crate) mod|runtime::host::hermes::crypto", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::hash" [label="pub(crate) mod|runtime::host::hermes::hash", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::init" [label="pub(crate) mod|runtime::host::hermes::init", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::json" [label="pub(crate) mod|runtime::host::hermes::json", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::kv_store" [label="pub(crate) mod|runtime::host::hermes::kv_store", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::localtime" [label="pub(crate) mod|runtime::host::hermes::localtime", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::hermes::logging" [label="pub(crate) mod|runtime::host::hermes::logging", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi" [label="pub(crate) mod|runtime::host::wasi", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::cli" [label="pub(crate) mod|runtime::host::wasi::cli", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::clocks" [label="pub(crate) mod|runtime::host::wasi::clocks", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::clocks::monotonic" [label="pub(self) mod|runtime::host::wasi::clocks::monotonic", fillcolor="#db5367"]; // "mod" node
+    "hermes::runtime::host::wasi::clocks::wall" [label="pub(self) mod|runtime::host::wasi::clocks::wall", fillcolor="#db5367"]; // "mod" node
+    "hermes::runtime::host::wasi::filesystem" [label="pub(crate) mod|runtime::host::wasi::filesystem", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::http" [label="pub(crate) mod|runtime::host::wasi::http", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::io" [label="pub(crate) mod|runtime::host::wasi::io", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::io::error" [label="pub(crate) mod|runtime::host::wasi::io::error", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::io::streams" [label="pub(crate) mod|runtime::host::wasi::io::streams", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::random" [label="pub(crate) mod|runtime::host::wasi::random", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::random::insecure" [label="pub(crate) mod|runtime::host::wasi::random::insecure", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::random::insecure_seed" [label="pub(crate) mod|runtime::host::wasi::random::insecure_seed", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::runtime::host::wasi::random::secure" [label="pub(crate) mod|runtime::host::wasi::random::secure", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::wasm" [label="pub(crate) mod|wasm", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::wasm::context" [label="pub(crate) mod|wasm::context", fillcolor="#f8c04c"]; // "mod" node
+    "hermes::wasm::engine" [label="pub(self) mod|wasm::engine", fillcolor="#db5367"]; // "mod" node
+    "hermes::wasm::module" [label="pub(self) mod|wasm::module", fillcolor="#db5367"]; // "mod" node
+
+    "hermes" -> "hermes::runtime" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes" -> "hermes::wasm" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime" -> "hermes::runtime::extensions" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime" -> "hermes::runtime::host" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host" -> "hermes::runtime::host::hermes" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host" -> "hermes::runtime::host::wasi" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::binary" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::cardano" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::cbor" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::cron" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::crypto" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::hash" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::init" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::json" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::kv_store" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::localtime" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::hermes" -> "hermes::runtime::host::hermes::logging" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::cli" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::clocks" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::filesystem" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::http" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::io" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi" -> "hermes::runtime::host::wasi::random" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::clocks" -> "hermes::runtime::host::wasi::clocks::monotonic" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::clocks" -> "hermes::runtime::host::wasi::clocks::wall" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::io" -> "hermes::runtime::host::wasi::io::error" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::io" -> "hermes::runtime::host::wasi::io::streams" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::random" -> "hermes::runtime::host::wasi::random::insecure" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::random" -> "hermes::runtime::host::wasi::random::insecure_seed" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::runtime::host::wasi::random" -> "hermes::runtime::host::wasi::random::secure" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::wasm" -> "hermes::wasm::context" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::wasm" -> "hermes::wasm::engine" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+    "hermes::wasm" -> "hermes::wasm::module" [label="owns", color="#000000", style="solid"] [constraint=true]; // "owns" edge
+
+}

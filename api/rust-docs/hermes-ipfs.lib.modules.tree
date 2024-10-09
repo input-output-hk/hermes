@@ -1,0 +1,7 @@
+
+crate hermes_ipfs
+├── enum AddIpfsFile: pub
+├── struct GetIpfsFile: pub
+├── struct HermesIpfs: pub
+├── struct IpfsBuilder: pub
+└── struct MessageId: pub

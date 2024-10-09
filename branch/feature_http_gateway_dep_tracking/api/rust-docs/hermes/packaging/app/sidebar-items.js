@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["validate_and_write_icon","validate_and_write_metadata","write_share_dir","write_www_dir"],"mod":["manifest"],"struct":["ApplicationPackage"]};
