@@ -11,12 +11,14 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-pallas.workspace = true
-pallas-hardano.workspace = true
-thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "net", "rt-multi-thread"] }
-tracing.workspace = true
+# specific commit from the `catalyst` branch
+pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
+# specific commit from the `catalyst` branch
+pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
+thiserror = "1.0.64"
+tokio = "1.40.0"
+tracing = "0.1.40"
 
 [dev-dependencies]
-hex.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+hex = "0.4.3"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

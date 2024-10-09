@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.2.03 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.2.15 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -18,6 +18,12 @@ builder:
     COPY --dir wasm+wasi-src/wasi /wasm/wasi
     # Compiled WASM component for benchmarks
     COPY stub-module+build/stub.wasm /wasm/stub-module/stub.wasm
+
+# sync-cfg: Synchronize local config with CI version.
+# Must be run by the developer manually.
+sync-cfg:
+    FROM +builder
+    DO rust-ci+SYNC_STD_CFG
 
 # bindings-expand : Expands `wasmtime::bindgen!` macro into the `bindings.rs` file
 bindings-expand:

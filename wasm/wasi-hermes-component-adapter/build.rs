@@ -237,6 +237,8 @@ fn build_raw_intrinsics() -> Vec<u8> {
     module.finish()
 }
 
+// cspell: words libfoo
+
 /// This function produces the output of `llvm-ar crus libfoo.a foo.o` given
 /// the object file above as input. The archive is what's eventually fed to
 /// LLD.

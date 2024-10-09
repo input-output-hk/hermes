@@ -16,20 +16,20 @@ use crate::runtime_extensions::bindings::hermes::logging;
 #[allow(dead_code)]
 pub(crate) enum LogLevel {
     /// Errors
-    #[display(fmt = "Error")]
+    #[display("Error")]
     Error,
     /// Warnings
-    #[display(fmt = "Warn")]
+    #[display("Warn")]
     Warn,
     /// Informational Messages
     #[default]
-    #[display(fmt = "Info")]
+    #[display("Info")]
     Info,
     /// Debug messages
-    #[display(fmt = "Debug")]
+    #[display("Debug")]
     Debug,
     /// Tracing
-    #[display(fmt = "Trace")]
+    #[display("Trace")]
     Trace,
 }
 

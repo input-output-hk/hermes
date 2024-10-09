@@ -1,9 +1,0 @@
-; 2.2.2.  Choices
-
-; cspell: words tstr
-
-attire /= "swimwear"
-
-delivery //= (
-lat: float, long: float, drone-type: tstr
-)

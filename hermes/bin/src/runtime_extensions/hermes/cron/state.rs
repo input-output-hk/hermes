@@ -84,12 +84,7 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::Add(app_name.clone(), crontab, cmd_tx)),
         );
-        if let Ok(resp) = cmd_rx.blocking_recv() {
-            resp
-        } else {
-            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-            false
-        }
+        cmd_rx.blocking_recv().unwrap_or(false)
     }
 
     /// Schedule a single cron event after a fixed delay.
@@ -151,11 +146,7 @@ impl InternalState {
                 .spawn_cron_job(CronJob::List(app_name.clone(), tag, cmd_tx)),
         );
         // TODO (@@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-        if let Ok(resp) = cmd_rx.blocking_recv() {
-            resp
-        } else {
-            vec![]
-        }
+        cmd_rx.blocking_recv().unwrap_or_default()
     }
 
     /// Remove the requested crontab.
@@ -177,12 +168,7 @@ impl InternalState {
             self.cron_queue
                 .spawn_cron_job(CronJob::Remove(app_name.clone(), entry, cmd_tx)),
         );
-        if let Ok(resp) = cmd_rx.blocking_recv() {
-            resp
-        } else {
-            // TODO (@saibatizoku): log error https://github.com/input-output-hk/hermes/issues/15
-            false
-        }
+        cmd_rx.blocking_recv().unwrap_or(false)
     }
 }
 

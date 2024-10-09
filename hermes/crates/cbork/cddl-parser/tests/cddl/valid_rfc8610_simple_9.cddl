@@ -1,9 +1,0 @@
-; cspell: words tstr bareword
-
-; This is a comment
-person = { g }
-
-g = (
-  "name": tstr,
-  age: int,  ; "age" is a bareword
-)
