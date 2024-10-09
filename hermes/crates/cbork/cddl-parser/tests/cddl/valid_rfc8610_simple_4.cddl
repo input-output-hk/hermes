@@ -1,9 +1,0 @@
-; Figure 4: Using a Parenthesized Group in a Map
-
-; cspell: words tstr
-
-person = {(
-  age: int,
-  name: tstr,
-  employer: tstr,
-)}

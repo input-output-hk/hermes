@@ -1,7 +1,0 @@
-; 3.8.3.  Control Operator .regexp
-
-; cspell: words tstr
-
-nai = tstr .regexp "[A-Za-z0-9]+@[A-Za-z0-9]+(\\.[A-Za-z0-9]+)+"
-
-; "N1@CH57HF.4Znqe0.dYJRN.igjf" should pass this regexp
