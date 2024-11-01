@@ -71,7 +71,7 @@ hex = "0.4.3"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 criterion = "0.5.1"
-libtest-mimic = "0.7.0"
+libtest-mimic = "0.8.1"
 crossbeam-queue = "0.3.11"
 bip39 = "2.0.0"
 iana-time-zone = "0.1.60"
