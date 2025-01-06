@@ -215,10 +215,10 @@ impl BumpArena {
     #[allow(clippy::missing_docs_in_private_items)]
     fn alloc(&self, align: usize, size: usize) -> *mut u8 {
         let start = self.data.as_ptr() as usize;
-        let next = start + self.position.get();
+        let next = start.checked_add(self.position.get()).unwrap();
         let alloc = align_to(next, align);
-        let offset = alloc - start;
-        if offset + size > bump_arena_size() {
+        let offset = alloc.checked_sub(start).unwrap();
+        if offset.checked_add(size).unwrap() > bump_arena_size() {
             unreachable!("out of memory");
         }
         self.position.set(offset + size);
@@ -891,7 +891,11 @@ pub unsafe extern "C" fn fd_pread(
         // Advance to the first non-empty buffer.
         while iovs_len != 0 && (*iovs_ptr).buf_len == 0 {
             iovs_ptr = iovs_ptr.add(1);
-            iovs_len -= 1;
+            if let Some(val) = iovs_len.checked_sub(1) {
+                iovs_len = val;
+            } else {
+                return ERRNO_INVAL;
+            }
         }
         if iovs_len == 0 {
             *nread = 0;
@@ -1493,7 +1497,10 @@ pub unsafe extern "C" fn fd_write(
                     if file.append {
                         file.position.set(file.fd.stat()?.size);
                     } else {
-                        file.position.set(file.position.get() + nbytes as u64);
+                        let Some(position) = file.position.get().checked_add(nbytes as u64) else {
+                            return Err(ERRNO_INVAL);
+                        };
+                        file.position.set(position);
                     }
                 }
 
@@ -2557,16 +2564,16 @@ const fn bump_arena_size() -> usize {
     let mut start = PAGE_SIZE;
 
     // Remove big chunks of the struct for its various fields.
-    start -= size_of::<Descriptors>();
+    start = start.saturating_sub(size_of::<Descriptors>());
     #[cfg(not(feature = "proxy"))]
     {
-        start -= PATH_MAX;
-        start -= size_of::<DirentCache>();
+        start = start.saturating_sub(PATH_MAX);
+        start = start.saturating_sub(size_of::<DirentCache>());
     }
 
     // Remove miscellaneous metadata also stored in state.
-    let misc = if cfg!(feature = "proxy") { 7 } else { 14 };
-    start -= misc * size_of::<usize>();
+    let misc: usize = if cfg!(feature = "proxy") { 7 } else { 14 };
+    start = start.saturating_sub(misc.saturating_mul(size_of::<usize>()));
 
     // Everything else is the `command_data` allocation.
     start

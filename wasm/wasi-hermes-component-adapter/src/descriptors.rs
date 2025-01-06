@@ -252,7 +252,7 @@ impl Descriptors {
                 return Err(wasi::ERRNO_NOMEM);
             }
             core::ptr::addr_of_mut!((*table)[len]).write(desc);
-            self.table_len.set(u16::try_from(len + 1).trapping_unwrap());
+            self.table_len.set(u16::try_from(len.checked_add(1).trapping_unwrap()).trapping_unwrap());
             Ok(Fd::from(u32::try_from(len).trapping_unwrap()))
         }
     }

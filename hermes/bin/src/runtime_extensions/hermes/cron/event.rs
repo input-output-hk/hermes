@@ -18,7 +18,7 @@ impl Sub for CronDuration {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+        Self(self.0.saturating_sub(rhs.0))
     }
 }
 
@@ -241,22 +241,28 @@ mod tests {
         // every monday and the first day of January
         let cron: Cron = "0 0 1 1 7".parse().unwrap();
         let times: Vec<DateTime<Utc>> = cron.clone().iter_from(datetime).take(5).collect();
-        assert_eq!(times, vec![
-            Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 1, 3, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 1, 10, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 1, 17, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 1, 24, 0, 0, 0).unwrap(),
-        ]);
+        assert_eq!(
+            times,
+            vec![
+                Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 1, 3, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 1, 10, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 1, 17, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 1, 24, 0, 0, 0).unwrap(),
+            ]
+        );
 
         let cron: Cron = "0 0 1 1,3,5,7,9,11 *".parse().unwrap();
         let times: Vec<DateTime<Utc>> = cron.clone().iter_from(datetime).take(5).collect();
-        assert_eq!(times, vec![
-            Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 3, 1, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 5, 1, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 7, 1, 0, 0, 0).unwrap(),
-            Utc.with_ymd_and_hms(1970, 9, 1, 0, 0, 0).unwrap(),
-        ]);
+        assert_eq!(
+            times,
+            vec![
+                Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 3, 1, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 5, 1, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 7, 1, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(1970, 9, 1, 0, 0, 0).unwrap(),
+            ]
+        );
     }
 }

@@ -70,6 +70,7 @@ fn main() {
 /// The main trickiness here is getting the `reloc.CODE` and `linking` sections
 /// right.
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::expect_used)]
 fn build_raw_intrinsics() -> Vec<u8> {
     use wasm_encoder::{
         ConstExpr, CustomSection, Encode, FunctionSection, GlobalSection, GlobalType, Instruction,
@@ -135,12 +136,12 @@ fn build_raw_intrinsics() -> Vec<u8> {
         if instruction == global_set {
             Instruction::LocalGet(0).encode(&mut body);
         }
-        let global_offset = body.len() + 1;
+        let global_offset = body.len().checked_add(1).expect("Body length overflow");
         // global.get $global ;; but with maximal encoding of $global
-        body.extend_from_slice(&[instruction, 0x80u8 + global, 0x80, 0x80, 0x80, 0x00]);
+        body.extend_from_slice(&[instruction, 0x80u8.checked_add(global).expect("instruction overflow"), 0x80, 0x80, 0x80, 0x00]);
         Instruction::End.encode(&mut body);
         body.len().encode(code); // length of the function
-        let offset = code.len() + global_offset;
+        let offset = code.len().checked_add(global_offset).expect("offset overflow");
         code.extend_from_slice(&body); // the function itself
         offset
     };
@@ -246,6 +247,7 @@ fn build_raw_intrinsics() -> Vec<u8> {
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::indexing_slicing)]
 #[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::expect_used)]
 fn build_archive(wasm: &[u8]) -> Vec<u8> {
     use object::{bytes_of, endian::BigEndian, U32Bytes};
 
@@ -305,8 +307,9 @@ fn build_archive(wasm: &[u8]) -> Vec<u8> {
     // and fill in the offset within the symbol table generated earlier.
     let member_offset = archive.len();
     for (index, _) in syms.iter().enumerate() {
-        let index = index + 1;
-        archive[symtab_offset + (index * 4)..][..4].copy_from_slice(bytes_of(&U32Bytes::new(
+        let index = index.checked_add(1).expect("Index overflow");
+        let offset = index.checked_mul(4).and_then(|v| v.checked_add(symtab_offset)).expect("Offset overflow");
+        archive[offset..][..4].copy_from_slice(bytes_of(&U32Bytes::new(
             BigEndian,
             member_offset.try_into().unwrap(),
         )));

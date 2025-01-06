@@ -69,7 +69,7 @@ impl std::io::Read for File {
         let remaining_len = file_size.saturating_sub(self.pos);
 
         let reading_len = std::cmp::min(buf.len(), remaining_len);
-        let selection = hdf5::Selection::new(self.pos..self.pos + reading_len);
+        let selection = hdf5::Selection::new(self.pos..self.pos.saturating_add(reading_len));
 
         let data = self
             .hdf5_ds
@@ -96,7 +96,7 @@ impl std::io::Write for File {
         let new_shape = [file_size.saturating_add(increasing_len)];
         self.hdf5_ds.resize(new_shape).map_err(map_to_io_error)?;
 
-        let selection = hdf5::Selection::new(self.pos..self.pos + buf.len());
+        let selection = hdf5::Selection::new(self.pos..self.pos.saturating_add(buf.len()));
 
         self.hdf5_ds
             .write_slice(buf, selection)
@@ -133,12 +133,10 @@ impl std::io::Seek for File {
                 self.pos = n;
                 Ok(self.pos.try_into().map_err(map_to_io_error)?)
             },
-            None => {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Invalid seek to a negative or overflowing position",
-                ))
-            },
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid seek to a negative or overflowing position",
+            )),
         }
     }
 

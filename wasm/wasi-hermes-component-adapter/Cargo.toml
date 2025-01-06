@@ -50,6 +50,7 @@ string_slice = "deny"
 unchecked_duration_subtraction = "deny"
 unreachable = "deny"
 missing_docs_in_private_items = "deny"
+arithmetic_side_effects = "deny"
 
 [workspace.dependencies]
 wit-bindgen = { version = "0.19.2", default-features = false } # Anything after 0.19.2 does not work. Do not bump version.

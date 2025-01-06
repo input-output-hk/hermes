@@ -162,6 +162,7 @@ impl CronEventQueue {
             } else {
                 // If the timestamp is in the future,
                 // update the waiting task.
+                #[allow(clippy::arithmetic_side_effects)]
                 let sleep_duration = ts - trigger_time;
                 self.update_waiting_task(ts, sleep_duration);
                 // Since `ts` is in the future, we can break
@@ -202,6 +203,7 @@ impl CronEventQueue {
                     if !on_cron_event.last {
                         // Re-schedule the event by calculating the next timestamp after now.
                         if let Some(next_timestamp) = on_cron_event.tick_after(None) {
+                            #[allow(clippy::arithmetic_side_effects)]
                             let duration = next_timestamp - trigger_time;
                             cron_queue_delay(app_name, duration.into(), on_cron_event.tag.tag)?;
                         }
@@ -507,10 +509,10 @@ mod tests {
         // sets the waiting_event
         assert!(!queue.waiting_event.is_empty());
         // lists the event in the app queue
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
-            cron_entry_1().tag,
-            IS_LAST
-        )]);
+        assert_eq!(
+            queue.ls_events(&hermes_app_name, &None),
+            vec![(cron_entry_1().tag, IS_LAST)]
+        );
     }
 
     #[test]
@@ -530,10 +532,10 @@ mod tests {
         // which communicates with the static `CRON_INTERNAL_STATE`.
         assert!(queue.trigger().is_ok());
         assert!(!queue.waiting_event.is_empty());
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
-            cron_entry_2().tag,
-            IS_NOT_LAST
-        ),]);
+        assert_eq!(
+            queue.ls_events(&hermes_app_name, &None),
+            vec![(cron_entry_2().tag, IS_NOT_LAST),]
+        );
         // wait for the waiting task to finish
         sleep(std::time::Duration::from_millis(500));
         // Trigger manually
