@@ -44,3 +44,9 @@ build:
 # Only used to validate tooling is working across host toolsets.
 all-hosts-build:
     BUILD --platform=linux/amd64 --platform=linux/arm64 +build
+
+# sync-cfg: Synchronize local config with CI version.
+# Must be run by the developer manually.
+sync-cfg:
+    FROM +builder
+    DO rust-ci+SYNC_STD_CFG
