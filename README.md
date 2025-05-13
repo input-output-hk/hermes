@@ -4,15 +4,15 @@
 
 Welcome to the Hermes mono repo, where we manage and maintain the interconnected projects.
 
-- [Hermes](#hermes)
-  - [Overview](#overview)
-  - [Getting Started](#getting-started)
-  - [Projects](#projects)
-    - [Hermes](#hermes-1)
-    - [Dashboard](#dashboard)
-  - [Development](#development)
-  - [Contributing](#contributing)
-  - [License](#license)
+* [Hermes](#hermes)
+  * [Overview](#overview)
+  * [Getting Started](#getting-started)
+  * [Projects](#projects)
+    * [Hermes](#hermes-1)
+    * [Dashboard](#dashboard)
+  * [Development](#development)
+  * [Contributing](#contributing)
+  * [License](#license)
 
 ## Overview
 
