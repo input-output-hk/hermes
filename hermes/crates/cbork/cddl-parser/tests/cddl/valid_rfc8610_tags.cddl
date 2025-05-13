@@ -1,9 +1,0 @@
-; 3.6.  Tags
-
-; cspell: words biguint buuid tstr
-
-biguint = #6.2(bstr)
-
-buuid = #6.37(bstr)
-
-my_uri = #6.32(tstr) / tstr

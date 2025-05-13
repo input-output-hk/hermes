@@ -116,7 +116,7 @@ macro_rules! cfg_filesystem_available {
 
 // The unwrap/expect methods in std pull panic when they fail, which pulls
 // in unwinding machinery that we can't use in the adapter. Instead, use this
-// extension trait to get postfixed upwrap on Option and Result.
+// extension trait to get postfixed unwrap on Option and Result.
 #[allow(clippy::missing_docs_in_private_items)]
 trait TrappingUnwrap<T> {
     fn trapping_unwrap(self) -> T;

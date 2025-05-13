@@ -34,16 +34,12 @@
   },
   "window.title": "${dirty}${activeEditorShort}",
   "conventionalCommits.scopes": [
-    "vscode",
-    "hermes",
     "dashboard",
-    "hermes-lib",
-    "mdlint",
-    "languages",
-    "spelling",
-    "issues",
-    "gateway",
-    "docs"
+    "hermes",
+    "docs",
+    "wasm",
+    "utils",
+    "general"
   ],
   "conventionalCommits.gitmoji": false,
   "markdown.extension.toc.unorderedList.marker": "*",
@@ -80,5 +76,7 @@
   "rust-analyzer.rustfmt.extraArgs": [
     "+nightly"
   ],
-  "rust-analyzer.lens.enable": true
+  "rust-analyzer.lens.enable": true,
+  "dependi.rust.informPatchUpdates": true,
+  "dependi.decoration.compatible.style": null
 }
