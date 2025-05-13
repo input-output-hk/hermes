@@ -1,4 +1,0 @@
-; cspell: words tstr
-
-sample = {
-  tstr => tstr

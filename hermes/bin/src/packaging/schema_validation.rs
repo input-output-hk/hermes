@@ -2,7 +2,7 @@
 
 use std::io::Read;
 
-use jsonschema::{Draft, JSONSchema};
+use jsonschema::{Draft, Validator};
 use serde::de::DeserializeOwned;
 
 use crate::errors::Errors;
@@ -11,7 +11,7 @@ use crate::errors::Errors;
 #[derive(Debug)]
 pub(crate) struct SchemaValidator {
     /// JSON schema validator instance.
-    schema: JSONSchema,
+    schema: Validator,
 }
 
 impl SchemaValidator {
@@ -30,9 +30,9 @@ impl SchemaValidator {
 
     /// Create a new json schema validator from JSON value.
     pub(crate) fn from_json(json: &serde_json::Value) -> anyhow::Result<Self> {
-        let schema = JSONSchema::options()
+        let schema = Validator::options()
             .with_draft(Draft::Draft7)
-            .compile(json)
+            .build(json)
             .map_err(|err| anyhow::anyhow!("Invalid draft 7 JSON schema:\n {err}"))?;
 
         Ok(Self { schema })

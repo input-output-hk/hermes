@@ -14,7 +14,6 @@
         "tamasfe.even-better-toml",
         "rust-lang.rust-analyzer",
         "JScearcy.rust-doc-viewer",
-        "serayuzgur.crates",
         "bierner.markdown-checkbox",
         "bierner.markdown-emoji",
         "bierner.markdown-footnotes",
@@ -24,5 +23,9 @@
         "foxundermoon.shell-format",
         "dtsvet.vscode-wasm",
         "terrastruct.d2",
+        "fill-labs.dependi",
+        "nefrob.vscode-just-syntax",
+        "charliermarsh.ruff",        
+        "ms-python.python",
     ]
 }
