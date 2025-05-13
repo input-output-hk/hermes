@@ -4,21 +4,21 @@
 
 Welcome to the Hermes mono repo, where we manage and maintain the interconnected projects.
 
-* [Hermes](#hermes)
-  * [Overview](#overview)
-  * [Getting Started](#getting-started)
-  * [Projects](#projects)
-    * [Hermes](#hermes-1)
-    * [Dashboard](#dashboard)
-  * [Development](#development)
-  * [Contributing](#contributing)
-  * [License](#license)
+- [Hermes](#hermes)
+  - [Overview](#overview)
+  - [Getting Started](#getting-started)
+  - [Projects](#projects)
+    - [Hermes](#hermes-1)
+    - [Dashboard](#dashboard)
+  - [Development](#development)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Overview
 
 This monorepo serves as a unified codebase for the Hermes project.
 Using a monorepo simplifies our dependency management, streamlines testing, and fosters code sharing.
-Herems is an engine, applications built on hermes are not contained in this repo.
+Hermes is an engine, applications built on hermes are not contained in this repo.
 
 ## Getting Started
 
