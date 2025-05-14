@@ -18,7 +18,7 @@ Welcome to the Hermes mono repo, where we manage and maintain the interconnected
 
 This monorepo serves as a unified codebase for the Hermes project.
 Using a monorepo simplifies our dependency management, streamlines testing, and fosters code sharing.
-Herems is an engine, applications built on hermes are not contained in this repo.
+Hermes is an engine, applications built on hermes are not contained in this repo.
 
 ## Getting Started
 

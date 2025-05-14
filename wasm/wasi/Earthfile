@@ -76,6 +76,7 @@ build:
 build-rust-bindings:
     FROM wasi-hermes-component-adapter+builder
 
+    # Will fail unless cat-ci has wit-bindgen-cli 0.28.0 (no other version works).
     RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs

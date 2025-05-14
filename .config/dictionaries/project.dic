@@ -29,6 +29,7 @@ ciphertext
 codegen
 codepoints
 coti
+coverallsapp
 cpus
 crontabs
 crontagged
@@ -69,6 +70,7 @@ futimens
 genhtml
 GETFL
 getres
+globaltype
 gmtime
 gossipsub
 happ
@@ -95,6 +97,7 @@ libipld
 libp2p
 libsqlite
 libtest
+libwasm
 linkat
 lintfix
 lipsum
@@ -105,6 +108,7 @@ mapref
 mdlint
 mdns
 metno
+mgrybyk
 miniprotocol
 miniprotocols
 mithril
@@ -120,6 +124,7 @@ nbaz
 netkey
 nextest
 nolfs
+nostack
 notadb
 nsec
 oneshot
@@ -150,6 +155,7 @@ quic
 rapidoc
 readlinkat
 redoc
+reloc
 REMOVEDIR
 renameat
 retriggering
@@ -173,6 +179,8 @@ stevenj
 stringzilla
 subsec
 symlinkat
+syms
+SYMTAB
 syscall
 tacho
 testcase
@@ -180,6 +188,7 @@ testcov
 testdocs
 testunit
 thiserror
+thollander
 timelike
 timespec
 tinygo
@@ -206,3 +215,4 @@ xprivate
 XPRV
 xpub
 yoroi
+zstack

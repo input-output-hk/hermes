@@ -564,27 +564,21 @@ mod task {
                         )
                         .await;
 
-                        match res {
-                            Ok(Some(p)) => {
-                                current_point = p;
+                        if let Ok(Some(p)) = res {
+                            current_point = p;
 
-                                if !Self::send_next_chain_update(
-                                    &mut client,
-                                    chain_update_tx.clone(),
-                                )
+                            if !Self::send_next_chain_update(&mut client, chain_update_tx.clone())
                                 .await
-                                {
-                                    return;
-                                }
-                            },
-                            Ok(None) | Err(_) => {
-                                drop(
-                                    chain_update_tx
-                                        .send(Err(crate::Error::SetReadPointer))
-                                        .await,
-                                );
+                            {
                                 return;
-                            },
+                            }
+                        } else {
+                            drop(
+                                chain_update_tx
+                                    .send(Err(crate::Error::SetReadPointer))
+                                    .await,
+                            );
+                            return;
                         }
                     }
                 }

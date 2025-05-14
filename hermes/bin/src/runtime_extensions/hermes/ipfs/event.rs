@@ -11,7 +11,7 @@ pub(crate) struct OnTopicEvent {
 }
 
 impl HermesEventPayload for OnTopicEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "on-topic"
     }
 

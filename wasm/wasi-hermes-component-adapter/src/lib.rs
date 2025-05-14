@@ -70,7 +70,7 @@ pub mod bindings {
     wit_bindgen::generate!({
         path: "../wasi/wit",
         world: "wasi:cli/imports",
-        std_feature,
+        //std_feature,
         raw_strings,
         // Automatically generated bindings for these functions will allocate
         // Vecs, which in turn pulls in the panic machinery from std, which
@@ -96,7 +96,7 @@ pub mod bindings {
                 import wasi:cli/stdin@0.2.0-rc-2023-12-05;
             }
         "#,
-        std_feature,
+        //std_feature,
         raw_strings,
         skip: ["poll"],
     });

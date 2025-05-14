@@ -10,7 +10,7 @@ use crate::{
 /// A trait for defining the behavior of a Hermes event.
 pub(crate) trait HermesEventPayload: Send + Sync + 'static {
     /// Returns the name of the event associated with the payload.
-    fn event_name(&self) -> &str;
+    fn event_name(&self) -> &'static str;
 
     /// Executes the behavior associated with the payload, using the provided executor.
     ///

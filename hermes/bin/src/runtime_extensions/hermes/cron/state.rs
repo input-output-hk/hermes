@@ -235,7 +235,7 @@ async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
                 }
             },
             CronJob::List(app_name, tag, response_tx) => {
-                handle_ls_cron_job(&app_name, &tag, response_tx);
+                handle_ls_cron_job(&app_name, tag.as_ref(), response_tx);
             },
             CronJob::Delay(app_name, cron_job_delay, response_tx) => {
                 handle_delay_cron_job(app_name, cron_job_delay, response_tx);
@@ -295,7 +295,7 @@ fn handle_add_cron_job(
 
 /// Handle the `CronJob::List` command.
 fn handle_ls_cron_job(
-    app_name: &ApplicationName, cron_tagged: &Option<CronEventTag>,
+    app_name: &ApplicationName, cron_tagged: Option<&CronEventTag>,
     response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
 ) {
     let response = CRON_INTERNAL_STATE
@@ -331,6 +331,7 @@ mod tests {
 
     // triggers every minute, three days from now
     fn crontab_future_dow(tag: &str, days_from_now: i64) -> CronTagged {
+        #[allow(clippy::arithmetic_side_effects)] // Ok in tests.
         let dow = (chrono::Utc::now() + chrono::TimeDelta::try_days(days_from_now).unwrap())
             .weekday()
             .number_from_monday();

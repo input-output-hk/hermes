@@ -1,7 +1,5 @@
 //! Cron runtime extension event handler implementation.
 
-use std::ops::Sub;
-
 use chrono::Utc;
 use saffron::Cron;
 
@@ -14,11 +12,15 @@ use crate::{
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
 pub(crate) struct CronDuration(u64);
 
-impl Sub for CronDuration {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+impl CronDuration {
+    /// Saturating integer subtraction. Computes `self - rhs`, saturating
+    /// at the numeric bounds instead of overflowing.
+    #[must_use = "this returns the result of the operation, \
+                    without modifying the original"]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub const fn saturating_sub(self, rhs: Self) -> Self {
+        Self(self.0.saturating_sub(rhs.0))
     }
 }
 
@@ -53,7 +55,7 @@ pub(crate) struct OnCronEvent {
 }
 
 impl HermesEventPayload for OnCronEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "on-cron"
     }
 

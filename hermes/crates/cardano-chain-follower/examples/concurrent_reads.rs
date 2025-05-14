@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             block.slot()
         );
 
-        point_count -= 1;
+        point_count = point_count.saturating_sub(1);
         if point_count == 0 {
             break;
         }

@@ -166,7 +166,7 @@ pub mod bench {
     pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
         struct Event;
         impl HermesEventPayload for Event {
-            fn event_name(&self) -> &str {
+            fn event_name(&self) -> &'static str {
                 "init"
             }
 

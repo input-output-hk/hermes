@@ -18,7 +18,7 @@ pub(super) struct OnCardanoBlockEvent {
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "on-cardano-block"
     }
 
@@ -44,7 +44,7 @@ pub(super) struct OnCardanoTxnEvent {
 }
 
 impl HermesEventPayload for OnCardanoTxnEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "on-cardano-txn"
     }
 
@@ -73,7 +73,7 @@ pub(super) struct OnCardanoRollback {
 }
 
 impl HermesEventPayload for OnCardanoRollback {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "on-cardano-rollback"
     }
 

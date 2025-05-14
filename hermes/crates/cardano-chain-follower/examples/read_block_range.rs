@@ -39,10 +39,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .await?;
 
-    let mut total_txs = 0;
+    let mut total_txs: usize = 0;
     for data in data_vec {
         let block = data.decode()?;
-        total_txs += block.tx_count();
+        total_txs = total_txs.saturating_add(block.tx_count());
     }
 
     println!("Total transactions: {total_txs}");
