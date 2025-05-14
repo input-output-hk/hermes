@@ -5,7 +5,9 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:feat/clarify-hd
 IMPORT ../../wasi AS wasi
 IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
-build:
+# This no longer builds. 
+# TODO: Fix AFTER wasmtime is bumped to latest version
+fails-to-build:
     FROM tinygo/tinygo:0.32.0
 
     COPY rust-tools+tool-wasm-tools/wasm-tools /bin

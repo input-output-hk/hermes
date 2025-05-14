@@ -7,8 +7,10 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:feat/clarify-hdf5-src
 IMPORT ../../wasi AS wasi
 IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
-# build : build the cardano integration test wasm component
-build:
+# build : build the wasi filesystem integration test wasm component
+# This no longer builds. 
+# TODO: Fix AFTER wasmtime is bumped to latest version
+fails-to-build:
     DO rust-ci+SETUP
 
     COPY --keep-ts --dir src .

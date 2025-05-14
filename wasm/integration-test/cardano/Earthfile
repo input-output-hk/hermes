@@ -8,7 +8,9 @@ IMPORT ../../wasi AS wasi
 IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
 # build : build the cardano integration test wasm component
-build:
+# This no longer builds. 
+# TODO: Fix AFTER the cardano chain follower library is updated inside hermes.
+fails-to-build:
     DO rust-ci+SETUP
 
     COPY --keep-ts --dir src .

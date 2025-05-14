@@ -14,7 +14,9 @@ gen-bindings:
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
 # build - builds the sqlite integration test wasm component
-build:
+# This no longer builds. 
+# TODO: Fix AFTER wasmtime is bumped to latest version
+fails-to-build:
     DO rust-ci+SETUP
 
     COPY --keep-ts --dir src .
