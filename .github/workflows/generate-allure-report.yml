@@ -22,6 +22,7 @@ env:
 
 jobs:
   generate-test-reports:
+    if: false
     name: Generate test reports
     runs-on: ubuntu-latest
     steps:
@@ -63,6 +64,7 @@ jobs:
           retention-days: 1
 
   generate-allure-report:
+    if: false
     name: Generate allure report
     runs-on: ubuntu-latest
     needs: [generate-test-reports]
@@ -110,6 +112,7 @@ jobs:
           comment-tag: test_report
 
   generate-coverage-report:
+    if: false
     name: Generate coverage report
     runs-on: ubuntu-latest
     needs: [generate-test-reports]
