@@ -182,7 +182,7 @@ fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result
 /// Note that if entropy bits is needed, multiply the `total_entropy_bytes` by 8.
 fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Number of bytes entropy calculate from mnemonic word.
-    let total_entropy_bytes = word_count * 4 / 3;
+    let total_entropy_bytes = word_count.saturating_mul(4).div_ceil(3);
     // Maximum length of mnemonic is 24 words which is 32 bytes entropy.
     let mut total_entropy_bytes_max = [0u8; 32];
     // Random number
@@ -211,7 +211,7 @@ fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
     // Retrieve the first `checksum_len` checksum bits from the hash result.
     let mut checksum_bits = Vec::new();
     for i in 0..checksum_len {
-        checksum_bits.push(hash_result[0] >> (7 - i) & 1);
+        checksum_bits.push((hash_result[0] >> 7_usize.saturating_sub(i)) & 1);
     }
     checksum_bits
 }
@@ -223,11 +223,11 @@ fn get_word_indices(entropy_bits: &[u8], word_count: usize) -> Vec<u16> {
     // Separate entropy bits into 11 bits and convert to decimal.
     // This decimal will be used to get the word index.
     for i in 0..word_count {
-        let mut idx = 0;
+        let mut idx: u16 = 0;
         for j in 0..11 {
-            if let Some(value) = entropy_bits.get(i * 11 + j) {
+            if let Some(value) = entropy_bits.get(i.saturating_mul(11).saturating_add(j)) {
                 if *value > 0 {
-                    idx += 1 << (10 - j);
+                    idx = idx.saturating_add(1 << (10_usize.saturating_sub(j)));
                 }
             }
         }
@@ -257,7 +257,7 @@ fn decimal_to_binary_array(decimal: u16) -> [u8; 11] {
     while n > 0 {
         if let Some(value) = binary.get_mut(index) {
             let bit = n % 2;
-            index += 1;
+            index = index.saturating_add(1);
             *value = bit as u8;
             n /= 2;
         }
@@ -268,7 +268,7 @@ fn decimal_to_binary_array(decimal: u16) -> [u8; 11] {
         if let Some(value) = binary.get_mut(index) {
             *value = 0;
         }
-        index += 1;
+        index = index.saturating_add(1);
     }
     binary.reverse();
     binary
@@ -278,10 +278,9 @@ fn decimal_to_binary_array(decimal: u16) -> [u8; 11] {
 fn bits_to_bytes(bits: &[u8]) -> Vec<u8> {
     bits.chunks(8)
         .map(|chunk| {
-            chunk
-                .iter()
-                .enumerate()
-                .fold(0, |acc, (i, &bit)| acc | ((bit) << (7 - i)))
+            chunk.iter().enumerate().fold(0, |acc, (i, &bit)| {
+                acc | ((bit) << ((7_usize).saturating_sub(i)))
+            })
         })
         .collect()
 }
@@ -303,12 +302,15 @@ fn string_to_language(s: &str) -> Result<Language, Errno> {
 }
 
 /// Convert bytes entropy to bits.
+///
+/// `word_count` must be a multiple of 3 and 12-24
+/// It will return garbage if that pre-condition does not hold.
 fn byte_to_bit(entropy: Vec<u8>, entropy_bits: &mut Vec<u8>, word_count: usize) {
     for byte in entropy {
         for j in (0..8).rev() {
             // Should not exceed the word_count / 3 * 32
             // which is number of entropy bits for the mnemonic word count.
-            if entropy_bits.len() >= word_count / 3 * 32 {
+            if entropy_bits.len() >= word_count.div_ceil(3).saturating_mul(32) {
                 break;
             }
             entropy_bits.push((byte >> j) & 1);

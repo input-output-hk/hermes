@@ -47,7 +47,7 @@ pub(crate) struct HTTPEvent {
 }
 
 impl HermesEventPayload for HTTPEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "http-event"
     }
 

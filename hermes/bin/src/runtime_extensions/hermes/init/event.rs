@@ -6,7 +6,7 @@ use crate::event::HermesEventPayload;
 pub(crate) struct InitEvent {}
 
 impl HermesEventPayload for InitEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "init"
     }
 

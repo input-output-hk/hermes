@@ -41,7 +41,7 @@ pub struct OnTestEvent {
 }
 
 impl HermesEventPayload for OnTestEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "test"
     }
 
@@ -64,7 +64,7 @@ pub struct OnBenchEvent {
 }
 
 impl HermesEventPayload for OnBenchEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "bench"
     }
 

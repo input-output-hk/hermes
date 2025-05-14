@@ -91,7 +91,7 @@ impl CronEventQueue {
 
     /// List all the crontab entries for the given app.
     pub(crate) fn ls_events(
-        &self, app_name: &ApplicationName, cron_tagged: &Option<CronEventTag>,
+        &self, app_name: &ApplicationName, cron_tagged: Option<&CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
             app.iter().fold(vec![], |mut v, (_, cron_events)| {
@@ -162,7 +162,7 @@ impl CronEventQueue {
             } else {
                 // If the timestamp is in the future,
                 // update the waiting task.
-                let sleep_duration = ts - trigger_time;
+                let sleep_duration = ts.saturating_sub(trigger_time);
                 self.update_waiting_task(ts, sleep_duration);
                 // Since `ts` is in the future, we can break
                 break;
@@ -202,7 +202,7 @@ impl CronEventQueue {
                     if !on_cron_event.last {
                         // Re-schedule the event by calculating the next timestamp after now.
                         if let Some(next_timestamp) = on_cron_event.tick_after(None) {
-                            let duration = next_timestamp - trigger_time;
+                            let duration = next_timestamp.saturating_sub(trigger_time);
                             cron_queue_delay(app_name, duration.into(), on_cron_event.tag.tag)?;
                         }
                     }
@@ -336,6 +336,7 @@ mod tests {
 
     /// Convert now plus `chrono::TimeDelta` to a `CronDuration`.
     fn get_triggering_timestamp(delta: chrono::TimeDelta) -> CronDuration {
+        #[allow(clippy::arithmetic_side_effects)] // Ok in tests.
         let trigger_date = chrono::Utc::now() + delta;
         trigger_date
             .timestamp_nanos_opt()
@@ -350,13 +351,13 @@ mod tests {
         let queue = CronEventQueue::new(None);
         let hermes_app_name = hermes_app_name(APP_NAME);
 
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
 
         // insert at `CronDuration=0`
         queue.add_event(hermes_app_name.clone(), 0.into(), cron_entry_1());
         queue.add_event(hermes_app_name.clone(), 0.into(), cron_entry_2());
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_1().tag, IS_LAST)));
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
 
@@ -373,7 +374,7 @@ mod tests {
             cron_entry_3(),
         );
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_1().tag, IS_LAST)));
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
@@ -386,7 +387,7 @@ mod tests {
             cron_entry_other(),
         );
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_1().tag, IS_LAST)));
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
         assert!(queue_ls.contains(&(cron_entry_other().tag, IS_LAST)));
@@ -396,7 +397,7 @@ mod tests {
         // Now remove the events by `CronTagged`
         assert!(queue.rm_event(&hermes_app_name, &cron_entry_1().tag));
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
         assert!(queue_ls.contains(&(cron_entry_other().tag, IS_LAST)));
         assert!(queue_ls.contains(&(cron_entry_2().tag, IS_NOT_LAST)));
@@ -404,18 +405,18 @@ mod tests {
 
         assert!(queue.rm_event(&hermes_app_name, &cron_entry_2().tag));
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_other().tag, IS_LAST)));
         assert!(queue_ls.contains(&(cron_entry_3().tag, IS_LAST)));
 
         assert!(queue.rm_event(&hermes_app_name, &cron_entry_3().tag));
 
-        let queue_ls = queue.ls_events(&hermes_app_name, &None);
+        let queue_ls = queue.ls_events(&hermes_app_name, None);
         assert!(queue_ls.contains(&(cron_entry_other().tag, IS_LAST)));
 
         assert!(queue.rm_event(&hermes_app_name, &cron_entry_other().tag));
         // The queue should be empty
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
     }
 
     #[test]
@@ -431,7 +432,7 @@ mod tests {
             .unwrap();
         assert_eq!(events, HashSet::from([cron_entry_1(), cron_entry_2()]));
         // The queue should be empty
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
 
         queue.add_event(
             hermes_app_name.clone(),
@@ -454,7 +455,7 @@ mod tests {
             .unwrap();
         assert_eq!(events, HashSet::from([cron_entry_3()]));
         // The queue should be empty
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
     }
 
     #[test]
@@ -486,7 +487,7 @@ mod tests {
         queue.add_event(hermes_app_name.clone(), 0.into(), cron_entry_1());
         assert!(queue.trigger().is_ok());
         assert!(queue.waiting_event.is_empty());
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
     }
 
     #[test]
@@ -507,7 +508,7 @@ mod tests {
         // sets the waiting_event
         assert!(!queue.waiting_event.is_empty());
         // lists the event in the app queue
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
+        assert_eq!(queue.ls_events(&hermes_app_name, None), vec![(
             cron_entry_1().tag,
             IS_LAST
         )]);
@@ -530,7 +531,7 @@ mod tests {
         // which communicates with the static `CRON_INTERNAL_STATE`.
         assert!(queue.trigger().is_ok());
         assert!(!queue.waiting_event.is_empty());
-        assert_eq!(queue.ls_events(&hermes_app_name, &None), vec![(
+        assert_eq!(queue.ls_events(&hermes_app_name, None), vec![(
             cron_entry_2().tag,
             IS_NOT_LAST
         ),]);
@@ -541,6 +542,6 @@ mod tests {
         // THe waiting event should be empty
         assert!(queue.waiting_event.is_empty());
         // The queue should be empty
-        assert!(queue.ls_events(&hermes_app_name, &None).is_empty());
+        assert!(queue.ls_events(&hermes_app_name, None).is_empty());
     }
 }

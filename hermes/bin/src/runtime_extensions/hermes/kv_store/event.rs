@@ -14,7 +14,7 @@ struct KVUpdateEvent {
 }
 
 impl HermesEventPayload for KVUpdateEvent {
-    fn event_name(&self) -> &str {
+    fn event_name(&self) -> &'static str {
         "kv-update"
     }
 

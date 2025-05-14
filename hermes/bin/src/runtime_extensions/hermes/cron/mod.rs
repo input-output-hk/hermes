@@ -37,7 +37,9 @@ pub(crate) fn mkdelay_crontab(
     duration: Instant, tag: CronEventTag,
 ) -> wasmtime::Result<CronJobDelay> {
     // Add the delay to the current time.
-    let delayed = Utc::now() + TimeDelta::nanoseconds(duration.try_into()?);
+    let delayed = Utc::now()
+        .checked_add_signed(TimeDelta::nanoseconds(duration.try_into()?))
+        .ok_or(Error::InvalidTimestamp)?;
     let timestamp = delayed
         .timestamp_nanos_opt()
         .ok_or(Error::InvalidTimestamp)?

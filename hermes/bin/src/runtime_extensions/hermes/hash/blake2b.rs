@@ -34,7 +34,7 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
     }
     let hash = Params::new().hash_length(outlen).hash(buf);
 
-    return Ok(hash.as_bytes().into());
+    Ok(hash.as_bytes().into())
 }
 
 /// Implementation of the Blake2b Message Authentication Code.
@@ -98,7 +98,7 @@ pub(crate) fn blake2bmac_impl(
         .personal(&personal)
         .hash(buf);
 
-    return Ok(hash.as_bytes().into());
+    Ok(hash.as_bytes().into())
 }
 
 #[cfg(test)]
