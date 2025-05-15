@@ -1,11 +1,11 @@
 {
-  // Recommended `settings.json` configuration
+  "$comment": "Recommended `settings.json` configuration",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": true,
-    "source.sortMembers": true,
-    "source.fixAll": true,
-    "source.fixAll.markdownlint": true
+    "source.organizeImports": "always",
+    "source.sortMembers": "always",
+    "source.fixAll": "always",
+    "source.fixAll.markdownlint": "always"
   },
   "files.autoSave": "afterDelay",
   "editor.formatOnType": true,
@@ -15,7 +15,6 @@
   "editor.tabSize": 4,
   "debug.openDebug": "openOnDebugBreak",
   "debug.internalConsoleOptions": "openOnSessionStart",
-  "dart.debugSdkLibraries": false,
   "[dart]": {
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
@@ -23,25 +22,15 @@
       80
     ],
     "editor.codeActionsOnSave": {
-      "source.fixAll": true,
-      "source.organizeImports": true
+      "source.fixAll": "always",
+      "source.organizeImports": "always"
     },
     "editor.selectionHighlight": false,
     "editor.suggestSelection": "first",
-    "editor.wordBasedSuggestions": false,
-    "editor.tabCompletion": "onlySnippets",
-    "editor.defaultFormatter": "Dart-Code.dart-code"
+    "editor.wordBasedSuggestions": "matchingDocuments",
+    "editor.tabCompletion": "onlySnippets"
   },
   "window.title": "${dirty}${activeEditorShort}",
-  "conventionalCommits.scopes": [
-    "dashboard",
-    "hermes",
-    "docs",
-    "wasm",
-    "utils",
-    "general"
-  ],
-  "conventionalCommits.gitmoji": false,
   "markdown.extension.toc.unorderedList.marker": "*",
   "cSpell.autoFormatConfigFile": true,
   "cSpell.language": "en,en-US",
@@ -78,5 +67,18 @@
   ],
   "rust-analyzer.lens.enable": true,
   "dependi.rust.informPatchUpdates": true,
-  "dependi.decoration.compatible.style": null
+  "conventionalCommits.scopes": [
+    "dashboard",
+    "hermes",
+    "docs",
+    "wasm",
+    "utils",
+    "general",
+    "deps",
+    "ci"
+  ],
+  "conventionalCommits.promptBody": false,
+  "conventionalCommits.lineBreak": "",
+  "conventionalCommits.promptScopes": true,
+  "conventionalCommits.gitmoji": false
 }

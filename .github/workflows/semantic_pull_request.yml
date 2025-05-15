@@ -21,3 +21,4 @@ jobs:
         wasm
         utils
         general
+        deps
