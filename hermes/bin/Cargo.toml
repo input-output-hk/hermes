@@ -42,7 +42,7 @@ hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/cat
 wasmtime = {version="20.0.2", features = ["component-model"] }
 rusty_ulid = "2.0.0"
 anyhow = "1.0.89"
-hex-literal = "0.4.1"
+hex-literal = "1.0.0"
 thiserror = "1.0.64"
 hex = "0.4.3"
 tracing = {version="0.1.40", features = ["log"] }
