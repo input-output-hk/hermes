@@ -2,16 +2,16 @@
 
 use std::{
     collections::HashMap,
-    convert::Infallible,
     net::SocketAddr,
     sync::{Arc, Mutex},
 };
 
-use hyper::{
-    self,
-    server::{conn::AddrStream, Server},
-    service::{make_service_fn, service_fn},
+use hyper::{self, service::service_fn};
+use hyper_util::{
+    rt::{TokioExecutor, TokioIo},
+    server::conn::auto::Builder,
 };
+use tokio::net::TcpListener;
 use tracing::{error, info};
 
 use super::routing::router;
@@ -112,29 +112,46 @@ fn executor() {
 
     info!("Starting HTTP Gateway");
 
+    let tokio_executor = TokioExecutor::new();
+
     rt.block_on(async move {
-        let gateway_service = make_service_fn(|client: &AddrStream| {
-            let connection_manager = connection_manager.clone();
-            let ip = client.remote_addr();
-            let config = config.clone();
-
-            async move {
-                Ok::<_, Infallible>(service_fn(move |req| {
-                    router(req, connection_manager.clone(), ip, config.clone())
-                }))
-            }
-        });
-
-        match Server::bind(&config.local_addr)
-            .serve(gateway_service)
-            .await
-        {
-            Ok(()) => (),
+        let listener = match TcpListener::bind(&config.local_addr).await {
+            Ok(listener) => listener,
             Err(err) => {
-                error!("Failing to start HTTP gateway server: {:?}", err);
-                error!("Retrying!");
-                executor();
+                error!("Bind to {} failed: {:?}", config.local_addr, err);
+                return;
             },
+        };
+
+        loop {
+            let (stream, remote_addr) = match listener.accept().await {
+                Ok(conn) => conn,
+                Err(err) => {
+                    error!("Accept failed: {:?}", err);
+                    continue;
+                },
+            };
+
+            let connection_manager = connection_manager.clone();
+            let config = config.clone();
+            let tokio_executor = tokio_executor.clone();
+
+            tokio::spawn(async move {
+                let io = TokioIo::new(stream);
+
+                let service = service_fn(move |req| {
+                    router(req, connection_manager.clone(), remote_addr, config.clone())
+                });
+
+                if let Err(err) = Builder::new(tokio_executor)
+                    .serve_connection(io, service)
+                    .await
+                {
+                    error!("Failing to start HTTP gateway server: {:?}", err);
+                    error!("Retrying!");
+                    executor();
+                }
+            });
         }
     });
 }
