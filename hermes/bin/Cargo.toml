@@ -43,7 +43,7 @@ wasmtime = {version="20.0.2", features = ["component-model"] }
 rusty_ulid = "2.0.0"
 anyhow = "1.0.89"
 hex-literal = "1.0.0"
-thiserror = "1.0.64"
+thiserror = "2.0.12"
 hex = "0.4.3"
 tracing = {version="0.1.40", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "json", "time", "env-filter"] }
