@@ -57,7 +57,7 @@ ed25519-bip32 = "0.4.1"
 dashmap = "6.1.0"
 once_cell = "1.20.2"
 clap = "4.5.20"
-build-info = "0.0.39"
+build-info = "0.0.40"
 derive_more = "1.0.0"
 chrono = { version = "0.4.38", features = ["now"] }
 chrono-tz = "0.10.0"
@@ -84,7 +84,7 @@ dirs = "5.0.1"
 regex = "1.11.0"
 
 [build-dependencies]
-build-info-build = "0.0.39"
+build-info-build = "0.0.40"
 
 [dev-dependencies]
 serial_test = { version = "3.1.1", features = ["file_locks"] }
