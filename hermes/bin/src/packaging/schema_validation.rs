@@ -40,15 +40,11 @@ impl SchemaValidator {
 
     /// Validate JSON value against current schema.
     pub(crate) fn validate(&self, json: &serde_json::Value) -> anyhow::Result<()> {
-        self.schema.validate(json).map_err(|err| {
-            let mut errors = Errors::new();
-            for e in err {
-                errors.add_err(anyhow::anyhow!("{e}"));
-            }
-            errors
-        })?;
-
-        Ok(())
+        let mut errors = Errors::new();
+        self.schema.iter_errors(json).for_each(|error| {
+            errors.add_err(anyhow::anyhow!("{error}"));
+        });
+        errors.return_result(())
     }
 
     /// Validate and deserialize JSON value from reader against current schema.
