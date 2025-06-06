@@ -9,10 +9,11 @@ use std::{
 };
 
 use anyhow::{anyhow, Ok};
+use http_body_util::{BodyExt, Full};
 use hyper::{
     self,
-    body::{Bytes, HttpBody},
-    Body, HeaderMap, Request, Response, StatusCode,
+    body::{Body, Bytes, Incoming},
+    HeaderMap, Request, Response, StatusCode,
 };
 use regex::Regex;
 use tracing::info;
@@ -43,14 +44,16 @@ const EVENT_TIMEOUT: u64 = 1;
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
-pub(crate) fn error_response(err: String) -> anyhow::Result<Response<Body>> {
+pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
+where B: Body + From<String> {
     Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())?)
 }
 
 /// HTTP not found response generator
-pub(crate) fn not_found() -> anyhow::Result<Response<Body>> {
+pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
+where B: Body + From<&'static str> {
     Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())?)
@@ -76,8 +79,9 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
 pub(crate) async fn router(
-    req: Request<Body>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr, config: Config,
-) -> anyhow::Result<Response<Body>> {
+    req: Request<Incoming>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr,
+    config: Config,
+) -> anyhow::Result<Response<Full<Bytes>>> {
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
 
     connection_manager
@@ -122,8 +126,8 @@ pub(crate) async fn router(
 
 /// Route single request to hermes backend
 async fn route_to_hermes(
-    req: Request<Body>, app_name: ApplicationName,
-) -> anyhow::Result<Response<Body>> {
+    req: Request<Incoming>, app_name: ApplicationName,
+) -> anyhow::Result<Response<Full<Bytes>>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
@@ -140,11 +144,12 @@ async fn route_to_hermes(
             .push(header_val.to_str()?.to_string());
     }
 
+    let (_parts, body) = req.into_parts();
     if uri.path() == WEBASM_ROUTE {
         compose_http_event(
             method,
             header_map.into_iter().collect(),
-            req.collect().await?.to_bytes(), // body
+            body.collect().await?.to_bytes(),
             path,
             lambda_send,
             &lambda_recv_answer,
@@ -158,10 +163,13 @@ async fn route_to_hermes(
 
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
-fn compose_http_event(
+fn compose_http_event<B>(
     method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
     receiver: &Receiver<HTTPEventMsg>,
-) -> anyhow::Result<Response<Body>> {
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<String>,
+{
     let on_http_event = HTTPEvent {
         headers,
         method,
@@ -183,7 +191,8 @@ fn compose_http_event(
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data(path: &str, app_name: &ApplicationName) -> anyhow::Result<Response<Body>> {
+fn serve_static_data<B>(path: &str, app_name: &ApplicationName) -> anyhow::Result<Response<B>>
+where B: Body + From<Vec<u8>> {
     let app = reactor::get_app(app_name)?;
     let file = app.vfs().read(path)?;
 

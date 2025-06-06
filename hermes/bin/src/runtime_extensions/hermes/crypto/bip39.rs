@@ -186,7 +186,7 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
     // Maximum length of mnemonic is 24 words which is 32 bytes entropy.
     let mut total_entropy_bytes_max = [0u8; 32];
     // Random number
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // Fill the random number into total_entropy_bytes.
     if let Some(slice) = total_entropy_bytes_max.get_mut(0..total_entropy_bytes) {
         rng.fill_bytes(slice);

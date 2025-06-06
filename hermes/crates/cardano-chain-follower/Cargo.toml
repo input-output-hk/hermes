@@ -15,9 +15,9 @@ workspace = true
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 # specific commit from the `catalyst` branch
 pallas-hardano = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
-thiserror = "1.0.64"
-tokio = { version = "1.37.0", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
-tracing = "0.1.40"
+thiserror = "2.0.12"
+tokio = { version = "1.45.1", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
+tracing = "0.1.41"
 
 [dev-dependencies]
 hex = "0.4.3"

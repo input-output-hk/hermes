@@ -30,11 +30,11 @@ harness = false
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
 
 # HDF5 is consumed using a git tag, because the latest release is very old, but the code is much more advanced.
-hdf5 = { package = "hdf5-metno", version = "0.9.2", features = [ "static", "blosc" ] }
+hdf5 = { package = "hdf5-metno", version = "0.10.1", features = [ "static", "blosc", "blosc-zstd" ] }
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.4", features = ["lz4", "zlib", "zstd"] }
 
-criterion = {version = "0.5.1", optional=true}
+criterion = {version = "0.6.0", optional=true}
 
 cardano-chain-follower = { path = "../crates/cardano-chain-follower", version = "0.0.1" }
 hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "v0.0.3" }
@@ -42,36 +42,38 @@ hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/cat
 wasmtime = {version="20.0.2", features = ["component-model"] }
 rusty_ulid = "2.0.0"
 anyhow = "1.0.89"
-hex-literal = "0.4.1"
-thiserror = "1.0.64"
+hex-literal = "1.0.0"
+thiserror = "2.0.12"
 hex = "0.4.3"
-tracing = {version="0.1.40", features = ["log"] }
+tracing = {version="0.1.41", features = ["log"] }
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "json", "time", "env-filter"] }
 libtest-mimic = "0.8.1"
 crossbeam-queue = "0.3.11"
 bip39 = { version="2.1.0", features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
 iana-time-zone = "0.1.61"
-rand = "0.8.5"
+rand = "0.9.1"
 bip32 = "0.5.2"
 ed25519-bip32 = "0.4.1"
 dashmap = "6.1.0"
 once_cell = "1.20.2"
 clap = "4.5.20"
-build-info = "0.0.39"
-derive_more = "1.0.0"
+build-info = "0.0.40"
+derive_more = "2.0.1"
 chrono = { version = "0.4.38", features = ["now"] }
 chrono-tz = "0.10.0"
 saffron = "0.1.0"
-tokio = { version = "1.37.0", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
-libsqlite3-sys = {version="0.30.1", features = ["bundled"] }
+tokio = { version = "1.45.1", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
+libsqlite3-sys = {version="0.34.0", features = ["bundled"] }
 stringzilla = "3.9.8"
 temp-dir = "0.1.14"
 num_cpus = "1.16.0"
 console = "0.15.8"
 serde = { version="1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
-jsonschema = "0.22.3"
-hyper = { version = "0.14.30", features = ["full"] }
+jsonschema = "0.30.0"
+hyper = { version = "1.6.0", features = ["full"] }
+http-body-util = "0.1.3"
+hyper-util = { version = "0.1.13", features = ["server-auto"] }
 hmac = "0.12.1"
 pbkdf2 = "0.12.2"
 blake2b_simd = "1.0.2"
@@ -79,12 +81,12 @@ sha2 = "0.10.8"
 ed25519-dalek = { version="2.1.1", features = ["pem"] }
 x509-cert = { version="0.2.5", features = ["pem"] }
 coset = "0.3.8"
-rust-ipfs = "0.12.1"
-dirs = "5.0.1"
+rust-ipfs = "0.14.1"
+dirs = "6.0.0"
 regex = "1.11.0"
 
 [build-dependencies]
-build-info-build = "0.0.39"
+build-info-build = "0.0.40"
 
 [dev-dependencies]
 serial_test = { version = "3.1.1", features = ["file_locks"] }
