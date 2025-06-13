@@ -1,7 +1,10 @@
 name: Bug Report
 description: File a bug report
 title: "[Bug]: "
-labels: ["bug"]
+type: "bug"
+labels: ["in triage"]
+projects: ["input-output-hk/102"]
+
 body:
   - type: markdown
     attributes:
@@ -22,6 +25,7 @@ body:
       description: A concise description of what you're experiencing.
     validations:
       required: false
+
   - type: textarea
     attributes:
       label: Expected Behavior
@@ -43,6 +47,13 @@ body:
         - Documentation
         - Other (specify in Anything else section)
       default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Version
+      description: Specify the version/release/commit that has been impacted by the bug
     validations:
       required: true
 
