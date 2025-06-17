@@ -27,7 +27,7 @@ interface api {
       kv-string(string),  // A String
       kv-s64(s64),        // Just use the largest signed integer type supported
       kv-u64(u64),        // Just use the largest integer type supported
-      kv-f64(float64),    // Just use the largest float type supported
+      kv-f64(f64),    // Just use the largest float type supported
       kv-bstr(bstr),      // A byte string
       kv-cbor(cbor),      // CBOR data
       kv-json(json)       // JSON data

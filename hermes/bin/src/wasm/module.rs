@@ -138,7 +138,8 @@ impl Module {
         &self, event: &dyn HermesEventPayload, state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
-        let (instance, _) = bindings::Hermes::instantiate_pre(&mut store, &self.pre_instance)
+        let instance = bindings::HermesPre::new(self.pre_instance.clone())?
+            .instantiate(&mut store)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
