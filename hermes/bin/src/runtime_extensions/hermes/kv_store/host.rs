@@ -42,7 +42,7 @@ impl Host for HermesRuntimeContext {
     /// Concatenation beyond the maximum size will result in truncation.
     /// Adding to a numeric will have the expected behavior (rounded to nearest if
     /// necessary).
-    /// The original type does not change, so: `float64 + u64 = float64`.  `s64 + float64
+    /// The original type does not change, so: `f64 + u64 = f64`.  `s64 + f64
     /// = s64`
     /// If the value overflows or under-flows it will saturate at the limit.
     /// This behavior allows us to decrement values by using the signed version, so
@@ -62,7 +62,7 @@ impl Host for HermesRuntimeContext {
     /// In all cases, the current value is returned.
     /// If the types are NOT the same, the comparison will fail, even if the values are
     /// equivalent.
-    /// For example: `u64(7) != s64(7)`, `float64(-1) != s64(-1)`.
+    /// For example: `u64(7) != s64(7)`, `f64(-1) != s64(-1)`.
     fn kv_cas(
         &mut self, _key: String, _test: Option<KvValues>, _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
