@@ -50,7 +50,7 @@ interface api {
         /// A blob or a UTF-8 text in bytes.
         blob(list<u8>),
         /// Real number.
-        double(float64),
+        double(f64),
         /// 32-bit integer.
         int32(s32),
         /// 64-bit integer.
