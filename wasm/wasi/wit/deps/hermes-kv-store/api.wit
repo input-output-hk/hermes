@@ -55,7 +55,7 @@ interface api {
   ///   String concatenation will only occur up to the maximum possible size of a string value.\
   ///   Concatenation beyond the maximum size will result in truncation.
   /// Adding to a numeric will have the expected behavior (rounded to nearest if necessary).
-  ///   The original type does not change, so: `float64 + u64 = float64`.  `s64 + float64 = s64`
+  ///   The original type does not change, so: `f64 + u64 = f64`.  `s64 + f64 = s64`
   ///   If the value overflows or under-flows it will saturate at the limit.
   ///   This behavior allows us to decrement values by using the signed version, so `u64(10) + s64(-5) = u64(5))`
   /// If a string is added to a numeric, nothing happens.
@@ -66,7 +66,7 @@ interface api {
   /// Check if the Key equals a test value (exact match) and if it does, store the new value.
   /// In all cases, the current value is returned.
   /// If the types are NOT the same, the comparison will fail, even if the values are equivalent.
-  /// For example: `u64(7) != s64(7)`, `float64(-1) != s64(-1)`.
+  /// For example: `u64(7) != s64(7)`, `f64(-1) != s64(-1)`.
   kv-cas: func(key: string, test: option<kv-values>, value: option<kv-values>) -> option<kv-values>;
 
   /// Subscribe to any updates made to a particular Key.
