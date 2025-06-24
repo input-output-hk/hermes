@@ -180,8 +180,6 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
 
     // Event dispatch
     for (app_name, module_id, module) in execution_contexts {
-        event.add_processor();
-
         //
         // parallelize
         //
@@ -190,8 +188,6 @@ fn targeted_event_execution(indexed_apps: &IndexedApps, event: HermesEvent) {
         //   m1 m2 m3 m4
         event_dispatch(app_name.clone(), module_id.clone(), module, event.payload());
     }
-
-    event.finished();
 }
 
 /// Executes Hermes events from the provided receiver .

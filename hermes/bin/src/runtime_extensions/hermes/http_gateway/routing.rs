@@ -13,7 +13,6 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
-use std::result::Result::Ok as Okz;
 
 use tracing::info;
 
@@ -162,19 +161,9 @@ fn compose_http_event(
         sender,
     };
 
-    let mut event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
-
-    let rx = event.make_waiter();
+    let event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
 
     crate::event::queue::send(event)?;
-
-    while let Okz(msg) = rx.recv() {
-        info!("event executed_on: {:?}", msg.event_name());
-    }
-
-    /*while let Okz(msg) = &receiver.recv() {
-        info!("http_msg: {:?}", msg);
-    }*/
 
     match &receiver.recv()? {
         HTTPEventMsg::HttpEventResponseSome(resp) => {

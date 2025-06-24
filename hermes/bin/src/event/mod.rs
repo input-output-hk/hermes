@@ -7,12 +7,6 @@ use crate::{
     wasm::module::{ModuleId, ModuleInstance},
 };
 
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    mpsc::{self, Receiver, Sender},
-    Arc,
-};
-
 /// A trait for defining the behavior of a Hermes event.
 pub(crate) trait HermesEventPayload: Send + Sync + 'static {
     /// Returns the name of the event associated with the payload.
@@ -58,12 +52,6 @@ pub(crate) struct HermesEvent {
 
     /// Target module
     target_module: TargetModule,
-
-    /// Signalling queue which tracks event deps
-    completion_queue: Option<Sender<Box<dyn HermesEventPayload>>>,
-
-    /// Event lifecycle tracker
-    event_lifetimes: Arc<AtomicU64>,
 }
 
 impl HermesEvent {
@@ -75,34 +63,7 @@ impl HermesEvent {
             payload: Box::new(payload),
             target_app,
             target_module,
-            completion_queue: None,
-            event_lifetimes: Arc::new(AtomicU64::new(0)),
         }
-    }
-
-    /// Create event completion queue
-    pub(crate) fn make_waiter(&mut self) -> Receiver<Box<dyn HermesEventPayload>> {
-        let (tx, rx): (
-            Sender<Box<dyn HermesEventPayload>>,
-            Receiver<Box<dyn HermesEventPayload>>,
-        ) = mpsc::channel();
-        self.completion_queue = Some(tx);
-        rx
-    }
-
-    /// Event computation starting on module
-    pub(crate) fn add_processor(&self) {
-        self.event_lifetimes.fetch_add(1, Ordering::SeqCst);
-    }
-
-    /// Event computation complete on module
-    pub(crate) fn finished(self) {
-        // Subtracts from the current value, returning the previous value.
-        if self.event_lifetimes.fetch_sub(1, Ordering::SeqCst) == 1 {
-            if let Some(q) = self.completion_queue {
-                let _ = q.send(self.payload).unwrap();
-            }
-        };
     }
 
     /// Get event's payload
