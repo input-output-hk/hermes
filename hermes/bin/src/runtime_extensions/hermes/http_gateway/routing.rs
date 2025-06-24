@@ -13,6 +13,8 @@ use hyper::{
     body::{Bytes, HttpBody},
     Body, HeaderMap, Request, Response, StatusCode,
 };
+use std::result::Result::Ok as Okz;
+
 use tracing::info;
 
 use super::{
@@ -147,6 +149,7 @@ async fn route_to_hermes(req: Request<Body>) -> anyhow::Result<Response<Body>> {
 
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
+#[allow(for_loops_over_fallibles)]
 fn compose_http_event(
     method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
     receiver: Receiver<HTTPEventMsg>,
@@ -158,11 +161,20 @@ fn compose_http_event(
         body,
         sender,
     };
-    crate::event::queue::send(HermesEvent::new(
-        on_http_event,
-        TargetApp::All,
-        TargetModule::All,
-    ))?;
+
+    let mut event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
+
+    let rx = event.make_waiter();
+
+    crate::event::queue::send(event)?;
+
+    while let Okz(msg) = rx.recv() {
+        info!("event executed_on: {:?}", msg.event_name());
+    }
+
+    /*while let Okz(msg) = &receiver.recv() {
+        info!("http_msg: {:?}", msg);
+    }*/
 
     match &receiver.recv()? {
         HTTPEventMsg::HttpEventResponseSome(resp) => {

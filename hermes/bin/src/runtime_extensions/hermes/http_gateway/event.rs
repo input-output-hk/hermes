@@ -4,6 +4,7 @@ use std::sync::mpsc::Sender;
 
 use hyper::{self, body::Bytes};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::event::HermesEventPayload;
 
@@ -30,6 +31,7 @@ pub(crate) enum HTTPEventMsg {
 }
 
 /// HTTP Event
+#[derive(Clone)]
 pub(crate) struct HTTPEvent {
     pub(crate) headers: HeadersKV,
     pub(crate) method: Method,
@@ -51,6 +53,8 @@ impl HermesEventPayload for HTTPEvent {
             &self.path,
             &self.method,
         )?;
+
+        info!("random! {:?}", rusty_ulid::generate_ulid_string());
 
         if let Some(resp) = event_response {
             Ok(self.sender.send(HTTPEventMsg::HttpEventResponseSome((
