@@ -5,74 +5,61 @@
 /// ## Permissions
 ///
 /// This API is ALWAYS available.
-
-/// Cardano API Interface
+/// 
 interface api {
-    use hermes:binary/api.{bstr};
+    use hermes:binary/api.{b256};
     use hermes:cbor/api.{cbor};
 
-    /// Cardano Blocks are CBOR Data
-    type cardano-block = cbor;
+    /// Slot on the Cardano blockchain.
+    type slot = u64;
+    /// Cardano transaction index.
+    type txn-idx = u64;
+    /// Cardano block data.
+    type block = cbor;
+    /// Cardano transaction data.
+    type txn = cbor;
 
-    /// Cardano Transactions are CBOR Data
-    type cardano-txn = cbor;
+    // A point variation in the blockchain.
+    variant point {
+        genesis, // Genesis of the blockchain.
+        specific(tuple<slot, b256>), // A specific point in the blockchain given the slot number and transaction hash.
+        tip, // The tip of the blockchain.
+        continue, // From whenever its currently pointing.
+    }
 
-    /// The ID of the blockchain to interact with.
-    enum cardano-blockchain-id {
+    /// Cardano blockchain network.
+    enum network {
         mainnet, // Cardano Mainnet
         preprod, // Cardano Preprod Network
         preview, // Cardano Preview Network
         local-test-blockchain // A local isolated test blockchain.
     }
 
-    /// Source information about where the block came from, and if we are at tip or not.
-    flags block-src {
-        tip,
-        node,
-        mithril
-    }
-
-    /// The Slot number to interact with
-    variant slot {
-        genesis,          // The very start of the blockchain.
-        point(tuple<u64, bstr>), // A particular slot number.
-        tip,              // The TIP of the blockchain.
-        continue,         // From wherever its currently pointing.
-    }
-
-    /// Errors that can happen fetching/subscribing to blocks
-    enum fetch-error {
+    /// Errors that can happen subscribing to blocks
+    enum subscribe-error {
         blockchain-not-available, // The blockchain requested is not available.
         invalid-slot,   // The slot requested is not a valid slot for the blockchain.
     }
 
-    /// Errors that can occur when posting transactions.
-    enum txn-error {
-        blockchain-not-available, // The blockchain requested is not available.
-        malformed-transaction, // The transaction is not well formed, and can not be posted.
-        post-txn-not-allowed // Posting transactions is not allowed, nothing sent to blockchain.
+    /// Unsubscribe option
+    flags unsubscribe-option {
+        block,  // Unsubscribe block data.
+        rollback, // Unsubscribe rollback data.
+        roll-forward, // Unsubscribe roll forward data.
+        all // Unsubscribe all.
     }
-
-    /// Options used to unsubscribe from the blockchain data flow.
-    flags unsubscribe-options {
-        block,  // Stop receiving block data
-        transaction, // Stop receiving txn data
-        rollback, // Stop receiving rollback data
-        stop // stop the blockchain fetching process altogether.
-    }
-
 
     /// Subscribe to the Blockchain block data.
     ///
     /// **Parameters**
     ///
-    /// - `net` : The blockchain network to fetch block from, and subscribe to.
-    /// - `whence`: Where to start fetching blocks from.
+    /// - `network` : The blockchain network to subscribe from.
+    /// - `whence`: Where to start subscribing blocks from.
     ///
     /// **Returns**
     ///
-    /// - `ok(u64)` : The slot we are synching from now.
-    /// - `error(fetch-error)` : If an error occured.
+    /// - `ok(slot)` : The slot we are synching from now.
+    /// - `error(subscribe-error)` : If an error occured.
     ///
     /// **Notes**
     ///
@@ -84,60 +71,58 @@ interface api {
     /// When `whence` == `continue` the blockchain will keep syncing from where it is at, and this module
     /// will be subscribed to block updates.
     ///
-    /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be unsubscribed.
+    /// `whence` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
     ///
-    ///
-    subscribe-blocks: func (net: cardano-blockchain-id, whence: slot) -> result<u64, fetch-error>;
-
-    /// Unsubscribe from the blockchain events listed.
-    ///
-    /// **Parameters**
-    ///
-    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain follower).
-    ///
-    /// **Notes**
-    ///
-    /// This only unsubscribes from the events.
-    /// The option `stop` MUST be set to actually stop fetching data from the blockchain once started.
-    ///
-    /// `stop` can be set without unsubscribing, and this will interrupt the flow of blockchain data.
-    /// After `stop`,  `subscribe-blocks(?, continue)` would cause blockchain sync to continue from
-    /// the last block received.  This would result in the last block being sent as an event twice,
-    /// once before the `stop` and once after the `continue`.
-    unsubscribe: func(net: cardano-blockchain-id, opts: unsubscribe-options);
-
-    /// Subscribe to transaction data events, does not alter the blockchain sync in anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    ///
-    subscribe-txn: func (net: cardano-blockchain-id);
+    subscribe-blocks: func (network: network, whence: slot) -> result<slot, subscribe-error>;
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in anyway.
     ///
     /// **Parameters**
     ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
+    /// - `network` : The blockchain network to subscribe from.
     ///
     /// **Notes**
     ///
-    /// After a rollback event, the blockchain sync will AUTOMATICALLY start sending block
-    /// data from the rollback point.  No action is required to actually follow the rollback, unless the
+    /// After a rollback event, the blockchain sync will AUTOMATICALLY start syncing block
+    /// data from the rollback point. No action is required to actually follow the rollback, unless the
     /// default behavior is not desired.
-    subscribe-rollback: func (net: cardano-blockchain-id);
+    subscribe-rollback: func (network: network);
 
-    /// Fetch a block from the requested blockchain at the requested slot.
+    /// Subscribe to blockchain roll forward events, does not alter the blockchain sync in anyway.
     ///
     /// **Parameters**
     ///
-    /// - `net`    : The blockchain network to get a block from.
-    /// - `whence` : Which block to get.
+    /// - `network` : The blockchain network to subscribe from.
+    ///
+    /// **Notes**
+    ///
+    /// After a roll forward event, the blockchain sync will AUTOMATICALLY start syncing data
+    /// from the roll forward point. No action is required to actually follow the roll forward, unless the
+    /// default behavior is not desired.
+    subscribe-roll-forward: func(network: network);
+
+    /// Unsubscribe from blockchain events.
+    ///
+    /// **Parameters**
+    ///
+    /// - `network` : The blockchain network to unsubscribe from.
+    /// - `opts` : Flags specifying which event to unsubscribe from.
+    ///
+    /// **Notes**
+    ///
+    /// Unsubscribing does **not** stop the chain follower, it only removes the module’s event subscriptions.
+    unsubscribe: func(network: network, opts: unsubscribe-options);
+
+    /// Get a block data from the requested blockchain network at the given slot.
+    ///
+    /// **Parameters**
+    ///
+    /// - `network`    : The blockchain network to get a block data from.
+    /// - `slot` : Which slot number to get the block data.
     ///
     /// **Returns**
     ///
-    /// - `cardano-block` : The block requested.
-    /// - `fetch-error` : An error if the block can not be fetched.
+    /// - `block` : Cardano block data.
     ///
     /// **Notes**
     ///
@@ -145,50 +130,25 @@ interface api {
     /// being followed and generating events.
     /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
     /// to automated block fetch.
-    ///
-    fetch-block: func (net: cardano-blockchain-id, whence: slot) -> result<cardano-block, fetch-error>;
+    get-block: func (network: network, slot: slot) -> option<block>;
 
-    /// Get transactions from a block.
-    ///
-    /// This can be used to easily extract all transactions from a complete block.
+    /// Get a transaction data from the requested blockchain network at the given slot and transaction index.
     ///
     /// **Parameters**
     ///
-    /// - `block` : The blockchain data to extract transactions from.
+    /// - `network`    : The blockchain network to get a transaction data from.
+    /// - `slot` : Which slot number to get the transaction data from.
+    /// - `txn-index`: Which transaction index to get the transaction data from.
     ///
     /// **Returns**
     ///
-    /// - a list of all transactions in the block, in the order they appear in the block.
+    /// - `txn` : Cardano transaction data.
     ///
     /// **Notes**
     ///
-    /// This function exists to support `fetch-block`.
-    /// Transactions from subscribed block events, should be processed as transaction events.
-    ///
-    get-txns: func (block: cardano-block) -> list<cardano-txn>;
-
-    /// Post a transactions to the blockchain.
-    ///
-    /// This can be used to post a pre-formed transaction to the required blockchain.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain to post the transaction to.
-    /// - `txn` : The transaction data, ready to submit.
-    ///
-    /// **Returns**
-    ///
-    /// - An error if the transaction can not be posted.
-    ///
-    /// **Notes**
-    ///
-    /// This is proposed functionality, and is not yet active.
-    /// All calls to this function will return `post-txn-not-allowed` error.
-    ///
-    post-txn: func (net: cardano-blockchain-id, txn: cardano-txn) -> result<_, txn-error>;
-}
-
-/// World just for the Hermes 'json' API.
-world cardano-api {
-    import api;
+    /// Getting a transaction data does not require the blockchain to be subscribed, or for blocks to be
+    /// being followed and generating events.
+    /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
+    /// to automated block fetch.
+    get-tx: func(network: network, slot: slot, txn-index: txn-index) -> option<txn>;
 }
