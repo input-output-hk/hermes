@@ -106,12 +106,12 @@ interface api {
     /// **Parameters**
     ///
     /// - `network` : The blockchain network to unsubscribe from.
-    /// - `opts` : Flags specifying which event to unsubscribe from.
+    /// - `opt` : Flags specifying which event to unsubscribe from.
     ///
     /// **Notes**
     ///
     /// Unsubscribing does **not** stop the chain follower, it only removes the module’s event subscriptions.
-    unsubscribe: func(network: network, opts: unsubscribe-options);
+    unsubscribe: func(network: network, opt: unsubscribe-option);
 
     /// Get a block data from the requested blockchain network at the given slot.
     ///
@@ -138,7 +138,7 @@ interface api {
     ///
     /// - `network`    : The blockchain network to get a transaction data from.
     /// - `slot` : Which slot number to get the transaction data from.
-    /// - `txn-index`: Which transaction index to get the transaction data from.
+    /// - `txn-idx`: Which transaction index to get the transaction data from.
     ///
     /// **Returns**
     ///
@@ -150,5 +150,5 @@ interface api {
     /// being followed and generating events.
     /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
     /// to automated block fetch.
-    get-tx: func(network: network, slot: slot, txn-index: txn-index) -> option<txn>;
+    get-tx: func(network: network, slot: slot, txn-idx: txn-idx) -> option<txn>;
 }
