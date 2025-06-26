@@ -5,7 +5,7 @@
 /// ## Permissions
 ///
 /// This API is ALWAYS available.
-/// 
+
 interface api {
     use hermes:binary/api.{b256};
     use hermes:cbor/api.{cbor};
@@ -21,10 +21,10 @@ interface api {
     /// A point in Cardano blockchain
     type point = tuple<slot, b256>;
 
-    // A sync point variation.
+    /// A sync point variation.
     variant sync-point {
         genesis, // Genesis of the blockchain.
-        specific(point), // A specific point in the blockchain given the slot number and transaction hash.
+        specific(point), // A specific point in the blockchain.
         tip, // The tip of the blockchain.
         continue, // From whenever its currently pointing.
     }
@@ -34,7 +34,6 @@ interface api {
         mainnet, // Cardano Mainnet
         preprod, // Cardano Preprod Network
         preview, // Cardano Preview Network
-        local-test-blockchain // A local isolated test blockchain.
     }
 
     /// Errors that can happen subscribing to blocks
@@ -55,7 +54,7 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `network` : The blockchain network to subscribe from.
+    /// - `network` : The Cardano blockchain network to subscribe from.
     /// - `sync-point`: Where to start subscribing blocks from.
     ///
     /// **Returns**
@@ -74,14 +73,13 @@ interface api {
     /// will be subscribed to block updates.
     ///
     /// `sync-point` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
-    ///
     subscribe-blocks: func (network: network, sync-point: sync-point) -> result<slot, subscribe-error>;
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in anyway.
     ///
     /// **Parameters**
     ///
-    /// - `network` : The blockchain network to subscribe from.
+    /// - `network` : The Cardano blockchain network to subscribe from.
     ///
     /// **Notes**
     ///
@@ -94,7 +92,7 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `network` : The blockchain network to subscribe from.
+    /// - `network` : The Cardano blockchain network to subscribe from.
     ///
     /// **Notes**
     ///
@@ -107,7 +105,7 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `network` : The blockchain network to unsubscribe from.
+    /// - `network` : The Cardano blockchain network to unsubscribe from.
     /// - `opt` : Flags specifying which event to unsubscribe from.
     ///
     /// **Notes**
@@ -119,7 +117,7 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `network`    : The blockchain network to get a block data from.
+    /// - `network`    : The Cardano blockchain network to get a block data from.
     /// - `slot` : Which slot number to get the block data.
     ///
     /// **Returns**
@@ -138,7 +136,7 @@ interface api {
     ///
     /// **Parameters**
     ///
-    /// - `network`    : The blockchain network to get a transaction data from.
+    /// - `network`    : The Cardano blockchain network to get a transaction data from.
     /// - `slot` : Which slot number to get the transaction data from.
     /// - `txn-idx`: Which transaction index to get the transaction data from.
     ///
@@ -158,7 +156,7 @@ interface api {
     /// 
     /// **Parameters**
     /// 
-    /// - `network`    : The blockchain network to get tips data from.
+    /// - `network`    : The Cardano blockchain network to get tips data from.
     /// 
     /// **Returns**
     /// 
