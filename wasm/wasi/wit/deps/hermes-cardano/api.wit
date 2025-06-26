@@ -47,7 +47,7 @@ interface api {
     flags unsubscribe-option {
         block,  // Unsubscribe block data.
         rollback, // Unsubscribe rollback data.
-        roll-forward, // Unsubscribe roll forward data.
+        roll-forward, // Unsubscribe roll-forward data.
         all // Unsubscribe all.
     }
 
@@ -90,7 +90,7 @@ interface api {
     /// default behavior is not desired.
     subscribe-rollback: func (network: network);
 
-    /// Subscribe to blockchain roll forward events, does not alter the blockchain sync in anyway.
+    /// Subscribe to blockchain roll-forward events, does not alter the blockchain sync in anyway.
     ///
     /// **Parameters**
     ///
@@ -98,8 +98,8 @@ interface api {
     ///
     /// **Notes**
     ///
-    /// After a roll forward event, the blockchain sync will AUTOMATICALLY start syncing data
-    /// from the roll forward point. No action is required to actually follow the roll forward, unless the
+    /// After a roll-forward event, the blockchain sync will AUTOMATICALLY start syncing data
+    /// from the roll-forward point. No action is required to actually follow the roll-forward, unless the
     /// default behavior is not desired.
     subscribe-roll-forward: func(network: network);
 
