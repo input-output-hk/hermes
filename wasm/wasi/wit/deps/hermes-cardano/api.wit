@@ -18,11 +18,13 @@ interface api {
     type block = cbor;
     /// Cardano transaction data.
     type txn = cbor;
+    /// A point in Cardano blockchain
+    type point = tuple<slot, b256>;
 
-    // A point variation in the blockchain.
-    variant point {
+    // A sync point variation.
+    variant sync-point {
         genesis, // Genesis of the blockchain.
-        specific(tuple<slot, b256>), // A specific point in the blockchain given the slot number and transaction hash.
+        specific(point), // A specific point in the blockchain given the slot number and transaction hash.
         tip, // The tip of the blockchain.
         continue, // From whenever its currently pointing.
     }
@@ -54,7 +56,7 @@ interface api {
     /// **Parameters**
     ///
     /// - `network` : The blockchain network to subscribe from.
-    /// - `whence`: Where to start subscribing blocks from.
+    /// - `sync-point`: Where to start subscribing blocks from.
     ///
     /// **Returns**
     ///
@@ -64,16 +66,16 @@ interface api {
     /// **Notes**
     ///
     /// If the blockchain is not yet syncing, it will start, from the requested slot.
-    /// If the blockchain is not yet syncing, and `whence` == `continue` then the blockchain will
+    /// If the blockchain is not yet syncing, and `sync-point` == `continue` then the blockchain will
     /// not be synced from, the calling module will only be subscribed for block events.
     ///
-    /// If the blockchain is already syncing, the sync will stop and restart, unless `whence` == `continue`.
-    /// When `whence` == `continue` the blockchain will keep syncing from where it is at, and this module
+    /// If the blockchain is already syncing, the sync will stop and restart, unless `sync-point` == `continue`.
+    /// When `sync-point` == `continue` the blockchain will keep syncing from where it is at, and this module
     /// will be subscribed to block updates.
     ///
-    /// `whence` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
+    /// `sync-point` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
     ///
-    subscribe-blocks: func (network: network, whence: slot) -> result<slot, subscribe-error>;
+    subscribe-blocks: func (network: network, sync-point: sync-point) -> result<slot, subscribe-error>;
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in anyway.
     ///
@@ -122,7 +124,7 @@ interface api {
     ///
     /// **Returns**
     ///
-    /// - `block` : Cardano block data.
+    /// - Cardano block data `block` if found, else None.
     ///
     /// **Notes**
     ///
@@ -142,7 +144,7 @@ interface api {
     ///
     /// **Returns**
     ///
-    /// - `txn` : Cardano transaction data.
+    /// - Cardano transaction data `txn` if found, else None
     ///
     /// **Notes**
     ///
@@ -151,4 +153,22 @@ interface api {
     /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
     /// to automated block fetch.
     get-tx: func(network: network, slot: slot, txn-idx: txn-idx) -> option<txn>;
+
+    /// Get the tip of immutable chain and live chain respectively.
+    /// 
+    /// **Parameters**
+    /// 
+    /// - `network`    : The blockchain network to get tips data from.
+    /// 
+    /// **Returns**
+    /// 
+    /// - tuple `(immutable_tip, live_tip)` representing the two chain tips.
+    /// 
+    /// **Notes**
+    ///
+    /// Getting a tips data does not require the blockchain to be subscribed, or for blocks to be
+    /// being followed and generating events.
+    /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
+    /// to automated block fetch.
+    get-tips: func(network: network) -> tuple<point, point>;
 }
