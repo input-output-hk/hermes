@@ -80,6 +80,7 @@ build-rust-bindings:
     RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
+    SAVE ARTIFACT hermes.rs AS LOCAL hermes_bindings.rs
 
 # build-go-bindings - Generate tinygo bindings
 build-go-bindings:

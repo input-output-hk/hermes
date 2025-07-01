@@ -1,0 +1,13 @@
+/// # Http-request API
+
+/// Http request interface
+interface api {
+    type payload = u32;
+
+    send: func(p: payload) -> bool;
+}
+
+/// World just for the Hermes Http request extension.
+world http-request-api {
+    import api;
+}
