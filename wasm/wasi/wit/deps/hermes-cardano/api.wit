@@ -21,14 +21,14 @@ interface api {
     /// A point in Cardano blockchain
     type point = tuple<slot, b256>;
 
-    /// A sync point variation.
-    variant sync-point {
-        genesis, // Genesis of the blockchain.
-        specific(point), // A specific point in the blockchain.
-        tip, // The tip of the blockchain.
-        continue, // From whenever its currently pointing.
-        stop, // Stop the sync.
-    }
+    // /// A sync point variation.
+    // variant sync-point {
+    //     genesis, // Genesis of the blockchain.
+    //     specific(point), // A specific point in the blockchain.
+    //     tip, // The tip of the blockchain.
+    //     continue, // From whenever its currently pointing.
+    //     stop, // Stop the sync.
+    // }
 
     /// Cardano blockchain network.
     enum network {
@@ -40,7 +40,7 @@ interface api {
     /// Errors that can happen subscribing to blocks
     enum subscribe-error {
         blockchain-not-available, // The blockchain requested is not available.
-        invalid-slot,   // The slot requested is not a valid slot for the blockchain.
+        // invalid-slot,   // The slot requested is not a valid slot for the blockchain.
     }
 
     /// Unsubscribe option
@@ -51,30 +51,48 @@ interface api {
         all // Unsubscribe all.
     }
 
-    /// Subscribe to the Blockchain block data.
+    // /// Subscribe to the Blockchain block data.
+    // ///
+    // /// **Parameters**
+    // ///
+    // /// - `network` : The Cardano blockchain network to subscribe from.
+    // /// - `sync-point`: Where to start subscribing blocks from.
+    // ///
+    // /// **Returns**
+    // ///
+    // /// - `ok(slot)` : The slot we are synching from now.
+    // /// - `error(subscribe-error)` : If an error occurred.
+    // ///
+    // /// **Notes**
+    // ///
+    // /// If the blockchain is not yet syncing, it will start, from the requested slot.
+    // /// If the blockchain is not yet syncing, and `sync-point` == `continue` then the blockchain will
+    // /// not be synced from, the calling module will only be subscribed for block events.
+    // ///
+    // /// If the blockchain is already syncing, the sync will stop and restart, unless `sync-point` == `continue`.
+    // /// When `sync-point` == `continue` the blockchain will keep syncing from where it is at, and this module
+    // /// will be subscribed to block updates.
+    // ///
+    // /// `sync-point` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
+    // subscribe-blocks: func (network: network, sync-point: sync-point) -> result<slot, subscribe-error>;
+
+    // FIXME (bkioshn): Proposing this function instead of the above one. 
+    //        The caller should not be allowed to modify the follower sync state, 
+    //        as this causes the follower to restart. It is better to expose the block 
+    //        the follower is currently on, rather than allowing arbitrary resubscription
+
+    /// Subscribe to the Blockchain latest sync data.
     ///
     /// **Parameters**
     ///
     /// - `network` : The Cardano blockchain network to subscribe from.
-    /// - `sync-point`: Where to start subscribing blocks from.
-    ///
+    /// 
     /// **Returns**
     ///
-    /// - `ok(slot)` : The slot we are synching from now.
+    /// - `ok(tuple<slot, block>)` : The current slot and its corresponding block data.
     /// - `error(subscribe-error)` : If an error occurred.
-    ///
-    /// **Notes**
-    ///
-    /// If the blockchain is not yet syncing, it will start, from the requested slot.
-    /// If the blockchain is not yet syncing, and `sync-point` == `continue` then the blockchain will
-    /// not be synced from, the calling module will only be subscribed for block events.
-    ///
-    /// If the blockchain is already syncing, the sync will stop and restart, unless `sync-point` == `continue`.
-    /// When `sync-point` == `continue` the blockchain will keep syncing from where it is at, and this module
-    /// will be subscribed to block updates.
-    ///
-    /// `sync-point` == `stop` will stop blockchain from syncing, and the caller will be unsubscribed.
-    subscribe-blocks: func (network: network, sync-point: sync-point) -> result<slot, subscribe-error>;
+    /// 
+    subscribe-block: func (network: network) -> result<tuple<slot, block>, subscribe-error>;
 
     /// Subscribe to blockchain rollback events, does not alter the blockchain sync in anyway.
     ///
