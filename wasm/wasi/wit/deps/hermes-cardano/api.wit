@@ -27,6 +27,7 @@ interface api {
         specific(point), // A specific point in the blockchain.
         tip, // The tip of the blockchain.
         continue, // From whenever its currently pointing.
+        stop, // Stop the sync.
     }
 
     /// Cardano blockchain network.
@@ -60,7 +61,7 @@ interface api {
     /// **Returns**
     ///
     /// - `ok(slot)` : The slot we are synching from now.
-    /// - `error(subscribe-error)` : If an error occured.
+    /// - `error(subscribe-error)` : If an error occurred.
     ///
     /// **Notes**
     ///
@@ -150,7 +151,7 @@ interface api {
     /// being followed and generating events.
     /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
     /// to automated block fetch.
-    get-tx: func(network: network, slot: slot, txn-idx: txn-idx) -> option<txn>;
+    get-txn: func(network: network, slot: slot, txn-idx: txn-idx) -> option<txn>;
 
     /// Get the tip of immutable chain and live chain respectively.
     /// 

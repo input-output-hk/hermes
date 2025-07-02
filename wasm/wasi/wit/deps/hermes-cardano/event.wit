@@ -23,7 +23,7 @@ interface event-on-rollback {
     /// 
     /// ## Parameters
     /// 
-    /// - `network` : The Cardano blockchain network where the rollback occured.
+    /// - `network` : The Cardano blockchain network where the rollback occurred.
     /// - `slot`: The Cardano slot number that the rollback rolls to.
     /// 
     /// ## Notes
@@ -42,7 +42,7 @@ interface event-on-roll-forward {
     /// 
     /// ## Parameters
     /// 
-    /// - `network` : The Cardano blockchain network that the roll-forward occured.
+    /// - `network` : The Cardano blockchain network that the roll-forward occurred.
     /// - `slot` : The Cardano slot number that the roll-forward rolls to.
     /// 
     /// ## Notes
