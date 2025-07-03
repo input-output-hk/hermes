@@ -18,6 +18,9 @@ pub(crate) fn emit_init_event(target_app: ApplicationName) -> anyhow::Result<()>
         TargetApp::List(vec![target_app]),
         TargetModule::All,
     );
+
+    println!("sending init event");
     hermes_event::queue::send(init_event)?;
+    println!("event has been sent!");
     Ok(())
 }
