@@ -31,6 +31,7 @@ pub(crate) struct Run {
 }
 
 impl Run {
+    #[allow(unreachable_code)]
     /// Run the hermes application
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         for cert_path in self.certificates {
@@ -65,6 +66,8 @@ impl Run {
         println!("yielded");
         println!("sleeping for 4 seconds");
         std::thread::sleep(Duration::from_secs(4));
+
+        loop {}
 
         Ok(())
     }
