@@ -7,7 +7,7 @@
 /// This API is ALWAYS available.
 
 interface api {
-    use hermes:binary/api.{b256};
+    use hermes:hash/api.{blake2b256};
     use hermes:cbor/api.{cbor};
 
     /// Slot on the Cardano blockchain.
@@ -18,8 +18,10 @@ interface api {
     type block = cbor;
     /// Cardano transaction data.
     type txn = cbor;
-    /// A point in Cardano blockchain
-    type point = tuple<slot, b256>;
+    /// Cardano transaction hash.
+    type txn-hash = blake2b256;
+    /// A point in Cardano blockchain created by a slot
+    type point = tuple<slot, txn-hash>;
 
     // /// A sync point variation.
     // variant sync-point {
