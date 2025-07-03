@@ -1,12 +1,20 @@
 VERSION 0.8
 
-IMPORT ../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.3 AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 #cspell: words rustfmt wasi autodrop teavm
 
+# Make am Artifact which consists of the WIT SRC.
+builder:
+    DO rust-ci+SETUP
+
+    COPY ..+wasi-src/wasi ../wasi
+
 # Build the WASI Docs:
 build:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs ../wasi/wit
@@ -74,16 +82,15 @@ build:
 
 # test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
 build-rust-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
-    # Will fail unless cat-ci has wit-bindgen-cli 0.28.0 (no other version works).
     RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
 
 # build-go-bindings - Generate tinygo bindings
 build-go-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
 
@@ -93,7 +100,7 @@ build-go-bindings:
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit --out-dir bindings/c
 
@@ -101,20 +108,20 @@ build-c-bindings:
 
 # test-java-bindings - Test we can generate Java bindings without error from the hermes default world
 test-java-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # java bindings are currently broken because `resource` is not yet implemented.
     RUN wit-bindgen teavm-java ../wasi/wit | true
 
 # test-go-bindings - Test we can generate GO bindings without error from the hermes default world
 test-go-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     RUN wit-bindgen tiny-go ../wasi/wit
 
 # test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
 test-csharp-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # csharp bindings are currently broken because `lots of stuff is not yet implemented.
     RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true

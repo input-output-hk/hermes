@@ -5,7 +5,6 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.3 AS rust-ci
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 IMPORT ../../wasi AS wasi
-IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
 # build : build the cardano integration test wasm component
 # This no longer builds. 
@@ -17,14 +16,10 @@ fails-to-build:
     COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
-    DO rust-ci+CARGO --args "build --target wasm32-wasip1 --release" \
-        --output="wasm32-wasip1/release/cardano_rte_test_component.wasm"
+    DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
+        --output="cardano.wasm"
 
-    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm wasi_snapshot_preview1.wasm
-
-    RUN wasm-tools component new -o cardano.wasm target/wasm32-wasip1/release/cardano_rte_test_component.wasm --adapt wasi_snapshot_preview1.wasm
-
-    SAVE ARTIFACT cardano.wasm
+    SAVE ARTIFACT target/cardano.wasm
 
 # local-bindings : saves the Hermes rust bindings locally. This is useful for local development.
 local-bindings:
