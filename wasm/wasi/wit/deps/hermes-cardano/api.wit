@@ -55,6 +55,12 @@ interface api {
         invalid-slot,
     }
 
+    /// Errors that can happen when initialize network.
+    enum create-network-error {
+        /// Network not supported.
+        not-support,
+    }
+
     /// Cardano network
     resource network {
         /// Create a new Cardano network instance.
@@ -62,7 +68,12 @@ interface api {
         /// **Parameters**
         ///
         /// - `network`: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).
-        constructor(network: cardano-network);
+        /// 
+        /// **Returns**
+        /// 
+        /// - `ok(_)`: If successfully create network.
+        /// - `error(create-network-error)`: If creating network failed.
+        new: func(network: cardano-network) -> result<_, create-network-error>;
 
         /// Subscribe to blockchain block events, start from a specified starting point.
         ///
