@@ -1,0 +1,24 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:v3.4.3 AS rust-tools
+
+IMPORT ../../wasi AS wasi
+
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/433).
+# - `wit-bindgen` doesn't support tiny-go anymore.
+# - `wit-bindgen-go` has to be installed separately or substituted.
+#
+# build - builds a go integration test wasm component
+build:
+    FROM tinygo/tinygo:0.32.0
+
+    # COPY rust-tools+tool-wasm-tools/wasm-tools /bin
+    # COPY wasi+build-go-bindings/bindings ./gen
+    # COPY wasi+build-go-bindings/wit ./wit
+
+    COPY go.mod main.go ./
+    # Fails to build since bindings aren't generated.
+    # When bindings become available this should properly compile. 
+	# RUN tinygo build -target=wasip2 -no-debug -o main.wasm main.go
+
+    SAVE ARTIFACT component.wasm golang.wasm

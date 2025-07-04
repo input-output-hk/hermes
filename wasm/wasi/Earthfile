@@ -88,14 +88,18 @@ build-rust-bindings:
 
     SAVE ARTIFACT hermes.rs
 
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/433).
+# - `wit-bindgen` doesn't support tiny-go anymore.
+# - `wit-bindgen-go` has to be installed separately or substituted.
+#
 # build-go-bindings - Generate tinygo bindings
 build-go-bindings:
     FROM +builder
 
-    RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
+    # RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
 
-    SAVE ARTIFACT ../wasi/wit
-    SAVE ARTIFACT bindings
+    # SAVE ARTIFACT ../wasi/wit
+    # SAVE ARTIFACT bindings
 
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
