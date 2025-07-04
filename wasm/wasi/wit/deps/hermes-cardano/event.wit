@@ -3,46 +3,26 @@
 /// Event interfaces that a component must export in order to receive events from the host.
 
 interface event-on-block {
-    use api.{network, block, slot};
+    use api.{block, subscription-id};
 
     /// Trigger when a Cardano block event is fired.
     /// 
-    /// ## Parameters
-    /// 
-    /// - `network` : The Cardano blockchain network that the block is originated from.
-    /// - `block` : The CBOR Cardano block data.
-    /// - `slot` : The Cardano slot number that the block is in.
-    /// - `is-mutable` : Flag indicate whether the block is mutable or not.
-    on-cardano-block: func(network: network, block: block, slot: slot, is-mutable: bool);
-}
-
-interface event-on-rollback {
-    use api.{network, slot};
-
-    /// Trigger when a Cardano rollback event is fired.
     /// 
     /// ## Parameters
     /// 
-    /// - `network` : The Cardano blockchain network where the rollback occurred.
-    /// - `slot`: The Cardano slot number that the rollback rolls to.
-    /// 
-    /// ## Notes
-    /// 
-    /// Rollback events are guaranteed to be fully processed **before** the next
-    /// block event is delivered. The block event delivered immediately after a
-    /// rollback will correspond to the block at the rollback target `slot`.
-    /// This means that rollback processing **does not** need to reset or re-subscribe the blockchain follower.
-    on-cardano-rollback: func(network: network, slot: slot);
+    /// - `id` A unique identifier of the block subscription.
+    /// - `block` A block resource.
+    on-cardano-block: func(id: subscription-id, block: block);
 }
 
 interface event-on-roll-forward {
-    use api.{network, slot};
+    use api.{subscription-id, slot};
 
     /// Trigger when a Cardano roll-forward event is fired.
     /// 
     /// ## Parameters
     /// 
-    /// - `network` : The Cardano blockchain network that the roll-forward occurred.
+    /// - `id` A unique identifier of the block subscription.
     /// - `slot` : The Cardano slot number that the roll-forward rolls to.
     /// 
     /// ## Notes
@@ -51,5 +31,5 @@ interface event-on-roll-forward {
     /// block event is delivered. The block event delivered immediately after a
     /// roll-forward will correspond to the block at the roll-forward target `slot`. 
     /// This means that roll-forward processing **does not** need to reset or re-subscribe the blockchain follower.
-    on-cardano-roll-forward: func(network: network, slot: slot);
+    on-cardano-roll-forward: func(id: subscription-id, slot: slot);
 }
