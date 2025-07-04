@@ -24,23 +24,23 @@ interface api {
 
     /// Cardano blockchain network.
     variant cardano-network {
-        /// Cardano Mainnet "NetworkId": 1, "NetworkMagic": 764824073
+        /// Cardano Mainnet Network :- "NetworkId": 1, "NetworkMagic": 764824073
         mainnet,
-        /// Cardano Preprod Network "NetworkId": 0, "NetworkMagic": 1
+        /// Cardano Preprod Network :- "NetworkId": 0, "NetworkMagic": 1
         preprod,
-        /// Cardano Preview Network "NetworkId": 0, "NetworkMagic": 2
+        /// Cardano Preview Network :- "NetworkId": 0, "NetworkMagic": 2
         preview,
-        /// Custom Test Network "NetworkId": 0,  "NetworkMagic": u32
+        /// Custom Test Network :- "NetworkId": 0,  "NetworkMagic": u32
         testnet-magic(u32),
     }
 
     /// A sync slot variation.
     variant sync-slot {
-        /// Genesis of the blockchain.
+        /// Genesis (first block) of the blockchain.
         genesis,
         /// A specific slot in the blockchain.
         specific(slot),
-        /// The tip of the blockchain.
+        /// The live tip of the blockchain, following the upstream node.
         tip,
         /// The immutable tip of the blockchain
         /// e.g., The last block which has reached the absolute finality and can never rolls back.
@@ -115,9 +115,9 @@ interface api {
         /// Once this function is called, the subscription instance, `subscription-id` will be removed.
         /// 
         /// **Parameters**
-        /// - `id` of the block subscription to unsubscribe from.
-        /// This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
-        unsubscribe-event: func(id: subscription-id);
+        /// - `id` : A unique identifier of the block subscription to unsubscribe from.
+        ///         This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
+        unsubscribe: func(id: subscription-id);
 
         /// Get a block relative to `start` by `step`.
         ///
@@ -181,7 +181,7 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `option<transaction>` : The transaction at the given index, `None` if the index is not found.
+        /// - `option<transaction>` : A `transaction` resource at the given index, `None` if the index is not found.
         get-txn: func(index: txn-idx) -> option<transaction>;
 
         /// Retrieves the slot number that this block belongs to.
