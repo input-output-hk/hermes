@@ -3,215 +3,225 @@
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::cardano::api::{
-        CardanoBlock, CardanoBlockchainId, CardanoTxn, FetchError, Host, Slot, TxnError,
-        UnsubscribeOptions,
+        Block, CardanoNetwork, Cbor, CreateNetworkError, HostBlock, HostNetwork, HostTransaction,
+        Network, Slot, SubscribeError, SubscriptionId, SyncSlot, Transaction, TxnHash, TxnIdx,
     },
 };
 
-impl Host for HermesRuntimeContext {
-    /// Subscribe to the Blockchain block data.
+impl HostNetwork for HermesRuntimeContext {
+    /// Create a new Cardano network instance.
+    //
+    /// **Parameters**
+    //
+    /// - `network`: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).
+    //
+    /// **Returns**
+    //
+    /// - `ok(_)`: If successfully create network.
+    /// - `error(create-network-error)`: If creating network failed.
+    fn new(&mut self, network: CardanoNetwork) -> wasmtime::Result<Result<(), CreateNetworkError>> {
+        todo!()
+    }
+
+    /// Subscribe to blockchain block events, start from a specified starting point.
+    //
+    /// This sets up a subscription to receive new block and block rollback updates starting from the
+    /// given `start`.
     ///
     /// **Parameters**
     ///
-    /// - `net` : The blockchain network to fetch block from, and subscribe to.
-    /// - `whence`: Where to start fetching blocks from.
+    /// - `start`: The slot to begin following from.
     ///
     /// **Returns**
     ///
-    /// - `ok(u64)` : The slot we are synching from now.
-    /// - `error(fetch-error)` : If an error occurred.
-    ///
-    /// **Notes**
-    ///
-    /// If the blockchain is not yet syncing, it will start, from the requested slot.
-    /// If the blockchain is not yet syncing, and `whence` == `continue` then the
-    /// blockchain will
-    /// not be synced from, the calling module will only be subscribed for block events.
-    ///
-    /// If the blockchain is already syncing, the sync will stop and restart, unless
-    /// `whence` == `continue`.
-    /// When `whence` == `continue` the blockchain will keep syncing from where it is at,
-    /// and this module
-    /// will be subscribed to block updates.
-    ///
-    /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be
-    /// unsubscribed.
-    fn subscribe_blocks(
-        &mut self, net: CardanoBlockchainId, whence: Slot,
-    ) -> wasmtime::Result<Result<u64, FetchError>> {
-        let sub_type = match whence {
-            Slot::Genesis => {
-                super::SubscriptionType::Blocks(cardano_chain_follower::Point::Origin.into())
-            },
-            Slot::Point((slot, hash)) => {
-                super::SubscriptionType::Blocks(
-                    cardano_chain_follower::Point::Specific(slot, hash).into(),
-                )
-            },
-            Slot::Tip => super::SubscriptionType::Blocks(cardano_chain_follower::PointOrTip::Tip),
-            Slot::Continue => super::SubscriptionType::Continue,
-        };
-
-        let res = super::subscribe(
-            net,
-            self.app_name().clone(),
-            self.module_id().clone(),
-            sub_type,
-        );
-
-        match res {
-            Ok(slot) => Ok(Ok(slot)),
-            Err(_) => Ok(Err(FetchError::InvalidSlot)),
-        }
+    /// - `ok(subscription-id)`: A unique identifier of this subscription.
+    ///                         Use to distinguishes events from different subscribers
+    ///                         and provides control over subscription management.
+    ///                         The ID must be unique across all active subscriptions.
+    /// - `error(subscribe-error)`: If subscription failed.
+    fn subscribe_block(
+        &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
+    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
+        todo!()
     }
 
-    /// Unsubscribe from the blockchain events listed.
+    /// Subscribe to blockchain immutable rolls forward.
+    ///
+    /// This sets up a subscription to receive event when the immutable part of the blockchain
+    /// roll forwards.
     ///
     /// **Parameters**
     ///
-    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain
-    ///   follower).
+    /// - `start`: The slot to begin following from.
     ///
-    /// **Notes**
+    /// **Returns**
     ///
-    /// This only unsubscribes from the events.
-    /// The option `stop` MUST be set to actually stop fetching data from the blockchain
-    /// once started.
+    /// - `ok(subscription-id)`: A unique identifier of this subscription.
+    ///                         Use to distinguishes events from different subscribers
+    ///                         and provides control over subscription management.
+    ///                         The ID must be unique across all active subscriptions.
+    /// - `error(subscribe-error)`: If subscription failed.
+    fn subscribe_immutable_roll_forward(
+        &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
+    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
+        todo!()
+    }
+
+    /// Unsubscribing block events given an ID.
+    /// Once this function is called, the subscription instance, `subscription-id` will be removed.
     ///
-    /// `stop` can be set without unsubscribing, and this will interrupt the flow of
-    /// blockchain data.
-    /// After `stop`,  `subscribe-blocks(?, continue)` would cause blockchain sync to
-    /// continue from
-    /// the last block received.  This would result in the last block being sent as an
-    /// event twice,
-    /// once before the `stop` and once after the `continue`.
+    /// **Parameters**
+    /// - `id` : A unique identifier of the block subscription to unsubscribe from.
+    ///         This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
     fn unsubscribe(
-        &mut self, net: CardanoBlockchainId, opts: UnsubscribeOptions,
+        &mut self, self_: wasmtime::component::Resource<Network>, id: SubscriptionId,
     ) -> wasmtime::Result<()> {
-        super::unsubscribe(net, self.app_name().clone(), self.module_id().clone(), opts)
-        // .map_err(|e| wasmtime::Error::new(e))
+        todo!()
     }
 
-    /// Subscribe to transaction data events, does not alter the blockchain sync in
-    /// anyway.
+    /// Get a block relative to `start` by `step`.
     ///
-    /// **Parameters**
+    ///  **Parameters**
+    ///  - `start`: Slot to begin retrieval from, current tip if `None`.
+    ///  - `step`
+    ///      -`0` : the block at `start`, will return `None` if there is no block exactly at this `start` slot.
+    ///      -`+n`: the `n`‑th block *after* the given `start` slot.
+    ///      –`‑n`: the `n`‑th block *before* the given `start` slot.
+    ///    
+    ///  Note: For both `+n` and `-n`, the `start` does not need to be a true block.
+    ///  They will return the block which appears at this block offset, given the arbitrary start point.
+    ///  IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.
     ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    fn subscribe_txn(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        super::subscribe(
-            net,
-            self.app_name().clone(),
-            self.module_id().clone(),
-            super::SubscriptionType::Transactions,
-        )?;
-
-        Ok(())
+    ///  Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:
+    ///      - `start = 100, step = 0` -> 100 (Exact match)
+    ///      - `start = 100, step = 2` -> 300 (Skips 200)
+    ///      - `start = 150, step = 1` -> 200 (Rounds up from 150)
+    ///      - `start = 200, step = 1` -> 300 (Forward iteration)
+    ///      - `start = 300, step = -2` -> 100 (Skips 200)
+    ///      - `start = 250, step = -2` -> 100 (Rounds down to 200 first)
+    ///
+    ///  **Returns**
+    ///
+    ///  - Returns a `block` resource, `None` if block cannot be retrieved.
+    fn get_block(
+        &mut self, self_: wasmtime::component::Resource<Network>, start: Option<Slot>, step: i64,
+    ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
+        todo!()
     }
 
-    /// Subscribe to blockchain rollback events, does not alter the blockchain sync in
-    /// anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    ///
-    /// **Notes**
-    ///
-    /// After a rollback event, the blockchain sync will AUTOMATICALLY start sending block
-    /// data from the rollback point.  No action is required to actually follow the
-    /// rollback, unless the
-    /// default behavior is not desired.
-    fn subscribe_rollback(&mut self, net: CardanoBlockchainId) -> wasmtime::Result<()> {
-        super::subscribe(
-            net,
-            self.app_name().clone(),
-            self.module_id().clone(),
-            super::SubscriptionType::Rollbacks,
-        )?;
-
-        Ok(())
-    }
-
-    /// Fetch a block from the requested blockchain at the requested slot.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net`    : The blockchain network to get a block from.
-    /// - `whence` : Which block to get.
+    /// Retrieve the current tips of the blockchain.
     ///
     /// **Returns**
     ///
-    /// - `cardano-block` : The block requested.
-    /// - `fetch-error` : An error if the block can not be fetched.
-    ///
-    /// **Notes**
-    ///
-    /// Fetching a block does not require the blockchain to be subscribed, or for blocks
-    /// to be
-    /// being followed and generating events.
-    /// It also will not alter the automatic fetching of blocks in any way, and happens in
-    /// parallel
-    /// to automated block fetch.
-    fn fetch_block(
-        &mut self, net: CardanoBlockchainId, whence: Slot,
-    ) -> wasmtime::Result<Result<CardanoBlock, FetchError>> {
-        let at = match whence {
-            Slot::Genesis => cardano_chain_follower::Point::Origin.into(),
-            Slot::Point((slot, hash)) => cardano_chain_follower::Point::Specific(slot, hash).into(),
-            Slot::Tip => cardano_chain_follower::PointOrTip::Tip,
-            Slot::Continue => todo!(),
-        };
-
-        match super::read_block(net, at) {
-            Ok(block_data) => Ok(Ok(block_data.into_raw_data())),
-            Err(_) => Ok(Err(FetchError::InvalidSlot)),
-        }
+    /// - A tuple of two slots:
+    /// - The immutable tip.
+    /// - The mutable tip.
+    fn get_tips(
+        &mut self, self_: wasmtime::component::Resource<Network>,
+    ) -> wasmtime::Result<(Slot, Slot)> {
+        todo!()
     }
 
-    /// Get transactions from a block.
-    ///
-    /// This can be used to easily extract all transactions from a complete block.
-    ///
-    /// **Parameters**
-    ///
-    /// - `block` : The blockchain data to extract transactions from.
-    ///
-    /// **Returns**
-    ///
-    /// - a list of all transactions in the block, in the order they appear in the block.
-    ///
-    /// **Notes**
-    ///
-    /// This function exists to support `fetch-block`.
-    /// Transactions from subscribed block events, should be processed as transaction
-    /// events.
-    fn get_txns(&mut self, block: CardanoBlock) -> wasmtime::Result<Vec<CardanoTxn>> {
-        let block_data = pallas::ledger::traverse::MultiEraBlock::decode(&block)?;
-
-        Ok(block_data.txs().into_iter().map(|tx| tx.encode()).collect())
-    }
-
-    /// Post a transactions to the blockchain.
-    ///
-    /// This can be used to post a pre-formed transaction to the required blockchain.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain to post the transaction to.
-    /// - `txn` : The transaction data, ready to submit.
-    ///
-    /// **Returns**
-    ///
-    /// - An error if the transaction can not be posted.
-    ///
-    /// **Notes**
-    ///
-    /// This is proposed functionality, and is not yet active.
-    /// All calls to this function will return `post-txn-not-allowed` error.
-    fn post_txn(
-        &mut self, _net: CardanoBlockchainId, _txn: CardanoTxn,
-    ) -> wasmtime::Result<Result<(), TxnError>> {
+    fn drop(&mut self, rep: wasmtime::component::Resource<Network>) -> wasmtime::Result<()> {
         todo!()
     }
 }
+
+impl HostBlock for HermesRuntimeContext {
+    ///Returns whether the block is part of the immutable section of the chain.
+    ///
+    /// **Returns**
+    ///
+    /// - `true` if the block is in the immutable part.
+    /// - `false` if the block is in the mutable part.
+    fn is_immutable(
+        &mut self, self_: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<bool> {
+        todo!()
+    }
+
+    ///  Returns whether the block is the first block of a rollback.
+    ///
+    /// **Returns**
+    ///
+    /// - `true` if the block is the first block of a rollback.
+    /// - `false` if the block is not the first block of a rollback.
+    fn is_rollback(
+        &mut self, self_: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<bool> {
+        todo!()
+    }
+
+    /// Retrieves a transaction at the specified index within the block.
+    ///
+    /// **Parameters**
+    ///
+    /// - `index` : The index of the transaction to retrieve.
+    ///
+    /// **Returns**
+    ///
+    /// - `option<transaction>` : A `transaction` resource at the given index, `None` if the index is not found.
+    fn get_txn(
+        &mut self, self_: wasmtime::component::Resource<Block>, index: TxnIdx,
+    ) -> wasmtime::Result<Option<wasmtime::component::Resource<Transaction>>> {
+        todo!()
+    }
+
+    /// Retrieves the slot number that this block belongs to.
+    ///
+    /// **Returns**
+    ///
+    /// - `slot` : The slot number of the block.
+    fn get_slot(&mut self, self_: wasmtime::component::Resource<Block>) -> wasmtime::Result<Slot> {
+        todo!()
+    }
+
+    /// Returns the raw CBOR representation of the block.
+    ///
+    /// **Returns**
+    ///
+    /// - `cbor` : The CBOR format of the block.
+    fn raw(&mut self, self_: wasmtime::component::Resource<Block>) -> wasmtime::Result<Cbor> {
+        todo!()
+    }
+
+    fn drop(&mut self, rep: wasmtime::component::Resource<Block>) -> wasmtime::Result<()> {
+        todo!()
+    }
+}
+
+impl HostTransaction for HermesRuntimeContext {
+    /// Returns the transaction auxiliary metadata in CBOR format.
+    ///
+    /// **Returns**
+    ///
+    /// - `cbor` : The CBOR format of the metadata.
+    fn get_metadata(
+        &mut self, self_: wasmtime::component::Resource<Transaction>,
+    ) -> wasmtime::Result<Cbor> {
+        todo!()
+    }
+
+    /// Returns the transaction hash.
+    ///
+    /// **Returns**
+    /// - `txn-hash` : Cardano transaction hash - Blake2b-256.
+    fn get_txn_hash(
+        &mut self, self_: wasmtime::component::Resource<Transaction>,
+    ) -> wasmtime::Result<TxnHash> {
+        todo!()
+    }
+
+    /// Returns the raw CBOR representation of the transaction.
+    ///
+    /// **Returns**
+    ///
+    /// - `cbor` : The CBOR format of the transaction.
+    fn raw(&mut self, self_: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<Cbor> {
+        todo!()
+    }
+
+    fn drop(&mut self, rep: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<()> {
+        todo!()
+    }
+}   
