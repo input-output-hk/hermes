@@ -73,7 +73,7 @@ interface api {
         /// 
         /// - `ok(_)`: If successfully create network.
         /// - `error(create-network-error)`: If creating network failed.
-        new: func(network: cardano-network) -> result<_, create-network-error>;
+        new: static func(network: cardano-network) -> result<_, create-network-error>;
 
         /// Subscribe to blockchain block events, start from a specified starting point.
         ///
