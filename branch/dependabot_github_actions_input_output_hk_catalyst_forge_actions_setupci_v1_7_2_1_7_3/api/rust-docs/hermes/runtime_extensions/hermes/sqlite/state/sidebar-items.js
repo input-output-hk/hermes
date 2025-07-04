@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_db_state","get_statement_state"],"static":["SQLITE_DB_STATE","SQLITE_STATEMENT_STATE"],"type":["DbState","ObjectPointer","StatementState"]};
