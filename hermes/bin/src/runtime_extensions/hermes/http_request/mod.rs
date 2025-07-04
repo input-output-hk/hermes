@@ -3,8 +3,8 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
-mod tokio_runtime_task;
 mod host;
+mod tokio_runtime_task;
 
 struct State {
     tokio_rt_handle: tokio_runtime_task::Handle,
@@ -19,7 +19,12 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-type Payload = u32;
+pub struct Payload {
+    pub host_uri: String,
+    pub port: u16,
+    pub body: Vec<u8>,
+    pub request_id: Option<String>,
+}
 
 type Error = u32;
 

@@ -2,8 +2,19 @@
 
 /// Http request interface
 interface api {
-    type payload = u32;
+    // HTTP request payload (caller manages full body formatting)
+    record payload {
+        /// Host URI (scheme + domain, no path), e.g., "http://example.com"
+        host-uri: string,
+        /// Port (e.g., 80 for HTTP, 443 for HTTPS)
+        port: u16,
+        /// Raw HTTP request (including method, path, headers, and body)
+        body: list<u8>,
+        /// Optional request identifier for tracking
+        request-id: option<string>,
+    }
 
+    /// Send an HTTP request.
     send: func(p: payload) -> bool;
 }
 
