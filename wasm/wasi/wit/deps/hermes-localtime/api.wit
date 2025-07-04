@@ -10,7 +10,7 @@
 interface api {
 
     /// Get the `datetime` type from the `wasi:clocks` module.
-    use wasi:clocks/wall-clock@0.2.0.{datetime};
+    use wasi:clocks/wall-clock@0.2.6.{datetime};
 
     // The timezone we are localized for.
     type timezone = string;

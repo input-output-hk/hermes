@@ -7,8 +7,8 @@ package hermes:wasi;
 world hermes {
 
   /// All possible WASI compatible Imports/Exports
-  include wasi:cli/imports@0.2.0;
-  include wasi:http/proxy@0.2.0;
+  include wasi:cli/imports@0.2.6;
+  include wasi:http/proxy@0.2.6;
   
 
   /// All possible Hermes Imports/Exports
