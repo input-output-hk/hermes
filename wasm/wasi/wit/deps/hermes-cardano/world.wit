@@ -4,5 +4,5 @@ world all {
     import api;
 
     export event-on-block;
-    export event-on-roll-forward;
+    export event-on-immutable-roll-forward;
 }

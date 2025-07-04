@@ -82,14 +82,6 @@ interface api {
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-block: func(start: sync-slot) -> result<subscription-id, subscribe-error>;
 
-        /// Unsubscribing block events given an ID.
-        /// Once this function is called, the subscription instance, `subscription-id` will be removed.
-        /// 
-        /// **Parameters**
-        /// - `id` of the block subscription to unsubscribe from.
-        /// This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
-        unsubscribe-event: func(id: subscription-id);
-
         /// Subscribe to blockchain immutable rolls forward.
         ///
         /// This sets up a subscription to receive event when the immutable part of the blockchain
@@ -108,6 +100,14 @@ interface api {
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-immutable-roll-forward: func(start: sync-slot) -> result<subscription-id, subscribe-error>;
         
+        /// Unsubscribing block events given an ID.
+        /// Once this function is called, the subscription instance, `subscription-id` will be removed.
+        /// 
+        /// **Parameters**
+        /// - `id` of the block subscription to unsubscribe from.
+        /// This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
+        unsubscribe-event: func(id: subscription-id);
+
         /// Get a block relative to `start` by `step`.
         ///
         /// **Parameters**
@@ -122,12 +122,12 @@ interface api {
         /// IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.  
         ///  
         /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:  
-        ///     - `start = 100, step = 0` → 100 (Exact match)
-        ///     - `start = 100, step = 2` → 300 (Skips 200)
-        ///     - `start = 150, step = 1` → 200 (Rounds up from 150)
-        ///     - `start = 200, step = 1` → 300 (Forward iteration)
-        ///     - `start = 300, step = -2` → 100 (Skips 200)
-        ///     - `start = 250, step = -2` → 100 (Rounds down to 200 first)
+        ///     - `start = 100, step = 0` -> 100 (Exact match)
+        ///     - `start = 100, step = 2` -> 300 (Skips 200)
+        ///     - `start = 150, step = 1` -> 200 (Rounds up from 150)
+        ///     - `start = 200, step = 1` -> 300 (Forward iteration)
+        ///     - `start = 300, step = -2` -> 100 (Skips 200)
+        ///     - `start = 250, step = -2` -> 100 (Rounds down to 200 first)
         /// 
         /// **Returns**
         /// 
