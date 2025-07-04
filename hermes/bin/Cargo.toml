@@ -86,7 +86,7 @@ dirs = "6.0.0"
 regex = "1.11.0"
 
 [build-dependencies]
-build-info-build = "0.0.40"
+build-info-build = "0.0.41"
 
 [dev-dependencies]
 serial_test = { version = "3.1.1", features = ["file_locks"] }
