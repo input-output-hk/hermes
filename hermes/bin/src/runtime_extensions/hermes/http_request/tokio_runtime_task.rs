@@ -50,6 +50,7 @@ pub(crate) struct ParsedPayload {
     pub(crate) body_str: String,
     pub(crate) request_line: String,
     pub(crate) url: String,
+    pub(crate) request_id: String,
 }
 
 pub(crate) fn parse_payload(payload: Payload) -> ParsedPayload {
@@ -83,11 +84,12 @@ pub(crate) fn parse_payload(payload: Payload) -> ParsedPayload {
         body_str,
         request_line,
         url,
+        request_id: payload.request_id.clone().unwrap(),
     }
 }
 
 
-fn send_request_in_background(body_str: String, request_line: String, url: String) -> bool {
+fn send_request_in_background(request_id: String, body_str: String, request_line: String, url: String) -> bool {
     std::thread::spawn(move || {
         let client = reqwest::blocking::Client::new(); // TODO: Reuse client
         let response = if request_line.starts_with("POST") {
@@ -106,7 +108,7 @@ fn send_request_in_background(body_str: String, request_line: String, url: Strin
             .unwrap_or_else(|_| "Failed to read response".to_string());
 
         let on_http_response_event = super::event::OnHttpResponseEvent {
-            request_id: "some_id".to_string(), // TODO: From payload, already available on the callsite
+            request_id,
             response: response_text,
         };
     
@@ -145,10 +147,11 @@ fn executor(mut cmd_rx: CommandReceiver) {
                         body_str,
                         request_line,
                         url,
+                        request_id,
                     } = parse_payload(payload);
-                    error!(body_str = %body_str, request_line = %request_line, url = %url, "Parsed payload");
+                    error!(body_str = %body_str, request_line = %request_line, url = %url, request_id = %request_id, "Parsed payload");
                 
-                    let sending_result = send_request_in_background(body_str,
+                    let sending_result = send_request_in_background(request_id, body_str,
                         request_line,
                         url);
                     let _ = send_result_sender.send(sending_result);
