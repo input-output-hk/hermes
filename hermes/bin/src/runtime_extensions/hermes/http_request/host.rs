@@ -17,19 +17,11 @@ impl Host for HermesRuntimeContext {
             request_id: payload.request_id,
         };
 
-        // Use the background task system
-        match super::tokio_runtime_task::get_handle() {
-            Some(handle) => {
-                match handle.send(internal_payload) {
-                    Ok(success) => Ok(success),
-                    Err(e) => {
-                        tracing::error!("Failed to send HTTP request: {:?}", e);
-                        Ok(false)
-                    }
-                }
-            },
-            None => {
-                tracing::error!("HTTP handle not initialized");
+        // Use the send function from the module instead of accessing the handle directly
+        match super::send(internal_payload) {
+            Ok(success) => Ok(success),
+            Err(e) => {
+                tracing::error!("Failed to send HTTP request: {:?}", e);
                 Ok(false)
             }
         }
