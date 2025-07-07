@@ -1,0 +1,7 @@
+interface event-on-http-response {
+    on-http-response: func(request-id: string, response: string);
+}
+
+world http-request-events {
+    export event-on-http-response;
+}

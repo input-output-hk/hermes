@@ -2140,21 +2140,56 @@ pub mod hermes {
       #[cfg(target_arch = "wasm32")]
       static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
       use super::super::super::_rt;
-      pub type Payload = u32;
+      /// HTTP request payload (caller manages full body formatting)
+      #[derive(Clone)]
+      pub struct Payload {
+        /// Host URI (scheme + domain, no path), e.g., "http://example.com"
+        pub host_uri: _rt::String,
+        /// Port (e.g., 80 for HTTP, 443 for HTTPS)
+        pub port: u16,
+        /// Raw HTTP request (including method, path, headers, and body)
+        pub body: _rt::Vec::<u8>,
+        /// Optional request identifier for tracking
+        pub request_id: Option<_rt::String>,
+      }
+      impl ::core::fmt::Debug for Payload {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("Payload").field("host-uri", &self.host_uri).field("port", &self.port).field("body", &self.body).field("request-id", &self.request_id).finish()
+        }
+      }
       #[allow(unused_unsafe, clippy::all)]
-      pub fn send(p: Payload,) -> bool{
+      /// Send an HTTP request.
+      pub fn send(p: &Payload,) -> bool{
         unsafe {
+          let Payload{ host_uri:host_uri0, port:port0, body:body0, request_id:request_id0, } = p;
+          let vec1 = host_uri0;
+          let ptr1 = vec1.as_ptr().cast::<u8>();
+          let len1 = vec1.len();
+          let vec2 = body0;
+          let ptr2 = vec2.as_ptr().cast::<u8>();
+          let len2 = vec2.len();
+          let (result4_0,result4_1,result4_2,) = match request_id0 {
+            Some(e) => {
+              let vec3 = e;
+              let ptr3 = vec3.as_ptr().cast::<u8>();
+              let len3 = vec3.len();
 
+              (1i32, ptr3.cast_mut(), len3)
+            },
+            None => {
+              (0i32, ::core::ptr::null_mut(), 0usize)
+            },
+          };
           #[cfg(target_arch = "wasm32")]
           #[link(wasm_import_module = "hermes:http-request/api")]
           extern "C" {
             #[link_name = "send"]
-            fn wit_import(_: i32, ) -> i32;
+            fn wit_import(_: *mut u8, _: usize, _: i32, _: *mut u8, _: usize, _: i32, _: *mut u8, _: usize, ) -> i32;
           }
 
           #[cfg(not(target_arch = "wasm32"))]
-          fn wit_import(_: i32, ) -> i32{ unreachable!() }
-          let ret = wit_import(_rt::as_i32(p));
+          fn wit_import(_: *mut u8, _: usize, _: i32, _: *mut u8, _: usize, _: i32, _: *mut u8, _: usize, ) -> i32{ unreachable!() }
+          let ret = wit_import(ptr1.cast_mut(), len1, _rt::as_i32(port0), ptr2.cast_mut(), len2, result4_0, result4_1, result4_2);
           _rt::bool_lift(ret as u8)
         }
       }
@@ -15848,6 +15883,44 @@ pub mod http_gateway {
 
 }
 #[allow(dead_code)]
+pub mod http_request {
+  #[allow(dead_code, clippy::all)]
+  pub mod event_on_http_response {
+    #[used]
+    #[doc(hidden)]
+    #[cfg(target_arch = "wasm32")]
+    static __FORCE_SECTION_REF: fn() = super::super::super::super::__link_custom_section_describing_imports;
+    use super::super::super::super::_rt;
+    #[doc(hidden)]
+    #[allow(non_snake_case)]
+    pub unsafe fn _export_on_http_response_cabi<T: Guest>(arg0: *mut u8,arg1: usize,arg2: *mut u8,arg3: usize,) {#[cfg(target_arch="wasm32")]
+    _rt::run_ctors_once();let len0 = arg1;
+    let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
+    let len1 = arg3;
+    let bytes1 = _rt::Vec::from_raw_parts(arg2.cast(), len1, len1);
+    T::on_http_response(_rt::string_lift(bytes0), _rt::string_lift(bytes1));
+  }
+  pub trait Guest {
+    fn on_http_response(request_id: _rt::String,response: _rt::String,);
+  }
+  #[doc(hidden)]
+
+  macro_rules! __export_hermes_http_request_event_on_http_response_cabi{
+    ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
+
+      #[export_name = "hermes:http-request/event-on-http-response#on-http-response"]
+      unsafe extern "C" fn export_on_http_response(arg0: *mut u8,arg1: usize,arg2: *mut u8,arg3: usize,) {
+        $($path_to_types)*::_export_on_http_response_cabi::<$ty>(arg0, arg1, arg2, arg3)
+      }
+    };);
+  }
+  #[doc(hidden)]
+  pub(crate) use __export_hermes_http_request_event_on_http_response_cabi;
+
+}
+
+}
+#[allow(dead_code)]
 pub mod init {
   #[allow(dead_code, clippy::all)]
   pub mod event {
@@ -16541,6 +16614,7 @@ macro_rules! __export_hermes_impl {
   $($path_to_types_root)*::exports::hermes::kv_store::event::__export_hermes_kv_store_event_cabi!($ty with_types_in $($path_to_types_root)*::exports::hermes::kv_store::event);
   $($path_to_types_root)*::exports::hermes::integration_test::event::__export_hermes_integration_test_event_cabi!($ty with_types_in $($path_to_types_root)*::exports::hermes::integration_test::event);
   $($path_to_types_root)*::exports::hermes::http_gateway::event::__export_hermes_http_gateway_event_cabi!($ty with_types_in $($path_to_types_root)*::exports::hermes::http_gateway::event);
+  $($path_to_types_root)*::exports::hermes::http_request::event_on_http_response::__export_hermes_http_request_event_on_http_response_cabi!($ty with_types_in $($path_to_types_root)*::exports::hermes::http_request::event_on_http_response);
   )
 }
 #[doc(inline)]
@@ -16549,8 +16623,8 @@ pub(crate) use __export_hermes_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.29.0:hermes:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 16171] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xae}\x01A\x02\x01Ai\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 16310] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xb9~\x01A\x02\x01Ak\x01\
 B\x0a\x01o\x02ss\x01p\0\x01@\0\0\x01\x04\0\x0fget-environment\x01\x02\x01ps\x01@\
 \0\0\x03\x04\0\x0dget-arguments\x01\x04\x01ks\x01@\0\0\x05\x04\0\x0binitial-cwd\x01\
 \x06\x03\x01\x1awasi:cli/environment@0.2.0\x05\0\x01B\x03\x01j\0\0\x01@\x01\x06s\
@@ -16852,41 +16926,43 @@ nt.bind\x01\x13\x01@\x01\x04self\x12\0\x0a\x04\0\x16[method]statement.step\x01\x
 \x01j\x01\x06\x01\x03\x01@\x02\x04self\x12\x05indexy\0\x15\x04\0\x18[method]stat\
 ement.column\x01\x16\x04\0\x1a[method]statement.finalize\x01\x14\x01i\x07\x01j\x01\
 \x17\x01\x03\x01@\x02\x08readonly\x7f\x06memory\x7f\0\x18\x04\0\x04open\x01\x19\x03\
-\x01\x11hermes:sqlite/api\x05,\x01B\x04\x01y\x04\0\x07payload\x03\0\0\x01@\x01\x01\
-p\x01\0\x7f\x04\0\x04send\x01\x02\x03\x01\x17hermes:http-request/api\x05-\x02\x03\
-\0\x0e\x10incoming-request\x02\x03\0\x0e\x11response-outparam\x01B\x08\x02\x03\x02\
-\x01.\x04\0\x10incoming-request\x03\0\0\x02\x03\x02\x01/\x04\0\x11response-outpa\
-ram\x03\0\x02\x01i\x01\x01i\x03\x01@\x02\x07request\x04\x0cresponse-out\x05\x01\0\
-\x04\0\x06handle\x01\x06\x04\x01\x20wasi:http/incoming-handler@0.2.0\x050\x02\x03\
-\0\x12\x15cardano-blockchain-id\x02\x03\0\x12\x0dcardano-block\x02\x03\0\x12\x09\
-block-src\x01B\x08\x02\x03\x02\x011\x04\0\x15cardano-blockchain-id\x03\0\0\x02\x03\
-\x02\x012\x04\0\x0dcardano-block\x03\0\x02\x02\x03\x02\x013\x04\0\x09block-src\x03\
-\0\x04\x01@\x03\x0ablockchain\x01\x05block\x03\x06source\x05\x01\0\x04\0\x10on-c\
-ardano-block\x01\x06\x04\x01\x1dhermes:cardano/event-on-block\x054\x02\x03\0\x12\
-\x0bcardano-txn\x01B\x06\x02\x03\x02\x011\x04\0\x15cardano-blockchain-id\x03\0\0\
-\x02\x03\x02\x015\x04\0\x0bcardano-txn\x03\0\x02\x01@\x04\x0ablockchain\x01\x04s\
-lotw\x09txn-indexy\x03txn\x03\x01\0\x04\0\x0eon-cardano-txn\x01\x04\x04\x01\x1bh\
-ermes:cardano/event-on-txn\x056\x01B\x04\x02\x03\x02\x011\x04\0\x15cardano-block\
-chain-id\x03\0\0\x01@\x02\x0ablockchain\x01\x04slotw\x01\0\x04\0\x13on-cardano-r\
-ollback\x01\x02\x04\x01\x20hermes:cardano/event-on-rollback\x057\x02\x03\0\x13\x0e\
-cron-event-tag\x02\x03\0\x13\x0bcron-tagged\x01B\x06\x02\x03\x02\x018\x04\0\x0ec\
-ron-event-tag\x03\0\0\x02\x03\x02\x019\x04\0\x0bcron-tagged\x03\0\x02\x01@\x02\x05\
-event\x03\x04last\x7f\0\x7f\x04\0\x07on-cron\x01\x04\x04\x01\x11hermes:cron/even\
-t\x05:\x01B\x02\x01@\0\0\x7f\x04\0\x04init\x01\0\x04\x01\x11hermes:init/event\x05\
-;\x02\x03\0\x16\x0epubsub-message\x01B\x04\x02\x03\x02\x01<\x04\0\x0epubsub-mess\
-age\x03\0\0\x01@\x01\x07message\x01\0\x7f\x04\0\x08on-topic\x01\x02\x04\x01\x11h\
-ermes:ipfs/event\x05=\x02\x03\0\x18\x09kv-values\x01B\x04\x02\x03\x02\x01>\x04\0\
-\x09kv-values\x03\0\0\x01@\x02\x03keys\x05value\x01\x01\0\x04\0\x09kv-update\x01\
-\x02\x04\x01\x15hermes:kv-store/event\x05?\x01B\x06\x01r\x02\x04names\x06status\x7f\
-\x04\0\x0btest-result\x03\0\0\x01k\x01\x01@\x02\x04testy\x03run\x7f\0\x02\x04\0\x04\
-test\x01\x03\x04\0\x05bench\x01\x03\x04\x01\x1dhermes:integration-test/event\x05\
-@\x01B\x0c\x02\x03\x02\x01\x1c\x04\0\x04bstr\x03\0\0\x01ps\x01o\x02s\x02\x04\0\x06\
-header\x03\0\x03\x01p\x04\x04\0\x07headers\x03\0\x05\x01r\x03\x04code{\x07header\
-s\x06\x04body\x01\x04\0\x0dhttp-response\x03\0\x07\x01k\x08\x01@\x04\x04body\x01\
-\x07headers\x06\x04paths\x06methods\0\x09\x04\0\x05reply\x01\x0a\x04\x01\x19herm\
-es:http-gateway/event\x05A\x04\x01\x12hermes:wasi/hermes\x04\0\x0b\x0c\x01\0\x06\
-hermes\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.215\
-.0\x10wit-bindgen-rust\x060.29.0";
+\x01\x11hermes:sqlite/api\x05,\x01B\x06\x01p}\x01ks\x01r\x04\x08host-uris\x04por\
+t{\x04body\0\x0arequest-id\x01\x04\0\x07payload\x03\0\x02\x01@\x01\x01p\x03\0\x7f\
+\x04\0\x04send\x01\x04\x03\x01\x17hermes:http-request/api\x05-\x02\x03\0\x0e\x10\
+incoming-request\x02\x03\0\x0e\x11response-outparam\x01B\x08\x02\x03\x02\x01.\x04\
+\0\x10incoming-request\x03\0\0\x02\x03\x02\x01/\x04\0\x11response-outparam\x03\0\
+\x02\x01i\x01\x01i\x03\x01@\x02\x07request\x04\x0cresponse-out\x05\x01\0\x04\0\x06\
+handle\x01\x06\x04\x01\x20wasi:http/incoming-handler@0.2.0\x050\x02\x03\0\x12\x15\
+cardano-blockchain-id\x02\x03\0\x12\x0dcardano-block\x02\x03\0\x12\x09block-src\x01\
+B\x08\x02\x03\x02\x011\x04\0\x15cardano-blockchain-id\x03\0\0\x02\x03\x02\x012\x04\
+\0\x0dcardano-block\x03\0\x02\x02\x03\x02\x013\x04\0\x09block-src\x03\0\x04\x01@\
+\x03\x0ablockchain\x01\x05block\x03\x06source\x05\x01\0\x04\0\x10on-cardano-bloc\
+k\x01\x06\x04\x01\x1dhermes:cardano/event-on-block\x054\x02\x03\0\x12\x0bcardano\
+-txn\x01B\x06\x02\x03\x02\x011\x04\0\x15cardano-blockchain-id\x03\0\0\x02\x03\x02\
+\x015\x04\0\x0bcardano-txn\x03\0\x02\x01@\x04\x0ablockchain\x01\x04slotw\x09txn-\
+indexy\x03txn\x03\x01\0\x04\0\x0eon-cardano-txn\x01\x04\x04\x01\x1bhermes:cardan\
+o/event-on-txn\x056\x01B\x04\x02\x03\x02\x011\x04\0\x15cardano-blockchain-id\x03\
+\0\0\x01@\x02\x0ablockchain\x01\x04slotw\x01\0\x04\0\x13on-cardano-rollback\x01\x02\
+\x04\x01\x20hermes:cardano/event-on-rollback\x057\x02\x03\0\x13\x0ecron-event-ta\
+g\x02\x03\0\x13\x0bcron-tagged\x01B\x06\x02\x03\x02\x018\x04\0\x0ecron-event-tag\
+\x03\0\0\x02\x03\x02\x019\x04\0\x0bcron-tagged\x03\0\x02\x01@\x02\x05event\x03\x04\
+last\x7f\0\x7f\x04\0\x07on-cron\x01\x04\x04\x01\x11hermes:cron/event\x05:\x01B\x02\
+\x01@\0\0\x7f\x04\0\x04init\x01\0\x04\x01\x11hermes:init/event\x05;\x02\x03\0\x16\
+\x0epubsub-message\x01B\x04\x02\x03\x02\x01<\x04\0\x0epubsub-message\x03\0\0\x01\
+@\x01\x07message\x01\0\x7f\x04\0\x08on-topic\x01\x02\x04\x01\x11hermes:ipfs/even\
+t\x05=\x02\x03\0\x18\x09kv-values\x01B\x04\x02\x03\x02\x01>\x04\0\x09kv-values\x03\
+\0\0\x01@\x02\x03keys\x05value\x01\x01\0\x04\0\x09kv-update\x01\x02\x04\x01\x15h\
+ermes:kv-store/event\x05?\x01B\x06\x01r\x02\x04names\x06status\x7f\x04\0\x0btest\
+-result\x03\0\0\x01k\x01\x01@\x02\x04testy\x03run\x7f\0\x02\x04\0\x04test\x01\x03\
+\x04\0\x05bench\x01\x03\x04\x01\x1dhermes:integration-test/event\x05@\x01B\x0c\x02\
+\x03\x02\x01\x1c\x04\0\x04bstr\x03\0\0\x01ps\x01o\x02s\x02\x04\0\x06header\x03\0\
+\x03\x01p\x04\x04\0\x07headers\x03\0\x05\x01r\x03\x04code{\x07headers\x06\x04bod\
+y\x01\x04\0\x0dhttp-response\x03\0\x07\x01k\x08\x01@\x04\x04body\x01\x07headers\x06\
+\x04paths\x06methods\0\x09\x04\0\x05reply\x01\x0a\x04\x01\x19hermes:http-gateway\
+/event\x05A\x01B\x02\x01@\x02\x0arequest-ids\x08responses\x01\0\x04\0\x10on-http\
+-response\x01\0\x04\x01*hermes:http-request/event-on-http-response\x05B\x04\x01\x12\
+hermes:wasi/hermes\x04\0\x0b\x0c\x01\0\x06hermes\x03\0\0\0G\x09producers\x01\x0c\
+processed-by\x02\x0dwit-component\x070.215.0\x10wit-bindgen-rust\x060.29.0";
 
 #[inline(never)]
 #[doc(hidden)]
