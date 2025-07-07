@@ -23,7 +23,7 @@ impl Host for HermesRuntimeContext {
             Err(e) => {
                 tracing::error!("Failed to send HTTP request: {:?}", e);
                 Ok(false)
-            }
+            },
         }
     }
 }

@@ -1,10 +1,12 @@
-use std::sync::OnceLock;
-use std::time::Duration;
-use tracing::{error, trace};
+use std::{sync::OnceLock, time::Duration};
 
-use crate::event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule};
-use crate::runtime_extensions::hermes::http_request::Payload;
-use crate::wasm::module::ModuleInstance;
+use tracing::{error, info, trace};
+
+use crate::{
+    event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
+    runtime_extensions::hermes::http_request::Payload,
+    wasm::module::ModuleInstance,
+};
 
 enum Command {
     Send { payload: Payload },
@@ -88,8 +90,11 @@ impl HermesEventPayload for HttpResponseEvent {
 
         // Access module ID through the runtime context
         let module_id = module.store.data().module_id();
-        trace!("Executing HTTP response event for module: {:?}", module_id);
-        trace!("Response data: {}", response_data);
+        info!(
+            "HTTP Executing HTTP response event for module: {:?}",
+            module_id
+        );
+        info!("HTTP Response data: {}", response_data);
 
         // TODO: Call the actual WASM module function to handle the HTTP response
         // This might be something like:
@@ -165,7 +170,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
                     let request_id = payload.request_id.clone();
                     match handle_http_request(&client, payload).await {
                         Ok(response) => {
-                            trace!("HTTP request successful: {}", response);
+                            info!("HTTP request successful: {}", response);
                             // Send response back via event system
                             send_http_response_event(HttpResponseEvent::success(
                                 request_id, response,
@@ -191,7 +196,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
 async fn handle_http_request(
     client: &reqwest::Client, payload: super::Payload,
 ) -> Result<String, HttpError> {
-    trace!("debugr {:?} {:?}", payload.host_uri, payload.port);
+    error!("HTTP {:?} {:?}", payload.host_uri, payload.port);
 
     let body_str = String::from_utf8(payload.body).map_err(|_| HttpError::InvalidUtf8)?;
 
@@ -215,7 +220,7 @@ async fn handle_http_request(
         .trim_start_matches("https://");
 
     let url = format!("{}://{}:{}{}", scheme, domain, payload.port, path);
-    trace!("Making HTTP request to: {}", url);
+    info!("Making HTTP request to: {}", url);
 
     let response = if request_line.starts_with("POST") {
         let body_content = body_str.split("\r\n\r\n").last().unwrap_or("");
@@ -237,7 +242,7 @@ async fn send_http_response_event(response_event: HttpResponseEvent) {
     if let Err(e) = crate::event::queue::send(event) {
         error!("Failed to send HTTP response event: {}", e);
     } else {
-        trace!("HTTP response event sent successfully");
+        info!("HTTP response event sent successfully");
     }
 }
 
@@ -247,6 +252,6 @@ async fn send_http_error_event(error_event: HttpResponseEvent) {
     if let Err(e) = crate::event::queue::send(event) {
         error!("Failed to send HTTP error event: {}", e);
     } else {
-        trace!("HTTP error event sent successfully");
+        info!("HTTP error event sent successfully");
     }
 }
