@@ -21,8 +21,8 @@ build:
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
-        --output="ipfs_test_component.wasm"
+        --output="wasm32-wasip2/release/ipfs_test_component.wasm"
 
-    RUN sha256sum ipfs.wasm
+    RUN sha256sum target/wasm32-wasip2/release/ipfs_test_component.wasm
 
-    SAVE ARTIFACT ipfs.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/ipfs_test_component.wasm ipfs.wasm

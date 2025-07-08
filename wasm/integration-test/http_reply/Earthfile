@@ -22,9 +22,9 @@ build:
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
-        --output="http.wasm"
+        --output="wasm32-wasip2/release/http_test_component.wasm"
 
 
-    RUN sha256sum target/http.wasm
+    RUN sha256sum target/wasm32-wasip2/release/http_test_component.wasm
 
-    SAVE ARTIFACT target/http.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/http_test_component.wasm http.wasm

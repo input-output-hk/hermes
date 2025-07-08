@@ -22,6 +22,6 @@ build:
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
-        --output="sqlite.wasm"
+        --output="wasm32-wasip2/release/sqlite_test_component.wasm"
 
-    SAVE ARTIFACT target/sqlite.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/sqlite_test_component.wasm sqlite.wasm

@@ -15,9 +15,9 @@ build:
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
-        --output="wasi_filesystem.wasm"
+        --output="wasm32-wasip2/release/wasi_filesystem.wasm"
 
-    SAVE ARTIFACT target/wasi-filesystem.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/wasi_filesystem.wasm wasi-filesystem.wasm
 
 # local-bindings : saves the Hermes rust bindings locally. This is useful for local development.
 local-bindings:
