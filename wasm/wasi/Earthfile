@@ -117,11 +117,15 @@ test-java-bindings:
     # java bindings are currently broken because `resource` is not yet implemented.
     RUN wit-bindgen teavm-java ../wasi/wit | true
 
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/433).
+# - `wit-bindgen` doesn't support tiny-go anymore.
+# - `wit-bindgen-go` has to be installed separately or substituted.
+#
 # test-go-bindings - Test we can generate GO bindings without error from the hermes default world
 test-go-bindings:
     FROM +builder
 
-    RUN wit-bindgen tiny-go ../wasi/wit
+    # RUN wit-bindgen tiny-go ../wasi/wit
 
 # test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
 test-csharp-bindings:
