@@ -1,11 +1,10 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.3 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 IMPORT ../../wasi AS wasi
-IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
 # gen-bindings - generates `hermes.rs` bindings to work with.
 gen-bindings:
@@ -14,9 +13,7 @@ gen-bindings:
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
 # build - builds the sqlite integration test wasm component
-# This no longer builds. 
-# TODO: Fix AFTER wasmtime is bumped to latest version
-fails-to-build:
+build:
     DO rust-ci+SETUP
 
     COPY --keep-ts --dir src .
@@ -24,11 +21,7 @@ fails-to-build:
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO \
-        --args "build --target wasm32-wasip1 --release" \
-        --output="wasm32-wasip1/release/sqlite_test_component.wasm"
+        --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/sqlite_test_component.wasm"
 
-    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm wasi_snapshot_preview1.wasm
-
-    RUN wasm-tools component new -o sqlite.wasm target/wasm32-wasip1/release/sqlite_test_component.wasm --adapt wasi_snapshot_preview1.wasm
-
-    SAVE ARTIFACT sqlite.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/sqlite_test_component.wasm sqlite.wasm

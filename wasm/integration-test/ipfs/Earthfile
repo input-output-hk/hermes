@@ -1,11 +1,10 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.3 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 IMPORT ../../wasi AS wasi
-IMPORT ../../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
 
 # gen-bindings - generates `hermes.rs` bindings to work with.
 gen-bindings:
@@ -21,14 +20,9 @@ build:
     COPY Cargo.toml .
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
-    DO rust-ci+CARGO \
-        --args "build --target wasm32-unknown-unknown --release" \
-        --output="wasm32-unknown-unknown/release/ipfs_test_component.wasm"
+    DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/ipfs_test_component.wasm"
 
+    RUN sha256sum target/wasm32-wasip2/release/ipfs_test_component.wasm
 
-    COPY wasi-hermes-component-adapter+build/wasi-hermes-component-adapter.wasm .
-
-    RUN wasm-tools component new -o ipfs.wasm target/wasm32-unknown-unknown/release/ipfs_test_component.wasm --adapt wasi-hermes-component-adapter.wasm
-    RUN sha256sum ipfs.wasm
-
-    SAVE ARTIFACT ipfs.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/ipfs_test_component.wasm ipfs.wasm

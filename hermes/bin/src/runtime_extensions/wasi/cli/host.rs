@@ -38,13 +38,6 @@ impl cli::environment::Host for HermesRuntimeContext {
     }
 }
 
-impl cli::exit::Host for HermesRuntimeContext {
-    fn exit(&mut self, _status: Result<(), ()>) -> wasmtime::Result<()> {
-        warn!("Exiting an application is not supported");
-        Ok(())
-    }
-}
-
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
