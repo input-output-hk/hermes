@@ -15,8 +15,8 @@ build:
     COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
-        --output="target/wasm32-wasip2/release/cardano_rte_test_component.wasm"
-
+        --output="wasm32-wasip2/release/cardano_rte_test_component.wasm"
+                  
     SAVE ARTIFACT target/wasm32-wasip2/release/cardano_rte_test_component.wasm cardano.wasm
 
 # local-bindings : saves the Hermes rust bindings locally. This is useful for local development.

@@ -16,9 +16,9 @@ build:
     # COPY wasi+build-go-bindings/bindings ./gen
     # COPY wasi+build-go-bindings/wit ./wit
 
-    # COPY go.mod main.go ./
-    # Fails to build since bindings aren't generated.
-    # When bindings become available this should properly compile. 
+    COPY go.mod main.go ./
+    # # Fails to build since bindings aren't generated.
+    # # When bindings become available this should properly compile. 
 	# RUN tinygo build -target=wasip2 -no-debug -o main.wasm main.go
 
     # SAVE ARTIFACT component.wasm golang.wasm
