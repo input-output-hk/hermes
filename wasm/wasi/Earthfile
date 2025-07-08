@@ -26,22 +26,22 @@ build:
         mkdir -p wasi-hermes-docs/hermes
 
     # WASI standard APIs
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:cli/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:cli/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/cli.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:clocks/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:clocks/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/clock.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:filesystem/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:filesystem/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/filesystem.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:http/proxy@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:http/proxy@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/proxy.md wasi-hermes-docs/wasi/http.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:io/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:io/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/io.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:random/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:random/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/random.md
 
     # Hermes Specific APIs
