@@ -3,8 +3,11 @@
 use super::{get_input_streams_state, get_output_streams_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::wasi::io::streams::{
-        Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+    runtime_extensions::bindings::wasi::io::{
+        poll::Pollable,
+        streams::{
+            Host, HostInputStream, HostOutputStream, InputStream, OutputStream, StreamError,
+        },
     },
 };
 
@@ -85,6 +88,18 @@ impl HostInputStream for HermesRuntimeContext {
         let app_state = get_input_streams_state().get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
+    }
+
+    /// Create a `pollable` which will resolve once either the specified stream
+    /// has bytes available to read or the other end of the stream has been
+    /// closed.
+    /// The created `pollable` is a child resource of the `input-stream`.
+    /// Implementations may trap if the `input-stream` is dropped before
+    /// all derived `pollable`s created with this function are dropped.
+    fn subscribe(
+        &mut self, _self_: wasmtime::component::Resource<InputStream>,
+    ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
+        todo!()
     }
 }
 
@@ -258,6 +273,20 @@ impl HostOutputStream for HermesRuntimeContext {
         let app_state = get_output_streams_state().get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
+    }
+
+    /// Create a `pollable` which will resolve once the output-stream
+    /// is ready for more writing, or an error has occurred. When this
+    /// pollable is ready, `check-write` will return `ok(n)` with n>0, or an
+    /// error.
+    /// If the stream is closed, this pollable is always ready immediately.
+    /// The created `pollable` is a child resource of the `output-stream`.
+    /// Implementations may trap if the `output-stream` is dropped before
+    /// all derived `pollable`s created with this function are dropped.
+    fn subscribe(
+        &mut self, _self_: wasmtime::component::Resource<OutputStream>,
+    ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
+        todo!()
     }
 }
 

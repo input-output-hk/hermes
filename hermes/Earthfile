@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.3 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -82,7 +82,8 @@ test-wasm-integration:
 
     # Copy all wasm module artifacts for testing
     # TODO: Re-enable broken integration tests once fixed.
-    #COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
+    
+    # COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
@@ -91,9 +92,9 @@ test-wasm-integration:
     COPY ../wasm/integration-test/ipfs+build/ipfs.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
-    #COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
-    #COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
     RUN cargo test --release --test wasm-component-integration-tests -- --list

@@ -16,7 +16,9 @@ use wasmtime::{
 };
 
 use crate::{
-    event::HermesEventPayload, runtime_context::HermesRuntimeContext, runtime_extensions::bindings,
+    event::HermesEventPayload,
+    runtime_context::HermesRuntimeContext,
+    runtime_extensions::bindings::{self, LinkOptions},
     wasm::engine::Engine,
 };
 
@@ -85,8 +87,12 @@ impl Module {
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
-        bindings::Hermes::add_to_linker(&mut linker, |state: &mut HermesRuntimeContext| state)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+        bindings::Hermes::add_to_linker(
+            &mut linker,
+            &LinkOptions::default(),
+            |state: &mut HermesRuntimeContext| state,
+        )
+        .map_err(|e| BadWASMModuleError(e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
