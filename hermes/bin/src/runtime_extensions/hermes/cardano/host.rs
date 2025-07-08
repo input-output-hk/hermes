@@ -2,9 +2,8 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use cardano_blockchain_types::Point;
-use cardano_chain_follower::ChainFollower;
 use dashmap::DashMap;
+use tracing::error;
 
 use crate::{
     app::ApplicationName,
@@ -12,14 +11,14 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::cardano::api::{
             Block, CardanoNetwork, Cbor, CreateNetworkError, HostBlock, HostNetwork,
-            HostTransaction, Network, Slot, SubscribeError, SubscriptionId, SyncSlot, Transaction,
-            TxnHash, TxnIdx,
+            HostTransaction, Network, Slot, SubscriptionId, SyncSlot, Transaction, TxnHash, TxnIdx,
         },
-        hermes::cardano::network::{get_block_relative, subscribe},
+        hermes::cardano::network::{self, get_block_relative, get_tips, spawn_subscribe},
         resource_manager::ApplicationResourceStorage,
+        utils::conversion::array_u8_32_to_tuple,
     },
 };
-use pallas::ledger::traverse::MultiEraTx;
+use pallas::{codec::minicbor::to_vec, ledger::traverse::MultiEraTx};
 
 /// Main State for Cardano blockchain runtime extension.
 struct State {
@@ -30,11 +29,11 @@ struct State {
     /// Block resource storage
     block: ApplicationResourceStorage<Block, cardano_blockchain_types::MultiEraBlock>,
     /// Transaction resource storage
-    transaction: ApplicationResourceStorage<Transaction, MultiEraTx>,
+    transaction: ApplicationResourceStorage<Transaction, MultiEraTx<'static>>,
     /// Subscription ID
     subscription_id: AtomicU32,
     /// Active subscription ID to its subscription type and chain follower handle
-    subscriptions: DashMap<u32, (SubscriptionType, chain_follower_task::Handle)>,
+    subscriptions: DashMap<u32, (SubscriptionType, network::Handle)>,
 }
 
 /// Block subscription type.
@@ -43,6 +42,7 @@ pub(crate) enum SubscriptionType {
     Block,
     ImmutableRollForward,
 }
+
 /// Initialize state
 static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
     network: ApplicationResourceStorage::new(),
@@ -68,17 +68,19 @@ impl HostNetwork for HermesRuntimeContext {
         &mut self, network: CardanoNetwork,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Network>, CreateNetworkError>> {
         let network: cardano_blockchain_types::Network = network.try_into()?;
+
         let key = (self.app_name().clone(), network);
 
-        // Lookup whether the resource already exists or not
+        // Lookup whether the network resource already exists or not
         if let Some(rep) = STATE.network_lookup.get(&key) {
             return Ok(Ok(wasmtime::component::Resource::new_own(*rep)));
         }
 
         // Add app, if not yet added
         STATE.network.add_app(self.app_name().clone());
-        // Insert the network into app resource storage
+        // This should not fail, since app is added above
         let app_state = STATE.network.get_app_state(self.app_name())?;
+        // Insert the network into app resource storage
         let resource = app_state.create_resource(network);
         // Store the new resource in the lookup
         STATE.network_lookup.insert(key, resource.rep());
@@ -97,30 +99,32 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     /// **Returns**
     ///
-    /// - `ok(subscription-id)`: A unique identifier of this subscription.
+    /// - `subscription-id`: A unique identifier of this subscription.
     ///                         Use to distinguishes events from different subscribers
     ///                         and provides control over subscription management.
     ///                         The ID must be unique across all active subscriptions.
-    /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_block(
         &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
-    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
-        match subscribe(
-            self.app_name(),
-            self.module_id(),
-            self_,
-            start,
+    ) -> wasmtime::Result<SubscriptionId> {
+        let network = STATE
+            .network
+            .get_app_state(self.app_name())?
+            .get_object(&self_)?;
+
+        let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
+        let handle = spawn_subscribe(
+            self.app_name().clone(),
+            self.module_id().clone(),
+            start.into(),
+            *network,
             SubscriptionType::Block,
-        ) {
-            Ok(handle) => {
-                let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
-                STATE
-                    .subscriptions
-                    .insert(id, (SubscriptionType::Block, handle));
-                Ok(Ok(SubscriptionId::from(id)))
-            },
-            Err(e) => Ok(Err(e)),
-        }
+            id,
+        );
+        STATE
+            .subscriptions
+            .insert(id, (SubscriptionType::Block, handle));
+
+        Ok(SubscriptionId::from(id))
     }
 
     /// Subscribe to blockchain immutable rolls forward.
@@ -134,30 +138,32 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     /// **Returns**
     ///
-    /// - `ok(subscription-id)`: A unique identifier of this subscription.
+    /// - `subscription-id`: A unique identifier of this subscription.
     ///                         Use to distinguishes events from different subscribers
     ///                         and provides control over subscription management.
     ///                         The ID must be unique across all active subscriptions.
-    /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_immutable_roll_forward(
         &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
-    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
-        match subscribe(
-            self.app_name(),
-            self.module_id(),
-            self_,
-            Point::TIP,
+    ) -> wasmtime::Result<SubscriptionId> {
+        let network = STATE
+            .network
+            .get_app_state(self.app_name())?
+            .get_object(&self_)?;
+
+        let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
+
+        let handle = spawn_subscribe(
+            self.app_name().clone(),
+            self.module_id().clone(),
+            start.into(),
+            *network,
             SubscriptionType::ImmutableRollForward,
-        ) {
-            Ok(handle) => {
-                let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
-                STATE
-                    .subscriptions
-                    .insert(id, (SubscriptionType::ImmutableRollForward, handle));
-                Ok(Ok(SubscriptionId::from(id)))
-            },
-            Err(e) => Ok(Err(e)),
-        }
+            id,
+        );
+        STATE
+            .subscriptions
+            .insert(id, (SubscriptionType::Block, handle));
+        Ok(SubscriptionId::from(id))
     }
 
     /// Unsubscribing block events given an ID.
@@ -166,12 +172,12 @@ impl HostNetwork for HermesRuntimeContext {
     /// **Parameters**
     /// - `id` : A unique identifier of the block subscription to unsubscribe from.
     ///         This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
-    fn unsubscribe(
-        &mut self, self_: wasmtime::component::Resource<Network>, id: SubscriptionId,
-    ) -> wasmtime::Result<()> {
-        let (_, handle) = STATE.subscriptions.get(id);
-        handle.stop();
-        STATE.subscriptions.remove(&id);
+    fn unsubscribe(&mut self, id: SubscriptionId) -> wasmtime::Result<()> {
+        if let Some(entry) = STATE.subscriptions.get(&id) {
+            let (_, handle) = entry.value();
+            handle.stop();
+            STATE.subscriptions.remove(&id);
+        }
         Ok(())
     }
 
@@ -202,14 +208,15 @@ impl HostNetwork for HermesRuntimeContext {
     fn get_block(
         &mut self, self_: wasmtime::component::Resource<Network>, start: Option<Slot>, step: i64,
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
-        let network = STATE
-            .network
-            .get_app_state(self.app_name())?
-            .get_object(&self_)?;
-        let multi_era_block = get_block_relative(*network, start, step);
+        let mut network_state = STATE.network.get_app_state(self.app_name())?;
+        let network = network_state.get_object(&self_)?;
+        let multi_era_block = get_block_relative(*network, start, step).map_err(|e| {
+            error!("get_block: {e}");
+            e
+        })?;
         STATE.block.add_app(self.app_name().clone());
         // Insert the block into app resource storage
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
+        let app_state = STATE.block.get_app_state(self.app_name())?;
         let resource = app_state.create_resource(multi_era_block);
         Ok(Some(resource))
     }
@@ -224,12 +231,10 @@ impl HostNetwork for HermesRuntimeContext {
     fn get_tips(
         &mut self, self_: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<(Slot, Slot)> {
-        let network = STATE
-            .network
-            .get_app_state(self.app_name())?
-            .get_object(&self_)?;
-        let (immutable_tip, mutable_tip) = ChainFollower::get_tips(*network);
-        Ok((immutable_tip, mutable_tip))
+        let mut binding = STATE.network.get_app_state(self.app_name())?;
+        let network = binding.get_object(&self_)?;
+        let (immutable_tip, mutable_tip) = get_tips(*network)?;
+        Ok((immutable_tip.into(), mutable_tip.into()))
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Network>) -> wasmtime::Result<()> {
@@ -268,7 +273,8 @@ impl HostBlock for HermesRuntimeContext {
     ) -> wasmtime::Result<bool> {
         let mut block_state = STATE.block.get_app_state(self.app_name())?;
         let block = block_state.get_object(&self_)?;
-        Ok(block.is_rollback())
+        // FIXME: where to get rollback?
+        Ok()
     }
 
     /// Retrieves a transaction at the specified index within the block.
@@ -286,10 +292,13 @@ impl HostBlock for HermesRuntimeContext {
         let mut block_state = STATE.block.get_app_state(self.app_name())?;
         let block = block_state.get_object(&self_)?;
 
-        STATE.transaction.add_app(self.app_name());
         // Insert the tx into app resource storage
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let resource = app_state.create_resource(block.txs().get(index)?);
+        let binding = block.txs();
+        let txn = binding
+            .get(index as usize)
+            .ok_or_else(|| anyhow::anyhow!("Transaction at index not found"))?;
+        let mut txn_state = STATE.transaction.get_app_state(self.app_name())?;
+        let resource = txn_state.create_resource(txn);
         Ok(Some(resource))
     }
 
@@ -316,24 +325,28 @@ impl HostBlock for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Block>) -> wasmtime::Result<()> {
-        let app_state = get_state().get_app_state(self.app_name())?;
-        app_state.delete_resource(res)?;
+        let app_state = STATE.block.get_app_state(self.app_name())?;
+        app_state.delete_resource(rep)?;
         Ok(())
     }
 }
 
 impl HostTransaction for HermesRuntimeContext {
-    /// Returns the transaction auxiliary metadata in CBOR format.
+    /// Returns the transaction auxiliary data in CBOR format.
     ///
     /// **Returns**
     ///
-    /// - `cbor` : The CBOR format of the metadata.
-    fn get_metadata(
+    /// - `cbor` : The CBOR format of the auxiliary data.
+    fn get_aux(
         &mut self, self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Cbor> {
-        let app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let tx = app_state.get_object(self_)?;
-        Ok(tx.consumes())
+        let mut tx_state = STATE.transaction.get_app_state(self.app_name())?;
+        let tx = tx_state.get_object(&self_)?;
+        let metadata = tx
+            .metadata()
+            .as_alonzo()?;
+        let bytes = to_vec(metadata)?;
+        Ok(bytes)
     }
 
     /// Returns the transaction hash.
@@ -343,9 +356,13 @@ impl HostTransaction for HermesRuntimeContext {
     fn get_txn_hash(
         &mut self, self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<TxnHash> {
-        let app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let tx = app_state.get_object(self_)?;
-        Ok(tx.hash().to_bytes())
+        let mut tx_state = STATE.transaction.get_app_state(self.app_name())?;
+        let tx = tx_state.get_object(&self_)?;
+        let slice: [u8; 32] =
+            tx.hash().as_ref().try_into().map_err(|_| {
+                anyhow::anyhow!("Expected 32 bytes, got {}", tx.hash().as_ref().len())
+            })?;
+        Ok(array_u8_32_to_tuple(&slice))
     }
 
     /// Returns the raw CBOR representation of the transaction.
@@ -354,14 +371,14 @@ impl HostTransaction for HermesRuntimeContext {
     ///
     /// - `cbor` : The CBOR format of the transaction.
     fn raw(&mut self, self_: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<Cbor> {
-        let app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let tx = app_state.get_object(self_)?;
-        Ok(tx.raw())
+        let mut tx_state = STATE.transaction.get_app_state(self.app_name())?;
+        let tx = tx_state.get_object(&self_)?;
+        Ok(tx.encode())
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<()> {
-        let app_state = get_state().get_app_state(self.app_name())?;
-        app_state.delete_resource(res)?;
+        let tx_state = STATE.transaction.get_app_state(self.app_name())?;
+        tx_state.delete_resource(rep)?;
         Ok(())
     }
 }
