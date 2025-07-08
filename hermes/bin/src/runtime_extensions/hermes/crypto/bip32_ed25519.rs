@@ -3,10 +3,10 @@
 use bip32::DerivationPath;
 use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 
-use crate::runtime_extensions::bindings::hermes::{
+use crate::runtime_extensions::{bindings::hermes::{
     binary::api::Bstr,
     crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno},
-};
+}, utils::conversion::{array_u8_32_to_tuple, array_u8_64_to_tuple, b512_u64_tuple_to_u8_array}};
 
 /// Get public key from the given extended private key.
 ///
@@ -94,83 +94,6 @@ pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<X
             }
         });
     Ok(key)
-}
-
-/// Convert a 32 bytes array to a tuple of u64 values.
-fn array_u8_32_to_tuple(array: &[u8; 32]) -> (u64, u64, u64, u64) {
-    let mut tuple = (0u64, 0u64, 0u64, 0u64);
-    let mut arr = [0u8; 8];
-    let slice1 = &array[0..8];
-    arr.copy_from_slice(slice1);
-    tuple.0 = u64::from_be_bytes(arr);
-
-    let slice2 = &array[8..16];
-    arr.copy_from_slice(slice2);
-    tuple.1 = u64::from_be_bytes(arr);
-
-    let slice3 = &array[16..24];
-    arr.copy_from_slice(slice3);
-    tuple.2 = u64::from_be_bytes(arr);
-
-    let slice4 = &array[24..32];
-    arr.copy_from_slice(slice4);
-    tuple.3 = u64::from_be_bytes(arr);
-
-    tuple
-}
-
-/// Convert a 64 bytes array to a tuple of u64 values.
-fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64, u64, u64, u64) {
-    let mut tuple = (0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64);
-    let mut arr = [0u8; 8];
-    let slice1 = &array[0..8];
-    arr.copy_from_slice(slice1);
-    tuple.0 = u64::from_be_bytes(arr);
-
-    let slice2 = &array[8..16];
-    arr.copy_from_slice(slice2);
-    tuple.1 = u64::from_be_bytes(arr);
-
-    let slice3 = &array[16..24];
-    arr.copy_from_slice(slice3);
-    tuple.2 = u64::from_be_bytes(arr);
-
-    let slice4 = &array[24..32];
-    arr.copy_from_slice(slice4);
-    tuple.3 = u64::from_be_bytes(arr);
-
-    let slice5 = &array[32..40];
-    arr.copy_from_slice(slice5);
-    tuple.4 = u64::from_be_bytes(arr);
-
-    let slice6 = &array[40..48];
-    arr.copy_from_slice(slice6);
-    tuple.5 = u64::from_be_bytes(arr);
-
-    let slice7 = &array[48..56];
-    arr.copy_from_slice(slice7);
-    tuple.6 = u64::from_be_bytes(arr);
-
-    let slice8 = &array[56..64];
-    arr.copy_from_slice(slice8);
-    tuple.7 = u64::from_be_bytes(arr);
-
-    tuple
-}
-
-/// Convert a tuple of u64 values to a 64 bytes array.
-fn b512_u64_tuple_to_u8_array(tuple: &(u64, u64, u64, u64, u64, u64, u64, u64)) -> [u8; 64] {
-    let mut bytes = [0u8; 64];
-    let (t1, t2, t3, t4, t5, t6, t7, t8) = tuple;
-    bytes[0..8].copy_from_slice(&t1.to_be_bytes());
-    bytes[8..16].copy_from_slice(&t2.to_be_bytes());
-    bytes[16..24].copy_from_slice(&t3.to_be_bytes());
-    bytes[24..32].copy_from_slice(&t4.to_be_bytes());
-    bytes[32..40].copy_from_slice(&t5.to_be_bytes());
-    bytes[40..48].copy_from_slice(&t6.to_be_bytes());
-    bytes[48..56].copy_from_slice(&t7.to_be_bytes());
-    bytes[56..64].copy_from_slice(&t8.to_be_bytes());
-    bytes
 }
 
 #[cfg(test)]
