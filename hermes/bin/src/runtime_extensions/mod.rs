@@ -8,8 +8,8 @@ mod app_config;
 pub(crate) mod bindings;
 pub mod hermes;
 mod resource_manager;
-mod wasi;
 mod utils;
+mod wasi;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
