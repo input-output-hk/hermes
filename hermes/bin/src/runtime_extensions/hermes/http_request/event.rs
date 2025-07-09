@@ -1,8 +1,8 @@
 use crate::event::HermesEventPayload;
 
 pub(super) struct OnHttpResponseEvent {
-    pub(super) request_id: u64,
-    pub(super) response: String,
+    pub(super) request_id: Option<u64>,
+    pub(super) response: Vec<u8>,
 }
 
 impl HermesEventPayload for OnHttpResponseEvent {

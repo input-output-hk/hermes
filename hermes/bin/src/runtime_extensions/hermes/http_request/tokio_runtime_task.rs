@@ -1,4 +1,8 @@
-use std::{io::Write, net::TcpStream, sync::Arc};
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    sync::Arc,
+};
 
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use thiserror::Error;
@@ -77,46 +81,69 @@ enum Connection {
 impl Connection {
     fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
     where S: AsRef<str> + Into<String> + core::fmt::Display {
+        tracing::error!("XXXXX - getting new connection");
         if addr.as_ref().starts_with(HTTP) {
-            let stream = TcpStream::connect((addr.as_ref(), port))
-                .map_err(|_| ErrorCode::HttpConnectionFailed)?;
+            let sliced_addr = &addr.as_ref()[HTTP.len()..];
+            let stream = TcpStream::connect((sliced_addr, port)).map_err(|err| {
+                // TODO[RC]: These should be debug!, but debug do not show up even with
+                // RUST_LOG=debug - to be investigated.
+                tracing::error!(%err, %sliced_addr, "Failed to connect to HTTP server");
+                ErrorCode::HttpConnectionFailed
+            })?;
+            tracing::error!("XXXXX - have connection");
             return Ok(Connection::Http(stream));
         } else if addr.as_ref().starts_with(HTTPS) {
             // TODO[RC]: No need to configure RootCertStore for every connection
+            let sliced_addr = &addr.as_ref()[HTTPS.len()..];
             let mut root_store = RootCertStore::empty();
             root_store.extend(TLS_SERVER_ROOTS.iter().cloned());
             let config = ClientConfig::builder()
                 .with_root_certificates(root_store)
                 .with_no_client_auth();
             let config = Arc::new(config);
-            let server_name = ServerName::try_from(addr.to_string())
-                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
-            let tcp = TcpStream::connect((addr.as_ref(), port))
-                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
-            let conn = ClientConnection::new(config, server_name)
-                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
+            let server_name = ServerName::try_from(sliced_addr.to_string()).map_err(|err| {
+                tracing::error!(%err, %sliced_addr, "Failed to connect to HTTPs server");
+                ErrorCode::HttpsConnectionFailed
+            })?;
+            let tcp = TcpStream::connect((addr.as_ref(), port)).map_err(|err| {
+                tracing::error!(%err, %sliced_addr, "Failed to connect to HTTPs server");
+                ErrorCode::HttpsConnectionFailed
+            })?;
+            let conn = ClientConnection::new(config, server_name).map_err(|err| {
+                tracing::error!(%err, %sliced_addr, "Failed to connect to HTTPs server");
+                ErrorCode::HttpsConnectionFailed
+            })?;
             let mut stream = StreamOwned::new(conn, tcp);
             return Ok(Connection::Https(stream));
         } else {
-            tracing::debug!(%addr, "missing scheme");
+            tracing::error!(%addr, "missing scheme");
             return Err(ErrorCode::MissingScheme);
         }
     }
 
-    fn send(&mut self, body: &[u8]) -> Result<(), ErrorCode> {
+    // TODO[RC]: Timeout needed here, but maybe first switch to Tokio
+    fn send(&mut self, body: &[u8]) -> Result<Vec<u8>, ErrorCode> {
+        let mut response = Vec::new();
         match self {
             Connection::Http(ref mut tcp_stream) => {
-                tcp_stream
-                    .write_all(body)
-                    .map_err(|_| ErrorCode::HttpSendFailed)?;
+                tcp_stream.write_all(body).map_err(|err| {
+                    error!("Failed to send HTTP request: {err}");
+                    ErrorCode::HttpSendFailed
+                })?;
+                tracing::error!("XXXXX - reading to end 1");
+                tcp_stream.read_to_end(&mut response).unwrap();
+                tracing::error!("XXXXX - got the response");
             },
             Connection::Https(tls_stream) => {
-                tls_stream
-                    .write_all(body)
-                    .map_err(|_| ErrorCode::HttpsSendFailed)?;
+                tls_stream.write_all(body).map_err(|err| {
+                    tracing::error!(%err, "Failed to connect to HTTPs server");
+                    ErrorCode::HttpsSendFailed
+                })?;
+                tracing::error!("XXXXX - reading to end 2");
+                tls_stream.read_to_end(&mut response).unwrap();
             },
         }
-        Ok(())
+        Ok(response)
     }
 }
 
@@ -124,31 +151,13 @@ fn send_request_in_background(payload: Payload) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
     std::thread::spawn(move || {
         let mut conn = Connection::new(payload.host_uri, payload.port).unwrap();
-        let send_result = conn.send(&payload.body);
-        // let client = reqwest::blocking::Client::new(); // TODO: Reuse client
-        // let response = if request_line.starts_with("POST") {
-        //     let body_content = body_str.split("\r\n\r\n").last().unwrap_or("");
-        //     client
-        //         .post(&url)
-        //         .body(body_content.to_string())
-        //         .send()
-        //         .unwrap()
-        // } else {
-        //     client.get(&url).send().unwrap()
-        // };
-
-        // let response_text = response
-        //     .text()
-        //     .unwrap_or_else(|_| "Failed to read response".to_string());
-
-        // let on_http_response_event = super::event::OnHttpResponseEvent {
-        //     request_id,
-        //     response: response_text,
-        // };
+        tracing::error!("XXXXX - send_request_in_background 1");
+        let response = conn.send(&payload.body).unwrap();
+        tracing::error!("XXXXX - send_request_in_background 2");
 
         let on_http_response_event = super::event::OnHttpResponseEvent {
-            request_id: 42,
-            response: "abc".to_string(),
+            request_id: payload.request_id,
+            response,
         };
 
         crate::event::queue::send(HermesEvent::new(
