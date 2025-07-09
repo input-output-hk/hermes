@@ -1,4 +1,4 @@
-use std::{net::TcpStream, sync::Arc};
+use std::{io::Write, net::TcpStream, sync::Arc};
 
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use thiserror::Error;
@@ -78,7 +78,8 @@ impl Connection {
     fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
     where S: AsRef<str> + Into<String> + core::fmt::Display {
         if addr.as_ref().starts_with(HTTP) {
-            let stream = TcpStream::connect((addr.as_ref(), port)).unwrap();
+            let stream = TcpStream::connect((addr.as_ref(), port))
+                .map_err(|_| ErrorCode::HttpConnectionFailed)?;
             return Ok(Connection::Http(stream));
         } else if addr.as_ref().starts_with(HTTPS) {
             // TODO[RC]: No need to configure RootCertStore for every connection
@@ -88,9 +89,12 @@ impl Connection {
                 .with_root_certificates(root_store)
                 .with_no_client_auth();
             let config = Arc::new(config);
-            let server_name = ServerName::try_from(addr.to_string()).unwrap();
-            let tcp = TcpStream::connect((addr.as_ref(), port)).unwrap();
-            let conn = ClientConnection::new(config, server_name).unwrap();
+            let server_name = ServerName::try_from(addr.to_string())
+                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
+            let tcp = TcpStream::connect((addr.as_ref(), port))
+                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
+            let conn = ClientConnection::new(config, server_name)
+                .map_err(|_| ErrorCode::HttpsConnectionFailed)?;
             let mut stream = StreamOwned::new(conn, tcp);
             return Ok(Connection::Https(stream));
         } else {
@@ -98,22 +102,29 @@ impl Connection {
             return Err(ErrorCode::MissingScheme);
         }
     }
+
+    fn send(&mut self, body: &[u8]) -> Result<(), ErrorCode> {
+        match self {
+            Connection::Http(ref mut tcp_stream) => {
+                tcp_stream
+                    .write_all(body)
+                    .map_err(|_| ErrorCode::HttpSendFailed)?;
+            },
+            Connection::Https(tls_stream) => {
+                tls_stream
+                    .write_all(body)
+                    .map_err(|_| ErrorCode::HttpsSendFailed)?;
+            },
+        }
+        Ok(())
+    }
 }
 
-fn connect<S>(host_uri: S, port: u16) -> Result<Connection, ErrorCode>
-where S: AsRef<str> + Into<String> + core::fmt::Display {
-    // TODO[RC]: Implement connection logic
-    let connection = Connection::new(host_uri, port);
-
-    todo!()
-}
-
-fn send_request_in_background(payload: &Payload) -> bool {
+fn send_request_in_background(payload: Payload) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
-    let host_uri = payload.host_uri.clone();
-    let port = payload.port;
     std::thread::spawn(move || {
-        let x = connect(host_uri, port);
+        let mut conn = Connection::new(payload.host_uri, payload.port).unwrap();
+        let send_result = conn.send(&payload.body);
         // let client = reqwest::blocking::Client::new(); // TODO: Reuse client
         // let response = if request_line.starts_with("POST") {
         //     let body_content = body_str.split("\r\n\r\n").last().unwrap_or("");
@@ -167,7 +178,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
                 Command::Send { payload, sender } => {
-                    let sending_result = send_request_in_background(&payload);
+                    let sending_result = send_request_in_background(payload);
                     let _ = sender.send(sending_result);
                 },
             }

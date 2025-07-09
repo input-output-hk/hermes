@@ -8,6 +8,14 @@ interface api {
         internal,
         /// Either `http://` or `https://` scheme is required
         missing-scheme,
+        /// HTTP connection failed
+        http-connection-failed,
+        /// HTTPs connection failed
+        https-connection-failed,
+        /// HTTP send failed
+        http-send-failed,
+        /// HTTPs send failed
+        https-send-failed,
     }
 
     /// HTTP request payload (caller manages full body formatting)
