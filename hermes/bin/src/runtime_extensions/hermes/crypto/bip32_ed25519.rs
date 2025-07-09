@@ -3,10 +3,13 @@
 use bip32::DerivationPath;
 use ed25519_bip32::{DerivationScheme, Signature, XPrv};
 
-use crate::runtime_extensions::{bindings::hermes::{
-    binary::api::Bstr,
-    crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno},
-}, utils::conversion::{array_u8_32_to_tuple, array_u8_64_to_tuple, b512_u64_tuple_to_u8_array}};
+use crate::runtime_extensions::{
+    bindings::hermes::{
+        binary::api::Bstr,
+        crypto::api::{Bip32Ed25519PublicKey, Bip32Ed25519Signature, Errno},
+    },
+    utils::conversion::{array_u8_32_to_tuple, array_u8_64_to_tuple, b512_u64_tuple_to_u8_array},
+};
 
 /// Get public key from the given extended private key.
 ///
