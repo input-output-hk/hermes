@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "bin",
-    "crates/cardano-chain-follower",
 ]
 
 [workspace.package]
