@@ -1,52 +1,21 @@
-use cardano_blockchain_types::{MultiEraBlock, Network, Point, Slot};
+//! Cardano Blockchain network implementation for WASM runtime.
+
+use cardano_blockchain_types::{Network, Point};
 use cardano_chain_follower::{ChainFollower, Kind};
+use tracing::error;
 
 use crate::{
     app::ApplicationName,
     runtime_extensions::{
-        bindings::hermes::cardano::api::{CardanoNetwork, CreateNetworkError, SyncSlot},
+        bindings::hermes::cardano::api::{CardanoNetwork, SyncSlot},
         hermes::cardano::{
+            block::get_tips,
             event::{build_and_send_block_event, build_and_send_roll_forward_event},
-            host::SubscriptionType,
+            CardanoError, SubscriptionType,
         },
     },
     wasm::module::ModuleId,
 };
-
-impl TryFrom<CardanoNetwork> for cardano_blockchain_types::Network {
-    type Error = CreateNetworkError;
-
-    fn try_from(network: CardanoNetwork) -> Result<Self, Self::Error> {
-        match network {
-            CardanoNetwork::Mainnet => Ok(cardano_blockchain_types::Network::Mainnet),
-            CardanoNetwork::Preprod => Ok(cardano_blockchain_types::Network::Preprod),
-            CardanoNetwork::Preview => Ok(cardano_blockchain_types::Network::Preview),
-            CardanoNetwork::TestnetMagic(_) => Err(CreateNetworkError::NetworkNotSupport),
-        }
-    }
-}
-
-impl From<cardano_blockchain_types::Network> for CardanoNetwork {
-    fn from(network: cardano_blockchain_types::Network) -> Self {
-        match network {
-            cardano_blockchain_types::Network::Mainnet => CardanoNetwork::Mainnet,
-            cardano_blockchain_types::Network::Preprod => CardanoNetwork::Preprod,
-            cardano_blockchain_types::Network::Preview => CardanoNetwork::Preview,
-        }
-    }
-}
-
-impl From<SyncSlot> for Point {
-    fn from(value: SyncSlot) -> Self {
-        match value {
-            SyncSlot::Genesis => Point::ORIGIN,
-            SyncSlot::Tip => Point::TIP,
-            // FIXME
-            SyncSlot::ImmutableTip => Point::TIP,
-            SyncSlot::Specific(slot) => Point::fuzzy(slot.into()),
-        }
-    }
-}
 
 /// Chain follower subscribe command
 enum Command {
@@ -75,6 +44,8 @@ impl Handle {
     }
 }
 
+/// Spawn a new thread that runs a Tokio runtime, which is used to handle
+/// a subscription to a specific network.
 pub(crate) fn spawn_subscribe(
     app: ApplicationName, module_id: ModuleId, start: Point, network: Network,
     subscription_type: SubscriptionType, subscription_id: u32,
@@ -82,10 +53,14 @@ pub(crate) fn spawn_subscribe(
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
 
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
+        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .enable_io()
             .build()
-            .expect("Failed to build Tokio runtime");
+        else {
+            error!("Failed to create Tokio runtime");
+            return;
+        };
 
         rt.block_on(subscribe(
             cmd_rx,
@@ -101,6 +76,9 @@ pub(crate) fn spawn_subscribe(
     Handle { cmd_tx }
 }
 
+/// Subscribe to events from a Cardano network.
+/// This function will enter a loop and await either a command to stop the
+/// subscription or a new block update from the chain follower.
 async fn subscribe(
     mut cmd_rx: CommandReceiver, app: ApplicationName, module_id: ModuleId, start: Point,
     network: Network, subscription_type: SubscriptionType, subscription_id: u32,
@@ -109,58 +87,71 @@ async fn subscribe(
 
     loop {
         tokio::select! {
-            // Handle stop command
             res = cmd_rx.recv() => {
                 match res {
+                    // Received a stop command
                     Some(Command::Stop(res_tx)) => {
                         let _ = res_tx.send(());
                         break;
                     }
                     None => {
+                        // Channel close
                         break;
                     }
                 }
             }
 
-            // Handle new block update
+            // Handle new block update and send the block event
             update = follower.next() => {
                 match update {
                     Some(chain_update) => {
                         let block_data = chain_update.block_data();
+                        let slot: u64 = block_data.slot().into();
+                        let network: CardanoNetwork = block_data.network().into();
+                        let raw_block = block_data.raw();
 
                         match chain_update.kind {
                             Kind::Block if subscription_type == SubscriptionType::Block => {
-                                build_and_send_block_event(
+                                 if let Err(e) = build_and_send_block_event(
                                     app.clone(),
                                     module_id.clone(),
+                                    network,
                                     subscription_id,
-                                    network.into(),
-                                    block_data.raw(),
-                                    block_data.slot().into(),
+                                    slot,
+                                    raw_block,
                                     chain_update.immutable(),
                                     false,
-                                );
+                                ) {
+                                    error!("Failed to send block event: {e}");
+                                    break;
+                                }
                             }
                             Kind::Rollback if subscription_type == SubscriptionType::Block => {
-                                build_and_send_block_event(
+                                if let Err(e) = build_and_send_block_event(
                                     app.clone(),
                                     module_id.clone(),
+                                    network,
                                     subscription_id,
-                                    network.into(),
-                                    block_data.raw(),
-                                    block_data.slot().into(),
+                                    slot,
+                                    raw_block,
                                     chain_update.immutable(),
                                     true,
-                                );
+                                ) {
+                                    error!("Failed to send rollback block event: {e}");
+                                    break;
+                                }
                             }
                             Kind::ImmutableBlockRollForward if subscription_type == SubscriptionType::ImmutableRollForward => {
-                                build_and_send_roll_forward_event(
+                                if let Err(e) = build_and_send_roll_forward_event(
                                     app.clone(),
                                     module_id.clone(),
+                                    network,
                                     subscription_id,
-                                    network.into(),
-                                    block_data.slot().into(),
-                                );
+                                    slot,
+                                ){
+                                    error!("Failed to send immutable block roll-forward event: {e}");
+                                    break;
+                                }
                             }
                             _ => {}
                         }
@@ -174,66 +165,38 @@ async fn subscribe(
     }
 }
 
-pub(crate) fn get_block_relative(
-    chain: Network, start: Option<u64>, step: i64,
-) -> anyhow::Result<MultiEraBlock> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<MultiEraBlock> {
-        let point = if let Some(start_point) = start {
-            let target = if step.is_negative() {
-                start_point
-                    .checked_sub(step.unsigned_abs())
-                    .ok_or_else(|| anyhow::anyhow!("Step causes underflow"))?
-            } else {
-                start_point
-                    .checked_add(step.unsigned_abs())
-                    .ok_or_else(|| anyhow::anyhow!("Step causes overflow"))?
-            };
-            Point::fuzzy(target.into())
-        } else {
-            Point::TIP
-        };
+impl TryFrom<CardanoNetwork> for cardano_blockchain_types::Network {
+    type Error = CardanoError;
 
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to create Tokio runtime: {e}"));
-            },
-        };
-
-        let block = rt
-            .block_on(ChainFollower::get_block(chain, point))
-            .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point"))?;
-
-        Ok(block.data)
-    });
-
-    handle
-        .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting block: {e:?}"))?
+    fn try_from(network: CardanoNetwork) -> Result<Self, Self::Error> {
+        match network {
+            CardanoNetwork::Mainnet => Ok(cardano_blockchain_types::Network::Mainnet),
+            CardanoNetwork::Preprod => Ok(cardano_blockchain_types::Network::Preprod),
+            CardanoNetwork::Preview => Ok(cardano_blockchain_types::Network::Preview),
+            CardanoNetwork::TestnetMagic(n) => Err(CardanoError::NetworkNotSupported(n)),
+        }
+    }
 }
 
-pub(crate) fn get_tips(chain: Network) -> anyhow::Result<(Slot, Slot)> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<(Slot, Slot)> {
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to create Tokio runtime: {e}"));
-            },
-        };
+/// Convert `SyncSlot` to a point.
+pub(crate) fn sync_slot_to_point(slot: SyncSlot, network: Network) -> anyhow::Result<Point> {
+    let (immutable_tip, live_tip) = get_tips(network)?;
+    let immutable_tip = Point::fuzzy(immutable_tip);
+    let live_tip = Point::fuzzy(live_tip);
+    match slot {
+        SyncSlot::Genesis => Ok(Point::ORIGIN),
+        SyncSlot::Tip => Ok(live_tip),
+        SyncSlot::ImmutableTip => Ok(immutable_tip),
+        SyncSlot::Specific(slot) => Ok(Point::fuzzy(slot.into())),
+    }
+}
 
-        let (immutable_tip, live_tip) = rt.block_on(ChainFollower::get_tips(chain));
-        Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
-    });
-
-    handle
-        .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting block: {e:?}"))?
+impl From<cardano_blockchain_types::Network> for CardanoNetwork {
+    fn from(network: cardano_blockchain_types::Network) -> Self {
+        match network {
+            cardano_blockchain_types::Network::Mainnet => CardanoNetwork::Mainnet,
+            cardano_blockchain_types::Network::Preprod => CardanoNetwork::Preprod,
+            cardano_blockchain_types::Network::Preview => CardanoNetwork::Preview,
+        }
+    }
 }
