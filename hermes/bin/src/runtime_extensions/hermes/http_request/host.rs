@@ -3,15 +3,18 @@
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        bindings::hermes::http_request::api::{Host, Payload},
-        hermes::http_request::{tokio_runtime_task::{parse_payload, ParsedPayload}, STATE},
+        bindings::hermes::http_request::api::{ErrorCode, Host, Payload},
+        hermes::http_request::{
+            tokio_runtime_task::{parse_payload, ParsedPayload},
+            STATE,
+        },
     },
 };
 
 impl Host for HermesRuntimeContext {
-    fn send(&mut self, payload: Payload) -> wasmtime::Result<bool> {
-        STATE.tokio_rt_handle.send(payload).unwrap();
+    fn send(&mut self, payload: Payload) -> wasmtime::Result<Result<(), ErrorCode>> {
+        let result = STATE.tokio_rt_handle.send(payload)?;
 
-        Ok(true)
+        Ok(Ok(result))
     }
 }

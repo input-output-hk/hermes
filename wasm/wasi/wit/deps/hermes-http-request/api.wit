@@ -2,9 +2,16 @@
 
 /// Http request interface
 interface api {
-    // HTTP request payload (caller manages full body formatting)
+    /// Error codes.
+    enum error-code {
+        /// Internal error when trying to send the request
+        internal,
+    }
+
+    /// HTTP request payload (caller manages full body formatting)
     record payload {
         /// Host URI (scheme + domain, no path), e.g., "http://example.com"
+        /// TODO[RC]: Invalid when unspecified
         host-uri: string,
         /// Port (e.g., 80 for HTTP, 443 for HTTPS)
         port: u16,
@@ -15,7 +22,16 @@ interface api {
     }
 
     /// Send an HTTP request.
-    send: func(p: payload) -> bool;
+    ///
+    /// **Parameters**
+    /// 
+    /// `p` : The payload of a request to be sent.
+    /// 
+    /// **Returns**
+    /// 
+    /// `true` if the request was sent successfully, `false` otherwise.
+    ///     
+    send: func(p: payload) -> result<_, error-code>;
 }
 
 /// World just for the Hermes Http request extension.

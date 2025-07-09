@@ -2,10 +2,10 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{error, trace};
 use thiserror::Error;
 
-use crate::{event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule}, runtime_extensions::bindings::hermes::http_request::api::Payload};
+use crate::{event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule}, runtime_extensions::bindings::hermes::http_request::api::{Payload, ErrorCode}};
 
 pub enum Command {
-    Send { payload: Payload, send_result_sender: oneshot::Sender<bool> },
+    Send { payload: Payload, sender: oneshot::Sender<bool> },
 }
 
 type CommandSender = tokio::sync::mpsc::Sender<Command>;
@@ -24,16 +24,24 @@ pub enum RequestSendingError {
     ResponseReceive(#[from] oneshot::error::RecvError),
 }
 
+impl From<RequestSendingError> for ErrorCode {
+    fn from(value: RequestSendingError) -> Self {
+        match value {
+            // We map all "internal" errors to `ErrorCode::Internal` to not expose implementation details to the user. Detailed information will be available in logs.
+            RequestSendingError::ChannelSend(_)|RequestSendingError::ResponseReceive(_) => ErrorCode::Internal,
+        }
+    }
+}
+
 impl TokioTaskHandle {
     /// Sends a command to the Tokio runtime task.
     pub fn send(
         &self, payload: Payload,
-    ) -> Result<bool, RequestSendingError> {
-        let (send_result_sender, send_result_receiver) = tokio::sync::oneshot::channel();
-        self.cmd_tx.blocking_send(Command::Send { payload, send_result_sender })?;
-        let sending_result = send_result_receiver.blocking_recv()?;
-        error!(%sending_result, "Got sending result");
-        Ok(sending_result)
+    ) -> Result<(), RequestSendingError> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        self.cmd_tx.blocking_send(Command::Send { payload, sender })?;
+        receiver.blocking_recv()?;
+        Ok(())
     }
 }
 
@@ -90,6 +98,7 @@ pub(crate) fn parse_payload(payload: Payload) -> ParsedPayload {
 
 
 fn send_request_in_background(request_id: String, body_str: String, request_line: String, url: String) -> bool {
+    // TODO[RC]: Make sure there are no stray threads left running
     std::thread::spawn(move || {
         let client = reqwest::blocking::Client::new(); // TODO: Reuse client
         let response = if request_line.starts_with("POST") {
@@ -142,7 +151,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
     rt.block_on(async move {
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
-                Command::Send { payload, send_result_sender } => {
+                Command::Send { payload, sender } => {
                     let ParsedPayload {
                         body_str,
                         request_line,
@@ -154,7 +163,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
                     let sending_result = send_request_in_background(request_id, body_str,
                         request_line,
                         url);
-                    let _ = send_result_sender.send(sending_result);
+                    let _ = sender.send(sending_result);
                 },
             }
         }
