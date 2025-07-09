@@ -3,30 +3,27 @@
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
-    runtime_extensions::{
-        bindings::{
-            exports::hermes::cardano::event_on_block::{CardanoNetwork, SubscriptionId},
-            hermes::cardano::api::Slot,
-        },
-        hermes::cardano::{ModuleStateKey, STATE},
+    runtime_extensions::bindings::{
+        exports::hermes::cardano::event_on_block::{CardanoNetwork, SubscriptionId},
+        hermes::cardano::api::Slot,
     },
     wasm::module::ModuleId,
 };
 
 /// On Cardano block event
 pub(super) struct OnCardanoBlockEvent {
-    /// The Cardano blockchain network that the block is originated from.
-    pub(super) network: CardanoNetwork,
-    /// The CBOR Cardano block data.
-    pub(super) block: Vec<u8>,
-    /// The Cardano slot number that the block is in.
-    pub(super) slot: Slot,
+    /// The Cardano blockchain network that the block event is originated from.
+    network: CardanoNetwork,
+    /// A unique identifier of the block subscription.
+    subscription_id: SubscriptionId,
+    /// The Cardano slot number that the block event is in.
+    slot: Slot,
+    /// The CBOR format of the Cardano block data.
+    block: Vec<u8>,
     /// Flag indicate whether the block is immutable or not.
-    pub(super) is_immutable: bool,
-    /// Subscription ID.
-    pub(super) subscription_id: SubscriptionId,
+    is_immutable: bool,
     /// Flag indicate whether the block is a rollback.
-    pub(super) is_rollback: bool,
+    is_rollback: bool,
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
@@ -53,11 +50,12 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 
 /// On Cardano roll-forward event.
 pub(super) struct OnCardanoImmutableRollForwardEvent {
-    pub(super) subscription_id: SubscriptionId,
+    /// The Cardano blockchain network that the roll-forward event is originated from.
+    network: CardanoNetwork,
+    /// A unique identifier of the block subscription.
+    subscription_id: SubscriptionId,
     /// The Cardano slot number that the roll-forward rolls to.
-    pub(super) slot: Slot,
-    /// The Cardano blockchain network that the roll-forward occurred.
-    pub(super) network: CardanoNetwork,
+    slot: Slot,
 }
 
 impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
@@ -79,34 +77,14 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
     }
 }
 
-/// Holds flags specifying which event subscriptions are active.
-struct EventSubscriptions {
-    /// Whether the module is subscribed to block events.
-    blocks: bool,
-    /// Whether the module is subscribed to roll-forward events.
-    roll_forwards: bool,
-}
-
-/// Gets the event subscription flags for a given module.
-pub(crate) fn get_event_subscriptions(
-    module_state_key: &ModuleStateKey,
-) -> anyhow::Result<EventSubscriptions> {
-    let sub_state = STATE
-        .subscriptions
-        .get(module_state_key)
-        .ok_or(anyhow::anyhow!("Module subscription not found"))?;
-
-    Ok(EventSubscriptions {
-        blocks: sub_state.subscribed_to_blocks,
-        roll_forwards: sub_state.subscribed_to_roll_forwards,
-    })
-}
-
 // -------- Event Builder ----------
 
+/// Build and send block event.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_and_send_block_event(
-    app: ApplicationName, module_id: ModuleId, subscription_id: SubscriptionId,
-    network: CardanoNetwork, block_data: &[u8], slot: Slot, is_immutable: bool, is_rollback: bool,
+    app: ApplicationName, module_id: ModuleId, network: CardanoNetwork,
+    subscription_id: SubscriptionId, slot: Slot, block_data: &[u8], is_immutable: bool,
+    is_rollback: bool,
 ) -> anyhow::Result<()> {
     let on_block_event = super::event::OnCardanoBlockEvent {
         network,
@@ -124,13 +102,14 @@ pub(crate) fn build_and_send_block_event(
     ))
 }
 
+/// Build and send immutable roll-forward event.
 pub(crate) fn build_and_send_roll_forward_event(
-    app: ApplicationName, module_id: ModuleId, subscription_id: SubscriptionId,
-    network: CardanoNetwork, slot: Slot,
+    app: ApplicationName, module_id: ModuleId, network: CardanoNetwork,
+    subscription_id: SubscriptionId, slot: Slot,
 ) -> anyhow::Result<()> {
     let on_rollback_event = super::event::OnCardanoImmutableRollForwardEvent {
-        subscription_id,
         network,
+        subscription_id,
         slot,
     };
 
