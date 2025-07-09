@@ -3,26 +3,33 @@
 /// Event interfaces that a component must export in order to receive events from the host.
 
 interface event-on-block {
-    use api.{block, subscription-id};
+    use api.{block, subscription-id, slot, cardano-network};
+    use hermes:cbor/api.{cbor};
 
     /// Trigger when a Cardano block event is fired.
     /// 
     /// 
     /// ## Parameters
     /// 
-    /// - `id` A unique identifier of the block subscription.
-    /// - `block` A block resource.
-    on-cardano-block: func(id: subscription-id, block: block);
+    /// - `network` : The Cardano blockchain network that the block event is originated from.
+    /// - `subscription-id` : A unique identifier of the block subscription.
+    /// - `slot` : The Cardano slot number that the block event is in.
+    /// - `block` : The CBOR format of the Cardano block data.
+    /// - `is-immutable` : Flag indicate whether the block is immutable or not.
+    /// - `is-rollback` : Flag indicate whether the block is a rollback.
+    on-cardano-block: func(network: cardano-network, subscription-id: subscription-id,
+        slot: slot, block: cbor, is-immutable: bool, is-rollback: bool);
 }
 
 interface event-on-immutable-roll-forward {
-    use api.{subscription-id, slot};
+    use api.{subscription-id, slot, cardano-network};
 
     /// Trigger when a Cardano immutable roll-forward event is fired.
     /// 
     /// ## Parameters
     /// 
-    /// - `id` A unique identifier of the block subscription.
+    /// - `network` : The Cardano blockchain network that the roll-forward event is originated from.
+    /// - `subscription-id` : A unique identifier of the block subscription.
     /// - `slot` : The Cardano slot number that the roll-forward rolls to.
     /// 
     /// ## Notes
@@ -31,5 +38,5 @@ interface event-on-immutable-roll-forward {
     /// block event is delivered. The block event delivered immediately after a
     /// roll-forward will correspond to the block at the roll-forward target `slot`. 
     /// This means that roll-forward processing **does not** need to reset or re-subscribe the blockchain follower.
-    on-cardano-immutable-roll-forward: func(id: subscription-id, slot: slot);
+    on-cardano-immutable-roll-forward: func(id: subscription-id, slot: slot, network: cardano-network);
 }
