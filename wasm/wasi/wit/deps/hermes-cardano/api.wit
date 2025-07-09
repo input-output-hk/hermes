@@ -13,7 +13,7 @@ interface api {
     /// Slot on the Cardano blockchain.
     type slot = u64;
     /// Cardano transaction index.
-    type txn-idx = u64;
+    type txn-idx = u16;
     /// Cardano transaction hash.
     type txn-hash = blake2b256;
     /// A unique identifier used for event subscriptions.
@@ -49,16 +49,14 @@ interface api {
 
     /// Errors that can happen for subscribing to blocks
     enum subscribe-error {
-        /// The blockchain requested is not available.
-        blockchain-not-available,
-        /// The slot requested is not a valid slot for the blockchain.
-        invalid-slot,
+        /// The slot requested is not valid.
+        invalid-start-slot,
     }
 
     /// Errors that can happen when initialize network.
     enum create-network-error {
         /// Network not supported.
-        not-support,
+        network-not-supported,
     }
 
     /// Cardano network
@@ -71,9 +69,9 @@ interface api {
         /// 
         /// **Returns**
         /// 
-        /// - `ok(_)`: If successfully create network.
-        /// - `error(create-network-error)`: If creating network failed.
-        new: static func(network: cardano-network) -> result<_, create-network-error>;
+        /// - `ok(network)`: A resource network, if successfully create network resource.
+        /// - `error(create-network-error)`: If creating network resource failed.
+        new: static func(network: cardano-network) -> result<network, create-network-error>;
 
         /// Subscribe to blockchain block events, start from a specified starting point.
         ///
@@ -117,7 +115,7 @@ interface api {
         /// **Parameters**
         /// - `id` : A unique identifier of the block subscription to unsubscribe from.
         ///         This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
-        unsubscribe: func(id: subscription-id);
+        unsubscribe: static func(id: subscription-id);
 
         /// Get a block relative to `start` by `step`.
         ///
@@ -152,7 +150,8 @@ interface api {
         /// - A tuple of two slots:
         ///   - The immutable tip.
         ///   - The mutable tip.
-        get-tips: func() -> tuple<slot, slot>;
+        /// `None` if the tips cannot be retrieved.
+        get-tips: func() -> option<tuple<slot, slot>>;
     }
 
     /// Cardano block
@@ -205,20 +204,21 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `cbor` : The CBOR format of the metadata.
-        get-metadata: func() -> cbor;
+        /// - `option<cbor>` : The CBOR format of the metadata, `None` if cannot retrieve the metadata.
+        get-metadata: func() -> option<cbor>;
 
         /// Returns the transaction hash.
         ///
         /// **Returns**
-        /// - `txn-hash` : Cardano transaction hash - Blake2b-256.
-        get-txn-hash: func() -> txn-hash;
+        /// 
+        /// - `option<txn-hash>` : Cardano transaction hash - Blake2b-256, `None` if cannot retrieve the transaction hash.
+        get-txn-hash: func() -> option<txn-hash>;
 
         /// Returns the raw CBOR representation of the transaction.
         /// 
         /// **Returns**
         ///
-        /// - `cbor` : The CBOR format of the transaction.
-        raw: func() -> cbor;
+        /// - `option<cbor>` : The CBOR format of the transaction, `None` if cannot retrieve the raw transaction.
+        raw: func() -> option<cbor>;
     }
 }
