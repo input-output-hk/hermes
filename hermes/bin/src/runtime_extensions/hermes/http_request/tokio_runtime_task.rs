@@ -58,7 +58,7 @@ pub(crate) struct ParsedPayload {
     pub(crate) body_str: String,
     pub(crate) request_line: String,
     pub(crate) url: String,
-    pub(crate) request_id: String,
+    pub(crate) request_id: u64,
 }
 
 pub(crate) fn parse_payload(payload: Payload) -> ParsedPayload {
@@ -97,7 +97,7 @@ pub(crate) fn parse_payload(payload: Payload) -> ParsedPayload {
 }
 
 
-fn send_request_in_background(request_id: String, body_str: String, request_line: String, url: String) -> bool {
+fn send_request_in_background(request_id: u64, body_str: String, request_line: String, url: String) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
     std::thread::spawn(move || {
         let client = reqwest::blocking::Client::new(); // TODO: Reuse client
@@ -134,8 +134,6 @@ fn send_request_in_background(request_id: String, body_str: String, request_line
 
 fn executor(mut cmd_rx: CommandReceiver) {
     let res = tokio::runtime::Builder::new_current_thread()
-        .enable_io()
-        .enable_time()
         .build();
 
     let rt = match res {

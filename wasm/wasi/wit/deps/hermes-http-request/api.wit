@@ -18,7 +18,7 @@ interface api {
         /// Raw HTTP request (including method, path, headers, and body)
         body: list<u8>,
         /// Optional request identifier for tracking
-        request-id: option<string>,
+        request-id: option<u64>,
     }
 
     /// Send an HTTP request.
