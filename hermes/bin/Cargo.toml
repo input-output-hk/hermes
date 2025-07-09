@@ -85,6 +85,9 @@ rust-ipfs = "0.14.1"
 dirs = "6.0.0"
 regex = "1.11.0"
 reqwest = "0.12.22"
+rustls = "0.23.28"
+webpki-roots = "1.0.1"
+webpki = "0.22.4"
 
 [build-dependencies]
 build-info-build = "0.0.40"

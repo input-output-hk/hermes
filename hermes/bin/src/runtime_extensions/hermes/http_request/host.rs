@@ -4,10 +4,7 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::http_request::api::{ErrorCode, Host, Payload},
-        hermes::http_request::{
-            tokio_runtime_task::{parse_payload, ParsedPayload},
-            STATE,
-        },
+        hermes::http_request::STATE,
     },
 };
 

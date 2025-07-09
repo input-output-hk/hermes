@@ -6,6 +6,8 @@ interface api {
     enum error-code {
         /// Internal error when trying to send the request
         internal,
+        /// Either `http://` or `https://` scheme is required
+        missing-scheme,
     }
 
     /// HTTP request payload (caller manages full body formatting)
