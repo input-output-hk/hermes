@@ -81,7 +81,6 @@ enum Connection {
 impl Connection {
     fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
     where S: AsRef<str> + Into<String> + core::fmt::Display {
-        tracing::error!("XXXXX - getting new connection");
         if addr.as_ref().starts_with(HTTP) {
             let sliced_addr = &addr.as_ref()[HTTP.len()..];
             let stream = TcpStream::connect((sliced_addr, port)).map_err(|err| {
@@ -90,7 +89,7 @@ impl Connection {
                 tracing::error!(%err, %sliced_addr, "Failed to connect to HTTP server");
                 ErrorCode::HttpConnectionFailed
             })?;
-            tracing::error!("XXXXX - have connection");
+            tracing::debug!(%addr, port, "connected over HTTP");
             return Ok(Connection::Http(stream));
         } else if addr.as_ref().starts_with(HTTPS) {
             // TODO[RC]: No need to configure RootCertStore for every connection
@@ -127,16 +126,16 @@ impl Connection {
         match self {
             Connection::Http(ref mut tcp_stream) => {
                 tcp_stream.write_all(body).map_err(|err| {
-                    error!("Failed to send HTTP request: {err}");
+                    error!("failed to send HTTP request: {err}");
                     ErrorCode::HttpSendFailed
                 })?;
-                tracing::error!("XXXXX - reading to end 1");
+                tracing::debug!("request sent, awaiting response");
                 tcp_stream.read_to_end(&mut response).unwrap();
-                tracing::error!("XXXXX - got the response");
+                tracing::debug!(length_bytes = response.len(), "got response");
             },
             Connection::Https(tls_stream) => {
                 tls_stream.write_all(body).map_err(|err| {
-                    tracing::error!(%err, "Failed to connect to HTTPs server");
+                    tracing::error!(%err, "failed to connect to HTTPs server");
                     ErrorCode::HttpsSendFailed
                 })?;
                 tracing::error!("XXXXX - reading to end 2");
@@ -151,9 +150,7 @@ fn send_request_in_background(payload: Payload) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
     std::thread::spawn(move || {
         let mut conn = Connection::new(payload.host_uri, payload.port).unwrap();
-        tracing::error!("XXXXX - send_request_in_background 1");
         let response = conn.send(&payload.body).unwrap();
-        tracing::error!("XXXXX - send_request_in_background 2");
 
         let on_http_response_event = super::event::OnHttpResponseEvent {
             request_id: payload.request_id,
