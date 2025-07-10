@@ -100,11 +100,11 @@ impl Connection {
                 .with_root_certificates(root_store)
                 .with_no_client_auth();
             let config = Arc::new(config);
-            let server_name = ServerName::try_from(sliced_addr.to_string()).map_err(|err| {
+            let tcp = TcpStream::connect((sliced_addr.as_ref(), port)).map_err(|err| {
                 tracing::error!(%err, %sliced_addr, "Failed to connect to HTTPs server");
                 ErrorCode::HttpsConnectionFailed
             })?;
-            let tcp = TcpStream::connect((addr.as_ref(), port)).map_err(|err| {
+            let server_name = ServerName::try_from(sliced_addr.to_string()).map_err(|err| {
                 tracing::error!(%err, %sliced_addr, "Failed to connect to HTTPs server");
                 ErrorCode::HttpsConnectionFailed
             })?;
@@ -113,9 +113,10 @@ impl Connection {
                 ErrorCode::HttpsConnectionFailed
             })?;
             let mut stream = StreamOwned::new(conn, tcp);
+            tracing::debug!(%addr, port, "connected over HTTPs");
             return Ok(Connection::Https(stream));
         } else {
-            tracing::error!(%addr, "missing scheme");
+            tracing::debug!(%addr, "missing scheme");
             return Err(ErrorCode::MissingScheme);
         }
     }
@@ -130,7 +131,10 @@ impl Connection {
                     ErrorCode::HttpSendFailed
                 })?;
                 tracing::debug!("request sent, awaiting response");
-                tcp_stream.read_to_end(&mut response).unwrap();
+                read_to_end_ignoring_unexpected_eof(tcp_stream, &mut response).map_err(|err| {
+                    tracing::debug!(%err, "failed to read from HTTP server");
+                    ErrorCode::HttpsSendFailed
+                });
                 tracing::debug!(length_bytes = response.len(), "got response");
             },
             Connection::Https(tls_stream) => {
@@ -138,11 +142,29 @@ impl Connection {
                     tracing::error!(%err, "failed to connect to HTTPs server");
                     ErrorCode::HttpsSendFailed
                 })?;
-                tracing::error!("XXXXX - reading to end 2");
-                tls_stream.read_to_end(&mut response).unwrap();
+                read_to_end_ignoring_unexpected_eof(tls_stream, &mut response).map_err(|err| {
+                    tracing::debug!(%err, "failed to read from HTTPs server");
+                    ErrorCode::HttpsSendFailed
+                });
+                tracing::debug!(length_bytes = response.len(), "got response");
             },
         }
         Ok(response)
+    }
+}
+
+fn read_to_end_ignoring_unexpected_eof<R>(
+    reader: &mut R, buf: &mut Vec<u8>,
+) -> std::io::Result<usize>
+where R: Read {
+    match reader.read_to_end(buf) {
+        Ok(0) => Ok(0),
+        Ok(n) => Ok(n),
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+            tracing::debug!("HTTPs connection closed unexpectedly, but no big deal");
+            Ok(buf.len())
+        },
+        Err(e) => Err(e),
     }
 }
 
@@ -150,18 +172,22 @@ fn send_request_in_background(payload: Payload) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
     std::thread::spawn(move || {
         let mut conn = Connection::new(payload.host_uri, payload.port).unwrap();
-        let response = conn.send(&payload.body).unwrap();
+        let response = conn.send(&payload.body);
+        match response {
+            Ok(response) => {
+                let on_http_response_event = super::event::OnHttpResponseEvent {
+                    request_id: payload.request_id,
+                    response,
+                };
 
-        let on_http_response_event = super::event::OnHttpResponseEvent {
-            request_id: payload.request_id,
-            response,
-        };
-
-        crate::event::queue::send(HermesEvent::new(
-            on_http_response_event,
-            TargetApp::All,
-            TargetModule::All,
-        ));
+                crate::event::queue::send(HermesEvent::new(
+                    on_http_response_event,
+                    TargetApp::All,
+                    TargetModule::All,
+                ));
+            },
+            Err(err) => tracing::debug!(%err, "error sending request"),
+        }
     });
 
     true
