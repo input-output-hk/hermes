@@ -16,11 +16,7 @@ interface api {
     type txn-idx = u16;
     /// Cardano transaction hash.
     type txn-hash = blake2b256;
-    /// A unique identifier used for event subscriptions.
-    /// It is used to distinguishes events from different subscribers
-    /// and provides control over subscription management.
-    /// The ID must be unique across all active subscriptions.
-    type subscription-id = u32;
+
 
     /// Cardano blockchain network.
     variant cardano-network {
@@ -84,8 +80,8 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `ok(subscription-id)`: A unique identifier of this subscription.
-        ///                         Use to distinguishes events from different subscribers
+        /// - `ok(subscription-id)`: A subscription ID resource where it is a unique identifier of.
+        ///                         this subscription. Use to distinguishes events from different subscribers
         ///                         and provides control over subscription management.
         ///                         The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
@@ -102,20 +98,12 @@ interface api {
         /// 
         /// **Returns**
         /// 
-        /// - `ok(subscription-id)`: A unique identifier of this subscription.
-        ///                         Use to distinguishes events from different subscribers
+        /// - `ok(subscription-id)`: A subscription ID resource where it is a unique identifier of.
+        ///                         this subscription. Use to distinguishes events from different subscribers
         ///                         and provides control over subscription management.
         ///                         The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-immutable-roll-forward: func(start: sync-slot) -> result<subscription-id, subscribe-error>;
-        
-        /// Unsubscribing block events given an ID.
-        /// Once this function is called, the subscription instance, `subscription-id` will be removed.
-        /// 
-        /// **Parameters**
-        /// - `id` : A unique identifier of the block subscription to unsubscribe from.
-        ///         This `id` is returned from the `subscribe-block` or `subscribe-immutable-roll-forward`
-        unsubscribe: static func(id: subscription-id);
 
         /// Get a block relative to `start` by `step`.
         ///
@@ -220,5 +208,19 @@ interface api {
         ///
         /// - `option<cbor>` : The CBOR format of the transaction, `None` if cannot retrieve the raw transaction.
         raw: func() -> option<cbor>;
+    }
+
+    resource subscription-id {
+        /// Returns the network that this subscription is in.
+        /// 
+        /// **Returns**
+        /// 
+        /// - `cardano-network` : The Cardano network that this subscription is in.
+        get-network: func() -> cardano-network;
+
+                
+        /// Unsubscribing block event of this `subscription-id` instance.
+        /// Once this function is called, the subscription instance, `subscription-id` will be removed.
+        unsubscribe: func();
     }
 }
