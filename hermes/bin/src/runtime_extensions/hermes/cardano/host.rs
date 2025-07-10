@@ -1,7 +1,5 @@
 //!  Cardano Blockchain host implementation for WASM runtime.
 
-use std::sync::atomic::Ordering;
-
 use tracing::error;
 
 use crate::{
@@ -9,8 +7,8 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::cardano::api::{
             Block, CardanoNetwork, Cbor, CreateNetworkError, Host, HostBlock, HostNetwork,
-            HostTransaction, Network, Slot, SubscribeError, SubscriptionId, SyncSlot, Transaction,
-            TxnHash, TxnIdx,
+            HostSubscriptionId, HostTransaction, Network, Slot, SubscribeError, SubscriptionId,
+            SyncSlot, Transaction, TxnHash, TxnIdx,
         },
         hermes::cardano::{
             block::{get_block_relative, get_is_rollback, get_tips},
@@ -67,17 +65,23 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     /// **Returns**
     ///
-    /// - `ok(subscription-id)`: A unique identifier of this subscription. distinguishes
-    ///   events from different subscribers and provides control over subscription
-    ///   management. The ID must be unique across all active subscriptions.
+    /// - `ok(subscription-id)`: A subscription ID resource where it is a unique
+    ///   identifier of. this subscription. Use to distinguishes events from different
+    ///   subscribers and provides control over subscription management. The ID must be
+    ///   unique across all active subscriptions.
     /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_block(
         &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
-    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+    ) -> wasmtime::Result<Result<wasmtime::component::Resource<SubscriptionId>, SubscribeError>>
+    {
+        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
+        let network = network_app_state.get_object(&self_)?;
 
-        let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
+        let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        let subscription_id_resource = subscription_id_app_state.create_resource(*network);
+        let borrow_subscription_id =
+            wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
+
         let Ok(start) = sync_slot_to_point(start, *network) else {
             return Ok(Err(SubscribeError::InvalidStartSlot));
         };
@@ -87,13 +91,14 @@ impl HostNetwork for HermesRuntimeContext {
             start,
             *network,
             SubscriptionType::Block,
-            id,
+            borrow_subscription_id,
         );
-        STATE
-            .subscriptions
-            .insert(id, (SubscriptionType::Block, handle));
+        STATE.subscriptions.insert(
+            subscription_id_resource.rep(),
+            (SubscriptionType::Block, handle),
+        );
 
-        Ok(Ok(SubscriptionId::from(id)))
+        Ok(Ok(subscription_id_resource))
     }
 
     /// Subscribe to blockchain immutable rolls forward.
@@ -107,17 +112,23 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     /// **Returns**
     ///
-    /// - `ok(subscription-id)`: A unique identifier of this subscription. distinguishes
-    ///   events from different subscribers and provides control over subscription
-    ///   management. The ID must be unique across all active subscriptions.
+    /// - `ok(subscription-id)`: A subscription ID resource where it is a unique
+    ///   identifier of. this subscription. Use to distinguishes events from different
+    ///   subscribers and provides control over subscription management. The ID must be
+    ///   unique across all active subscriptions.
     /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_immutable_roll_forward(
         &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
-    ) -> wasmtime::Result<Result<SubscriptionId, SubscribeError>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+    ) -> wasmtime::Result<Result<wasmtime::component::Resource<SubscriptionId>, SubscribeError>>
+    {
+        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
+        let network = network_app_state.get_object(&self_)?;
 
-        let id = STATE.subscription_id.fetch_add(1, Ordering::Relaxed);
+        let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        let subscription_id_resource = subscription_id_app_state.create_resource(*network);
+        let borrow_subscription_id =
+            wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
+
         let Ok(start) = sync_slot_to_point(start, *network) else {
             return Ok(Err(SubscribeError::InvalidStartSlot));
         };
@@ -127,29 +138,13 @@ impl HostNetwork for HermesRuntimeContext {
             start,
             *network,
             SubscriptionType::ImmutableRollForward,
-            id,
+            borrow_subscription_id,
         );
-        STATE
-            .subscriptions
-            .insert(id, (SubscriptionType::ImmutableRollForward, handle));
-        Ok(Ok(SubscriptionId::from(id)))
-    }
-
-    /// Unsubscribing block events given an ID.
-    /// Once this function is called, the subscription instance, `subscription-id` will be
-    /// removed.
-    ///
-    /// **Parameters**
-    /// - `id` : A unique identifier of the block subscription to unsubscribe from. This
-    ///   `id` is returned from the `subscribe-block` or
-    ///   `subscribe-immutable-roll-forward`
-    fn unsubscribe(&mut self, id: SubscriptionId) -> wasmtime::Result<()> {
-        if let Some(entry) = STATE.subscriptions.get(&id) {
-            let (_, handle) = entry.value();
-            handle.stop()?;
-            STATE.subscriptions.remove(&id);
-        }
-        Ok(())
+        STATE.subscriptions.insert(
+            subscription_id_resource.rep(),
+            (SubscriptionType::ImmutableRollForward, handle),
+        );
+        Ok(Ok(subscription_id_resource))
     }
 
     /// Get a block relative to `start` by `step`.
@@ -363,8 +358,8 @@ impl HostTransaction for HermesRuntimeContext {
     fn raw(
         &mut self, self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<Cbor>> {
-        let mut tx_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = tx_state.get_object(&self_)?;
+        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
+        let object = app_state.get_object(&self_)?;
         let txns = object.0.txs();
         let Some(txn) = txns.get(usize::from(object.1)) else {
             error!(error = "Invalid index", "Failed to get raw transaction");
@@ -374,8 +369,49 @@ impl HostTransaction for HermesRuntimeContext {
     }
 
     fn drop(&mut self, rep: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<()> {
-        let tx_state = STATE.transaction.get_app_state(self.app_name())?;
-        tx_state.delete_resource(rep)?;
+        let app_state = STATE.transaction.get_app_state(self.app_name())?;
+        app_state.delete_resource(rep)?;
+        Ok(())
+    }
+}
+
+impl HostSubscriptionId for HermesRuntimeContext {
+    /// Returns the network that this subscription is in.
+    ///
+    /// **Returns**
+    // - `cardano-network` : The Cardano network that this subscription is in.
+    fn get_network(
+        &mut self, self_: wasmtime::component::Resource<SubscriptionId>,
+    ) -> wasmtime::Result<CardanoNetwork> {
+        let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        let network = app_state.get_object(&self_)?;
+
+        Ok((*network).into())
+    }
+
+    /// Unsubscribing block event of this `subscription-id` instance.
+    /// Once this function is called, the subscription instance, `subscription-id` will be
+    /// removed.
+    fn unsubscribe(
+        &mut self, self_: wasmtime::component::Resource<SubscriptionId>,
+    ) -> wasmtime::Result<()> {
+        let id = self_.rep();
+        if let Some(entry) = STATE.subscriptions.get(&id) {
+            let (_, handle) = entry.value();
+            // Stop the subscription
+            handle.stop()?;
+            // Remove the resource and subscription state
+            let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+            subscription_id_app_state.delete_resource(self_)?;
+            STATE.subscriptions.remove(&id);
+        }
+        Ok(())
+    }
+
+    fn drop(&mut self, rep: wasmtime::component::Resource<SubscriptionId>) -> wasmtime::Result<()> {
+        let app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        STATE.subscriptions.remove(&rep.rep());
+        app_state.delete_resource(rep)?;
         Ok(())
     }
 }

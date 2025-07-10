@@ -3,27 +3,17 @@
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
-    runtime_extensions::bindings::{
-        exports::hermes::cardano::event_on_block::{CardanoNetwork, SubscriptionId},
-        hermes::cardano::api::Slot,
-    },
     wasm::module::ModuleId,
 };
 
 /// On Cardano block event
 pub(super) struct OnCardanoBlockEvent {
-    /// The Cardano blockchain network that the block event is originated from.
-    network: CardanoNetwork,
-    /// A unique identifier of the block subscription.
-    subscription_id: SubscriptionId,
-    /// The Cardano slot number that the block event is in.
-    slot: Slot,
-    /// The CBOR format of the Cardano block data.
-    block: Vec<u8>,
-    /// Flag indicate whether the block is immutable or not.
-    is_immutable: bool,
-    /// Flag indicate whether the block is a rollback.
-    is_rollback: bool,
+    /// A underlying 32-bit integer representation used to originally create this
+    /// subscription resource of this event.
+    subscription_id: u32,
+    /// A underlying 32-bit integer representation used to originally create this block
+    /// resource of this event.
+    block: u32,
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
@@ -32,30 +22,26 @@ impl HermesEventPayload for OnCardanoBlockEvent {
     }
 
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+        // Create borrow resources to send to wasm
+        let subscription_id = wasmtime::component::Resource::new_borrow(self.subscription_id);
+        let block = wasmtime::component::Resource::new_borrow(self.block);
+
         module
             .instance
             .hermes_cardano_event_on_block()
-            .call_on_cardano_block(
-                &mut module.store,
-                self.network,
-                self.subscription_id,
-                self.slot,
-                &self.block,
-                self.is_immutable,
-                self.is_rollback,
-            )?;
+            .call_on_cardano_block(&mut module.store, subscription_id, block)?;
         Ok(())
     }
 }
 
 /// On Cardano roll-forward event.
 pub(super) struct OnCardanoImmutableRollForwardEvent {
-    /// The Cardano blockchain network that the roll-forward event is originated from.
-    network: CardanoNetwork,
-    /// A unique identifier of the block subscription.
-    subscription_id: SubscriptionId,
-    /// The Cardano slot number that the roll-forward rolls to.
-    slot: Slot,
+    /// A underlying 32-bit integer representation used to originally create this
+    /// subscription resource of this event.
+    subscription_id: u32,
+    /// A underlying 32-bit integer representation used to originally create this block
+    /// resource of this event.
+    block: u32,
 }
 
 impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
@@ -64,15 +50,14 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
     }
 
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+        // Create borrow resources to send to wasm
+        let subscription_id = wasmtime::component::Resource::new_borrow(self.subscription_id);
+        let block = wasmtime::component::Resource::new_borrow(self.block);
+
         module
             .instance
             .hermes_cardano_event_on_immutable_roll_forward()
-            .call_on_cardano_immutable_roll_forward(
-                &mut module.store,
-                self.subscription_id,
-                self.slot,
-                self.network,
-            )?;
+            .call_on_cardano_immutable_roll_forward(&mut module.store, subscription_id, block)?;
         Ok(())
     }
 }
@@ -80,19 +65,13 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
 // -------- Event Builder ----------
 
 /// Build and send block event.
-#[allow(clippy::too_many_arguments)]
+/// Passing `subscription_id` and `block` resource 32-bit integer representation.
 pub(crate) fn build_and_send_block_event(
-    app: ApplicationName, module_id: ModuleId, network: CardanoNetwork,
-    subscription_id: SubscriptionId, slot: Slot, block_data: &[u8], is_immutable: bool,
-    is_rollback: bool,
+    app: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
 ) -> anyhow::Result<()> {
     let on_block_event = super::event::OnCardanoBlockEvent {
-        network,
         subscription_id,
-        slot,
-        block: block_data.to_vec(),
-        is_immutable,
-        is_rollback,
+        block,
     };
 
     crate::event::queue::send(HermesEvent::new(
@@ -103,14 +82,13 @@ pub(crate) fn build_and_send_block_event(
 }
 
 /// Build and send immutable roll-forward event.
+/// Passing `subscription_id` and `block` resource 32-bit integer representation.
 pub(crate) fn build_and_send_roll_forward_event(
-    app: ApplicationName, module_id: ModuleId, network: CardanoNetwork,
-    subscription_id: SubscriptionId, slot: Slot,
+    app: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
 ) -> anyhow::Result<()> {
     let on_rollback_event = super::event::OnCardanoImmutableRollForwardEvent {
-        network,
         subscription_id,
-        slot,
+        block,
     };
 
     crate::event::queue::send(HermesEvent::new(

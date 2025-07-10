@@ -1,13 +1,14 @@
 //! Cardano Blockchain runtime extension.
 
-use std::sync::atomic::AtomicU32;
-
 use dashmap::DashMap;
 
 use crate::{
     app::ApplicationName,
     runtime_extensions::{
-        bindings::hermes::cardano::api::{Block, Network, Transaction},
+        bindings::{
+            exports::hermes::cardano::event_on_block::SubscriptionId,
+            hermes::cardano::api::{Block, Network, Transaction},
+        },
         resource_manager::ApplicationResourceStorage,
     },
 };
@@ -30,8 +31,8 @@ struct State {
     // issue
     transaction:
         ApplicationResourceStorage<Transaction, (cardano_blockchain_types::MultiEraBlock, u16)>,
-    /// Subscription ID.
-    subscription_id: AtomicU32,
+    /// Subscription ID resource storage.
+    subscription_id: ApplicationResourceStorage<SubscriptionId, cardano_blockchain_types::Network>,
     /// Active subscription ID to its subscription type and network handler.
     subscriptions: DashMap<u32, (SubscriptionType, network::Handle)>,
 }
@@ -52,7 +53,7 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
         network_lookup: DashMap::new(),
         block: ApplicationResourceStorage::new(),
         transaction: ApplicationResourceStorage::new(),
-        subscription_id: AtomicU32::new(0),
+        subscription_id: ApplicationResourceStorage::new(),
         subscriptions: DashMap::new(),
     }
 });
@@ -62,6 +63,7 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
     STATE.block.add_app(ctx.app_name().clone());
     STATE.network.add_app(ctx.app_name().clone());
     STATE.transaction.add_app(ctx.app_name().clone());
+    STATE.subscription_id.add_app(ctx.app_name().clone());
 }
 
 /// Cardano Error.

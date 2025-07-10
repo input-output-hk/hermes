@@ -7,11 +7,11 @@ use tracing::error;
 use crate::{
     app::ApplicationName,
     runtime_extensions::{
-        bindings::hermes::cardano::api::{CardanoNetwork, SyncSlot},
+        bindings::hermes::cardano::api::{CardanoNetwork, SubscriptionId, SyncSlot},
         hermes::cardano::{
             block::get_tips,
             event::{build_and_send_block_event, build_and_send_roll_forward_event},
-            CardanoError, SubscriptionType,
+            CardanoError, SubscriptionType, STATE,
         },
     },
     wasm::module::ModuleId,
@@ -48,7 +48,8 @@ impl Handle {
 /// a subscription to a specific network.
 pub(crate) fn spawn_subscribe(
     app: ApplicationName, module_id: ModuleId, start: Point, network: Network,
-    subscription_type: SubscriptionType, subscription_id: u32,
+    subscription_type: SubscriptionType,
+    subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) -> Handle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
 
@@ -58,7 +59,10 @@ pub(crate) fn spawn_subscribe(
             .enable_io()
             .build()
         else {
-            error!("Failed to create Tokio runtime");
+            error!(
+                error = "Failed to create Tokio runtime",
+                "Failed to spawn chain follower"
+            );
             return;
         };
 
@@ -81,7 +85,8 @@ pub(crate) fn spawn_subscribe(
 /// subscription or a new block update from the chain follower.
 async fn subscribe(
     mut cmd_rx: CommandReceiver, app: ApplicationName, module_id: ModuleId, start: Point,
-    network: Network, subscription_type: SubscriptionType, subscription_id: u32,
+    network: Network, subscription_type: SubscriptionType,
+    subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
     let mut follower = ChainFollower::new(network, start, Point::TIP).await;
 
@@ -105,24 +110,22 @@ async fn subscribe(
             update = follower.next() => {
                 match update {
                     Some(chain_update) => {
-                        let block_data = chain_update.block_data();
-                        let slot: u64 = block_data.slot().into();
-                        let network: CardanoNetwork = block_data.network().into();
-                        let raw_block = block_data.raw();
+                        let Ok(block_app_state) = STATE.block.get_app_state(&app) else {
+                            // This should not failed
+                            error!(error="Failed to get block app state for app: {app}");
+                            return
+                        };
+                        let block_resource = block_app_state.create_resource(chain_update.block_data().clone());
 
                         match chain_update.kind {
                             Kind::Block if subscription_type == SubscriptionType::Block => {
                                  if let Err(e) = build_and_send_block_event(
                                     app.clone(),
                                     module_id.clone(),
-                                    network,
-                                    subscription_id,
-                                    slot,
-                                    raw_block,
-                                    chain_update.immutable(),
-                                    false,
+                                    subscription_id.rep(),
+                                    block_resource.rep()
                                 ) {
-                                    error!("Failed to send block event: {e}");
+                                    error!(error=?e, "Failed to send block event");
                                     break;
                                 }
                             }
@@ -130,14 +133,10 @@ async fn subscribe(
                                 if let Err(e) = build_and_send_block_event(
                                     app.clone(),
                                     module_id.clone(),
-                                    network,
-                                    subscription_id,
-                                    slot,
-                                    raw_block,
-                                    chain_update.immutable(),
-                                    true,
+                                    subscription_id.rep(),
+                                    block_resource.rep()
                                 ) {
-                                    error!("Failed to send rollback block event: {e}");
+                                    error!(error=?e, "Failed to send rollback block event");
                                     break;
                                 }
                             }
@@ -145,16 +144,17 @@ async fn subscribe(
                                 if let Err(e) = build_and_send_roll_forward_event(
                                     app.clone(),
                                     module_id.clone(),
-                                    network,
-                                    subscription_id,
-                                    slot,
+                                    subscription_id.rep(),
+                                    block_resource.rep()
                                 ){
-                                    error!("Failed to send immutable block roll-forward event: {e}");
+                                    error!(error=?e, "Failed to send immutable block roll-forward event");
                                     break;
                                 }
                             }
                             _ => {}
                         }
+                        // After sending the event, block resource is not necessary.
+                        drop(block_app_state.delete_resource(block_resource));
                     }
                     None => {
                         break;
