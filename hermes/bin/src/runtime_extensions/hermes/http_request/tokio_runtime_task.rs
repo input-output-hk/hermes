@@ -22,7 +22,7 @@ const HTTPS: &str = "https://";
 pub enum Command {
     Send {
         payload: Payload,
-        sender: oneshot::Sender<bool>,
+        response_tx: oneshot::Sender<bool>,
     },
 }
 
@@ -56,10 +56,12 @@ impl From<RequestSendingError> for ErrorCode {
 impl TokioTaskHandle {
     /// Sends a command to the Tokio runtime task.
     pub fn send(&self, payload: Payload) -> Result<(), RequestSendingError> {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
-        self.cmd_tx
-            .blocking_send(Command::Send { payload, sender })?;
-        receiver.blocking_recv()?;
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+        self.cmd_tx.blocking_send(Command::Send {
+            payload,
+            response_tx,
+        })?;
+        response_rx.blocking_recv()?;
         Ok(())
     }
 }
@@ -179,7 +181,8 @@ where R: AsyncRead + Unpin {
     }
 }
 
-async fn send_request(payload: Payload) -> bool {
+// TODO[RC]: Result<()> instead of bool
+async fn send_http_request(payload: Payload) -> bool {
     // TODO[RC]: Make sure there are no stray threads left running
     let mut conn = Connection::new(payload.host_uri, payload.port)
         .await
@@ -204,6 +207,18 @@ async fn send_request(payload: Payload) -> bool {
     true
 }
 
+async fn handle_command(cmd: Command) {
+    match cmd {
+        Command::Send {
+            payload,
+            response_tx,
+        } => {
+            let sending_result = send_http_request(payload).await;
+            let _ = response_tx.send(sending_result);
+        },
+    }
+}
+
 fn executor(mut cmd_rx: CommandReceiver) {
     let res = tokio::runtime::Builder::new_current_thread()
         .enable_io()
@@ -221,14 +236,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
 
     rt.block_on(async move {
         while let Some(cmd) = cmd_rx.recv().await {
-            match cmd {
-                Command::Send { payload, sender } => {
-                    tokio::spawn(async move {
-                        let result = send_request(payload).await;
-                        let _ = sender.send(result);
-                    });
-                },
-            }
+            tokio::spawn(handle_command(cmd));
         }
     });
 }
