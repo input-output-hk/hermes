@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use thiserror::Error;
@@ -15,6 +15,15 @@ use crate::{
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
     runtime_extensions::bindings::hermes::http_request::api::{ErrorCode, Payload},
 };
+
+static INIT_RUSTLS: LazyLock<Result<(), ErrorCode>> = LazyLock::new(|| {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| {
+            tracing::error!("Failed to install default crypto provider for Rustls");
+            ErrorCode::Internal
+        })
+});
 
 const HTTP: &str = "http://";
 const HTTPS: &str = "https://";
@@ -81,6 +90,8 @@ impl Connection {
             tracing::trace!(%addr, port, "connected over HTTP");
             return Ok(Connection::Http(stream));
         } else if addr.as_ref().starts_with(HTTPS) {
+            (*INIT_RUSTLS)?;
+
             // TODO[RC]: No need to configure RootCertStore for every connection
             let sliced_addr = &addr.as_ref()[HTTPS.len()..];
             let mut root_store = RootCertStore::empty();

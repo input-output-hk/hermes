@@ -3,6 +3,8 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
+use std::sync::LazyLock;
+
 mod event;
 mod host;
 mod tokio_runtime_task;

@@ -25,10 +25,5 @@ pub use wasm::module::bench::{
 fn main() {
     use clap::Parser;
 
-    // TODO[RC]: Do this lazily at the first HTTPs request.
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("Failed to install rustls crypto provider");
-
     cli::Cli::parse().exec();
 }
