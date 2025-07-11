@@ -21,7 +21,6 @@ interface api {
     /// HTTP request payload (caller manages full body formatting)
     record payload {
         /// Host URI (scheme + domain, no path), e.g., "http://example.com"
-        /// TODO[RC]: Invalid when unspecified
         host-uri: string,
         /// Port (e.g., 80 for HTTP, 443 for HTTPS)
         port: u16,
