@@ -93,7 +93,6 @@ fn targeted_module_event_execution(target_app_name: &ApplicationName, event: &He
 
 /// Executes provided Hermes event filtering by target app.
 fn targeted_app_event_execution(event: &HermesEvent) {
-    println!("entering app event execution");
     match event.target_app() {
         TargetApp::All => {
             if let Ok(target_apps) = reactor::get_all_app_names() {

@@ -228,7 +228,7 @@ fn executor(mut cmd_rx: CommandReceiver) {
     let rt = match res {
         Ok(rt) => rt,
         Err(err) => {
-            error!(error = ?err, "Failed to start Http Request Runtime Extension background thread");
+            error!(error = ?err, "failed to start Http Request Runtime Extension background thread");
             return;
         },
     };
