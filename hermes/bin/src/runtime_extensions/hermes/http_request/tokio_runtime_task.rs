@@ -22,7 +22,7 @@ const HTTPS: &str = "https://";
 pub enum Command {
     Send {
         payload: Payload,
-        response_tx: oneshot::Sender<bool>,
+        response_tx: oneshot::Sender<Result<(), ErrorCode>>,
     },
 }
 
@@ -33,36 +33,23 @@ pub struct TokioTaskHandle {
     cmd_tx: CommandSender,
 }
 
-#[derive(Error, Debug)]
-pub enum RequestSendingError {
-    #[error("Failed to send command via channel: {0}")]
-    ChannelSend(#[from] mpsc::error::SendError<Command>),
-    #[error("Failed to receive command result via channel: {0}")]
-    ResponseReceive(#[from] oneshot::error::RecvError),
-}
-
-impl From<RequestSendingError> for ErrorCode {
-    fn from(value: RequestSendingError) -> Self {
-        match value {
-            // We map all "internal" errors to `ErrorCode::Internal` to not expose implementation
-            // details to the user. Detailed information will be available in logs.
-            RequestSendingError::ChannelSend(_) | RequestSendingError::ResponseReceive(_) => {
-                ErrorCode::Internal
-            },
-        }
-    }
-}
-
 impl TokioTaskHandle {
     /// Sends a command to the Tokio runtime task.
-    pub fn send(&self, payload: Payload) -> Result<(), RequestSendingError> {
+    pub fn send(&self, payload: Payload) -> Result<(), ErrorCode> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.cmd_tx.blocking_send(Command::Send {
-            payload,
-            response_tx,
-        })?;
-        response_rx.blocking_recv()?;
-        Ok(())
+        self.cmd_tx
+            .blocking_send(Command::Send {
+                payload,
+                response_tx,
+            })
+            .map_err(|err| {
+                tracing::warn!(%err, "failed to send command via channel");
+                ErrorCode::Internal
+            })?;
+        response_rx.blocking_recv().map_err(|err| {
+            tracing::warn!(%err, "failed to receive command result via channel");
+            ErrorCode::Internal
+        })?
     }
 }
 
@@ -75,7 +62,6 @@ pub fn spawn() -> TokioTaskHandle {
     TokioTaskHandle { cmd_tx }
 }
 
-// TODO[RC]: Use Tokio here
 enum Connection {
     Http(TcpStream),
     Https(client::TlsStream<TcpStream>),
@@ -182,7 +168,7 @@ where R: AsyncRead + Unpin {
 }
 
 // TODO[RC]: Result<()> instead of bool
-async fn send_http_request(payload: Payload) -> bool {
+async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
     // TODO[RC]: Make sure there are no stray threads left running
     let mut conn = Connection::new(payload.host_uri, payload.port)
         .await
@@ -204,7 +190,7 @@ async fn send_http_request(payload: Payload) -> bool {
         Err(err) => tracing::debug!(%err, "error sending request"),
     }
 
-    true
+    Ok(())
 }
 
 async fn handle_command(cmd: Command) {

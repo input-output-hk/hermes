@@ -23,13 +23,4 @@ pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {
 type Error = u32;
 
 #[cfg(test)]
-mod test {
-    // use crate::runtime_extensions::hermes::http_request::send;
-
-    // #[test]
-    // fn sending_works() {
-    //     let result = send(24).unwrap();
-
-    //     assert_eq!(result, true);
-    // }
-}
+mod test {}
