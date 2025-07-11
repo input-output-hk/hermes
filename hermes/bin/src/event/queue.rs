@@ -40,19 +40,14 @@ struct HermesEventQueue {
 ///
 /// # Errors:
 /// - `AlreadyInitializedError`
-#[allow(unreachable_code)]
 pub(crate) fn init() -> anyhow::Result<()> {
-    println!("entering init queue");
     let (sender, receiver) = std::sync::mpsc::channel();
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
         .map_err(|_| AlreadyInitializedError)?;
 
-    println!("event queue instance set");
-
     thread::spawn(move || {
-        println!("spawning event thread");
         event_execution_loop(receiver);
     });
     Ok(())
@@ -118,11 +113,6 @@ fn targeted_app_event_execution(event: &HermesEvent) {
 /// Executes Hermes events from the provided receiver .
 fn event_execution_loop(receiver: Receiver<HermesEvent>) {
     for event in receiver {
-        println!("even target app: {:?}", event.target_app);
-        println!("even target module: {:?}", event.target_module);
-
         targeted_app_event_execution(&event);
     }
-
-    println!("finished execution loop!!");
 }

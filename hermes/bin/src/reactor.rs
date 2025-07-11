@@ -32,10 +32,7 @@ struct Reactor {
 /// Initialize Hermes Reactor.
 /// Setup and runs all necessary services.
 pub(crate) fn init() -> anyhow::Result<()> {
-    println!("entering init ok");
     event::queue::init()?;
-
-    println!("init called ok");
 
     REACTOR_STATE
         .set(Reactor {
@@ -43,25 +40,17 @@ pub(crate) fn init() -> anyhow::Result<()> {
         })
         .map_err(|_| AlreadyInitializedError)?;
 
-    println!("reactor state set ok");
-
     Ok(())
 }
 
 /// Load Hermes application into the Hermes Reactor.
 pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
-    println!("entering load app");
-
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
-
-    println!("got reactor state ok");
 
     let app_name = app.name().clone();
     reactor.apps.insert(app_name.clone(), app);
 
     init::emit_init_event(app_name)?;
-
-    println!("emit init event sent!");
     Ok(())
 }
 
