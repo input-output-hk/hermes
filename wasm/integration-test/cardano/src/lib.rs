@@ -1,89 +1,126 @@
-// Allow everything since this is generated code.
 #[allow(clippy::all, unused)]
 mod hermes;
 
-use hermes::{
-    exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse},
-        integration_test::event::TestResult,
-    },
-    hermes::{
-        cardano::{
-            self,
-            api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
-        },
-        cron::api::CronTagged,
-        ipfs::api::PubsubMessage,
-        kv_store::api::KvValues,
-    },
-    wasi::http::types::{IncomingRequest, ResponseOutparam},
-};
-use pallas_traverse::MultiEraBlock;
+use pallas_traverse::tx;
+
+use crate::hermes::{exports::hermes::cardano::event_on_block::SubscriptionId, hermes::cardano};
 
 struct TestComponent;
 
-fn test_fetch_block() -> bool {
-    let block_slot = 56581108;
-    let block_hash =
-        hex::decode("e095cca24865b85812109a8a0af01a8a80c6a74d1f56cfe1830631423a806b46")
-            .expect("valid block hash hex");
+fn test_get_data() -> bool {
+    let slot = 91210205;
+    let index = 0;
+    let tx_hash = hex::encode("ef831f1d3ce6134628e39d288876408fac5f81840b9d74b9ba07f36e56090bb1")
+        .expect("Invalid transaction hash");
 
-    let slot = Slot::Point((block_slot, block_hash.clone()));
-
-    let Ok(block_cbor) = cardano::api::fetch_block(CardanoBlockchainId::Preprod, &slot) else {
+    let Ok(network_resource) = cardano::api::Network::new(cardano::api::CardanoNetwork::Preprod)
+    else {
+        return false;
+    };
+    let Some(block_resource) = network_resource.get_block(Some(slot), 0) else {
+        return false;
+    };
+    let Some(tx_resource) = block_resource.get_txn(0) else {
+        return false;
+    };
+    let hash = if let Some(tx) = tx_resource.get_txn_hash() {
+        tuple_to_array(tx).to_vec()
+    } else {
         return false;
     };
 
-    let Ok(block) = MultiEraBlock::decode(&block_cbor) else {
+    let tx_check = tx_resource.get_metadata().is_some() && hash == tx_hash;
+    let network_check = network_resource.get_tips().is_some();
+    let block_check = block_resource.is_immutable() == true
+        && block_resource.get_slot() == slot
+        && block_resource.is_rollback() == false;
+
+    network_check && block_check && tx_check
+}
+
+fn tuple_to_array(t: (u64, u64, u64, u64)) -> [u64; 4] {
+    [t.0, t.1, t.2, t.3]
+}
+
+fn test_subscribe_block() -> bool {
+    let Ok(network_resource) = cardano::api::Network::new(cardano::api::CardanoNetwork::Preprod)
+    else {
         return false;
     };
-
-    block_slot == block.slot() && block_hash == block.hash().to_vec()
+    let Ok(id) = network_resource.subscribe_block(cardano::api::SyncSlot::Genesis) else {
+        return false;
+    };
+    id.get_network() == cardano::api::CardanoNetwork::Preprod
 }
 
 impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
-    fn test(test: u32, run: bool) -> Option<TestResult> {
+    fn test(
+        test: u32,
+        run: bool,
+    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
         match test {
             0 => {
-                let status = if run { test_fetch_block() } else { true };
+                let status = if run { test_get_data() } else { true };
 
-                Some(TestResult {
-                    name: "Fetch block".to_string(),
-                    status,
-                })
+                Some(
+                    hermes::exports::hermes::integration_test::event::TestResult {
+                        name: "Get data".to_string(),
+                        status,
+                    },
+                )
             }
+            1 => {
+                let status = if run { test_subscribe_block() } else { true };
 
+                Some(
+                    hermes::exports::hermes::integration_test::event::TestResult {
+                        name: "Subscribe block".to_string(),
+                        status,
+                    },
+                )
+            }
             _ => None,
         }
     }
 
-    fn bench(_test: u32, _run: bool) -> Option<TestResult> {
+    fn bench(
+        test: u32,
+        run: bool,
+    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
         None
     }
 }
 
-impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(_blockchain: CardanoBlockchainId, _block: CardanoBlock, _source: BlockSrc) {
+impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
+    fn on_cardano_immutable_roll_forward(
+        subscription_id: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        block: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
+    ) {
     }
 }
 
-impl hermes::exports::hermes::cardano::event_on_rollback::Guest for TestComponent {
-    fn on_cardano_rollback(_blockchain: CardanoBlockchainId, _slot: u64) {}
-}
-
-impl hermes::exports::hermes::cardano::event_on_txn::Guest for TestComponent {
-    fn on_cardano_txn(
-        _blockchain: CardanoBlockchainId,
-        _slot: u64,
-        _txn_index: u32,
-        _txn: CardanoTxn,
+impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
+    fn on_cardano_block(
+        subscription_id: hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
+        block: hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
     }
 }
 
 impl hermes::exports::hermes::cron::event::Guest for TestComponent {
-    fn on_cron(_event: CronTagged, _last: bool) -> bool {
+    fn on_cron(event: hermes::exports::hermes::cron::event::CronTagged, last: bool) -> bool {
         false
+    }
+}
+
+impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
+    fn reply(
+        body: hermes::exports::hermes::http_gateway::event::Bstr,
+        headers: hermes::exports::hermes::http_gateway::event::Headers,
+        path: _rt::String,
+        method: _rt::String,
+    ) -> Option<hermes::exports::hermes::http_gateway::event::HttpResponse> {
+        None
     }
 }
 
@@ -94,28 +131,21 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
-    fn on_topic(_message: PubsubMessage) -> bool {
+    fn on_topic(message: hermes::exports::hermes::ipfs::event::PubsubMessage) -> bool {
         false
     }
 }
 
 impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
-    fn kv_update(_key: String, _value: KvValues) {}
-}
-
-impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
-    fn reply(
-        _body: Bstr,
-        _headers: Headers,
-        _path: String,
-        _method: String,
-    ) -> Option<HttpResponse> {
-        None
-    }
+    fn kv_update(key: _rt::String, value: hermes::exports::hermes::kv_store::event::KvValues) {}
 }
 
 impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
-    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
+    fn handle(
+        request: hermes::exports::wasi::http::incoming_handler::IncomingRequest,
+        response_out: hermes::exports::wasi::http::incoming_handler::ResponseOutparam,
+    ) -> () {
+    }
 }
 
 hermes::export!(TestComponent with_types_in hermes);
