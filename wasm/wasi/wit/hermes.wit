@@ -27,4 +27,5 @@ world hermes {
   include hermes:sqlite/all;
   include hermes:integration-test/all;
   include hermes:http-gateway/all;
+  include hermes:http-request/all;
 }
