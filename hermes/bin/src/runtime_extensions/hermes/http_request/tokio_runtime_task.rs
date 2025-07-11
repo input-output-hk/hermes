@@ -136,7 +136,7 @@ impl Connection {
         }
     }
 
-    // TODO[RC]: Timeout needed here, but maybe first switch to Tokio
+    // TODO[RC]: Timeout or more complex task management needed here
     async fn send(&mut self, body: &[u8]) -> Result<Vec<u8>, ErrorCode> {
         let mut response = Vec::new();
         match self {
