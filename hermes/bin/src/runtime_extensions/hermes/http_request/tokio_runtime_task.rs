@@ -167,12 +167,9 @@ where R: AsyncRead + Unpin {
     }
 }
 
-// TODO[RC]: Result<()> instead of bool
 async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
     // TODO[RC]: Make sure there are no stray threads left running
-    let mut conn = Connection::new(payload.host_uri, payload.port)
-        .await
-        .unwrap(); // TODO[RC]: Fixme
+    let mut conn = Connection::new(payload.host_uri, payload.port).await?;
     let response = conn.send(&payload.body).await;
     match response {
         Ok(response) => {
