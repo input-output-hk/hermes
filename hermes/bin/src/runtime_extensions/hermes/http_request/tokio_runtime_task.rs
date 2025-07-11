@@ -1,4 +1,4 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use thiserror::Error;
@@ -13,17 +13,11 @@ use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::{
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
-    runtime_extensions::bindings::hermes::http_request::api::{ErrorCode, Payload},
+    runtime_extensions::{
+        bindings::hermes::http_request::api::{ErrorCode, Payload},
+        hermes::http_request::STATE,
+    },
 };
-
-static INIT_RUSTLS: LazyLock<Result<(), ErrorCode>> = LazyLock::new(|| {
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .map_err(|_| {
-            tracing::error!("Failed to install default crypto provider for Rustls");
-            ErrorCode::Internal
-        })
-});
 
 const HTTP: &str = "http://";
 const HTTPS: &str = "https://";
@@ -62,6 +56,26 @@ impl TokioTaskHandle {
     }
 }
 
+static INIT_RUSTLS_CRYPTO: LazyLock<Result<(), ErrorCode>> = LazyLock::new(|| {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| {
+            tracing::error!("Failed to install default crypto provider for Rustls");
+            ErrorCode::Internal
+        })
+});
+
+fn init_rustls_connector() -> TlsConnector {
+    let mut root_store = RootCertStore::empty();
+    root_store.extend(TLS_SERVER_ROOTS.iter().cloned());
+
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+    let config = Arc::new(config);
+    TlsConnector::from(config)
+}
+
 pub fn spawn() -> TokioTaskHandle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
     std::thread::spawn(move || {
@@ -90,19 +104,10 @@ impl Connection {
             tracing::trace!(%addr, port, "connected over HTTP");
             return Ok(Connection::Http(stream));
         } else if addr.as_ref().starts_with(HTTPS) {
-            (*INIT_RUSTLS)?;
+            (*INIT_RUSTLS_CRYPTO)?;
 
-            // TODO[RC]: No need to configure RootCertStore for every connection
             let sliced_addr = &addr.as_ref()[HTTPS.len()..];
-            let mut root_store = RootCertStore::empty();
-            root_store.extend(TLS_SERVER_ROOTS.iter().cloned());
-
-            let config = ClientConfig::builder()
-                .with_root_certificates(root_store)
-                .with_no_client_auth();
-            let config = Arc::new(config);
-            let connector = TlsConnector::from(config);
-            let tcp = TcpStream::connect((sliced_addr, port))
+            let tcp_stream = TcpStream::connect((sliced_addr, port))
                 .await
                 .map_err(|err| {
                     tracing::debug!(%err, %sliced_addr, "tcp stream to HTTPs server");
@@ -114,10 +119,15 @@ impl Connection {
                 ErrorCode::HttpsConnectionFailed
             })?;
 
-            let stream = connector.connect(server_name, tcp).await.map_err(|err| {
-                tracing::debug!(%err, %sliced_addr, "TLS handshake failed");
-                ErrorCode::HttpsConnectionFailed
-            })?;
+            let stream = STATE
+                .tls_connector
+                .get_or_init(init_rustls_connector)
+                .connect(server_name, tcp_stream)
+                .await
+                .map_err(|err| {
+                    tracing::debug!(%err, %sliced_addr, "TLS handshake failed");
+                    ErrorCode::HttpsConnectionFailed
+                })?;
 
             tracing::trace!(%addr, port, "connected over HTTPs");
             return Ok(Connection::Https(stream));
