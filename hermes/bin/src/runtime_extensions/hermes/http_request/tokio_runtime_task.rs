@@ -175,6 +175,8 @@ async fn read_to_end_ignoring_unexpected_eof<R>(
     reader: &mut R, buf: &mut Vec<u8>,
 ) -> std::io::Result<usize>
 where R: AsyncRead + Unpin {
+    // TODO[RC]: This won't work for payloads that do not include "Connection: close", we need
+    // a more sophisticated processing.
     match reader.read_to_end(buf).await {
         Ok(0) => Ok(0),
         Ok(n) => Ok(n),
