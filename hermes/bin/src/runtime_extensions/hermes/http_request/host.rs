@@ -1,4 +1,4 @@
-//!  Cardano Blockchain host implementation for WASM runtime.
+//!  Http Request host implementation for WASM runtime.
 
 use crate::{
     runtime_context::HermesRuntimeContext,

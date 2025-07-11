@@ -1,9 +1,6 @@
 //! Http Request extension implementation.
 
-#![allow(unused)]
-#![allow(dead_code)]
-
-use std::sync::{Arc, LazyLock, OnceLock, RwLock};
+use std::sync::OnceLock;
 
 use tokio_rustls::TlsConnector;
 
@@ -27,8 +24,6 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
 });
 
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
-type Error = u32;
 
 #[cfg(test)]
 mod test {}

@@ -1,18 +1,17 @@
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock};
 
-use rustls::{pki_types::ServerName, ClientConfig, ClientConnection, RootCertStore, StreamOwned};
-use thiserror::Error;
+use rustls::{pki_types::ServerName, ClientConfig, RootCertStore};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
-    sync::{mpsc, oneshot},
+    sync::oneshot,
 };
-use tokio_rustls::{client, TlsConnector, TlsStream};
+use tokio_rustls::{client, TlsConnector};
 use tracing::{error, trace};
 use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::{
-    event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
+    event::{HermesEvent, TargetApp, TargetModule},
     runtime_extensions::{
         bindings::hermes::http_request::api::{ErrorCode, Payload},
         hermes::http_request::STATE,
@@ -151,7 +150,7 @@ impl Connection {
                     .map_err(|err| {
                         tracing::debug!(%err, "failed to read from HTTP server");
                         ErrorCode::HttpSendFailed
-                    });
+                    })?;
                 tracing::debug!(length_bytes = response.len(), "got response");
             },
             Connection::Https(tls_stream) => {
@@ -164,7 +163,7 @@ impl Connection {
                     .map_err(|err| {
                         tracing::debug!(%err, "failed to read from HTTPs server");
                         ErrorCode::HttpsSendFailed
-                    });
+                    })?;
                 tracing::debug!(length_bytes = response.len(), "got response");
             },
         }
@@ -201,7 +200,11 @@ async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
         on_http_response_event,
         TargetApp::All,
         TargetModule::All,
-    ));
+    ))
+    .map_err(|err| {
+        tracing::error!(%err, "queue failure");
+        ErrorCode::Internal
+    })?;
     Ok(())
 }
 
