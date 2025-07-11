@@ -1,8 +1,11 @@
 //! Cardano Blockchain runtime extension event handler implementation.
 
+use tracing::error;
+
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
+    runtime_extensions::hermes::cardano::STATE,
     wasm::module::ModuleId,
 };
 
@@ -14,6 +17,8 @@ pub(super) struct OnCardanoBlockEvent {
     /// A underlying 32-bit integer representation used to originally create this block
     /// resource of this event.
     block: u32,
+    /// Application name.
+    app_name: ApplicationName,
 }
 
 impl HermesEventPayload for OnCardanoBlockEvent {
@@ -34,6 +39,22 @@ impl HermesEventPayload for OnCardanoBlockEvent {
     }
 }
 
+impl Drop for OnCardanoBlockEvent {
+    fn drop(&mut self) {
+        // Clean up block resource when event is dropped
+        match STATE.block.get_app_state(&self.app_name) {
+            Ok(block_app_state) => {
+                if let Err(err) = block_app_state.delete_resource_rep(self.block) {
+                    error!(error = ?err, "Failed to delete block resource OnCardanoBlockEvent");
+                }
+            },
+            Err(err) => {
+                error!(error = ?err, "Failed to get block app state OnCardanoBlockEvent");
+            },
+        }
+    }
+}
+
 /// On Cardano roll-forward event.
 pub(super) struct OnCardanoImmutableRollForwardEvent {
     /// A underlying 32-bit integer representation used to originally create this
@@ -42,6 +63,8 @@ pub(super) struct OnCardanoImmutableRollForwardEvent {
     /// A underlying 32-bit integer representation used to originally create this block
     /// resource of this event.
     block: u32,
+    /// Application name.
+    app_name: ApplicationName,
 }
 
 impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
@@ -62,21 +85,37 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
     }
 }
 
+impl Drop for OnCardanoImmutableRollForwardEvent {
+    fn drop(&mut self) {
+        match STATE.block.get_app_state(&self.app_name) {
+            Ok(block_app_state) => {
+                if let Err(err) = block_app_state.delete_resource_rep(self.block) {
+                    error!(error = ?err, "Failed to delete block resource OnCardanoBlockEvent");
+                }
+            },
+            Err(err) => {
+                error!(error = ?err, "Failed to get block app state OnCardanoBlockEvent");
+            },
+        }
+    }
+}
+
 // -------- Event Builder ----------
 
 /// Build and send block event.
 /// Passing `subscription_id` and `block` resource 32-bit integer representation.
 pub(crate) fn build_and_send_block_event(
-    app: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
+    app_name: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
 ) -> anyhow::Result<()> {
     let on_block_event = super::event::OnCardanoBlockEvent {
         subscription_id,
         block,
+        app_name: app_name.clone(),
     };
 
     crate::event::queue::send(HermesEvent::new(
         on_block_event,
-        TargetApp::List(vec![app]),
+        TargetApp::List(vec![app_name]),
         TargetModule::List(vec![module_id]),
     ))
 }
@@ -84,16 +123,17 @@ pub(crate) fn build_and_send_block_event(
 /// Build and send immutable roll-forward event.
 /// Passing `subscription_id` and `block` resource 32-bit integer representation.
 pub(crate) fn build_and_send_roll_forward_event(
-    app: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
+    app_name: ApplicationName, module_id: ModuleId, subscription_id: u32, block: u32,
 ) -> anyhow::Result<()> {
     let on_rollback_event = super::event::OnCardanoImmutableRollForwardEvent {
         subscription_id,
         block,
+        app_name: app_name.clone(),
     };
 
     crate::event::queue::send(HermesEvent::new(
         on_rollback_event,
-        TargetApp::List(vec![app]),
+        TargetApp::List(vec![app_name]),
         TargetModule::List(vec![module_id]),
     ))
 }

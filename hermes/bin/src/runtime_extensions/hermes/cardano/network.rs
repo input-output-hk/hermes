@@ -153,8 +153,6 @@ async fn subscribe(
                             }
                             _ => {}
                         }
-                        // After sending the event, block resource is not necessary.
-                        drop(block_app_state.delete_resource(block_resource));
                     }
                     None => {
                         break;
