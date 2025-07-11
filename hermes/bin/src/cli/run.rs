@@ -1,6 +1,6 @@
 //! Run cli command
 
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use clap::Args;
 use console::Emoji;
@@ -56,17 +56,10 @@ impl Run {
             Emoji::new("🛠️", ""),
             app.name()
         );
-
-        match reactor::load_app(app) {
-            Ok(r) => r,
-            Err(err) => println!("reactor loading err {err}"),
-        };
-        println!("finished loading app");
+        reactor::load_app(app)?;
         std::thread::yield_now();
-        println!("yielded");
-        println!("sleeping for 4 seconds");
-        std::thread::sleep(Duration::from_secs(4));
 
+        // TODO[RC]: Temporary hack to keep the reactor running.
         loop {}
 
         Ok(())
