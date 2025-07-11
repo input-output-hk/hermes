@@ -93,7 +93,7 @@ enum Connection {
 impl Connection {
     async fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
     where S: AsRef<str> + Into<String> + core::fmt::Display {
-        if addr.as_ref().starts_with(HTTP) {
+        if addr.as_ref().to_ascii_lowercase().starts_with(HTTP) {
             let sliced_addr = &addr.as_ref()[HTTP.len()..];
             let stream = TcpStream::connect((sliced_addr, port))
                 .await
@@ -103,7 +103,7 @@ impl Connection {
                 })?;
             tracing::trace!(%addr, port, "connected over HTTP");
             return Ok(Connection::Http(stream));
-        } else if addr.as_ref().starts_with(HTTPS) {
+        } else if addr.as_ref().to_ascii_lowercase().starts_with(HTTPS) {
             (*INIT_RUSTLS_CRYPTO)?;
 
             let sliced_addr = &addr.as_ref()[HTTPS.len()..];
