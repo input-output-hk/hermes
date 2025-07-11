@@ -8,6 +8,7 @@ mod app_config;
 pub(crate) mod bindings;
 pub mod hermes;
 mod resource_manager;
+mod utils;
 mod wasi;
 
 /// Advise Runtime Extensions of a new context
