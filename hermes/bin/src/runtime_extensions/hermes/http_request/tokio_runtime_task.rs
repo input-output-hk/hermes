@@ -125,12 +125,11 @@ impl Connection {
                     error!("failed to send HTTP request: {err}");
                     ErrorCode::HttpSendFailed
                 })?;
-                tracing::debug!("request sent, awaiting response");
                 read_to_end_ignoring_unexpected_eof(tcp_stream, &mut response)
                     .await
                     .map_err(|err| {
                         tracing::debug!(%err, "failed to read from HTTP server");
-                        ErrorCode::HttpsSendFailed
+                        ErrorCode::HttpSendFailed
                     });
                 tracing::debug!(length_bytes = response.len(), "got response");
             },
@@ -170,23 +169,18 @@ where R: AsyncRead + Unpin {
 async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
     // TODO[RC]: Make sure there are no stray threads left running
     let mut conn = Connection::new(payload.host_uri, payload.port).await?;
-    let response = conn.send(&payload.body).await;
-    match response {
-        Ok(response) => {
-            let on_http_response_event = super::event::OnHttpResponseEvent {
-                request_id: payload.request_id,
-                response,
-            };
+    let response = conn.send(&payload.body).await?;
 
-            crate::event::queue::send(HermesEvent::new(
-                on_http_response_event,
-                TargetApp::All,
-                TargetModule::All,
-            ));
-        },
-        Err(err) => tracing::debug!(%err, "error sending request"),
-    }
+    let on_http_response_event = super::event::OnHttpResponseEvent {
+        request_id: payload.request_id,
+        response,
+    };
 
+    crate::event::queue::send(HermesEvent::new(
+        on_http_response_event,
+        TargetApp::All,
+        TargetModule::All,
+    ));
     Ok(())
 }
 
