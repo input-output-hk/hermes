@@ -11,7 +11,6 @@
 use wasmtime::component::bindgen;
 
 bindgen!({
-    world: "hermes",
     path: "../../wasm/wasi/wit",
     trappable_imports: true,
 });

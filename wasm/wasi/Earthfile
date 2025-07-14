@@ -1,12 +1,20 @@
 VERSION 0.8
 
-IMPORT ../wasi-hermes-component-adapter AS wasi-hermes-component-adapter
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
 #cspell: words rustfmt wasi autodrop teavm
 
+# Make am Artifact which consists of the WIT SRC.
+builder:
+    DO rust-ci+SETUP
+
+    COPY ..+wasi-src/wasi ../wasi
+
 # Build the WASI Docs:
 build:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # Generate the WASI API Documentation Artifact (Also checks the WASI definitions are valid.)
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs ../wasi/wit
@@ -18,22 +26,22 @@ build:
         mkdir -p wasi-hermes-docs/hermes
 
     # WASI standard APIs
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:cli/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:cli/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/cli.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:clocks/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:clocks/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/clock.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:filesystem/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:filesystem/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/filesystem.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:http/proxy@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:http/proxy@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/proxy.md wasi-hermes-docs/wasi/http.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:io/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:io/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/io.md
 
-    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:random/imports@0.2.0 ../wasi/wit &&\
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w wasi:random/imports@0.2.6 ../wasi/wit &&\
         mv wasi-hermes-docs/imports.md wasi-hermes-docs/wasi/random.md
 
     # Hermes Specific APIs
@@ -74,26 +82,29 @@ build:
 
 # test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
 build-rust-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
-    # Will fail unless cat-ci has wit-bindgen-cli 0.28.0 (no other version works).
     RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
 
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/415).
+# - `wit-bindgen` doesn't support tiny-go anymore.
+# - `wit-bindgen-go` has to be installed separately or substituted.
+#
 # build-go-bindings - Generate tinygo bindings
 build-go-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
-    RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
+    # RUN wit-bindgen tiny-go ../wasi/wit --out-dir bindings
 
-    SAVE ARTIFACT ../wasi/wit
-    SAVE ARTIFACT bindings
+    # SAVE ARTIFACT ../wasi/wit
+    # SAVE ARTIFACT bindings
 
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     RUN wit-bindgen c --autodrop-borrows yes --no-object-file ../wasi/wit --out-dir bindings/c
 
@@ -101,20 +112,24 @@ build-c-bindings:
 
 # test-java-bindings - Test we can generate Java bindings without error from the hermes default world
 test-java-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # java bindings are currently broken because `resource` is not yet implemented.
     RUN wit-bindgen teavm-java ../wasi/wit | true
 
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/415).
+# - `wit-bindgen` doesn't support tiny-go anymore.
+# - `wit-bindgen-go` has to be installed separately or substituted.
+#
 # test-go-bindings - Test we can generate GO bindings without error from the hermes default world
 test-go-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
-    RUN wit-bindgen tiny-go ../wasi/wit
+    # RUN wit-bindgen tiny-go ../wasi/wit
 
 # test-csharp-bindings - Test we can generate CSharp bindings without error from the hermes default world
 test-csharp-bindings:
-    FROM wasi-hermes-component-adapter+builder
+    FROM +builder
 
     # csharp bindings are currently broken because `lots of stuff is not yet implemented.
     RUN wit-bindgen c-sharp -r mono --generate-stub ../wasi/wit | true

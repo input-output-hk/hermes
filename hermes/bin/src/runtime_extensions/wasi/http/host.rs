@@ -11,7 +11,7 @@ use crate::{
             types::{
                 Duration, FieldKey, FieldValue, Fields, FutureTrailers, HeaderError, Headers,
                 HostIncomingResponse, HostOutgoingResponse, IncomingBody, IncomingRequest,
-                IncomingResponse, IoError, Method, OutgoingBody, OutgoingResponse,
+                IncomingResponse, IoError, Method, OutgoingBody, OutgoingResponse, Pollable,
                 ResponseOutparam, Scheme, StatusCode, Trailers,
             },
         },
@@ -45,6 +45,15 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
     fn drop(
         &mut self, _rep: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<()> {
+        todo!()
+    }
+
+    /// Returns a pollable which becomes ready when either the Response has
+    /// been received, or an error has occurred. When this pollable is ready,
+    /// the `get` method will return `some`.
+    fn subscribe(
+        &mut self, _self_: wasmtime::component::Resource<FutureIncomingResponse>,
+    ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         todo!()
     }
 }
@@ -185,6 +194,15 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
     fn drop(
         &mut self, _rep: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<()> {
+        todo!()
+    }
+
+    /// Returns a pollable which becomes ready when either the trailers have"
+    /// been received, or an error has occurred. When this pollable is ready,"
+    /// the `get` method will return `some`."
+    fn subscribe(
+        &mut self, _self_: wasmtime::component::Resource<FutureTrailers>,
+    ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         todo!()
     }
 }
@@ -376,6 +394,27 @@ impl http::types::HostResponseOutparam for HermesRuntimeContext {
     fn drop(
         &mut self, _rep: wasmtime::component::Resource<ResponseOutparam>,
     ) -> wasmtime::Result<()> {
+        todo!()
+    }
+
+    /// Send an HTTP 1xx response.
+    /// Unlike `response-outparam.set`, this does not consume the
+    /// `response-outparam`, allowing the guest to send an arbitrary number of
+    /// informational responses before sending the final response using
+    /// `response-outparam.set`.
+    /// This will return an `HTTP-protocol-error` if `status` is not in the
+    /// range [100-199], or an `internal-error` if the implementation does not
+    /// support informational responses.
+    ///
+    /// # Warning
+    ///  
+    /// Unstable WASI feature! Should never be linked.
+    /// See details of how to handle unstable features
+    /// [here](https://github.com/bytecodealliance/wasmtime/issues/8645).
+    fn send_informational(
+        &mut self, _self_: wasmtime::component::Resource<ResponseOutparam>, _status: u16,
+        _headers: wasmtime::component::Resource<Headers>,
+    ) -> wasmtime::Result<Result<(), ErrorCode>> {
         todo!()
     }
 }
@@ -652,6 +691,25 @@ impl http::outgoing_handler::Host for HermesRuntimeContext {
         _options: Option<wasmtime::component::Resource<RequestOptions>>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<FutureIncomingResponse>, ErrorCode>>
     {
+        todo!()
+    }
+}
+
+impl http::incoming_handler::Host for HermesRuntimeContext {
+    /// This function is invoked with an incoming HTTP Request, and a resource
+    /// `response-outparam` which provides the capability to reply with an HTTP
+    /// Response. The response is sent by calling the `response-outparam.set`
+    /// method, which allows execution to continue after the response has been
+    /// sent. This enables both streaming to the response body, and performing other
+    /// work.
+    ///
+    /// The implementor of this function must write a response to the
+    /// `response-outparam` before returning, or else the caller will respond
+    /// with an error on its behalf.
+    fn handle(
+        &mut self, _request: wasmtime::component::Resource<IncomingRequest>,
+        _response_out: wasmtime::component::Resource<ResponseOutparam>,
+    ) -> wasmtime::Result<()> {
         todo!()
     }
 }
