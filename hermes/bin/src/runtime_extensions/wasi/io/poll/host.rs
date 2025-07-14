@@ -5,6 +5,7 @@ use crate::{
     runtime_extensions::bindings::wasi::io::poll::{Host, HostPollable, Pollable},
 };
 
+// TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
 impl HostPollable for HermesRuntimeContext {
     /// Return the readiness of a pollable. This function never blocks.
     ///
@@ -27,6 +28,7 @@ impl HostPollable for HermesRuntimeContext {
     }
 }
 
+// TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
 impl Host for HermesRuntimeContext {
     /// Poll for completion on a set of pollables.
     ///

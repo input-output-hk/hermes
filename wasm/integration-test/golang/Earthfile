@@ -4,7 +4,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust/tools:v3.4.5 AS rust-
 
 IMPORT ../../wasi AS wasi
 
-# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/433).
+# TODO: restore golang integration test (https://github.com/input-output-hk/hermes/issues/415).
 # - `wit-bindgen` doesn't support tiny-go anymore.
 # - `wit-bindgen-go` has to be installed separately or substituted.
 #

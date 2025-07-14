@@ -99,6 +99,7 @@ impl HostInputStream for HermesRuntimeContext {
     fn subscribe(
         &mut self, _self_: wasmtime::component::Resource<InputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
+        // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
         todo!()
     }
 }
@@ -286,6 +287,7 @@ impl HostOutputStream for HermesRuntimeContext {
     fn subscribe(
         &mut self, _self_: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
+        // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
         todo!()
     }
 }
