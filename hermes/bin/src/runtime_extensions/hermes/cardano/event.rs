@@ -11,10 +11,10 @@ use crate::{
 
 /// On Cardano block event
 pub(super) struct OnCardanoBlockEvent {
-    /// A underlying 32-bit integer representation used to originally create this
+    /// An underlying 32-bit integer representation used to originally create this
     /// subscription resource of this event.
     subscription_id: u32,
-    /// A underlying 32-bit integer representation used to originally create this block
+    /// An underlying 32-bit integer representation used to originally create this block
     /// resource of this event.
     block: u32,
     /// Application name.
@@ -57,10 +57,10 @@ impl Drop for OnCardanoBlockEvent {
 
 /// On Cardano roll-forward event.
 pub(super) struct OnCardanoImmutableRollForwardEvent {
-    /// A underlying 32-bit integer representation used to originally create this
+    /// An underlying 32-bit integer representation used to originally create this
     /// subscription resource of this event.
     subscription_id: u32,
-    /// A underlying 32-bit integer representation used to originally create this block
+    /// An underlying 32-bit integer representation used to originally create this block
     /// resource of this event.
     block: u32,
     /// Application name.
@@ -90,11 +90,11 @@ impl Drop for OnCardanoImmutableRollForwardEvent {
         match STATE.block.get_app_state(&self.app_name) {
             Ok(block_app_state) => {
                 if let Err(err) = block_app_state.delete_resource_rep(self.block) {
-                    error!(error = ?err, "Failed to delete block resource OnCardanoBlockEvent");
+                    error!(error = ?err, "Failed to delete block resource OnCardanoImmutableRollForwardEvent");
                 }
             },
             Err(err) => {
-                error!(error = ?err, "Failed to get block app state OnCardanoBlockEvent");
+                error!(error = ?err, "Failed to get block app state OnCardanoImmutableRollForwardEvent");
             },
         }
     }

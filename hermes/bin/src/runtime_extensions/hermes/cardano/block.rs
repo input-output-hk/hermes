@@ -99,7 +99,7 @@ pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<bo
 
     handle
         .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting tips: {e:?}"))?
+        .map_err(|e| anyhow::anyhow!("Thread panicked while getting block rollback: {e:?}"))?
 }
 
 #[cfg(test)]
