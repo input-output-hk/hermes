@@ -38,6 +38,31 @@ impl cli::environment::Host for HermesRuntimeContext {
     }
 }
 
+impl cli::exit::Host for HermesRuntimeContext {
+    fn exit(&mut self, status: Result<(), ()>) -> wasmtime::Result<()> {
+        warn!("Exiting an application is not supported");
+        status.map_err(|()| anyhow::anyhow!(""))
+    }
+
+    /// Exit the current instance and any linked instances, reporting the
+    /// specified status code to the host.
+    ///
+    /// The meaning of the code depends on the context, with 0 usually meaning
+    /// "success", and other values indicating various types of failure.
+    ///
+    /// This function does not return; the effect is analogous to a trap, but
+    /// without the connotation that something bad has happened.
+    ///
+    /// # Warning
+    ///  
+    /// Unstable WASI feature! Should never be linked.
+    /// See details of how to handle unstable features
+    /// [here](https://github.com/bytecodealliance/wasmtime/issues/8645).
+    fn exit_with_code(&mut self, status: u8) -> wasmtime::Result<()> {
+        self.exit(if status == 0 { Ok(()) } else { Err(()) })
+    }
+}
+
 impl cli::stdin::Host for HermesRuntimeContext {
     fn get_stdin(&mut self) -> wasmtime::Result<wasmtime::component::Resource<InputStream>> {
         warn!("Stdin is not supported");
