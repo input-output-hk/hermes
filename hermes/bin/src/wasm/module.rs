@@ -87,6 +87,9 @@ impl Module {
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
+        linker
+            .allow_shadowing(true)
+            .define_unknown_imports_as_traps(&wasm_module)?;
         bindings::Hermes::add_to_linker(
             &mut linker,
             &LinkOptions::default(),
