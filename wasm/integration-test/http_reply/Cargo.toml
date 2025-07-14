@@ -8,3 +8,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wit-bindgen = "0.43.0"
+
+[profile.release]
+# Significantly reduces WASM size.
+lto = true
+# Further reduces WASM size.
+opt-level = "z"
