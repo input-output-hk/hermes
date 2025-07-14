@@ -9,4 +9,10 @@ crate-type = ["cdylib"]
 [dependencies]
 hex = "0.4.3"
 pallas-traverse = "0.25.0"
-wit-bindgen = "0.24.0"
+wit-bindgen = "0.43.0"
+
+[profile.release]
+# Significantly reduces WASM size.
+lto = true
+# Further reduces WASM size.
+opt-level = "z"
