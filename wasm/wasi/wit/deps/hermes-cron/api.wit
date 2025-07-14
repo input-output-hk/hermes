@@ -12,7 +12,7 @@
 interface api {
 
     /// Get the `instant` type from the `wasi:clocks` module.
-    use wasi:clocks/monotonic-clock@0.2.0.{instant};
+    use wasi:clocks/monotonic-clock@0.2.6.{instant};
 
     /// A Tag used to mark a delivered cron event.
     type cron-event-tag = string;

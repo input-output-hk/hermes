@@ -140,6 +140,8 @@ permissionless
 pg_isready
 plpgsql
 pollable
+pollables
+POLLOUT
 Pozhylenkov
 pread
 preopen
