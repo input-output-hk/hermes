@@ -60,6 +60,7 @@ impl Run {
         std::thread::yield_now();
 
         // TODO[RC]: Temporary hack to keep the reactor running.
+        #[allow(clippy::empty_loop)]
         loop {}
 
         Ok(())

@@ -1,7 +1,10 @@
 use crate::event::HermesEventPayload;
 
+/// Event payload for the `on-http-response` event.
 pub(super) struct OnHttpResponseEvent {
+    /// Optional request ID associated.
     pub(super) request_id: Option<u64>,
+    /// Bytes representing the HTTP response.
     pub(super) response: Vec<u8>,
 }
 
