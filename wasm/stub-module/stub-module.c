@@ -56,6 +56,6 @@ bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, export
   return false;
 }
 
-void exports_hermes_http_request_event_on_http_response_on_http_response(uint64_t *maybe_request_id, hermes_list_u8_t *response) {
+void exports_hermes_http_request_event_on_http_response(uint64_t *maybe_request_id, hermes_list_u8_t *response) {
   
 }

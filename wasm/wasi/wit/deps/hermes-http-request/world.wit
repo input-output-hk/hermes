@@ -3,5 +3,5 @@ package hermes:http-request;
 world all {
     import api;
 
-    export event-on-http-response;
+    export event;
 }
