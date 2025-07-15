@@ -58,21 +58,18 @@ fn test_http_reply(run: bool) -> Option<TestResult> {
     })
 }
 
-impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(_blockchain: CardanoBlockchainId, _block: CardanoBlock, _source: BlockSrc) {
+impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
+    fn on_cardano_immutable_roll_forward(
+        subscription_id: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        block: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
+    ) {
     }
 }
 
-impl hermes::exports::hermes::cardano::event_on_rollback::Guest for TestComponent {
-    fn on_cardano_rollback(_blockchain: CardanoBlockchainId, _slot: u64) {}
-}
-
-impl hermes::exports::hermes::cardano::event_on_txn::Guest for TestComponent {
-    fn on_cardano_txn(
-        _blockchain: CardanoBlockchainId,
-        _slot: u64,
-        _txn_index: u32,
-        _txn: CardanoTxn,
+impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
+    fn on_cardano_block(
+        subscription_id: hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
+        block: hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
     }
 }
