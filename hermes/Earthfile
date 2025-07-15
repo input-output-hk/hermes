@@ -62,10 +62,11 @@ build:
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
 
+    RUN --no-cache
     DO rust-ci+EXECUTE \
         --cmd="/scripts/std_build.py" \
         --args1="--bench_flags=\"--features bench\"" \
-        --args3="--bins=hermes/hermes" \
+        --args2="--bins=hermes/hermes" \
         --output="release/hermes" \
         --docs="true"
 
@@ -81,7 +82,7 @@ test-wasm-integration:
 
     # Copy all wasm module artifacts for testing
 
-    COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
+    # COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
     COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
