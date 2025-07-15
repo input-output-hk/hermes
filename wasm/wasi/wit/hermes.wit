@@ -6,9 +6,24 @@ package hermes:wasi;
 /// Take note of any permissions attached to a particular API before using it.
 world hermes {
 
-  /// All possible WASI compatible Imports/Exports
-  include wasi:cli/imports@0.2.0;
-  include wasi:http/proxy@0.2.0;
+  /// All possible WASI compatible Imports
+  import wasi:cli/environment@0.2.6;
+  import wasi:cli/exit@0.2.6;
+  import wasi:cli/stdin@0.2.6;
+  import wasi:cli/stdout@0.2.6;
+  import wasi:cli/stderr@0.2.6;
+  import wasi:clocks/monotonic-clock@0.2.6;
+  import wasi:clocks/wall-clock@0.2.6;
+  import wasi:filesystem/types@0.2.6;
+  import wasi:filesystem/preopens@0.2.6;
+  import wasi:random/random@0.2.6;
+  import wasi:random/insecure@0.2.6;
+  import wasi:random/insecure-seed@0.2.6;
+  import wasi:http/outgoing-handler@0.2.6;
+  import wasi:http/incoming-handler@0.2.6;
+
+  /// All possible WASI compatible Exports
+  export wasi:http/incoming-handler@0.2.6;
   
 
   /// All possible Hermes Imports/Exports

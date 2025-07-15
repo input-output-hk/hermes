@@ -1,0 +1,34 @@
+[cli]
+url = "https://github.com/WebAssembly/wasi-cli/archive/v0.2.6.tar.gz"
+sha256 = "e5f2192aeeaa5ca23d584bf1773c126fac268cbc76361a79b3a5afe9d90d4602"
+sha512 = "a4d968bd023483a089df7988543aa7ab4817e16d5bb1d99e9f2fcb7811eca2a25e5b7687f6a990c1373c204150eac941d53d50edb23169f3b07eab37b8358c7f"
+
+[clocks]
+url = "https://github.com/WebAssembly/wasi-clocks/archive/v0.2.6.tar.gz"
+sha256 = "59b8db7b6f3f8a72418510453c1fa9e437c7c7c2369c0bd5da83aa5d6d1d9b73"
+sha512 = "06ce14bbf34d5588ed0c26bd932d46b3025c16723d5b4558def5b8107781b2251471c1f7170640342e3d4f78efb560d5ff6383c6a127c1d9e757e83db31a0185"
+
+[filesystem]
+url = "https://github.com/WebAssembly/wasi-filesystem/archive/v0.2.6.tar.gz"
+sha256 = "9eb3e27ea559c679e9fb3c775a7091efedd0dc52aec56d7cd28caba36a76309c"
+sha512 = "4207a911dd647ecbe82727af2145d88fc536f013ef76fc173d7d07729c71e9ff8c08ce911f25fa8511705d62e60d4888c5cc43d498cd3753b164bbe1be2d3a55"
+
+[http]
+url = "https://github.com/WebAssembly/wasi-http/archive/v0.2.6.tar.gz"
+sha256 = "9c2f6eee74e10fa24665091b09742ff9546d9fbb4ac53427f50ac5d5c12e2ad1"
+sha512 = "f8a8d90bb622f7178827f0f97598e13eedf1ca54faa9ed94cf496b305bcbe775caa9af8f414d043578d18af26d37eee03f49347081a3a3ebd75deff37b209196"
+
+[io]
+url = "https://github.com/WebAssembly/wasi-io/archive/v0.2.6.tar.gz"
+sha256 = "671761f464d312e6c26bcaab5e79fe14ac876b72267867579d5c65e053fe2301"
+sha512 = "57e5ed34fa85f35899b324ac7a2473c5fa5cece51d07e6f077637191fadd3c8b6f79324d31a8d497a6ce7b92cfb2a2505ab894337e2c82889f1bdb21f4f24634"
+
+[random]
+url = "https://github.com/WebAssembly/wasi-random/archive/v0.2.6.tar.gz"
+sha256 = "5fc77fdcbf6fc236250c5ba32149ea2fde7a8191696d9a4ed3931bb07202bcc0"
+sha512 = "1f3be8d65185552abad4532ed4603643b3f9eed1847d4c1acaec107964701990f18b1a036dcdccead85c29f037f272b3d1ce300c6e4316002b36431c04c00abd"
+
+[sockets]
+url = "https://github.com/WebAssembly/wasi-sockets/archive/v0.2.6.tar.gz"
+sha256 = "4f98b623cb6ff6f02c2975cea615fa36de2087dc48e76c4865e0297499c005a1"
+sha512 = "cf72b97c46913e752dff2d1c93d2c9bd87210d5714fe43d4eb93fb7512b1c786737e69b444521e77725e12a2689673da786bd0f3f94ce77bf7772671637d7878"
