@@ -83,9 +83,9 @@ x509-cert = { version="0.2.5", features = ["pem"] }
 coset = "0.3.8"
 dirs = "6.0.0"
 regex = "1.11.0"
-rustls = "0.23.28"
+rustls = { version = "0.23.28", default-features = false, features = ["ring"] }
 webpki-roots = "1.0.1"
-tokio-rustls = "0.26.2"
+tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
 
 [build-dependencies]
 build-info-build = "0.0.40"
