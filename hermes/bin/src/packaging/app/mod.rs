@@ -378,7 +378,16 @@ fn is_svg_file(resource: &impl ResourceTrait, path: &Path) -> anyhow::Result<boo
     std::io::copy(&mut reader, &mut buf)?;
 
     let opt = usvg::Options::default();
-    Ok(usvg::Tree::from_data(&buf, &opt).is_ok())
+    match usvg::Tree::from_data(&buf, &opt) {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            match e {
+                // Fail to parse svg file == not a svg file.
+                usvg::Error::ParsingFailed(_) => Ok(false),
+                _ => Err(e.into()),
+            }
+        },
+    }
 }
 
 /// Validate metadata.json file and write it to the package to the provided dir path.
