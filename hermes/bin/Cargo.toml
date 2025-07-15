@@ -84,6 +84,7 @@ coset = "0.3.8"
 rust-ipfs = "0.14.1"
 dirs = "6.0.0"
 regex = "1.11.0"
+usvg = "0.45.1"
 
 [build-dependencies]
 build-info-build = "0.0.40"

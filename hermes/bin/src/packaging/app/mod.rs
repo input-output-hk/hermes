@@ -359,9 +359,35 @@ impl ApplicationPackage {
 fn validate_and_write_icon(
     resource: &impl ResourceTrait, dir: &Dir, path: Path,
 ) -> anyhow::Result<()> {
-    // TODO: https://github.com/input-output-hk/hermes/issues/282
+    // Perform validation before copy resource to a file.
+    if !is_svg_file(resource, &path)? {
+        return Err(anyhow::anyhow!("Invalid icon, not a svg file"));
+    }
     dir.copy_resource_file(resource, path)?;
     Ok(())
+}
+
+/// Validate svg file.
+fn is_svg_file(resource: &impl ResourceTrait, path: &Path) -> anyhow::Result<bool> {
+    if !path.to_string().ends_with("svg") {
+        return Ok(false);
+    }
+
+    let mut reader = resource.get_reader()?;
+    let mut buf = Vec::new();
+    std::io::copy(&mut reader, &mut buf)?;
+
+    let opt = usvg::Options::default();
+    match usvg::Tree::from_data(&buf, &opt) {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            match e {
+                // Fail to parse svg file == not a svg file.
+                usvg::Error::ParsingFailed(_) => Ok(false),
+                _ => Err(e.into()),
+            }
+        },
+    }
 }
 
 /// Validate metadata.json file and write it to the package to the provided dir path.
