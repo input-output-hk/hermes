@@ -153,6 +153,7 @@ pubk
 pubkey
 pubspec
 pwrite
+rustls
 qpsg
 quic
 rapidoc
@@ -213,6 +214,7 @@ wasip
 wasmtime
 webasm
 webassembly
+webpki
 WORKDIR
 xprivate
 XPRV
