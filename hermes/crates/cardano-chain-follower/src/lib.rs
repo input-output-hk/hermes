@@ -76,7 +76,7 @@ impl MultiEraBlockData {
     ///
     /// Returns Err if the block's era couldn't be decided or if the encoded data is
     /// invalid.
-    pub fn decode(&self) -> Result<MultiEraBlock> {
+    pub fn decode(&self) -> Result<MultiEraBlock<'_>> {
         let block = MultiEraBlock::decode(&self.0).map_err(Error::Codec)?;
 
         Ok(block)

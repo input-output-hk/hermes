@@ -31,6 +31,7 @@ pub(crate) struct Run {
 }
 
 impl Run {
+    #[allow(unreachable_code)]
     /// Run the hermes application
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         for cert_path in self.certificates {
@@ -57,6 +58,10 @@ impl Run {
         );
         reactor::load_app(app)?;
         std::thread::yield_now();
+
+        // TODO[RC]: Temporary hack to keep the reactor running.
+        #[allow(clippy::empty_loop)]
+        loop {}
 
         Ok(())
     }
