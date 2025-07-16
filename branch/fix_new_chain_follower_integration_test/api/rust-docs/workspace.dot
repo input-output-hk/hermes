@@ -1,0 +1,4 @@
+digraph {
+    0 [ label = "hermes" shape = box]
+}
+
