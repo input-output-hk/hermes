@@ -1,0 +1,16 @@
+[package]
+name = "http-request-rte-test-component"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+#hex = "0.4.3"
+#pallas-traverse = "0.25.0"
+wit-bindgen = "0.43.0"
+
+[profile.release]
+lto = true
+opt-level = "z"

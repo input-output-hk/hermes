@@ -1,3 +1,24 @@
-# Placeholder
-#
-# To be created after the wasm-related bump are done.
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
+
+IMPORT ../../wasi AS wasi
+
+# build : build the cardano integration test wasm component
+build:
+    DO rust-ci+SETUP
+
+    COPY --keep-ts --dir src .
+    COPY Cargo.toml .
+    COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
+
+    DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/http_request_rte_test_component.wasm"
+                  
+    SAVE ARTIFACT target/wasm32-wasip2/release/http_request_rte_test_component.wasm http_request.wasm
+
+# local-bindings : saves the Hermes rust bindings locally. This is useful for local development.
+local-bindings:
+    FROM wasi+build-rust-bindings
+
+    SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
