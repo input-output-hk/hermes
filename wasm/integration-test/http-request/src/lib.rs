@@ -20,9 +20,22 @@ use hermes::{
 
 struct TestComponent;
 
+fn test_normal_request() -> bool {
+    false
+}
+
 impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
     fn test(test: u32, run: bool) -> Option<TestResult> {
-        None
+        match test {
+            0 => {
+                let status = if run { test_normal_request() } else { true };
+                Some(TestResult {
+                    name: "Normal request".to_string(),
+                    status,
+                })
+            }
+            _ => None
+        }
     }
 
     fn bench(_test: u32, _run: bool) -> Option<TestResult> {

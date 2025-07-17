@@ -15,7 +15,7 @@ build:
     DO rust-ci+CARGO --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/http_request_rte_test_component.wasm"
                   
-    SAVE ARTIFACT target/wasm32-wasip2/release/http_request_rte_test_component.wasm http_request.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/http_request_rte_test_component.wasm http-request.wasm
 
 # local-bindings : saves the Hermes rust bindings locally. This is useful for local development.
 local-bindings:
