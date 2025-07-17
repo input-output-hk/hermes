@@ -1,0 +1,49 @@
+/// # Http-request API
+
+/// Http request interface
+interface api {
+    /// Error codes.
+    enum error-code {
+        /// Internal error when trying to send the request
+        internal,
+        /// Either `http://` or `https://` scheme is required
+        missing-scheme,
+        /// HTTP connection failed
+        http-connection-failed,
+        /// HTTPs connection failed
+        https-connection-failed,
+        /// HTTP send failed
+        http-send-failed,
+        /// HTTPs send failed
+        https-send-failed,
+    }
+
+    /// HTTP request payload (caller manages full body formatting)
+    record payload {
+        /// Host URI (scheme + domain, no path), e.g., "http://example.com"
+        host-uri: string,
+        /// Port (e.g., 80 for HTTP, 443 for HTTPS)
+        port: u16,
+        /// Raw HTTP request (including method, path, headers, and body)
+        body: list<u8>,
+        /// Optional request identifier for tracking
+        request-id: option<u64>,
+    }
+
+    /// Send an HTTP request.
+    ///
+    /// **Parameters**
+    /// 
+    /// `p` : The payload of a request to be sent.
+    /// 
+    /// **Returns**
+    /// 
+    /// `true` if the request was sent successfully, `false` otherwise.
+    ///     
+    send: func(p: payload) -> result<_, error-code>;
+}
+
+/// World just for the Hermes Http request extension.
+world http-request-api {
+    import api;
+}
