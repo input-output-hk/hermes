@@ -28,6 +28,7 @@ cids
 ciphertext
 codegen
 codepoints
+Condvar
 coti
 coverallsapp
 cpus
@@ -153,7 +154,6 @@ pubk
 pubkey
 pubspec
 pwrite
-rustls
 qpsg
 quic
 rapidoc
@@ -170,6 +170,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed

@@ -78,7 +78,10 @@ impl Cli {
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
         match self.command {
-            Commands::Run(cmd) => cmd.exec(),
+            Commands::Run(cmd) => {
+                cmd.exec()
+                    .map(|exit| println!("{}:\n{}", Emoji::new("⛔", "Exit"), style(exit).red()))
+            },
             Commands::Module(cmd) => cmd.exec(),
             Commands::App(cmd) => cmd.exec(),
         }

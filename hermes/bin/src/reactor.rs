@@ -5,7 +5,7 @@ use once_cell::sync::OnceCell;
 
 use crate::{
     app::{Application, ApplicationName},
-    event,
+    event::{self, queue::ExitLock},
     runtime_extensions::hermes::init,
 };
 
@@ -31,8 +31,10 @@ struct Reactor {
 
 /// Initialize Hermes Reactor.
 /// Setup and runs all necessary services.
-pub(crate) fn init() -> anyhow::Result<()> {
-    event::queue::init()?;
+///
+/// [`ExitLock`] would contain shutdown information if awaited.
+pub(crate) fn init() -> anyhow::Result<ExitLock> {
+    let exit_lock = event::queue::init()?;
 
     REACTOR_STATE
         .set(Reactor {
@@ -40,7 +42,7 @@ pub(crate) fn init() -> anyhow::Result<()> {
         })
         .map_err(|_| AlreadyInitializedError)?;
 
-    Ok(())
+    Ok(exit_lock)
 }
 
 /// Load Hermes application into the Hermes Reactor.
