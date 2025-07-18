@@ -1,4 +1,5 @@
 //! Integration tests for Hermes WASM components
+#![allow(clippy::all, unused, missing_docs)]
 
 // SEE: https://docs.rs/libtest-mimic/latest/libtest_mimic/index.html
 
@@ -16,13 +17,34 @@ const DEFAULT_ENV_N_TEST: &str = "32";
 /// The default value for the number of benchmarks to run when not specified.
 const DEFAULT_ENV_N_BENCH: &str = "32";
 
-use std::{env, error::Error, ffi::OsStr, fs, path::Path, time::Instant};
+use std::{
+    convert::Infallible,
+    env,
+    error::Error,
+    ffi::OsStr,
+    fs,
+    net::SocketAddr,
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Instant,
+};
 
 use hermes::{
     runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
     wasm::module::Module,
 };
+use http_body_util::Full;
+use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
+use hyper_util::rt::TokioIo;
 use libtest_mimic::{Arguments, Failed, Measurement, Trial};
+use tokio::{
+    net::TcpListener,
+    runtime::Builder,
+    sync::{oneshot, Notify},
+};
 use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::{fmt::time, FmtSubscriber};
 
@@ -49,6 +71,53 @@ fn init_ipfs() -> anyhow::Result<()> {
     // disable bootstrapping the IPFS node to default addresses for testing
     let default_bootstrap = false;
     hermes::ipfs::bootstrap(base_dir.path(), default_bootstrap)
+}
+
+async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
+}
+
+async fn spin_up_server(shutdown: Arc<AtomicBool>) -> anyhow::Result<()> {
+    println!("ABC1");
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let listener = TcpListener::bind(addr).await?;
+    loop {
+        println!("ABC2");
+        // Check shutdown flag before accepting new connections
+        if shutdown.load(Ordering::Relaxed) {
+            println!("Shutdown signal received, stopping server...");
+            return Ok(());
+        }
+        println!("ABC3");
+
+        // Use tokio::select! to wait for either a new connection or shutdown signal
+        tokio::select! {
+            result = listener.accept() => {
+                let (stream, _) = result?;
+                let io = TokioIo::new(stream);
+
+                // Spawn a new task for each connection
+                tokio::task::spawn(async move {
+                    println!("New connection accepted");
+                    if let Err(err) = http1::Builder::new()
+                        .serve_connection(io, service_fn(hello))
+                        .await
+                    {
+                        eprintln!("Error serving connection: {:?}", err);
+                    }
+                });
+            },
+            _ = async {
+                // Check shutdown flag periodically
+                while !shutdown.load(Ordering::Relaxed) {
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            } => {
+                println!("Shutdown signal received during accept");
+                return Ok(())
+            }
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -118,7 +187,36 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
                         let test = match event_type {
                             EventType::Test => {
                                 Trial::test(result.name, move || {
-                                    execute_test(i, path_string, event_type)
+                                    let shutdown = Arc::new(AtomicBool::new(false));
+                                    let cloned_shutdown = Arc::clone(&shutdown);
+                                    println!("1");
+                                    // TODO: If test needs server
+                                    println!("2");
+                                    let runtime =
+                                        Builder::new_multi_thread().enable_all().build().unwrap();
+
+                                    // Spawn the server in the background
+                                    let server_handle = runtime.spawn(async move {
+                                        println!("3");
+                                        spin_up_server(Arc::clone(&cloned_shutdown)).await
+                                    });
+
+                                    // Give the server a moment to start up
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+
+                                    println!("5");
+                                    let result = execute_test(i, path_string, event_type);
+                                    println!("6");
+
+                                    // Signal shutdown
+                                    std::thread::sleep(std::time::Duration::from_millis(5000));
+                                    shutdown.store(true, Ordering::SeqCst);
+                                    println!("7");
+
+                                    // Wait for server to shut down gracefully
+                                    runtime.block_on(server_handle).unwrap();
+
+                                    result
                                 })
                             },
                             EventType::Bench => {

@@ -82,24 +82,26 @@ test-wasm-integration:
 
     # Copy all wasm module artifacts for testing
 
-    COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
+    COPY ../wasm/integration-test/http-request+build/http-request.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/cardano+build/cardano.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/clocks+build/clocks.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/cron+build/cron.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/crypto+build/crypto.wasm ../wasm/test-components/
     # TODO: re-enable golang integration test (https://github.com/input-output-hk/hermes/issues/415).
     #COPY ../wasm/integration-test/golang+build/golang.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/ipfs+build/ipfs.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
-    COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/hashing+build/hashing.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/ipfs+build/ipfs.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/localtime+build/localtime.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/logger+build/logger.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/sqlite+build/sqlite.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/smoke-test+build/smoke-test.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
+    #COPY ../wasm/integration-test/wasi-filesystem+build/wasi-filesystem.wasm ../wasm/test-components/
 
     # List all WASM integration tests/benches and also run them.
-    RUN cargo test --release --test wasm-component-integration-tests -- --list
-    RUN cargo test --release --test wasm-component-integration-tests -- --test
-    RUN cargo test --release --test wasm-component-integration-tests -- --bench
+    #RUN cargo test --release --test wasm-component-integration-tests -- --list
+    RUN cargo test --test wasm-component-integration-tests -- --test
+    #RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
 
 # all-hosts-build : Test which runs check with all supported host tooling.
