@@ -7,20 +7,19 @@ use hermes::{
         integration_test::event::TestResult,
     },
     hermes::{
-        cardano::{
-            self,
-            api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
-        },
+        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
         ipfs::api::PubsubMessage,
         kv_store::api::KvValues,
     },
-    wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
+use crate::hermes::wasi::http::types::ResponseOutparam;
+use crate::hermes::wasi::http::types::IncomingRequest;
 
 struct TestComponent;
 
 fn test_normal_request() -> bool {
+    let url = "http://localhost:8080/test.txt";
     false
 }
 
@@ -34,7 +33,7 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
                     status,
                 })
             }
-            _ => None
+            _ => None,
         }
     }
 
