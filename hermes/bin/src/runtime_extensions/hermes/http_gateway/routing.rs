@@ -145,7 +145,7 @@ async fn route_to_hermes(
     }
 
     let (_parts, body) = req.into_parts();
-    if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{}/", WEBASM_ROUTE)) {
+    if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
         compose_http_event(
             method,
             header_map.into_iter().collect(),

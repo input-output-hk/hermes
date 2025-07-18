@@ -3,17 +3,17 @@
 //! Processes HTTP requests through WASM modules using MPSC channels.
 //! Validates redirect URLs against configurable security policies.
 
-use std::collections::HashSet;
-use std::env;
-use std::sync::mpsc::Sender;
-use tracing::error;
+use std::{collections::HashSet, env, result::Result::Ok, sync::mpsc::Sender};
 
 use hyper::{self, body::Bytes};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use url::Url;
 
-use crate::event::HermesEventPayload;
-use crate::runtime_extensions::bindings::exports::hermes::http_gateway::event::HttpGatewayResponse;
+use crate::{
+    event::HermesEventPayload,
+    runtime_extensions::bindings::exports::hermes::http_gateway::event::HttpGatewayResponse,
+};
 
 // ============================================================================
 // Type Aliases
@@ -43,7 +43,7 @@ type Body = Vec<u8>;
 pub(crate) enum HTTPEventMsg {
     /// Receiver acknowledgment
     HTTPEventReceiver,
-    /// Event response: (status_code, headers, body)
+    /// Event response: (`status_code`, `headers`, `body`)
     HttpEventResponse((Code, HeadersKV, Body)),
 }
 
@@ -53,9 +53,13 @@ pub(crate) enum HTTPEventMsg {
 
 /// HTTP request event to be processed by WASM modules
 pub(crate) struct HTTPEvent {
+    /// HTTP headers as key-value pairs
     pub(crate) headers: HeadersKV,
+    /// HTTP method (GET, POST, etc.)
     pub(crate) method: Method,
+    /// Request URL path
     pub(crate) path: Path,
+    /// Request body content
     pub(crate) body: Bytes,
     /// Channel to send response back to client
     pub(crate) sender: Sender<HTTPEventMsg>,
@@ -69,44 +73,42 @@ pub(crate) struct HTTPEvent {
 #[derive(Debug, Clone)]
 pub struct RedirectConfig {
     /// Allowed URL schemes (e.g., "https")
-    pub allowed_schemes: HashSet<String>,
+    pub schemes: HashSet<String>,
     /// Allowed hostnames (e.g., "api.example.com")
-    pub allowed_hosts: HashSet<String>,
+    pub hosts: HashSet<String>,
     /// Allowed path prefixes (e.g., "/api/v1")
-    pub allowed_path_prefixes: Vec<String>,
+    pub path_prefixes: Vec<String>,
 }
 
 impl Default for RedirectConfig {
     fn default() -> Self {
         Self {
-            allowed_schemes: ["https"].iter().map(|s| s.to_string()).collect(),
-            allowed_hosts: ["app.dev.projectcatalyst.io"]
+            schemes: ["https"].iter().map(ToString::to_string).collect(),
+            hosts: ["app.dev.projectcatalyst.io"]
                 .iter()
-                .map(|s| s.to_string())
+                .map(ToString::to_string)
                 .collect(),
-            allowed_path_prefixes: vec!["/api/gateway".to_string()],
+            path_prefixes: vec!["/api/gateway".to_string()],
         }
     }
 }
 
 impl RedirectConfig {
     /// Load from environment variables:
-    /// - REDIRECT_ALLOWED_SCHEMES
-    /// - REDIRECT_ALLOWED_HOSTS  
-    /// - REDIRECT_ALLOWED_PATH_PREFIXES
+    /// - `REDIRECT_ALLOWED_SCHEMES`
+    /// - `REDIRECT_ALLOWED_HOSTS`
+    /// - `REDIRECT_ALLOWED_PATH_PREFIXES`
     pub fn from_env() -> Self {
-        let allowed_schemes = Self::parse_env_list("REDIRECT_ALLOWED_SCHEMES", "https");
-        let allowed_hosts =
-            Self::parse_env_list("REDIRECT_ALLOWED_HOSTS", "app.dev.projectcatalyst.io");
-        let allowed_path_prefixes =
-            Self::parse_env_list("REDIRECT_ALLOWED_PATH_PREFIXES", "/api/gateway")
-                .into_iter()
-                .collect();
+        let schemes = Self::parse_env_list("REDIRECT_ALLOWED_SCHEMES", "https");
+        let hosts = Self::parse_env_list("REDIRECT_ALLOWED_HOSTS", "app.dev.projectcatalyst.io");
+        let path_prefixes = Self::parse_env_list("REDIRECT_ALLOWED_PATH_PREFIXES", "/api/gateway")
+            .into_iter()
+            .collect();
 
         Self {
-            allowed_schemes,
-            allowed_hosts,
-            allowed_path_prefixes,
+            schemes,
+            hosts,
+            path_prefixes,
         }
     }
 
@@ -138,11 +140,11 @@ fn validate_redirect_location(location: &str, config: &RedirectConfig) -> anyhow
 
 /// Validates URL scheme against allowed schemes
 fn validate_scheme(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
-    if !config.allowed_schemes.contains(url.scheme()) {
+    if !config.schemes.contains(url.scheme()) {
         return Err(anyhow::anyhow!(
             "Redirect scheme '{}' not allowed. Allowed schemes: {:?}",
             url.scheme(),
-            config.allowed_schemes
+            config.schemes
         ));
     }
     Ok(())
@@ -154,11 +156,11 @@ fn validate_host(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
         .host_str()
         .ok_or_else(|| anyhow::anyhow!("No host in redirect URL"))?;
 
-    if !config.allowed_hosts.contains(host) {
+    if !config.hosts.contains(host) {
         return Err(anyhow::anyhow!(
             "Redirect host '{}' not allowed. Allowed hosts: {:?}",
             host,
-            config.allowed_hosts
+            config.hosts
         ));
     }
     Ok(())
@@ -168,7 +170,7 @@ fn validate_host(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
 fn validate_path(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
     let path = url.path();
     let path_allowed = config
-        .allowed_path_prefixes
+        .path_prefixes
         .iter()
         .any(|prefix| path.starts_with(prefix));
 
@@ -176,7 +178,7 @@ fn validate_path(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!(
             "Redirect path '{}' not allowed. Allowed prefixes: {:?}",
             path,
-            config.allowed_path_prefixes
+            config.path_prefixes
         ));
     }
     Ok(())
@@ -229,33 +231,33 @@ impl HTTPEvent {
             return self.send_error_response(403, "Forbidden: Invalid redirect location");
         }
 
-        self.spawn_redirect_request(location)
+        self.spawn_redirect_request(location);
+        Ok(())
     }
 
     /// Spawn background thread for redirect request
-    fn spawn_redirect_request(&self, location: String) -> anyhow::Result<()> {
+    fn spawn_redirect_request(&self, location: String) {
         let headers = self.headers.clone();
         let method = self.method.clone();
         let body = self.body.clone();
         let sender = self.sender.clone();
 
         std::thread::spawn(move || {
-            if let Err(e) = Self::execute_redirect_request(location, headers, method, body, sender)
+            if let Err(e) =
+                Self::execute_redirect_request(&location, &headers, &method, &body, &sender)
             {
                 error!("Redirect request failed: {:?}", e);
             }
         });
-
-        Ok(())
     }
 
     /// Execute HTTP redirect request
     fn execute_redirect_request(
-        location: String, headers: HeadersKV, method: Method, body: Bytes,
-        sender: Sender<HTTPEventMsg>,
+        location: &str, headers: &HeadersKV, method: &Method, body: &Bytes,
+        sender: &Sender<HTTPEventMsg>,
     ) -> anyhow::Result<()> {
         let client = std::sync::Arc::new(reqwest::blocking::Client::new());
-        let request = Self::build_request(&client, &location, &headers, &method, &body)?;
+        let request = Self::build_request(&client, location, headers, method, body);
 
         match request.send() {
             Ok(response) => Self::process_response(response, sender),
@@ -270,7 +272,7 @@ impl HTTPEvent {
     fn build_request(
         client: &reqwest::blocking::Client, location: &str, headers: &HeadersKV, method: &str,
         body: &Bytes,
-    ) -> anyhow::Result<reqwest::blocking::RequestBuilder> {
+    ) -> reqwest::blocking::RequestBuilder {
         let mut request = client.request(
             reqwest::Method::from_bytes(method.as_bytes()).unwrap_or(reqwest::Method::GET),
             location,
@@ -290,22 +292,22 @@ impl HTTPEvent {
             request = request.body(body.to_vec());
         }
 
-        Ok(request)
+        request
     }
 
     /// Process HTTP response and forward to client
     fn process_response(
-        response: reqwest::blocking::Response, sender: Sender<HTTPEventMsg>,
+        response: reqwest::blocking::Response, sender: &Sender<HTTPEventMsg>,
     ) -> anyhow::Result<()> {
         let status_code = response.status().as_u16();
         let headers: HeadersKV = response
             .headers()
             .iter()
             .map(|(name, value)| {
-                (
-                    name.to_string(),
-                    vec![value.to_str().unwrap_or("").to_string()],
-                )
+                (name.to_string(), vec![value
+                    .to_str()
+                    .unwrap_or("")
+                    .to_string()])
             })
             .collect();
 
@@ -337,7 +339,7 @@ impl HTTPEvent {
 
     /// Helper to send error via sender channel
     fn send_error_via_sender(
-        sender: Sender<HTTPEventMsg>, code: Code, message: &str,
+        sender: &Sender<HTTPEventMsg>, code: Code, message: &str,
     ) -> anyhow::Result<()> {
         sender.send(HTTPEventMsg::HttpEventResponse((
             code,
