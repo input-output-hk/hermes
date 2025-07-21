@@ -5,6 +5,9 @@
 /// This API is ONLY Available to Integration Tests and is not normally exposed.
 
 interface api {
-    /// Perform Hermes event queue shut down.
-    done: func(exit-code: s64);
+    /// Perform Hermes event queue shutdown.
+    done: func(status: result);
+
+    /// Perform Hermes event queue shutdown with a custom status code.
+    done-with-code: func(status-code: u8);
 }
