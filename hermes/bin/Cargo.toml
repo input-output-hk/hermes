@@ -25,6 +25,10 @@ name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
 
+[[test]]
+name = "integration"
+path = "tests/integration/tests/mod.rs"
+
 [dependencies]
 # specific commit from the `catalyst` branch
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
@@ -95,6 +99,7 @@ build-info-build = "0.0.40"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
 # An override with the "wat" feature added.
 wasmtime = { version = "33.0.0", default-features = false, features = ["runtime", "cranelift", "component-model", "wat"] }
+httpmock = "0.7.0"
 
 [package.metadata.cargo-machete]
 # This is required for HDF5.
