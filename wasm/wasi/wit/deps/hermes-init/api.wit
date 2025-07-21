@@ -6,8 +6,5 @@
 
 interface api {
     /// Perform Hermes event queue shutdown.
-    done: func(status: result);
-
-    /// Perform Hermes event queue shutdown with a custom status code.
-    done-with-code: func(status-code: u8);
+    done: func(status-code: u8);
 }
