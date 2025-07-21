@@ -22,5 +22,5 @@ build:
     RUN wit-bindgen-go generate --world hermes --out binding ./hermes:wasi.wasm
     
     # Generate WASM component targeting WASM preview 2
-    RUN tinygo build --target=wasip2 -o hermes.wasm --wit-package hermes:wasi.wasm --wit-world hermes main.go
-    SAVE ARTIFACT hermes.wasm 
+    RUN tinygo build --target=wasip2 -o golang.wasm --wit-package hermes:wasi.wasm --wit-world hermes main.go
+    SAVE ARTIFACT golang.wasm 
