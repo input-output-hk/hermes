@@ -243,29 +243,17 @@ impl HTTPEvent {
         let sender = self.sender.clone();
 
         std::thread::spawn(move || {
-            if let Err(e) =
-                Self::execute_redirect_request(&location, &headers, &method, &body, &sender)
-            {
-                error!("Redirect request failed: {:?}", e);
+            let client = reqwest::blocking::Client::new();
+            let request = Self::build_request(&client, &location, &headers, &method, &body);
+
+            match request.send() {
+                Ok(response) => Self::process_response(response, &sender),
+                Err(e) => {
+                    error!("HTTP request failed: {:?}", e);
+                    Self::send_error_via_sender(&sender, 500, "Internal Server Error")
+                },
             }
         });
-    }
-
-    /// Execute HTTP redirect request
-    fn execute_redirect_request(
-        location: &str, headers: &HeadersKV, method: &Method, body: &Bytes,
-        sender: &Sender<HTTPEventMsg>,
-    ) -> anyhow::Result<()> {
-        let client = std::sync::Arc::new(reqwest::blocking::Client::new());
-        let request = Self::build_request(&client, location, headers, method, body);
-
-        match request.send() {
-            Ok(response) => Self::process_response(response, sender),
-            Err(e) => {
-                error!("HTTP request failed: {:?}", e);
-                Self::send_error_via_sender(sender, 500, "Internal Server Error")
-            },
-        }
     }
 
     /// Build HTTP request for redirect (excludes Host header)
