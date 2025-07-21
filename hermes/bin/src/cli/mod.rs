@@ -5,7 +5,7 @@ mod build_info;
 mod module;
 mod run;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, process::ExitCode};
 
 use build_info::BUILD_INFO;
 use clap::{Parser, Subcommand};
@@ -13,6 +13,7 @@ use console::{style, Emoji};
 
 use crate::{
     errors::Errors,
+    event::queue::Exit,
     logger::{self, LoggerConfigBuilder},
 };
 
@@ -59,7 +60,7 @@ impl Cli {
     }
 
     /// Execute cli commands of the hermes
-    pub(crate) fn exec(self) {
+    pub(crate) fn exec(self) -> ExitCode {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
 
         let mut errors = Errors::new();
@@ -77,18 +78,24 @@ impl Cli {
 
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
-        match self.command {
+        let exit_code = match self.command {
             Commands::Run(cmd) => {
                 cmd.exec()
-                    .map(|exit| println!("{}:\n{}", Emoji::new("⛔", "Exit"), style(exit).red()))
+                    .inspect(|exit| {
+                        println!("{}:\n{}", Emoji::new("⛔", "Exit"), style(exit).red());
+                    })
+                    .map(Exit::unwrap_exit_code_or_failure)
             },
-            Commands::Module(cmd) => cmd.exec(),
-            Commands::App(cmd) => cmd.exec(),
+            Commands::Module(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS),
+            Commands::App(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS),
         }
-        .unwrap_or_else(errors.get_add_err_fn());
+        .map_err(errors.get_add_err_fn())
+        .unwrap_or(ExitCode::FAILURE);
 
         if !errors.is_empty() {
             println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
         }
+
+        exit_code
     }
 }

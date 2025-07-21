@@ -1,19 +1,18 @@
 //! Implementation of exit status retrieval after event queue shutdown.
 
 use std::{
+    process::ExitCode,
     sync::{Arc, Condvar, Mutex},
     time::Duration,
 };
 
-/// Exit code to return after queue shutdown.
-pub type ExitCode = i64;
-
 /// Exit status.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum Exit {
     /// An application requested runtime abort.
     #[error(
-        "Event queue closed: an application requested runtime abort with exit code {exit_code}"
+        "Event queue closed: an application requested runtime abort \
+         with exit code ({exit_code:?})"
     )]
     Done {
         /// Exit code provided by an application.
@@ -28,6 +27,28 @@ pub enum Exit {
     /// Timeout elapsed.
     #[error("Event queue closed: timeout")]
     Timeout,
+}
+
+impl Exit {
+    /// Returns an exit code if `Self` is [`Self::Done`].
+    pub fn get_exit_code(self) -> Option<ExitCode> {
+        if let Self::Done { exit_code } = self {
+            Some(exit_code)
+        } else {
+            None
+        }
+    }
+
+    /// Returns either an exit code from [`Self::Done`] or [`ExitCode::FAILURE`].
+    pub fn unwrap_exit_code_or_failure(self) -> ExitCode {
+        self.get_exit_code().unwrap_or(ExitCode::FAILURE)
+    }
+}
+
+impl From<ExitCode> for Exit {
+    fn from(exit_code: ExitCode) -> Self {
+        Self::Done { exit_code }
+    }
 }
 
 /// Lock to [`Exit`] that event queue sets on shutdown.

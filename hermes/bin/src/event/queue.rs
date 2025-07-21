@@ -4,11 +4,12 @@ mod exit;
 
 use std::{
     ops::ControlFlow,
+    process::ExitCode,
     sync::mpsc::{self, Receiver, Sender},
     thread::{self},
 };
 
-pub use exit::{Exit, ExitCode, ExitLock};
+pub use exit::{Exit, ExitLock};
 use once_cell::sync::OnceCell;
 
 use super::{HermesEvent, TargetApp, TargetModule};
