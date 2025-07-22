@@ -77,6 +77,9 @@ impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
 
 impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
     fn init() -> bool {
+        // TODO[RC]: We should be able to access files like this
+        // let server = fs::open("config.json")?;
+
         bindings::hermes::logging::api::log(
             bindings::hermes::logging::api::Level::Trace,
             None,
