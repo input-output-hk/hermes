@@ -1,0 +1,16 @@
+[workspace]
+members = ["cardano_age", "next_century"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+wit-bindgen = "0.43.0"
+
+[profile.release]
+# Significantly reduces WASM size.
+lto = true
+# Further reduces WASM size.
+opt-level = "z"

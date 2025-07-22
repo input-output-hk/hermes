@@ -1,0 +1,27 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
+
+IMPORT ../../../wasi AS wasi
+
+# gen-bindings - generates `hermes.rs` bindings to work with.
+gen-bindings:
+    FROM wasi+build-rust-bindings
+
+    SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
+
+# build - builds the http reply integration test wasm component
+build:
+    DO rust-ci+SETUP
+
+    COPY --keep-ts --dir src .
+    COPY Cargo.toml .
+    COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
+
+    DO rust-ci+CARGO \
+        --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/cardano_age.wasm"
+
+    SAVE ARTIFACT target/wasm32-wasip2/release/cardano_age.wasm cardano_age.rs.wasm

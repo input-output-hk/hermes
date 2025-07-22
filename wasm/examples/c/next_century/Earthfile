@@ -1,0 +1,20 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.4.5 AS wasm-c-ci
+# Use when debugging cat-ci locally.
+# IMPORT ../../../../catalyst-ci/earthly/wasm/c AS wasm-c-ci
+
+IMPORT ../../../ AS wasm
+
+# build - generate a wasm component from a C stub file
+build:
+    FROM wasm-c-ci+wasm-c-base
+
+    ARG c_files="next_century.c"
+
+    COPY ./$c_files .
+    COPY wasm+wasi-src/wasi .
+
+    RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="next_century.c.wasm"
+
+    SAVE ARTIFACT next_century.c.wasm
