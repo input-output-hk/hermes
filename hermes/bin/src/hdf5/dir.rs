@@ -47,28 +47,11 @@ impl Dir {
 
     /// Mount file from the another HDF5 package to the provided path.
     pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
-        // let fresult = hdf5::File::open("/tmp/t69173-0/app.happ");
-        // tracing::info!("ZZZZZ - fresult: {:?}", fresult);
-        // let exists = fresult
-        //     .unwrap()
-        //     .group("/")?
-        //     .member_names()?
-        //     .contains(&"icon.svg".to_string());
-        // tracing::info!("ZZZZZ - Does icon.svg exist inside app.happ? {}", exists);
-
         let link_name = path.pop_elem();
-        tracing::info!("ZZZZZ - link_name: {link_name}");
-        tracing::info!("ZZZZZ - path: {:?}", path);
         let dir = self.get_dir(&path)?;
-        tracing::info!("ZZZZZ - dir: {:?}", dir);
 
         let target_file_name = mounted_file.hdf5_ds.filename();
-        tracing::info!("ZZZZZ - target_file_name: {target_file_name}");
         let target = mounted_file.hdf5_ds.name();
-        tracing::info!("ZZZZZ - target: {target}");
-        tracing::info!("ZZZZZ - link_name: {link_name}");
-        tracing::info!("ZZZZZ - dir.0: {:?}", dir.0);
-        tracing::info!("ZZZZZ - dir.0.is: {:?}", dir.0.id());
 
         dir.0.link_external(
             target_file_name.as_str(),

@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use temp_dir::TempDir;
+use uuid::Uuid;
 
 use crate::utils;
 
@@ -73,13 +74,16 @@ pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<()> {
+pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
     let manifest_path = temp_dir.as_ref().join("manifest_app.json");
+    let app_filename = format!("{}.happ", Uuid::new_v4());
 
-    println!("PACKAGING APP");
+    println!("PACKAGING APP into {app_filename}");
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("app")
         .arg("package")
+        .arg("--name")
+        .arg(app_filename.clone())
         .arg(manifest_path)
         .output()?;
 
@@ -92,5 +96,5 @@ pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<()> {
         );
     }
 
-    Ok(())
+    Ok(app_filename)
 }

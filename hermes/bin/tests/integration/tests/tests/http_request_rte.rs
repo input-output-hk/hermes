@@ -12,21 +12,26 @@ fn simple_request() {
 
     utils::component::build(COMPONENT, &tmp_dir).expect("failed to build component");
     utils::packaging::package_module(&tmp_dir).expect("failed to package module");
-    utils::packaging::package_app(&tmp_dir).expect("failed to package app");
+    let app_file_name = utils::packaging::package_app(&tmp_dir).expect("failed to package app");
+
+    println!("App file created: {}", app_file_name);
 
     let server = utils::http_server::start();
 
+    utils::hermes::build();
     // TODO[RC]: How do we pass server data to the app?
     // 1. VFS?
     // 2. Package into the app via metadata?
-    // let output = utils::hermes::run_app(&tmp_dir).expect("failed to run hermes app");
+    let output =
+        utils::hermes::run_app(&tmp_dir, &app_file_name).expect("failed to run hermes app");
 
-    // println!("Output: {}", output);
+    println!("Output: {}", output);
 
-    // assert!(output.contains("XXXX got http response for"));
+    println!("Now sleeping to allow the app to run and process requests...");
+    std::thread::sleep(std::time::Duration::from_secs(60*2));
 
-    println!("Now sleeping for 60 seconds to allow the app to run and process requests...");
-    std::thread::sleep(std::time::Duration::from_secs(60));
+    assert!(output.contains("XXXXX - Sending HTTP request"));
+
 
     // utils::hermes::run_app();
 }

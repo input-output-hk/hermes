@@ -91,6 +91,7 @@ rustls = { version = "0.23.28", default-features = false, features = ["ring"] }
 webpki-roots = "1.0.1"
 tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
 usvg = "0.45.1"
+uuid = { version = "1.17.0", features = ["v4"] }
 
 [build-dependencies]
 build-info-build = "0.0.40"

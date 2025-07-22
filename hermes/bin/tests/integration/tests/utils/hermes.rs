@@ -10,8 +10,27 @@ use crate::utils;
 
 const WAIT_TIME: Duration = Duration::from_secs(10);
 
-pub fn run_app(temp_dir: &TempDir) -> anyhow::Result<String> {
-    let app_path = temp_dir.as_ref().join("app.happ");
+pub fn build() {
+    println!("BUILDING HERMES");
+    let output = Command::new("cargo")
+        .arg("build")
+        .arg("--manifest-path")
+        .arg("/home/magister/IOHK/hermes/hermes/bin/Cargo.toml") // TODO[RC]: Fix hardcoded path
+        .output()
+        .expect("Failed to execute command");
+
+    if output.status.success() {
+        println!("Build succeeded!");
+    } else {
+        println!("Build failed!");
+        println!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    println!("Build output: {}", String::from_utf8_lossy(&output.stdout));
+}
+
+pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String> {
+    let app_path = temp_dir.as_ref().join(app_file_name);
 
     println!(
         "Running hermes app for {WAIT_TIME:?} seconds: {}",
