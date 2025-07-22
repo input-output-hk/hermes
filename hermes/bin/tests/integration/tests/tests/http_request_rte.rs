@@ -27,10 +27,10 @@ fn simple_request() {
 
     println!("Output: {}", output);
 
-    println!("Now sleeping to allow the app to run and process requests...");
-    std::thread::sleep(std::time::Duration::from_secs(60*2));
-
     assert!(output.contains("XXXXX - Sending HTTP request"));
+
+    println!("Now sleeping, allowing to capture the content of the temp dir before it is deleted");
+    std::thread::sleep(std::time::Duration::from_secs(60));
 
 
     // utils::hermes::run_app();

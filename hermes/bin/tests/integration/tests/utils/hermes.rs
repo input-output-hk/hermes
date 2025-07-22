@@ -8,7 +8,7 @@ use temp_dir::TempDir;
 
 use crate::utils;
 
-const WAIT_TIME: Duration = Duration::from_secs(10);
+const WAIT_TIME: Duration = Duration::from_secs(60 * 2);
 
 pub fn build() {
     println!("BUILDING HERMES");
