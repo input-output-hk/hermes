@@ -1,4 +1,5 @@
 use std::{
+    fs::File,
     process::{Command, Stdio},
     thread,
     time::Duration,
@@ -6,9 +7,9 @@ use std::{
 
 use temp_dir::TempDir;
 
-use crate::utils;
+use crate::utils::{self, LOG_FILE_NAME};
 
-const WAIT_TIME: Duration = Duration::from_secs(60 * 2);
+const WAIT_TIME: Duration = Duration::from_secs(30);
 
 pub fn build() {
     println!("BUILDING HERMES");
@@ -32,6 +33,9 @@ pub fn build() {
 pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String> {
     let app_path = temp_dir.as_ref().join(app_file_name);
 
+    let log_file_path = temp_dir.as_ref().join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path)?;
+
     println!(
         "Running hermes app for {WAIT_TIME:?} seconds: {}",
         app_path.display()
@@ -42,7 +46,8 @@ pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String
         .arg("--untrusted")
         .arg(app_path)
         .env("HERMES_LOG_LEVEL", "trace")
-        .stdout(Stdio::piped())
+        .stdout(Stdio::from(log_file.try_clone()?)) // redirect stdout
+        .stderr(Stdio::from(log_file)) // redirect stderr
         .spawn()?;
 
     thread::sleep(WAIT_TIME);

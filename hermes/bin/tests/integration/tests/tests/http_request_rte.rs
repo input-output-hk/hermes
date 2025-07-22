@@ -2,7 +2,7 @@ use std::process::Command;
 
 use temp_dir::TempDir;
 
-use crate::utils;
+use crate::utils::{self, assert::app_logs_contain};
 
 #[test]
 fn simple_request() {
@@ -22,16 +22,15 @@ fn simple_request() {
     // TODO[RC]: How do we pass server data to the app?
     // 1. VFS?
     // 2. Package into the app via metadata?
-    let output =
-        utils::hermes::run_app(&tmp_dir, &app_file_name).expect("failed to run hermes app");
+    utils::hermes::run_app(&tmp_dir, &app_file_name).expect("failed to run hermes app");
 
-    println!("Output: {}", output);
-
-    assert!(output.contains("XXXXX - Sending HTTP request"));
+    assert!(app_logs_contain(
+        &tmp_dir,
+        "XXXXX - Sending HTTP request"
+    ));
 
     println!("Now sleeping, allowing to capture the content of the temp dir before it is deleted");
     std::thread::sleep(std::time::Duration::from_secs(60));
-
 
     // utils::hermes::run_app();
 }
