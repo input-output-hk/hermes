@@ -9,6 +9,8 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+use chrono::Utc;
+use console::Emoji;
 use rusty_ulid::Ulid;
 use wasmtime::{
     component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
@@ -116,8 +118,29 @@ impl Module {
     ///  - `io::Error`
     pub fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
         let mut bytes = Vec::new();
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 1100",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+
         reader.read_to_end(&mut bytes)?;
-        Self::from_bytes(&bytes)
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 1101",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        let x = Self::from_bytes(&bytes);
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 1102",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+
+        x
     }
 
     /// Get the module id

@@ -39,16 +39,22 @@ impl Run {
             certificate::storage::add_certificate(cert)?;
         }
 
+        tracing::info!("ZZZZZ - self.app_package: {:?}", self.app_package);
         let package = ApplicationPackage::from_file(self.app_package)?;
         package.validate(self.untrusted)?;
+        tracing::info!("ZZZZZ - validated");
 
         let hermes_home_dir = Cli::hermes_home()?;
+        tracing::info!("ZZZZZ - hermes_home_dir: {:?}", hermes_home_dir);
 
         // enable bootstrapping the IPFS node to default addresses
         let default_bootstrap = true;
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
+
+        tracing::info!("ZZZZZ - building app");
         let app = build_app(&package, hermes_home_dir)?;
+        tracing::info!("ZZZZZ - app built");
 
         reactor::init()?;
         println!(

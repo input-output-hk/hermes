@@ -11,16 +11,24 @@ pub(crate) fn build_app<P: AsRef<std::path::Path>>(
     package: &ApplicationPackage, vfs_dir_path: P,
 ) -> anyhow::Result<Application> {
     let app_name = package.get_app_name()?;
+    tracing::info!("ZZZZZ - 00");
     let mut bootstrapper = VfsBootstrapper::new(vfs_dir_path, app_name.clone());
+    tracing::info!("ZZZZZ - 01");
     mount_to_vfs(package, &mut bootstrapper)?;
+    tracing::info!("ZZZZZ - 02");
     let vfs = bootstrapper.bootstrap()?;
+    tracing::info!("ZZZZZ - 03");
 
     let mut modules = Vec::new();
+    tracing::info!("ZZZZZ - 04");
     for module_info in package.get_modules()? {
+        tracing::info!("ZZZZZ - 05");
         let module = module_info.get_component()?;
         modules.push(module);
     }
+    tracing::info!("ZZZZZ - 06");
     let app = Application::new(app_name, vfs, modules);
+    tracing::info!("ZZZZZ - 07");
 
     Ok(app)
 }

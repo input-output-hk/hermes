@@ -95,23 +95,36 @@ impl VfsBootstrapper {
     pub(crate) fn bootstrap(self) -> anyhow::Result<Vfs> {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name.as_str());
         vfs_file_path.set_extension(Vfs::FILE_EXTENSION);
+        tracing::info!("ZZZZZ - vfs_file_path: {:?}", vfs_file_path);
 
+        tracing::info!("ZZZZZ - 000");
         let root = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
-            hermes_hdf5::Dir::new(hdf5_file.as_group()?)
+            tracing::info!("ZZZZZ - 001");
+            let x = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
+            tracing::info!("ZZZZZ - 002");
+            x
         } else {
+            tracing::info!("ZZZZZ - 003");
             let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
                 anyhow::anyhow!(
                     "Failed to create Hermes virtual file system instance at `{}`.",
                     vfs_file_path.display()
                 )
             })?;
+            tracing::info!("ZZZZZ - 004");
             let root = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
+            tracing::info!("ZZZZZ - root: {:?}", root);
             Self::setup_vfs_structure(&root)?;
+            tracing::info!("ZZZZZ - 006");
             root
         };
 
+        tracing::info!("ZZZZZ - root1: {:?}", root);
+        tracing::info!("ZZZZZ - 007");
         let mut permissions = PermissionsState::new();
+        tracing::info!("ZZZZZ - 008");
         Self::setup_vfs_permissions(&mut permissions);
+        tracing::info!("ZZZZZ - 009");
         Self::setup_vfs_content(
             &root,
             &self.dirs_to_create,
@@ -119,6 +132,7 @@ impl VfsBootstrapper {
             &self.mounted_dirs,
             &mut permissions,
         )?;
+        tracing::info!("ZZZZZ - 010");
 
         Ok(Vfs { root, permissions })
     }
@@ -152,14 +166,21 @@ impl VfsBootstrapper {
         mounted_dirs: &[MountedDir], permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         for dir_to_create in dirs_to_create {
+            tracing::info!("ZZZZZ - creating dir: {}", dir_to_create.path);
             Self::create_dir(root, dir_to_create, permissions)?;
+            tracing::info!("ZZZZZ - created dir: {}", dir_to_create.path);
         }
         for mounted in mounted_files {
-            Self::mount_file(root, mounted, permissions)?;
+            tracing::info!("ZZZZZ - mounting file: {}", mounted.file.name());
+            let res = Self::mount_file(root, mounted, permissions);
+            tracing::info!("ZZZZZ - mounting result: {:?}", res);
+            res?;
         }
 
         for mounted in mounted_dirs {
+            tracing::info!("ZZZZZ - mounting dir: {}", mounted.dir.name());
             Self::mount_dir(root, mounted, permissions)?;
+            tracing::info!("ZZZZZ - mounted dir: {}", mounted.dir.name());
         }
         Ok(())
     }
@@ -181,10 +202,17 @@ impl VfsBootstrapper {
         root: &hermes_hdf5::Dir, mounted: &MountedFile, permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         let path_str = format!("{}/{}", mounted.to_path, mounted.file.name());
+        tracing::info!("ZZZZZ - mounted.to_path: {}", mounted.to_path);
+        tracing::info!("ZZZZZ - mounted.file.name(): {}", mounted.file.name());
+        tracing::info!("ZZZZZ - path_str: {}", path_str);
         permissions.add_permission(path_str.as_str(), mounted.permission);
         let path: hermes_hdf5::Path = path_str.into();
+        tracing::info!("ZZZZZ - path: {:?}", path);
         let _unused = root.remove_file(path.clone());
-        root.mount_file(&mounted.file, path)?;
+        tracing::info!("ZZZZZ - mounting file: {}", mounted.file.name());
+        let result = root.mount_file(&mounted.file, path);
+        tracing::info!("ZZZZZ - mounting result: {:?}", result);
+        result?;
         Ok(())
     }
 

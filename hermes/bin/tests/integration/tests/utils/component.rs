@@ -10,6 +10,7 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     );
     let output = Command::new("cargo")
         .arg("build")
+        .arg("--release")
         .arg("--target")
         .arg("wasm32-wasip2")
         .current_dir(&component_path)
@@ -23,7 +24,7 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     }
 
     let wasm_binary_path = format!(
-        "{}/target/wasm32-wasip2/debug/test_component.wasm",
+        "{}/target/wasm32-wasip2/release/test_component.wasm",
         component_path
     );
 

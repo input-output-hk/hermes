@@ -12,6 +12,7 @@ pub(crate) use author_payload::{SignaturePayload, SignaturePayloadBuilder};
 use chrono::{DateTime, Utc};
 pub(crate) use config::{Config, ConfigSchema};
 pub(crate) use config_info::ConfigInfo;
+use console::Emoji;
 pub(crate) use manifest::{Manifest, ManifestConfig};
 pub(crate) use settings::SettingsSchema;
 
@@ -64,12 +65,36 @@ impl ModulePackage {
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
         manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 07",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
         package_path.set_extension(Self::FILE_EXTENSION);
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 08",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         let package = Package::create(&package_path)?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 09",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
 
         let mut errors = Errors::new();
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 10",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         Self::validate_and_write_from_manifest(
             manifest,
             &package,
@@ -77,8 +102,26 @@ impl ModulePackage {
             package_name,
             &mut errors,
         );
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 11",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         if !errors.is_empty() {
+            let now = Utc::now();
+            println!(
+                "{} [{}] Build module package - 12",
+                Emoji::new("📦", ""),
+                now.format("%Y-%m-%d %H:%M:%S%.3f")
+            );
             std::fs::remove_file(package_path)?;
+            let now = Utc::now();
+            println!(
+                "{} [{}] Build module package - 13",
+                Emoji::new("📦", ""),
+                now.format("%Y-%m-%d %H:%M:%S%.3f")
+            );
         }
 
         errors.return_result(Self(package))
@@ -290,6 +333,12 @@ impl ModulePackage {
         manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
         errors: &mut Errors,
     ) {
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 100",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         validate_and_write_metadata(
             &manifest.metadata.build(),
             build_date,
@@ -299,13 +348,28 @@ impl ModulePackage {
         )
         .unwrap_or_else(errors.get_add_err_fn());
 
-        validate_and_write_component(
-            &manifest.component.build(),
-            package,
-            Self::COMPONENT_FILE.into(),
-        )
-        .unwrap_or_else(errors.get_add_err_fn());
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 101",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        let x = manifest.component.build();
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 101.1",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        validate_and_write_component(&x, package, Self::COMPONENT_FILE.into())
+            .unwrap_or_else(errors.get_add_err_fn());
 
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 102",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         if let Some(config) = &manifest.config {
             validate_and_write_config(
                 config,
@@ -316,6 +380,12 @@ impl ModulePackage {
             .unwrap_or_else(errors.get_add_err_fn());
         }
 
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 103",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         if let Some(settings) = &manifest.settings {
             validate_and_write_settings_schema(
                 &settings.schema.build(),
@@ -325,10 +395,23 @@ impl ModulePackage {
             .unwrap_or_else(errors.get_add_err_fn());
         }
 
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 104",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         if let Some(share_dir) = &manifest.share {
             write_share_dir(&share_dir.build(), package, Self::SHARE_DIR.into())
                 .unwrap_or_else(errors.get_add_err_fn());
         }
+
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 105",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
     }
 }
 
@@ -353,12 +436,36 @@ fn validate_and_write_metadata(
 fn validate_and_write_component(
     resource: &impl ResourceTrait, dir: &Dir, path: Path,
 ) -> anyhow::Result<()> {
+    let now = Utc::now();
+    println!(
+        "{} [{}] Build module package - 1000",
+        Emoji::new("📦", ""),
+        now.format("%Y-%m-%d %H:%M:%S%.3f")
+    );
     let component_reader = resource.get_reader()?;
+    let now = Utc::now();
+    println!(
+        "{} [{}] Build module package - 1001",
+        Emoji::new("📦", ""),
+        now.format("%Y-%m-%d %H:%M:%S%.3f")
+    );
 
     Module::from_reader(component_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
+    let now = Utc::now();
+    println!(
+        "{} [{}] Build module package - 1002",
+        Emoji::new("📦", ""),
+        now.format("%Y-%m-%d %H:%M:%S%.3f")
+    );
 
     dir.copy_resource_file(resource, path)?;
+    let now = Utc::now();
+    println!(
+        "{} [{}] Build module package - 1003",
+        Emoji::new("📦", ""),
+        now.format("%Y-%m-%d %H:%M:%S%.3f")
+    );
     Ok(())
 }
 

@@ -1,5 +1,8 @@
 //! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
+use chrono::Utc;
+use console::Emoji;
+
 use super::{
     resources::{Hdf5Resource, ResourceTrait},
     File, Path,
@@ -44,11 +47,29 @@ impl Dir {
 
     /// Mount file from the another HDF5 package to the provided path.
     pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
+        // let fresult = hdf5::File::open("/tmp/t69173-0/app.happ");
+        // tracing::info!("ZZZZZ - fresult: {:?}", fresult);
+        // let exists = fresult
+        //     .unwrap()
+        //     .group("/")?
+        //     .member_names()?
+        //     .contains(&"icon.svg".to_string());
+        // tracing::info!("ZZZZZ - Does icon.svg exist inside app.happ? {}", exists);
+
         let link_name = path.pop_elem();
+        tracing::info!("ZZZZZ - link_name: {link_name}");
+        tracing::info!("ZZZZZ - path: {:?}", path);
         let dir = self.get_dir(&path)?;
+        tracing::info!("ZZZZZ - dir: {:?}", dir);
 
         let target_file_name = mounted_file.hdf5_ds.filename();
+        tracing::info!("ZZZZZ - target_file_name: {target_file_name}");
         let target = mounted_file.hdf5_ds.name();
+        tracing::info!("ZZZZZ - target: {target}");
+        tracing::info!("ZZZZZ - link_name: {link_name}");
+        tracing::info!("ZZZZZ - dir.0: {:?}", dir.0);
+        tracing::info!("ZZZZZ - dir.0.is: {:?}", dir.0.id());
+
         dir.0.link_external(
             target_file_name.as_str(),
             target.as_str(),
@@ -71,11 +92,42 @@ impl Dir {
     pub(crate) fn copy_resource_file(
         &self, resource: &impl ResourceTrait, path: Path,
     ) -> anyhow::Result<()> {
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - X1002",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+
         let mut file = self.create_file(path)?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - X1003",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         let mut reader = resource.get_reader()?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - X1004",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
 
         std::io::copy(&mut reader, &mut file)?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - X1005",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         self.flush()?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - X1006",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
         Ok(())
     }
 

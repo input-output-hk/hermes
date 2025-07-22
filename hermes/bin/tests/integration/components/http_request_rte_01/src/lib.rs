@@ -10,27 +10,28 @@ mod bindings {
     });
 }
 
-use std::error::Error;
-use std::thread::{self, sleep};
+use std::{
+    error::Error,
+    thread::{self, sleep},
+};
 
-use bindings::hermes::ipfs::api::PubsubMessage;
-use bindings::wasi::clocks;
-use bindings::wasi::http::types::{IncomingRequest, ResponseOutparam};
 use bindings::{
     exports::hermes::http_gateway::event::{Headers, HttpResponse},
     hermes::{
+        binary::api::Bstr,
         cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
+        ipfs::api::PubsubMessage,
+    },
+    wasi::{
+        clocks,
+        http::types::{IncomingRequest, ResponseOutparam},
+        random::random::get_random_u64,
     },
 };
-
-use bindings::hermes::binary::api::Bstr;
-use bindings::wasi::random::random::get_random_u64;
-
 use serde::{Deserialize, Serialize};
 
-use crate::bindings::hermes::http_request::api::Payload;
-use crate::bindings::wasi::clocks::wall_clock;
+use crate::bindings::{hermes::http_request::api::Payload, wasi::clocks::wall_clock};
 
 struct HelloWorldModule;
 
@@ -74,19 +75,8 @@ impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
     }
 }
 
-struct Response {
-    pub body: Vec<u8>,
-    pub request_id: Option<String>,
-}
-
 impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
     fn init() -> bool {
-        let seconds = wall_clock::now().seconds;
-        fastrand::seed(seconds);
-
-        let random_numbers = std::iter::repeat_with(|| fastrand::u8(1..=10))
-            .take(5)
-            .collect::<Vec<_>>();
         bindings::hermes::logging::api::log(
             bindings::hermes::logging::api::Level::Trace,
             None,
@@ -94,47 +84,41 @@ impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
             None,
             None,
             None,
-            format!(
-                "XXXX Athena is sorting {} numbers: {random_numbers:?}",
-                random_numbers.len()
-            )
-            .as_str(),
+            format!("XXXXX - Sending HTTP request").as_str(),
             None,
         );
 
-        random_numbers.iter().for_each(|x| {
-            let payload = delayed_payload(*x);
+        let payload = payload();
 
-            let send_result = bindings::hermes::http_request::api::send(&payload);
-            bindings::hermes::logging::api::log(
-                bindings::hermes::logging::api::Level::Trace,
-                None,
-                None,
-                None,
-                None,
-                None,
-                format!("XXXX send result: {send_result:?}, awaiting response").as_str(),
-                None,
-            );
-        });
+        let send_result = bindings::hermes::http_request::api::send(&payload);
+        bindings::hermes::logging::api::log(
+            bindings::hermes::logging::api::Level::Trace,
+            None,
+            None,
+            None,
+            None,
+            None,
+            format!("XXXXX - Sending result: {send_result:?}, awaiting response").as_str(),
+            None,
+        );
 
         true
     }
 }
 
-fn delayed_payload(secs: u8) -> Payload {
-    let request_body = delayed_body(secs);
+fn payload() -> Payload {
+    let request_body = delayed_body();
 
     let payload = Payload {
         host_uri: "https://httpbin.org".to_string(),
         port: 443,
         body: request_body.to_vec(),
-        request_id: Some(secs as u64),
+        request_id: Some(42 as u64),
     };
     payload
 }
 
-fn delayed_body(secs: u8) -> Vec<u8> {
+fn delayed_body() -> Vec<u8> {
     let request_body = format!(
         "POST /post HTTP/1.1\r\n\
         Host: httpbin.org\r\n\
@@ -166,7 +150,7 @@ impl bindings::exports::hermes::http_request::event::Guest for HelloWorldModule 
             None,
             None,
             format!(
-                "XXXX got http response for {request_id:?}: {}",
+                "XXXXX got http response for {request_id:?}: {}",
                 String::from_utf8(response).unwrap(),
             )
             .as_str(),
@@ -207,15 +191,13 @@ impl bindings::exports::wasi::http::incoming_handler::Guest for HelloWorldModule
 
 impl bindings::exports::hermes::integration_test::event::Guest for HelloWorldModule {
     fn test(
-        test: u32,
-        run: bool,
+        test: u32, run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }
 
     fn bench(
-        test: u32,
-        run: bool,
+        test: u32, run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }
