@@ -11,12 +11,11 @@ fn simple_request() {
     println!("temp_dir: {}", temp_dir.as_ref().display());
 
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
-    let app_file_name = utils::packaging::package(&temp_dir).expect("failed to package app");
-
     let server = utils::http_server::start();
     utils::component::set("http_server", &server.base_url(), &temp_dir).expect("set failed");
+    let app_file_name = utils::packaging::package(&temp_dir).expect("failed to package app");
 
-    // TODO[RC]: Build hermes once for all tests
+    // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();
 
     // TODO[RC]: How do we pass server data to the app?

@@ -12,7 +12,6 @@ const SUPPORT_FILES: &[&str] = &[
     "manifest_module.json",
     "manifest_app.json",
     "metadata.json",
-    "settings.schema.json",
 ];
 
 fn copy_support_files(temp_dir: &TempDir) -> anyhow::Result<()> {

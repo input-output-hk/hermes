@@ -2,7 +2,7 @@ use std::{fs, io::Write, path::Path, process::Command};
 
 use temp_dir::TempDir;
 
-const SETTINGS_FILE_NAME: &str = "settings.json";
+const SETTINGS_FILE_NAME: &str = "settings.schema.json";
 
 fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     let settings_file = format!(

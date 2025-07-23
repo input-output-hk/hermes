@@ -12,6 +12,7 @@ mod bindings {
 
 use std::{
     error::Error,
+    fs,
     thread::{self, sleep},
 };
 
@@ -77,8 +78,18 @@ impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
 
 impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
     fn init() -> bool {
-        // TODO[RC]: We should be able to access files like this
-        // let server = fs::open("config.json")?;
+        let settings = fs::read_to_string("settings.schema.json");
+        let settings_str = format!("{:?}", settings);
+        bindings::hermes::logging::api::log(
+            bindings::hermes::logging::api::Level::Trace,
+            None,
+            None,
+            None,
+            None,
+            None,
+            format!("XXXXX - Settings: {settings_str}").as_str(),
+            None,
+        );
 
         bindings::hermes::logging::api::log(
             bindings::hermes::logging::api::Level::Trace,
