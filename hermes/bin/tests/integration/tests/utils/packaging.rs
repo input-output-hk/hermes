@@ -24,7 +24,12 @@ fn copy_support_files(temp_dir: &TempDir) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
+pub fn package(temp_dir: &TempDir) -> anyhow::Result<String> {
+    package_module(temp_dir)?;
+    package_app(temp_dir)
+}
+
+fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
     copy_support_files(temp_dir)?;
 
     let manifest_path = temp_dir.as_ref().join("manifest_module.json");
@@ -48,7 +53,7 @@ pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
+fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
     let manifest_path = temp_dir.as_ref().join("manifest_app.json");
     let app_filename = format!("{}.happ", Uuid::new_v4());
 
