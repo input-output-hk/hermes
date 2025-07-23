@@ -13,7 +13,6 @@ use console::{style, Emoji};
 
 use crate::{
     errors::Errors,
-    event::queue::Exit,
     logger::{self, LoggerConfigBuilder},
 };
 
@@ -84,7 +83,7 @@ impl Cli {
                     .inspect(|exit| {
                         println!("{}:\n{}", Emoji::new("⛔", "Exit"), style(exit).red());
                     })
-                    .map(Exit::unwrap_exit_code_or_failure)
+                    .map(|exit| exit.unwrap_exit_code_or(ExitCode::FAILURE))
             },
             Commands::Module(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS),
             Commands::App(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS),

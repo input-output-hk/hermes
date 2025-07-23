@@ -21,7 +21,7 @@ impl std::fmt::Display for ApplicationName {
 }
 
 /// Hermes application
-pub(crate) struct Application {
+pub struct Application {
     /// Application name
     name: ApplicationName,
 
@@ -34,7 +34,8 @@ pub(crate) struct Application {
 
 impl Application {
     /// Create a new Hermes app
-    pub(crate) fn new(app_name: String, vfs: Vfs, modules: Vec<Module>) -> Self {
+    #[must_use]
+    pub fn new(app_name: String, vfs: Vfs, modules: Vec<Module>) -> Self {
         let indexed_modules = modules
             .into_iter()
             .map(|module| (module.id().clone(), module))

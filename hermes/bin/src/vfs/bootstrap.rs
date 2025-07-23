@@ -11,7 +11,7 @@ use super::{
 use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system builder.
-pub(crate) struct VfsBootstrapper {
+pub struct VfsBootstrapper {
     /// Path to the VFS HDF5 file's directory.
     vfs_dir_path: PathBuf,
     /// VFS file name.
@@ -54,7 +54,7 @@ struct MountedDir {
 
 impl VfsBootstrapper {
     /// Create a new `VfsBootstrapper` instance.
-    pub(crate) fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
+    pub fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
         Self {
             vfs_dir_path: vfs_dir_path.as_ref().to_path_buf(),
             vfs_file_name,
@@ -92,7 +92,12 @@ impl VfsBootstrapper {
     }
 
     /// Bootstrap the virtual file system from the provided configuration.
-    pub(crate) fn bootstrap(self) -> anyhow::Result<Vfs> {
+    ///
+    /// # Errors
+    ///
+    /// - Failed to create Hermes VFS instance.
+    /// - Failed to setup Hermes VFS instance.
+    pub fn bootstrap(self) -> anyhow::Result<Vfs> {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name.as_str());
         vfs_file_path.set_extension(Vfs::FILE_EXTENSION);
 

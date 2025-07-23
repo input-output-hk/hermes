@@ -31,6 +31,7 @@ pub enum Exit {
 
 impl Exit {
     /// Returns an exit code if `Self` is [`Self::Done`].
+    #[must_use]
     pub fn get_exit_code(self) -> Option<ExitCode> {
         if let Self::Done { exit_code } = self {
             Some(exit_code)
@@ -39,9 +40,10 @@ impl Exit {
         }
     }
 
-    /// Returns either an exit code from [`Self::Done`] or [`ExitCode::FAILURE`].
-    pub fn unwrap_exit_code_or_failure(self) -> ExitCode {
-        self.get_exit_code().unwrap_or(ExitCode::FAILURE)
+    /// Returns either an exit code from [`Self::Done`] or the default value.
+    #[must_use]
+    pub fn unwrap_exit_code_or(self, default: ExitCode) -> ExitCode {
+        self.get_exit_code().unwrap_or(default)
     }
 }
 
@@ -80,6 +82,7 @@ impl ExitLock {
     }
 
     /// Blocks until the [`Exit`] value is set.
+    #[must_use]
     pub fn wait(self) -> Exit {
         let (condvar, payload) = &*self.0;
         let Ok(exit) = payload.lock() else {
@@ -95,6 +98,7 @@ impl ExitLock {
     }
 
     /// Blocks until either the [`Exit`] value is set or the timeout elapses.
+    #[must_use]
     pub fn wait_timeout(self, dur: Duration) -> Exit {
         let (condvar, payload) = &*self.0;
         let Ok(exit) = payload.lock() else {

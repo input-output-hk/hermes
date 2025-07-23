@@ -33,7 +33,12 @@ struct Reactor {
 /// Setup and runs all necessary services.
 ///
 /// [`ExitLock`] would contain shutdown information if awaited.
-pub(crate) fn init() -> anyhow::Result<ExitLock> {
+///
+/// # Errors
+///
+/// - Queue already initialized.
+/// - Reactor already initialized.
+pub fn init() -> anyhow::Result<ExitLock> {
     let exit_lock = event::queue::init()?;
 
     REACTOR_STATE
@@ -46,7 +51,12 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 }
 
 /// Load Hermes application into the Hermes Reactor.
-pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
+///
+/// # Errors
+///
+/// - Reactor not initialized.
+/// - Cannot send initialization event to the application.
+pub fn load_app(app: Application) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
 
     let app_name = app.name().clone();
