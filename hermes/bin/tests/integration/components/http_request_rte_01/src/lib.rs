@@ -5,7 +5,7 @@ mod bindings {
 
     wit_bindgen::generate!({
         world: "hermes",
-        path: "/home/magister/IOHK/hermes/wasm/wasi/wit",
+        path: "../../../../../../wasm/wasi/wit",
         generate_all,
     });
 }

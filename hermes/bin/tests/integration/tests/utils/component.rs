@@ -3,9 +3,8 @@ use std::process::Command;
 use temp_dir::TempDir;
 
 pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
-    // TODO[RC]: Fix hardcoded path
     let component_path = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/components/{}",
+        "tests/integration/components/{}",
         component
     );
     let output = Command::new("cargo")

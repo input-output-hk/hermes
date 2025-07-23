@@ -15,8 +15,6 @@ pub fn build() {
     println!("BUILDING HERMES");
     let output = Command::new("cargo")
         .arg("build")
-        .arg("--manifest-path")
-        .arg("/home/magister/IOHK/hermes/hermes/bin/Cargo.toml") // TODO[RC]: Fix hardcoded path
         .output()
         .expect("Failed to execute command");
 

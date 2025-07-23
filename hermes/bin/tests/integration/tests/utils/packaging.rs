@@ -1,54 +1,31 @@
-use std::process::Command;
+use std::{env, process::Command};
 
 use temp_dir::TempDir;
 use uuid::Uuid;
 
 use crate::utils;
 
+const SUPPORT_FILES: &[&str] = &[
+    "config.json",
+    "icon.svg",
+    "config.schema.json",
+    "manifest_module.json",
+    "manifest_app.json",
+    "metadata.json",
+    "settings.schema.json",
+];
+
+fn copy_support_files(temp_dir: &TempDir) -> anyhow::Result<()> {
+    for &name in SUPPORT_FILES {
+        let file_path = format!("tests/integration/tests/utils/app_support_files/{}", name);
+        let destination = temp_dir.as_ref().join(name);
+        std::fs::copy(file_path, destination)?;
+    }
+    Ok(())
+}
+
 pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
-    // TODO[RC]: Fix hardcoded manifest
-    let name = "config.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "icon.svg";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "config.schema.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "manifest_module.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "manifest_app.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "metadata.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
-    let name = "settings.schema.json";
-    let file = format!(
-        "/home/magister/IOHK/hermes/hermes/bin/tests/integration/tests/utils/app_support_files/{}",
-        name
-    );
-    std::fs::copy(file, temp_dir.as_ref().join(name))?;
+    copy_support_files(temp_dir)?;
 
     let manifest_path = temp_dir.as_ref().join("manifest_module.json");
 
