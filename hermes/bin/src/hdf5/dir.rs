@@ -1,8 +1,5 @@
 //! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
-use chrono::Utc;
-use console::Emoji;
-
 use super::{
     resources::{Hdf5Resource, ResourceTrait},
     File, Path,
@@ -75,42 +72,10 @@ impl Dir {
     pub(crate) fn copy_resource_file(
         &self, resource: &impl ResourceTrait, path: Path,
     ) -> anyhow::Result<()> {
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - X1002",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
-
         let mut file = self.create_file(path)?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - X1003",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         let mut reader = resource.get_reader()?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - X1004",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
-
         std::io::copy(&mut reader, &mut file)?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - X1005",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         self.flush()?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - X1006",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         Ok(())
     }
 

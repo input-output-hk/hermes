@@ -29,7 +29,6 @@ pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
 
     let manifest_path = temp_dir.as_ref().join("manifest_module.json");
 
-    println!("PACKAGING MODULE");
     // TODO[RC]: Double check if failed packaging process really causes an error here.
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("module")
@@ -38,8 +37,6 @@ pub fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
         .arg("--output")
         .arg(temp_dir.as_ref())
         .output()?;
-
-    println!("output: {}", String::from_utf8_lossy(&output.stdout));
 
     if !output.status.success() {
         return anyhow::bail!(
@@ -55,7 +52,6 @@ pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
     let manifest_path = temp_dir.as_ref().join("manifest_app.json");
     let app_filename = format!("{}.happ", Uuid::new_v4());
 
-    println!("PACKAGING APP into {app_filename}");
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("app")
         .arg("package")
@@ -63,8 +59,6 @@ pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
         .arg(app_filename.clone())
         .arg(manifest_path)
         .output()?;
-
-    println!("output: {}", String::from_utf8_lossy(&output.stdout));
 
     if !output.status.success() {
         return anyhow::bail!(
