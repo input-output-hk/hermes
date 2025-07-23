@@ -78,18 +78,13 @@ impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
 
 impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
     fn init() -> bool {
-        let settings = fs::read_to_string("settings.schema.json");
-        let settings_str = format!("{:?}", settings);
-        bindings::hermes::logging::api::log(
-            bindings::hermes::logging::api::Level::Trace,
-            None,
-            None,
-            None,
-            None,
-            None,
-            format!("XXXXX - Settings: {settings_str}").as_str(),
-            None,
-        );
+        let settings_json = fs::read_to_string("/lib/test_module/settings.schema.json")
+            .expect("cannot read settings file");
+        let parsed_json: serde_json::Value =
+            serde_json::from_str(&settings_json).expect("unable to parse settings as JSON");
+        let http_server = parsed_json
+            .get("http_server")
+            .expect("missing http_server in settings");
 
         bindings::hermes::logging::api::log(
             bindings::hermes::logging::api::Level::Trace,
@@ -98,7 +93,7 @@ impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
             None,
             None,
             None,
-            format!("XXXXX - Sending HTTP request").as_str(),
+            format!("XXXXX - Sending HTTP request to {http_server}").as_str(),
             None,
         );
 
