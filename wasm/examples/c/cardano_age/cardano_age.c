@@ -22,7 +22,7 @@ void log_cardano_age(double days)
 
   msg = (hermes_string_t) { (uint8_t *)msg_buffer, msg_len };
 
-  hermes_logging_api_log(2, &file, null, null, null, null, &msg, null);
+  hermes_logging_api_log(2, &file, NULL, NULL, NULL, NULL, &msg, NULL);
 }
 
 // Exported Functions from `hermes:init/event`
