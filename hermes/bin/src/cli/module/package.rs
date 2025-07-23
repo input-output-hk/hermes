@@ -30,24 +30,11 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
-
         let manifest_dir = self
             .manifest
             .parent()
             .ok_or(anyhow::anyhow!("Cannot get manifest working directory"))?;
 
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 01",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         let output_path = self
             .output
             .map(|output_path| {
@@ -58,43 +45,13 @@ impl PackageCommand {
                 }
             })
             .unwrap_or(manifest_dir.into());
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 02",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
 
         println!("{} Building package...", Emoji::new("🛠️", ""));
         let manifest = Manifest::from_file(&self.manifest)?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 03",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         let package_name = self.name.as_deref();
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 04",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
         let build_time = Utc::now();
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 05",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
 
         ModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
-        let now = Utc::now();
-        println!(
-            "{} [{}] Build module package - 06",
-            Emoji::new("📦", ""),
-            now.format("%Y-%m-%d %H:%M:%S%.3f")
-        );
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())
