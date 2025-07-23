@@ -1,4 +1,4 @@
-use std::{fs, process::Command};
+use std::{fs, io::Write, path::Path, process::Command};
 
 use temp_dir::TempDir;
 
@@ -10,7 +10,12 @@ fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()>
         component, SETTINGS_FILE_NAME
     );
     let destination_path = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
-    std::fs::copy(settings_file, destination_path)?;
+    if Path::new(&settings_file).exists() {
+        fs::copy(&settings_file, &destination_path)?;
+    } else {
+        let mut file = fs::File::create(&destination_path)?;
+        file.write_all(b"{}")?;
+    }
     Ok(())
 }
 
