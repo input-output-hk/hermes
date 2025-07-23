@@ -1,12 +1,32 @@
-use std::process::Command;
+use std::{fs, process::Command};
 
 use temp_dir::TempDir;
 
-pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
-    let component_path = format!(
-        "tests/integration/components/{}",
-        component
+const SETTINGS_FILE_NAME: &str = "settings.json";
+
+fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+    let settings_file = format!(
+        "tests/integration/components/{}/settings/{}",
+        component, SETTINGS_FILE_NAME
     );
+    let destination_path = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
+    std::fs::copy(settings_file, destination_path)?;
+    Ok(())
+}
+
+pub fn set(key: &str, value: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+    let settings_file = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
+
+    let placeholder = format!("{{{{{}}}}}", key);
+    let settings = fs::read_to_string(&settings_file)?;
+
+    let settings = settings.replace(&placeholder, value);
+    fs::write(settings_file, settings)?;
+    Ok(())
+}
+
+pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+    let component_path = format!("tests/integration/components/{}", component);
     let output = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -30,5 +50,5 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     let destination_path = temp_dir.as_ref().join("test_component.wasm");
     std::fs::copy(wasm_binary_path, destination_path)?;
 
-    Ok(())
+    copy_settings_file(component, temp_dir)
 }

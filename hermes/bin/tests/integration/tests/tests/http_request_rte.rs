@@ -8,11 +8,13 @@ use crate::utils;
 fn simple_request() {
     let temp_dir = TempDir::new().unwrap();
     const COMPONENT: &str = "http_request_rte_01";
+    println!("temp_dir: {}", temp_dir.as_ref().display());
 
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let app_file_name = utils::packaging::package(&temp_dir).expect("failed to package app");
 
     let server = utils::http_server::start();
+    utils::component::set("http_server", &server.base_url(), &temp_dir).expect("set failed");
 
     // TODO[RC]: Build hermes once for all tests
     utils::hermes::build();
