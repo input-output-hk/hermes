@@ -34,7 +34,6 @@ fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
 
     let manifest_path = temp_dir.as_ref().join("manifest_module.json");
 
-    // TODO[RC]: Double check if failed packaging process really causes an error here.
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("module")
         .arg("package")

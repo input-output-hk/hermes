@@ -1,4 +1,5 @@
 //! cli module package command
+#![allow(clippy::all, unused)]
 
 use std::path::PathBuf;
 
@@ -41,13 +42,13 @@ impl PackageCommand {
             .parent()
             .ok_or(anyhow::anyhow!("Cannot get manifest working directory"))?;
 
-            let now = Utc::now();
-            println!(
-                "{} [{}] Build module package - 01",
-                Emoji::new("📦", ""),
-                now.format("%Y-%m-%d %H:%M:%S%.3f")
-            );
-                let output_path = self
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 01",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        let output_path = self
             .output
             .map(|output_path| {
                 if output_path.is_relative() {
@@ -72,27 +73,28 @@ impl PackageCommand {
             Emoji::new("📦", ""),
             now.format("%Y-%m-%d %H:%M:%S%.3f")
         );
-    let package_name = self.name.as_deref();
-    let now = Utc::now();
-    println!(
-        "{} [{}] Build module package - 04",
-        Emoji::new("📦", ""),
-        now.format("%Y-%m-%d %H:%M:%S%.3f")
-    );
-let build_time = Utc::now();
-let now = Utc::now();
-println!(
-    "{} [{}] Build module package - 05",
-    Emoji::new("📦", ""),
-    now.format("%Y-%m-%d %H:%M:%S%.3f")
-);
-ModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
-let now = Utc::now();
-println!(
-    "{} [{}] Build module package - 06",
-    Emoji::new("📦", ""),
-    now.format("%Y-%m-%d %H:%M:%S%.3f")
-);
+        let package_name = self.name.as_deref();
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 04",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        let build_time = Utc::now();
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 05",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+
+        ModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
+        let now = Utc::now();
+        println!(
+            "{} [{}] Build module package - 06",
+            Emoji::new("📦", ""),
+            now.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
 
         println!("{} Done", Emoji::new("✅", ""));
         Ok(())

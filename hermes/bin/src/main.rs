@@ -21,9 +21,8 @@ pub use wasm::module::bench::{
     module_small_component_full_pre_load_bench,
 };
 
-#[allow(clippy::exit)]
-fn main() {
+fn main() -> anyhow::Result<()> {
     use clap::Parser;
 
-    cli::Cli::parse().exec();
+    cli::Cli::parse().exec()
 }
