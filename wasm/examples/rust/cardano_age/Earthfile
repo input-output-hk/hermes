@@ -24,4 +24,4 @@ build:
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/cardano_age.wasm"
 
-    SAVE ARTIFACT target/wasm32-wasip2/release/cardano_age.wasm cardano_age.rs.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/cardano_age.wasm AS LOCAL cardano_age.rs.wasm

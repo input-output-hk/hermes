@@ -25,10 +25,9 @@ name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
 
-[[test]]
-name = "application-integration-tests"
-path = "tests/app-integration/main.rs"
-harness = false
+[[example]]
+name = "wasm-runner"
+path = "examples/wasm-runner/main.rs"
 
 [dependencies]
 # specific commit from the `catalyst` branch

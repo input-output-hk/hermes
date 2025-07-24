@@ -12,3 +12,20 @@ impl Host for HermesRuntimeContext {
         event::queue::shutdown(ExitCode::from(status_code))
     }
 }
+
+/*
+
+q := [Continue(ev1), Continue(ev2), Continue(ev3), Continue(ev4)]
+
+# ... one of the currently executed modules
+> shutdown(1)
+
+q := [.., Continue(ev3), Continue(ev4), Break(1)]
+
+execute ev1
+execute ev2
+execute ev3
+execute ev4
+execute Break(1) -> queue is dead
+
+*/

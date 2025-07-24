@@ -1,4 +1,5 @@
 #include "bindings_src/hermes.h"
+#include <string.h>
 
 /********** Example **********/
 
@@ -21,12 +22,12 @@ bool exports_hermes_init_event_init(void)
 {
   const uint64_t jan_1_2100_seconds = 4102434000;
 
-  uint64_t now_seconds;
-
-  now_seconds = wasi_clocks_wall_clock_now().seconds;
+  wasi_clocks_wall_clock_datetime_t now;
+  
+  wasi_clocks_wall_clock_now(&now);
   
   // Waiting for the next century.
-  if (now_seconds < jan_1_2100_seconds) {
+  if ((uint64_t)now.seconds < jan_1_2100_seconds) {
     log_shutdown();
     hermes_init_api_done(1);
   }

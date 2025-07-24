@@ -1,4 +1,6 @@
 #include "bindings_src/hermes.h"
+#include <string.h>
+#include <stdio.h>
 
 /********** Example **********/
 
@@ -13,7 +15,7 @@ void log_cardano_age(double days)
   int msg_len;
   
   file = HERMES_STRING("cardano-age.c");
-  msg_len = snprintf(msg_buffer, sizeof msg_buffer, "Cardano is live for %d days!", days);
+  msg_len = snprintf(msg_buffer, sizeof msg_buffer, "Cardano is live for %f days!", days);
 
   // Discarding encoding errors.
   if (msg_len < 0) {
@@ -33,8 +35,11 @@ bool exports_hermes_init_event_init(void)
 
   uint64_t elapsed_seconds;
   double elapsed_days;
+  wasi_clocks_wall_clock_datetime_t now;
+  
+  wasi_clocks_wall_clock_now(&now);
 
-  elapsed_seconds = (uint64_t)wasi_clocks_wall_clock_now().seconds - cardano_launch_seconds;
+  elapsed_seconds = (uint64_t)now.seconds - cardano_launch_seconds;
   // Saturating subtraction.
   elapsed_seconds &= -(elapsed_seconds <= cardano_launch_seconds);
 
