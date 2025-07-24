@@ -5,10 +5,8 @@ use temp_dir::TempDir;
 const SETTINGS_FILE_NAME: &str = "settings.schema.json";
 
 fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
-    let settings_file = format!(
-        "tests/integration/components/{}/settings/{}",
-        component, SETTINGS_FILE_NAME
-    );
+    let settings_file =
+        format!("tests/integration/components/{component}/settings/{SETTINGS_FILE_NAME}",);
     let destination_path = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
     if Path::new(&settings_file).exists() {
         fs::copy(&settings_file, &destination_path)?;
@@ -22,7 +20,7 @@ fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()>
 pub fn set(key: &str, value: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     let settings_file = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
 
-    let placeholder = format!("{{{{{}}}}}", key);
+    let placeholder = format!("{{{{{key}}}}}");
     let settings = fs::read_to_string(&settings_file)?;
 
     let settings = settings.replace(&placeholder, value);
@@ -31,7 +29,7 @@ pub fn set(key: &str, value: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
 }
 
 pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
-    let component_path = format!("tests/integration/components/{}", component);
+    let component_path = format!("tests/integration/components/{component}");
     let output = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -47,10 +45,8 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
         );
     }
 
-    let wasm_binary_path = format!(
-        "{}/target/wasm32-wasip2/release/test_component.wasm",
-        component_path
-    );
+    let wasm_binary_path =
+        format!("{component_path}/target/wasm32-wasip2/release/test_component.wasm",);
 
     let destination_path = temp_dir.as_ref().join("test_component.wasm");
     std::fs::copy(wasm_binary_path, destination_path)?;

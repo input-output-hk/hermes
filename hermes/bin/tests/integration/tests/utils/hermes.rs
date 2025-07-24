@@ -42,7 +42,7 @@ pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String
 
     // TODO[RC]: We can dodge the explicit kill by using the exit code RTE.
     if let Err(e) = child.kill() {
-        eprintln!("Failed to kill child process: {}", e)
+        eprintln!("Failed to kill child process: {e}");
     };
 
     let output = child.wait_with_output()?;

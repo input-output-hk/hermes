@@ -16,7 +16,7 @@ const SUPPORT_FILES: &[&str] = &[
 
 fn copy_support_files(temp_dir: &TempDir) -> anyhow::Result<()> {
     for &name in SUPPORT_FILES {
-        let file_path = format!("tests/integration/tests/utils/app_support_files/{}", name);
+        let file_path = format!("tests/integration/tests/utils/app_support_files/{name}");
         let destination = temp_dir.as_ref().join(name);
         std::fs::copy(file_path, destination)?;
     }

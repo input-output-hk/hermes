@@ -4,9 +4,9 @@ use crate::utils;
 
 #[test]
 fn simple_request() {
-    let temp_dir = TempDir::new().unwrap();
     const COMPONENT: &str = "http_request_rte_01";
 
+    let temp_dir = TempDir::new().unwrap();
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let server = utils::http_server::start();
     utils::component::set("http_server", &server.base_url(), &temp_dir).expect("set failed");

@@ -1,7 +1,11 @@
 //! The test Hermes App.
+#![allow(
+    clippy::missing_safety_doc,
+    clippy::missing_docs_in_private_items,
+    clippy::expect_used
+)]
 
 mod bindings {
-    #![allow(clippy::missing_safety_doc)]
 
     wit_bindgen::generate!({
         world: "hermes",
@@ -70,8 +74,8 @@ impl bindings::exports::hermes::init::event::Guest for HttpRequestApp {
             .as_str()
             .expect("http_server is not a string");
 
-        let payload = make_payload(&http_server.to_string());
-        test_log(&format!("sending request"));
+        let payload = make_payload(http_server);
+        test_log("sending request");
         let send_result = bindings::hermes::http_request::api::send(&payload);
         test_log(&format!(
             "request sent (result={send_result:?}), awaiting response"
@@ -92,15 +96,14 @@ fn make_payload(http_server: &str) -> Payload {
         "parsed: scheme: {scheme}, host URI: {host_uri}, port: {port}"
     ));
 
-    let request_body = make_body(&host_uri);
+    let body = make_body(&host_uri);
 
-    let payload = Payload {
+    Payload {
         host_uri: format!("{scheme}://{host_uri}"),
         port,
-        body: request_body.to_vec(),
+        body,
         request_id: REQUEST_ID,
-    };
-    payload
+    }
 }
 
 fn make_body(host_uri: &str) -> Vec<u8> {
@@ -121,7 +124,7 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
     fn on_http_response(request_id: Option<u64>, response: Vec<u8>) {
         test_log(&format!(
             "got response with request_id={request_id:?}: {}",
-            String::from_utf8(response.clone()).unwrap(),
+            String::from_utf8(response.clone()).expect("should be valid UTF-8"),
         ));
         assert_eq!(request_id, REQUEST_ID);
     }
