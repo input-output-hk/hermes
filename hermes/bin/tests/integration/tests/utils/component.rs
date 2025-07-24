@@ -41,7 +41,7 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
         .output()?;
 
     if !output.status.success() {
-        return anyhow::bail!(
+        anyhow::bail!(
             "cargo build failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );

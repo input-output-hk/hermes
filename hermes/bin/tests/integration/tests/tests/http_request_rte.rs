@@ -1,5 +1,3 @@
-use std::process::Command;
-
 use temp_dir::TempDir;
 
 use crate::utils;

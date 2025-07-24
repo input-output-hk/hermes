@@ -1,4 +1,4 @@
-#![allow(dead_code,missing_docs,unused)]
+//! App-level integration tests for the Hermes project.
 
 mod tests;
 mod utils;

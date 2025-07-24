@@ -1,4 +1,4 @@
-use std::{env, process::Command};
+use std::process::Command;
 
 use temp_dir::TempDir;
 use uuid::Uuid;
@@ -42,7 +42,7 @@ fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
         .output()?;
 
     if !output.status.success() {
-        return anyhow::bail!(
+        anyhow::bail!(
             "module package failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -64,7 +64,7 @@ fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
         .output()?;
 
     if !output.status.success() {
-        return anyhow::bail!(
+        anyhow::bail!(
             "app package failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
