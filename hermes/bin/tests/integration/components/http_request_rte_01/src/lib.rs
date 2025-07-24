@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 mod bindings {
     #![allow(clippy::missing_safety_doc)]
 
@@ -10,11 +8,7 @@ mod bindings {
     });
 }
 
-use std::{
-    error::Error,
-    fs,
-    thread::{self, sleep},
-};
+use std::fs;
 
 use bindings::{
     exports::hermes::http_gateway::event::{Headers, HttpResponse},
@@ -24,16 +18,11 @@ use bindings::{
         cron::api::CronTagged,
         ipfs::api::PubsubMessage,
     },
-    wasi::{
-        clocks,
-        http::types::{IncomingRequest, ResponseOutparam},
-        random::random::get_random_u64,
-    },
+    wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
-use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::bindings::{hermes::http_request::api::Payload, wasi::clocks::wall_clock};
+use crate::bindings::hermes::http_request::api::Payload;
 
 const REQUEST_ID: Option<u64> = Some(42);
 
@@ -41,26 +30,29 @@ struct HelloWorldModule;
 
 impl bindings::exports::hermes::ipfs::event::Guest for HelloWorldModule {
     #[doc = r" Triggers when a message is received on a topic."]
-    fn on_topic(message: PubsubMessage) -> bool {
+    fn on_topic(_message: PubsubMessage) -> bool {
         true
     }
 }
 
 impl bindings::exports::hermes::cardano::event_on_block::Guest for HelloWorldModule {
-    fn on_cardano_block(blockchain: CardanoBlockchainId, block: CardanoBlock, source: BlockSrc) {}
+    fn on_cardano_block(_blockchain: CardanoBlockchainId, _block: CardanoBlock, _source: BlockSrc) {
+    }
 }
 
 impl bindings::exports::hermes::cardano::event_on_rollback::Guest for HelloWorldModule {
-    fn on_cardano_rollback(blockchain: CardanoBlockchainId, slot: u64) {}
+    fn on_cardano_rollback(_blockchain: CardanoBlockchainId, _slot: u64) {}
 }
 
 impl bindings::exports::hermes::cardano::event_on_txn::Guest for HelloWorldModule {
-    fn on_cardano_txn(blockchain: CardanoBlockchainId, slot: u64, txn_index: u32, txn: CardanoTxn) {
+    fn on_cardano_txn(
+        _blockchain: CardanoBlockchainId, _slot: u64, _txn_index: u32, _txn: CardanoTxn,
+    ) {
     }
 }
 
 impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
-    fn on_cron(event: CronTagged, last: bool) -> bool {
+    fn on_cron(_event: CronTagged, _last: bool) -> bool {
         false
     }
 }
@@ -137,43 +129,30 @@ impl bindings::exports::hermes::http_request::event::Guest for HelloWorldModule 
 
 /// response should be option
 impl bindings::exports::hermes::http_gateway::event::Guest for HelloWorldModule {
-    fn reply(body: Bstr, headers: Headers, path: String, method: String) -> Option<HttpResponse> {
-        Some(HttpResponse {
-            code: 200,
-            headers,
-            body,
-        })
+    fn reply(
+        _body: Bstr, _headers: Headers, _path: String, _method: String,
+    ) -> Option<HttpResponse> {
+        None
     }
 }
 
 impl bindings::exports::hermes::kv_store::event::Guest for HelloWorldModule {
-    fn kv_update(key: String, value: bindings::exports::hermes::kv_store::event::KvValues) {
-        bindings::hermes::logging::api::log(
-            bindings::hermes::logging::api::Level::Trace,
-            None,
-            None,
-            None,
-            None,
-            None,
-            format!("FROM WASM MODULE: kv {}", key).as_str(),
-            None,
-        );
-    }
+    fn kv_update(_key: String, _value: bindings::exports::hermes::kv_store::event::KvValues) {}
 }
 
 impl bindings::exports::wasi::http::incoming_handler::Guest for HelloWorldModule {
-    fn handle(request: IncomingRequest, response_out: ResponseOutparam) {}
+    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
 }
 
 impl bindings::exports::hermes::integration_test::event::Guest for HelloWorldModule {
     fn test(
-        test: u32, run: bool,
+        _test: u32, _run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }
 
     fn bench(
-        test: u32, run: bool,
+        _test: u32, _run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }
