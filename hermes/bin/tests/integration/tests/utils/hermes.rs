@@ -14,6 +14,7 @@ const WAIT_TIME: Duration = Duration::from_secs(30);
 pub fn build() {
     let output = Command::new("cargo")
         .arg("build")
+        .arg("--release") // TODO[RC]: This should respect the proper build profile.
         .output()
         .expect("Failed to execute command");
 
