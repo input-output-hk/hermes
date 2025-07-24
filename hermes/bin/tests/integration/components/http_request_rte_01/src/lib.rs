@@ -1,3 +1,5 @@
+//! The test Hermes App.
+
 mod bindings {
     #![allow(clippy::missing_safety_doc)]
 
