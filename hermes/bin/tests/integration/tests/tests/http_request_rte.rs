@@ -8,7 +8,6 @@ use crate::utils;
 fn simple_request() {
     let temp_dir = TempDir::new().unwrap();
     const COMPONENT: &str = "http_request_rte_01";
-    println!("temp_dir: {}", temp_dir.as_ref().display());
 
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let server = utils::http_server::start();
@@ -18,15 +17,20 @@ fn simple_request() {
     // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();
 
-    // TODO[RC]: How do we pass server data to the app?
-    // 1. VFS?
-    // 2. Package into the app via metadata?
     utils::hermes::run_app(&temp_dir, &app_file_name).expect("failed to run hermes app");
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "XXXXX - Sending HTTP request"
+        "[TEST] got response with request_id"
     ));
 
-    utils::debug_sleep(&temp_dir);
+    assert!(utils::assert::app_logs_contain(
+        &temp_dir,
+        "This is the content of the 'test.txt' file"
+    ));
+
+    // Uncomment the line below if you want to inspect the details
+    // available in the temp directory.
+    // 
+    // utils::debug_sleep(&temp_dir);
 }
