@@ -116,7 +116,6 @@ impl Module {
     ///  - `io::Error`
     pub fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
         let mut bytes = Vec::new();
-
         reader.read_to_end(&mut bytes)?;
         Self::from_bytes(&bytes)
     }

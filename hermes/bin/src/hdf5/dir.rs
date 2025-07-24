@@ -49,7 +49,6 @@ impl Dir {
 
         let target_file_name = mounted_file.hdf5_ds.filename();
         let target = mounted_file.hdf5_ds.name();
-
         dir.0.link_external(
             target_file_name.as_str(),
             target.as_str(),
@@ -74,6 +73,7 @@ impl Dir {
     ) -> anyhow::Result<()> {
         let mut file = self.create_file(path)?;
         let mut reader = resource.get_reader()?;
+
         std::io::copy(&mut reader, &mut file)?;
         self.flush()?;
         Ok(())

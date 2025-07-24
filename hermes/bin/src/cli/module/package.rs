@@ -1,5 +1,4 @@
 //! cli module package command
-#![allow(clippy::all, unused)]
 
 use std::path::PathBuf;
 
@@ -30,11 +29,12 @@ pub(crate) struct PackageCommand {
 impl PackageCommand {
     /// Run cli command
     pub(crate) fn exec(self) -> anyhow::Result<()> {
+        println!("{} Build module package", Emoji::new("📦", ""));
+
         let manifest_dir = self
             .manifest
             .parent()
             .ok_or(anyhow::anyhow!("Cannot get manifest working directory"))?;
-
         let output_path = self
             .output
             .map(|output_path| {
@@ -50,7 +50,6 @@ impl PackageCommand {
         let manifest = Manifest::from_file(&self.manifest)?;
         let package_name = self.name.as_deref();
         let build_time = Utc::now();
-
         ModulePackage::build_from_manifest(&manifest, output_path, package_name, build_time)?;
 
         println!("{} Done", Emoji::new("✅", ""));

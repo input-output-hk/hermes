@@ -48,10 +48,7 @@ impl Run {
         let default_bootstrap = true;
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
-
-        tracing::info!("ZZZZZ - building app1");
         let app = build_app(&package, hermes_home_dir)?;
-        tracing::info!("ZZZZZ - app built");
 
         reactor::init()?;
         println!(

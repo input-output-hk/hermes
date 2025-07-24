@@ -97,8 +97,7 @@ impl VfsBootstrapper {
         vfs_file_path.set_extension(Vfs::FILE_EXTENSION);
 
         let root = if let Ok(hdf5_file) = hdf5_lib::File::open_rw(&vfs_file_path) {
-            let x = hermes_hdf5::Dir::new(hdf5_file.as_group()?);
-            x
+            hermes_hdf5::Dir::new(hdf5_file.as_group()?)
         } else {
             let hdf5_file = hdf5_lib::File::create(&vfs_file_path).map_err(|_| {
                 anyhow::anyhow!(
@@ -156,8 +155,7 @@ impl VfsBootstrapper {
             Self::create_dir(root, dir_to_create, permissions)?;
         }
         for mounted in mounted_files {
-            let res = Self::mount_file(root, mounted, permissions);
-            res?;
+            Self::mount_file(root, mounted, permissions)?;
         }
 
         for mounted in mounted_dirs {
@@ -186,8 +184,7 @@ impl VfsBootstrapper {
         permissions.add_permission(path_str.as_str(), mounted.permission);
         let path: hermes_hdf5::Path = path_str.into();
         let _unused = root.remove_file(path.clone());
-        let result = root.mount_file(&mounted.file, path);
-        result?;
+        root.mount_file(&mounted.file, path)?;
         Ok(())
     }
 
