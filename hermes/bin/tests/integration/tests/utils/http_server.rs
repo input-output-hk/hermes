@@ -1,5 +1,7 @@
 use httpmock::{Method::GET, MockServer};
 
+pub const MOCK_CONTENT: &str = "This is the content of the 'test.txt' file";
+
 pub fn start() -> MockServer {
     let server = MockServer::start();
 
@@ -7,7 +9,7 @@ pub fn start() -> MockServer {
         when.method(GET).path("/test.txt");
         then.status(200)
             .header("content-type", "text/html; charset=UTF-8")
-            .body("This is the content of the 'test.txt' file");
+            .body(MOCK_CONTENT);
     });
 
     server

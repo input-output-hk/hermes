@@ -29,7 +29,6 @@ const REQUEST_ID: Option<u64> = Some(42);
 struct HelloWorldModule;
 
 impl bindings::exports::hermes::ipfs::event::Guest for HelloWorldModule {
-    #[doc = r" Triggers when a message is received on a topic."]
     fn on_topic(_message: PubsubMessage) -> bool {
         true
     }

@@ -24,11 +24,11 @@ fn simple_request() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "This is the content of the 'test.txt' file"
+        utils::http_server::MOCK_CONTENT
     ));
 
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
-    // 
+    //
     // utils::debug_sleep(&temp_dir);
 }
