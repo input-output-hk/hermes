@@ -26,38 +26,37 @@ use crate::bindings::hermes::http_request::api::Payload;
 
 const REQUEST_ID: Option<u64> = Some(42);
 
-struct HelloWorldModule;
+struct HttpRequestApp;
 
-impl bindings::exports::hermes::ipfs::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::ipfs::event::Guest for HttpRequestApp {
     fn on_topic(_message: PubsubMessage) -> bool {
         true
     }
 }
 
-impl bindings::exports::hermes::cardano::event_on_block::Guest for HelloWorldModule {
+impl bindings::exports::hermes::cardano::event_on_block::Guest for HttpRequestApp {
     fn on_cardano_block(_blockchain: CardanoBlockchainId, _block: CardanoBlock, _source: BlockSrc) {
     }
 }
 
-impl bindings::exports::hermes::cardano::event_on_rollback::Guest for HelloWorldModule {
+impl bindings::exports::hermes::cardano::event_on_rollback::Guest for HttpRequestApp {
     fn on_cardano_rollback(_blockchain: CardanoBlockchainId, _slot: u64) {}
 }
 
-impl bindings::exports::hermes::cardano::event_on_txn::Guest for HelloWorldModule {
+impl bindings::exports::hermes::cardano::event_on_txn::Guest for HttpRequestApp {
     fn on_cardano_txn(
         _blockchain: CardanoBlockchainId, _slot: u64, _txn_index: u32, _txn: CardanoTxn,
     ) {
     }
 }
 
-impl bindings::exports::hermes::cron::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::cron::event::Guest for HttpRequestApp {
     fn on_cron(_event: CronTagged, _last: bool) -> bool {
         false
     }
 }
 
-// TODO[RC]: Rename hello world
-impl bindings::exports::hermes::init::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::init::event::Guest for HttpRequestApp {
     fn init() -> bool {
         let settings_json = fs::read_to_string("/lib/test_module/settings.schema.json")
             .expect("cannot read settings file");
@@ -116,7 +115,7 @@ fn make_body(host_uri: &str) -> Vec<u8> {
     request_body.into_bytes()
 }
 
-impl bindings::exports::hermes::http_request::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
     fn on_http_response(request_id: Option<u64>, response: Vec<u8>) {
         test_log(&format!(
             "got response with request_id={request_id:?}: {}",
@@ -127,7 +126,7 @@ impl bindings::exports::hermes::http_request::event::Guest for HelloWorldModule 
 }
 
 /// response should be option
-impl bindings::exports::hermes::http_gateway::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::http_gateway::event::Guest for HttpRequestApp {
     fn reply(
         _body: Bstr, _headers: Headers, _path: String, _method: String,
     ) -> Option<HttpResponse> {
@@ -135,15 +134,15 @@ impl bindings::exports::hermes::http_gateway::event::Guest for HelloWorldModule 
     }
 }
 
-impl bindings::exports::hermes::kv_store::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::kv_store::event::Guest for HttpRequestApp {
     fn kv_update(_key: String, _value: bindings::exports::hermes::kv_store::event::KvValues) {}
 }
 
-impl bindings::exports::wasi::http::incoming_handler::Guest for HelloWorldModule {
+impl bindings::exports::wasi::http::incoming_handler::Guest for HttpRequestApp {
     fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
 }
 
-impl bindings::exports::hermes::integration_test::event::Guest for HelloWorldModule {
+impl bindings::exports::hermes::integration_test::event::Guest for HttpRequestApp {
     fn test(
         _test: u32, _run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
@@ -157,7 +156,7 @@ impl bindings::exports::hermes::integration_test::event::Guest for HelloWorldMod
     }
 }
 
-bindings::export!(HelloWorldModule with_types_in bindings);
+bindings::export!(HttpRequestApp with_types_in bindings);
 
 fn test_log(s: &str) {
     bindings::hermes::logging::api::log(
