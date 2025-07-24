@@ -31,7 +31,8 @@ use tracing_subscriber::{fmt::time, FmtSubscriber};
 ///
 /// This allows to run Wasm components without properly packaging them.
 ///
-/// Returns an exit code that can be inspected for custom values issued by Wasm components.
+/// Returns an exit code that can be inspected for custom values issued by Wasm
+/// components.
 #[derive(Debug, clap::Parser)]
 pub struct Arguments {
     /// Wasm components to load as apps in this example.

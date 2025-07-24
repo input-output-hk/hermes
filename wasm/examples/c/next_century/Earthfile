@@ -17,4 +17,4 @@ build:
 
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="next_century.c.wasm"
 
-    SAVE ARTIFACT next_century.c.wasm AS LOCAL next_century.c.wasm
+    SAVE ARTIFACT next_century.c.wasm

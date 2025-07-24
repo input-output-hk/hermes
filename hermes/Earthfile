@@ -61,6 +61,8 @@ build:
 
     # Directory where WASM test components go when we run wasm module integration tests.
     RUN mkdir ../wasm/test-components
+    # Directory where WASM components go to be run as applications.
+    RUN mkdir ../wasm/app-components
 
     DO rust-ci+EXECUTE \
         --cmd="/scripts/std_build.py" \
@@ -101,6 +103,25 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
+# run-wasm-examples : Run WASM integration examples on hermes engine.
+run-wasm-examples:
+    FROM +build
+
+    # Copy all wasm module artifacts for running as Hermes applications
+
+    COPY ../wasm/examples/c/cardano_age+build/cardano_age.c.wasm ../wasm/app-components/
+    COPY ../wasm/examples/c/next_century+build/next_century.c.wasm ../wasm/app-components/
+    COPY ../wasm/examples/rust/cardano_age+build/cardano_age.rs.wasm ../wasm/app-components/
+    COPY ../wasm/examples/rust/next_century+build/next_century.rs.wasm ../wasm/app-components/
+
+    RUN cargo run --example wasm-runner -- ../wasm/app-components/cardano_age.c.wasm \
+        && test $? -eq 0
+    RUN cargo run --example wasm-runner -- ../wasm/app-components/next_century.c.wasm \
+        && test $? -eq 1
+    RUN cargo run --example wasm-runner -- ../wasm/app-components/cardano_age.rs.wasm \
+        && test $? -eq 0
+    RUN cargo run --example wasm-runner -- ../wasm/app-components/next_century.rs.wasm \
+        && test $? -eq 1
 
 # all-hosts-build : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.

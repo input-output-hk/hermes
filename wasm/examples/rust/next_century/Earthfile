@@ -24,4 +24,4 @@ build:
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/next_century.wasm"
 
-    SAVE ARTIFACT target/wasm32-wasip2/release/next_century.wasm AS LOCAL next_century.rs.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/next_century.wasm next_century.rs.wasm

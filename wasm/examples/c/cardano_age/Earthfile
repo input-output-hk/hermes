@@ -17,4 +17,4 @@ build:
 
     RUN /scripts/std_build.py --wit_path="wit" --c_files=$c_files --out="cardano_age.c.wasm"
 
-    SAVE ARTIFACT cardano_age.c.wasm AS LOCAL cardano_age.c.wasm
+    SAVE ARTIFACT cardano_age.c.wasm
