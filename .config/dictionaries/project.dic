@@ -188,6 +188,7 @@ syms
 SYMTAB
 syscall
 tacho
+tailscale
 testcase
 testcov
 testdocs

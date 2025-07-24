@@ -69,7 +69,7 @@ pub fn load_app(app: Application) -> anyhow::Result<()> {
 /// Get Hermes application from the Hermes Reactor.
 pub(crate) fn get_app(
     app_name: &ApplicationName,
-) -> anyhow::Result<Ref<ApplicationName, Application>> {
+) -> anyhow::Result<Ref<'_, ApplicationName, Application>> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
     reactor
         .apps
