@@ -107,6 +107,8 @@ test-wasm-integration:
 test-wasm-examples:
     FROM +build
 
+    COPY +build/hermes hermes
+
     # Copy all wasm module artifacts for running as Hermes applications
 
     COPY ../wasm/examples/c/cardano_age+build/cardano_age.c.wasm ../wasm/app-components/

@@ -38,7 +38,7 @@ struct Reactor {
 ///
 /// - Queue already initialized.
 /// - Reactor already initialized.
-pub fn init() -> anyhow::Result<ExitLock> {
+pub(crate) fn init() -> anyhow::Result<ExitLock> {
     let exit_lock = event::queue::init()?;
 
     REACTOR_STATE
@@ -56,7 +56,7 @@ pub fn init() -> anyhow::Result<ExitLock> {
 ///
 /// - Reactor not initialized.
 /// - Cannot send initialization event to the application.
-pub fn load_app(app: Application) -> anyhow::Result<()> {
+pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
 
     let app_name = app.name().clone();
