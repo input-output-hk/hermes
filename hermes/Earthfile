@@ -103,7 +103,7 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --test
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
-# run-wasm-examples : Run WASM integration examples on hermes engine.
+# test-wasm-examples : Run WASM integration examples on hermes engine.
 test-wasm-examples:
     FROM +build
 
