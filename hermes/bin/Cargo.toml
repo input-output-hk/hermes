@@ -92,6 +92,10 @@ webpki-roots = "1.0.1"
 tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
 usvg = "0.45.1"
 
+# Fixing the dependency of libp2p of hermes-ipfs.
+# Latest version uses MSRV higher than ours.
+yamux = "=0.13.3"
+
 [build-dependencies]
 build-info-build = "0.0.40"
 

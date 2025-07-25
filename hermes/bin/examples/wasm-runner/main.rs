@@ -58,7 +58,7 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
 
 /// Initialize the IPFS node
 fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
-    let ipfs_dir = create_temp_dir_child(&temp_dir, Path::new("ipfs"))?;
+    let ipfs_dir = create_temp_dir_child(temp_dir, Path::new("ipfs"))?;
     // disable bootstrapping the IPFS node to default addresses for testing
     let default_bootstrap = false;
     hermes::ipfs::bootstrap(ipfs_dir.as_path(), default_bootstrap)
@@ -66,10 +66,9 @@ fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
 
 /// Get the timeout value from env.
 fn get_timeout_ms() -> anyhow::Result<u64> {
-    env::var(ENV_TIMEOUT_MS)
-        .map(|s| s.parse())
-        .unwrap_or_else(|_| Ok(DEFAULT_ENV_TIMEOUT_MS))
-        .map_err(anyhow::Error::from)
+    env::var(ENV_TIMEOUT_MS).map_or(Ok(DEFAULT_ENV_TIMEOUT_MS), |s| {
+        s.parse().map_err(anyhow::Error::from)
+    })
 }
 
 fn main() -> ExitCode {
@@ -84,6 +83,8 @@ fn main() -> ExitCode {
         })
 }
 
+/// "Regular" main function returning a [`Result`] that is mapped to an [`ExitCode`] in
+/// [`main()`]
 fn main_internal() -> anyhow::Result<Exit> {
     // This is necessary otherwise the logging functions inside hermes are silent during the
     // test run.
@@ -152,11 +153,11 @@ fn create_temp_dir_child(temp_dir: &TempDir, child_path: &Path) -> anyhow::Resul
 /// Collects `.wasm` files in the current directory or sub-directories of the current
 /// directory. Then creates one-module applications out of each of them.
 fn collect_apps(args: &Arguments, temp_dir: &TempDir) -> anyhow::Result<Vec<Application>> {
-    let modules = collect_modules(&args)?;
+    let modules = collect_modules(args)?;
     let mut apps = Vec::with_capacity(modules.len());
     for (module_name, module) in modules {
         let vfs_dir_path =
-            create_temp_dir_child(&temp_dir, Path::new("vfs").join(&module_name).as_path())?;
+            create_temp_dir_child(temp_dir, Path::new("vfs").join(&module_name).as_path())?;
         let app = create_one_module_app(module_name, vfs_dir_path.as_path(), module)?;
         apps.push(app);
     }
