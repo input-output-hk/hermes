@@ -59,7 +59,7 @@ impl Cli {
     }
 
     /// Execute cli commands of the hermes
-    pub(crate) fn exec(self) {
+    pub(crate) fn exec(self) -> anyhow::Result<()> {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
 
         let mut errors = Errors::new();
@@ -86,6 +86,9 @@ impl Cli {
 
         if !errors.is_empty() {
             println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
+            anyhow::bail!("errors occurred during execution");
         }
+
+        Ok(())
     }
 }

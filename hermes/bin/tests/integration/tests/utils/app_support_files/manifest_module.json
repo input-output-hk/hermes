@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+  "name": "test_module",
+  "metadata": "metadata.json",
+  "component": "test_component.wasm",
+  "config": {
+    "file": "config.json",
+    "schema": "config.schema.json"
+  },
+  "settings": {
+    "file": "settings.json",
+    "schema": "settings.schema.json"
+  }
+}
