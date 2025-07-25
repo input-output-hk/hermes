@@ -7,7 +7,7 @@ mod hermes;
 use crate::hermes::exports::hermes::http_gateway::event::Guest;
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse},
+        http_gateway::event::{Bstr, Headers, HttpResponse, HttpResponse as HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
@@ -100,12 +100,13 @@ impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
-    fn reply(body: Bstr, headers: Headers, path: String, method: String) -> Option<HttpResponse> {
-        Some(HttpResponse {
-            code: 200,
-            headers,
-            body,
-        })
+    fn reply(
+        _body: Bstr,
+        _headers: Headers,
+        _path: String,
+        method: String,
+    ) -> Option<HttpGatewayResponse> {
+        None
     }
 }
 
