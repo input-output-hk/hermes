@@ -7,14 +7,15 @@ use hermes::{
         http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
-    hermes::{
-        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
-        cron::api::CronTagged,
-        ipfs::api::{self as ipfs_api, IpfsContent, PeerId, PubsubMessage},
-        kv_store::api::KvValues,
-    },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
+
+
+use hermes::hermes::cardano::api;
+
+use hermes::hermes::cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot};
+
+
 use pallas_traverse::MultiEraBlock;
 
 struct TestComponent;
@@ -27,7 +28,7 @@ fn test_fetch_block() -> bool {
 
     let slot = Slot::Point((block_slot, block_hash.clone()));
 
-    let Ok(block_cbor) = cardano::api::fetch_block(CardanoBlockchainId::Preprod, &slot) else {
+    let Ok(block_cbor) = api::fetch_block(CardanoBlockchainId::Preprod, &slot) else {
         return false;
     };
 
@@ -90,6 +91,7 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
     }
 }
 
+use hermes::hermes::ipfs::api::PubsubMessage;
 impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
     fn on_topic(_message: PubsubMessage) -> bool {
         false
