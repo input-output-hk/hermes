@@ -116,14 +116,14 @@ test-wasm-examples:
     COPY ../wasm/examples/rust/cardano_age+build/cardano_age.rs.wasm ../wasm/app-components/
     COPY ../wasm/examples/rust/next_century+build/next_century.rs.wasm ../wasm/app-components/
 
-    RUN ./hermes playground ../wasm/app-components/cardano_age.c.wasm --timeout-ms 10000 \
-        && test $? -eq 0
-    RUN ./hermes playground ../wasm/app-components/next_century.c.wasm --timeout-ms 10000 \
-        && test $? -eq 1
-    RUN ./hermes playground ../wasm/app-components/cardano_age.rs.wasm --timeout-ms 10000 \
-        && test $? -eq 0
-    RUN ./hermes playground ../wasm/app-components/next_century.rs.wasm --timeout-ms 10000 \
-        && test $? -eq 1
+    RUN ./hermes playground ../wasm/app-components/cardano_age.c.wasm --timeout-ms 10000; \
+        test $? -eq 0
+    RUN ./hermes playground ../wasm/app-components/next_century.c.wasm --timeout-ms 10000; \
+        test $? -eq 1
+    RUN ./hermes playground ../wasm/app-components/cardano_age.rs.wasm --timeout-ms 10000; \
+        test $? -eq 0
+    RUN ./hermes playground ../wasm/app-components/next_century.rs.wasm --timeout-ms 10000; \
+        test $? -eq 1
 
 # all-hosts-build : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.
