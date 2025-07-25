@@ -104,7 +104,7 @@ wasmtime = { version = "33.0.0", default-features = false, features = ["runtime"
 
 [package.metadata.cargo-machete]
 # This is required for HDF5.
-ignored = ["blosc-src"]
+ignored = ["blosc-src", "yamux"]
 
 
 
