@@ -222,5 +222,6 @@ WORKDIR
 xprivate
 XPRV
 xpub
+yamux
 yoroi
 zstack
