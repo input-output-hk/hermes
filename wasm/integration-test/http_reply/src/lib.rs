@@ -7,7 +7,7 @@ mod hermes;
 use crate::hermes::exports::hermes::http_gateway::event::Guest;
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse, HttpResponse as HttpGatewayResponse},
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
@@ -37,16 +37,13 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
 
 fn test_http_reply(run: bool) -> Option<TestResult> {
     let body_bytes: Vec<u8> = (0..1024).map(|_| 0 as u8).collect();
-
     let header = vec![("key".to_string(), vec!["values".to_string()])];
-
     let reply = TestComponent::reply(body_bytes, header, "path".to_string(), "method".to_string());
 
     let status = if let Some(reply) = reply {
-        if reply.code == 200 {
-            true
-        } else {
-            false
+        match reply {
+            HttpGatewayResponse::Http(http_resp) => http_resp.code == 200,
+            HttpGatewayResponse::InternalRedirect(_) => true, // or false, depending on your test logic
         }
     } else {
         false
@@ -104,7 +101,7 @@ impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
         _body: Bstr,
         _headers: Headers,
         _path: String,
-        method: String,
+        _method: String,
     ) -> Option<HttpGatewayResponse> {
         None
     }

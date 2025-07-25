@@ -4,16 +4,13 @@ mod hermes;
 
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse, HttpResponse as HttpGatewayResponse},
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
-        cardano::{
-            self,
-            api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
-        },
+        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
         cron::api::CronTagged,
-        ipfs::api::PubsubMessage,
+        ipfs::api::{self as ipfs_api, IpfsContent, PeerId, PubsubMessage},
         kv_store::api::KvValues,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
@@ -108,7 +105,7 @@ impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
         _body: Bstr,
         _headers: Headers,
         _path: String,
-        method: String,
+        _method: String,
     ) -> Option<HttpGatewayResponse> {
         None
     }

@@ -1,12 +1,6 @@
-//! Hermes SQLite module integration test with WASM runtime.
-//! Generate `hermes.rs` with `earthly +gen-bindings` before writing the test.
-
-// Allow everything since this is generated code.
-#![allow(clippy::all, unused)]
-mod hermes;
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse, HttpResponse as HttpGatewayResponse},
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
@@ -221,7 +215,7 @@ impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
         _body: Bstr,
         _headers: Headers,
         _path: String,
-        method: String,
+        _method: String,
     ) -> Option<HttpGatewayResponse> {
         None
     }
