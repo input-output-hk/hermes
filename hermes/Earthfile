@@ -65,7 +65,7 @@ build:
     DO rust-ci+EXECUTE \
         --cmd="/scripts/std_build.py" \
         --args1="--bench_flags=\"--features bench\"" \
-        --args3="--bins=hermes/hermes" \
+        --args2="--bins=hermes/hermes" \
         --output="release/hermes" \
         --docs="true"
 
