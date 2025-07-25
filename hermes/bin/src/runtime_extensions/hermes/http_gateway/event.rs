@@ -85,7 +85,7 @@ impl Default for RedirectConfig {
     fn default() -> Self {
         Self {
             schemes: ["https"].iter().map(ToString::to_string).collect(),
-            hosts: ["app.dev.project.catalyst.io"]
+            hosts: ["app.dev.projectcatalyst.io"]
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
