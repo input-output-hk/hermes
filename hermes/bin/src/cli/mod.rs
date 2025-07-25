@@ -3,9 +3,10 @@
 mod app;
 mod build_info;
 mod module;
+mod playground;
 mod run;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, process::ExitCode};
 
 use build_info::BUILD_INFO;
 use clap::{Parser, Subcommand};
@@ -18,6 +19,10 @@ use crate::{
 
 /// A parameter identifier specifying the log level.
 const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
+
+/// An exit code returned on non-application errors.
+/// This is consistent with `cargo test` return code.
+const INTERNAL_FAILURE_CODE: u8 = 101;
 
 /// Hermes
 ///
@@ -44,6 +49,8 @@ enum Commands {
     /// app commands
     #[clap(subcommand)]
     App(app::Commands),
+    /// Run the hermes playground
+    Playground(playground::Playground),
 }
 
 impl Cli {
@@ -59,7 +66,7 @@ impl Cli {
     }
 
     /// Execute cli commands of the hermes
-    pub(crate) fn exec(self) {
+    pub(crate) fn exec(self) -> ExitCode {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
 
         let mut errors = Errors::new();
@@ -77,15 +84,23 @@ impl Cli {
 
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
-        match self.command {
+        let exit_code = match self.command {
             Commands::Run(cmd) => cmd.exec(),
-            Commands::Module(cmd) => cmd.exec(),
-            Commands::App(cmd) => cmd.exec(),
+            Commands::Module(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS.into()),
+            Commands::App(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS.into()),
+            Commands::Playground(playground) => playground.exec(),
         }
-        .unwrap_or_else(errors.get_add_err_fn());
+        .and_then(|exit| {
+            exit.get_exit_code()
+                .ok_or_else(|| anyhow::Error::from(exit))
+        })
+        .map_err(errors.get_add_err_fn())
+        .unwrap_or(ExitCode::from(INTERNAL_FAILURE_CODE));
 
         if !errors.is_empty() {
             println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
         }
+
+        exit_code
     }
 }

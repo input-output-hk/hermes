@@ -34,6 +34,7 @@ pub(crate) struct Application {
 
 impl Application {
     /// Create a new Hermes app
+    #[must_use]
     pub(crate) fn new(app_name: String, vfs: Vfs, modules: Vec<Module>) -> Self {
         let indexed_modules = modules
             .into_iter()

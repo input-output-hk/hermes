@@ -92,6 +92,11 @@ impl VfsBootstrapper {
     }
 
     /// Bootstrap the virtual file system from the provided configuration.
+    ///
+    /// # Errors
+    ///
+    /// - Failed to create Hermes VFS instance.
+    /// - Failed to setup Hermes VFS instance.
     pub(crate) fn bootstrap(self) -> anyhow::Result<Vfs> {
         let mut vfs_file_path = self.vfs_dir_path.join(self.vfs_file_name.as_str());
         vfs_file_path.set_extension(Vfs::FILE_EXTENSION);
