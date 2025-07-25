@@ -104,7 +104,7 @@ test-wasm-integration:
     RUN cargo test --release --test wasm-component-integration-tests -- --bench
 
 # run-wasm-examples : Run WASM integration examples on hermes engine.
-run-wasm-examples:
+test-wasm-examples:
     FROM +build
 
     # Copy all wasm module artifacts for running as Hermes applications
@@ -114,13 +114,13 @@ run-wasm-examples:
     COPY ../wasm/examples/rust/cardano_age+build/cardano_age.rs.wasm ../wasm/app-components/
     COPY ../wasm/examples/rust/next_century+build/next_century.rs.wasm ../wasm/app-components/
 
-    RUN cargo run --release --example wasm-runner -- ../wasm/app-components/cardano_age.c.wasm \
+    RUN ./hermes playground ../wasm/app-components/cardano_age.c.wasm --timeout-ms 10000 \
         && test $? -eq 0
-    RUN cargo run --release --example wasm-runner -- ../wasm/app-components/next_century.c.wasm \
+    RUN ./hermes playground ../wasm/app-components/next_century.c.wasm --timeout-ms 10000 \
         && test $? -eq 1
-    RUN cargo run --release --example wasm-runner -- ../wasm/app-components/cardano_age.rs.wasm \
+    RUN ./hermes playground ../wasm/app-components/cardano_age.rs.wasm --timeout-ms 10000 \
         && test $? -eq 0
-    RUN cargo run --release --example wasm-runner -- ../wasm/app-components/next_century.rs.wasm \
+    RUN ./hermes playground ../wasm/app-components/next_century.rs.wasm --timeout-ms 10000 \
         && test $? -eq 1
 
 # all-hosts-build : Test which runs check with all supported host tooling.

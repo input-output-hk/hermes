@@ -39,12 +39,6 @@ impl Exit {
             None
         }
     }
-
-    /// Returns either an exit code from [`Self::Done`] or the default value.
-    #[must_use]
-    pub fn unwrap_exit_code_or(self, default: ExitCode) -> ExitCode {
-        self.get_exit_code().unwrap_or(default)
-    }
 }
 
 impl From<ExitCode> for Exit {

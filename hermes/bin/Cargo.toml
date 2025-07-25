@@ -25,10 +25,6 @@ name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
 
-[[example]]
-name = "wasm-runner"
-path = "examples/wasm-runner/main.rs"
-
 [dependencies]
 # specific commit from the `catalyst` branch
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
