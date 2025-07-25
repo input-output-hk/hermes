@@ -173,6 +173,9 @@
         // "swift",
         "typescript"
         // "vue",
+        "yamux",
+        "reqwest",
+        "projectcatalyst"
     ],
     "import": [
         // Only enable extra languages as needed.
