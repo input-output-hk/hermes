@@ -6,6 +6,7 @@
 use std::{collections::HashSet, env, result::Result::Ok, sync::mpsc::Sender};
 
 use hyper::{self, body::Bytes};
+use reqwest::{blocking, Method as request};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use url::Url;
@@ -74,7 +75,7 @@ pub(crate) struct HTTPEvent {
 pub struct RedirectConfig {
     /// Allowed URL schemes (e.g., "https")
     pub schemes: HashSet<String>,
-    /// Allowed hostnames (e.g., "api.example.com")
+    /// Allowed host names (e.g., "api.example.com")
     pub hosts: HashSet<String>,
     /// Allowed path prefixes (e.g., "/api/v1")
     pub path_prefixes: Vec<String>,
@@ -84,7 +85,7 @@ impl Default for RedirectConfig {
     fn default() -> Self {
         Self {
             schemes: ["https"].iter().map(ToString::to_string).collect(),
-            hosts: ["app.dev.projectcatalyst.io"]
+            hosts: ["app.dev.project.catalyst.io"]
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
@@ -243,7 +244,7 @@ impl HTTPEvent {
         let sender = self.sender.clone();
 
         std::thread::spawn(move || {
-            let client = reqwest::blocking::Client::new();
+            let client = blocking::Client::new();
             let request = Self::build_request(&client, &location, &headers, &method, &body);
 
             match request.send() {
@@ -258,11 +259,10 @@ impl HTTPEvent {
 
     /// Build HTTP request for redirect (excludes Host header)
     fn build_request(
-        client: &reqwest::blocking::Client, location: &str, headers: &HeadersKV, method: &str,
-        body: &Bytes,
-    ) -> reqwest::blocking::RequestBuilder {
+        client: &blocking::Client, location: &str, headers: &HeadersKV, method: &str, body: &Bytes,
+    ) -> blocking::RequestBuilder {
         let mut request = client.request(
-            reqwest::Method::from_bytes(method.as_bytes()).unwrap_or(reqwest::Method::GET),
+            request::from_bytes(method.as_bytes()).unwrap_or(request::GET),
             location,
         );
 
@@ -285,7 +285,7 @@ impl HTTPEvent {
 
     /// Process HTTP response and forward to client
     fn process_response(
-        response: reqwest::blocking::Response, sender: &Sender<HTTPEventMsg>,
+        response: blocking::Response, sender: &Sender<HTTPEventMsg>,
     ) -> anyhow::Result<()> {
         let status_code = response.status().as_u16();
         let headers: HeadersKV = response
