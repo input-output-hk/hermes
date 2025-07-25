@@ -23,7 +23,7 @@ static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 #[error("Failed to add event into the event queue. Event queue is closed.")]
 pub(crate) struct CannotAddEventError;
 
-/// Failed to add event into the event queue. Event queue is closed.
+/// Failed to shutdown event queue. Event queue is closed.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error("Failed to shutdown event queue. Event queue is closed.")]
 pub(crate) struct CannotShutdownError;
