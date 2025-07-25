@@ -28,13 +28,13 @@ impl cli::environment::Host for HermesRuntimeContext {
 
     /// Get the POSIX-style arguments to the program.
     fn get_arguments(&mut self) -> wasmtime::Result<Vec<String>> {
-        Ok(Vec::new())
+        todo!()
     }
 
     /// Return a path that programs should use as their initial current working
     /// directory, interpreting `.` as shorthand for this.
     fn initial_cwd(&mut self) -> wasmtime::Result<Option<String>> {
-        Ok(None)
+        todo!()
     }
 }
 

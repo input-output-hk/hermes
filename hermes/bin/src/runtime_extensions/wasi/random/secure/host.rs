@@ -1,7 +1,5 @@
 //! Random RNG host implementation for WASM runtime.
 
-use rand::{rngs::OsRng, TryRngCore};
-
 use crate::{
     runtime_context::HermesRuntimeContext, runtime_extensions::bindings::wasi::random::random::Host,
 };
@@ -20,10 +18,8 @@ impl Host for HermesRuntimeContext {
     /// This function must always return fresh data. Deterministic environments
     /// must omit this function, rather than implementing it with deterministic
     /// data.
-    fn get_random_bytes(&mut self, len: u64) -> wasmtime::Result<Vec<u8>> {
-        let mut buf = vec![0u8; len.try_into()?];
-        OsRng.try_fill_bytes(&mut buf)?;
-        Ok(buf)
+    fn get_random_bytes(&mut self, _len: u64) -> wasmtime::Result<Vec<u8>> {
+        todo!()
     }
 
     /// Return a cryptographically-secure random or pseudo-random `u64` value.
@@ -31,6 +27,6 @@ impl Host for HermesRuntimeContext {
     /// This function returns the same type of data as `get-random-bytes`,
     /// represented as a `u64`.
     fn get_random_u64(&mut self) -> wasmtime::Result<u64> {
-        Ok(OsRng.try_next_u64()?)
+        todo!()
     }
 }
