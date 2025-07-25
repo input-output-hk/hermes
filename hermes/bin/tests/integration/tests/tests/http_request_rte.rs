@@ -2,6 +2,24 @@ use temp_dir::TempDir;
 
 use crate::utils;
 
+// TODO[RC]: Other cases to test (and fix, if issues are found):
+// Alternatively, switch to using some battle-testes library like `reqwest` or `curl`
+// - GET/POST
+// - http/https
+// - misbehaving server
+//   - no response / server hang indefinitely
+//   - broken communication
+//   - malformed response, not valid UTF-8 or not according to the HTTP spec, mismatched
+//     content-length
+//   - connection timeout, slowloris attack
+//   - super large response (will cause memory issues since we just do `read_to_end()` in
+//     the current implementation.
+//   - super large body provided by user
+//   - test without the "Connection: close" header
+//   - SSL/TLS verification
+//   - redirects (cycles)
+//   - chunked encoding issues
+
 #[test]
 fn simple_request() {
     const COMPONENT: &str = "http_request_rte_01";
