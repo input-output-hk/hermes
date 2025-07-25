@@ -15,6 +15,8 @@ mod utils;
 mod vfs;
 mod wasm;
 
+use std::process::ExitCode;
+
 #[cfg(feature = "bench")]
 pub use wasm::module::bench::{
     module_hermes_component_bench, module_small_component_bench,
@@ -22,8 +24,8 @@ pub use wasm::module::bench::{
 };
 
 #[allow(clippy::exit)]
-fn main() {
+fn main() -> ExitCode {
     use clap::Parser;
 
-    cli::Cli::parse().exec();
+    cli::Cli::parse().exec()
 }
