@@ -1,0 +1,17 @@
+[overrides]
+"hermes:binary" = { path = "./wit/deps/hermes-binary" }
+"hermes:cardano" = { path = "./wit/deps/hermes-cardano" }
+"hermes:cbor" = { path = "./wit/deps/hermes-cbor" }
+"hermes:cron" = { path = "./wit/deps/hermes-cron" }
+"hermes:crypto" = { path = "./wit/deps/hermes-crypto" }
+"hermes:hash" = { path = "./wit/deps/hermes-hash" }
+"hermes:init" = { path = "./wit/deps/hermes-init" }
+"hermes:ipfs" = { path = "./wit/deps/hermes-ipfs" }
+"hermes:json" = { path = "./wit/deps/hermes-json" }
+"hermes:kv-store" = { path = "./wit/deps/hermes-kv-store" }
+"hermes:localtime" = { path = "./wit/deps/hermes-localtime" }
+"hermes:logging" = { path = "./wit/deps/hermes-logging" }
+"hermes:sqlite" = { path = "./wit/deps/hermes-sqlite" }
+"hermes:integration-test" = { path = "./wit/deps/hermes-integration-test" }
+"hermes:http-gateway" = { path = "./wit/deps/http-gateway" }
+"hermes:http-request" = { path = "./wit/deps/hermes-http-request" }

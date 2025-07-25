@@ -232,6 +232,7 @@
         ".vscode/**",
         "**/.idea/**",
         "hermes/crates/cardano-chain-follower/examples/snapshot_data",
-        "**/.dart_tool/**"
+        "**/.dart_tool/**",
+        "go.mod"
     ]
 }
