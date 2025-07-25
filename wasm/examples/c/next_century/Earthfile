@@ -6,7 +6,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.4.5 AS wasm-c-ci
 
 IMPORT ../../../ AS wasm
 
-# build - generate a wasm component from a C stub file
+# build - builds the "next_century" example C wasm component
 build:
     FROM wasm-c-ci+wasm-c-base
 

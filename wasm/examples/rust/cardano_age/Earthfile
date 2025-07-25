@@ -12,7 +12,7 @@ gen-bindings:
 
     SAVE ARTIFACT hermes.rs AS LOCAL src/hermes.rs
 
-# build - builds the http reply integration test wasm component
+# build - builds the "cardano_age" example Rust wasm component
 build:
     DO rust-ci+SETUP
 
