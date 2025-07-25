@@ -2,7 +2,7 @@
 
 This directory comprises of WASM modules implemented for Hermes and meant to be run as standalone Hermes applications.
 
-# Adding a new module
+## Adding a new module
 
 See integration-test [readme](../integration-test/README.md). 
 Same guidelines apply.
