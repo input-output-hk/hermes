@@ -54,7 +54,7 @@ struct MountedDir {
 
 impl VfsBootstrapper {
     /// Create a new `VfsBootstrapper` instance.
-    pub fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
+    pub(crate) fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
         Self {
             vfs_dir_path: vfs_dir_path.as_ref().to_path_buf(),
             vfs_file_name,
