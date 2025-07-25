@@ -12,7 +12,7 @@ void log_shutdown()
   hermes_string_t msg;
   
   file = HERMES_STRING("next_century.c");
-  msg = HERMES_STRING("Issuing shutdown..");
+  msg = HERMES_STRING("Issuing shutdown...");
 
   hermes_logging_api_log(3, &file, NULL, NULL, NULL, NULL, &msg, NULL);
 }

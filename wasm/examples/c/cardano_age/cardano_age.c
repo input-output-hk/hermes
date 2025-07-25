@@ -14,7 +14,7 @@ void log_cardano_age(double days)
   char msg_buffer[64];
   int msg_len;
   
-  file = HERMES_STRING("cardano-age.c");
+  file = HERMES_STRING("cardano_age.c");
   msg_len = snprintf(msg_buffer, sizeof msg_buffer, "Cardano is live for %f days!", days);
 
   // Discarding encoding errors.

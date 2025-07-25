@@ -7,7 +7,7 @@ struct TestComponent;
 
 fn log_shutdown() {
     const FILE: &str = "next_century/src/lib.rs";
-    const MSG: &str = "Issuing shutdown...";
+    const MSG: &str = "Issuing shutdown..";
 
     hermes::hermes::logging::api::log(
         hermes::hermes::logging::api::Level::Info,
