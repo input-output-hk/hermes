@@ -153,7 +153,6 @@ pubk
 pubkey
 pubspec
 pwrite
-rustls
 qpsg
 quic
 rapidoc
@@ -163,6 +162,7 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+rngs
 rulelist
 rulename
 rustc
@@ -170,6 +170,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed
