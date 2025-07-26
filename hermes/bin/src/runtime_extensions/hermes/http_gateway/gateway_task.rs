@@ -147,9 +147,9 @@ fn executor() {
                     .serve_connection(io, service)
                     .await
                 {
-                    error!("Failing to start HTTP gateway server: {:?}", err);
-                    error!("Retrying!");
-                    executor();
+                    error!("Failed to serve HTTP connection: {:?}", err);
+                    // Don't call executor() recursively - just let this connection fail
+                    // The main loop will continue accepting new connections
                 }
             });
         }
