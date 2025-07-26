@@ -61,7 +61,7 @@ impl exports::hermes::http_gateway::event::Guest for TestComponent {
         _headers: exports::hermes::http_gateway::event::Headers,
         _path: String,
         _method: String,
-    ) -> Option<exports::hermes::http_gateway::event::HttpResponse> {
+    ) -> Option<exports::hermes::http_gateway::event::HttpGatewayResponse> {
         None
     }
 }
