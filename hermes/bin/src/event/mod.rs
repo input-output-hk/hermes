@@ -1,6 +1,6 @@
 //! Hermes event's primitives.
 
-pub(crate) mod queue;
+pub mod queue;
 
 use crate::{
     app::ApplicationName,
