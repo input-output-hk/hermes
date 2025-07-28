@@ -163,6 +163,7 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+rngs
 rulelist
 rulename
 rustc
