@@ -165,6 +165,7 @@ REMOVEDIR
 renameat
 retriggering
 reqwest
+rngs
 rulelist
 rulename
 rustc
