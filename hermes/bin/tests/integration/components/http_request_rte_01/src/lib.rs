@@ -17,7 +17,7 @@ mod bindings {
 use std::fs;
 
 use bindings::{
-    exports::hermes::http_gateway::event::{Headers, HttpResponse},
+    exports::hermes::http_gateway::event::{Headers, HttpGatewayResponse},
     hermes::{
         binary::api::Bstr,
         cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
@@ -141,7 +141,7 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
 impl bindings::exports::hermes::http_gateway::event::Guest for HttpRequestApp {
     fn reply(
         _body: Bstr, _headers: Headers, _path: String, _method: String,
-    ) -> Option<HttpResponse> {
+    ) -> Option<HttpGatewayResponse> {
         None
     }
 }
