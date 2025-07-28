@@ -84,7 +84,7 @@ impl bindings::exports::hermes::init::event::Guest for HttpRequestApp {
     }
 }
 
-// TOOD[RC]: Handle errors gracefully.
+// TODO[RC]: Handle errors gracefully.
 fn make_payload(http_server: &str) -> Payload {
     test_log(&format!("parsing addr: {http_server}"));
 
