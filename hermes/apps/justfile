@@ -1,0 +1,39 @@
+# Build the Hermes binary in release mode
+build-hermes:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🔨 Building Hermes binary..."
+    cd ../
+    cargo build --release
+    echo "✅ Hermes build complete!"
+
+# Build and package the Athena HTTP proxy component
+build-athena:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🔨 Building HTTP proxy WASM component..."
+    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} +build
+    
+    echo "📦 Packaging module..."
+    ../target/release/hermes module package athena/manifest_module.json
+    
+    echo "📦 Packaging application..."
+    ../target/release/hermes app package athena/manifest_app.json
+    
+    echo "✅ Build and packaging complete!"
+
+# Run the Athena application using release binary
+run-athena:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🚀 Running Athena application..."
+    ../target/release/hermes run --untrusted athena/app.happ
+
+# Build Hermes and then build Athena component
+build-all: build-hermes build-athena
+
+# Build everything and run Athena
+run-all: build-all run-athena
