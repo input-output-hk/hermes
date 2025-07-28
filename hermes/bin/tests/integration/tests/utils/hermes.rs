@@ -1,15 +1,11 @@
 use std::{
     fs::File,
     process::{Command, Stdio},
-    thread,
-    time::Duration,
 };
 
 use temp_dir::TempDir;
 
 use crate::utils::{self, LOG_FILE_NAME};
-
-const WAIT_TIME: Duration = Duration::from_secs(30);
 
 pub fn build() {
     let output = Command::new("cargo")
@@ -30,7 +26,7 @@ pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String
     let log_file_path = temp_dir.as_ref().join(LOG_FILE_NAME);
     let log_file = File::create(&log_file_path)?;
 
-    let mut child = Command::new(utils::HERMES_BINARY_PATH)
+    let child = Command::new(utils::HERMES_BINARY_PATH)
         .arg("run")
         .arg("--untrusted")
         .arg(app_path)
@@ -39,14 +35,12 @@ pub fn run_app(temp_dir: &TempDir, app_file_name: &str) -> anyhow::Result<String
         .stderr(Stdio::from(log_file))
         .spawn()?;
 
-    thread::sleep(WAIT_TIME);
-
-    // TODO[RC]: We can dodge the explicit kill by using the exit code RTE.
-    if let Err(e) = child.kill() {
-        eprintln!("Failed to kill child process: {e}");
-    };
-
     let output = child.wait_with_output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("App failed with error: {}", stderr));
+    }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
