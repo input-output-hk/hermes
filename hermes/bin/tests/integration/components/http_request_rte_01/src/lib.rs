@@ -120,17 +120,24 @@ fn make_body(host_uri: &str) -> Vec<u8> {
     request_body.into_bytes()
 }
 
+fn assert_eq<T: PartialEq + std::fmt::Debug>(left: T, right: T) {
+    if left != right {
+        test_log(&format!("{left:?} != {right:?}"));
+        bindings::hermes::init::api::done(1);
+    }
+}
+
 impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
     fn on_http_response(request_id: Option<u64>, response: Vec<u8>) {
         test_log(&format!(
             "got response with request_id={request_id:?}: {}",
             String::from_utf8(response.clone()).expect("should be valid UTF-8"),
         ));
-        assert_eq!(request_id, REQUEST_ID);
+        assert_eq(request_id, REQUEST_ID);
+        bindings::hermes::init::api::done(0);
     }
 }
 
-/// response should be option
 impl bindings::exports::hermes::http_gateway::event::Guest for HttpRequestApp {
     fn reply(
         _body: Bstr, _headers: Headers, _path: String, _method: String,
