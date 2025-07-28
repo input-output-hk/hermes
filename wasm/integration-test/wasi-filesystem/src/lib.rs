@@ -1,4 +1,5 @@
 use hermes::exports::hermes::integration_test::event::TestResult;
+use hermes::exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse};
 
 mod hermes;
 mod tests;
@@ -84,13 +85,15 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
     }
 }
 
+
+
 impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
     fn reply(
-        _body: hermes::exports::hermes::http_gateway::event::Bstr,
-        _headers: hermes::exports::hermes::http_gateway::event::Headers,
+        _body: Bstr,
+        _headers: Headers,
         _path: String,
         _method: String,
-    ) -> Option<hermes::exports::hermes::http_gateway::event::HttpResponse> {
+    ) -> Option<HttpGatewayResponse> {
         None
     }
 }
