@@ -37,6 +37,8 @@ pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
         .arg("--target")
         .arg("wasm32-wasip2")
         .current_dir(&component_path)
+        .arg("--target-dir")
+        .arg("target")
         .output()?;
 
     if !output.status.success() {
