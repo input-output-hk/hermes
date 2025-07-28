@@ -19,5 +19,10 @@ interface event {
         body: bstr
     }
 
-    reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-response>;    
+    variant http-gateway-response {
+        http(http-response),
+        internal-redirect(string),
+    }
+
+    reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-gateway-response>;
 }
