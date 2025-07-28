@@ -51,8 +51,8 @@ func (t TestModule) OnTopic(message ipfs.PubsubMessage) bool {
 
 func (t TestModule) KvUpdate(key string, value kv.KvValues) {}
 
-func (t TestModule) Reply(body http_gateway.Bstr, headers http_gateway.Headers, path string, method string) cm.Option[http_gateway.HTTPResponse] {
-	return cm.None[http_gateway.HTTPResponse]()
+func (t TestModule) Reply(body http_gateway.Bstr, headers http_gateway.Headers, path string, method string) cm.Option[http_gateway.HTTPGatewayResponse] {
+	return cm.None[http_gateway.HTTPGatewayResponse]()
 }
 
 func (t TestModule) OnHTTPResponse(requestID cm.Option[uint64], response cm.List[uint8]) {}
