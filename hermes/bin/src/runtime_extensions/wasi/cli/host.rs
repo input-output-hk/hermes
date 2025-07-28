@@ -26,13 +26,13 @@ impl cli::environment::Host for HermesRuntimeContext {
     fn get_environment(&mut self) -> wasmtime::Result<Vec<(String, String)>> {
         Ok(Vec::new())
     }
-    
+
     /// Get the POSIX-style arguments to the program.
     // TODO: Properly implement
     fn get_arguments(&mut self) -> wasmtime::Result<Vec<String>> {
         Ok(Vec::new())
     }
-    
+
     /// Return a path that programs should use as their initial current working
     /// directory, interpreting `.` as shorthand for this.
     // TODO: Properly implement
