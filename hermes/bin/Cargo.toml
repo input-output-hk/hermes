@@ -44,7 +44,7 @@ yamux = "=0.13.3"
 criterion = {version = "0.6.0", optional=true}
 
 cardano-chain-follower = { path = "../crates/cardano-chain-follower", version = "0.0.1" }
-hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "v0.0.3" }
+hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "v0.0.11" }
 
 wasmtime = { version = "33.0.0", default-features = false, features = ["runtime", "cranelift", "component-model"] }
 rusty_ulid = "2.0.0"
