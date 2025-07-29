@@ -5,7 +5,7 @@ use once_cell::sync::OnceCell;
 
 use crate::{
     app::{Application, ApplicationName},
-    event,
+    event::{self, queue::ExitLock},
     runtime_extensions::hermes::init,
 };
 
@@ -31,8 +31,15 @@ struct Reactor {
 
 /// Initialize Hermes Reactor.
 /// Setup and runs all necessary services.
-pub(crate) fn init() -> anyhow::Result<()> {
-    event::queue::init()?;
+///
+/// [`ExitLock`] would contain shutdown information if awaited.
+///
+/// # Errors
+///
+/// - Queue already initialized.
+/// - Reactor already initialized.
+pub(crate) fn init() -> anyhow::Result<ExitLock> {
+    let exit_lock = event::queue::init()?;
 
     REACTOR_STATE
         .set(Reactor {
@@ -40,10 +47,15 @@ pub(crate) fn init() -> anyhow::Result<()> {
         })
         .map_err(|_| AlreadyInitializedError)?;
 
-    Ok(())
+    Ok(exit_lock)
 }
 
 /// Load Hermes application into the Hermes Reactor.
+///
+/// # Errors
+///
+/// - Reactor not initialized.
+/// - Cannot send initialization event to the application.
 pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
 
@@ -57,7 +69,7 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 /// Get Hermes application from the Hermes Reactor.
 pub(crate) fn get_app(
     app_name: &ApplicationName,
-) -> anyhow::Result<Ref<ApplicationName, Application>> {
+) -> anyhow::Result<Ref<'_, ApplicationName, Application>> {
     let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
     reactor
         .apps

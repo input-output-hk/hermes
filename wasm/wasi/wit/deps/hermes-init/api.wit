@@ -1,0 +1,10 @@
+/// # Interface to Hermes runtime control flow.
+///
+/// ## Permissions
+///
+/// This API is ONLY Available to Integration Tests and is not normally exposed.
+
+interface api {
+    /// Perform Hermes event queue shutdown.
+    done: func(status-code: u8);
+}
