@@ -99,6 +99,7 @@ impl Cli {
 
         if !errors.is_empty() {
             println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
+            return ExitCode::FAILURE;
         }
 
         exit_code

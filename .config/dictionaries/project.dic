@@ -80,6 +80,7 @@ hardano
 hasher
 highwater
 hmod
+httpmock
 ideascale
 idents
 IFMT
@@ -163,6 +164,7 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+reqwest
 rngs
 rulelist
 rulename
@@ -180,6 +182,7 @@ scanstatus
 Sched
 seckey
 slotno
+slowloris
 smac
 stevenj
 stringzilla
