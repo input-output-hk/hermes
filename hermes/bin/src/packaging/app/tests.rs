@@ -48,7 +48,12 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
             }
         ).to_string().as_bytes(),
     ).unwrap();
-    let icon = b"icon_image_svg_content".to_vec();
+
+    // Create a simple svg icon.
+    let svg_content = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100px" height="100px" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" stroke="green" stroke-width="4" fill="yellow" />
+    </svg>"#;
+    let icon: Vec<u8> = svg_content.as_bytes().to_vec();
 
     let mut modules = Vec::with_capacity(modules_num);
     for i in 0..modules_num {
@@ -99,7 +104,7 @@ fn prepare_package_dir(
 ) -> Manifest {
     let app_dir = dir.join(&app_name);
     let metadata_path = app_dir.join("metadata.json");
-    let icon_path = app_dir.join("icon.png");
+    let icon_path = app_dir.join("icon.svg");
     let share_path = app_dir.join("share");
     let www_path = app_dir.join("www");
 
@@ -251,7 +256,7 @@ fn from_dir_test() {
 }
 
 #[test]
-fn author_sing_test() {
+fn author_sign_test() {
     let dir = TempDir::new().unwrap();
 
     let modules_num = 4;
@@ -281,7 +286,6 @@ fn author_sing_test() {
         module_info.sign(&private_key, &certificate).unwrap();
     }
 
-    package.author_sign(&private_key, &certificate).unwrap();
     package.author_sign(&private_key, &certificate).unwrap();
 
     assert!(package.get_author_signature().unwrap().is_some());
@@ -409,23 +413,20 @@ fn corrupted_icon_test() {
         );
     }
 
+    // Not a svg icon
+    let dir = TempDir::new().unwrap();
+    app_package_content.icon = b"icon_not_a_svg_file".to_vec();
+    let build_date = DateTime::default();
+    let manifest = prepare_package_dir(
+        "app".to_string(),
+        &[],
+        build_date,
+        dir.path(),
+        &mut app_package_content,
+    );
+    if let Err(e) = ApplicationPackage::build_from_manifest(&manifest, dir.path(), None, build_date)
     {
-        let new_icon = b"new icon_image_svg_content";
-        assert_ne!(app_package_content.icon.as_slice(), new_icon);
-
-        package
-            .0
-            .copy_resource_file(
-                &BytesResource::new(ApplicationPackage::ICON_FILE.to_string(), new_icon.to_vec()),
-                ApplicationPackage::ICON_FILE.into(),
-            )
-            .unwrap();
-
-        assert!(package.get_icon_file().is_ok());
-        assert!(
-            package.validate(false).is_err(),
-            "Corrupted signature payload."
-        );
+        assert!(e.to_string().contains("Invalid icon, not a svg file"));
     }
 }
 

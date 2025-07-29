@@ -28,6 +28,7 @@ cids
 ciphertext
 codegen
 codepoints
+Condvar
 coti
 coverallsapp
 cpus
@@ -162,6 +163,7 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+rngs
 rulelist
 rulename
 rustc
@@ -169,6 +171,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed
@@ -186,6 +189,7 @@ syms
 SYMTAB
 syscall
 tacho
+tailscale
 testcase
 testcov
 testdocs
@@ -204,6 +208,7 @@ unfinalized
 unixfs
 unlinkat
 upnp
+usvg
 utimensat
 vitss
 voteplan
@@ -213,9 +218,14 @@ wasip
 wasmtime
 webasm
 webassembly
+webpki
 WORKDIR
 xprivate
 XPRV
 xpub
+yamux
 yoroi
 zstack
+reqwest
+projectcatalyst
+yamux

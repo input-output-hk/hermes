@@ -13,7 +13,7 @@ interface event-on-block {
     /// 
     /// - `subscription-id` : A unique identifier of the block subscription.
     /// - `block` : A block resource where information of the block can be retrieve.
-    on-cardano-block: func(subscription-id: subscription-id, block: block);
+    on-cardano-block: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
 }
 
 interface event-on-immutable-roll-forward {
@@ -32,5 +32,5 @@ interface event-on-immutable-roll-forward {
     /// block event is delivered. The block event delivered immediately after a
     /// roll-forward will correspond to the block at the roll-forward target `slot`. 
     /// This means that roll-forward processing **does not** need to reset or re-subscribe the blockchain follower.
-    on-cardano-immutable-roll-forward: func(subscription-id: subscription-id, block: block);
+    on-cardano-immutable-roll-forward: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
 }

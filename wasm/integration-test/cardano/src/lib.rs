@@ -1,7 +1,21 @@
 #![allow(clippy::all, unused)]
 mod hermes;
 
-use crate::hermes::hermes::cardano;
+use hermes::{
+    exports::hermes::{
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
+        integration_test::event::TestResult,
+    },
+    hermes::{
+        cardano
+        cron::api::CronTagged,
+        kv_store::api::KvValues,
+        ipfs::api::PubsubMessage,
+    },
+    wasi::http::types::{IncomingRequest, ResponseOutparam},
+};
+
+use pallas_traverse::MultiEraBlock;
 
 struct TestComponent;
 
@@ -144,15 +158,26 @@ impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
-    fn kv_update(key: String, value: hermes::exports::hermes::kv_store::event::KvValues) {}
+    fn kv_update(_key: String, _value: KvValues) {}
+}
+
+impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
+    fn reply(
+        _body: Bstr,
+        _headers: Headers,
+        _path: String,
+        _method: String,
+    ) -> Option<HttpGatewayResponse> {
+        None
+    }
 }
 
 impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
-    fn handle(
-        request: hermes::exports::wasi::http::incoming_handler::IncomingRequest,
-        response_out: hermes::exports::wasi::http::incoming_handler::ResponseOutparam,
-    ) -> () {
-    }
+    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
+}
+
+impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
+    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
 }
 
 hermes::export!(TestComponent with_types_in hermes);

@@ -1,4 +1,3 @@
-version: "1.0"
 global: {
 	ci: {
 		local: [
@@ -12,9 +11,12 @@ global: {
 		]
 		providers: {
 			aws: {
-				region:   "eu-central-1"
-				ecr: registry: "332405224602.dkr.ecr.eu-central-1.amazonaws.com"
-				role:     "arn:aws:iam::332405224602:role/ci"
+				ecr: {
+					autoCreate: true
+					registry:   "332405224602.dkr.ecr.eu-central-1.amazonaws.com"
+				}
+				region: "eu-central-1"
+				role:   "arn:aws:iam::332405224602:role/ci"
 			}
 
 			docker: credentials: {
@@ -23,16 +25,23 @@ global: {
 			}
 
 			earthly: {
-				credentials: {
+				satellite: credentials: {
 					provider: "aws"
-					path:     "global/ci/earthly"
+					path:     "global/ci/ci-tls"
 				}
-				org:       "Catalyst"
-				satellite: "ci"
-				version:   "0.8.15"
+				version: "0.8.15"
 			}
 
 			github: registry: "ghcr.io"
+
+			tailscale: {
+				credentials: {
+					provider: "aws"
+					path:     "global/ci/tailscale"
+				}
+				tags:    "tag:cat-github"
+				version: "latest"
+			}
 		}
 		secrets: [
 			{

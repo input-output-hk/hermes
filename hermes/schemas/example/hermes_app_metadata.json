@@ -3,7 +3,6 @@
     "name": "Athena - Project Catalyst Voting",
     "version": "V2.7.3",
     "description": "Project Catalyst Innovation Platform",
-    "about": "About Project Catalyst, long form.\nMulti line.",
     "src": [
         "https://github.com/input-output-hk/hermes",
         "https://github.com/input-output-hk/catalyst-voices"
@@ -34,20 +33,5 @@
         "name": "IOG Singapore.",
         "contact": "Contact details.",
         "payment": "wallet address"
-    },
-    "resources": {
-        "file-storage": {
-            "minimum": 100,
-            "requested": 300,
-            "maximum": 1024
-        },
-        "sqlite-db": {
-            "minimum": 1024,
-            "requested": 4096,
-            "maximum": 32768
-        }
-    },
-    "permissions": {
-        "admin": true
     }
 }
