@@ -4,12 +4,18 @@ use std::sync::OnceLock;
 
 use tokio_rustls::TlsConnector;
 
+/// HTTP Request events module.
 mod event;
+/// HTTP Request host module.
 mod host;
+/// Tokio runtime task module for handling HTTP requests.
 mod tokio_runtime_task;
 
+/// Http Request extension state.
 struct State {
+    /// Tokio runtime task handle for sending HTTP requests.
     pub tokio_rt_handle: tokio_runtime_task::TokioTaskHandle,
+    /// TLS connector for secure HTTP requests.
     pub tls_connector: OnceLock<TlsConnector>,
 }
 
@@ -23,6 +29,7 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
     }
 });
 
+/// New context for the HTTP Request extension.
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
 #[cfg(test)]

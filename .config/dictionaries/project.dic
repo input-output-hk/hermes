@@ -28,6 +28,7 @@ cids
 ciphertext
 codegen
 codepoints
+Condvar
 coti
 coverallsapp
 cpus
@@ -79,6 +80,7 @@ hardano
 hasher
 highwater
 hmod
+httpmock
 ideascale
 idents
 IFMT
@@ -163,6 +165,8 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+reqwest
+rngs
 rulelist
 rulename
 rustc
@@ -170,6 +174,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed
@@ -178,6 +183,7 @@ scanstatus
 Sched
 seckey
 slotno
+slowloris
 smac
 stevenj
 stringzilla
@@ -187,6 +193,7 @@ syms
 SYMTAB
 syscall
 tacho
+tailscale
 testcase
 testcov
 testdocs
@@ -205,6 +212,7 @@ unfinalized
 unixfs
 unlinkat
 upnp
+usvg
 utimensat
 vitss
 voteplan
@@ -219,5 +227,9 @@ WORKDIR
 xprivate
 XPRV
 xpub
+yamux
 yoroi
 zstack
+reqwest
+projectcatalyst
+yamux

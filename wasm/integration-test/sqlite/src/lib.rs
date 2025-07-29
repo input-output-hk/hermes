@@ -8,7 +8,7 @@ mod test;
 
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse},
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
@@ -99,13 +99,17 @@ impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
         _headers: Headers,
         _path: String,
         _method: String,
-    ) -> Option<HttpResponse> {
+    ) -> Option<HttpGatewayResponse> {
         None
     }
 }
 
 impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
     fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
+}
+
+impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
+    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
 }
 
 hermes::export!(TestComponent with_types_in hermes);

@@ -1,7 +1,10 @@
 use crate::event::HermesEventPayload;
 
+/// Event payload for the `on-http-response` event.
 pub(super) struct OnHttpResponseEvent {
+    /// Optional request ID associated.
     pub(super) request_id: Option<u64>,
+    /// Bytes representing the HTTP response.
     pub(super) response: Vec<u8>,
 }
 
@@ -13,7 +16,7 @@ impl HermesEventPayload for OnHttpResponseEvent {
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
         module
             .instance
-            .hermes_http_request_event_on_http_response()
+            .hermes_http_request_event()
             .call_on_http_response(&mut module.store, self.request_id, &self.response)?;
         Ok(())
     }

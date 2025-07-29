@@ -15,7 +15,7 @@ impl Path {
     }
 
     /// Returns an iterator over the path elements.
-    pub(crate) fn iter(&self) -> std::slice::Iter<String> {
+    pub(crate) fn iter(&self) -> std::slice::Iter<'_, String> {
         self.0.iter()
     }
 

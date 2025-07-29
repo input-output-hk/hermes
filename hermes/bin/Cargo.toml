@@ -25,6 +25,10 @@ name = "wasm-component-integration-tests"
 path = "tests/wasm-integration/main.rs"
 harness = false
 
+[[test]]
+name = "integration"
+path = "tests/integration/tests/mod.rs"
+
 [dependencies]
 # specific commit from the `catalyst` branch
 pallas = { git = "https://github.com/input-output-hk/catalyst-pallas.git", rev = "709acb19c52c6b789279ecc4bc8793b5d8b5abe9", version = "0.25.0" }
@@ -34,10 +38,13 @@ hdf5 = { package = "hdf5-metno", version = "0.10.1", features = [ "static", "blo
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.4", features = ["lz4", "zlib", "zstd"] }
 
+# fixes the dependency of libp2p of hermes-ipfs, because latest version uses MSRV higher than ours.
+yamux = "=0.13.5"
+
 criterion = {version = "0.6.0", optional=true}
 
 cardano-chain-follower = { path = "../crates/cardano-chain-follower", version = "0.0.1" }
-hermes-ipfs = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", branch = "chore/hermes-ipfs-bump" }
+hermes-ipfs = { version = "0.0.4", git = "https://github.com/input-output-hk/catalyst-libs.git", branch = "chore/hermes-ipfs-bump" }
 
 wasmtime = { version = "33.0.0", default-features = false, features = ["runtime", "cranelift", "component-model"] }
 rusty_ulid = "2.0.0"
@@ -83,9 +90,13 @@ x509-cert = { version="0.2.5", features = ["pem"] }
 coset = "0.3.8"
 dirs = "6.0.0"
 regex = "1.11.0"
-rustls = "0.23.28"
+rustls = { version = "0.23.28", default-features = false, features = ["ring"] }
 webpki-roots = "1.0.1"
-tokio-rustls = "0.26.2"
+tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
+usvg = "0.45.1"
+uuid = { version = "1.17.0", features = ["v4"] }
+reqwest = "0.12.22"
+url = "2.5.0"
 
 [build-dependencies]
 build-info-build = "0.0.40"
@@ -94,10 +105,8 @@ build-info-build = "0.0.40"
 serial_test = { version = "3.1.1", features = ["file_locks"] }
 # An override with the "wat" feature added.
 wasmtime = { version = "33.0.0", default-features = false, features = ["runtime", "cranelift", "component-model", "wat"] }
+httpmock = "0.7.0"
 
 [package.metadata.cargo-machete]
-# This is required for HDF5.
-ignored = ["blosc-src"]
-
-
-
+# This is required for HDF5 and hermes-ipfs.
+ignored = ["blosc-src", "yamux"]

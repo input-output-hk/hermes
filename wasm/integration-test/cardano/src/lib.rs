@@ -4,20 +4,18 @@ mod hermes;
 
 use hermes::{
     exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpResponse},
+        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
         integration_test::event::TestResult,
     },
     hermes::{
-        cardano::{
-            self,
-            api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
-        },
+        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn, Slot},
         cron::api::CronTagged,
-        ipfs::api::PubsubMessage,
         kv_store::api::KvValues,
+        ipfs::api::PubsubMessage,
     },
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
+
 use pallas_traverse::MultiEraBlock;
 
 struct TestComponent;
@@ -30,7 +28,7 @@ fn test_fetch_block() -> bool {
 
     let slot = Slot::Point((block_slot, block_hash.clone()));
 
-    let Ok(block_cbor) = cardano::api::fetch_block(CardanoBlockchainId::Preprod, &slot) else {
+    let Ok(block_cbor) = hermes::hermes::cardano::api::fetch_block(CardanoBlockchainId::Preprod, &slot) else {
         return false;
     };
 
@@ -109,13 +107,17 @@ impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
         _headers: Headers,
         _path: String,
         _method: String,
-    ) -> Option<HttpResponse> {
+    ) -> Option<HttpGatewayResponse> {
         None
     }
 }
 
 impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
     fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
+}
+
+impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
+    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
 }
 
 hermes::export!(TestComponent with_types_in hermes);

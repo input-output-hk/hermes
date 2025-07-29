@@ -27,7 +27,7 @@ bool exports_hermes_cron_event_on_cron(exports_hermes_cron_event_cron_tagged_t *
 
 
 // Exported Functions from `hermes:http-gateway/event`
-bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_response_t *ret){
+bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_gateway_response_t *ret){
   return false;
 };
 
@@ -56,6 +56,6 @@ bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, export
   return false;
 }
 
-void exports_hermes_http_request_event_on_http_response_on_http_response(uint64_t *maybe_request_id, hermes_list_u8_t *response) {
+void exports_hermes_http_request_event_on_http_response(uint64_t *maybe_request_id, hermes_list_u8_t *response) {
   
 }

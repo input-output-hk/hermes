@@ -18,20 +18,30 @@ use crate::{
     },
 };
 
+/// HTTP scheme.
 const HTTP: &str = "http://";
+/// HTTPS scheme.
 const HTTPS: &str = "https://";
 
+/// Represents a command that can be sent to the Tokio runtime task.
 pub enum Command {
+    /// Command to send an HTTP request.
     Send {
+        /// The payload containing the request details.
         payload: Payload,
+        /// A channel to send the response back to the caller.
         response_tx: oneshot::Sender<Result<(), ErrorCode>>,
     },
 }
 
+/// Represents a sender for commands sent to the Tokio runtime task.
 type CommandSender = tokio::sync::mpsc::Sender<Command>;
+/// Represents a receiver for commands sent to the Tokio runtime task.
 type CommandReceiver = tokio::sync::mpsc::Receiver<Command>;
 
+/// Tokio runtime task handle for sending HTTP requests.
 pub struct TokioTaskHandle {
+    /// Command sender for sending commands to the Tokio runtime task.
     cmd_tx: CommandSender,
 }
 
@@ -55,6 +65,7 @@ impl TokioTaskHandle {
     }
 }
 
+/// Initializes the Rustls crypto provider for TLS connections.
 static INIT_RUSTLS_CRYPTO: LazyLock<Result<(), ErrorCode>> = LazyLock::new(|| {
     rustls::crypto::ring::default_provider()
         .install_default()
@@ -64,6 +75,7 @@ static INIT_RUSTLS_CRYPTO: LazyLock<Result<(), ErrorCode>> = LazyLock::new(|| {
         })
 });
 
+/// Initializes the Rustls TLS connector with the default root certificates.
 fn init_rustls_connector() -> TlsConnector {
     let mut root_store = RootCertStore::empty();
     root_store.extend(TLS_SERVER_ROOTS.iter().cloned());
@@ -75,6 +87,7 @@ fn init_rustls_connector() -> TlsConnector {
     TlsConnector::from(config)
 }
 
+/// Spawns a Tokio runtime task for handling HTTP requests.
 pub fn spawn() -> TokioTaskHandle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
     std::thread::spawn(move || {
@@ -84,16 +97,19 @@ pub fn spawn() -> TokioTaskHandle {
     TokioTaskHandle { cmd_tx }
 }
 
+/// Represents a connection to an HTTP or HTTPS server.
 enum Connection {
+    /// Represents a plain HTTP connection.
     Http(TcpStream),
+    /// Represents a secure HTTP connection using TLS.
     Https(client::TlsStream<TcpStream>),
 }
 
 impl Connection {
+    /// Creates a new connection to the specified HTTP or HTTPS server.
     async fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
     where S: AsRef<str> + Into<String> + core::fmt::Display {
-        if addr.as_ref().to_ascii_lowercase().starts_with(HTTP) {
-            let sliced_addr = &addr.as_ref()[HTTP.len()..];
+        if let Some(sliced_addr) = addr.as_ref().to_ascii_lowercase().strip_prefix(HTTP) {
             let stream = TcpStream::connect((sliced_addr, port))
                 .await
                 .map_err(|err| {
@@ -102,10 +118,9 @@ impl Connection {
                 })?;
             tracing::trace!(%addr, port, "connected over HTTP");
             return Ok(Connection::Http(stream));
-        } else if addr.as_ref().to_ascii_lowercase().starts_with(HTTPS) {
+        } else if let Some(sliced_addr) = addr.as_ref().to_ascii_lowercase().strip_prefix(HTTPS) {
             (*INIT_RUSTLS_CRYPTO)?;
 
-            let sliced_addr = &addr.as_ref()[HTTPS.len()..];
             let tcp_stream = TcpStream::connect((sliced_addr, port))
                 .await
                 .map_err(|err| {
@@ -130,12 +145,12 @@ impl Connection {
 
             tracing::trace!(%addr, port, "connected over HTTPs");
             return Ok(Connection::Https(stream));
-        } else {
-            tracing::debug!(%addr, "missing scheme");
-            return Err(ErrorCode::MissingScheme);
         }
+        tracing::debug!(%addr, "missing scheme");
+        Err(ErrorCode::MissingScheme)
     }
 
+    /// Sends the HTTP request body and returns the response.
     // TODO[RC]: Timeout or more complex task management needed here
     async fn send(&mut self, body: &[u8]) -> Result<Vec<u8>, ErrorCode> {
         let mut response = Vec::new();
@@ -171,6 +186,7 @@ impl Connection {
     }
 }
 
+/// Reads all bytes from the reader until EOF, ignoring `UnexpectedEof` errors.
 async fn read_to_end_ignoring_unexpected_eof<R>(
     reader: &mut R, buf: &mut Vec<u8>,
 ) -> std::io::Result<usize>
@@ -188,6 +204,7 @@ where R: AsyncRead + Unpin {
     }
 }
 
+/// Sends an HTTP request and puts the response event on the queue.
 async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
     // TODO[RC]: Make sure there are no stray threads left running
     let mut conn = Connection::new(payload.host_uri, payload.port).await?;
@@ -210,6 +227,7 @@ async fn send_http_request(payload: Payload) -> Result<(), ErrorCode> {
     Ok(())
 }
 
+/// Handles a command sent to the Tokio runtime task.
 async fn handle_command(cmd: Command) {
     match cmd {
         Command::Send {
@@ -222,6 +240,7 @@ async fn handle_command(cmd: Command) {
     }
 }
 
+/// Tokio runtime task for handling HTTP requests.
 fn executor(mut cmd_rx: CommandReceiver) {
     let res = tokio::runtime::Builder::new_current_thread()
         .enable_io()
