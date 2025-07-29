@@ -190,10 +190,14 @@ interface api {
     resource transaction {
         /// Returns the transaction auxiliary metadata in CBOR format.
         ///
+        /// **Parameters**
+        ///
+        /// - `label`: A metadata label used as a key to get the associated metadata.
+        /// 
         /// **Returns**
         ///
         /// - `option<cbor>` : The CBOR format of the metadata, `None` if cannot retrieve the metadata.
-        get-metadata: func() -> option<cbor>;
+        get-metadata: func(label: u64) -> option<cbor>;
 
         /// Returns the transaction hash.
         ///
