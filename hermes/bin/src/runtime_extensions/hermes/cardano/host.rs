@@ -11,9 +11,7 @@ use crate::{
             SyncSlot, Transaction, TxnHash, TxnIdx,
         },
         hermes::cardano::{
-            block::{get_block_relative, get_is_rollback, get_tips},
-            network::{spawn_subscribe, sync_slot_to_point},
-            SubscriptionType, STATE,
+            block::{get_block_relative, get_is_rollback, get_tips}, chain_sync::spawn_chain_sync_task, network::{spawn_subscribe, sync_slot_to_point}, SubscriptionType, STATE
         },
         utils::conversion::array_u8_32_to_tuple,
     },
@@ -51,6 +49,8 @@ impl HostNetwork for HermesRuntimeContext {
         // Store the new resource in the lookup
         STATE.network_lookup.insert(key, resource.rep());
 
+        spawn_chain_sync_task(network);
+        
         Ok(Ok(resource))
     }
 
@@ -306,24 +306,29 @@ impl HostBlock for HermesRuntimeContext {
 impl HostTransaction for HermesRuntimeContext {
     /// Returns the transaction auxiliary metadata in CBOR format.
     ///
+    /// **Parameters**
+    ///
+    /// - `label`: A metadata label used as a key to get the associated metadata.
+    ///
     /// **Returns**
     ///
     /// - `option<cbor>` : The CBOR format of the metadata, `None` if cannot retrieve the
     ///   metadata.
     fn get_metadata(
-        &mut self, self_: wasmtime::component::Resource<Transaction>,
+        &mut self, self_: wasmtime::component::Resource<Transaction>, _label: u64,
     ) -> wasmtime::Result<Option<Cbor>> {
         let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
-        let txns = object.0.txs();
-        let Some(txn) = txns.get(usize::from(object.1)) else {
-            error!(error = "Invalid index", "Failed to get metadata");
-            return Ok(None);
-        };
-        match txn.aux_data() {
-            Some(a) => Ok(Some(a.raw_cbor().to_vec())),
-            None => Ok(None),
-        }
+        let _object = app_state.get_object(&self_)?;
+        // FIXME - tag cat lib properly
+        // let Some(metadata) = object.0.txn_metadata(object.1.into(), label.into()) else {
+        //     error!(
+        //         "Failed to get metadata, transaction index: {}, label: {label}",
+        //         object.1
+        //     );
+        //     return Ok(None);
+        // };
+        // Ok(Some(metadata.as_ref().to_vec()))
+        Ok(None)
     }
 
     /// Returns the transaction hash.

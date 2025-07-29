@@ -1,6 +1,7 @@
 //! Cardano Blockchain runtime extension.
 
 use dashmap::DashMap;
+use tokio::runtime::Runtime;
 
 use crate::{
     app::ApplicationName,
@@ -14,6 +15,7 @@ use crate::{
 };
 
 mod block;
+mod chain_sync;
 mod event;
 mod host;
 mod network;
@@ -35,6 +37,8 @@ struct State {
     subscription_id: ApplicationResourceStorage<SubscriptionId, cardano_blockchain_types::Network>,
     /// Active subscription ID to its subscription type and network handler.
     subscriptions: DashMap<u32, (SubscriptionType, network::Handle)>,
+    /// Chain sync state of a specific network.
+    sync_state: DashMap<cardano_blockchain_types::Network, tokio::task::JoinHandle<()>>,
 }
 
 /// Block subscription type.
@@ -47,15 +51,14 @@ pub(crate) enum SubscriptionType {
 }
 
 /// Initialize state
-static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
-    State {
-        network: ApplicationResourceStorage::new(),
-        network_lookup: DashMap::new(),
-        block: ApplicationResourceStorage::new(),
-        transaction: ApplicationResourceStorage::new(),
-        subscription_id: ApplicationResourceStorage::new(),
-        subscriptions: DashMap::new(),
-    }
+static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
+    network: ApplicationResourceStorage::new(),
+    network_lookup: DashMap::new(),
+    block: ApplicationResourceStorage::new(),
+    transaction: ApplicationResourceStorage::new(),
+    subscription_id: ApplicationResourceStorage::new(),
+    subscriptions: DashMap::new(),
+    sync_state: DashMap::new(),
 });
 
 /// Advise Runtime Extensions of a new context
@@ -73,3 +76,12 @@ pub enum CardanoError {
     #[error("Network {0} is not supported")]
     NetworkNotSupported(u32),
 }
+
+/// Global multi-threaded Tokio runtime for background tasks.
+pub(crate) static TOKIO_RUNTIME: once_cell::sync::Lazy<Runtime> =
+    once_cell::sync::Lazy::new(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to build global Tokio runtime")
+    });

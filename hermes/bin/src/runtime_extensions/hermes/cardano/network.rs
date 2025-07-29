@@ -1,5 +1,7 @@
 //! Cardano Blockchain network implementation for WASM runtime.
 
+use std::sync::Arc;
+
 use cardano_blockchain_types::{Network, Point};
 use cardano_chain_follower::{ChainFollower, Kind};
 use tracing::error;
@@ -31,7 +33,7 @@ type CommandReceiver = tokio::sync::mpsc::Receiver<Command>;
 /// Handle used to communicate with a chain follower executor task.
 pub struct Handle {
     /// Commands channel sender.
-    cmd_tx: CommandSender,
+    cmd_tx: Arc<CommandSender>,
 }
 
 impl Handle {
@@ -52,6 +54,10 @@ pub(crate) fn spawn_subscribe(
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) -> Handle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
+    let arc_cmd_tx = Arc::new(cmd_tx);
+
+    // Clone it into the thread
+    let cmd_tx_for_thread = arc_cmd_tx.clone();
 
     std::thread::spawn(move || {
         let Ok(rt) = tokio::runtime::Builder::new_current_thread()
@@ -65,6 +71,10 @@ pub(crate) fn spawn_subscribe(
             );
             return;
         };
+        // Hold onto the clone inside the thread to keep Arc alive
+        let _handle_in_thread = Handle {
+            cmd_tx: cmd_tx_for_thread,
+        };
 
         rt.block_on(subscribe(
             cmd_rx,
@@ -77,7 +87,7 @@ pub(crate) fn spawn_subscribe(
         ));
     });
 
-    Handle { cmd_tx }
+    Handle { cmd_tx: arc_cmd_tx }
 }
 
 /// Subscribe to events from a Cardano network.
