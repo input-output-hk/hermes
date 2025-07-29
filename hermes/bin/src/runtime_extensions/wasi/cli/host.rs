@@ -22,19 +22,22 @@ impl cli::environment::Host for HermesRuntimeContext {
     /// Morally, these are a value import, but until value imports are available
     /// in the component model, this import function should return the same
     /// values each time it is called.
+    // TODO: Properly implement
     fn get_environment(&mut self) -> wasmtime::Result<Vec<(String, String)>> {
         Ok(Vec::new())
     }
 
     /// Get the POSIX-style arguments to the program.
+    // TODO: Properly implement
     fn get_arguments(&mut self) -> wasmtime::Result<Vec<String>> {
-        todo!()
+        Ok(Vec::new())
     }
 
     /// Return a path that programs should use as their initial current working
     /// directory, interpreting `.` as shorthand for this.
+    // TODO: Properly implement
     fn initial_cwd(&mut self) -> wasmtime::Result<Option<String>> {
-        todo!()
+        Ok(None)
     }
 }
 

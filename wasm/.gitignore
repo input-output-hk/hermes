@@ -1,0 +1,4 @@
+# when running CI locally, this is where example .wasm modules go
+/app-components
+# when running CI locally, this is where test .wasm modules go
+/test-components

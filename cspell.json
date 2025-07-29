@@ -231,6 +231,8 @@
         "*.excalidraw",
         ".vscode/**",
         "**/.idea/**",
-        "**/.dart_tool/**"
+        "hermes/crates/cardano-chain-follower/examples/snapshot_data",
+        "**/.dart_tool/**",
+        "go.mod"
     ]
 }

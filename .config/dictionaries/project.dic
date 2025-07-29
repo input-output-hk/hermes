@@ -28,6 +28,7 @@ cids
 ciphertext
 codegen
 codepoints
+Condvar
 coti
 coverallsapp
 cpus
@@ -153,7 +154,6 @@ pubk
 pubkey
 pubspec
 pwrite
-rustls
 qpsg
 quic
 rapidoc
@@ -163,6 +163,7 @@ reloc
 REMOVEDIR
 renameat
 retriggering
+rngs
 rulelist
 rulename
 rustc
@@ -170,6 +171,7 @@ rustdoc
 rustdocflags
 rustflags
 rustfmt
+rustls
 rustyline
 saibatizoku
 sandboxed
@@ -187,6 +189,7 @@ syms
 SYMTAB
 syscall
 tacho
+tailscale
 testcase
 testcov
 testdocs
@@ -220,5 +223,9 @@ WORKDIR
 xprivate
 XPRV
 xpub
+yamux
 yoroi
 zstack
+reqwest
+projectcatalyst
+yamux

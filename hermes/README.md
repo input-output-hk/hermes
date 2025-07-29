@@ -2,7 +2,7 @@
 
 # Hermes core
 
-An implementation of the Hermes core engine in Rust
+An implementation of the Hermes core engine in Rust.
 
 * [Hermes core](#hermes-core)
   * [Build notes](#build-notes)
