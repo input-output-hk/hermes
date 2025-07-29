@@ -1,0 +1,7 @@
+interface event {
+    on-http-response: func(request-id: option<u64>, response: list<u8>);
+}
+
+world http-request-events {
+    export event;
+}
