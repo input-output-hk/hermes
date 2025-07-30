@@ -111,15 +111,18 @@ For development, you can build components individually:
 
 A secure HTTP/HTTPS redirect service with configurable validation and routing policies.
 
+**Current Status**: Athena currently contains **one module** - the HTTP proxy component. This serves as our initial production application demonstrating the Hermes WASM engine capabilities. **Additional modules will be added in future releases** to expand Athena's functionality.
+
 **Architecture:**
 - **Location**: `athena/`
-- **Module Source**: `athena/modules/http-proxy/`
+- **Current Module**: `athena/modules/http-proxy/` (smart HTTP proxy)
+- **Future Modules**: Additional WASM components will be added here
 - **Application Manifest**: `athena/manifest_app.json`
 - **Module Manifest**: `athena/modules/http-proxy/lib/manifest_module.json`
 - **WASM Binary**: `athena/modules/http-proxy/lib/http_proxy.wasm` (generated)
 - **Application Package**: `athena/app.happ` (generated)
 
-**Key Features:**
+**Current HTTP Proxy Module Features:**
 - HTTP request/response handling
 - Configurable routing policies
 - Security validation
@@ -134,6 +137,8 @@ A secure HTTP/HTTPS redirect service with configurable validation and routing po
 - Runs with `--untrusted` flag for maximum isolation
 - WASM sandbox provides additional security boundaries
 - Configurable validation policies
+
+> **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and will be packaged together into the single `athena/app.happ` application bundle.
 
 ## Build Process Deep Dive
 
