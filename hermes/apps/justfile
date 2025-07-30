@@ -5,6 +5,14 @@ build-hermes:
     
     echo "🔨 Building Hermes binary with Earthly..."
     earthly  ./athena/modules+build-hermes
+    
+    # Ensure target directory exists
+    mkdir -p ../target/release
+    
+    # Copy the binary from the new location in modules
+    cp ./athena/modules/hermes ../target/release/hermes
+    chmod +x ../target/release/hermes
+    
     echo "✅ Hermes build complete!"
 
 # Build and package the Athena HTTP proxy component
@@ -47,6 +55,11 @@ build-all: clean-hfs
     
     echo "🔨 Building all components with Earthly..."
     earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} ./athena/modules+build-all
+    
+    # Ensure target directory exists and copy hermes binary from the new location
+    mkdir -p ../target/release
+    cp ./athena/modules/hermes ../target/release/hermes
+    chmod +x ../target/release/hermes
     
     echo "📦 Packaging module..."
     ../target/release/hermes module package athena/modules/http-proxy/lib/manifest_module.json

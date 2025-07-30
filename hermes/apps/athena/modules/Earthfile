@@ -8,10 +8,13 @@ IMPORT ../../../../wasm/wasi AS wasi
 
 # build-hermes - builds the Hermes binary in release mode
 build-hermes:
-    # Reference the existing hermes build target
-    FROM ../../../../hermes+build
+    # Start with a base image
+    FROM alpine:latest
     
-    SAVE ARTIFACT hermes AS LOCAL ../../target/release/hermes
+    # Copy the hermes artifact from the build target
+    COPY ../../../../hermes+build/hermes ./hermes
+    
+    SAVE ARTIFACT hermes AS LOCAL ./hermes
 
 # gen-bindings - generates `hermes.rs` bindings to work with.
 gen-bindings:
