@@ -171,7 +171,7 @@ earthly +gen-bindings --no-cache
 earthly +build-http-proxy --no-cache
 ```
 
-hermes/apps/
+```hermes/apps/
 ├── justfile                    # Build automation
 ├── README.md                   # This file
 └── athena/                     # Athena HTTP proxy app
@@ -188,3 +188,4 @@ hermes/apps/
 ├── config.schema.json
 ├── settings.schema.json
 └── http_proxy.wasm  # Generated WASM
+```
