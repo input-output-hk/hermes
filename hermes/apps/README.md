@@ -69,23 +69,39 @@ Before building, ensure you have:
 
 ### Building and Running
 
-1. **Build and run everything (recommended):**
+1. **🚀 Complete workflow - Build and run everything (START HERE):**
    ```bash
    just build-run-all
    ```
+   **This single command does EVERYTHING you need:**
+   - Cleans up any previous state (`clean-hfs`)
+   - Builds the Hermes engine (`build-hermes`) 
+   - Builds and packages the Athena application (`build-athena`)
+   - Runs the application (`run-athena`)
+   
+   **Use this command for your first build and whenever you want a clean, complete rebuild.**
 
-2. **Build components separately:**
+2. **Individual commands (optional - only if you need granular control):**
    ```bash
+   # Build just the Hermes engine
    just build-hermes
+   
+   # Build just the Athena WASM module and package
    just build-athena
-   ```
-
-3. **Run Athena (requires prior build):**
-   ```bash
+   
+   # Run Athena (requires prior build)
    just run-athena
+   
+   # Clean up state files
+   just clean-hfs
    ```
 
 ### Development Workflow
+
+For most development work, simply use:
+```bash
+just build-run-all
+```
 
 For development, you can build components individually:
 
@@ -188,4 +204,3 @@ earthly +build-http-proxy --no-cache
 ├── config.schema.json
 ├── settings.schema.json
 └── http_proxy.wasm  # Generated WASM
-```
