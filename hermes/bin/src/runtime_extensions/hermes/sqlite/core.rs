@@ -47,7 +47,7 @@ pub(super) fn open(
     let rc = unsafe {
         sqlite3_open_v2(
             db_path.to_string_lossy().as_ptr().cast(),
-            &mut db_ptr,
+            &raw mut db_ptr,
             flags,
             std::ptr::null(),
         )
