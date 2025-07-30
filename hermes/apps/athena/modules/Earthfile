@@ -40,7 +40,7 @@ build-http-proxy:
         --output="wasm32-wasip2/release/http_proxy.wasm"
 
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm http_proxy.wasm
-    SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL athena/modules/http-proxy/lib/http_proxy.wasm
+    SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
 # build-all - builds both Hermes binary and HTTP proxy module
 build-all:
