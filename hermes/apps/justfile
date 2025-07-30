@@ -1,11 +1,10 @@
-# Build the Hermes binary in release mode
+# Build the Hermes binary in release mode using Earthly
 build-hermes:
     #!/usr/bin/env bash
     set -euo pipefail
     
-    echo "🔨 Building Hermes binary..."
-    cd ../
-    cargo build --release
+    echo "🔨 Building Hermes binary with Earthly..."
+    earthly  ./athena/modules+build-hermes
     echo "✅ Hermes build complete!"
 
 # Build and package the Athena HTTP proxy component
@@ -14,15 +13,24 @@ build-athena:
     set -euo pipefail
     
     echo "🔨 Building HTTP proxy WASM component..."
-    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} +build
+    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} ./athena/modules+build-http-proxy
     
     echo "📦 Packaging module..."
-    ../target/release/hermes module package athena/manifest_module.json
+    ../target/release/hermes module package athena/modules/http-proxy/lib/manifest_module.json
     
     echo "📦 Packaging application..."
     ../target/release/hermes app package athena/manifest_app.json
     
     echo "✅ Build and packaging complete!"
+
+# Clean up .hfs files from ~/.hermes/
+clean-hfs:
+    @if [ -d ~/.hermes ]; then \
+        find ~/.hermes -name "*.hfs" -type f -delete 2>/dev/null || true; \
+        echo "Cleaned up .hfs files from ~/.hermes/"; \
+    else \
+        echo "~/.hermes/ directory does not exist"; \
+    fi
 
 # Run the Athena application using release binary
 run-athena:
@@ -32,8 +40,21 @@ run-athena:
     echo "🚀 Running Athena application..."
     ../target/release/hermes run --untrusted athena/app.happ
 
-# Build Hermes and then build Athena component
-build-all: build-hermes build-athena
+# Build both Hermes and Athena using Earthly
+build-all: clean-hfs
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🔨 Building all components with Earthly..."
+    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} ./athena/modules+build-all
+    
+    echo "📦 Packaging module..."
+    ../target/release/hermes module package athena/modules/http-proxy/lib/manifest_module.json
+    
+    echo "📦 Packaging application..."
+    ../target/release/hermes app package athena/manifest_app.json
+    
+    echo "✅ All builds and packaging complete!"
 
 # Build everything and run Athena
 run-all: build-all run-athena

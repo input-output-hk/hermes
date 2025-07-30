@@ -1,6 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
-    "name": "web2",
+    "name": "http_proxy",
     "metadata": "metadata.json",
     "component": "http_proxy.wasm",
     "config": {

@@ -4,8 +4,8 @@
     "metadata": "metadata.json",
     "modules": [
         {
-            "package": "web2.hmod",
-            "name": "web2"
+            "package": "modules/http-proxy/lib/http_proxy.hmod",
+            "name": "http_proxy"
         }
     ]
 }
