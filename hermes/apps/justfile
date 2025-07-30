@@ -48,26 +48,5 @@ run-athena:
     echo "🚀 Running Athena application..."
     ../target/release/hermes run --untrusted athena/app.happ
 
-# Build both Hermes and Athena using Earthly
-build-all: clean-hfs
-    #!/usr/bin/env bash
-    set -euo pipefail
-    
-    echo "🔨 Building all components with Earthly..."
-    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} ./athena/modules+build-all
-    
-    # Ensure target directory exists and copy hermes binary from the new location
-    mkdir -p ../target/release
-    cp ./athena/modules/hermes ../target/release/hermes
-    chmod +x ../target/release/hermes
-    
-    echo "📦 Packaging module..."
-    ../target/release/hermes module package athena/modules/http-proxy/lib/manifest_module.json
-    
-    echo "📦 Packaging application..."
-    ../target/release/hermes app package athena/manifest_app.json
-    
-    echo "✅ All builds and packaging complete!"
-
 # Build everything and run Athena
-run-all: build-all run-athena
+build-run-all: clean-hfs build-hermes build-athena run-athena

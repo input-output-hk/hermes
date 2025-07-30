@@ -1,6 +1,6 @@
-# Hermes Apps
+# Hermes Applications
 
-This directory contains Hermes applications and their build configuration. These applications demonstrate how to build modular, WASM-based services using the Hermes engine.
+This directory contains production Hermes applications and their build configuration. These applications demonstrate real-world usage of the Hermes WASM application engine.
 
 ## Architecture Overview
 
@@ -28,20 +28,16 @@ Use `just` to run the following commands from this directory:
   - Creates the final application package
   - Output: `athena/app.happ`
 
-- **`just build-all`** - Build Hermes binary and Athena component
-  - Runs both `build-hermes` and `build-athena` in sequence
-  - Recommended for clean builds
-
 ### Run Commands
 
 - **`just run-athena`** - Run the Athena application using the release binary
-  - Requires prior build (`just build-all` or individual build commands)
+  - Requires prior build (`just build-hermes` and `just build-athena`)
   - Runs with `--untrusted` flag for security isolation
   - Uses the packaged application at `athena/app.happ`
 
 - **`just run-all`** - Build everything and run the Athena application
   - Complete workflow: build → package → run
-  - Equivalent to `just build-all && just run-athena`
+  - Equivalent to `just build-hermes && just build-athena && just run-athena`
 
 ## Quick Start
 
@@ -78,9 +74,10 @@ Before building, ensure you have:
    just run-all
    ```
 
-2. **Build only (without running):**
+2. **Build components separately:**
    ```bash
-   just build-all
+   just build-hermes
+   just build-athena
    ```
 
 3. **Run Athena (requires prior build):**
@@ -91,17 +88,6 @@ Before building, ensure you have:
 ### Development Workflow
 
 For development, you can build components individually:
-
-```bash
-# Build just the Hermes engine
-just build-hermes
-
-# Build just the Athena WASM module
-just build-athena
-
-# Run with existing build
-just run-athena
-```
 
 ## Applications
 
@@ -136,33 +122,21 @@ A secure HTTP/HTTPS redirect service with configurable validation and routing po
 ## Build Process Deep Dive
 
 ### 1. Binding Generation
-```bash
-earthly +gen-bindings
-```
 - Generates Rust bindings from WIT (WebAssembly Interface Types)
 - Creates `hermes.rs` with all necessary interfaces
 - Required before compiling WASM modules
 
 ### 2. WASM Compilation
-```bash
-earthly +build-http-proxy
-```
 - Compiles Rust code to `wasm32-wasip2` target
 - Uses optimized release profile (`opt-level = "z"`, `lto = true`)
 - Produces highly optimized WASM binary
 
 ### 3. Module Packaging
-```bash
-hermes module package manifest_module.json
-```
 - Validates module manifest against schema
 - Bundles WASM binary with configuration files
 - Creates distributable module package
 
 ### 4. Application Packaging
-```bash
-hermes app package manifest_app.json
-```
 - Combines modules into complete application
 - Validates application manifest
 - Creates final `.happ` (Hermes App Package) file
@@ -197,36 +171,20 @@ earthly +gen-bindings --no-cache
 earthly +build-http-proxy --no-cache
 ```
 
-## Adding New Applications
-
-To add a new application:
-
-1. Create application directory structure
-2. Implement WASM modules using the Hermes APIs
-3. Create manifest files following the schema
-4. Add build targets to the justfile
-5. Test with `--untrusted` flag for security
-
-See the Athena implementation as a reference example.
-
-## File Structure
-
-```
 hermes/apps/
 ├── justfile                    # Build automation
 ├── README.md                   # This file
 └── athena/                     # Athena HTTP proxy app
-    ├── manifest_app.json       # Application manifest
-    ├── app.happ               # Generated app package
-    └── modules/
-        ├── Earthfile          # Build configuration
-        └── http-proxy/
-            ├── src/           # Rust source code
-            ├── Cargo.toml     # Rust dependencies
-            └── lib/           # Module resources
-                ├── manifest_module.json
-                ├── metadata.json
-                ├── config.schema.json
-                ├── settings.schema.json
-                └── http_proxy.wasm  # Generated WASM
-```
+├── manifest_app.json       # Application manifest
+├── app.happ               # Generated app package
+└── modules/
+├── Earthfile          # Build configuration
+└── http-proxy/
+├── src/           # Rust source code
+├── Cargo.toml     # Rust dependencies
+└── lib/           # Module resources
+├── manifest_module.json
+├── metadata.json
+├── config.schema.json
+├── settings.schema.json
+└── http_proxy.wasm  # Generated WASM
