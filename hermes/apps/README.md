@@ -172,17 +172,17 @@ earthly +build-http-proxy --no-cache
 ```
 
 ```hermes/apps/
-├── justfile                    # Build automation
-├── README.md                   # This file
-└── athena/                     # Athena HTTP proxy app
-├── manifest_app.json       # Application manifest
-├── app.happ               # Generated app package
+├── justfile   # Build automation
+├── README.md  # This file
+└── athena/    # Athena HTTP proxy app
+├── manifest_app.json  # Application manifest
+├── app.happ # Generated app package
 └── modules/
-├── Earthfile          # Build configuration
+├── Earthfile  # Build configuration
 └── http-proxy/
-├── src/           # Rust source code
-├── Cargo.toml     # Rust dependencies
-└── lib/           # Module resources
+├── src/   # Rust source code
+├── Cargo.toml   # Rust dependencies
+└── lib/  # Module resources
 ├── manifest_module.json
 ├── metadata.json
 ├── config.schema.json
