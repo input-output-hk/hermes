@@ -4,7 +4,7 @@ build-hermes:
     set -euo pipefail
     
     echo "🔨 Building Hermes binary with Earthly..."
-    earthly  ./athena/modules+build-hermes
+    earthly ./athena/modules+build-hermes
     
     # Ensure target directory exists
     mkdir -p ../target/release
@@ -21,7 +21,7 @@ build-athena:
     set -euo pipefail
     
     echo "🔨 Building HTTP proxy WASM component..."
-    earthly --secret GITHUB_TOKEN={{env_var('GITHUB_TOKEN')}} ./athena/modules+build-http-proxy
+    earthly ./athena/modules+build-http-proxy
     
     echo "📦 Packaging module..."
     ../target/release/hermes module package athena/modules/http-proxy/lib/manifest_module.json

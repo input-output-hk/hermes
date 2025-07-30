@@ -60,11 +60,6 @@ Before building, ensure you have:
    # Or download binary from https://github.com/casey/just/releases
    ```
 
-3. **GitHub Token** (for Earthly builds):
-   ```bash
-   export GITHUB_TOKEN=your_github_token_here
-   ```
-
 **That's it!** No need to install Rust locally - Earthly handles all compilation in containerized environments with pre-configured toolchains.
 
 ### Building and Running
@@ -168,7 +163,6 @@ A secure HTTP/HTTPS redirect service with configurable validation and routing po
 
 **Build fails with "No Earthfile found":**
 - Ensure you're running commands from the `hermes/apps/` directory
-- Check that `GITHUB_TOKEN` environment variable is set
 
 **WASM compilation errors:**
 - Verify `wasm32-wasip2` target is installed: `rustup target list --installed`
