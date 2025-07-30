@@ -71,7 +71,7 @@ Before building, ensure you have:
 
 1. **Build and run everything (recommended):**
    ```bash
-   just run-all
+   just build-run-all
    ```
 
 2. **Build components separately:**
