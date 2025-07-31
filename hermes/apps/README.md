@@ -1,14 +1,16 @@
 # Hermes Applications
 
-This directory contains production Hermes applications and their build configuration. These applications demonstrate real-world usage of the Hermes WASM application engine.
+This directory contains production Hermes applications and their build configuration. 
+These applications demonstrate real-world usage of the Hermes WASM application engine.
 
 ## Architecture Overview
 
 Hermes applications are composed of:
-- **WASM Modules**: Individual components compiled to WebAssembly (WASI-P2)
-- **Application Manifests**: JSON configurations that define how modules are loaded and configured
-- **Module Manifests**: Metadata describing individual WASM components
-- **Configuration Files**: Runtime settings and schemas for validation
+
+* **WASM Modules**: Individual components compiled to WebAssembly (WASI-P2)
+* **Application Manifests**: JSON configurations that define how modules are loaded and configured
+* **Module Manifests**: Metadata describing individual WASM components
+* **Configuration Files**: Runtime settings and schemas for validation
 
 ## Available Commands
 
@@ -46,12 +48,14 @@ Use `just` to run the following commands from this directory:
 Before building, ensure you have:
 
 1. **Earthly** for containerized builds:
+
    ```bash
    # Install from https://earthly.dev/get-earthly
    curl -fsSL https://earthly.dev/install.sh | sh
    ```
 
 2. **Just command runner**:
+
    ```bash
    # Install via cargo (if you have Rust) or package manager
    cargo install just
@@ -60,11 +64,14 @@ Before building, ensure you have:
    # Or download binary from https://github.com/casey/just/releases
    ```
 
-**That's it!** No need to install Rust locally - Earthly handles all compilation in containerized environments with pre-configured toolchains.
+**That's it!** 
+No need to install Rust locally
+Earthly handles all compilation in containerized environments with pre-configured toolchains.
 
 ### Building and Running
 
 1. **🚀 Complete workflow - Build and run everything (START HERE):**
+
    ```bash
    just build-run-all
    ```
@@ -77,6 +84,7 @@ Before building, ensure you have:
    **Use this command for your first build and whenever you want a clean, complete rebuild.**
 
 2. **Individual commands (optional - only if you need granular control):**
+
    ```bash
    # Build just the Hermes engine
    just build-hermes
@@ -95,22 +103,27 @@ Before building, ensure you have:
 ### Development Workflow
 
 For most development work, simply use:
+
 ```bash
 just build-run-all
 ```
 
 You can also override these values for the complete build and run process:
+
 ```bash
 REDIRECT_ALLOWED_HOSTS=example.com REDIRECT_ALLOWED_PATH_PREFIXES=/api just build-run-all
 ```
 This builds the entire application with custom redirect security settings and runs it in one command. 
-If no values are provided, it uses the defaults (i.e., for redirect allowed hosts and for redirect allowed path prefixes). `catfact.ninja``/fact`
+If no values are provided, it uses the defaults 
+(i.e., for redirect allowed hosts and for redirect allowed path prefixes). `catfact.ninja``/fact`
 
 ## Testing the System
 
-Once you have the application running with `just build-run-all`, you can test the HTTP proxy functionality using these curl commands:
+Once you have the application running with `just build-run-all`, 
+you can test the HTTP proxy functionality using these curl commands:
 
 ### Direct API Call (for comparison)
+
 ```bash
 time curl -X 'GET' \
   'https://catfact.ninja/fact' \
@@ -119,6 +132,7 @@ time curl -X 'GET' \
 ```
 
 ### Through Athena Proxy
+
 ```bash
 time curl -X GET \
   -H "Content-type: application/json" \
@@ -139,7 +153,10 @@ You can experiment with different and values to see how the security configurati
 
 A secure HTTP/HTTPS redirect service with configurable validation and routing policies.
 
-**Current Status**: Athena currently contains **one module** - the HTTP proxy component. This serves as our initial production application demonstrating the Hermes WASM engine capabilities. **Additional modules will be added in future releases** to expand Athena's functionality.
+**Current Status**: Athena currently contains **one module** - the HTTP proxy component.
+This serves as our initial production application demonstrating the Hermes WASM engine capabilities. 
+
+**Additional modules will be added in future releases** to expand Athena's functionality.
 
 **Architecture:**
 - **Location**: `athena/`
@@ -166,7 +183,8 @@ A secure HTTP/HTTPS redirect service with configurable validation and routing po
 - WASM sandbox provides additional security boundaries
 - Configurable validation policies
 
-> **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and will be packaged together into the single `athena/app.happ` application bundle.
+> **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and 
+> will be packaged together into the single `athena/app.happ` application bundle.
 
 ## Build Process Deep Dive
 
