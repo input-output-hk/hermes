@@ -127,7 +127,9 @@ time curl -X GET \
   "http://0.0.0.0:5000/api/dashboard" | jq -r '.[2] | map([.] | implode) | join("")'
 ```
 
-The dashboard endpoint routes requests through the WebAssembly proxy component, applying security validation and redirect controls before forwarding to external APIs. You can experiment with different and values to see how the security configuration affects request routing. `REDIRECT_ALLOWED_HOSTS``REDIRECT_ALLOWED_PATH_PREFIXES`
+The dashboard endpoint routes requests through the WebAssembly proxy component, 
+applying security validation and redirect controls before forwarding to external APIs. 
+You can experiment with different and values to see how the security configuration affects request routing. 
 
 
 
