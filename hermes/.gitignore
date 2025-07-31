@@ -4,6 +4,9 @@
 debug/
 target/
 
+# This is an application so allow Cargo lock for now.
+!Cargo.lock
+
 # This file is only used for local development/debugging
 bindings.rs
 
