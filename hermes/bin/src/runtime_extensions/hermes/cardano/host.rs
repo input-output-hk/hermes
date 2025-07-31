@@ -161,9 +161,9 @@ impl HostNetwork for HermesRuntimeContext {
     ///    slot. –`‑n`: the `n`‑th block *before* the given `start` slot.
     ///
     ///     Note: For both `+n` and `-n`, the `start` does not need to be a true block.
-    ///     They will return the block which appears at this block offset, given the
-    ///     arbitrary start point.  IF the `start` block does exist, it will never
-    ///     returned with a positive or negative `step`, as it is `step` 0.
+    ///    They will return the block which appears at this block offset, given the arbitrary
+    ///    start point.  IF the `start` block does exist, it will never returned with a
+    ///    positive or negative `step`, as it is `step` 0.
     ///
     /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the
     /// following will be returned:
