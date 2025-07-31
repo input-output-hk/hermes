@@ -60,7 +60,7 @@ impl File {
 /// Convert arbitrary error to `std::io::Error`.
 #[allow(clippy::needless_pass_by_value)]
 fn map_to_io_error(err: impl ToString) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
+    std::io::Error::other(err.to_string())
 }
 
 impl std::io::Read for File {
