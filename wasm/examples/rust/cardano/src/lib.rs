@@ -81,6 +81,34 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
             None,
         );
 
+        // https://preview.cardanoscan.io/transaction/ef414973dbf2b9ce59707e75daeb1d7831ed31e84e11f628cbd76bcf01a1f70e?tab=metadata
+        let block_resource = network_resource.get_block(Some(87310260), -10).unwrap();
+        if let Some(metadata) = block_resource.get_txn(0).unwrap().get_metadata(1226) {
+            hermes::hermes::logging::api::log(
+                hermes::hermes::logging::api::Level::Trace,
+                None,
+                None,
+                None,
+                None,
+                None,
+                format!("☄️ Success, Metadata found").as_str(),
+                None,
+            );
+        }
+
+        let block_resource = network_resource.get_block(Some(87310250), 0).unwrap();
+        if block_resource.get_txn(0).unwrap().get_metadata(1).is_none() {
+            hermes::hermes::logging::api::log(
+                hermes::hermes::logging::api::Level::Trace,
+                None,
+                None,
+                None,
+                None,
+                None,
+                format!("🌏 Success, Metadata not found").as_str(),
+                None,
+            );
+        }
         true
     }
 }
