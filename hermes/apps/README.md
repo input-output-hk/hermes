@@ -81,7 +81,8 @@ Before building, ensure you have:
    # Build just the Hermes engine
    just build-hermes
    
-   # Build just the Athena WASM module and package
+   # For development, you can build components individually:
+   # Build just the Athena WASM modules and package
    just build-athena
    
    # Run Athena (requires prior build)
@@ -98,7 +99,37 @@ For most development work, simply use:
 just build-run-all
 ```
 
-For development, you can build components individually:
+You can also override these values for the complete build and run process:
+```bash
+REDIRECT_ALLOWED_HOSTS=example.com REDIRECT_ALLOWED_PATH_PREFIXES=/api just build-run-all
+```
+This builds the entire application with custom redirect security settings and runs it in one command. 
+If no values are provided, it uses the defaults (i.e., for redirect allowed hosts and for redirect allowed path prefixes). `catfact.ninja``/fact`
+
+## Testing the System
+
+Once you have the application running with `just build-run-all`, you can test the HTTP proxy functionality using these curl commands:
+
+### Direct API Call (for comparison)
+```bash
+time curl -X 'GET' \
+  'https://catfact.ninja/fact' \
+  -H 'accept: application/json' \
+  -H 'X-CSRF-TOKEN: MXsgfJDha1E362NJkyMYQmjSLUGSjlW9AM4iQQD2'
+```
+
+### Through Athena Proxy
+```bash
+time curl -X GET \
+  -H "Content-type: application/json" \
+  -H "Accept: application/json" \
+  -H "Host: app.hermes.local" \
+  "http://0.0.0.0:5000/api/dashboard" | jq -r '.[2] | map([.] | implode) | join("")'
+```
+
+The dashboard endpoint routes requests through the WebAssembly proxy component, applying security validation and redirect controls before forwarding to external APIs. You can experiment with different and values to see how the security configuration affects request routing. `REDIRECT_ALLOWED_HOSTS``REDIRECT_ALLOWED_PATH_PREFIXES`
+
+
 
 ## Applications
 

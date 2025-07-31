@@ -46,6 +46,8 @@ run-athena:
     set -euo pipefail
     
     echo "🚀 Running Athena application..."
+    export REDIRECT_ALLOWED_PATH_PREFIXES="${REDIRECT_ALLOWED_PATH_PREFIXES:-/fact}"
+    export REDIRECT_ALLOWED_HOSTS="${REDIRECT_ALLOWED_HOSTS:-catfact.ninja}"
     ../target/release/hermes run --untrusted athena/app.happ
 
 # Build everything and run Athena
