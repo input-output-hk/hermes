@@ -81,6 +81,22 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
             None,
         );
 
+        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Tip;
+        let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;
+
+        let network_resource = hermes::hermes::cardano::api::Network::new(network).unwrap();
+        let subscription_id_resource = network_resource.subscribe_block(subscribe_from).unwrap();
+        hermes::hermes::logging::api::log(
+            hermes::hermes::logging::api::Level::Trace,
+            None,
+            None,
+            None,
+            None,
+            None,
+            format!("🎧 Network {network:?}, Subscribe to a block from {subscribe_from:?}, with subscription id: {subscription_id_resource:?}").as_str(),
+            None,
+        );
+
         // https://preview.cardanoscan.io/transaction/ef414973dbf2b9ce59707e75daeb1d7831ed31e84e11f628cbd76bcf01a1f70e?tab=metadata
         let block_resource = network_resource.get_block(Some(87310260), -10).unwrap();
         if let Some(metadata) = block_resource.get_txn(0).unwrap().get_metadata(1226) {

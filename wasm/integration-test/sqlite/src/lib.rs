@@ -48,16 +48,16 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
 
 impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
     fn on_cardano_immutable_roll_forward(
-        subscription_id: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        block: hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
+        _subscription_id: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        _block: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
     ) {
     }
 }
 
 impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
     fn on_cardano_block(
-        subscription_id: hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
-        block: hermes::exports::hermes::cardano::event_on_block::Block,
+        _subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
+        _block: &hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
     }
 }
@@ -100,7 +100,7 @@ impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
-    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
+    fn on_http_response(_request_id: Option<u64>, _response: Vec<u8>) -> () {}
 }
 
 hermes::export!(TestComponent with_types_in hermes);
