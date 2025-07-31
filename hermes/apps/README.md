@@ -75,7 +75,7 @@ Earthly handles all compilation in containerized environments with pre-configure
    ```bash
    just build-run-all
    ```
-   
+
    **This single command does EVERYTHING you need:**
    * Cleans up any previous state (`clean-hfs`)
    * Builds the Hermes engine (`build-hermes`)
@@ -88,14 +88,14 @@ Earthly handles all compilation in containerized environments with pre-configure
    ```bash
    # Build just the Hermes engine
    just build-hermes
-   
+
    # For development, you can build components individually:
    # Build just the Athena WASM modules and package
    just build-athena
-   
+
    # Run Athena (requires prior build)
    just run-athena
-   
+
    # Clean up state files
    just clean-hfs
    ```
