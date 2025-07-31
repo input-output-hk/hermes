@@ -16,25 +16,18 @@ impl exports::hermes::integration_test::event::Guest for TestComponent {
     }
 }
 
-impl exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(
-        _blockchain: hermes::cardano::api::CardanoBlockchainId,
-        _block: hermes::cardano::api::CardanoBlock,
-        _source: hermes::cardano::api::BlockSrc,
+impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
+    fn on_cardano_immutable_roll_forward(
+        _subscription_id: &exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        _block: &exports::hermes::cardano::event_on_immutable_roll_forward::Block,
     ) {
     }
 }
 
-impl exports::hermes::cardano::event_on_rollback::Guest for TestComponent {
-    fn on_cardano_rollback(_blockchain: hermes::cardano::api::CardanoBlockchainId, _slot: u64) {}
-}
-
-impl exports::hermes::cardano::event_on_txn::Guest for TestComponent {
-    fn on_cardano_txn(
-        _blockchain: hermes::cardano::api::CardanoBlockchainId,
-        _slot: u64,
-        _txn_index: u32,
-        _txn: hermes::cardano::api::CardanoTxn,
+impl exports::hermes::cardano::event_on_block::Guest for TestComponent {
+    fn on_cardano_block(
+        _subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
+        _block: &exports::hermes::cardano::event_on_block::Block,
     ) {
     }
 }
