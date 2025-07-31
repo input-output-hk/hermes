@@ -18,28 +18,28 @@ Use `just` to run the following commands from this directory:
 
 ### Build Commands
 
-- **`just build-hermes`** - Build the Hermes binary in release mode
-  - Compiles the core Hermes engine located in `../`
-  - Output: `../target/release/hermes`
-  - Required for packaging and running applications
+* **`just build-hermes`** - Build the Hermes binary in release mode
+  * Compiles the core Hermes engine located in `../`
+  * Output: `../target/release/hermes`
+  * Required for packaging and running applications
 
-- **`just build-athena`** - Build and package the Athena HTTP proxy component
-  - Generates Rust bindings from WIT interfaces
-  - Compiles the HTTP proxy module to WASM using Earthly
-  - Packages the module using the Hermes CLI
-  - Creates the final application package
-  - Output: `athena/app.happ`
+* **`just build-athena`** - Build and package the Athena HTTP proxy component
+  * Generates Rust bindings from WIT interfaces
+  * Compiles the HTTP proxy module to WASM using Earthly
+  * Packages the module using the Hermes CLI
+  * Creates the final application package
+  * Output: `athena/app.happ`
 
 ### Run Commands
 
-- **`just run-athena`** - Run the Athena application using the release binary
-  - Requires prior build (`just build-hermes` and `just build-athena`)
-  - Runs with `--untrusted` flag for security isolation
-  - Uses the packaged application at `athena/app.happ`
+* **`just run-athena`** - Run the Athena application using the release binary
+  * Requires prior build (`just build-hermes` and `just build-athena`)
+  * Runs with `--untrusted` flag for security isolation
+  * Uses the packaged application at `athena/app.happ`
 
-- **`just run-all`** - Build everything and run the Athena application
-  - Complete workflow: build → package → run
-  - Equivalent to `just build-hermes && just build-athena && just run-athena`
+* **`just run-all`** - Build everything and run the Athena application
+  * Complete workflow: build → package → run
+  * Equivalent to `just build-hermes && just build-athena && just run-athena`
 
 ## Quick Start
 
@@ -77,10 +77,10 @@ Earthly handles all compilation in containerized environments with pre-configure
    ```
    
    **This single command does EVERYTHING you need:**
-   - Cleans up any previous state (`clean-hfs`)
-   - Builds the Hermes engine (`build-hermes`)
-   - Builds and packages the Athena application (`build-athena`)
-   - Runs the application (`run-athena`)
+   * Cleans up any previous state (`clean-hfs`)
+   * Builds the Hermes engine (`build-hermes`)
+   * Builds and packages the Athena application (`build-athena`)
+   * Runs the application (`run-athena`)
    **Use this command for your first build and whenever you want a clean, complete rebuild.**
 
 2. **Individual commands (optional - only if you need granular control):**
@@ -114,13 +114,13 @@ You can also override these values for the complete build and run process:
 REDIRECT_ALLOWED_HOSTS=example.com REDIRECT_ALLOWED_PATH_PREFIXES=/api just build-run-all
 ```
 
-This builds the entire application with custom redirect security settings and runs it in one command. 
+This builds the entire application with custom redirect security settings and runs it in one command.
 If no values are provided, it uses the defaults
 (i.e., for redirect allowed hosts and for redirect allowed path prefixes). `catfact.ninja``/fact`
 
 ## Testing the System
 
-Once you have the application running with `just build-run-all`, 
+Once you have the application running with `just build-run-all`,
 you can test the HTTP proxy functionality using these curl commands:
 
 ### Direct API Call (for comparison)
@@ -142,10 +142,9 @@ time curl -X GET \
   "http://0.0.0.0:5000/api/dashboard" | jq -r '.[2] | map([.] | implode) | join("")'
 ```
 
-The dashboard endpoint routes requests through the WebAssembly proxy component, 
+The dashboard endpoint routes requests through the WebAssembly proxy component,
 applying security validation and redirect controls before forwarding to external APIs.
 You can experiment with different and values to see how the security configuration affects request routing.
-
 
 ## Applications
 
@@ -154,7 +153,7 @@ You can experiment with different and values to see how the security configurati
 A secure HTTP/HTTPS redirect service with configurable validation and routing policies.
 
 **Current Status**: Athena currently contains **one module** - the HTTP proxy component.
-This serves as our initial production application demonstrating the Hermes WASM engine capabilities. 
+This serves as our initial production application demonstrating the Hermes WASM engine capabilities.
 
 **Additional modules will be added in future releases** to expand Athena's functionality.
 
@@ -187,9 +186,8 @@ This serves as our initial production application demonstrating the Hermes WASM 
 * WASM sandbox provides additional security boundaries
 * Configurable validation policies
 
-> **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and 
+> **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and
 > will be packaged together into the single `athena/app.happ` application bundle.
-
 
 ## Build Process Deep Dive
 
