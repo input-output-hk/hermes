@@ -329,20 +329,18 @@ impl HostTransaction for HermesRuntimeContext {
     /// - `option<cbor>` : The CBOR format of the metadata, `None` if the label requested
     ///   is not present.
     fn get_metadata(
-        &mut self, self_: wasmtime::component::Resource<Transaction>, _label: u64,
+        &mut self, self_: wasmtime::component::Resource<Transaction>, label: u64,
     ) -> wasmtime::Result<Option<Cbor>> {
         let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let _object = app_state.get_object(&self_)?;
-        // FIXME: fix this once cat-lib is properly tagged
-        // let Some(metadata) = object.0.txn_metadata(object.1.into(), label.into()) else {
-        //     error!(
-        //         "Failed to get metadata, transaction index: {}, label: {label}",
-        //         object.1
-        //     );
-        //     return Ok(None);
-        // };
-        // Ok(Some(metadata.as_ref().to_vec()))
-        Ok(None)
+        let object = app_state.get_object(&self_)?;
+        let Some(metadata) = object.0.txn_metadata(object.1.into(), label.into()) else {
+            error!(
+                "Failed to get metadata, transaction index: {}, label: {label}",
+                object.1
+            );
+            return Ok(None);
+        };
+        Ok(Some(metadata.as_ref().to_vec()))
     }
 
     /// Returns the transaction hash.
