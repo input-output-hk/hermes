@@ -1,51 +1,171 @@
 VERSION 0.8
 
+# External Build Dependencies
+# ===========================
+# Import pre-configured build environments and tools from external repositories.
+# These provide standardized Rust toolchains, WASM compilation support, and CI/CD utilities.
+
+# Catalyst CI Rust Environment - provides pre-configured Rust toolchain with WASM support
+# This includes: rustc, cargo, wasm32-wasip2 target, optimization tools, and build utilities
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
-# Use when debugging cat-ci locally.
+
+# Alternative for local catalyst-ci debugging (uncomment when needed):
 # IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
 
+# WASI Bindings Generator - provides WebAssembly Interface Types (WIT) binding generation
+# This generates Rust code from WIT files that define WebAssembly component interfaces
 IMPORT ../../../../wasm/wasi AS wasi
 
-# build-hermes - builds the Hermes binary in release mode
+# Hermes Engine Binary Build
+# ===========================
+# Builds the core Hermes runtime engine that executes WASM applications.
+# The engine provides HTTP routing, security sandboxing, logging, and module lifecycle management.
+#
+# Build Process:
+#   1. Uses Alpine Linux as lightweight base image
+#   2. Copies pre-built Hermes binary from parent directory build
+#   3. Exports binary for local development use
+#
+# Dependencies: Requires ../../../../hermes+build target to exist (built separately)
+# Output: hermes binary executable
+# Duration: ~30 seconds (just copying pre-built binary)
 build-hermes:
-    # Start with a base image
+    # Use minimal Alpine Linux base image for lightweight container
     FROM alpine:latest
     
-    # Copy the hermes artifact from the build target
+    # Copy the pre-compiled Hermes binary from the parent build context
+    # This assumes the main Hermes project has already been built using its own Earthfile
     COPY ../../../../hermes+build/hermes ./hermes
     
+    # Export the binary to local filesystem for justfile usage
+    # This makes it available at ./hermes in the calling directory
     SAVE ARTIFACT hermes AS LOCAL ./hermes
 
-# gen-bindings - generates `hermes.rs` bindings to work with.
+# WebAssembly Interface Bindings Generation
+# ==========================================
+# Generates Rust binding code from WebAssembly Interface Types (WIT) files.
+# WIT files define the interfaces between WASM components and the host runtime.
+#
+# This creates Rust structs, enums, and functions that allow the WASM module
+# to interact with Hermes APIs like HTTP handling, logging, storage, etc.
+#
+# Build Process:
+#   1. Uses WASI build environment with WIT tools pre-installed
+#   2. Processes WIT files to generate corresponding Rust code
+#   3. Outputs hermes.rs file with all necessary bindings
+#
+# Input: WIT interface definition files
+# Output: hermes.rs - Generated Rust binding code
+# Duration: ~1-2 minutes (WIT processing and code generation)
 gen-bindings:
+    # Use the WASI build environment which includes WIT binding generation tools
     FROM wasi+build-rust-bindings
 
+    # Export generated bindings to the HTTP proxy module source directory
+    # This allows the Rust code in http-proxy/src/ to import and use Hermes APIs
     SAVE ARTIFACT hermes.rs AS LOCAL athena/modules/http-proxy/src/hermes.rs
 
-# build-http-proxy - builds the HTTP proxy module
+# HTTP Proxy WASM Module Build
+# =============================
+# Compiles the HTTP proxy Rust code into a WebAssembly module using the wasm32-wasip2 target.
+# This creates a sandboxed, portable component that can run in the Hermes runtime.
+#
+# Build Pipeline:
+#   1. Set up Rust toolchain with WASM target support
+#   2. Copy source code and dependencies into build container
+#   3. Generate and integrate WIT bindings
+#   4. Compile to optimized WASM binary
+#   5. Export artifacts for packaging
+#
+# Compilation Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)
+# Optimization: Release mode with size optimizations (opt-level = "z", lto = true)
+# Output: http_proxy.wasm - Executable WebAssembly module
+# Duration: ~3-5 minutes (Rust compilation to WASM)
 build-http-proxy:
+    # Initialize the Rust CI environment with pre-configured toolchain
+    # This includes: Rust compiler, Cargo, wasm32-wasip2 target, and build tools
     DO rust-ci+SETUP
 
+    # Set working directory for build process
     WORKDIR /app
-    # Copy from the http-proxy module directory
+    
+    # Copy source code and project configuration
+    # --keep-ts preserves timestamps for better caching
+    # --dir copies entire directory structure
     COPY --keep-ts --dir http-proxy/src .
     COPY http-proxy/Cargo.toml .
+    
+    # Integrate generated WIT bindings into the build
+    # This makes Hermes APIs available to the Rust source code
     COPY +gen-bindings/hermes.rs src/hermes.rs
     
     # Copy module configuration and metadata files
-    COPY http-proxy/lib/config.schema.json .
-    COPY http-proxy/lib/manifest_module.json .
-    COPY http-proxy/lib/metadata.json .
-    COPY http-proxy/lib/settings.schema.json .
+    # These define the module's capabilities, permissions, and runtime configuration
+    COPY http-proxy/lib/config.schema.json .        # Runtime configuration schema
+    COPY http-proxy/lib/manifest_module.json .      # Module metadata and dependencies  
+    COPY http-proxy/lib/metadata.json .             # Application metadata
+    COPY http-proxy/lib/settings.schema.json .      # Settings validation schema
 
+    # Compile Rust code to WebAssembly
+    # Uses the Catalyst CI Cargo wrapper for consistent build configuration
+    # --target wasm32-wasip2: WebAssembly System Interface Preview 2 target
+    # --release: Enable optimizations for production use
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/http_proxy.wasm"
 
+    # Export build artifacts
+    # First export: Generic artifact name for other Earthly targets
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm http_proxy.wasm
+    
+    # Second export: Save to local filesystem in expected location for packaging
+    # This places the WASM binary where the Hermes CLI expects it for module packaging
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
-# build-all - builds both Hermes binary and HTTP proxy module
+# Complete Build Pipeline
+# ========================
+# Orchestrates the complete build process for all components.
+# This target builds both the Hermes engine and all WASM modules in the correct order.
+#
+# Build Order:
+#   1. build-hermes: Core runtime engine
+#   2. build-http-proxy: HTTP proxy WASM module (includes binding generation)
+#
+# Use this target for:
+#   - Complete rebuilds from clean state
+#   - CI/CD pipeline builds
+#   - Initial development environment setup
+#
+# Duration: ~3-7 minutes total (depending on cache state)
+# Output: All build artifacts ready for packaging and deployment
 build-all:
+    # Build the Hermes runtime engine
     BUILD +build-hermes
+    
+    # Build the HTTP proxy WASM module (automatically includes +gen-bindings)
     BUILD +build-http-proxy
+
+# Hermes Applications - Earthly Build Configuration
+# =================================================
+#
+# This Earthfile defines containerized builds for Hermes WASM applications using Earthly.
+# Earthly provides reproducible, containerized builds that work consistently across
+# different development environments without requiring local Rust toolchains.
+#
+# Build Architecture:
+#   1. Import reusable build components from external sources
+#   2. Generate WebAssembly Interface Type (WIT) bindings 
+#   3. Compile Rust code to WebAssembly (WASM) using wasm32-wasip2 target
+#   4. Package artifacts for local development and deployment
+#
+# Key Benefits:
+#   - Consistent builds across different machines and CI/CD environments
+#   - No need to install Rust toolchains locally
+#   - Automatic dependency management and caching
+#   - Isolated build environments prevent "works on my machine" issues
+#
+# Usage:
+#   earthly +build-all           # Build everything
+#   earthly +build-hermes        # Build just the Hermes engine
+#   earthly +build-http-proxy    # Build just the HTTP proxy WASM module
+#   earthly +gen-bindings        # Generate just the Rust bindings
