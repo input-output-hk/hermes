@@ -77,8 +77,15 @@ where WitType: 'static
     pub(crate) fn delete_resource(
         &self, resource: wasmtime::component::Resource<WitType>,
     ) -> anyhow::Result<RustType> {
+        self.delete_resource_rep(resource.rep())
+    }
+
+    /// Removes the resource from the resource manager by its representation.
+    /// The resource is properly removed from internal storage.
+    /// Returns an error if the resource was not found.
+    pub(crate) fn delete_resource_rep(&self, rep: u32) -> anyhow::Result<RustType> {
         self.state
-            .remove(&resource.rep())
+            .remove(&rep)
             .map(|(_, v)| v)
             .ok_or(Self::resource_not_found_err())
     }
