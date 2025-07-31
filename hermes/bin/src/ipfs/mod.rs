@@ -49,6 +49,10 @@ pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
 /// Returns errors if IPFS node fails to start.
 pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()> {
     let ipfs_data_path = base_dir.join("ipfs");
+    if !ipfs_data_path.exists() {
+        tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
+        std::fs::create_dir_all(&ipfs_data_path)?;
+    }
     let ipfs_node = HermesIpfsNode::init(
         IpfsBuilder::new()
             .with_default()
