@@ -106,7 +106,7 @@ impl CronEventQueue {
                     for OnCronEvent { tag, last } in cron_events {
                         v.push((tag.clone(), *last));
                     }
-                };
+                }
                 v
             })
         } else {

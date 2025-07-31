@@ -91,9 +91,10 @@ $RECYCLE.BIN/
 # Specifically exclude it in the directory it appears, if its required.
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
 Cargo.lock
-wasm/integration-test/http-request/target
+
 
 # Athena build stuff
 *.hmod
 *.wasm
 *.happ
+

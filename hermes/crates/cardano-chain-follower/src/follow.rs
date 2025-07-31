@@ -501,7 +501,6 @@ mod task {
                             }
                             Err(_) => {
                                 drop(response_tx.send(Err(crate::Error::SetReadPointer)));
-                                continue;
                             }
                         }
                     }

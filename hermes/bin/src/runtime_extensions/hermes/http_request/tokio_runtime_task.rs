@@ -98,6 +98,7 @@ pub fn spawn() -> TokioTaskHandle {
 }
 
 /// Represents a connection to an HTTP or HTTPS server.
+#[allow(clippy::large_enum_variant)]
 enum Connection {
     /// Represents a plain HTTP connection.
     Http(TcpStream),

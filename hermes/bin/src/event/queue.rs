@@ -121,7 +121,7 @@ fn targeted_module_event_execution(target_app_name: &ApplicationName, event: &He
                 }
             }
         },
-    };
+    }
 }
 
 /// Executes provided Hermes event filtering by target app.

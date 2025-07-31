@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use wasmtime::component::HasData;
+
 use crate::{app::ApplicationName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
@@ -21,6 +23,10 @@ pub(crate) struct HermesRuntimeContext {
 
     /// App Virtual file system
     vfs: Arc<Vfs>,
+}
+
+impl HasData for HermesRuntimeContext {
+    type Data<'a> = &'a mut Self;
 }
 
 impl HermesRuntimeContext {

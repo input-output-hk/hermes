@@ -72,7 +72,7 @@ pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_st
             sql_cstring.as_ptr(),
             n_byte,
             0,
-            &mut stmt_ptr,
+            &raw mut stmt_ptr,
             std::ptr::null_mut(),
         )
     };
