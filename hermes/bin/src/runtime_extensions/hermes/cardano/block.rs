@@ -76,8 +76,8 @@ pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
 }
 
 /// Checks if the block at the given slot is a rollback block or not.
-pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<bool> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<bool> {
+pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<Option<bool>> {
+    let handle = std::thread::spawn(move || -> anyhow::Result<Option<bool>> {
         let rt = match tokio::runtime::Builder::new_current_thread()
             .enable_time()
             .enable_io()
@@ -90,11 +90,13 @@ pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<bo
         };
 
         let point = Point::fuzzy(slot);
-        let block = rt
-            .block_on(ChainFollower::get_block(network, point))
-            .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at slot {slot:?}"))?;
-
-        Ok(block.kind == Kind::Rollback)
+        let block = rt.block_on(ChainFollower::get_block(network, point));
+        match block {
+            // Block found
+            Some(block) => Ok(Some(block.kind == Kind::Rollback)),
+            // Block not found
+            None => Ok(None),
+        }
     });
 
     handle

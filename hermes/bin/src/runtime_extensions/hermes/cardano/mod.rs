@@ -38,6 +38,7 @@ struct State {
     /// Active subscription ID to its subscription type and network handler.
     subscriptions: DashMap<u32, (SubscriptionType, network::Handle)>,
     /// Chain sync state of a specific network.
+    #[allow(clippy::struct_field_names)]
     sync_state: DashMap<cardano_blockchain_types::Network, tokio::task::JoinHandle<()>>,
 }
 
@@ -51,14 +52,16 @@ pub(crate) enum SubscriptionType {
 }
 
 /// Initialize state
-static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
-    network: ApplicationResourceStorage::new(),
-    network_lookup: DashMap::new(),
-    block: ApplicationResourceStorage::new(),
-    transaction: ApplicationResourceStorage::new(),
-    subscription_id: ApplicationResourceStorage::new(),
-    subscriptions: DashMap::new(),
-    sync_state: DashMap::new(),
+static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
+    State {
+        network: ApplicationResourceStorage::new(),
+        network_lookup: DashMap::new(),
+        block: ApplicationResourceStorage::new(),
+        transaction: ApplicationResourceStorage::new(),
+        subscription_id: ApplicationResourceStorage::new(),
+        subscriptions: DashMap::new(),
+        sync_state: DashMap::new(),
+    }
 });
 
 /// Advise Runtime Extensions of a new context
@@ -78,6 +81,7 @@ pub enum CardanoError {
 }
 
 /// Global multi-threaded Tokio runtime for background tasks.
+#[allow(clippy::expect_used)]
 pub(crate) static TOKIO_RUNTIME: once_cell::sync::Lazy<Runtime> =
     once_cell::sync::Lazy::new(|| {
         tokio::runtime::Builder::new_multi_thread()

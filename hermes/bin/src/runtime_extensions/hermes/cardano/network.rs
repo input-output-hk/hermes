@@ -56,9 +56,6 @@ pub(crate) fn spawn_subscribe(
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
     let arc_cmd_tx = Arc::new(cmd_tx);
 
-    // Clone it into the thread
-    let cmd_tx_for_thread = arc_cmd_tx.clone();
-
     std::thread::spawn(move || {
         let Ok(rt) = tokio::runtime::Builder::new_current_thread()
             .enable_time()
@@ -70,11 +67,7 @@ pub(crate) fn spawn_subscribe(
                 "Failed to spawn chain follower"
             );
             return;
-        };
-        // Hold onto the clone inside the thread to keep Arc alive
-        let _handle_in_thread = Handle {
-            cmd_tx: cmd_tx_for_thread,
-        };
+        }; // // Hold onto the clone inside the thread to keep Arc alive
 
         rt.block_on(subscribe(
             cmd_rx,
@@ -126,7 +119,6 @@ async fn subscribe(
                             return
                         };
                         let block_resource = block_app_state.create_resource(chain_update.block_data().clone());
-
                         match chain_update.kind {
                             Kind::Block if subscription_type == SubscriptionType::Block => {
                                  if let Err(e) = build_and_send_block_event(
