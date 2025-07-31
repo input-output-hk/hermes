@@ -1,6 +1,6 @@
 # Hermes Applications
 
-This directory contains production Hermes applications and their build configuration. 
+This directory contains production Hermes applications and their build configuration.
 These applications demonstrate real-world usage of the Hermes WASM application engine.
 
 ## Architecture Overview
@@ -64,7 +64,7 @@ Before building, ensure you have:
    # Or download binary from https://github.com/casey/just/releases
    ```
 
-**That's it!** 
+**That's it!**
 No need to install Rust locally
 Earthly handles all compilation in containerized environments with pre-configured toolchains.
 
@@ -75,12 +75,12 @@ Earthly handles all compilation in containerized environments with pre-configure
    ```bash
    just build-run-all
    ```
+   
    **This single command does EVERYTHING you need:**
    - Cleans up any previous state (`clean-hfs`)
-   - Builds the Hermes engine (`build-hermes`) 
+   - Builds the Hermes engine (`build-hermes`)
    - Builds and packages the Athena application (`build-athena`)
    - Runs the application (`run-athena`)
-   
    **Use this command for your first build and whenever you want a clean, complete rebuild.**
 
 2. **Individual commands (optional - only if you need granular control):**
@@ -113,8 +113,9 @@ You can also override these values for the complete build and run process:
 ```bash
 REDIRECT_ALLOWED_HOSTS=example.com REDIRECT_ALLOWED_PATH_PREFIXES=/api just build-run-all
 ```
+
 This builds the entire application with custom redirect security settings and runs it in one command. 
-If no values are provided, it uses the defaults 
+If no values are provided, it uses the defaults
 (i.e., for redirect allowed hosts and for redirect allowed path prefixes). `catfact.ninja``/fact`
 
 ## Testing the System
@@ -142,9 +143,8 @@ time curl -X GET \
 ```
 
 The dashboard endpoint routes requests through the WebAssembly proxy component, 
-applying security validation and redirect controls before forwarding to external APIs. 
-You can experiment with different and values to see how the security configuration affects request routing. 
-
+applying security validation and redirect controls before forwarding to external APIs.
+You can experiment with different and values to see how the security configuration affects request routing.
 
 
 ## Applications
@@ -159,73 +159,81 @@ This serves as our initial production application demonstrating the Hermes WASM 
 **Additional modules will be added in future releases** to expand Athena's functionality.
 
 **Architecture:**
-- **Location**: `athena/`
-- **Current Module**: `athena/modules/http-proxy/` (smart HTTP proxy)
-- **Future Modules**: Additional WASM components will be added here
-- **Application Manifest**: `athena/manifest_app.json`
-- **Module Manifest**: `athena/modules/http-proxy/lib/manifest_module.json`
-- **WASM Binary**: `athena/modules/http-proxy/lib/http_proxy.wasm` (generated)
-- **Application Package**: `athena/app.happ` (generated)
+
+* **Location**: `athena/`
+* **Current Module**: `athena/modules/http-proxy/` (smart HTTP proxy)
+* **Future Modules**: Additional WASM components will be added here
+* **Application Manifest**: `athena/manifest_app.json`
+* **Module Manifest**: `athena/modules/http-proxy/lib/manifest_module.json`
+* **WASM Binary**: `athena/modules/http-proxy/lib/http_proxy.wasm` (generated)
+* **Application Package**: `athena/app.happ` (generated)
 
 **Current HTTP Proxy Module Features:**
-- HTTP request/response handling
-- Configurable routing policies
-- Security validation
-- WASM-based isolation
+
+* HTTP request/response handling
+* Configurable routing policies
+* Security validation
+* WASM-based isolation
 
 **Configuration Files:**
-- `config.schema.json` - Runtime configuration schema
-- `settings.schema.json` - Application settings schema
-- `metadata.json` - Application metadata and licensing
+
+* `config.schema.json` - Runtime configuration schema
+* `settings.schema.json` - Application settings schema
+* `metadata.json` - Application metadata and licensing
 
 **Security:**
-- Runs with `--untrusted` flag for maximum isolation
-- WASM sandbox provides additional security boundaries
-- Configurable validation policies
+
+* Runs with `--untrusted` flag for maximum isolation
+* WASM sandbox provides additional security boundaries
+* Configurable validation policies
 
 > **Note**: As we add more modules to Athena, each will have its own directory under `athena/modules/` and 
 > will be packaged together into the single `athena/app.happ` application bundle.
 
+
 ## Build Process Deep Dive
 
 ### 1. Binding Generation
-- Generates Rust bindings from WIT (WebAssembly Interface Types)
-- Creates `hermes.rs` with all necessary interfaces
-- Required before compiling WASM modules
+
+* Generates Rust bindings from WIT (WebAssembly Interface Types)
+* Creates `hermes.rs` with all necessary interfaces
+* Required before compiling WASM modules
 
 ### 2. WASM Compilation
-- Compiles Rust code to `wasm32-wasip2` target
-- Uses optimized release profile (`opt-level = "z"`, `lto = true`)
-- Produces highly optimized WASM binary
+
+* Compiles Rust code to `wasm32-wasip2` target
+* Uses optimized release profile (`opt-level = "z"`, `lto = true`)
+* Produces highly optimized WASM binary
 
 ### 3. Module Packaging
-- Validates module manifest against schema
-- Bundles WASM binary with configuration files
-- Creates distributable module package
+
+* Validates module manifest against schema
+* Bundles WASM binary with configuration files
+* Creates distributable module package
 
 ### 4. Application Packaging
-- Combines modules into complete application
-- Validates application manifest
-- Creates final `.happ` (Hermes App Package) file
+
+* Combines modules into complete application
+* Validates application manifest
+* Creates final `.happ` (Hermes App Package) file
 
 ## Troubleshooting
 
 ### Common Issues
 
 **Build fails with "No Earthfile found":**
-- Ensure you're running commands from the `hermes/apps/` directory
 
-**WASM compilation errors:**
-- Verify `wasm32-wasip2` target is installed: `rustup target list --installed`
-- Check Rust version compatibility
+* Ensure you're running commands from the `hermes/apps/` directory
 
 **Permission denied errors:**
-- Ensure Earthly daemon is running and accessible
-- Check Docker/Podman permissions
+
+* Ensure Earthly daemon is running and accessible
+* Check Docker/Podman permissions
 
 **Missing hermes binary:**
-- Run `just build-hermes` first
-- Check that `../target/release/hermes` exists
+
+* Run `just build-hermes` first
+* Check that `../target/release/hermes` exists
 
 ### Debug Mode
 
