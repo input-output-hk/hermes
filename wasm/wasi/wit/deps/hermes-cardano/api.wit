@@ -54,6 +54,18 @@ interface api {
         /// Network not supported.
         network-not-supported,
     }
+    
+    /// Errors that can happen for block.
+    enum block-error {
+        /// Block is not found.
+        block-not-found
+    }
+
+    /// Errors that can happen for transaction.
+    enum transaction-error {
+        /// Transaction not found
+        txn-not-found
+    }
 
     /// Cardano network
     resource network {
@@ -80,12 +92,12 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `ok(subscription-id)`: A subscription ID resource where it is a unique identifier of.
-        ///                         this subscription. Use to distinguishes events from different subscribers
-        ///                         and provides control over subscription management.
-        ///                         The ID must be unique across all active subscriptions.
+        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
+        ///              resource. this subscription. Use to distinguishes events from different subscribers
+        ///              and provides control over subscription management.The ID must be unique across all 
+        ///              active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
-        subscribe-block: func(start: sync-slot) -> result<subscription-id, subscribe-error>;
+        subscribe-block: func(start: sync-slot) -> result<u32, subscribe-error>;
 
         /// Subscribe to blockchain immutable rolls forward.
         ///
@@ -98,12 +110,12 @@ interface api {
         /// 
         /// **Returns**
         /// 
-        /// - `ok(subscription-id)`: A subscription ID resource where it is a unique identifier of.
-        ///                         this subscription. Use to distinguishes events from different subscribers
-        ///                         and provides control over subscription management.
-        ///                         The ID must be unique across all active subscriptions.
+        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
+        ///              resource. this subscription. Use to distinguishes events from different subscribers
+        ///              and provides control over subscription management.The ID must be unique across all 
+        ///              active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
-        subscribe-immutable-roll-forward: func(start: sync-slot) -> result<subscription-id, subscribe-error>;
+        subscribe-immutable-roll-forward: func(start: sync-slot) -> result<u32, subscribe-error>;
 
         /// Get a block relative to `start` by `step`.
         ///
@@ -156,9 +168,10 @@ interface api {
         ///  
         /// **Returns**  
         ///  
-        /// - `true` if the block is the first block of a rollback.  
-        /// - `false` if the block is not the first block of a rollback.  
-        is-rollback: func() -> bool;
+        /// - `ok(bool)` True if the block is the first block of a rollback,
+        ///              otherwise, False.  
+        /// - `error(block-error)`: If block cannot be retrieved.
+        is-rollback: func() -> result<bool, block-error>;
 
         /// Retrieves a transaction at the specified index within the block.
         ///
@@ -168,8 +181,9 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `option<transaction>` : A `transaction` resource at the given index, `None` if the index is not found.
-        get-txn: func(index: txn-idx) -> option<transaction>;
+        /// - `ok(transaction)` : A `transaction` resource at the given index
+        /// - `error(transaction-error)`: If a transaction data does not exist in the block at the given index.
+        get-txn: func(index: txn-idx) -> result<transaction, transaction-error>;
 
         /// Retrieves the slot number that this block belongs to.
         ///
@@ -196,8 +210,9 @@ interface api {
         /// 
         /// **Returns**
         ///
-        /// - `option<cbor>` : The CBOR format of the metadata, `None` if cannot retrieve the metadata.
+        /// - `option<cbor>` : The CBOR format of the metadata, `None` if the label requested is not present.
         get-metadata: func(label: u64) -> option<cbor>;
+
 
         /// Returns the transaction hash.
         ///
