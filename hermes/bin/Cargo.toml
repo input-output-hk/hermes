@@ -67,47 +67,47 @@ once_cell = "1.21.3"
 clap = "4.5.42"
 build-info = "0.0.41"
 derive_more = "2.0.1"
-chrono = { version = "0.4.38", features = ["now"] }
-chrono-tz = "0.10.0"
+chrono = { version = "0.4.41", features = ["now"] }
+chrono-tz = "0.10.4"
 saffron = "0.1.0"
 tokio = { version = "1.45.1", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
 libsqlite3-sys = {version="0.34.0", features = ["bundled"] }
-stringzilla = "3.9.8"
-temp-dir = "0.1.14"
-num_cpus = "1.16.0"
-console = "0.15.8"
-serde = { version="1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
-jsonschema = "0.30.0"
+stringzilla = "3.12.5"
+temp-dir = "0.1.16"
+num_cpus = "1.17.0"
+console = "0.16.0"
+serde = { version="1.0.219", features = ["derive"] }
+serde_json = "1.0.141"
+jsonschema = "0.32.0"
 hyper = { version = "1.6.0", features = ["full"] }
 http-body-util = "0.1.3"
 hyper-util = { version = "0.1.13", features = ["server-auto"] }
 hmac = "0.12.1"
 pbkdf2 = "0.12.2"
-blake2b_simd = "1.0.2"
-sha2 = "0.10.8"
-ed25519-dalek = { version="2.1.1", features = ["pem"] }
+blake2b_simd = "1.0.3"
+sha2 = "0.10.9"
+ed25519-dalek = { version="2.2.0", features = ["pem"] }
 x509-cert = { version="0.2.5", features = ["pem"] }
 coset = "0.3.8"
 dirs = "6.0.0"
-regex = "1.11.0"
-rustls = { version = "0.23.28", default-features = false, features = ["ring"] }
-webpki-roots = "1.0.1"
+regex = "1.11.1"
+rustls = { version = "0.23.31", default-features = false, features = ["ring","brotli","zlib"] }
+webpki-roots = "1.0.2"
 tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
 usvg = "0.45.1"
 uuid = { version = "1.17.0", features = ["v4"] }
 reqwest = "0.12.22"
-url = "2.5.0"
+url = "2.5.4"
 
 [build-dependencies]
 build-info-build = "0.0.41"
 
 [dev-dependencies]
-serial_test = { version = "3.1.1", features = ["file_locks"] }
+serial_test = { version = "3.2.0", features = ["file_locks"] }
 # An override with the "wat" feature added.
 wasmtime = { version = "35.0.0", default-features = false, features = ["runtime", "cranelift", "component-model", "wat"] }
 httpmock = "0.7.0"
 
 [package.metadata.cargo-machete]
-# This is required for HDF5 and hermes-ipfs.
-ignored = ["blosc-src", "yamux"]
+# This is required for HDF5.
+ignored = ["blosc-src"]
