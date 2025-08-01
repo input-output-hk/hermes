@@ -16,23 +16,8 @@ impl exports::hermes::integration_test::event::Guest for TestComponent {
     }
 }
 
-impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
-    fn on_cardano_immutable_roll_forward(
-        _subscription_id: &exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        _block: &exports::hermes::cardano::event_on_immutable_roll_forward::Block,
-    ) {
-    }
-}
-
-impl exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(
-        _subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
-        _block: &exports::hermes::cardano::event_on_block::Block,
-    ) {
-    }
-}
-
 impl exports::hermes::cron::event::Guest for TestComponent {
+
     fn on_cron(_event: hermes::cron::api::CronTagged, _last: bool) -> bool {
         false
     }
@@ -54,10 +39,12 @@ impl exports::hermes::http_gateway::event::Guest for TestComponent {
         _headers: exports::hermes::http_gateway::event::Headers,
         _path: String,
         _method: String,
-    ) -> Option<exports::hermes::http_gateway::event::HttpGatewayResponse> {
+    ) -> Option<exports::hermes::http_gateway::event::HttpGatewayResponse>
+    {
         None
     }
 }
+
 
 impl exports::wasi::http::incoming_handler::Guest for TestComponent {
     fn handle(

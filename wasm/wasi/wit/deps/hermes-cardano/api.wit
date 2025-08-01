@@ -6,189 +6,240 @@
 ///
 /// This API is ALWAYS available.
 
-/// Cardano API Interface
 interface api {
-    use hermes:binary/api.{bstr};
+    use hermes:hash/api.{blake2b256};
     use hermes:cbor/api.{cbor};
 
-    /// Cardano Blocks are CBOR Data
-    type cardano-block = cbor;
+    /// Slot on the Cardano blockchain.
+    type slot = u64;
+    /// Cardano transaction index.
+    type txn-idx = u16;
+    /// Cardano transaction hash.
+    type txn-hash = blake2b256;
 
-    /// Cardano Transactions are CBOR Data
-    type cardano-txn = cbor;
 
-    /// The ID of the blockchain to interact with.
-    enum cardano-blockchain-id {
-        mainnet, // Cardano Mainnet
-        preprod, // Cardano Preprod Network
-        preview, // Cardano Preview Network
-        local-test-blockchain // A local isolated test blockchain.
+    /// Cardano blockchain network.
+    variant cardano-network {
+        /// Cardano Mainnet Network :- "NetworkId": 1, "NetworkMagic": 764824073
+        mainnet,
+        /// Cardano Preprod Network :- "NetworkId": 0, "NetworkMagic": 1
+        preprod,
+        /// Cardano Preview Network :- "NetworkId": 0, "NetworkMagic": 2
+        preview,
+        /// Custom Test Network :- "NetworkId": 0,  "NetworkMagic": u32
+        testnet-magic(u32),
     }
 
-    /// Source information about where the block came from, and if we are at tip or not.
-    flags block-src {
+    /// A sync slot variation.
+    variant sync-slot {
+        /// Genesis (first block) of the blockchain.
+        genesis,
+        /// A specific slot in the blockchain.
+        specific(slot),
+        /// The live tip of the blockchain, following the upstream node.
         tip,
-        node,
-        mithril
+        /// The immutable tip of the blockchain
+        /// e.g., The last block which has reached the absolute finality and can never rolls back.
+        immutable-tip,
     }
 
-    /// The Slot number to interact with
-    variant slot {
-        genesis,          // The very start of the blockchain.
-        point(tuple<u64, bstr>), // A particular slot number.
-        tip,              // The TIP of the blockchain.
-        continue,         // From wherever its currently pointing.
+    /// Errors that can happen for subscribing to blocks
+    enum subscribe-error {
+        /// The slot requested is not valid.
+        invalid-start-slot,
     }
 
-    /// Errors that can happen fetching/subscribing to blocks
-    enum fetch-error {
-        blockchain-not-available, // The blockchain requested is not available.
-        invalid-slot,   // The slot requested is not a valid slot for the blockchain.
+    /// Errors that can happen when initialize network.
+    enum create-network-error {
+        /// Network not supported.
+        network-not-supported,
+    }
+    
+    /// Errors that can happen for block.
+    enum block-error {
+        /// Block is not found.
+        block-not-found
     }
 
-    /// Errors that can occur when posting transactions.
-    enum txn-error {
-        blockchain-not-available, // The blockchain requested is not available.
-        malformed-transaction, // The transaction is not well formed, and can not be posted.
-        post-txn-not-allowed // Posting transactions is not allowed, nothing sent to blockchain.
+    /// Errors that can happen for transaction.
+    enum transaction-error {
+        /// Transaction not found
+        txn-not-found
     }
 
-    /// Options used to unsubscribe from the blockchain data flow.
-    flags unsubscribe-options {
-        block,  // Stop receiving block data
-        transaction, // Stop receiving txn data
-        rollback, // Stop receiving rollback data
-        stop // stop the blockchain fetching process altogether.
+    /// Cardano network
+    resource network {
+        /// Create a new Cardano network instance.
+        ///
+        /// **Parameters**
+        ///
+        /// - `network`: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).
+        /// 
+        /// **Returns**
+        /// 
+        /// - `ok(network)`: A resource network, if successfully create network resource.
+        /// - `error(create-network-error)`: If creating network resource failed.
+        new: static func(network: cardano-network) -> result<network, create-network-error>;
+
+        /// Subscribe to blockchain block events, start from a specified starting point.
+        ///
+        /// This sets up a subscription to receive new block and block rollback updates starting from the
+        /// given `start`.
+        ///
+        /// **Parameters**
+        ///
+        /// - `start`: The slot to begin following from.
+        ///
+        /// **Returns**
+        ///
+        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
+        ///              resource. this subscription. Use to distinguishes events from different subscribers
+        ///              and provides control over subscription management.The ID must be unique across all 
+        ///              active subscriptions.
+        /// - `error(subscribe-error)`: If subscription failed.
+        subscribe-block: func(start: sync-slot) -> result<u32, subscribe-error>;
+
+        /// Subscribe to blockchain immutable rolls forward.
+        ///
+        /// This sets up a subscription to receive event when the immutable part of the blockchain
+        /// roll forwards.
+        /// 
+        /// **Parameters**
+        ///
+        /// - `start`: The slot to begin following from.
+        /// 
+        /// **Returns**
+        /// 
+        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
+        ///              resource. this subscription. Use to distinguishes events from different subscribers
+        ///              and provides control over subscription management.The ID must be unique across all 
+        ///              active subscriptions.
+        /// - `error(subscribe-error)`: If subscription failed.
+        subscribe-immutable-roll-forward: func(start: sync-slot) -> result<u32, subscribe-error>;
+
+        /// Get a block relative to `start` by `step`.
+        ///
+        /// **Parameters**
+        /// - `start`: Slot to begin retrieval from, current tip if `None`.
+        /// - `step` 
+        ///     -`0` : the block at `start`, will return `None` if there is no block exactly at this `start` slot.   
+        ///     -`+n`: the `n`‑th block *after* the given `start` slot.  
+        ///     –`‑n`: the `n`‑th block *before* the given `start` slot.  
+        ///  
+        /// Note: For both `+n` and `-n`, the `start` does not need to be a true block.  
+        /// They will return the block which appears at this block offset, given the arbitrary start point.  
+        /// IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.  
+        ///  
+        /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:  
+        ///     - `start = 100, step = 0` -> 100 (Exact match)
+        ///     - `start = 100, step = 2` -> 300 (Skips 200)
+        ///     - `start = 150, step = 1` -> 200 (Rounds up from 150)
+        ///     - `start = 200, step = 1` -> 300 (Forward iteration)
+        ///     - `start = 300, step = -2` -> 100 (Skips 200)
+        ///     - `start = 250, step = -2` -> 100 (Rounds down to 200 first)
+        /// 
+        /// **Returns**
+        /// 
+        /// - Returns a `block` resource, `None` if block cannot be retrieved.
+        get-block: func(start: option<slot>, step: s64) -> option<block>;
+
+        /// Retrieve the current tips of the blockchain.
+        ///
+        /// **Returns**
+        ///
+        /// - A tuple of two slots:
+        ///   - The immutable tip.
+        ///   - The mutable tip.
+        /// `None` if the tips cannot be retrieved.
+        get-tips: func() -> option<tuple<slot, slot>>;
     }
 
+    /// Cardano block
+    resource block {
+        /// Returns whether the block is part of the immutable section of the chain.
+        ///
+        /// **Returns**
+        ///
+        /// - `true` if the block is in the immutable part.
+        /// - `false` if the block is in the mutable part.
+        is-immutable: func() -> bool;
 
-    /// Subscribe to the Blockchain block data.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to fetch block from, and subscribe to.
-    /// - `whence`: Where to start fetching blocks from.
-    ///
-    /// **Returns**
-    ///
-    /// - `ok(u64)` : The slot we are synching from now.
-    /// - `error(fetch-error)` : If an error occured.
-    ///
-    /// **Notes**
-    ///
-    /// If the blockchain is not yet syncing, it will start, from the requested slot.
-    /// If the blockchain is not yet syncing, and `whence` == `continue` then the blockchain will
-    /// not be synced from, the calling module will only be subscribed for block events.
-    ///
-    /// If the blockchain is already syncing, the sync will stop and restart, unless `whence` == `continue`.
-    /// When `whence` == `continue` the blockchain will keep syncing from where it is at, and this module
-    /// will be subscribed to block updates.
-    ///
-    /// `whence` == `stop` will prevent the blockchain syncing, and the caller will be unsubscribed.
-    ///
-    ///
-    subscribe-blocks: func (net: cardano-blockchain-id, whence: slot) -> result<u64, fetch-error>;
+        /// Returns whether the block is the first block of a rollback.  
+        ///  
+        /// **Returns**  
+        ///  
+        /// - `ok(bool)` True if the block is the first block of a rollback,
+        ///              otherwise, False.  
+        /// - `error(block-error)`: If block cannot be retrieved.
+        is-rollback: func() -> result<bool, block-error>;
 
-    /// Unsubscribe from the blockchain events listed.
-    ///
-    /// **Parameters**
-    ///
-    /// - `opts` : The events to unsubscribe from (and optionally stop the blockchain follower).
-    ///
-    /// **Notes**
-    ///
-    /// This only unsubscribes from the events.
-    /// The option `stop` MUST be set to actually stop fetching data from the blockchain once started.
-    ///
-    /// `stop` can be set without unsubscribing, and this will interrupt the flow of blockchain data.
-    /// After `stop`,  `subscribe-blocks(?, continue)` would cause blockchain sync to continue from
-    /// the last block received.  This would result in the last block being sent as an event twice,
-    /// once before the `stop` and once after the `continue`.
-    unsubscribe: func(net: cardano-blockchain-id, opts: unsubscribe-options);
+        /// Retrieves a transaction at the specified index within the block.
+        ///
+        /// **Parameters**
+        ///
+        /// - `index` : The index of the transaction to retrieve.
+        ///
+        /// **Returns**
+        ///
+        /// - `ok(transaction)` : A `transaction` resource at the given index
+        /// - `error(transaction-error)`: If a transaction data does not exist in the block at the given index.
+        get-txn: func(index: txn-idx) -> result<transaction, transaction-error>;
 
-    /// Subscribe to transaction data events, does not alter the blockchain sync in anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    ///
-    subscribe-txn: func (net: cardano-blockchain-id);
+        /// Retrieves the slot number that this block belongs to.
+        ///
+        /// **Returns**
+        ///
+        /// - `slot` : The slot number of the block.
+        get-slot: func() -> slot;
 
-    /// Subscribe to blockchain rollback events, does not alter the blockchain sync in anyway.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain network to subscribe to txn events from.
-    ///
-    /// **Notes**
-    ///
-    /// After a rollback event, the blockchain sync will AUTOMATICALLY start sending block
-    /// data from the rollback point.  No action is required to actually follow the rollback, unless the
-    /// default behavior is not desired.
-    subscribe-rollback: func (net: cardano-blockchain-id);
+        /// Returns the raw CBOR representation of the block.
+        ///
+        /// **Returns**
+        ///
+        /// - `cbor` : The CBOR format of the block.
+        raw: func() -> cbor;
+    }
 
-    /// Fetch a block from the requested blockchain at the requested slot.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net`    : The blockchain network to get a block from.
-    /// - `whence` : Which block to get.
-    ///
-    /// **Returns**
-    ///
-    /// - `cardano-block` : The block requested.
-    /// - `fetch-error` : An error if the block can not be fetched.
-    ///
-    /// **Notes**
-    ///
-    /// Fetching a block does not require the blockchain to be subscribed, or for blocks to be
-    /// being followed and generating events.
-    /// It also will not alter the automatic fetching of blocks in any way, and happens in parallel
-    /// to automated block fetch.
-    ///
-    fetch-block: func (net: cardano-blockchain-id, whence: slot) -> result<cardano-block, fetch-error>;
+    /// Cardano transaction
+    resource transaction {
+        /// Returns the transaction auxiliary metadata in CBOR format.
+        ///
+        /// **Parameters**
+        ///
+        /// - `label`: A metadata label used as a key to get the associated metadata.
+        /// 
+        /// **Returns**
+        ///
+        /// - `option<cbor>` : The CBOR format of the metadata, `None` if the label requested is not present.
+        get-metadata: func(label: u64) -> option<cbor>;
 
-    /// Get transactions from a block.
-    ///
-    /// This can be used to easily extract all transactions from a complete block.
-    ///
-    /// **Parameters**
-    ///
-    /// - `block` : The blockchain data to extract transactions from.
-    ///
-    /// **Returns**
-    ///
-    /// - a list of all transactions in the block, in the order they appear in the block.
-    ///
-    /// **Notes**
-    ///
-    /// This function exists to support `fetch-block`.
-    /// Transactions from subscribed block events, should be processed as transaction events.
-    ///
-    get-txns: func (block: cardano-block) -> list<cardano-txn>;
 
-    /// Post a transactions to the blockchain.
-    ///
-    /// This can be used to post a pre-formed transaction to the required blockchain.
-    ///
-    /// **Parameters**
-    ///
-    /// - `net` : The blockchain to post the transaction to.
-    /// - `txn` : The transaction data, ready to submit.
-    ///
-    /// **Returns**
-    ///
-    /// - An error if the transaction can not be posted.
-    ///
-    /// **Notes**
-    ///
-    /// This is proposed functionality, and is not yet active.
-    /// All calls to this function will return `post-txn-not-allowed` error.
-    ///
-    post-txn: func (net: cardano-blockchain-id, txn: cardano-txn) -> result<_, txn-error>;
-}
+        /// Returns the transaction hash.
+        ///
+        /// **Returns**
+        /// 
+        /// - `option<txn-hash>` : Cardano transaction hash - Blake2b-256, `None` if cannot retrieve the transaction hash.
+        get-txn-hash: func() -> option<txn-hash>;
 
-/// World just for the Hermes 'json' API.
-world cardano-api {
-    import api;
+        /// Returns the raw CBOR representation of the transaction.
+        /// 
+        /// **Returns**
+        ///
+        /// - `option<cbor>` : The CBOR format of the transaction, `None` if cannot retrieve the raw transaction.
+        raw: func() -> option<cbor>;
+    }
+
+    resource subscription-id {
+        /// Returns the network that this subscription is in.
+        /// 
+        /// **Returns**
+        /// 
+        /// - `cardano-network` : The Cardano network that this subscription is in.
+        get-network: func() -> cardano-network;
+
+                
+        /// Unsubscribing block event of this `subscription-id` instance.
+        /// Once this function is called, the subscription instance, `subscription-id` will be removed.
+        unsubscribe: func();
+    }
 }

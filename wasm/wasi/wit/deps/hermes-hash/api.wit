@@ -9,8 +9,11 @@
 /// Hashing API Interface - Imports ONLY
 interface api {
     /// Get the `bstr` type from the `hermes:binary` module.
-    use hermes:binary/api.{bstr};
+    use hermes:binary/api.{bstr, b256};
 
+    /// A 256-bit (32-byte) cryptographic hash value produced by the BLAKE2b hash function.
+    type blake2b256 = b256;
+ 
     //  Errors that can occur during hashing.
     enum errno {
         key-too-big,  // The key exceeds the supported size of the hash function.

@@ -1,5 +1,5 @@
-use hermes::exports::hermes::integration_test::event::TestResult;
 use hermes::exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse};
+use hermes::exports::hermes::integration_test::event::TestResult;
 
 mod hermes;
 mod tests;
@@ -24,29 +24,18 @@ impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
     }
 }
 
-impl hermes::exports::hermes::cardano::event_on_txn::Guest for TestComponent {
-    fn on_cardano_txn(
-        _blockchain: hermes::exports::hermes::cardano::event_on_txn::CardanoBlockchainId,
-        _slot: u64,
-        _txn_index: u32,
-        _txn: hermes::exports::hermes::cardano::event_on_txn::CardanoTxn,
+impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
+    fn on_cardano_immutable_roll_forward(
+        _subscription_id: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        _block: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
     ) {
     }
 }
 
 impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
     fn on_cardano_block(
-        _blockchain: hermes::exports::hermes::cardano::event_on_block::CardanoBlockchainId,
-        _block: hermes::exports::hermes::cardano::event_on_block::CardanoBlock,
-        _source: hermes::exports::hermes::cardano::event_on_block::BlockSrc,
-    ) {
-    }
-}
-
-impl hermes::exports::hermes::cardano::event_on_rollback::Guest for TestComponent {
-    fn on_cardano_rollback(
-        _blockchain: hermes::exports::hermes::cardano::event_on_rollback::CardanoBlockchainId,
-        _slot: u64,
+        _subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
+        _block: &hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
     }
 }
@@ -85,8 +74,6 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
     }
 }
 
-
-
 impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
     fn reply(
         _body: Bstr,
@@ -107,7 +94,7 @@ impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
 }
 
 impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
-    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
+    fn on_http_response(_request_id: Option<u64>, _response: Vec<u8>) -> () {}
 }
 
 hermes::export!(TestComponent with_types_in hermes);

@@ -18,12 +18,7 @@ use std::fs;
 
 use bindings::{
     exports::hermes::http_gateway::event::{Headers, HttpGatewayResponse},
-    hermes::{
-        binary::api::Bstr,
-        cardano::api::{BlockSrc, CardanoBlock, CardanoBlockchainId, CardanoTxn},
-        cron::api::CronTagged,
-        ipfs::api::PubsubMessage,
-    },
+    hermes::{binary::api::Bstr, cron::api::CronTagged, ipfs::api::PubsubMessage},
     wasi::http::types::{IncomingRequest, ResponseOutparam},
 };
 use url::Url;
@@ -41,18 +36,18 @@ impl bindings::exports::hermes::ipfs::event::Guest for HttpRequestApp {
 }
 
 impl bindings::exports::hermes::cardano::event_on_block::Guest for HttpRequestApp {
-    fn on_cardano_block(_blockchain: CardanoBlockchainId, _block: CardanoBlock, _source: BlockSrc) {
+    fn on_cardano_block(
+        _subscription_id: &bindings::exports::hermes::cardano::event_on_block::SubscriptionId,
+        _block: &bindings::exports::hermes::cardano::event_on_block::Block,
+    ) -> () {
     }
 }
 
-impl bindings::exports::hermes::cardano::event_on_rollback::Guest for HttpRequestApp {
-    fn on_cardano_rollback(_blockchain: CardanoBlockchainId, _slot: u64) {}
-}
-
-impl bindings::exports::hermes::cardano::event_on_txn::Guest for HttpRequestApp {
-    fn on_cardano_txn(
-        _blockchain: CardanoBlockchainId, _slot: u64, _txn_index: u32, _txn: CardanoTxn,
-    ) {
+impl bindings::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for HttpRequestApp {
+    fn on_cardano_immutable_roll_forward(
+        _subscription_id: &bindings::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        _block: &bindings::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
+    ) -> () {
     }
 }
 

@@ -1,10 +1,8 @@
 package main
 
 import (
-	cardano "hermes-golang-app-test/binding/hermes/cardano/api"
 	cardano_event_on_block "hermes-golang-app-test/binding/hermes/cardano/event-on-block"
-	cardano_event_on_rollback "hermes-golang-app-test/binding/hermes/cardano/event-on-rollback"
-	cardano_event_on_txn "hermes-golang-app-test/binding/hermes/cardano/event-on-txn"
+	cardano_event_on_immutable_roll_forward "hermes-golang-app-test/binding/hermes/cardano/event-on-immutable-roll-forward"
 	cron "hermes-golang-app-test/binding/hermes/cron/event"
 	http_gateway "hermes-golang-app-test/binding/hermes/http-gateway/event"
 	http_request "hermes-golang-app-test/binding/hermes/http-request/event"
@@ -30,13 +28,12 @@ func (t TestModule) Bench(test uint32, run bool) cm.Option[int_test.TestResult] 
 	return cm.None[int_test.TestResult]()
 }
 
-func (t TestModule) OnCardanoTxn(blockchain cardano.CardanoBlockchainID, slot uint64, txnIndex uint32, txn cardano.CardanoTxn) {
+func (t TestModule) OnCardanoBlock(subscription_id cm.Rep, block cm.Rep) {
 }
 
-func (t TestModule) OnCardanoRollback(blockchain cardano.CardanoBlockchainID, slot uint64) {
+func (t TestModule) OnCardanoImmutableRollForward(subscription_id cm.Rep, block cm.Rep) {
 }
-func (t TestModule) OnCardanoBlock(blockchain cardano.CardanoBlockchainID, block cardano.CardanoBlock, source cardano.BlockSrc) {
-}
+
 func (t TestModule) OnCron(event cron.CronTagged, last bool) bool {
 	return true
 }
@@ -66,8 +63,7 @@ func init() {
 	int_test.Exports.Test = module.Test
 	int_test.Exports.Bench = module.Bench
 	cardano_event_on_block.Exports.OnCardanoBlock = module.OnCardanoBlock
-	cardano_event_on_rollback.Exports.OnCardanoRollback = module.OnCardanoRollback
-	cardano_event_on_txn.Exports.OnCardanoTxn = module.OnCardanoTxn
+	cardano_event_on_immutable_roll_forward.Exports.OnCardanoImmutableRollForward = module.OnCardanoImmutableRollForward
 	cron.Exports.OnCron = module.OnCron
 	init_event.Exports.Init = module.Init
 	ipfs.Exports.OnTopic = module.OnTopic

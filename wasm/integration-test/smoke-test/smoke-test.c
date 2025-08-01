@@ -6,17 +6,12 @@ void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handle
 }
 
 // Exported Functions from `hermes:cardano/event-on-block`
-void exports_hermes_cardano_event_on_block_on_cardano_block(exports_hermes_cardano_event_on_block_cardano_blockchain_id_t blockchain, exports_hermes_cardano_event_on_block_cardano_block_t *block, exports_hermes_cardano_event_on_block_block_src_t source)
+void exports_hermes_cardano_event_on_block_on_cardano_block(exports_hermes_cardano_event_on_block_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_block_borrow_block_t block)
 {
 }
 
-// Exported Functions from `hermes:cardano/event-on-txn`
-void exports_hermes_cardano_event_on_txn_on_cardano_txn(exports_hermes_cardano_event_on_txn_cardano_blockchain_id_t blockchain, uint64_t slot, uint32_t txn_index, exports_hermes_cardano_event_on_txn_cardano_txn_t *txn)
-{
-}
-
-// Exported Functions from `hermes:cardano/event-on-rollback`
-void exports_hermes_cardano_event_on_rollback_on_cardano_rollback(exports_hermes_cardano_event_on_rollback_cardano_blockchain_id_t blockchain, uint64_t slot)
+// Exported Functions from `hermes:cardano/event-on-immutable-roll-forward`
+void exports_hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(exports_hermes_cardano_event_on_immutable_roll_forward_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_immutable_roll_forward_borrow_block_t block)
 {
 }
 
