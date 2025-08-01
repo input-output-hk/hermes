@@ -21,6 +21,9 @@
 #   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: catfact.ninja)
 #   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /fact)
 
+default:
+    @just --list --unsorted
+
 # Build the Hermes binary in release mode using Earthly
 #
 # This target compiles the core Hermes WASM application engine located in the parent
