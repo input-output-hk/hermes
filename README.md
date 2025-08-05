@@ -11,8 +11,8 @@ sandboxed execution of modular applications.
 
    ## GitHub Token Setup
 
-   * Go to [github.com/settings/tokens](https://github.com/settings/tokens) 
-   * Generate new classic token with + permissions 
+   * Go to [github.com/settings/tokens](https://github.com/settings/tokens)
+   * Generate new classic token with + permissions
    * Add to .secret file.
 
 1. **Install Just command runner**:

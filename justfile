@@ -17,6 +17,11 @@
 #   just get-local-athena     # Build & package WASM modules
 #   just run-athena       # Run the application
 #
+# File Formats:
+#   .happ - Hermes Application Package (complete application bundle)
+#   .hmod - Hermes Module Package (individual WASM component with manifest)
+#   .hfs  - Hermes File System state files (runtime cache and temporary data)
+#
 # Environment Variables:
 #   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: catfact.ninja)
 #   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /fact)
@@ -67,16 +72,16 @@ get-local-hermes:
 # This target performs the complete build pipeline for the Athena application:
 #   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
 #   2. Compiles HTTP proxy module to WASM using wasm32-wasip2 target
-#   3. Packages the WASM module with its manifest and configuration
+#   3. Packages the WASM module with its manifest and configuration (.hmod file)
 #   4. Creates the final application package (.happ file)
 #
 # Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Module → Package Application
+#   Generate WIT Bindings → Compile to WASM → Package Module (.hmod) → Package Application (.happ)
 #
 # Components Built:
 #   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
-#   - Module Package: Individual WASM component with manifest
-#   - Application Package: Complete application bundle ready for deployment
+#   - Module Package: Individual WASM component with manifest (.hmod format)
+#   - Application Package: Complete application bundle ready for deployment (.happ format)
 #
 # Output Files:
 #   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
@@ -100,16 +105,18 @@ get-local-athena:
     echo "📦 Packaging module with Hermes CLI..."
     echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
 
-    # Step 2: Package the WASM module with its configuration
+    # Step 2: Package the WASM module with its configuration into .hmod format
+    # The .hmod file contains the WASM binary, manifest, and metadata for the module
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    echo "✅ Module packaging complete"
+    echo "✅ Module packaging complete (.hmod file created)"
 
     echo "📦 Packaging application bundle..."
     echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
 
-    # Step 3: Create final application package
+    # Step 3: Create final application package (.happ file)
+    # The .happ file bundles all modules and application-level configuration
     target/release/hermes app package hermes/apps/athena/manifest_app.json
-    echo "✅ Application packaging complete"
+    echo "✅ Application packaging complete (.happ file created)"
 
     echo "🎉 Build and packaging complete!"
     echo "📦 Application package: hermes/apps/athena/app.happ"
