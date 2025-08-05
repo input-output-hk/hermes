@@ -2,20 +2,21 @@
 
 <!-- markdownlint-disable MD029 -->
 
-# Hermes
-
 Hermes is a high-performance WebAssembly (WASM) application engine that provides secure,
 sandboxed execution of modular applications.
 
 ## Quick Start
 
 0. **Github token**:
+
    ## GitHub Token Setup
+
    * Go to [github.com/settings/tokens](https://github.com/settings/tokens) 
    * Generate new classic token with + permissions 
    * Add to .secret file.
 
 1. **Install Just command runner**:
+
    ```bash
    cargo install just
    # Or: sudo apt install just
@@ -23,11 +24,13 @@ sandboxed execution of modular applications.
    ```
 
 2. **See all available commands and documentation**:
+
    ```bash
    just --list
    ```
 
 3. **Build and run everything**:
+
    ```bash
    just build-run-all
    ```
@@ -43,9 +46,9 @@ or `just --show <command>` to see detailed documentation for any specific comman
 
 ## Key Commands
 
-- `just build-run-all` - Complete workflow (recommended for first-time users)
-- `just status` - Show current build status and configuration
-- `just --help` - Just command help
+* `just build-run-all` - Complete workflow (recommended for first-time users)
+* `just status` - Show current build status and configuration
+* `just --help` - Just command help
 
 For everything else - architecture, prerequisites, configuration,
 troubleshooting, development workflows - see the justfile documentation
