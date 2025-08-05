@@ -1,5 +1,8 @@
 use crate::{hermes::*, HttpProxyComponent};
 
+use crate::hermes::exports::hermes::cardano::event_on_immutable_roll_forward;
+use crate::hermes::exports::hermes::cardano::event_on_block;
+
 impl exports::hermes::integration_test::event::Guest for HttpProxyComponent {
     fn test(
         _test: u32, _run: bool,
@@ -16,16 +19,16 @@ impl exports::hermes::integration_test::event::Guest for HttpProxyComponent {
 
 impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for HttpProxyComponent {
     fn on_cardano_immutable_roll_forward(
-        _subscription_id: &hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        _block: &hermes::cardano::event_on_immutable_roll_forward::Block,
+        _subscription_id: &event_on_immutable_roll_forward::SubscriptionId,
+        _block: &event_on_immutable_roll_forward::Block,
     ) {
     }
 }
 
 impl exports::hermes::cardano::event_on_block::Guest for HttpProxyComponent {
     fn on_cardano_block(
-        _subscription_id: &hermes::cardano::event_on_block::SubscriptionId,
-        _block: &hermes::cardano::event_on_block::Block,
+        _subscription_id: &event_on_block::SubscriptionId,
+        _block: &event_on_block::Block,
     ) {
     }
 }

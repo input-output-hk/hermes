@@ -39,8 +39,8 @@ build-hermes:
     # Use minimal Alpine Linux base image for lightweight container
     FROM alpine:latest
     
-    # Copy the pre-compiled Hermes binary from the parent build context
-    # This assumes the main Hermes project has already been built using its own Earthfile
+    # Copy the Hermes binary from the parent build context
+    # The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built
     COPY ../../../../hermes+build/hermes ./hermes
     
     # Export the binary to local filesystem for justfile usage
@@ -48,6 +48,10 @@ build-hermes:
     SAVE ARTIFACT hermes AS LOCAL ./hermes
 
 # WebAssembly Interface Bindings Generation
+# HTTP Proxy WASM Module Build (Local Development)
+# ================================================
+# Compiles the HTTP proxy Rust code into a WebAssembly module for local development use.
+# This target saves artifacts locally for packaging workflows.
 # ==========================================
 # Generates Rust binding code from WebAssembly Interface Types (WIT) files.
 # WIT files define the interfaces between WASM components and the host runtime.
@@ -117,46 +121,35 @@ gen-bindings:
 # Optimization: Release mode with size optimizations (opt-level = "z", lto = true)
 # Output: http_proxy.wasm - Executable WebAssembly module
 # Duration: ~3-5 minutes (Rust compilation to WASM)
-build-http-proxy:
+local-build-http-proxy:
     # Initialize the Rust CI environment with pre-configured toolchain
-    # This includes: Rust compiler, Cargo, wasm32-wasip2 target, and build tools
     DO rust-ci+SETUP
 
     # Set working directory for build process
     WORKDIR /app
     
     # Copy source code and project configuration
-    # --keep-ts preserves timestamps for better caching
-    # --dir copies entire directory structure
     COPY --keep-ts --dir http-proxy/src .
     COPY http-proxy/Cargo.toml .
     
     # Integrate generated WIT bindings into the build
-    # This makes Hermes APIs available to the Rust source code
-    # NOTE: Same bindings used by all modules - promotes consistency
     COPY +gen-bindings/hermes.rs src/hermes.rs
     
     # Copy module configuration and metadata files
-    # These define the module's capabilities, permissions, and runtime configuration
-    COPY http-proxy/lib/config.schema.json .        # Runtime configuration schema
-    COPY http-proxy/lib/manifest_module.json .      # Module metadata and dependencies  
-    COPY http-proxy/lib/metadata.json .             # Application metadata
-    COPY http-proxy/lib/settings.schema.json .      # Settings validation schema
+    COPY http-proxy/lib/config.schema.json .
+    COPY http-proxy/lib/manifest_module.json .
+    COPY http-proxy/lib/metadata.json .
+    COPY http-proxy/lib/settings.schema.json .
 
     # Compile Rust code to WebAssembly
-    # Uses the Catalyst CI Cargo wrapper for consistent build configuration
-    # --target wasm32-wasip2: WebAssembly System Interface Preview 2 target
-    # --release: Enable optimizations for production use
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/http_proxy.wasm"
 
     # Export build artifacts
-    # First export: Generic artifact name for other Earthly targets
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm http_proxy.wasm
     
-    # Second export: Save to local filesystem in expected location for packaging
-    # This places the WASM binary where the Hermes CLI expects it for module packaging
+    # Save to local filesystem in expected location for packaging
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
 # Future Module Build Targets
@@ -268,3 +261,26 @@ build-all:
 #   earthly +build-http-proxy             # Build just the HTTP proxy module
 #   earthly +build-future-auth-module     # Build authentication module (when added)
 #   earthly +gen-bindings                 # Generate shared Rust bindings
+
+# Save Local Hermes Binary for Development
+# ========================================
+# Downloads the Hermes runtime binary for local development use.
+# This target is specifically for local development and saves the binary to the local filesystem.
+#
+# The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built.
+# This ensures the binary is available without requiring manual build ordering.
+#
+# Output: ./hermes (local filesystem)
+# Duration: ~30 seconds (just copying binary from build context)
+# Usage: For local development and testing workflows
+save-local-hermes:
+    # Use minimal Alpine Linux base image for lightweight container
+    FROM scratch
+    
+    # Copy the Hermes binary from the parent build context
+    # The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built
+    COPY ../../../../hermes+build/hermes ./hermes
+    
+    # Save the binary to local filesystem for development use
+    # This makes it available at ./hermes in the calling directory
+    SAVE ARTIFACT hermes AS LOCAL ./hermes
