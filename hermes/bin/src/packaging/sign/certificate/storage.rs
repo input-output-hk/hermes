@@ -31,13 +31,19 @@ impl CertificateStorage {
     }
 
     /// Insert new `Certificate` into the storage.
-    fn insert(&self, certificate: Certificate) -> anyhow::Result<()> {
+    fn insert(
+        &self,
+        certificate: Certificate,
+    ) -> anyhow::Result<()> {
         self.0.insert(certificate.hash()?, certificate);
         Ok(())
     }
 
     /// Get `Certificate` from the storage.
-    fn get(&self, hash: &Blake2b256) -> Option<Certificate> {
+    fn get(
+        &self,
+        hash: &Blake2b256,
+    ) -> Option<Certificate> {
         self.0.get(hash).map(|val| val.value().clone())
     }
 }

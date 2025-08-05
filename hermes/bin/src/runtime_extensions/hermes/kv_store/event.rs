@@ -18,7 +18,10 @@ impl HermesEventPayload for KVUpdateEvent {
         "kv-update"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         module.instance.hermes_kv_store_event().call_kv_update(
             &mut module.store,
             &self.key,

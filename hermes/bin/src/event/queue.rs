@@ -100,7 +100,10 @@ pub(crate) fn shutdown(code: ExitCode) -> anyhow::Result<()> {
 }
 
 /// Executes provided Hermes event filtering by target module.
-fn targeted_module_event_execution(target_app_name: &ApplicationName, event: &HermesEvent) {
+fn targeted_module_event_execution(
+    target_app_name: &ApplicationName,
+    event: &HermesEvent,
+) {
     let Ok(app) = reactor::get_app(target_app_name) else {
         tracing::error!("Cannot get app {target_app_name} from reactor");
         return;

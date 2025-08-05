@@ -14,7 +14,10 @@ impl Host for HermesRuntimeContext {
     /// There are no requirements on the values of the returned bytes, however
     /// implementations are encouraged to return evenly distributed values with
     /// a long period.
-    fn get_insecure_random_bytes(&mut self, _len: u64) -> wasmtime::Result<Vec<u8>> {
+    fn get_insecure_random_bytes(
+        &mut self,
+        _len: u64,
+    ) -> wasmtime::Result<Vec<u8>> {
         todo!()
     }
 

@@ -23,7 +23,8 @@ impl HostSqlite for HermesRuntimeContext {
     /// If an `sqlite3` object is destroyed while a transaction is open, the transaction
     /// is automatically rolled back.
     fn close(
-        &mut self, resource: wasmtime::component::Resource<Sqlite>,
+        &mut self,
+        resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
         let app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = app_state.delete_resource(resource)?;
@@ -38,7 +39,8 @@ impl HostSqlite for HermesRuntimeContext {
     ///
     /// The numeric result code for the most recent failed `SQLite` operation.
     fn errcode(
-        &mut self, resource: wasmtime::component::Resource<Sqlite>,
+        &mut self,
+        resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
         let mut app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = app_state.get_object(&resource)?;
@@ -60,7 +62,9 @@ impl HostSqlite for HermesRuntimeContext {
     /// If there is an error or the input text contains no SQL (if the input is an empty
     /// string or a comment) then an error code is returned.
     fn prepare(
-        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
+        &mut self,
+        resource: wasmtime::component::Resource<Sqlite>,
+        sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
         let mut db_app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = db_app_state.get_object(&resource)?;
@@ -89,7 +93,9 @@ impl HostSqlite for HermesRuntimeContext {
     ///
     /// - `sql`: SQL statement, UTF-8 encoded.
     fn execute(
-        &mut self, resource: wasmtime::component::Resource<Sqlite>, sql: String,
+        &mut self,
+        resource: wasmtime::component::Resource<Sqlite>,
+        sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
         let mut app_state = get_db_state().get_app_state(self.app_name())?;
         let db_ptr = app_state.get_object(&resource)?;
@@ -97,7 +103,10 @@ impl HostSqlite for HermesRuntimeContext {
         Ok(core::execute(*db_ptr as *mut _, sql.as_str()))
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Sqlite>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<Sqlite>,
+    ) -> wasmtime::Result<()> {
         let app_state = get_db_state().get_app_state(self.app_name())?;
         if let Ok(db_ptr) = app_state.delete_resource(rep) {
             let _ = core::close(db_ptr as *mut _);

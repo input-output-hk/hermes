@@ -64,7 +64,7 @@ pub(crate) fn array_u8_64_to_tuple(array: &[u8; 64]) -> (u64, u64, u64, u64, u64
 
 /// Convert a tuple of u64 values to a 64 bytes array.
 pub(crate) fn b512_u64_tuple_to_u8_array(
-    tuple: &(u64, u64, u64, u64, u64, u64, u64, u64),
+    tuple: &(u64, u64, u64, u64, u64, u64, u64, u64)
 ) -> [u8; 64] {
     let mut bytes = [0u8; 64];
     let (t1, t2, t3, t4, t5, t6, t7, t8) = tuple;

@@ -13,7 +13,10 @@ impl HermesEventPayload for OnHttpResponseEvent {
         "on-http-response"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         module
             .instance
             .hermes_http_request_event()

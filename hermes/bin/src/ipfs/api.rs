@@ -10,7 +10,8 @@ use crate::{
 
 /// Add File to IPFS
 pub(crate) fn hermes_ipfs_add_file(
-    app_name: &ApplicationName, contents: IpfsFile,
+    app_name: &ApplicationName,
+    contents: IpfsFile,
 ) -> Result<IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
@@ -22,7 +23,8 @@ pub(crate) fn hermes_ipfs_add_file(
 
 /// Validate IPFS Content from DHT or `PubSub`
 pub(crate) fn hermes_ipfs_content_validate(
-    app_name: &ApplicationName, content: &IpfsContent,
+    app_name: &ApplicationName,
+    content: &IpfsContent,
 ) -> bool {
     match content {
         IpfsContent::Dht((k, v)) => {
@@ -41,7 +43,8 @@ pub(crate) fn hermes_ipfs_content_validate(
 
 /// Get File from Ipfs
 pub(crate) fn hermes_ipfs_get_file(
-    app_name: &ApplicationName, path: &IpfsPath,
+    app_name: &ApplicationName,
+    path: &IpfsPath,
 ) -> Result<IpfsFile, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
@@ -52,7 +55,8 @@ pub(crate) fn hermes_ipfs_get_file(
 
 /// Pin IPFS File
 pub(crate) fn hermes_ipfs_pin_file(
-    app_name: &ApplicationName, path: &IpfsPath,
+    app_name: &ApplicationName,
+    path: &IpfsPath,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "pin IPFS file");
@@ -64,7 +68,8 @@ pub(crate) fn hermes_ipfs_pin_file(
 
 /// Un-pin IPFS File
 pub(crate) fn hermes_ipfs_unpin_file(
-    app_name: &ApplicationName, path: &IpfsPath,
+    app_name: &ApplicationName,
+    path: &IpfsPath,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, path = %path, "un-pin IPFS file");
@@ -76,7 +81,8 @@ pub(crate) fn hermes_ipfs_unpin_file(
 
 /// Get DHT Value
 pub(crate) fn hermes_ipfs_get_dht_value(
-    app_name: &ApplicationName, key: DhtKey,
+    app_name: &ApplicationName,
+    key: DhtKey,
 ) -> Result<DhtValue, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let key_str = format!("{key:x?}");
@@ -88,7 +94,9 @@ pub(crate) fn hermes_ipfs_get_dht_value(
 
 /// Put DHT Value
 pub(crate) fn hermes_ipfs_put_dht_value(
-    app_name: &ApplicationName, key: DhtKey, value: DhtValue,
+    app_name: &ApplicationName,
+    key: DhtKey,
+    value: DhtValue,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let key_str = format!("{key:x?}");
@@ -101,7 +109,8 @@ pub(crate) fn hermes_ipfs_put_dht_value(
 
 /// Subscribe to a topic
 pub(crate) fn hermes_ipfs_subscribe(
-    app_name: &ApplicationName, topic: PubsubTopic,
+    app_name: &ApplicationName,
+    topic: PubsubTopic,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
@@ -119,7 +128,9 @@ pub(crate) fn hermes_ipfs_subscribe(
 
 /// Publish message to a topic
 pub(crate) fn hermes_ipfs_publish(
-    _app_name: &ApplicationName, topic: &PubsubTopic, message: MessageData,
+    _app_name: &ApplicationName,
+    topic: &PubsubTopic,
+    message: MessageData,
 ) -> Result<MessageId, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     ipfs.pubsub_publish(topic.to_string(), message)
@@ -128,7 +139,8 @@ pub(crate) fn hermes_ipfs_publish(
 
 /// Evict Peer from node
 pub(crate) fn hermes_ipfs_evict_peer(
-    app_name: &ApplicationName, peer: PeerId,
+    app_name: &ApplicationName,
+    peer: PeerId,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, peer_id = %peer, "evicting peer");

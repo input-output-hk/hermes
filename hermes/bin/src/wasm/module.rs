@@ -43,7 +43,10 @@ pub struct ModuleInstance {
 pub(crate) struct ModuleId(pub(crate) Ulid);
 
 impl std::fmt::Display for ModuleId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -144,7 +147,9 @@ impl Module {
     /// # Errors:
     /// - `BadWASMModuleError`
     pub(crate) fn execute_event(
-        &self, event: &dyn HermesEventPayload, state: HermesRuntimeContext,
+        &self,
+        event: &dyn HermesEventPayload,
+        state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let instance = bindings::HermesPre::new(self.pre_instance.clone())?
@@ -180,7 +185,10 @@ pub mod bench {
                 "init"
             }
 
-            fn execute(&self, instance: &mut ModuleInstance) -> anyhow::Result<()> {
+            fn execute(
+                &self,
+                instance: &mut ModuleInstance,
+            ) -> anyhow::Result<()> {
                 instance
                     .instance
                     .hermes_init_event()

@@ -66,7 +66,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Collect all the tests to run from a specified directory
-fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
+fn visit_dir(
+    path: &Path,
+    tests: &mut Vec<Trial>,
+) -> Result<(), Box<dyn Error>> {
     let args = Arguments::from_args();
 
     let n_test: u32 = env::var(ENV_N_TEST)
@@ -171,7 +174,11 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 }
 
 /// Executes a test for a wasm component.
-fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
+fn execute(
+    test_case: u32,
+    path: String,
+    event_type: EventType,
+) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
     let mut module = Module::from_bytes(&wasm_buf)?;
@@ -189,13 +196,20 @@ fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Fa
 }
 
 /// Executes a test for a wasm component.
-fn execute_test(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
+fn execute_test(
+    test_case: u32,
+    path: String,
+    event_type: EventType,
+) -> Result<(), Failed> {
     execute(test_case, path, event_type)
 }
 
 /// Executes a test for a wasm component.
 fn execute_bench(
-    test_mode: bool, test_case: u32, path: String, event_type: EventType,
+    test_mode: bool,
+    test_case: u32,
+    path: String,
+    event_type: EventType,
 ) -> Result<Option<Measurement>, Failed> {
     if test_mode {
         Ok(None)

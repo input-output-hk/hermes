@@ -20,7 +20,9 @@ impl Host for HermesRuntimeContext {
     /// If the database is opened (and/or created) successfully, then the `sqlite3` object
     /// is returned. Otherwise an error code is returned.
     fn open(
-        &mut self, readonly: bool, memory: bool,
+        &mut self,
+        readonly: bool,
+        memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {

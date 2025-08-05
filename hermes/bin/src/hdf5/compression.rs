@@ -51,7 +51,9 @@ mod tests {
     use super::*;
 
     fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
-        dir: P, package: &hdf5::Group, with_compression: bool,
+        dir: P,
+        package: &hdf5::Group,
+        with_compression: bool,
     ) -> anyhow::Result<()> {
         let dir_name = dir
             .as_ref()
