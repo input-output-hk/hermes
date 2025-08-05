@@ -79,7 +79,11 @@ impl PermissionsState {
     }
 
     /// Adds a new path to the `PermissionsTree` with the provided permission level.
-    pub(crate) fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
+    pub(crate) fn add_permission(
+        &mut self,
+        path: &str,
+        permission: PermissionLevel,
+    ) {
         let path_elements = parse_path(path);
 
         let mut walk = self.root.clone();
@@ -98,7 +102,10 @@ impl PermissionsState {
     }
 
     /// Gets the permission level for the provided path.
-    pub(crate) fn get_permission(&self, path: &str) -> PermissionLevel {
+    pub(crate) fn get_permission(
+        &self,
+        path: &str,
+    ) -> PermissionLevel {
         let mut permission: PermissionLevel = self.root.permission.load(Ordering::Acquire).into();
 
         let path_elements = parse_path(path);

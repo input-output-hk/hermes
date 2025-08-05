@@ -15,7 +15,10 @@ impl HermesEventPayload for OnTopicEvent {
         "on-topic"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let _res: bool = module
             .instance
             .hermes_ipfs_event()

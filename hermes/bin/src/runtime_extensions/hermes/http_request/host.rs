@@ -9,7 +9,10 @@ use crate::{
 };
 
 impl Host for HermesRuntimeContext {
-    fn send(&mut self, payload: Payload) -> wasmtime::Result<Result<(), ErrorCode>> {
+    fn send(
+        &mut self,
+        payload: Payload,
+    ) -> wasmtime::Result<Result<(), ErrorCode>> {
         STATE.tokio_rt_handle.send(payload)?;
 
         Ok(Ok(()))

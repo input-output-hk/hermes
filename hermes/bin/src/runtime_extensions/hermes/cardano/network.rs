@@ -49,7 +49,10 @@ impl Handle {
 /// Spawn a new thread that runs a Tokio runtime, which is used to handle
 /// a subscription to a specific network.
 pub(crate) fn spawn_subscribe(
-    app: ApplicationName, module_id: ModuleId, start: Point, network: Network,
+    app: ApplicationName,
+    module_id: ModuleId,
+    start: Point,
+    network: Network,
     subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) -> Handle {
@@ -87,8 +90,12 @@ pub(crate) fn spawn_subscribe(
 /// This function will enter a loop and await either a command to stop the
 /// subscription or a new block update from the chain follower.
 async fn subscribe(
-    mut cmd_rx: CommandReceiver, app: ApplicationName, module_id: ModuleId, start: Point,
-    network: Network, subscription_type: SubscriptionType,
+    mut cmd_rx: CommandReceiver,
+    app: ApplicationName,
+    module_id: ModuleId,
+    start: Point,
+    network: Network,
+    subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
     let mut follower = ChainFollower::new(network, start, Point::TIP).await;
@@ -179,7 +186,10 @@ impl TryFrom<CardanoNetwork> for cardano_blockchain_types::Network {
 }
 
 /// Convert `SyncSlot` to a point.
-pub(crate) fn sync_slot_to_point(slot: SyncSlot, network: Network) -> anyhow::Result<Point> {
+pub(crate) fn sync_slot_to_point(
+    slot: SyncSlot,
+    network: Network,
+) -> anyhow::Result<Point> {
     let (immutable_tip, live_tip) = get_tips(network)?;
     let immutable_tip = Point::fuzzy(immutable_tip);
     let live_tip = Point::fuzzy(live_tip);

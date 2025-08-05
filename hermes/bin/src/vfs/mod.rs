@@ -44,7 +44,10 @@ impl Vfs {
     /// Reads in data in bytes, the number of which is specified by the caller,
     /// from the hdf5 file and stores then into a buffer supplied by the calling process.
     #[allow(dead_code)]
-    pub(crate) fn read(&self, path: &str) -> anyhow::Result<Vec<u8>> {
+    pub(crate) fn read(
+        &self,
+        path: &str,
+    ) -> anyhow::Result<Vec<u8>> {
         let mut file = self.root.get_file(path.into())?;
 
         let mut buffer = Vec::new();
@@ -56,7 +59,11 @@ impl Vfs {
 
     /// Writes data from a buffer declared by the user to a hdf5 file.
     #[allow(dead_code)]
-    pub(crate) fn write(&self, path: &str, buffer: &[u8]) -> anyhow::Result<()> {
+    pub(crate) fn write(
+        &self,
+        path: &str,
+        buffer: &[u8],
+    ) -> anyhow::Result<()> {
         let permission = self.permissions.get_permission(path);
         anyhow::ensure!(
             permission == PermissionLevel::ReadAndWrite,

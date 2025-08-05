@@ -42,7 +42,10 @@ impl cli::environment::Host for HermesRuntimeContext {
 }
 
 impl cli::exit::Host for HermesRuntimeContext {
-    fn exit(&mut self, status: Result<(), ()>) -> wasmtime::Result<()> {
+    fn exit(
+        &mut self,
+        status: Result<(), ()>,
+    ) -> wasmtime::Result<()> {
         warn!("Exiting an application is not supported");
         status.map_err(|()| anyhow::anyhow!(""))
     }
@@ -61,7 +64,10 @@ impl cli::exit::Host for HermesRuntimeContext {
     /// Unstable WASI feature! Should never be linked.
     /// See details of how to handle unstable features
     /// [here](https://github.com/bytecodealliance/wasmtime/issues/8645).
-    fn exit_with_code(&mut self, status: u8) -> wasmtime::Result<()> {
+    fn exit_with_code(
+        &mut self,
+        status: u8,
+    ) -> wasmtime::Result<()> {
         self.exit(if status == 0 { Ok(()) } else { Err(()) })
     }
 }

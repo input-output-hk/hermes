@@ -49,7 +49,8 @@ pub(crate) enum IpfsCommand {
 
 /// Handle IPFS commands in asynchronous task.
 pub(crate) async fn ipfs_command_handler(
-    hermes_node: HermesIpfs, mut queue_rx: mpsc::Receiver<IpfsCommand>,
+    hermes_node: HermesIpfs,
+    mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
     while let Some(ipfs_command) = queue_rx.recv().await {
         match ipfs_command {
@@ -154,7 +155,10 @@ fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Mess
 }
 
 /// Send the response of the IPFS command
-fn send_response<T>(response: T, tx: oneshot::Sender<T>) {
+fn send_response<T>(
+    response: T,
+    tx: oneshot::Sender<T>,
+) {
     if tx.send(response).is_err() {
         tracing::error!("sending IPFS command response should not fail");
     }

@@ -24,7 +24,10 @@ impl ResourceBuilder {
     }
 
     /// Update current resource to make it relative to the given path.
-    pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
+    pub(crate) fn make_relative_to<P: AsRef<Path>>(
+        &mut self,
+        to: P,
+    ) {
         match self {
             Self::Fs(fs) =>
             {

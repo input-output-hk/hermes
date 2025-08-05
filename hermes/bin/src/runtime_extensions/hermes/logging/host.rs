@@ -58,8 +58,15 @@ impl Host for HermesRuntimeContext {
     /// Backtrace must be contained in a single `log` call.  Multiple log calls will be
     /// considered independent logs.
     fn log(
-        &mut self, level: Level, file: Option<String>, function: Option<String>, line: Option<u32>,
-        col: Option<u32>, ctx: Option<String>, msg: String, data: Option<Json>,
+        &mut self,
+        level: Level,
+        file: Option<String>,
+        function: Option<String>,
+        line: Option<u32>,
+        col: Option<u32>,
+        ctx: Option<String>,
+        msg: String,
+        data: Option<Json>,
     ) -> wasmtime::Result<()> {
         log_message(level.into(), ctx, &msg, file, function, line, col, data);
         Ok(())

@@ -32,7 +32,10 @@ impl HasData for HermesRuntimeContext {
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
-        app_name: ApplicationName, module_id: ModuleId, event_name: String, exc_counter: u32,
+        app_name: ApplicationName,
+        module_id: ModuleId,
+        event_name: String,
+        exc_counter: u32,
         vfs: Arc<Vfs>,
     ) -> Self {
         Self {

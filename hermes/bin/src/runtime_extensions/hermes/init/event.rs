@@ -10,7 +10,10 @@ impl HermesEventPayload for InitEvent {
         "init"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let _res = module
             .instance
             .hermes_init_event()

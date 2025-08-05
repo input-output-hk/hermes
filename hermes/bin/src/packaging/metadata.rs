@@ -19,18 +19,27 @@ pub(crate) struct Metadata<T> {
 }
 
 impl<T> PartialEq for Metadata<T> {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.json == other.json
     }
 }
 impl<T> Eq for Metadata<T> {}
 impl<T> Display for Metadata<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         self.json.fmt(f)
     }
 }
 impl<T> Debug for Metadata<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         self.json.fmt(f)
     }
 }
@@ -70,13 +79,19 @@ impl<T: MetadataSchema> Metadata<T> {
     }
 
     /// Set `build_date` property to the `Metadata` object.
-    pub(crate) fn set_build_date(&mut self, date: DateTime<Utc>) {
+    pub(crate) fn set_build_date(
+        &mut self,
+        date: DateTime<Utc>,
+    ) {
         self.json
             .insert("build_date".to_string(), date.timestamp().into());
     }
 
     /// Set `name` property to the `Metadata` object.
-    pub(crate) fn set_name(&mut self, name: &str) {
+    pub(crate) fn set_name(
+        &mut self,
+        name: &str,
+    ) {
         self.json.insert("name".to_string(), name.into());
     }
 }

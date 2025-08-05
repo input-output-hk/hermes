@@ -76,7 +76,7 @@ pub(crate) struct ConnectionManager {
 impl ConnectionManager {
     /// Get connection context
     pub fn get_connection_manager_context(
-        &self,
+        &self
     ) -> &Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>> {
         &self.connection_context
     }

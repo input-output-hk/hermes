@@ -32,7 +32,8 @@ impl HostNetwork for HermesRuntimeContext {
     /// - `ok(network)`: A resource network, if successfully create network resource.
     /// - `error(create-network-error)`: If creating network resource failed.
     fn new(
-        &mut self, network: CardanoNetwork,
+        &mut self,
+        network: CardanoNetwork,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Network>, CreateNetworkError>> {
         let network: cardano_blockchain_types::Network = match network.try_into() {
             Ok(n) => n,
@@ -75,7 +76,9 @@ impl HostNetwork for HermesRuntimeContext {
     ///   must be unique across all active subscriptions.
     /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_block(
-        &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
+        &mut self,
+        self_: wasmtime::component::Resource<Network>,
+        start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
         let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
         let network = network_app_state.get_object(&self_)?;
@@ -122,7 +125,9 @@ impl HostNetwork for HermesRuntimeContext {
     ///   must be unique across all active subscriptions.
     /// - `error(subscribe-error)`: If subscription failed.
     fn subscribe_immutable_roll_forward(
-        &mut self, self_: wasmtime::component::Resource<Network>, start: SyncSlot,
+        &mut self,
+        self_: wasmtime::component::Resource<Network>,
+        start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
         let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
         let network = network_app_state.get_object(&self_)?;
@@ -179,7 +184,10 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     ///  - Returns a `block` resource, `None` if block cannot be retrieved.
     fn get_block(
-        &mut self, self_: wasmtime::component::Resource<Network>, start: Option<Slot>, step: i64,
+        &mut self,
+        self_: wasmtime::component::Resource<Network>,
+        start: Option<Slot>,
+        step: i64,
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
@@ -203,7 +211,8 @@ impl HostNetwork for HermesRuntimeContext {
     ///     - The immutable tip.
     ///     - The mutable tip. `None` if the tips cannot be retrieved.
     fn get_tips(
-        &mut self, self_: wasmtime::component::Resource<Network>,
+        &mut self,
+        self_: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
@@ -217,7 +226,10 @@ impl HostNetwork for HermesRuntimeContext {
         Ok(Some((immutable_tip.into(), mutable_tip.into())))
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Network>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<Network>,
+    ) -> wasmtime::Result<()> {
         // Remove from resource manager
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
         let network = *app_state.get_object(&rep)?;
@@ -237,7 +249,8 @@ impl HostBlock for HermesRuntimeContext {
     /// - `true` if the block is in the immutable part.
     /// - `false` if the block is in the mutable part.
     fn is_immutable(
-        &mut self, self_: wasmtime::component::Resource<Block>,
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<bool> {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
         let block = app_state.get_object(&self_)?;
@@ -251,7 +264,8 @@ impl HostBlock for HermesRuntimeContext {
     /// - `ok(bool)` True if the block is the first block of a rollback, otherwise, False.
     /// - `error(block-error)`: If block cannot be retrieved.
     fn is_rollback(
-        &mut self, self_: wasmtime::component::Resource<Block>,
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Result<bool, BlockError>> {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
         let block = app_state.get_object(&self_)?;
@@ -274,7 +288,9 @@ impl HostBlock for HermesRuntimeContext {
     /// - `error(transaction-error)`: If a transaction data does not exist in the block at
     ///   the given index.
     fn get_txn(
-        &mut self, self_: wasmtime::component::Resource<Block>, index: TxnIdx,
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
+        index: TxnIdx,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Transaction>, TransactionError>>
     {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
@@ -294,7 +310,10 @@ impl HostBlock for HermesRuntimeContext {
     /// **Returns**
     ///
     /// - `slot` : The slot number of the block.
-    fn get_slot(&mut self, self_: wasmtime::component::Resource<Block>) -> wasmtime::Result<Slot> {
+    fn get_slot(
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<Slot> {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
         let block = app_state.get_object(&self_)?;
         Ok(block.slot().into())
@@ -305,13 +324,19 @@ impl HostBlock for HermesRuntimeContext {
     /// **Returns**
     ///
     /// - `cbor` : The CBOR format of the block.
-    fn raw(&mut self, self_: wasmtime::component::Resource<Block>) -> wasmtime::Result<Cbor> {
+    fn raw(
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<Cbor> {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
         let block = app_state.get_object(&self_)?;
         Ok(block.raw().clone())
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Block>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<()> {
         let app_state = STATE.block.get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
@@ -330,7 +355,9 @@ impl HostTransaction for HermesRuntimeContext {
     /// - `option<cbor>` : The CBOR format of the metadata, `None` if the label requested
     ///   is not present.
     fn get_metadata(
-        &mut self, self_: wasmtime::component::Resource<Transaction>, label: u64,
+        &mut self,
+        self_: wasmtime::component::Resource<Transaction>,
+        label: u64,
     ) -> wasmtime::Result<Option<Cbor>> {
         let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
         let object = app_state.get_object(&self_)?;
@@ -351,7 +378,8 @@ impl HostTransaction for HermesRuntimeContext {
     /// - `option<txn-hash>` : Cardano transaction hash - Blake2b-256, `None` if cannot
     ///   retrieve the transaction hash.
     fn get_txn_hash(
-        &mut self, self_: wasmtime::component::Resource<Transaction>,
+        &mut self,
+        self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<TxnHash>> {
         let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
         let object = app_state.get_object(&self_)?;
@@ -374,7 +402,8 @@ impl HostTransaction for HermesRuntimeContext {
     /// - `option<cbor>` : The CBOR format of the transaction, `None` if cannot retrieve
     ///   the raw transaction.
     fn raw(
-        &mut self, self_: wasmtime::component::Resource<Transaction>,
+        &mut self,
+        self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<Cbor>> {
         let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
         let object = app_state.get_object(&self_)?;
@@ -386,7 +415,10 @@ impl HostTransaction for HermesRuntimeContext {
         Ok(Some(txn.encode()))
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<Transaction>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<Transaction>,
+    ) -> wasmtime::Result<()> {
         let app_state = STATE.transaction.get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
@@ -399,7 +431,8 @@ impl HostSubscriptionId for HermesRuntimeContext {
     /// **Returns**
     // - `cardano-network` : The Cardano network that this subscription is in.
     fn get_network(
-        &mut self, self_: wasmtime::component::Resource<SubscriptionId>,
+        &mut self,
+        self_: wasmtime::component::Resource<SubscriptionId>,
     ) -> wasmtime::Result<CardanoNetwork> {
         let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
@@ -410,7 +443,8 @@ impl HostSubscriptionId for HermesRuntimeContext {
     /// Once this function is called, the subscription instance, `subscription-id` will be
     /// removed.
     fn unsubscribe(
-        &mut self, self_: wasmtime::component::Resource<SubscriptionId>,
+        &mut self,
+        self_: wasmtime::component::Resource<SubscriptionId>,
     ) -> wasmtime::Result<()> {
         let id = self_.rep();
         if let Some(entry) = STATE.subscriptions.get(&id) {
@@ -425,7 +459,10 @@ impl HostSubscriptionId for HermesRuntimeContext {
         Ok(())
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<SubscriptionId>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<SubscriptionId>,
+    ) -> wasmtime::Result<()> {
         let app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         STATE.subscriptions.remove(&rep.rep());
         app_state.delete_resource(rep)?;

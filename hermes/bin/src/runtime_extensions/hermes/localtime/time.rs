@@ -13,7 +13,8 @@ use crate::runtime_extensions::{
 
 /// (Implementation) Get localtime from a datetime or now.
 pub(super) fn get_localtime(
-    when: Option<Datetime>, tz: Option<Timezone>,
+    when: Option<Datetime>,
+    tz: Option<Timezone>,
 ) -> Result<Localtime, Errno> {
     let timezone = get_tz(tz)?;
     let local_naive = match when {
@@ -35,7 +36,10 @@ pub(super) fn get_localtime(
 
 /// (Implementation) Get a new localtime from a localtime, by recalculating time for a new
 /// timezone.
-pub(super) fn alt_localtime(time: Localtime, tz: Option<Timezone>) -> Result<Localtime, Errno> {
+pub(super) fn alt_localtime(
+    time: Localtime,
+    tz: Option<Timezone>,
+) -> Result<Localtime, Errno> {
     let local_date_time: chrono::DateTime<Tz> = time.try_into()?;
     let alt_local_date_time = match tz {
         Some(alt_tz) => {

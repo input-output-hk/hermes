@@ -114,25 +114,37 @@ impl LoggerConfigBuilder {
     }
 
     /// Set log level.
-    pub(crate) fn log_level(mut self, level: LogLevel) -> Self {
+    pub(crate) fn log_level(
+        mut self,
+        level: LogLevel,
+    ) -> Self {
         self.log_level = Some(level);
         self
     }
 
     /// Enable/disable thread logging.
-    pub(crate) fn with_thread(mut self, enable: bool) -> Self {
+    pub(crate) fn with_thread(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_thread = Some(enable);
         self
     }
 
     /// Enable/disable file logging.
-    pub(crate) fn with_file(mut self, enable: bool) -> Self {
+    pub(crate) fn with_file(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_file = Some(enable);
         self
     }
 
     /// Enable/disable line number logging.
-    pub(crate) fn with_line_num(mut self, enable: bool) -> Self {
+    pub(crate) fn with_line_num(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_line_num = Some(enable);
         self
     }

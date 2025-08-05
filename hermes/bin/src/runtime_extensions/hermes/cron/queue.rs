@@ -65,7 +65,10 @@ impl CronEventQueue {
     }
 
     /// Spawn a new cron job.
-    pub(crate) fn spawn_cron_job(&self, cron_job: CronJob) -> anyhow::Result<()> {
+    pub(crate) fn spawn_cron_job(
+        &self,
+        cron_job: CronJob,
+    ) -> anyhow::Result<()> {
         Ok(self
             .sender
             .as_ref()
@@ -75,7 +78,10 @@ impl CronEventQueue {
 
     /// Add a new crontab entry.
     pub(crate) fn add_event(
-        &self, app_name: ApplicationName, timestamp: CronDuration, on_cron_event: OnCronEvent,
+        &self,
+        app_name: ApplicationName,
+        timestamp: CronDuration,
+        on_cron_event: OnCronEvent,
     ) {
         self.events
             .entry(app_name)
@@ -91,7 +97,9 @@ impl CronEventQueue {
 
     /// List all the crontab entries for the given app.
     pub(crate) fn ls_events(
-        &self, app_name: &ApplicationName, cron_tagged: Option<&CronEventTag>,
+        &self,
+        app_name: &ApplicationName,
+        cron_tagged: Option<&CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
             app.iter().fold(vec![], |mut v, (_, cron_events)| {
@@ -115,7 +123,11 @@ impl CronEventQueue {
     }
 
     /// Remove a crontab entry for the given app.
-    pub(crate) fn rm_event(&self, app_name: &ApplicationName, cron_tagged: &CronTagged) -> bool {
+    pub(crate) fn rm_event(
+        &self,
+        app_name: &ApplicationName,
+        cron_tagged: &CronTagged,
+    ) -> bool {
         let mut response = false;
         if let Some(mut app) = self.events.get_mut(app_name) {
             app.retain(|_ts, events| {
@@ -172,7 +184,11 @@ impl CronEventQueue {
     }
 
     /// Update the waiting task.
-    fn update_waiting_task(&self, timestamp: CronDuration, sleep_duration: CronDuration) {
+    fn update_waiting_task(
+        &self,
+        timestamp: CronDuration,
+        sleep_duration: CronDuration,
+    ) {
         // Create a new waiting task.
         self.waiting_event
             .entry(Self::WAITING_EVENT_TASK_ID)
@@ -193,7 +209,10 @@ impl CronEventQueue {
     ///
     /// This method will also re-schedule the events that have `last = false`.
     fn pop_app_queues_and_send(
-        &self, trigger_time: CronDuration, ts: CronDuration, app_names: &HashSet<ApplicationName>,
+        &self,
+        trigger_time: CronDuration,
+        ts: CronDuration,
+        app_names: &HashSet<ApplicationName>,
     ) -> anyhow::Result<()> {
         for app_name in app_names {
             if let Some(events) = self.pop_from_app_queue(app_name, ts) {
@@ -216,7 +235,9 @@ impl CronEventQueue {
     ///
     /// Because the `BTreeMap` is sorted, the first item is the smallest timestamp..
     fn pop_from_app_queue(
-        &self, app_name: &ApplicationName, timestamp: CronDuration,
+        &self,
+        app_name: &ApplicationName,
+        timestamp: CronDuration,
     ) -> Option<HashSet<OnCronEvent>> {
         self.events
             .get_mut(app_name)
@@ -247,7 +268,8 @@ impl CronEventQueue {
 
 /// Create a new thread that will sleep for `duration` nanoseconds
 fn new_waiting_task(
-    timestamp: CronDuration, duration: CronDuration,
+    timestamp: CronDuration,
+    duration: CronDuration,
 ) -> (CronDuration, std::thread::JoinHandle<()>) {
     let handle = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_nanos(duration.into()));
