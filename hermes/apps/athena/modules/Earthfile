@@ -35,9 +35,9 @@ IMPORT ../../../../wasm/wasi AS wasi
 # Dependencies: Requires ../../../../hermes+build target to exist (built separately)
 # Output: hermes binary executable
 # Duration: ~30 seconds (just copying pre-built binary)
-build-hermes:
+get-local-hermes:
     # Use minimal Alpine Linux base image for lightweight container
-    FROM alpine:latest
+    FROM scratch
     
     # Copy the Hermes binary from the parent build context
     # The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built
@@ -188,11 +188,11 @@ local-build-http-proxy:
 # 🎯 DEPENDENCY MANAGEMENT: Ensures proper build order and shared resource generation
 #
 # Current Build Order:
-#   1. build-hermes: Core runtime engine
+#   1. get-local-hermes: Core runtime engine
 #   2. build-http-proxy: HTTP proxy WASM module (includes binding generation)
 #
 # Future Multi-Module Build Order:
-#   1. build-hermes: Core runtime engine  
+#   1. get-local-hermes: Core runtime engine
 #   2. Parallel module builds:
 #      - build-http-proxy: HTTP routing and proxy functionality
 #      - build-auth-module: Authentication and authorization
@@ -211,7 +211,7 @@ local-build-http-proxy:
 # Output: All build artifacts ready for packaging and deployment
 build-all:
     # Build the Hermes runtime engine
-    BUILD +build-hermes
+    BUILD +get-local-hermes
     
     # Build all WASM modules (currently just HTTP proxy, more coming soon)
     BUILD +build-http-proxy
@@ -257,7 +257,7 @@ build-all:
 #
 # Usage Examples:
 #   earthly +build-all                    # Build everything (engine + all modules)
-#   earthly +build-hermes                 # Build just the Hermes engine
+#   earthly +get-local-hermes                # Build just the Hermes engine
 #   earthly +build-http-proxy             # Build just the HTTP proxy module
 #   earthly +build-future-auth-module     # Build authentication module (when added)
 #   earthly +gen-bindings                 # Generate shared Rust bindings

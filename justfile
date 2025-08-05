@@ -13,8 +13,8 @@
 #
 # Development Workflow:
 #   just clean-hfs        # Clean up previous state
-#   just build-hermes     # Build the core engine
-#   just build-athena     # Build & package WASM modules
+#   just get-local-hermes # Build the core engine
+#   just get-local-athena     # Build & package WASM modules
 #   just run-athena       # Run the application
 #
 # Environment Variables:
@@ -39,7 +39,7 @@ default:
 # Output: ../target/release/hermes (executable binary)
 # Duration: ~2-5 minutes (depending on system and cache state)
 # Dependencies: None (self-contained with Earthly)
-build-hermes:
+get-local-hermes:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -84,7 +84,7 @@ build-hermes:
 #
 # Duration: ~3-7 minutes (WASM compilation + packaging)
 # Dependencies: WIT files, Rust source code, manifest files
-build-athena:
+get-local-athena:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -160,8 +160,8 @@ clean-hfs:
 #     Example: "/api,/public,/webhooks"
 #
 # Prerequisites:
-#   - Hermes binary must exist (run `just build-hermes`)
-#   - Application package must exist (run `just build-athena`)
+#   - Hermes binary must exist (run `just get-local-hermes`)
+#   - Application package must exist (run `just get-local-athena`)
 #
 # Testing the Service:
 #   Once running, test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/dashboard
@@ -175,12 +175,12 @@ run-athena:
 
     # Validate prerequisites
     if [ ! -f "target/release/hermes" ]; then
-        echo "❌ Error: Hermes binary not found. Run 'just build-hermes' first."
+        echo "❌ Error: Hermes binary not found. Run 'just get-local-hermes' first."
         exit 1
     fi
 
     if [ ! -f "hermes/apps/athena/app.happ" ]; then
-        echo "❌ Error: Application package not found. Run 'just build-athena' first."
+        echo "❌ Error: Application package not found. Run 'just get-local-athena' first."
         exit 1
     fi
 
@@ -207,8 +207,8 @@ run-athena:
 #
 # Workflow Steps:
 #   1. clean-hfs      - Clear previous application state
-#   2. build-hermes   - Compile the Hermes runtime engine
-#   3. build-athena   - Build and package WASM modules
+#   2. get-local-hermes  - Compile the Hermes runtime engine
+#   3. get-local-athena   - Build and package WASM modules
 #   4. run-athena     - Launch the application
 #
 # When to use:
@@ -220,12 +220,12 @@ run-athena:
 # Duration: ~5-12 minutes total (depending on system and cache state)
 #
 # Alternative for incremental development:
-#   If only changing WASM module code: just build-athena && just run-athena
-#   If only changing engine code: just build-hermes && just run-athena
+#   If only changing WASM module code: just get-local-athena && just run-athena
+#   If only changing engine code: just get-local-hermes && just run-athena
 #
 # Environment Variables: Same as run-athena (see above)
 # Example with custom config: REDIRECT_ALLOWED_HOSTS=example.com just build-run-all
-build-run-all: clean-hfs build-hermes build-athena run-athena
+build-run-all: clean-hfs get-local-hermes get-local-athena run-athena
 
 # Development helper: Quick rebuild of just the WASM components
 #
@@ -235,7 +235,7 @@ build-run-all: clean-hfs build-hermes build-athena run-athena
 # Workflow: Build WASM → Package → Run
 # Duration: ~3-5 minutes (skips Hermes engine compilation)
 # When to use: Iterating on athena/modules/http-proxy/src/ changes
-dev-athena: build-athena run-athena
+dev-athena: get-local-athena run-athena
 
 # Show current build status and file information
 #
@@ -251,7 +251,7 @@ status:
     if [ -f "../target/release/hermes" ]; then
         echo "   ✅ Binary: $(ls -lh ../target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
-        echo "   ❌ Binary: Not found (run 'just build-hermes')"
+        echo "   ❌ Binary: Not found (run 'just get-local-hermes')"
     fi
     echo ""
 
@@ -259,7 +259,7 @@ status:
     if [ -f "athena/app.happ" ]; then
         echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
-        echo "   ❌ Package: Not found (run 'just build-athena')"
+        echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
 
     if [ -f "athena/modules/http-proxy/lib/http_proxy.wasm" ]; then
