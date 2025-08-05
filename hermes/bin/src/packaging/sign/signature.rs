@@ -41,7 +41,9 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
 
     /// Add a new signature to the `CoseSign` object.
     pub(crate) fn add_sign(
-        &mut self, private_key: &PrivateKey, certificate: &Certificate,
+        &mut self,
+        private_key: &PrivateKey,
+        certificate: &Certificate,
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             private_key.public_key() == certificate.subject_public_key()?,
@@ -108,7 +110,9 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
 impl<T: SignaturePayloadEncoding> Signature<T> {
     /// Verify the `CoseSignature` object.
     fn verify_cose_sign(
-        cose_sign: &CoseSign, i: usize, cose_signature: &CoseSignature,
+        cose_sign: &CoseSign,
+        i: usize,
+        cose_signature: &CoseSignature,
     ) -> anyhow::Result<()> {
         let kid = &cose_signature.protected.header.key_id;
 
@@ -145,7 +149,9 @@ impl<T: SignaturePayloadEncoding> Signature<T> {
 
     /// Add a new signature to the `Self::cose_signatures` field.
     fn add_cose_signature(
-        &mut self, private_key: &PrivateKey, certificate: &Certificate,
+        &mut self,
+        private_key: &PrivateKey,
+        certificate: &Certificate,
     ) -> anyhow::Result<()> {
         let empty_signature = Self::build_empty_cose_signature(certificate)?;
 

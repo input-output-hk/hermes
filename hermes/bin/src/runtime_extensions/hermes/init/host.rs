@@ -8,7 +8,10 @@ use crate::{
 
 impl Host for HermesRuntimeContext {
     /// Perform Hermes event queue shutdown.
-    fn done(&mut self, status_code: u8) -> wasmtime::Result<()> {
+    fn done(
+        &mut self,
+        status_code: u8,
+    ) -> wasmtime::Result<()> {
         event::queue::shutdown(ExitCode::from(status_code))
     }
 }

@@ -27,13 +27,19 @@ impl Path {
 
     /// Push a new path element to the path at the end.
     #[allow(dead_code)]
-    pub(crate) fn push_elem(&mut self, value: String) {
+    pub(crate) fn push_elem(
+        &mut self,
+        value: String,
+    ) {
         self.0.push(value);
     }
 }
 
 impl Display for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         let path = self.0.join("/");
         write!(f, "{path}")
     }

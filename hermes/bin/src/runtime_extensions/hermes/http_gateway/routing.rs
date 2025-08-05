@@ -79,7 +79,9 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
 pub(crate) async fn router(
-    req: Request<Incoming>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr,
+    req: Request<Incoming>,
+    connection_manager: Arc<ConnectionManager>,
+    ip: SocketAddr,
     config: Config,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
@@ -126,7 +128,8 @@ pub(crate) async fn router(
 
 /// Route single request to hermes backend
 async fn route_to_hermes(
-    req: Request<Incoming>, app_name: ApplicationName,
+    req: Request<Incoming>,
+    app_name: ApplicationName,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
@@ -164,7 +167,11 @@ async fn route_to_hermes(
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
 fn compose_http_event<B>(
-    method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
+    method: String,
+    headers: HeadersKV,
+    body: Bytes,
+    path: String,
+    sender: Sender<HTTPEventMsg>,
     receiver: &Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<B>>
 where
@@ -191,8 +198,13 @@ where
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data<B>(path: &str, app_name: &ApplicationName) -> anyhow::Result<Response<B>>
-where B: Body + From<Vec<u8>> {
+fn serve_static_data<B>(
+    path: &str,
+    app_name: &ApplicationName,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
     let app = reactor::get_app(app_name)?;
     let file = app.vfs().read(path)?;
 

@@ -14,7 +14,10 @@ pub(crate) struct SettingsSchema {
 }
 
 impl PartialEq for SettingsSchema {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.json.eq(&other.json)
     }
 }

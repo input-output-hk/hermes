@@ -12,7 +12,11 @@ use libsqlite3_sys::{
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, Value};
 
 /// Stores application data into parameters of the original SQL.
-pub(crate) fn bind(stmt_ptr: *mut sqlite3_stmt, index: i32, value: Value) -> Result<(), Errno> {
+pub(crate) fn bind(
+    stmt_ptr: *mut sqlite3_stmt,
+    index: i32,
+    value: Value,
+) -> Result<(), Errno> {
     let rc = unsafe {
         match value {
             Value::Blob(value) => {
@@ -67,7 +71,10 @@ pub(crate) fn step(stmt_ptr: *mut sqlite3_stmt) -> Result<(), Errno> {
 }
 
 /// Returns information about a single column of the current result row of a query.
-pub(crate) fn column(stmt_ptr: *mut sqlite3_stmt, index: i32) -> Result<Value, Errno> {
+pub(crate) fn column(
+    stmt_ptr: *mut sqlite3_stmt,
+    index: i32,
+) -> Result<Value, Errno> {
     let value = unsafe {
         let column_type = sqlite3_column_type(stmt_ptr, index);
 
@@ -142,7 +149,11 @@ mod tests {
         open(false, true, app_name)
     }
 
-    fn init_value(db_ptr: *mut sqlite3, db_value_type: &str, value: Value) -> Result<(), Errno> {
+    fn init_value(
+        db_ptr: *mut sqlite3,
+        db_value_type: &str,
+        value: Value,
+    ) -> Result<(), Errno> {
         let sql = format!("CREATE TABLE Dummy(Id INTEGER PRIMARY KEY, Value {db_value_type});");
 
         execute(db_ptr, sql.as_str())?;

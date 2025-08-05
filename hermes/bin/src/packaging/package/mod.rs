@@ -46,7 +46,10 @@ impl Package {
     }
 
     /// Calculates file hash, if present
-    pub(crate) fn calculate_file_hash(&self, path: Path) -> anyhow::Result<Option<Blake2b256>> {
+    pub(crate) fn calculate_file_hash(
+        &self,
+        path: Path,
+    ) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
         let Ok(mut file) = self.0.get_file(path) else {
             return Ok(None);
@@ -57,7 +60,10 @@ impl Package {
 
     /// Calculates recursively package directory contents hash including file contents and
     /// file names.
-    pub(crate) fn calculate_dir_hash(&self, path: &Path) -> anyhow::Result<Option<Blake2b256>> {
+    pub(crate) fn calculate_dir_hash(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<Option<Blake2b256>> {
         let mut hasher = Blake2b256Hasher::new();
         let Ok(dir) = self.0.get_dir(path) else {
             return Ok(None);
@@ -73,7 +79,10 @@ const BUFFER_SIZE: usize = 1024 * 1024;
 
 /// Calculates file hash with the provided hasher.
 #[allow(clippy::indexing_slicing)]
-fn calculate_file_hash(file: &mut File, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
+fn calculate_file_hash(
+    file: &mut File,
+    hasher: &mut Blake2b256Hasher,
+) -> anyhow::Result<()> {
     let mut buf = vec![0; BUFFER_SIZE];
 
     loop {
@@ -89,7 +98,10 @@ fn calculate_file_hash(file: &mut File, hasher: &mut Blake2b256Hasher) -> anyhow
 
 /// Calculates recursively directory contents hash with the provided hasher
 /// including file contents.
-fn calculate_dir_hash(dir: &Dir, hasher: &mut Blake2b256Hasher) -> anyhow::Result<()> {
+fn calculate_dir_hash(
+    dir: &Dir,
+    hasher: &mut Blake2b256Hasher,
+) -> anyhow::Result<()> {
     // order all package directory content by names
     // to have consistent hash result not depending on the order.
     let files: BTreeMap<_, _> = dir

@@ -18,7 +18,9 @@ const PAGE_SIZE: u32 = 4_096;
 
 /// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(
-    readonly: bool, memory: bool, app_name: ApplicationName,
+    readonly: bool,
+    memory: bool,
+    app_name: ApplicationName,
 ) -> Result<*mut sqlite3, Errno> {
     let mut db_ptr: *mut sqlite3 = std::ptr::null_mut();
 

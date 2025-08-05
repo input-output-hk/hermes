@@ -54,7 +54,10 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
 
 /// Compiles SQL text into byte-code that will do the work of querying or updating the
 /// database.
-pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_stmt, Errno> {
+pub(crate) fn prepare(
+    db_ptr: *mut sqlite3,
+    sql: &str,
+) -> Result<*mut sqlite3_stmt, Errno> {
     if validate_sql(sql) {
         return Err(Errno::ForbiddenPragmaCommand);
     }
@@ -86,7 +89,10 @@ pub(crate) fn prepare(db_ptr: *mut sqlite3, sql: &str) -> Result<*mut sqlite3_st
 
 /// Executes an SQL query directly without preparing it into a statement and returns
 /// the result.
-pub(crate) fn execute(db_ptr: *mut sqlite3, sql: &str) -> Result<(), Errno> {
+pub(crate) fn execute(
+    db_ptr: *mut sqlite3,
+    sql: &str,
+) -> Result<(), Errno> {
     let sql_cstring = std::ffi::CString::new(sql).map_err(|_| Errno::ConvertingCString)?;
 
     let rc = unsafe { sqlite3_exec(db_ptr, sql_cstring.as_ptr(), None, null_mut(), null_mut()) };

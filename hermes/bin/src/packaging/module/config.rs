@@ -14,7 +14,10 @@ pub(crate) struct ConfigSchema {
 }
 
 impl PartialEq for ConfigSchema {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.json.eq(&other.json)
     }
 }
@@ -50,7 +53,8 @@ pub(crate) struct Config {
 impl Config {
     /// Create `Config` from reader.
     pub(crate) fn from_reader(
-        reader: impl Read, validator: &SchemaValidator,
+        reader: impl Read,
+        validator: &SchemaValidator,
     ) -> anyhow::Result<Self> {
         let json = validator.deserialize_and_validate(reader)?;
         Ok(Self { json })

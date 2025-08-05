@@ -11,7 +11,10 @@ use crate::{ipfs::HERMES_IPFS, runtime_extensions::bindings::hermes::ipfs::api::
 struct IpfsVirtualFile(Cid);
 
 impl Read for IpfsVirtualFile {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn read(
+        &mut self,
+        buf: &mut [u8],
+    ) -> Result<usize> {
         let ipfs = HERMES_IPFS.get().ok_or_else(|| {
             tracing::error!("IPFS service is uninitialized");
             Error::from(ErrorKind::Other)
@@ -35,7 +38,10 @@ impl Read for IpfsVirtualFile {
 }
 
 impl Write for IpfsVirtualFile {
-    fn write(&mut self, _buf: &[u8]) -> Result<usize> {
+    fn write(
+        &mut self,
+        _buf: &[u8],
+    ) -> Result<usize> {
         // Write data to IPFS.
         Err(ErrorKind::Unsupported.into())
     }
@@ -47,7 +53,10 @@ impl Write for IpfsVirtualFile {
 }
 
 impl Seek for IpfsVirtualFile {
-    fn seek(&mut self, _pos: SeekFrom) -> Result<u64> {
+    fn seek(
+        &mut self,
+        _pos: SeekFrom,
+    ) -> Result<u64> {
         // Seek to a position in the IPFS file.
         Err(ErrorKind::Unsupported.into())
     }

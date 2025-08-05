@@ -17,7 +17,10 @@ impl Blake2b256Hasher {
     }
 
     /// Incrementally add bytes to the hasher.
-    pub(crate) fn update(&mut self, bytes: &[u8]) {
+    pub(crate) fn update(
+        &mut self,
+        bytes: &[u8],
+    ) {
         self.0.update(bytes);
     }
 

@@ -20,7 +20,10 @@ impl Host for HermesRuntimeContext {
     /// This function must always return fresh data. Deterministic environments
     /// must omit this function, rather than implementing it with deterministic
     /// data.
-    fn get_random_bytes(&mut self, len: u64) -> wasmtime::Result<Vec<u8>> {
+    fn get_random_bytes(
+        &mut self,
+        len: u64,
+    ) -> wasmtime::Result<Vec<u8>> {
         let mut buf = vec![0u8; len.try_into()?];
         OsRng.try_fill_bytes(&mut buf)?;
         Ok(buf)

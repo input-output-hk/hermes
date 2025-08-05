@@ -27,7 +27,10 @@ use crate::runtime_extensions::bindings::hermes::crypto::api::Errno;
 /// # Errors
 ///
 /// - `InvalidMnemonic`: If the mnemonic should be either 12, 15, 18, 21, or 24.
-pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv, Errno> {
+pub(crate) fn mnemonic_to_xprv(
+    mnemonic: &str,
+    passphrase: &str,
+) -> Result<XPrv, Errno> {
     /// 4096 is the number of iterations for PBKDF2.
     const ITER: u32 = 4096;
 
@@ -72,7 +75,9 @@ pub(crate) fn mnemonic_to_xprv(mnemonic: &str, passphrase: &str) -> Result<XPrv,
 /// - `PrefixTooLong`: If the prefix is longer than the maximum allowed length, max is 3.
 /// - `WordNotFound`: If a word in the mnemonic is not found in the word list.
 pub(crate) fn generate_new_mnemonic(
-    word_count: usize, prefix: Vec<String>, language: Option<String>,
+    word_count: usize,
+    prefix: Vec<String>,
+    language: Option<String>,
 ) -> Result<Vec<String>, Errno> {
     // Check word count
     if is_invalid_word_count(word_count) {
@@ -119,7 +124,10 @@ fn is_invalid_word_count(word_count: usize) -> bool {
 }
 
 /// Get the index bits of the prefix words from a BIP39 dictionary.
-fn get_prefix_index_bits(prefix_list: Vec<String>, language: Language) -> Result<Vec<u8>, Errno> {
+fn get_prefix_index_bits(
+    prefix_list: Vec<String>,
+    language: Language,
+) -> Result<Vec<u8>, Errno> {
     let mut prefix_index: Vec<u8> = Vec::new();
     for word in prefix_list {
         match language.find_word(&word) {
@@ -201,7 +209,10 @@ fn generate_entropy(word_count: usize) -> Result<Vec<u8>, Errno> {
 
 /// Generate checksum bits from entropy bits.
 #[allow(clippy::indexing_slicing)]
-fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
+fn get_check_sum_bits(
+    entropy_bits: &[u8],
+    word_count: usize,
+) -> Vec<u8> {
     let checksum_len = word_count / 3;
     // Convert entropy_bits to bytes, so it works with SHA256 hasher.
     let entropy_bytes = bits_to_bytes(entropy_bits);
@@ -217,7 +228,10 @@ fn get_check_sum_bits(entropy_bits: &[u8], word_count: usize) -> Vec<u8> {
 }
 
 /// Get the word indices from the entropy bits.
-fn get_word_indices(entropy_bits: &[u8], word_count: usize) -> Vec<u16> {
+fn get_word_indices(
+    entropy_bits: &[u8],
+    word_count: usize,
+) -> Vec<u16> {
     let mut word_index_vec = Vec::new();
 
     // Separate entropy bits into 11 bits and convert to decimal.
@@ -237,7 +251,10 @@ fn get_word_indices(entropy_bits: &[u8], word_count: usize) -> Vec<u16> {
 }
 
 /// Get the mnemonic from the BIP39 dictionary using word indices.
-fn get_mnemonic_from_indices(word_index_vec: Vec<u16>, language: Language) -> Vec<String> {
+fn get_mnemonic_from_indices(
+    word_index_vec: Vec<u16>,
+    language: Language,
+) -> Vec<String> {
     let word_list = language.word_list();
     let mut mnemonic: Vec<String> = vec![];
     for word in word_index_vec {
@@ -305,7 +322,11 @@ fn string_to_language(s: &str) -> Result<Language, Errno> {
 ///
 /// `word_count` must be a multiple of 3 and 12-24
 /// It will return garbage if that pre-condition does not hold.
-fn byte_to_bit(entropy: Vec<u8>, entropy_bits: &mut Vec<u8>, word_count: usize) {
+fn byte_to_bit(
+    entropy: Vec<u8>,
+    entropy_bits: &mut Vec<u8>,
+    word_count: usize,
+) {
     for byte in entropy {
         for j in (0..8).rev() {
             // Should not exceed the word_count / 3 * 32

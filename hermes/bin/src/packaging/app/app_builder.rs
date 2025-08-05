@@ -8,7 +8,8 @@ use crate::{
 
 /// Build application from the application package.
 pub(crate) fn build_app<P: AsRef<std::path::Path>>(
-    package: &ApplicationPackage, vfs_dir_path: P,
+    package: &ApplicationPackage,
+    vfs_dir_path: P,
 ) -> anyhow::Result<Application> {
     let app_name = package.get_app_name()?;
     let mut bootstrapper = VfsBootstrapper::new(vfs_dir_path, app_name.clone());
@@ -27,7 +28,8 @@ pub(crate) fn build_app<P: AsRef<std::path::Path>>(
 
 /// Mount `ApplicationPackage` content to the `Vfs`
 fn mount_to_vfs(
-    package: &ApplicationPackage, bootstrapper: &mut VfsBootstrapper,
+    package: &ApplicationPackage,
+    bootstrapper: &mut VfsBootstrapper,
 ) -> anyhow::Result<()> {
     let root_path = "/".to_string();
     bootstrapper.with_mounted_file(

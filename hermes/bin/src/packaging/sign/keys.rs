@@ -42,7 +42,10 @@ impl PrivateKey {
 
     /// Sign the message with the current private key.
     /// Returns the signature bytes.
-    pub(crate) fn sign(&self, msg: &[u8]) -> Vec<u8> {
+    pub(crate) fn sign(
+        &self,
+        msg: &[u8],
+    ) -> Vec<u8> {
         self.0.sign(msg).to_vec()
     }
 }
@@ -75,7 +78,11 @@ impl PublicKey {
 
     /// Verify signature of the message with the current public key.
     /// Returns `Ok(())` if the signature is valid, `Err` otherwise.
-    pub(crate) fn verify(&self, msg: &[u8], signature_bytes: &[u8]) -> anyhow::Result<()> {
+    pub(crate) fn verify(
+        &self,
+        msg: &[u8],
+        signature_bytes: &[u8],
+    ) -> anyhow::Result<()> {
         let signature_bytes = signature_bytes.try_into().map_err(|_| {
             anyhow::anyhow!(
                 "Invalid signature bytes size: expected {}, provided {}.",

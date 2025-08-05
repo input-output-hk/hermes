@@ -35,7 +35,8 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
     /// but those will be reported by the `incoming-body` and its
     /// `output-stream` child.
     fn get(
-        &mut self, _res: wasmtime::component::Resource<FutureIncomingResponse>,
+        &mut self,
+        _res: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<
         Option<Result<Result<wasmtime::component::Resource<IncomingResponse>, ErrorCode>, ()>>,
     > {
@@ -43,7 +44,8 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<FutureIncomingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -52,7 +54,8 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
     /// been received, or an error has occurred. When this pollable is ready,
     /// the `get` method will return `some`.
     fn subscribe(
-        &mut self, _self_: wasmtime::component::Resource<FutureIncomingResponse>,
+        &mut self,
+        _self_: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         todo!()
     }
@@ -82,7 +85,8 @@ impl http::types::HostFields for HermesRuntimeContext {
     /// An error result will be returned if any header or value was
     /// syntactically invalid, or if a header was forbidden.
     fn from_list(
-        &mut self, _entries: Vec<(FieldKey, FieldValue)>,
+        &mut self,
+        _entries: Vec<(FieldKey, FieldValue)>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Fields>, HeaderError>> {
         todo!()
     }
@@ -92,7 +96,9 @@ impl http::types::HostFields for HermesRuntimeContext {
     /// present but empty, this is represented by a list with one or more
     /// empty field-values present.
     fn get(
-        &mut self, _fields: wasmtime::component::Resource<Fields>, _name: FieldKey,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
+        _name: FieldKey,
     ) -> wasmtime::Result<Vec<FieldValue>> {
         todo!()
     }
@@ -100,7 +106,9 @@ impl http::types::HostFields for HermesRuntimeContext {
     /// Returns `true` when the key is present in this `fields`. If the key is
     /// syntactically invalid, `false` is returned.
     fn has(
-        &mut self, _fields: wasmtime::component::Resource<Fields>, _name: FieldKey,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
+        _name: FieldKey,
     ) -> wasmtime::Result<bool> {
         todo!()
     }
@@ -110,7 +118,9 @@ impl http::types::HostFields for HermesRuntimeContext {
     ///
     /// Fails with `header-error.immutable` if the `fields` are immutable.
     fn set(
-        &mut self, _fields: wasmtime::component::Resource<Fields>, _name: FieldKey,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
+        _name: FieldKey,
         _value: Vec<FieldValue>,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
         todo!()
@@ -121,7 +131,9 @@ impl http::types::HostFields for HermesRuntimeContext {
     ///
     /// Fails with `header-error.immutable` if the `fields` are immutable.
     fn delete(
-        &mut self, _fields: wasmtime::component::Resource<Fields>, _name: FieldKey,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
+        _name: FieldKey,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
         todo!()
     }
@@ -131,7 +143,9 @@ impl http::types::HostFields for HermesRuntimeContext {
     ///
     /// Fails with `header-error.immutable` if the `fields` are immutable.
     fn append(
-        &mut self, _fields: wasmtime::component::Resource<Fields>, _name: FieldKey,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
+        _name: FieldKey,
         _value: FieldValue,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
         todo!()
@@ -144,7 +158,8 @@ impl http::types::HostFields for HermesRuntimeContext {
     /// which have multiple values are represented by multiple entries in this
     /// list with the same key.
     fn entries(
-        &mut self, _fields: wasmtime::component::Resource<Fields>,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
     ) -> wasmtime::Result<Vec<(FieldKey, FieldValue)>> {
         todo!()
     }
@@ -153,12 +168,16 @@ impl http::types::HostFields for HermesRuntimeContext {
     /// `fields` constructor on the return value of `entries`. The resulting
     /// `fields` is mutable.
     fn clone(
-        &mut self, _fields: wasmtime::component::Resource<Fields>,
+        &mut self,
+        _fields: wasmtime::component::Resource<Fields>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Fields>> {
         todo!()
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Fields>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        _rep: wasmtime::component::Resource<Fields>,
+    ) -> wasmtime::Result<()> {
         todo!()
     }
 }
@@ -184,7 +203,8 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
     /// `delete` methods will return an error, and the resource must be
     /// dropped before the parent `future-trailers` is dropped.
     fn get(
-        &mut self, _rep: wasmtime::component::Resource<FutureTrailers>,
+        &mut self,
+        _rep: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<
         Option<Result<Result<Option<wasmtime::component::Resource<Trailers>>, ErrorCode>, ()>>,
     > {
@@ -192,7 +212,8 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<FutureTrailers>,
+        &mut self,
+        _rep: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -201,7 +222,8 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
     /// been received, or an error has occurred. When this pollable is ready,"
     /// the `get` method will return `some`."
     fn subscribe(
-        &mut self, _self_: wasmtime::component::Resource<FutureTrailers>,
+        &mut self,
+        _self_: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         todo!()
     }
@@ -218,7 +240,8 @@ impl http::types::HostOutgoingBody for HermesRuntimeContext {
     /// this `outgoing-body` may be retrieved at most once. Subsequent calls
     /// will return error.
     fn write(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingBody>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingBody>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ()>> {
         todo!()
     }
@@ -233,13 +256,17 @@ impl http::types::HostOutgoingBody for HermesRuntimeContext {
     /// to the body (via `write`) does not match the value given in the
     /// Content-Length.
     fn finish(
-        &mut self, _this: wasmtime::component::Resource<OutgoingBody>,
+        &mut self,
+        _this: wasmtime::component::Resource<OutgoingBody>,
         _trailers: Option<wasmtime::component::Resource<Trailers>>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
         todo!()
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<OutgoingBody>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingBody>,
+    ) -> wasmtime::Result<()> {
         todo!()
     }
 }
@@ -251,14 +278,16 @@ impl HostOutgoingResponse for HermesRuntimeContext {
     ///
     /// * `headers` is the HTTP Headers for the Response.
     fn new(
-        &mut self, _headers: wasmtime::component::Resource<Headers>,
+        &mut self,
+        _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<OutgoingResponse>> {
         todo!()
     }
 
     /// Get the HTTP Status Code for the Response.
     fn status_code(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<StatusCode> {
         todo!()
     }
@@ -266,7 +295,9 @@ impl HostOutgoingResponse for HermesRuntimeContext {
     /// Set the HTTP Status Code for the Response. Fails if the status-code
     /// given is not a valid http status code.
     fn set_status_code(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingResponse>, _status_code: StatusCode,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingResponse>,
+        _status_code: StatusCode,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
@@ -280,7 +311,8 @@ impl HostOutgoingResponse for HermesRuntimeContext {
     /// `outgoing-request` is dropped, or its ownership is transferred to
     /// another component by e.g. `outgoing-handler.handle`.
     fn headers(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
         todo!()
     }
@@ -291,13 +323,15 @@ impl HostOutgoingResponse for HermesRuntimeContext {
     /// this `outgoing-response` can be retrieved at most once. Subsequent
     /// calls will return error.
     fn body(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutgoingBody>, ()>> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -320,7 +354,8 @@ impl http::types::HostIncomingBody for HermesRuntimeContext {
     /// and for that backpressure to not inhibit delivery of the trailers if
     /// the user does not read the entire body.
     fn stream(
-        &mut self, _rep: wasmtime::component::Resource<IncomingBody>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingBody>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<InputStream>, ()>> {
         todo!()
     }
@@ -328,12 +363,16 @@ impl http::types::HostIncomingBody for HermesRuntimeContext {
     /// Takes ownership of `incoming-body`, and returns a `future-trailers`.
     /// This function will trap if the `input-stream` child is still alive.
     fn finish(
-        &mut self, _this: wasmtime::component::Resource<IncomingBody>,
+        &mut self,
+        _this: wasmtime::component::Resource<IncomingBody>,
     ) -> wasmtime::Result<wasmtime::component::Resource<FutureTrailers>> {
         todo!()
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<IncomingBody>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingBody>,
+    ) -> wasmtime::Result<()> {
         todo!()
     }
 }
@@ -341,7 +380,8 @@ impl http::types::HostIncomingBody for HermesRuntimeContext {
 impl HostIncomingResponse for HermesRuntimeContext {
     /// Returns the status code from the incoming response.
     fn status(
-        &mut self, _rep: wasmtime::component::Resource<IncomingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<StatusCode> {
         todo!()
     }
@@ -354,7 +394,8 @@ impl HostIncomingResponse for HermesRuntimeContext {
     /// This headers resource is a child: it must be dropped before the parent
     /// `incoming-response` is dropped.
     fn headers(
-        &mut self, _rep: wasmtime::component::Resource<IncomingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
         todo!()
     }
@@ -362,13 +403,15 @@ impl HostIncomingResponse for HermesRuntimeContext {
     /// Returns the incoming body. May be called at most once. Returns error
     /// if called additional times.
     fn consume(
-        &mut self, _rep: wasmtime::component::Resource<IncomingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<IncomingBody>, ()>> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<IncomingResponse>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -385,14 +428,16 @@ impl http::types::HostResponseOutparam for HermesRuntimeContext {
     /// The user may provide an `error` to `response` to allow the
     /// implementation determine how to respond with an HTTP error response.
     fn set(
-        &mut self, _param: wasmtime::component::Resource<ResponseOutparam>,
+        &mut self,
+        _param: wasmtime::component::Resource<ResponseOutparam>,
         _response: Result<wasmtime::component::Resource<OutgoingResponse>, ErrorCode>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<ResponseOutparam>,
+        &mut self,
+        _rep: wasmtime::component::Resource<ResponseOutparam>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -412,7 +457,9 @@ impl http::types::HostResponseOutparam for HermesRuntimeContext {
     /// See details of how to handle unstable features
     /// [here](https://github.com/bytecodealliance/wasmtime/issues/8645).
     fn send_informational(
-        &mut self, _self_: wasmtime::component::Resource<ResponseOutparam>, _status: u16,
+        &mut self,
+        _self_: wasmtime::component::Resource<ResponseOutparam>,
+        _status: u16,
         _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
         todo!()
@@ -427,7 +474,8 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
 
     /// The timeout for the initial connect to the HTTP Server.
     fn connect_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
         todo!()
     }
@@ -435,14 +483,17 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
     /// Set the timeout for the initial connect to the HTTP Server. An error
     /// return value indicates that this timeout is not supported.
     fn set_connect_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>, _duration: Option<Duration>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
+        _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
 
     /// The timeout for receiving the first byte of the Response body.
     fn first_byte_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
         todo!()
     }
@@ -450,7 +501,9 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
     /// Set the timeout for receiving the first byte of the Response body. An
     /// error return value indicates that this timeout is not supported.
     fn set_first_byte_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>, _duration: Option<Duration>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
+        _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
@@ -458,7 +511,8 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
     /// The timeout for receiving subsequent chunks of bytes in the Response
     /// body stream.
     fn between_bytes_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
         todo!()
     }
@@ -467,13 +521,16 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
     /// body stream. An error return value indicates that this timeout is not
     /// supported.
     fn set_between_bytes_timeout(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>, _duration: Option<Duration>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
+        _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<RequestOptions>,
+        &mut self,
+        _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -491,7 +548,8 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// It is the obligation of the `outgoing-handler.handle` implementation
     /// to reject invalid constructions of `outgoing-request`.
     fn new(
-        &mut self, _headers: wasmtime::component::Resource<Headers>,
+        &mut self,
+        _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<OutgoingRequest>> {
         todo!()
     }
@@ -503,14 +561,16 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// this `outgoing-request` can be retrieved at most once. Subsequent
     /// calls will return error.
     fn body(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutgoingBody>, ()>> {
         todo!()
     }
 
     /// Get the Method for the Request.
     fn method(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Method> {
         todo!()
     }
@@ -518,7 +578,9 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// Set the Method for the Request. Fails if the string present in a
     /// `method.other` argument is not a syntactically valid method.
     fn set_method(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>, _method: Method,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
+        _method: Method,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
@@ -526,7 +588,8 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// Get the combination of the HTTP Path and Query for the Request.
     /// When `none`, this represents an empty Path and empty Query.
     fn path_with_query(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<String>> {
         todo!()
     }
@@ -535,7 +598,8 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// When `none`, this represents an empty Path and empty Query. Fails is the
     /// string given is not a syntactically valid path and query uri component.
     fn set_path_with_query(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
         _path_with_query: Option<String>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
@@ -544,7 +608,8 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// Get the HTTP Related Scheme for the Request. When `none`, the
     /// implementation may choose an appropriate default scheme.
     fn scheme(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<Scheme>> {
         todo!()
     }
@@ -553,7 +618,9 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// implementation may choose an appropriate default scheme. Fails if the
     /// string given is not a syntactically valid uri scheme.
     fn set_scheme(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>, _scheme: Option<Scheme>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
+        _scheme: Option<Scheme>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
@@ -562,7 +629,8 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// with Related Schemes which do not require an Authority. The HTTP and
     /// HTTPS schemes always require an authority.
     fn authority(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<String>> {
         todo!()
     }
@@ -572,7 +640,9 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// HTTPS schemes always require an authority. Fails if the string given is
     /// not a syntactically valid uri authority.
     fn set_authority(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>, _authority: Option<String>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
+        _authority: Option<String>,
     ) -> wasmtime::Result<Result<(), ()>> {
         todo!()
     }
@@ -586,13 +656,15 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
     /// `outgoing-request` is dropped, or its ownership is transferred to
     /// another component by e.g. `outgoing-handler.handle`.
     fn headers(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -601,28 +673,32 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
 impl http::types::HostIncomingRequest for HermesRuntimeContext {
     /// Returns the method of the incoming request.
     fn method(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Method> {
         todo!()
     }
 
     /// Returns the path with query parameters from the request, as a string.
     fn path_with_query(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<String>> {
         todo!()
     }
 
     /// Returns the protocol scheme from the request.
     fn scheme(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<Scheme>> {
         todo!()
     }
 
     /// Returns the authority from the request, if it was present.
     fn authority(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<String>> {
         todo!()
     }
@@ -636,7 +712,8 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
     /// the parent `incoming-request` is dropped. Dropping this
     /// `incoming-request` before all children are dropped will trap.
     fn headers(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
         todo!()
     }
@@ -644,13 +721,15 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
     /// Gives the `incoming-body` associated with this request. Will only
     /// return success at most once, and subsequent calls will return error.
     fn consume(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<IncomingBody>, ()>> {
         todo!()
     }
 
     fn drop(
-        &mut self, _rep: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<()> {
         todo!()
     }
@@ -669,7 +748,8 @@ impl http::types::Host for HermesRuntimeContext {
     /// Note that this function is fallible because not all io-errors are
     /// http-related errors.
     fn http_error_code(
-        &mut self, _err: wasmtime::component::Resource<IoError>,
+        &mut self,
+        _err: wasmtime::component::Resource<IoError>,
     ) -> wasmtime::Result<Option<ErrorCode>> {
         todo!()
     }
@@ -687,7 +767,8 @@ impl http::outgoing_handler::Host for HermesRuntimeContext {
     /// or not allowed to be made. Otherwise, protocol errors are reported
     /// through the `future-incoming-response`.
     fn handle(
-        &mut self, _request: wasmtime::component::Resource<OutgoingRequest>,
+        &mut self,
+        _request: wasmtime::component::Resource<OutgoingRequest>,
         _options: Option<wasmtime::component::Resource<RequestOptions>>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<FutureIncomingResponse>, ErrorCode>>
     {
@@ -707,7 +788,8 @@ impl http::incoming_handler::Host for HermesRuntimeContext {
     /// `response-outparam` before returning, or else the caller will respond
     /// with an error on its behalf.
     fn handle(
-        &mut self, _request: wasmtime::component::Resource<IncomingRequest>,
+        &mut self,
+        _request: wasmtime::component::Resource<IncomingRequest>,
         _response_out: wasmtime::component::Resource<ResponseOutparam>,
     ) -> wasmtime::Result<()> {
         todo!()
