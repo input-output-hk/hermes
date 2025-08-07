@@ -2,58 +2,57 @@
 
 <!-- markdownlint-disable MD029 -->
 
-Welcome to the Hermes mono repo, where we manage and maintain the interconnected projects.
+Hermes is a high-performance WebAssembly (WASM) application engine that provides secure,
+sandboxed execution of modular applications.
 
-* [Hermes](#hermes)
-  * [Overview](#overview)
-  * [Getting Started](#getting-started)
-  * [Projects](#projects)
-    * [Hermes](#hermes-1)
-    * [Dashboard](#dashboard)
-  * [Development](#development)
-  * [Contributing](#contributing)
-  * [License](#license)
+## Quick Start
 
-## Overview
+0. **Github token**:
 
-This monorepo serves as a unified codebase for the Hermes project.
-Using a monorepo simplifies our dependency management, streamlines testing, and fosters code sharing.
-Hermes is an engine, applications built on hermes are not contained in this repo.
+   ## GitHub Token Setup
 
-## Getting Started
+   * Go to [github.com/settings/tokens](https://github.com/settings/tokens)
+   * Generate new classic token with + permissions
+   * Add to .secret file.
 
-1. Clone this repository:
+1. **Install Just command runner**:
 
-```sh
-git clone https://github.com/input-output-hk/hermes.git
-cd hermes
-```
+   ```bash
+   cargo install just
+   # Or: sudo apt install just
+   # Or: brew install just
+   ```
 
-2. Install global dependencies:
+2. **See all available commands and documentation**:
 
-```sh
-TODO: Add global dependencies
-```
+   ```bash
+   just --list
+   ```
 
-3. Navigate to individual project folders and follow their respective setup instructions.
+3. **Build and run everything**:
 
-## Projects
+   ```bash
+   just build-run-all
+   ```
 
-### Hermes
+## All Documentation is in the Justfile
 
-High-Availability Blockchain Voting Database.
+This project uses [Just](https://github.com/casey/just) for build automation.
+**All build instructions, prerequisites, configuration options, development workflows,
+and detailed documentation are contained in the `justfile`.**
 
-* **Directory**: [hermes](https://github.com/input-output-hk/hermes/tree/main/hermes)
-* **Setup**: Navigate to ./hermes and run TODO.
-* **Documentation**: [Link to detailed documentation or Wiki]
+Run `just --list` to see all available commands with their descriptions,
+or `just --show <command>` to see detailed documentation for any specific command.
 
-### Dashboard
+## Key Commands
 
-Hermes Admin Dashboard.
+* `just build-run-all` - Complete workflow (recommended for first-time users)
+* `just status` - Show current build status and configuration
+* `just --help` - Just command help
 
-* **Directory**: [dashboard](https://github.com/input-output-hk/hermes/tree/main/dashboard)
-* **Setup**: Navigate to ./dashboard and run TODO.
-* **Documentation**: [Link to detailed documentation or Wiki]
+For everything else - architecture, prerequisites, configuration,
+troubleshooting, development workflows - see the justfile documentation
+via `just --list`.
 
 ## Development
 
