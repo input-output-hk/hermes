@@ -28,7 +28,8 @@ impl PrivateKey {
 
     /// Create new private key from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let key = SigningKey::from_pkcs8_pem(str).map_err(|_| anyhow!("Key Pem Decoding Error"))?;
+        let key = SigningKey::from_pkcs8_pem(str)
+            .map_err(|_| anyhow!("Cannot decode key from string. Invalid PEM format."))?;
         Ok(Self(key))
     }
 
@@ -65,7 +66,7 @@ impl PublicKey {
     #[allow(dead_code)]
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
         let key = VerifyingKey::from_public_key_pem(str)
-            .map_err(|_| anyhow!("Key Pem Decoding Error"))?;
+            .map_err(|_| anyhow!("Cannot decode key from string. Invalid PEM format."))?;
         Ok(Self(key))
     }
 
