@@ -35,7 +35,7 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
         .set(Reactor {
             apps: DashMap::new(),
         })
-        .map_err(|_| anyhow::anyhow!("Already Initialized Error"))?;
+        .map_err(|_| anyhow::anyhow!("Reactor already been initialized."))?;
 
     Ok(exit_lock)
 }
@@ -47,9 +47,9 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 /// - Reactor not initialized.
 /// - Cannot send initialization event to the application.
 pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
-    let reactor = REACTOR_STATE
-        .get()
-        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
+    let reactor = REACTOR_STATE.get().ok_or(anyhow::anyhow!(
+        "Reactor not been initialized. Call `HermesEventQueue::init` first."
+    ))?;
 
     let app_name = app.name().clone();
     reactor.apps.insert(app_name.clone(), app);
@@ -62,9 +62,9 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 pub(crate) fn get_app(
     app_name: &ApplicationName
 ) -> anyhow::Result<Ref<'_, ApplicationName, Application>> {
-    let reactor = REACTOR_STATE
-        .get()
-        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
+    let reactor = REACTOR_STATE.get().ok_or(anyhow::anyhow!(
+        "Reactor not been initialized. Call `HermesEventQueue::init` first."
+    ))?;
     reactor
         .apps
         .get(app_name)
@@ -73,9 +73,9 @@ pub(crate) fn get_app(
 
 /// Get all available Hermes application names from the Hermes Reactor.
 pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<ApplicationName>> {
-    let reactor = REACTOR_STATE
-        .get()
-        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
+    let reactor = REACTOR_STATE.get().ok_or(anyhow::anyhow!(
+        "Reactor not been initialized. Call `HermesEventQueue::init` first."
+    ))?;
     Ok(reactor.apps.iter().map(|val| val.key().clone()).collect())
 }
 
