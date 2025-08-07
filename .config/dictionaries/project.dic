@@ -233,3 +233,7 @@ zstack
 reqwest
 projectcatalyst
 yamux
+justfile
+sandboxing
+catfact
+rustup
