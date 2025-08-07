@@ -4,6 +4,7 @@
 
 use std::path::Path;
 
+use anyhow::anyhow;
 use ed25519_dalek::{
     ed25519::signature::Signer,
     pkcs8::{DecodePrivateKey, DecodePublicKey},
@@ -12,14 +13,10 @@ use ed25519_dalek::{
 
 use super::super::FileError;
 
-/// Public or private key decoding from string error.
-#[derive(thiserror::Error, Debug)]
-#[error("Cannot decode key from string. Invalid PEM format.")]
-pub(crate) struct KeyPemDecodingError;
-
 /// Ed25519 private key instance.
 /// Wrapper over `ed25519_dalek::SigningKey`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct PrivateKey(SigningKey);
 
 impl PrivateKey {
@@ -31,7 +28,7 @@ impl PrivateKey {
 
     /// Create new private key from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let key = SigningKey::from_pkcs8_pem(str).map_err(|_| KeyPemDecodingError)?;
+        let key = SigningKey::from_pkcs8_pem(str).map_err(|_| anyhow!("Key Pem Decoding Error"))?;
         Ok(Self(key))
     }
 
@@ -52,7 +49,8 @@ impl PrivateKey {
 
 /// Ed25519 public key instance.
 /// Wrapper over `ed25519_dalek::VerifyingKey`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct PublicKey(VerifyingKey);
 
 impl PublicKey {
@@ -66,7 +64,8 @@ impl PublicKey {
     /// Create new public key from string decoded in PEM format.
     #[allow(dead_code)]
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let key = VerifyingKey::from_public_key_pem(str).map_err(|_| KeyPemDecodingError)?;
+        let key = VerifyingKey::from_public_key_pem(str)
+            .map_err(|_| anyhow!("Key Pem Decoding Error"))?;
         Ok(Self(key))
     }
 
@@ -96,7 +95,7 @@ impl PublicKey {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 pub(crate) mod tests {
     use temp_dir::TempDir;
 

@@ -11,13 +11,25 @@ pub(crate) mod sign;
 use std::{fmt::Display, path::Path};
 
 /// File open and read error.
-#[derive(thiserror::Error, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(thiserror::Error)]
 struct FileError {
     /// File location.
     location: String,
     /// File open and read error.
     msg: Option<anyhow::Error>,
 }
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for FileError {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
 impl FileError {
     /// Create a new `FileError` instance from a string location.
     fn from_string(
@@ -54,6 +66,17 @@ impl Display for FileError {
 }
 
 /// Missing package file error.
-#[derive(thiserror::Error, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(thiserror::Error)]
 #[error("Missing package file {0}.")]
 pub(crate) struct MissingPackageFileError(String);
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for MissingPackageFileError {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
+}

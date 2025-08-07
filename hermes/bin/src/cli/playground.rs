@@ -27,7 +27,8 @@ use crate::{
 /// components.
 ///
 /// If an internal error occurred returns 101.
-#[derive(Debug, clap::Args)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(clap::Args)]
 pub struct Playground {
     /// Wasm components to load as apps in this example.
     components: Vec<PathBuf>,

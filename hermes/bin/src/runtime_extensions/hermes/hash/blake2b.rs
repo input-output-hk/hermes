@@ -108,7 +108,7 @@ pub(crate) fn blake2bmac_impl(
     Ok(hash.as_bytes().into())
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_blake2b {
     use hex_literal::hex;
 

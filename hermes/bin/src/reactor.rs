@@ -12,16 +12,6 @@ use crate::{
 /// Global Hermes reactor state
 static REACTOR_STATE: OnceCell<Reactor> = OnceCell::new();
 
-/// Failed when reactor already been initialized.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Reactor already been initialized.")]
-pub(crate) struct AlreadyInitializedError;
-
-/// Failed when event queue not been initialized.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Reactor not been initialized. Call `HermesEventQueue::init` first.")]
-pub(crate) struct NotInitializedError;
-
 /// Hermes Reactor struct.
 /// This object orchestrates all Hermes apps within all core parts of the Hermes.
 struct Reactor {
@@ -45,7 +35,7 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
         .set(Reactor {
             apps: DashMap::new(),
         })
-        .map_err(|_| AlreadyInitializedError)?;
+        .map_err(|_| anyhow::anyhow!("Already Initialized Error"))?;
 
     Ok(exit_lock)
 }
@@ -57,7 +47,9 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 /// - Reactor not initialized.
 /// - Cannot send initialization event to the application.
 pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
-    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+    let reactor = REACTOR_STATE
+        .get()
+        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
 
     let app_name = app.name().clone();
     reactor.apps.insert(app_name.clone(), app);
@@ -70,7 +62,9 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 pub(crate) fn get_app(
     app_name: &ApplicationName
 ) -> anyhow::Result<Ref<'_, ApplicationName, Application>> {
-    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+    let reactor = REACTOR_STATE
+        .get()
+        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
     reactor
         .apps
         .get(app_name)
@@ -79,11 +73,13 @@ pub(crate) fn get_app(
 
 /// Get all available Hermes application names from the Hermes Reactor.
 pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<ApplicationName>> {
-    let reactor = REACTOR_STATE.get().ok_or(NotInitializedError)?;
+    let reactor = REACTOR_STATE
+        .get()
+        .ok_or(anyhow::anyhow!("Not Initialized Error"))?;
     Ok(reactor.apps.iter().map(|val| val.key().clone()).collect())
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

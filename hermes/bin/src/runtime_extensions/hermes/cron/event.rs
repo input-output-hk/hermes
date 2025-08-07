@@ -1,15 +1,17 @@
 //! Cron runtime extension event handler implementation.
 
+use anyhow::Error;
 use chrono::Utc;
 use saffron::Cron;
 
-use super::{state::cron_queue_rm, Error};
+use super::state::cron_queue_rm;
 use crate::{
     event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
 /// Duration in nanoseconds used for the Cron Service.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct CronDuration(u64);
 
 impl CronDuration {
@@ -31,7 +33,9 @@ impl TryFrom<i64> for CronDuration {
     type Error = Error;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        let duration: u64 = value.try_into().map_err(|_| Error::InvalidTimestamp)?;
+        let duration: u64 = value
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid Timestamp"))?;
         Ok(CronDuration(duration))
     }
 }
@@ -49,7 +53,8 @@ impl From<u64> for CronDuration {
 }
 
 /// On cron event
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct OnCronEvent {
     /// The tagged cron event that was triggered.
     pub(crate) tag: CronTagged,
@@ -185,7 +190,7 @@ impl Ord for CronTagged {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use chrono::prelude::*;
 

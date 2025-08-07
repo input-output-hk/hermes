@@ -104,7 +104,7 @@ pub(crate) fn execute(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
     use crate::{
