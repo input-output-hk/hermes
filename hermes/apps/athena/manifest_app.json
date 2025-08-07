@@ -6,6 +6,10 @@
         {
             "package": "modules/http-proxy/lib/http_proxy.hmod",
             "name": "http_proxy"
+        },
+        {
+            "package": "modules/db/lib/db.hmod",
+            "name": "db"
         }
     ]
 }

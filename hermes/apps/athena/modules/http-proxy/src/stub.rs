@@ -83,7 +83,6 @@ impl exports::hermes::init::event::Guest for HttpProxyComponent {
         const CARDANO_LAUNCH_SECONDS: u64 = 1506246291;
         const SECONDS_IN_A_DAY: u64 = 24 * 60 * 60;
 
-
         let elapsed_seconds = crate::hermes::wasi::clocks::wall_clock::now()
             .seconds
             .saturating_sub(CARDANO_LAUNCH_SECONDS);

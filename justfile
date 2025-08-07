@@ -93,23 +93,29 @@ get-local-athena:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "🔨 Building HTTP proxy WASM component..."
-    echo "📍 Module location: athena/modules/http-proxy/"
-    echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
+    build_wasm_module() {
+        local module_name="$1"
+        local earthly_target="./hermes/apps/athena/modules+local-build-${module_name}"
+        local manifest_path="hermes/apps/athena/modules/${module_name}/lib/manifest_module.json"
 
-    # Step 1: Build WASM module using Earthly (local development target)
-    # This compiles Rust source to optimized WASM binary and saves locally
-    earthly ./hermes/apps/athena/modules+local-build-http-proxy
-    echo "✅ WASM compilation complete"
+        echo "🔨 Building ${module_name} WASM component..."
+        echo "📍 Module location: athena/modules/${module_name}/"
+        echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
-    echo "📦 Packaging module with Hermes CLI..."
-    echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
+        earthly "$earthly_target"
+        echo "✅ WASM compilation complete for ${module_name}"
 
-    # Step 2: Package the WASM module with its configuration into .hmod format
-    # The .hmod file contains the WASM binary, manifest, and metadata for the module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    echo "✅ Module packaging complete (.hmod file created)"
+        echo "📦 Packaging module with Hermes CLI..."
+        echo "📄 Using manifest: $manifest_path"
 
+        target/release/hermes module package "$manifest_path"
+        echo "✅ Module packaging complete for ${module_name}"
+        echo ""
+    }
+
+    build_wasm_module "http-proxy"
+    build_wasm_module "db"
+    
     echo "📦 Packaging application bundle..."
     echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
 
@@ -254,6 +260,15 @@ status:
     echo "=================================="
     echo ""
 
+    check_wasm_module() {
+        local path="$1"
+        if [ -f "$path" ]; then
+            echo "   ✅ WASM Module: $(ls -lh "$path" | awk '{print $5 " " $6 " " $7 " " $8}')"
+        else
+            echo "   ❌ WASM Module: Not found ($path)"
+        fi
+    }
+
     echo "🔧 Hermes Engine:"
     if [ -f "../target/release/hermes" ]; then
         echo "   ✅ Binary: $(ls -lh ../target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
@@ -269,11 +284,8 @@ status:
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
 
-    if [ -f "athena/modules/http-proxy/lib/http_proxy.wasm" ]; then
-        echo "   ✅ WASM Module: $(ls -lh athena/modules/http-proxy/lib/http_proxy.wasm | awk '{print $5 " " $6 " " $7 " " $8}')"
-    else
-        echo "   ❌ WASM Module: Not found"
-    fi
+    check_wasm_module "athena/modules/http-proxy/lib/http_proxy.wasm"
+    check_wasm_module "athena/modules/db/lib/db.wasm"
     echo ""
 
     echo "🛡️  Current Security Config:"
