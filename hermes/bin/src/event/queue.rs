@@ -54,14 +54,14 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 /// - `CannotAddEventError`
 /// - `NotInitializedError`
 pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
-    let queue = EVENT_QUEUE_INSTANCE
-        .get()
-        .ok_or(anyhow!("Not Initialized"))?;
+    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(anyhow!(
+        "Event queue not been initialized. Call `init` first."
+    ))?;
 
     queue
         .sender
         .send(ControlFlow::Continue(event))
-        .map_err(|_| anyhow!("Cannot Add Event."))?;
+        .map_err(|_| anyhow!("Failed to add event into the event queue. Event queue is closed."))?;
 
     Ok(())
 }
@@ -72,14 +72,14 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// - `CannotShutdownQueueError`
 /// - `NotInitializedError`
 pub(crate) fn shutdown(code: ExitCode) -> anyhow::Result<()> {
-    let queue = EVENT_QUEUE_INSTANCE
-        .get()
-        .ok_or(anyhow!("Not Initialized"))?;
+    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(anyhow!(
+        "Event queue not been initialized. Call `init` first."
+    ))?;
 
     queue
         .sender
         .send(ControlFlow::Break(code))
-        .map_err(|_| anyhow!("Cannot Shutdown"))?;
+        .map_err(|_| anyhow!("Failed to shutdown event queue. Event queue is closed."))?;
 
     Ok(())
 }
