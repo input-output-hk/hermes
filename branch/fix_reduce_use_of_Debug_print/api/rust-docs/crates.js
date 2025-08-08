@@ -1,0 +1,2 @@
+window.ALL_CRATES = ["cardano_chain_follower","concurrent_reads","follow_chain_updates","follow_chain_updates_mithril","hermes","read_block","read_block_mithril","read_block_range","read_block_range_mithril","set_read_pointer","wasm_runner"];
+//{"start":21,"fragment_lengths":[24,19,23,31,9,13,21,19,27,19,14]}
