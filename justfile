@@ -26,6 +26,11 @@
 #   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: catfact.ninja)
 #   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /fact)
 
+# Variables
+HERMES_BIN := "./target/release/hermes"
+ATHENA_APP := "./hermes/apps/athena/app.happ"
+ATHENA_MODULES := "./hermes/apps/athena/modules"
+
 default:
     @just --list --unsorted
 
@@ -93,23 +98,29 @@ get-local-athena:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "🔨 Building HTTP proxy WASM component..."
-    echo "📍 Module location: athena/modules/http-proxy/"
-    echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
+    build_wasm_module() {
+        local module_name="$1"
+        local earthly_target="./hermes/apps/athena/modules+local-build-${module_name}"
+        local manifest_path="hermes/apps/athena/modules/${module_name}/lib/manifest_module.json"
 
-    # Step 1: Build WASM module using Earthly (local development target)
-    # This compiles Rust source to optimized WASM binary and saves locally
-    earthly ./hermes/apps/athena/modules+local-build-http-proxy
-    echo "✅ WASM compilation complete"
+        echo "🔨 Building ${module_name} WASM component..."
+        echo "📍 Module location: athena/modules/${module_name}/"
+        echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
-    echo "📦 Packaging module with Hermes CLI..."
-    echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
+        earthly "$earthly_target"
+        echo "✅ WASM compilation complete for ${module_name}"
 
-    # Step 2: Package the WASM module with its configuration into .hmod format
-    # The .hmod file contains the WASM binary, manifest, and metadata for the module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    echo "✅ Module packaging complete (.hmod file created)"
+        echo "📦 Packaging module with Hermes CLI..."
+        echo "📄 Using manifest: $manifest_path"
 
+        target/release/hermes module package "$manifest_path"
+        echo "✅ Module packaging complete for ${module_name}"
+        echo ""
+    }
+
+    build_wasm_module "http-proxy"
+    build_wasm_module "db"
+    
     echo "📦 Packaging application bundle..."
     echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
 
@@ -254,26 +265,36 @@ status:
     echo "=================================="
     echo ""
 
+    ATHENA_MODULES={{ATHENA_MODULES}}
+
+    check_wasm_module() {
+        local module="$1"
+        local path="${ATHENA_MODULES}/${module}"
+        local filename="$(basename "$module")"
+        if [ -f "$path" ]; then
+            echo "   ✅ WASM Module $filename: $(ls -lh "$path" | awk '{print $5 " " $6 " " $7 " " $8}')"
+        else
+            echo "   ❌ WASM Module $filename: Not found ($path)"
+        fi
+    }
+
     echo "🔧 Hermes Engine:"
-    if [ -f "../target/release/hermes" ]; then
-        echo "   ✅ Binary: $(ls -lh ../target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f {{HERMES_BIN}} ]; then
+        echo "   ✅ Binary: $(ls -lh {{HERMES_BIN}} | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Binary: Not found (run 'just get-local-hermes')"
     fi
     echo ""
 
     echo "📦 Athena Application:"
-    if [ -f "athena/app.happ" ]; then
-        echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f {{ATHENA_APP}} ]; then
+        echo "   ✅ Package: $(ls -lh {{ATHENA_APP}} | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
 
-    if [ -f "athena/modules/http-proxy/lib/http_proxy.wasm" ]; then
-        echo "   ✅ WASM Module: $(ls -lh athena/modules/http-proxy/lib/http_proxy.wasm | awk '{print $5 " " $6 " " $7 " " $8}')"
-    else
-        echo "   ❌ WASM Module: Not found"
-    fi
+    check_wasm_module "http-proxy/lib/http_proxy.wasm"
+    check_wasm_module "db/lib/db.wasm"
     echo ""
 
     echo "🛡️  Current Security Config:"

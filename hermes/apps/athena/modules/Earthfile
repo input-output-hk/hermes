@@ -152,6 +152,38 @@ local-build-http-proxy:
     # Save to local filesystem in expected location for packaging
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
+# TODO[RC]: Docs
+local-build-db:
+    # Initialize the Rust CI environment with pre-configured toolchain
+    DO rust-ci+SETUP
+
+    # Set working directory for build process
+    WORKDIR /app
+    
+    # Copy source code and project configuration
+    COPY --keep-ts --dir db/src .
+    COPY db/Cargo.toml .
+    
+    # Integrate generated WIT bindings into the build
+    COPY +gen-bindings/hermes.rs src/hermes.rs
+    
+    # Copy module configuration and metadata files
+    COPY db/lib/config.schema.json .
+    COPY db/lib/manifest_module.json .
+    COPY db/lib/metadata.json .
+    COPY db/lib/settings.schema.json .
+
+    # Compile Rust code to WebAssembly
+    DO rust-ci+CARGO \
+        --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/db.wasm"
+
+    # Export build artifacts
+    SAVE ARTIFACT target/wasm32-wasip2/release/db.wasm db.wasm
+    
+    # Save to local filesystem in expected location for packaging
+    SAVE ARTIFACT target/wasm32-wasip2/release/db.wasm AS LOCAL db/lib/db.wasm
+
 # Future Module Build Targets
 # ============================
 # 🚀 COMING SOON: Additional module build targets following the same pattern as build-http-proxy

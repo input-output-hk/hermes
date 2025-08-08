@@ -98,3 +98,10 @@ Cargo.lock
 *.wasm
 *.happ
 
+# Hermes build stuff
+hermes/apps/athena/modules/hermes
+hermes/apps/athena/modules/**/Cargo.lock
+target/*
+
+# Hermes datastore files
+hermes_datastore.db*
