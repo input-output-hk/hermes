@@ -25,6 +25,9 @@ impl Host for HermesRuntimeContext {
     /// called multiple times and potentially used for purposes other than `DoS`
     /// protection.
     fn insecure_seed(&mut self) -> wasmtime::Result<(u64, u64)> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
