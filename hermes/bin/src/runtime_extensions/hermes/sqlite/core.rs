@@ -1,5 +1,7 @@
 //! Core functionality implementation for the `SQLite` open function.
 
+use std::ffi::CString;
+
 use libsqlite3_sys::{
     sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
@@ -46,14 +48,10 @@ pub(super) fn open(
         SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
     };
 
-    let rc = unsafe {
-        sqlite3_open_v2(
-            db_path.to_string_lossy().as_ptr().cast(),
-            &raw mut db_ptr,
-            flags,
-            std::ptr::null(),
-        )
-    };
+    let c_path =
+        CString::new(db_path.to_string_lossy().as_bytes()).map_err(|_| Errno::ConvertingCString)?;
+
+    let rc = unsafe { sqlite3_open_v2(c_path.as_ptr(), &raw mut db_ptr, flags, std::ptr::null()) };
 
     if rc != SQLITE_OK {
         return Err(Errno::Sqlite(rc));
