@@ -26,6 +26,11 @@
 #   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: catfact.ninja)
 #   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /fact)
 
+# Variables
+HERMES_BIN := "./target/release/hermes"
+ATHENA_APP := "./hermes/apps/athena/app.happ"
+ATHENA_MODULES := "./hermes/apps/athena/modules"
+
 default:
     @just --list --unsorted
 
@@ -260,32 +265,36 @@ status:
     echo "=================================="
     echo ""
 
+    ATHENA_MODULES={{ATHENA_MODULES}}
+
     check_wasm_module() {
-        local path="$1"
+        local module="$1"
+        local path="${ATHENA_MODULES}/${module}"
+        local filename="$(basename "$module")"
         if [ -f "$path" ]; then
-            echo "   ✅ WASM Module: $(ls -lh "$path" | awk '{print $5 " " $6 " " $7 " " $8}')"
+            echo "   ✅ WASM Module $filename: $(ls -lh "$path" | awk '{print $5 " " $6 " " $7 " " $8}')"
         else
-            echo "   ❌ WASM Module: Not found ($path)"
+            echo "   ❌ WASM Module $filename: Not found ($path)"
         fi
     }
 
     echo "🔧 Hermes Engine:"
-    if [ -f "../target/release/hermes" ]; then
-        echo "   ✅ Binary: $(ls -lh ../target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f {{HERMES_BIN}} ]; then
+        echo "   ✅ Binary: $(ls -lh {{HERMES_BIN}} | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Binary: Not found (run 'just get-local-hermes')"
     fi
     echo ""
 
     echo "📦 Athena Application:"
-    if [ -f "athena/app.happ" ]; then
-        echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f {{ATHENA_APP}} ]; then
+        echo "   ✅ Package: $(ls -lh {{ATHENA_APP}} | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
 
-    check_wasm_module "athena/modules/http-proxy/lib/http_proxy.wasm"
-    check_wasm_module "athena/modules/db/lib/db.wasm"
+    check_wasm_module "http-proxy/lib/http_proxy.wasm"
+    check_wasm_module "db/lib/db.wasm"
     echo ""
 
     echo "🛡️  Current Security Config:"
