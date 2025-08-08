@@ -71,18 +71,12 @@ impl hermes::exports::hermes::http_request::event::Guest for DbComponent {
     }
 }
 
-impl hermes::exports::hermes::init::event::Guest for DbComponent {
-    fn init() -> bool {
-        true
-    }
-}
-
 impl hermes::exports::hermes::http_gateway::event::Guest for DbComponent {
     fn reply(
         _body: Vec<u8>,
         _headers: hermes::exports::hermes::http_gateway::event::Headers,
-        path: String,
-        method: String,
+        _path: String,
+        _method: String,
     ) -> Option<hermes::exports::hermes::http_gateway::event::HttpGatewayResponse> {
         None
     }
