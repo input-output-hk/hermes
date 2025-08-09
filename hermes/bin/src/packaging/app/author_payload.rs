@@ -6,7 +6,8 @@ use super::super::{
 };
 
 /// A signature payload object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayload {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
@@ -21,7 +22,8 @@ pub(crate) struct SignaturePayload {
 }
 
 /// A `SignaturePayload` module object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayloadModule {
     /// Name of the WASM module.
     name: String,
@@ -277,7 +279,7 @@ impl SignaturePayloadEncoding for SignaturePayload {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

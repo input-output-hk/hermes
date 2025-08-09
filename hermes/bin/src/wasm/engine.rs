@@ -3,12 +3,8 @@
 
 use std::ops::{Deref, DerefMut};
 
+use anyhow::anyhow;
 use wasmtime::{Config as WasmConfig, Engine as WasmEngine};
-
-/// WASM engine configuration error
-#[derive(thiserror::Error, Debug)]
-#[error("Incorrect `wasmtime::Engine` configuration, err: {0}")]
-struct BadEngineConfigError(String);
 
 /// WASM Engine struct
 #[derive(Clone)]
@@ -38,7 +34,12 @@ impl Engine {
         config.wasm_component_model(true);
         config.consume_fuel(false);
 
-        let engine = WasmEngine::new(&config).map_err(|e| BadEngineConfigError(e.to_string()))?;
+        let engine = WasmEngine::new(&config).map_err(|e| {
+            anyhow!(
+                "Incorrect `wasmtime::Engine` configuration: {}",
+                e.to_string()
+            )
+        })?;
 
         Ok(Self(engine))
     }

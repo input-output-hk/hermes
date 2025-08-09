@@ -5,7 +5,7 @@ mod config;
 mod config_info;
 mod manifest;
 mod settings;
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 pub(crate) mod tests;
 
 pub(crate) use author_payload::{SignaturePayload, SignaturePayloadBuilder};

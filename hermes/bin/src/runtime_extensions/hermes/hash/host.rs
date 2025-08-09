@@ -16,7 +16,10 @@ impl Host for HermesRuntimeContext {
         _buf: Bstr,
         _outlen: Option<u8>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Hash a binary buffer with `BLAKE2s` with `MAC` (Message Authentication Code) mode
@@ -28,7 +31,10 @@ impl Host for HermesRuntimeContext {
         _salt: Option<Bstr>,
         _persona: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Hash a binary buffer with `BLAKE2b`
@@ -59,6 +65,9 @@ impl Host for HermesRuntimeContext {
         _outlen: Option<u8>,
         _key: Option<Bstr>,
     ) -> wasmtime::Result<Result<Bstr, Errno>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

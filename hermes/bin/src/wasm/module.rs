@@ -22,11 +22,6 @@ use crate::{
     wasm::engine::Engine,
 };
 
-/// Bad WASM module error
-#[derive(thiserror::Error, Debug)]
-#[error("Bad WASM module:\n {0}")]
-struct BadWASMModuleError(String);
-
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
 /// It is used to interact with the WASM module.
@@ -39,7 +34,7 @@ pub struct ModuleInstance {
 }
 
 /// Module id type
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ModuleId(pub(crate) Ulid);
 
 impl std::fmt::Display for ModuleId {
@@ -87,7 +82,7 @@ impl Module {
     pub fn from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
         linker
@@ -98,10 +93,10 @@ impl Module {
             &LinkOptions::default(),
             |state: &mut HermesRuntimeContext| state,
         )
-        .map_err(|e| BadWASMModuleError(e.to_string()))?;
+        .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
         Ok(Self {
             pre_instance,
@@ -154,7 +149,7 @@ impl Module {
         let mut store = WasmStore::new(&self.engine, state);
         let instance = bindings::HermesPre::new(self.pre_instance.clone())?
             .instantiate(&mut store)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
 

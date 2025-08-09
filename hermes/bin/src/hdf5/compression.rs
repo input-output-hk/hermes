@@ -41,7 +41,7 @@ pub(crate) fn enable_compression(ds_builder: hdf5::DatasetBuilder) -> hdf5::Data
         .blosc(COMPRESSION_ALGORITHM, COMPRESSION_LEVEL, true)
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use std::path::Path;
 

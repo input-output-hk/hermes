@@ -21,17 +21,6 @@ mod state;
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
 
-/// Cron Error.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// The Cron Queue Task failed to start.
-    #[error("cron queue task failed to start")]
-    CronQueueTaskFailed,
-    /// Invalid timestamp.
-    #[error("invalid timestamp")]
-    InvalidTimestamp,
-}
-
 /// Create a delayed crontab entry.
 pub(crate) fn mkdelay_crontab(
     duration: Instant,
@@ -40,10 +29,10 @@ pub(crate) fn mkdelay_crontab(
     // Add the delay to the current time.
     let delayed = Utc::now()
         .checked_add_signed(TimeDelta::nanoseconds(duration.try_into()?))
-        .ok_or(Error::InvalidTimestamp)?;
+        .ok_or(anyhow::anyhow!("Invalid Timestamp"))?;
     let timestamp = delayed
         .timestamp_nanos_opt()
-        .ok_or(Error::InvalidTimestamp)?
+        .ok_or(anyhow::anyhow!("Invalid Timestamp"))?
         .try_into()?;
     let (month, day): (u8, u8) = (delayed.month().try_into()?, delayed.day().try_into()?);
     let (hour, minute): (u8, u8) = (delayed.hour().try_into()?, delayed.minute().try_into()?);
@@ -373,7 +362,7 @@ impl Ord for CronComponent {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
     use crate::app::ApplicationName;

@@ -11,7 +11,8 @@ use crate::{
 };
 
 /// Hermes App Name type
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ApplicationName(pub(crate) String);
 
 impl std::fmt::Display for ApplicationName {

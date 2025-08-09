@@ -4,7 +4,7 @@ mod app_builder;
 mod author_payload;
 mod manifest;
 mod module_info;
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests;
 
 pub(crate) use app_builder::build_app;

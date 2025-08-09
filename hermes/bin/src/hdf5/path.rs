@@ -5,7 +5,7 @@ use std::fmt::Display;
 use crate::utils::parse_path;
 
 /// Package path.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub(crate) struct Path(Vec<String>);
 
 impl Path {
@@ -66,7 +66,7 @@ impl From<&str> for Path {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

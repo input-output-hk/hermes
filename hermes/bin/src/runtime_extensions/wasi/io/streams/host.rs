@@ -38,7 +38,10 @@ impl HostInputStream for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<InputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read bytes from a stream, after blocking until at least one byte can
@@ -74,7 +77,10 @@ impl HostInputStream for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<InputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Skip bytes from a stream, after blocking until at least one byte
@@ -112,7 +118,10 @@ impl HostInputStream for HermesRuntimeContext {
         _self_: wasmtime::component::Resource<InputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -147,7 +156,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutputStream>,
         _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Perform a write of up to 4096 bytes, and then flush the stream. Block
@@ -203,7 +215,10 @@ impl HostOutputStream for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Request to flush buffered output, and block until flush completes
@@ -212,7 +227,10 @@ impl HostOutputStream for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Write zeroes to a stream.
@@ -226,7 +244,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Perform a write of up to 4096 zeroes, and then flush the stream.
@@ -258,7 +279,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read from one stream and write to another.
@@ -280,7 +304,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _src: wasmtime::component::Resource<InputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read from one stream and write to another, with blocking.
@@ -294,7 +321,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _src: wasmtime::component::Resource<InputStream>,
         _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
@@ -319,7 +349,10 @@ impl HostOutputStream for HermesRuntimeContext {
         _self_: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 

@@ -7,8 +7,18 @@ use super::{
 use crate::errors::Errors;
 
 /// Hermes HDF5 directory object, wrapper of `hdf5::Group`
-#[derive(Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) struct Dir(hdf5::Group);
+
+impl std::fmt::Display for Dir {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", self.path())
+    }
+}
 
 impl Dir {
     /// Create new `Dir`.
@@ -241,7 +251,7 @@ impl Dir {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use std::io::{Read, Write};
 
