@@ -112,7 +112,7 @@ pub(crate) fn get_is_rollback(
         .map_err(|e| anyhow::anyhow!("Thread panicked while getting block rollback: {e:?}"))?
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use anyhow::Result;
 

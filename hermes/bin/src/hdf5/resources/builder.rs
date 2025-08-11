@@ -9,7 +9,8 @@ use serde::{Deserialize, Deserializer};
 use super::{fs::FsResource, uri::Uri, ResourceTrait};
 
 /// Resource builder definition with the `serde::Deserialize` implementation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) enum ResourceBuilder {
     /// File system resource.
     Fs(PathBuf),
@@ -87,7 +88,7 @@ impl<'de> Deserialize<'de> for ResourceBuilder {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

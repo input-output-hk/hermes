@@ -107,7 +107,7 @@ pub(crate) fn derive_new_private_key(
     Ok(key)
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_bip32_ed25519 {
     use super::*;
 

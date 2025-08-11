@@ -18,7 +18,10 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _len: u64,
     ) -> wasmtime::Result<Vec<u8>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Return an insecure pseudo-random `u64` value.
@@ -26,6 +29,9 @@ impl Host for HermesRuntimeContext {
     /// This function returns the same type of pseudo-random data as
     /// `get-insecure-random-bytes`, represented as a `u64`.
     fn get_insecure_random_u64(&mut self) -> wasmtime::Result<u64> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

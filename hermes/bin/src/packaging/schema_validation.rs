@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use crate::errors::Errors;
 
 /// JSON Schema Draft 7 Validator.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct SchemaValidator {
     /// JSON schema validator instance.
     schema: Validator,

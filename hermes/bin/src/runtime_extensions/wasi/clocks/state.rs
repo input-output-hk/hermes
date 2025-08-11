@@ -79,7 +79,7 @@ pub(crate) fn wall_clock_res() -> Datetime {
     CLOCK_STATE.wall_resolution
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

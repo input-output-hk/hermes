@@ -8,14 +8,9 @@ use x509_cert::der::{DecodePem, Encode};
 
 use super::super::{hash::Blake2b256, sign::keys::PublicKey, FileError};
 
-/// Certificate decoding from string error.
-#[derive(thiserror::Error, Debug)]
-#[error("Cannot decode certificate from string. Invalid PEM format.")]
-pub(crate) struct CertificateDecodingError;
-
 /// x.509 cert instance.
 /// Wrapper over `x509_cert::Certificate`
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct Certificate(x509_cert::Certificate);
 
 impl Certificate {
@@ -28,8 +23,9 @@ impl Certificate {
 
     /// Create new certificate from string decoded in PEM format
     pub(crate) fn from_str(str: &str) -> anyhow::Result<Self> {
-        let cert = x509_cert::Certificate::from_pem(str.as_bytes())
-            .map_err(|_| CertificateDecodingError)?;
+        let cert = x509_cert::Certificate::from_pem(str.as_bytes()).map_err(|_| {
+            anyhow::anyhow!("Cannot decode certificate from string. Invalid PEM format.")
+        })?;
         Ok(Self(cert))
     }
 
@@ -53,7 +49,7 @@ impl Certificate {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 pub(crate) mod tests {
     use temp_dir::TempDir;
 

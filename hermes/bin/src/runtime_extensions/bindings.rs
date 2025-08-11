@@ -6,8 +6,6 @@
 //! or with:
 //! `earthly +bindings-expand`
 
-#![allow(clippy::indexing_slicing)]
-
 use wasmtime::component::bindgen;
 
 bindgen!({

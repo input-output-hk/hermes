@@ -3,12 +3,29 @@
 use super::{compression::enable_compression, Path};
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
-#[derive(Debug)]
 pub(crate) struct File {
     /// HDF5 dataset object.
     pub(super) hdf5_ds: hdf5::Dataset,
     /// Reading/Writing position of the `hdf5_ds`.
     pos: usize,
+}
+
+impl std::fmt::Display for File {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", self.path())
+    }
+}
+
+impl std::fmt::Debug for File {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", self.path())
+    }
 }
 
 impl std::clone::Clone for File {
@@ -159,7 +176,7 @@ impl std::io::Seek for File {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use std::io::{Read, Seek, Write};
 

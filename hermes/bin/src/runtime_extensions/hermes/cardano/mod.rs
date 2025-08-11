@@ -73,11 +73,22 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
 }
 
 /// Cardano Error.
-#[derive(thiserror::Error, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(thiserror::Error)]
 pub enum CardanoError {
     /// Network not supported.
     #[error("Network {0} is not supported")]
     NetworkNotSupported(u32),
+}
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for CardanoError {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
 }
 
 /// Global multi-threaded Tokio runtime for background tasks.

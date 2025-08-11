@@ -1,13 +1,13 @@
 //! Hermes runtime context implementation.
 
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use wasmtime::component::HasData;
 
 use crate::{app::ApplicationName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
     app_name: ApplicationName,
@@ -23,6 +23,19 @@ pub(crate) struct HermesRuntimeContext {
 
     /// App Virtual file system
     vfs: Arc<Vfs>,
+}
+
+impl Display for HermesRuntimeContext {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{}:{}[{}]",
+            self.app_name, self.module_id, self.event_name, self.exc_counter
+        )
+    }
 }
 
 impl HasData for HermesRuntimeContext {

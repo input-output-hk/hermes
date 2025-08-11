@@ -28,7 +28,6 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
 }
 
 /// Target Hermes app to execute the event
-#[derive(Debug)]
 pub(crate) enum TargetApp {
     /// Execute for all available apps
     #[allow(dead_code)]
@@ -38,7 +37,6 @@ pub(crate) enum TargetApp {
 }
 
 /// Target WASM module to execute the event
-#[derive(Debug)]
 pub(crate) enum TargetModule {
     /// Execute for all available modules
     All,
