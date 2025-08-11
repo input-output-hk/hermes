@@ -27,8 +27,9 @@ pub(crate) fn get_app_persistent_sqlite_db_cfg(app_name: ApplicationName) -> Opt
         return None;
     }
 
+    let path = format!("hermes_datastore.db.{name}");
     Some(SqliteConfig {
-        db_file: Some(PathBuf::from("hermes_datastore.db")),
+        db_file: Some(PathBuf::from(path)),
         max_db_size: MAX_CONFIG_DB_SIZE,
     })
 }
