@@ -84,7 +84,6 @@ gen-bindings-http-proxy:
 
     # Export generated bindings to the HTTP proxy module source directory
     # This allows the Rust code in http-proxy/src/ to import and use Hermes APIs
-    # NOTE: In multi-module apps, this same hermes.rs is copied to each module's src/
     SAVE ARTIFACT hermes.rs AS LOCAL athena/modules/http-proxy/src/hermes.rs
 
 # Builds the bindings for the DB module.
@@ -93,9 +92,7 @@ gen-bindings-db:
     # Use the WASI build environment which includes WIT binding generation tools
     FROM wasi+build-rust-bindings --package_name=hermes:wasi/db --output_file=db.rs
 
-    # Export generated bindings to the HTTP proxy module source directory
-    # This allows the Rust code in http-proxy/src/ to import and use Hermes APIs
-    # NOTE: In multi-module apps, this same hermes.rs is copied to each module's src/
+    # Export generated bindings to the DB module source directory
     SAVE ARTIFACT db.rs AS LOCAL athena/modules/db/src/db.rs
 
 # HTTP Proxy WASM Module Build
@@ -163,7 +160,8 @@ local-build-http-proxy:
     # Save to local filesystem in expected location for packaging
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
-# TODO[RC]: Docs
+# DB WASM Module Build
+# TODO[RC]: Make a single, parametrized "local-build"
 local-build-db:
     # Initialize the Rust CI environment with pre-configured toolchain
     DO rust-ci+SETUP
