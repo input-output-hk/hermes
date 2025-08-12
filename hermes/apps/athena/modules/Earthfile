@@ -78,7 +78,7 @@ get-local-hermes:
 # Input: WIT interface definition files
 # Output: hermes.rs - Generated Rust binding code (shared by all modules)
 # Duration: ~1-2 minutes (WIT processing and code generation)
-gen-bindings:
+gen-bindings-http-proxy:
     # Use the WASI build environment which includes WIT binding generation tools
     FROM wasi+build-rust-bindings
 
@@ -87,7 +87,9 @@ gen-bindings:
     # NOTE: In multi-module apps, this same hermes.rs is copied to each module's src/
     SAVE ARTIFACT hermes.rs AS LOCAL athena/modules/http-proxy/src/hermes.rs
 
-gen-bindings-xxx:
+# Builds the bindings for the DB module.
+# TODO[RC]: Make a single, parametrized "gen-bindings"
+gen-bindings-db:
     # Use the WASI build environment which includes WIT binding generation tools
     FROM wasi+build-rust-bindings --package_name=hermes:wasi/db --output_file=db.rs
 
@@ -142,7 +144,7 @@ local-build-http-proxy:
     COPY http-proxy/Cargo.toml .
     
     # Integrate generated WIT bindings into the build
-    COPY +gen-bindings/hermes.rs src/hermes.rs
+    COPY +gen-bindings-http-proxy/hermes.rs src/hermes.rs
     
     # Copy module configuration and metadata files
     COPY http-proxy/lib/config.schema.json .
@@ -174,7 +176,7 @@ local-build-db:
     COPY db/Cargo.toml .
     
     # Integrate generated WIT bindings into the build
-    COPY +gen-bindings-xxx/db.rs src/db.rs
+    COPY +gen-bindings-db/db.rs src/db.rs
     
     # Copy module configuration and metadata files
     COPY db/lib/config.schema.json .
