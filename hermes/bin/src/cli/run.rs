@@ -13,7 +13,7 @@ use crate::{
         app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
     },
-    reactor,
+    pool, reactor,
 };
 
 /// Run cli command
@@ -56,6 +56,7 @@ impl Run {
         let app = build_app(&package, hermes_home_dir)?;
 
         let exit_lock = reactor::init()?;
+        pool::init()?;
         println!(
             "{} Loading application {}...",
             Emoji::new("🛠️", ""),

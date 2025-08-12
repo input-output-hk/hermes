@@ -2,6 +2,8 @@
 
 pub mod queue;
 
+use std::sync::Arc;
+
 use crate::{
     app::ApplicationName,
     wasm::module::{ModuleId, ModuleInstance},
@@ -49,7 +51,7 @@ pub(crate) enum TargetModule {
 /// Hermes event
 pub(crate) struct HermesEvent {
     /// The payload carried by the `HermesEvent`.
-    payload: Box<dyn HermesEventPayload>,
+    payload: Arc<dyn HermesEventPayload>,
 
     /// Target app
     target_app: TargetApp,
@@ -66,15 +68,15 @@ impl HermesEvent {
         target_module: TargetModule,
     ) -> Self {
         Self {
-            payload: Box::new(payload),
+            payload: Arc::new(payload),
             target_app,
             target_module,
         }
     }
 
     /// Get event's payload
-    pub(crate) fn payload(&self) -> &dyn HermesEventPayload {
-        self.payload.as_ref()
+    pub(crate) fn payload(&self) -> &Arc<dyn HermesEventPayload> {
+        &self.payload
     }
 
     /// Get event's target app
