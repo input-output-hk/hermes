@@ -13,7 +13,7 @@ pub use exit::{Exit, ExitLock};
 use once_cell::sync::OnceCell;
 
 use super::{HermesEvent, TargetApp, TargetModule};
-use crate::{app::ApplicationName, reactor};
+use crate::{app::ApplicationName, pool, reactor};
 
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
@@ -117,9 +117,10 @@ fn targeted_module_event_execution(
         },
         TargetModule::List(target_modules) => {
             for target_module_id in target_modules {
-                if let Err(err) =
-                    app.dispatch_event_for_target_module(target_module_id.clone(), event.payload())
-                {
+                if let Err(err) = app.dispatch_event_for_target_module(
+                    target_module_id.clone(),
+                    event.payload().clone(),
+                ) {
                     tracing::error!("{err}");
                 }
             }
@@ -150,8 +151,18 @@ fn event_execution_loop(receiver: &Receiver<ControlFlow<ExitCode, HermesEvent>>)
     loop {
         match receiver.recv() {
             Ok(ControlFlow::Continue(event)) => targeted_app_event_execution(&event),
-            Ok(ControlFlow::Break(exit_code)) => break Exit::Done { exit_code },
-            Err(mpsc::RecvError) => break Exit::QueueClosed,
+            Ok(ControlFlow::Break(exit_code)) => {
+                if let Err(err) = pool::terminate() {
+                    tracing::error!("Failed to terminate thread pool: {err}");
+                }
+                break Exit::Done { exit_code };
+            },
+            Err(mpsc::RecvError) => {
+                if let Err(err) = pool::terminate() {
+                    tracing::error!("Failed to terminate thread pool: {err}");
+                }
+                break Exit::QueueClosed;
+            },
         }
     }
 }

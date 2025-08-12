@@ -11,6 +11,7 @@ pub mod hdf5;
 pub mod ipfs;
 pub mod logger;
 pub mod packaging;
+pub mod pool;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;
