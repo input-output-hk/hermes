@@ -2,7 +2,7 @@ VERSION 0.8
 
 #cspell: words rustfmt wasi
 
-# Make am Artifact which consists of the WASI SRC.
+# Make an Artifact which consists of the WASI SRC.
 wasi-src:
     FROM scratch
 

@@ -86,10 +86,11 @@ build:
 build-rust-bindings:
     ARG package_name=hermes:wasi/hermes
     ARG output_file=hermes.rs
+    ARG wasi_path=../wasi/wit
 
     FROM +builder
 
-    RUN wit-bindgen rust --generate-all -w $package_name ../wasi/wit
+    RUN wit-bindgen rust --generate-all -w $package_name $wasi_path
 
     SAVE ARTIFACT $output_file
 

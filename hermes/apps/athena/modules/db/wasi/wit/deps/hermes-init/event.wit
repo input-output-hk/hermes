@@ -1,0 +1,21 @@
+/// # Init API
+///
+/// The Init Event is only ever called once per application the webasm module is used in.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// Logging API Interface
+interface event {
+
+    /// Perform application start up initialization.
+    ///
+    /// This will only ever be called once when the application this module is a part of is started.
+    /// The module must export this interface to use it.
+    ///
+    /// Returns:
+    /// - `true`  - Initialization is successful, the application may commence.
+    /// - `false` - Fatal error during Initialization.  DO NOT START APPLICATION.
+    init: func() -> bool;
+}
