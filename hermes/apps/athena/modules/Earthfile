@@ -173,12 +173,6 @@ local-build-http-proxy:
     # Save to local filesystem in expected location for packaging
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
-athena-wasi-src:
-    FROM scratch
-
-    WORKDIR /
-    COPY --dir db/wasi athena/db/wasi
-
 # DB WASM Module Build
 # TODO[RC]: Make a single, parametrized "local-build"
 local-build-db:
