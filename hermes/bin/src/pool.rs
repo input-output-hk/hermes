@@ -6,18 +6,20 @@
 //! handling of multiple modules per event.
 
 use std::{
-    sync::OnceLock,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex, OnceLock,
+    },
     thread::{available_parallelism, JoinHandle},
 };
 
+use anyhow::anyhow;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
-/// Singleton instance of the
-/// Hermes thread pool.
+/// Singleton instance of the Hermes thread pool.
 pub(crate) static THREAD_POOL_INSTANCE: OnceLock<Pool> = OnceLock::new();
 
-/// Failed when thread pool
-/// already been initialized.
+/// Failed when thread pool already been initialized.
 #[derive(thiserror::Error, Debug, Clone)]
 #[error("Thread pool already been initialized.")]
 pub(crate) struct AlreadyInitializedError;
@@ -29,16 +31,26 @@ struct Worker {
     handle: JoinHandle<()>,
 }
 
+/// Wrapper for task to process termination.
+enum Message {
+    /// Worker task.
+    Job(Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>),
+    /// Termination signal.
+    Shutdown,
+}
+
 /// Spawns new pool thread which reads and executes tasks one by one.
-fn spawn(receiver: Receiver<Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>>) -> Worker {
+fn spawn(receiver: Receiver<Message>) -> Worker {
     let handle = std::thread::spawn(move || {
         while let Ok(task) = receiver.recv() {
-            // Execute
-            // the task
-            // and log
-            // any errors
-            if let Err(err) = task() {
-                tracing::error!("Task execution failed: {err}");
+            match task {
+                // Execute the task and log any errors
+                Message::Job(task) => {
+                    if let Err(err) = task() {
+                        tracing::error!("Task execution failed: {err}");
+                    }
+                },
+                Message::Shutdown => break,
             }
         }
     });
@@ -48,10 +60,11 @@ fn spawn(receiver: Receiver<Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'sta
 
 pub(crate) struct Pool {
     /// Workers handles.
-    #[allow(dead_code)]
-    workers: Vec<Worker>,
+    workers: Mutex<Vec<Worker>>,
     /// Task queue sender handle.
-    queue: Sender<Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>>,
+    queue: Sender<Message>,
+    /// Has `terminate()` been already called
+    terminated: AtomicBool,
 }
 
 impl Pool {
@@ -60,25 +73,45 @@ impl Pool {
         &self,
         task: Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>,
     ) -> anyhow::Result<()> {
+        if self.terminated.load(Ordering::Acquire) {
+            return Err(anyhow::anyhow!("Thread pool is shut down"));
+        }
+
         self.queue
-            .send(task)
+            .send(Message::Job(task))
             .map_err(|_| anyhow::anyhow!("Thread pool is shut down"))?;
         Ok(())
     }
 
-    // TODO: fix termination mechanism
-    /// Terminates the thread pool.
-    #[allow(dead_code)]
-    fn terminate(self) {
-        // Drop the sender to signal workers to exit
-        drop(self.queue);
-
-        // Wait for all workers to finish
-        for worker in self.workers {
-            if let Err(err) = worker.handle.join() {
-                tracing::error!("Worker thread panicked: {err:?}");
-            }
+    /// Terminates the thread pool.]
+    fn terminate(&self) -> anyhow::Result<()> {
+        if self.terminated.swap(true, Ordering::AcqRel) {
+            return Ok(());
         }
+
+        let mut workers = self
+            .workers
+            .lock()
+            .map_err(|_err| anyhow!("failed to lock mutex"))?;
+        // Ask each worker to shut down.
+        for _ in 0..workers.len() {
+            // If send fails, receivers are already gone; that's fine.
+            self.queue
+                .send(Message::Shutdown)
+                .map_err(|err| anyhow!("failed to send shutdown signal: {err}"))?;
+        }
+
+        let mut mutex_replacement = vec![];
+        std::mem::swap(&mut mutex_replacement, &mut *workers);
+
+        for worker in mutex_replacement {
+            worker
+                .handle
+                .join()
+                .map_err(|_err| anyhow!("failed to terminate worker"))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -88,8 +121,7 @@ impl Default for Pool {
     ///
     /// Since one thread is used for main execution flow and one for event loop.
     fn default() -> Self {
-        let (sender, receiver) =
-            unbounded::<Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>>();
+        let (sender, receiver) = unbounded::<Message>();
 
         let available_threads = available_parallelism()
             .map(|num_threads| {
@@ -101,13 +133,16 @@ impl Default for Pool {
             .unwrap_or(Some(1))
             .unwrap_or(1);
 
-        let workers = (0..available_threads)
-            .map(|_| spawn(receiver.clone()))
-            .collect();
+        let workers = Mutex::new(
+            (0..available_threads)
+                .map(|_| spawn(receiver.clone()))
+                .collect(),
+        );
 
         Self {
             workers,
             queue: sender,
+            terminated: AtomicBool::default(),
         }
     }
 }
@@ -127,18 +162,17 @@ pub(crate) fn execute(
 ) -> anyhow::Result<()> {
     let pool = THREAD_POOL_INSTANCE
         .get()
-        .ok_or_else(|| anyhow::anyhow!("Thread pool not initialized"))?;
+        .ok_or_else(|| anyhow::anyhow!("Thread pool is not initialized"))?;
 
     pool.execute(task)
 }
 
 /// Terminates the global thread pool
 pub(crate) fn terminate() -> anyhow::Result<()> {
-    let _pool = THREAD_POOL_INSTANCE
+    let pool = THREAD_POOL_INSTANCE
         .get()
-        .ok_or_else(|| anyhow::anyhow!("Thread pool not initialized"))?;
+        .ok_or_else(|| anyhow::anyhow!("Thread pool is not initialized"))?;
 
-    // TODO: fix termination
-    // pool.terminate();
+    pool.terminate()?;
     Ok(())
 }
