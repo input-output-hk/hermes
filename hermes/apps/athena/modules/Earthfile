@@ -99,7 +99,8 @@ build-rust-bindings-db:
     RUN wit-bindgen rust --generate-all -w db ./wasi/wit
 
 # Builds the bindings for the DB module.
-# TODO[RC]: Make a single, parametrized "gen-bindings"
+# TODO[RC]: Make a single, parametrized "gen-bindings" capable of building any module
+#           after https://github.com/input-output-hk/hermes/issues/472 is merged
 gen-bindings-db:
     # Use the WASI build environment which includes WIT binding generation tools
     FROM +build-rust-bindings-db
