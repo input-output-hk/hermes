@@ -1,0 +1,19 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.6 AS rust-ci
+
+IMPORT ../../../../../wasm/wasi AS wasi
+
+# TODO - This can be integrated somewhere in the modules earthfile
+build-rbac-registration:
+    DO rust-ci+SETUP
+
+    COPY --keep-ts --dir src .
+    COPY Cargo.toml .
+    COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
+
+    DO rust-ci+CARGO \
+        --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/rbac-registration.wasm"
+
+    SAVE ARTIFACT target/wasm32-wasip2/release/rbac-registration.wasm rbac-registration.rs.wasm
