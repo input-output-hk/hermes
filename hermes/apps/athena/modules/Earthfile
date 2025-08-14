@@ -91,7 +91,7 @@ builder-db:
     DO rust-ci+SETUP
 
     COPY wasm+wasi-src/wasi ./wasi
-    COPY --dir ./db/wasi .
+    COPY --dir ./db/wasi/db.wit ./wasi/wit
 
 build-rust-bindings-db:
     FROM +builder-db
