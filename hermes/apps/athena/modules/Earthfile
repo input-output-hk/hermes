@@ -178,8 +178,6 @@ athena-wasi-src:
     WORKDIR /
     COPY --dir db/wasi athena/db/wasi
 
-    #SAVE ARTIFACT /wasi wasi
-
 # DB WASM Module Build
 # TODO[RC]: Make a single, parametrized "local-build"
 local-build-db:
