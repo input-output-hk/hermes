@@ -14,25 +14,39 @@ const SUPPORT_FILES: &[&str] = &[
     "metadata.json",
 ];
 
-fn copy_support_files(temp_dir: &TempDir) -> anyhow::Result<()> {
+fn copy_support_files(
+    temp_dir: &TempDir,
+    component_name: &str,
+    module_name: &str,
+) -> anyhow::Result<()> {
     for &name in SUPPORT_FILES {
         let file_path = format!("tests/integration/tests/utils/app_support_files/{name}");
         let destination = temp_dir.as_ref().join(name);
-        std::fs::copy(file_path, destination)?;
+        let mut file_content = std::fs::read_to_string(file_path)?;
+        file_content = file_content.replace("test_module", module_name);
+        file_content = file_content.replace("test_component", component_name);
+        std::fs::write(destination, file_content)?;
     }
     Ok(())
 }
 
-pub fn package(temp_dir: &TempDir) -> anyhow::Result<String> {
-    package_module(temp_dir)?;
+pub fn package(
+    temp_dir: &TempDir,
+    component_name: &str,
+    module_name: &str,
+) -> anyhow::Result<String> {
+    package_module(temp_dir, component_name, module_name)?;
     package_app(temp_dir)
 }
 
-fn package_module(temp_dir: &TempDir) -> anyhow::Result<()> {
-    copy_support_files(temp_dir)?;
+fn package_module(
+    temp_dir: &TempDir,
+    component_name: &str,
+    module_name: &str,
+) -> anyhow::Result<()> {
+    copy_support_files(temp_dir, component_name, module_name)?;
 
     let manifest_path = temp_dir.as_ref().join("manifest_module.json");
-
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("module")
         .arg("package")

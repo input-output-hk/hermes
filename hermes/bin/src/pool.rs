@@ -1,15 +1,9 @@
-//! Thread pool implementation
-//! for parallel WASM module
-//! execution.
+//! Thread pool implementation for parallel WASM module execution.
 //!
-//! This module provides a
-//! thread pool that can
-//! execute WASM modules in
-//! parallel,
-//! with work-stealing
-//! semantics and graceful
-//! handling of multiple
-//! modules per event.
+//! This module provides a thread pool that can
+//! execute WASM modules in parallel,
+//! with work-stealing semantics and graceful
+//! handling of multiple modules per event.
 
 use std::{
     sync::OnceLock,
@@ -28,20 +22,14 @@ pub(crate) static THREAD_POOL_INSTANCE: OnceLock<Pool> = OnceLock::new();
 #[error("Thread pool already been initialized.")]
 pub(crate) struct AlreadyInitializedError;
 
-/// This struct represents
-/// single thread worker, who
-/// is responsible for
-/// processing new incoming
-/// tasks.
+/// This struct represents single thread worker, who
+/// is responsible for processing new incoming tasks.
 struct Worker {
-    /// Handle to process
-    /// termination.
+    /// Handle to process termination.
     handle: JoinHandle<()>,
 }
 
-/// Spawns new pool thread
-/// which reads and executes
-/// tasks one by one.
+/// Spawns new pool thread which reads and executes tasks one by one.
 fn spawn(receiver: Receiver<Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>>) -> Worker {
     let handle = std::thread::spawn(move || {
         while let Ok(task) = receiver.recv() {
@@ -67,8 +55,7 @@ pub(crate) struct Pool {
 }
 
 impl Pool {
-    /// Execute a task on the
-    /// thread pool
+    /// Execute a task on the thread pool
     pub(crate) fn execute(
         &self,
         task: Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>,
@@ -79,19 +66,14 @@ impl Pool {
         Ok(())
     }
 
-    // TODO: fix termination
-    // mechanism
-    /// Terminates the thread
-    /// pool.
+    // TODO: fix termination mechanism
+    /// Terminates the thread pool.
     #[allow(dead_code)]
     fn terminate(self) {
-        // Drop the sender to
-        // signal workers to
-        // exit
+        // Drop the sender to signal workers to exit
         drop(self.queue);
 
-        // Wait for all
-        // workers to finish
+        // Wait for all workers to finish
         for worker in self.workers {
             if let Err(err) = worker.handle.join() {
                 tracing::error!("Worker thread panicked: {err:?}");
@@ -130,8 +112,7 @@ impl Default for Pool {
     }
 }
 
-/// Initialize the global
-/// thread pool
+/// Initialize the global thread pool
 pub(crate) fn init() -> anyhow::Result<()> {
     THREAD_POOL_INSTANCE
         .set(Pool::default())
@@ -140,8 +121,7 @@ pub(crate) fn init() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Execute a task on the
-/// global thread pool
+/// Execute a task on the global thread pool
 pub(crate) fn execute(
     task: Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>
 ) -> anyhow::Result<()> {
@@ -152,8 +132,7 @@ pub(crate) fn execute(
     pool.execute(task)
 }
 
-/// Terminates the global
-/// thread pool
+/// Terminates the global thread pool
 pub(crate) fn terminate() -> anyhow::Result<()> {
     let _pool = THREAD_POOL_INSTANCE
         .get()
