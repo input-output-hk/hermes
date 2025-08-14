@@ -15,6 +15,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
 # WASI Bindings Generator - provides WebAssembly Interface Types (WIT) binding generation
 # This generates Rust code from WIT files that define WebAssembly component interfaces
 IMPORT ../../../../wasm/wasi AS wasi
+IMPORT ../../../../wasm AS wasm
 
 # Hermes Engine Binary Build
 # ===========================
@@ -86,11 +87,23 @@ gen-bindings-http-proxy:
     # This allows the Rust code in http-proxy/src/ to import and use Hermes APIs
     SAVE ARTIFACT hermes.rs AS LOCAL athena/modules/http-proxy/src/hermes.rs
 
+builder-db:
+    DO rust-ci+SETUP
+
+    COPY wasm+wasi-src/wasi ./wasi
+    COPY --dir ./db/wasi/db.wit ./wasi/wit
+
+build-rust-bindings-db:
+    FROM +builder-db
+
+    RUN wit-bindgen rust --generate-all -w db ./wasi/wit
+
 # Builds the bindings for the DB module.
-# TODO[RC]: Make a single, parametrized "gen-bindings"
+# TODO[RC]: Make a single, parametrized "gen-bindings" capable of building any module
+#           after https://github.com/input-output-hk/hermes/issues/472 is merged
 gen-bindings-db:
     # Use the WASI build environment which includes WIT binding generation tools
-    FROM wasi+build-rust-bindings --package_name=hermes:wasi/db --output_file=db.rs
+    FROM +build-rust-bindings-db
 
     # Export generated bindings to the DB module source directory
     SAVE ARTIFACT db.rs AS LOCAL athena/modules/db/src/db.rs
