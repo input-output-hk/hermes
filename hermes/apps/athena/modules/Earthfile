@@ -15,6 +15,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.4.5 AS rust-ci
 # WASI Bindings Generator - provides WebAssembly Interface Types (WIT) binding generation
 # This generates Rust code from WIT files that define WebAssembly component interfaces
 IMPORT ../../../../wasm/wasi AS wasi
+IMPORT ../../../../wasm AS wasm
 
 # Hermes Engine Binary Build
 # ===========================
@@ -89,6 +90,7 @@ gen-bindings-http-proxy:
 builder-db:
     DO rust-ci+SETUP
 
+    COPY wasm+wasi-src/wasi ./wasi
     COPY --dir ./db/wasi .
 
 build-rust-bindings-db:
