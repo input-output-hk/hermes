@@ -10,6 +10,7 @@
 //! - `/api/gateway/v1/config/frontend` - UI configuration
 //! - `/api/gateway/v1/cardano/assets/*` - Blockchain assets (wildcard)
 //! - `/api/gateway/v1/rbac/registration` - Authentication
+//! - `/api/gateway/v1/document` - Document API v1
 //! - `/api/gateway/v2/document/index` - Document API v2
 //! 
 //! All HTTP methods (GET, POST, PUT, DELETE) supported automatically.
