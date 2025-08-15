@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PermissionLevel"],"struct":["PermissionNode","PermissionsState"],"type":["PermissionNodeRef"]};
