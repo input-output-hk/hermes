@@ -84,11 +84,14 @@ build:
 
 # test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
 build-rust-bindings:
+    ARG package_name=hermes:wasi/hermes
+    ARG output_file=hermes.rs
+
     FROM +builder
 
-    RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
+    RUN wit-bindgen rust --generate-all -w $package_name ../wasi/wit
 
-    SAVE ARTIFACT hermes.rs
+    SAVE ARTIFACT $output_file
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:

@@ -1,0 +1,7 @@
+package hermes:wasi;
+
+world db {
+  include hermes:init/all;
+  include hermes:logging/all;
+  include hermes:sqlite/all;
+}
