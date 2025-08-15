@@ -1,34 +1,51 @@
-//! # HTTP Proxy Component - Hermes WASM Module for External Endpoint Mirroring
+//! # HTTP Proxy Component - Temporary Bridge to External Endpoints
 //! 
-//! **This component provides a temporary bridge to external endpoints** by mirroring 
-//! HTTP requests from Cat Voices where we do not yet have internal Hermes implementations.
-//! This allows the system to function while we progressively develop native Hermes logic
-//! for each endpoint.
+//! Mirrors HTTP requests to Cat Voices endpoints where we lack native Hermes implementations.
+//! Provides a bridge during development while we progressively implement each endpoint natively.
 //! 
-//! ## Purpose & Strategy
-//! - **Temporary Bridge**: Mirrors endpoints we haven't implemented in Hermes yet
-//! - **Progressive Migration**: As we develop native Hermes logic, we remove mirroring
-//! - **No Proxy for Native Logic**: Endpoints with Hermes implementations bypass this proxy
-//! - **External Dependency**: Routes to Cat Voices until internal capabilities are ready
+//! ## Request Flow
+//! Client → Gateway (port 5000) → WASM Component → Internal Redirect → External Endpoint
 //! 
-//! ## Key Patterns Demonstrated
-//! - HTTP request routing with pattern matching
-//! - External endpoint mirroring via internal redirects
-//! - Structured logging with appropriate levels
-//! - WASM component structure for Hermes
-//! - Secure URL validation and redirect handling
+//! ## Currently Mirrored Endpoints
+//! - `/api/gateway/v1/config/frontend` - UI configuration
+//! - `/api/gateway/v1/cardano/assets/*` - Blockchain assets (wildcard)
+//! - `/api/gateway/v1/rbac/registration` - Authentication
+//! - `/api/gateway/v1/document` - Document API v1
+//! - `/api/gateway/v2/document/index` - Document API v2
 //! 
-//! ## Currently Mirrored Endpoints (Temporary)
-//! These endpoints mirror to Cat Voices until we implement native Hermes logic:
-//! - Frontend configuration (`/api/gateway/v1/config/frontend`)
-//! - Cardano assets (`/api/gateway/v1/cardano/assets/*`)
-//! - RBAC registration (`/api/gateway/v1/rbac/registration`)
+//! All HTTP methods (GET, POST, PUT, DELETE) supported automatically.
+//! Query parameters and request bodies preserved in redirects.
 //! 
-//! ## Development Notes
-//! - Static content serving is handled natively (no mirroring needed)
-//! - As each endpoint gets native Hermes implementation, remove it from this proxy
-//! - Eventually this component may be deprecated when all logic is native
-//! - Comprehensive request/response logging for debugging during migration
+//! ## Security
+//! Redirects validated against configurable policies:
+//! ```bash
+//! REDIRECT_ALLOWED_HOSTS="app.dev.projectcatalyst.io"
+//! REDIRECT_ALLOWED_PATH_PREFIXES="/api/gateway"  
+//! REDIRECT_ALLOWED_SCHEMES="https"
+//! ```
+//! 
+//! ## Testing Parity
+//! Test that local responses match production responses:
+//! ```bash
+//! # Frontend config comparison
+//! PROD=$(curl -s "https://app.dev.projectcatalyst.io/api/gateway/v1/config/frontend")
+//! LOCAL=$(curl -s -H "Host: app.hermes.local" "http://0.0.0.0:5000/api/gateway/v1/config/frontend" | jq -r '.[2] | implode | fromjson')
+//! jq --argjson prod "$PROD" --argjson local "$LOCAL" -n '$prod == $local'
+//! 
+//! # Cardano assets with query parameters
+//! ENDPOINT="/api/gateway/v1/cardano/assets/stake_test1ursne3ndzr4kz8gmhmstu5026erayrnqyj46nqkkfcn0uf?asat=SLOT:95022059"
+//! PROD=$(curl -s "https://app.dev.projectcatalyst.io${ENDPOINT}")
+//! LOCAL=$(curl -s -H "Host: app.hermes.local" "http://0.0.0.0:5000${ENDPOINT}" | jq -r '.[2] | implode | fromjson')
+//! 
+//! # RBAC with authentication
+//! AUTH="Bearer catid.:1755256930@preprod.cardano/..."
+//! PROD=$(curl -s "https://app.dev.projectcatalyst.io/api/gateway/v1/rbac/registration" -H "Authorization: $AUTH")
+//! LOCAL=$(curl -s -H "Host: app.hermes.local" -H "Authorization: $AUTH" "http://0.0.0.0:5000/api/gateway/v1/rbac/registration" | jq -r '.[2] | implode | fromjson')
+//! ```
+//! 
+//! ## Migration Strategy
+//! As native implementations are developed, remove endpoints from this proxy.
+//! Eventually deprecate this component when all logic is native.
 
 // Allow everything since this is generated code.
 #[allow(clippy::all, unused)]
@@ -48,6 +65,12 @@ const CARDANO_ASSETS_ENDPOINT_PREFIX: &str = "/api/gateway/v1/cardano/assets/";
 /// RBAC registration endpoint prefix (temporary mirror until native implementation)
 const RBAC_REGISTRATION_ENDPOINT_PREFIX: &str = "/api/gateway/v1/rbac/registration";
 
+/// Document endpoint (temporary mirror until native implementation)
+const DOCUMENT_ENDPOINT: &str = "/api/gateway/v1/document";
+
+/// Document v2 endpoint (temporary mirror until native implementation)
+const DOCUMENT_V2_ENDPOINT: &str = "/api/gateway/v2/document/index";
+
 /// Static content endpoint prefix (handled natively - no mirroring)
 const STATIC_ENDPOINT_PREFIX: &str = "/static/";
 
@@ -55,17 +78,10 @@ const STATIC_ENDPOINT_PREFIX: &str = "/static/";
 const MIRROR_HOST: &str = "https://app.dev.projectcatalyst.io";
 
 /// HTTP proxy component providing temporary bridge to external endpoints.
-/// 
-/// This component only mirrors endpoints where we lack native Hermes implementations.
-/// Once native logic is developed for an endpoint, it should be removed from this proxy.
 struct HttpProxyComponent;
 
 impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
-    /// Handle HTTP requests with temporary mirroring strategy.
-    /// 
-    /// Routes requests to external Cat Voices endpoints only when we don't have
-    /// native Hermes implementations. This provides a bridge during development
-    /// while we progressively implement each endpoint natively.
+    /// Routes requests to external endpoints when native implementations don't exist.
     fn reply(
         _body: Vec<u8>,
         _headers: hermes::exports::hermes::http_gateway::event::Headers,
@@ -128,6 +144,32 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
                 let redirect_url = format!("{}{}", MIRROR_HOST, path);
 
                 HttpGatewayResponse::InternalRedirect(redirect_url)
+            },
+            DOCUMENT_ENDPOINT => {
+                hermes::hermes::logging::api::log(
+                    hermes::hermes::logging::api::Level::Debug,
+                    Some("http-proxy"),
+                    None,
+                    None,
+                    None,
+                    None,
+                    "Temporarily mirroring document v1 endpoint to Cat Voices",
+                    None,
+                );
+                HttpGatewayResponse::InternalRedirect(format!("{}{}", MIRROR_HOST, DOCUMENT_ENDPOINT))
+            },
+            DOCUMENT_V2_ENDPOINT => {
+                hermes::hermes::logging::api::log(
+                    hermes::hermes::logging::api::Level::Debug,
+                    Some("http-proxy"),
+                    None,
+                    None,
+                    None,
+                    None,
+                    "Temporarily mirroring document v2 endpoint to Cat Voices",
+                    None,
+                );
+                HttpGatewayResponse::InternalRedirect(format!("{}{}", MIRROR_HOST, DOCUMENT_V2_ENDPOINT))
             },
             path if path.starts_with(STATIC_ENDPOINT_PREFIX) => {
                 hermes::hermes::logging::api::log(
