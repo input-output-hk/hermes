@@ -1,53 +1,25 @@
-//! # HTTP Proxy Component - Temporary Bridge to External Endpoints
-//! 
-//! Mirrors HTTP requests to Cat Voices endpoints where we lack native Hermes implementations.
-//! Provides a bridge during development while we progressively implement each endpoint natively.
-//! 
-//! ## Request Flow
-//! Client → Gateway (port 5000) → WASM Component → Internal Redirect → External Endpoint
-//! 
-//! ## Currently Mirrored Endpoints
-//! - `/api/gateway/v1/config/frontend` - UI configuration
-//! - `/api/gateway/v1/cardano/assets/*` - Blockchain assets (wildcard)
-//! - `/api/gateway/v1/rbac/registration` - Authentication
-//! - `/api/gateway/v1/document` - Document API v1
-//! - `/api/gateway/v2/document/index` - Document API v2
-//! 
-//! All HTTP methods (GET, POST, PUT, DELETE) supported automatically.
-//! Query parameters and request bodies preserved in redirects.
-//! 
-//! ## Security
-//! Redirects validated against configurable policies:
-//! ```bash
-//! REDIRECT_ALLOWED_HOSTS="app.dev.projectcatalyst.io"
-//! REDIRECT_ALLOWED_PATH_PREFIXES="/api/gateway"  
-//! REDIRECT_ALLOWED_SCHEMES="https"
-//! ```
-//! 
-//! ## Testing Parity
-//! Test that local responses match production responses:
-//! ```bash
-//! # Frontend config comparison
-//! PROD=$(curl -s "https://app.dev.projectcatalyst.io/api/gateway/v1/config/frontend")
-//! LOCAL=$(curl -s -H "Host: app.hermes.local" "http://0.0.0.0:5000/api/gateway/v1/config/frontend" | jq -r '.[2] | implode | fromjson')
-//! jq --argjson prod "$PROD" --argjson local "$LOCAL" -n '$prod == $local'
-//! 
-//! # Cardano assets with query parameters
-//! ENDPOINT="/api/gateway/v1/cardano/assets/stake_test1ursne3ndzr4kz8gmhmstu5026erayrnqyj46nqkkfcn0uf?asat=SLOT:95022059"
-//! PROD=$(curl -s "https://app.dev.projectcatalyst.io${ENDPOINT}")
-//! LOCAL=$(curl -s -H "Host: app.hermes.local" "http://0.0.0.0:5000${ENDPOINT}" | jq -r '.[2] | implode | fromjson')
-//! 
-//! # RBAC with authentication
-//! AUTH="Bearer catid.:1755256930@preprod.cardano/..."
-//! PROD=$(curl -s "https://app.dev.projectcatalyst.io/api/gateway/v1/rbac/registration" -H "Authorization: $AUTH")
-//! LOCAL=$(curl -s -H "Host: app.hermes.local" -H "Authorization: $AUTH" "http://0.0.0.0:5000/api/gateway/v1/rbac/registration" | jq -r '.[2] | implode | fromjson')
-//! ```
-//! 
-//! ## Migration Strategy
-//! As native implementations are developed, remove endpoints from this proxy.
-//! Eventually deprecate external redirects when native implementations are complete.
+//! HTTP Proxy Module - Configurable Request Router
+//!
+//! ## Vision
+//! This module is designed to be a fully configurable HTTP proxy system that can:
+//! - Route requests to different backends based on configurable rules
+//! - Support multiple routing strategies (path-based, header-based, etc.)
+//! - Handle load balancing and failover scenarios
+//! - Provide middleware capabilities for request/response transformation
+//! - Offer dynamic configuration updates without restarts
+//!
+//! ## Current State
+//! At present, the module serves as a temporary bridge to external Cat Voices endpoints
+//! while native implementations are under development. The current focus is on:
+//! - Maintaining API compatibility during the transition period
+//! - Ensuring reliable request forwarding to external services
+//! - Providing seamless user experience while backend services migrate
+//!
+//! ## Roadmap
+//! As native implementations are completed, this module will evolve into a sophisticated
+//! proxy system capable of routing between multiple backends, supporting A/B testing,
+//! gradual rollouts, and advanced traffic management scenarios.
 
-// Allow everything since this is generated code.
 #[allow(clippy::all, unused)]
 mod hermes;
 mod stub;
@@ -58,39 +30,46 @@ use crate::hermes::exports::hermes::http_gateway::event::HttpResponse;
 
 use std::sync::OnceLock;
 
-/// External Cat Voices host for temporary mirroring
-const MIRROR_HOST: &str = "https://app.dev.projectcatalyst.io";
+/// External Cat Voices host for temporary external routing
+/// TODO: Make this configurable via environment variables or config file
+const EXTERNAL_HOST: &str = "https://app.dev.projectcatalyst.io";
 
-/// Regex patterns for endpoints that should be mirrored to external service
-/// 
-/// Patterns match:
-/// - Frontend config: `/api/gateway/v1/config/frontend`
-/// - Cardano assets: `/api/gateway/v1/cardano/assets/...` (any asset ID)
-/// - RBAC registration: `/api/gateway/v1/rbac/registration` (with optional query params)
-/// - Document v1: `/api/gateway/v1/document`  
-/// - Document v2: `/api/gateway/v2/document/index`
-const MIRROR_PATTERNS: &[&str] = &[
+/// Route patterns that should be forwarded to external Cat Voices system
+/// TODO: Convert to configurable rules engine supporting dynamic pattern updates
+const EXTERNAL_ROUTE_PATTERNS: &[&str] = &[
     r"^/api/gateway/v1/config/frontend$",
     r"^/api/gateway/v1/cardano/assets/.+$",
-    r"^/api/gateway/v1/rbac/registration(\?.*)?$",
-    r"^/api/gateway/v1/document$",
-    r"^/api/gateway/v2/document/index$",
+    r"^/api/gateway/v1/rbac/registration.*$",
+    r"^/api/gateway/v1/document.*$",
+    r"^/api/gateway/v2/document.*$", //  can handle subpaths and query parameters
 ];
 
 /// Regex pattern for static content (handled natively)
+/// TODO: Make static content patterns configurable
 const STATIC_PATTERN: &str = r"^/static/.+$";
 
 /// Compiled regex patterns (initialized once at runtime)
-static MIRROR_REGEX: OnceLock<Vec<regex::Regex>> = OnceLock::new();
+/// TODO: Replace with hot-reloadable configuration system
+static EXTERNAL_ROUTE_REGEX: OnceLock<Vec<regex::Regex>> = OnceLock::new();
 static STATIC_REGEX: OnceLock<regex::Regex> = OnceLock::new();
 
-/// HTTP proxy component providing temporary bridge to external endpoints.
+/// HTTP proxy component providing configurable request routing.
+/// 
+/// Currently serves as a temporary bridge to external Cat Voices endpoints
+/// while native implementations are developed. The long-term vision is to
+/// evolve this into a full-featured configurable proxy supporting:
+/// - Dynamic backend selection
+/// - Load balancing strategies  
+/// - Circuit breakers and health checks
+/// - Request/response middleware chains
+/// - A/B testing and canary deployments
 struct HttpProxyComponent;
 
 /// Initialize regex patterns (called once at startup)
+/// TODO: Replace with configuration-driven pattern compilation
 fn init_regex() -> &'static Vec<regex::Regex> {
-    MIRROR_REGEX.get_or_init(|| {
-        MIRROR_PATTERNS
+    EXTERNAL_ROUTE_REGEX.get_or_init(|| {
+        EXTERNAL_ROUTE_PATTERNS
             .iter()
             .map(|pattern| {
                 regex::Regex::new(pattern)
@@ -101,6 +80,7 @@ fn init_regex() -> &'static Vec<regex::Regex> {
 }
 
 /// Initialize static content regex pattern
+/// TODO: Support multiple static content patterns from configuration
 fn init_static_regex() -> &'static regex::Regex {
     STATIC_REGEX.get_or_init(|| {
         regex::Regex::new(STATIC_PATTERN)
@@ -108,25 +88,29 @@ fn init_static_regex() -> &'static regex::Regex {
     })
 }
 
-/// Determines if a path should be mirrored to external endpoint using regex matching
-fn should_mirror(path: &str) -> bool {
+/// Determines if a request should be routed to external Cat Voices system
+/// TODO: Replace with configurable routing decision engine
+fn should_route_externally(path: &str) -> bool {
     let patterns = init_regex();
     patterns.iter().any(|regex| regex.is_match(path))
 }
 
 /// Determines if a path is static content using regex matching
+/// TODO: Integrate with configurable content serving strategies
 fn is_static_content(path: &str) -> bool {
     let regex = init_static_regex();
     regex.is_match(path)
 }
 
-/// Creates a mirrored redirect response
-fn create_mirror_redirect(path: &str) -> HttpGatewayResponse {
-    log_debug(&format!("Mirroring endpoint to Cat Voices: {}", path));
-    HttpGatewayResponse::InternalRedirect(format!("{}{}", MIRROR_HOST, path))
+/// Creates an external route redirect response
+/// Currently redirects to Cat Voices - will become configurable backend selection
+fn create_external_redirect(path: &str) -> HttpGatewayResponse {
+    log_debug(&format!("Routing externally to Cat Voices: {}", path));
+    HttpGatewayResponse::InternalRedirect(format!("{}{}", EXTERNAL_HOST, path))
 }
 
 /// Creates a static content response (native handling)
+/// TODO: Integrate with configurable static content serving middleware
 fn create_static_response(path: &str) -> HttpGatewayResponse {
     log_debug(&format!("Serving static content natively: {}", path));
     HttpGatewayResponse::Http(HttpResponse {
@@ -137,8 +121,9 @@ fn create_static_response(path: &str) -> HttpGatewayResponse {
 }
 
 /// Creates a 404 not found response
+/// TODO: Make error responses configurable (custom error pages, etc.)
 fn create_not_found_response(method: &str, path: &str) -> HttpGatewayResponse {
-    log_warn(&format!("Route not found (no native implementation or mirroring configured): {} {}", method, path));
+    log_warn(&format!("Route not found (no native implementation or external routing configured): {} {}", method, path));
     HttpGatewayResponse::Http(HttpResponse {
         code: 404,
         headers: vec![("content-type".to_string(), vec!["text/html".to_string()])],
@@ -183,12 +168,16 @@ fn log_warn(message: &str) {
 fn format_response_type(response: &HttpGatewayResponse) -> String {
     match response {
         HttpGatewayResponse::Http(resp) => format!("HTTP {}", resp.code),
-        HttpGatewayResponse::InternalRedirect(_) => "REDIRECT (temporary bridge)".to_string(),
+        HttpGatewayResponse::InternalRedirect(_) => "EXTERNAL_REDIRECT (temporary bridge)".to_string(),
     }
 }
 
 impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
-    /// Routes requests to external endpoints when native implementations don't exist.
+    /// Routes HTTP requests through configurable proxy logic.
+    /// 
+    /// Current implementation provides temporary bridging to external Cat Voices
+    /// endpoints while native implementations are developed. Future versions will
+    /// support sophisticated routing rules, backend selection, and middleware chains.
     fn reply(
         _body: Vec<u8>,
         _headers: hermes::exports::hermes::http_gateway::event::Headers,
@@ -197,8 +186,8 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
     ) -> Option<HttpGatewayResponse> {
         log_info(&format!("Processing HTTP request: {} {}", method, path));
 
-        let response = if should_mirror(&path) {
-            create_mirror_redirect(&path)
+        let response = if should_route_externally(&path) {
+            create_external_redirect(&path)
         } else if is_static_content(&path) {
             create_static_response(&path)
         } else {
