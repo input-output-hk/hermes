@@ -2,7 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
     "name": "rbac-registration",
     "metadata": "metadata.json",
-    "component": "rbac-registration.wasm",
+    "component": "rbac_registration.wasm",
     "config": {
         "file": "config.json",
         "schema": "config.schema.json"
