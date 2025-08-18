@@ -70,7 +70,7 @@ pub(crate) fn spawn_subscribe(
                 "Failed to spawn chain follower"
             );
             return;
-        }; // // Hold onto the clone inside the thread to keep Arc alive
+        };
 
         rt.block_on(subscribe(
             cmd_rx,

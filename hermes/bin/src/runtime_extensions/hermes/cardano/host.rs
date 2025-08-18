@@ -333,6 +333,30 @@ impl HostBlock for HermesRuntimeContext {
         Ok(block.raw().clone())
     }
 
+    /// Fork count is a counter that is incremented every time there is a roll-back in
+    /// live-chain. It is used to help followers determine how far to roll-back to
+    /// resynchronize without storing full block history. The fork count starts at 1 for
+    /// live blocks and increments if the live chain tip is purged due to a detected
+    /// fork, but it does not track the exact number of forks reported by peers.
+    ///
+    /// - 0 - for all immutable data
+    /// - 1 - for any data read from the blockchain during a *backfill* on initial sync
+    /// - 2+ - for each subsequent rollback detected while reading live blocks.
+    ///
+    /// Note: This fork terminology is different from fork in blockchain.
+    ///
+    /// ** Returns **
+    ///
+    /// - `u64` : The fork count.
+    fn get_fork(
+        &mut self,
+        self_: wasmtime::component::Resource<Block>,
+    ) -> wasmtime::Result<u64> {
+        let mut app_state = STATE.block.get_app_state(self.app_name())?;
+        let block = app_state.get_object(&self_)?;
+        Ok(block.fork().into())
+    }
+
     fn drop(
         &mut self,
         rep: wasmtime::component::Resource<Block>,
