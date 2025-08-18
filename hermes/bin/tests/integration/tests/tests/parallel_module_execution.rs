@@ -51,11 +51,11 @@ fn parallel_execution() {
         &format!("Reached {} responses, calling done()", 5)
     ));
 
-    // If events run in parallel, total time should be ~5 seconds, not ~25 seconds
+    // If events run in parallel, total time should be ~1 seconds, not ~5 seconds
     // Allow some margin for startup/shutdown time
     assert!(
-        execution_time.as_secs() < 15,
-        "Execution took {} seconds, expected less than 15 seconds for parallel execution",
+        execution_time.as_secs() < 3,
+        "Execution took {} seconds, expected less than 3 seconds for parallel execution",
         execution_time.as_secs()
     );
 

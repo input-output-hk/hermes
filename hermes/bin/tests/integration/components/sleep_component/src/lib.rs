@@ -23,6 +23,7 @@ use crate::utils::{busy_wait_s, make_payload, test_log};
 const REQUEST_COUNT: usize = 5;
 const RESPONSES_FILE: &str = "responses.txt";
 const CONTENT: &[u8] = b"\xF0\x9F\xA6\x80\n";
+const WAIT_FOR_SECS: u64 = 1;
 
 struct HttpRequestApp;
 
@@ -66,7 +67,7 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
             "got response with request_id={request_id:?}: {}",
             String::from_utf8(response).expect("should be valid UTF-8")
         ));
-        busy_wait_s(5);
+        busy_wait_s(WAIT_FOR_SECS);
         std::fs::File::options()
             .append(true)
             .open(RESPONSES_FILE)
