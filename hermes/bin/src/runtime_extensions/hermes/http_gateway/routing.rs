@@ -45,9 +45,7 @@ pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
-where
-    B: Body + From<String>,
-{
+where B: Body + From<String> {
     Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())?)
@@ -55,9 +53,7 @@ where
 
 /// HTTP not found response generator
 pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
-where
-    B: Body + From<&'static str>,
-{
+where B: Body + From<&'static str> {
     Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())?)
@@ -137,7 +133,7 @@ pub(crate) async fn router(
 ///
 /// ## Routing
 /// - `/api/*` → WASM modules via event queue
-/// - Valid paths → Static file system  
+/// - Valid paths → Static file system
 /// - Invalid paths → HTTP 404
 ///
 /// ## Key Features
