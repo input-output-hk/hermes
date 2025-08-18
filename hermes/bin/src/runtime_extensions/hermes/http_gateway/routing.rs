@@ -45,7 +45,9 @@ pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
-where B: Body + From<String> {
+where
+    B: Body + From<String>,
+{
     Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())?)
@@ -53,7 +55,9 @@ where B: Body + From<String> {
 
 /// HTTP not found response generator
 pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
-where B: Body + From<&'static str> {
+where
+    B: Body + From<&'static str>,
+{
     Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())?)
@@ -127,15 +131,15 @@ pub(crate) async fn router(
 }
 
 /// Routes HTTP requests to WASM modules or static file handlers
-/// 
+///
 /// Converts incoming HTTP requests into structured events for WASM processing,
 /// preserving full URLs including query parameters for accurate forwarding.
-/// 
+///
 /// ## Routing
 /// - `/api/*` → WASM modules via event queue
 /// - Valid paths → Static file system  
 /// - Invalid paths → HTTP 404
-/// 
+///
 /// ## Key Features
 /// - Preserves query parameters (e.g., `?asat=SLOT:95022059`)
 /// - Multi-value header support
@@ -150,9 +154,10 @@ async fn route_to_hermes(
 
     let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
-    
+
     // Include query parameters in path (crucial for redirects)
-    let path = uri.path_and_query()
+    let path = uri
+        .path_and_query()
         .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str)
         .to_string();
 
@@ -166,7 +171,7 @@ async fn route_to_hermes(
     }
 
     let (_parts, body) = req.into_parts();
-    
+
     if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
         compose_http_event(
             method,
