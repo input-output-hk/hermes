@@ -37,7 +37,7 @@ fn make_body(host_uri: &str) -> Vec<u8> {
 
 pub(crate) fn test_log(s: &str) {
     bindings::hermes::logging::api::log(
-        bindings::hermes::logging::api::Level::Info,
+        bindings::hermes::logging::api::Level::Trace,
         None,
         None,
         None,

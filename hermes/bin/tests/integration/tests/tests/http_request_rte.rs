@@ -1,3 +1,4 @@
+use serial_test::serial;
 use temp_dir::TempDir;
 
 use crate::utils;
@@ -21,6 +22,7 @@ use crate::utils;
 //   - chunked encoding issues
 
 #[test]
+#[serial]
 fn simple_request() {
     const COMPONENT: &str = "http_request_rte_01";
     const COMPONENT_NAME: &str = "test_component";
