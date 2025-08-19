@@ -1,11 +1,12 @@
-use std::time::Instant;
+use std::{thread::available_parallelism, time::Instant};
 
+use serial_test::serial;
 use temp_dir::TempDir;
 
 use crate::utils;
 
 #[test]
-#[allow(unreachable_code)]
+#[serial]
 fn parallel_execution() {
     const COMPONENT: &str = "sleep_component";
     const COMPONENT_NAME: &str = "sleep_component";
@@ -53,11 +54,22 @@ fn parallel_execution() {
 
     // If events run in parallel, total time should be ~1 seconds, not ~5 seconds
     // Allow some margin for startup/shutdown time
-    assert!(
-        execution_time.as_secs() < 3,
-        "Execution took {} seconds, expected less than 3 seconds for parallel execution",
-        execution_time.as_secs()
-    );
+    //
+    // Note: if there is not enough threads, then we would have some kind of sequential
+    // execution, so this assert would not pass
+    // We need 1 thread for task queue, 1 thread for thread pool and
+    // 5 for each worker to run independently
+    if available_parallelism()
+        .expect("could not check available number of threads")
+        .get()
+        > 6
+    {
+        assert!(
+            execution_time.as_secs() < 3,
+            "Execution took {} seconds, expected less than 3 seconds for parallel execution",
+            execution_time.as_secs()
+        );
+    }
 
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
