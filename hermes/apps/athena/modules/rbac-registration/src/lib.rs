@@ -1,13 +1,9 @@
 // Allow everything since this is generated code.
-#![allow(clippy::all, unused)]
 
 mod hermes;
 mod stub;
 
-use cardano_blockchain_types;
-use catalyst_types::catalyst_id::CatalystId;
-use rbac_registration;
-use rbac_registration::cardano::cip509::Cip509;
+use rbac_registration::{self, cardano::cip509::Cip509};
 use serde_json::json;
 
 const FILE_NAME: &str = "rbac-registration/lib.rs";
@@ -21,12 +17,25 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
     ) {
         let registrations =
             get_rbac_registration(block.raw(), subscription_id.get_network(), block.get_fork());
-        if !registrations.is_empty() {
+
+        #[allow(unused_variables)]
+        for reg in registrations {
+            // Data needed for db
+            let txn_id = reg.txn_hash();
+            let cat_id = reg.catalyst_id();
+            let slot = reg.origin().point().slot_or_default();
+            let txn_idx = reg.origin().txn_index();
+            let purpose = reg.purpose();
+            let prv_txn_id = reg.previous_transaction();
+            let problem_report = reg.report();
+            // Can contain multiple stake addresses
+            let stake_addresses = reg.role_0_stake_addresses();
+
             log(
                 hermes::hermes::logging::api::Level::Trace,
                 FILE_NAME,
                 "",
-                &format!("🦄 RBAC registration: {registrations:?}").as_str(),
+                &format!("🦄 RBAC registration:r {reg:?}"),
                 "",
                 None,
             );
@@ -36,59 +45,51 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
 
 impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
-        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Specific(87374283);
+        const FUNCTION_NAME: &str = "init";
+
+        let slot = 87374283;
+        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Specific(slot);
         let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;
 
-        let network_resource = hermes::hermes::cardano::api::Network::new(network).unwrap();
-        let subscription_id_resource = network_resource.subscribe_block(subscribe_from).unwrap();
-        log(
-            hermes::hermes::logging::api::Level::Trace,
-            FILE_NAME,
-            "",
-            &format!("🎧 Network {network:?}, with subscription id: {subscription_id_resource:?}")
-                .as_str(),
-            "",
-            None,
-        );
-        true
-    }
-}
-
-enum RbacSelection {
-    All,
-    CatId(String),
-    StakeAddress(String),
-}
-
-/// Filter the RBAC registrations based on the selection.
-fn filter_rbac_registration(
-    selection: RbacSelection,
-    rbac_registrations: Vec<Cip509>,
-) -> Vec<Cip509> {
-    const FUNCTION_NAME: &str = "filter_rbac_registration";
-    match selection {
-        RbacSelection::All => rbac_registrations,
-        RbacSelection::CatId(cat_id) => match cat_id.parse::<CatalystId>() {
-            Ok(parsed_id) => rbac_registrations
-                .into_iter()
-                .filter(|rbac_reg| rbac_reg.catalyst_id() == Some(&parsed_id))
-                .collect(),
-            Err(_) => {
+        let network_resource = match hermes::hermes::cardano::api::Network::new(network) {
+            Ok(nr) => nr,
+            Err(e) => {
                 log(
                     hermes::hermes::logging::api::Level::Error,
                     FILE_NAME,
                     FUNCTION_NAME,
-                    "cat_id.parse::<CatalystId>()",
-                    "Failed to parse CatalystId from string",
-                    Some(json!({ "cat_id": cat_id  }).to_string()),
+                    "hermes::hermes::cardano::api::Network::new",
+                    &format!("Failed to create network resource {network:?}: {e}"),
+                    None,
                 );
-                vec![]
+                return false;
             },
-        },
-        StakeAddress(stake_address) => rbac_registrations.into_iter()
-            .into_iter()
-            .filter(|rbac_reg| rbac_reg.stake_address == stake_address)
-            .collect(),
+        };
+
+        let subscription_id_resource = match network_resource.subscribe_block(subscribe_from) {
+            Ok(id) => id,
+            Err(e) => {
+                log(
+                    hermes::hermes::logging::api::Level::Error,
+                    FILE_NAME,
+                    FUNCTION_NAME,
+                    "network_resource.subscribe_block",
+                    &format!("Failed to subscribe block from {subscribe_from:?}: {e}"),
+                    None,
+                );
+                return false;
+            },
+        };
+
+        log(
+            hermes::hermes::logging::api::Level::Trace,
+            FILE_NAME,
+            FUNCTION_NAME,
+            &format!("💫 Network {network:?}, with subscription id: {subscription_id_resource:?}"),
+            "",
+            None,
+        );
+        true
     }
 }
 
@@ -125,7 +126,7 @@ fn get_rbac_registration(
                 FUNCTION_NAME,
                 "pallas_block.slot().checked_sub()",
                 "Slot underflow when computing previous point",
-                Some(json!({ "slot": pallas_block.slot() }).to_string()),
+                Some(&json!({ "slot": pallas_block.slot() }).to_string()),
             );
             return vec![];
         },
@@ -173,26 +174,6 @@ fn get_rbac_registration(
     Cip509::from_block(&block, &[])
 }
 
-fn log(
-    level: hermes::hermes::logging::api::Level,
-    file: &str,
-    function: &str,
-    context: &str,
-    msg: &str,
-    data: Option<hermes::hermes::json::api::Json>,
-) {
-    hermes::hermes::logging::api::log(
-        level,
-        Some(file),
-        Some(function),
-        None,
-        None,
-        Some(context),
-        msg,
-        None,
-    );
-}
-
 impl From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
     fn from(
         network: hermes::hermes::cardano::api::CardanoNetwork
@@ -207,9 +188,42 @@ impl From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_t
             hermes::hermes::cardano::api::CardanoNetwork::Preview => {
                 cardano_blockchain_types::Network::Preview
             },
-            hermes::hermes::cardano::api::CardanoNetwork::TestnetMagic(_) => todo!(),
+            hermes::hermes::cardano::api::CardanoNetwork::TestnetMagic(n) => {
+                // TODO(bkioshn) - This should be mapped to
+                // cardano_blockchain_types::Network::Devnet
+                log(
+                    hermes::hermes::logging::api::Level::Error,
+                    FILE_NAME,
+                    "From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_types::Network",
+                    "hermes::hermes::cardano::api::CardanoNetwork::TestnetMagic",
+                    "Unsupported network",
+                    Some(&json!({ "network": format!("TestnetMagic {n}") }).to_string()),
+                );
+                panic!("Unsupported network");
+            },
         }
     }
+}
+
+/// Logging helper.
+fn log(
+    level: hermes::hermes::logging::api::Level,
+    file: &str,
+    function: &str,
+    context: &str,
+    msg: &str,
+    data: Option<&str>,
+) {
+    hermes::hermes::logging::api::log(
+        level,
+        Some(file),
+        Some(function),
+        None,
+        None,
+        Some(context),
+        msg,
+        data,
+    );
 }
 
 hermes::export!(RbacRegistrationComponent with_types_in hermes);
