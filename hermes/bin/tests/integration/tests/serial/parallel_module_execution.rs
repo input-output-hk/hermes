@@ -49,7 +49,7 @@ fn parallel_execution() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        &format!("Reached {} responses, calling done()", 5)
+        &format!("All {} responses written correctly, calling done()", 5)
     ));
 
     // If events run in parallel, total time should be ~1 seconds, not ~5 seconds

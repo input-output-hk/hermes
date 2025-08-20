@@ -52,9 +52,9 @@ store-failure-output = true
 serial-integration = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'test(/^tests::/)'
+filter = 'test(/^serial::/)'
 test-group = 'serial-integration'
 
 [[profile.ci.overrides]]
-filter = 'test(/^tests::/)'
+filter = 'test(/^serial::/)'
 test-group = "serial-integration"

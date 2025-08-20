@@ -107,20 +107,12 @@ pub fn execute_event(
     let result = match event_type {
         EventType::Bench => {
             let on_bench_event = Arc::new(OnBenchEvent { test, run });
-            if let Err(err) =
-                module_dispatch_event(module, app_name, module_id, vfs.clone(), on_bench_event)
-            {
-                tracing::error!("{err}");
-            }
+            module_dispatch_event(module, app_name, module_id, vfs.clone(), on_bench_event);
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
         EventType::Test => {
             let on_test_event = Arc::new(OnTestEvent { test, run });
-            if let Err(err) =
-                module_dispatch_event(module, app_name, module_id, vfs.clone(), on_test_event)
-            {
-                tracing::error!("{err}");
-            }
+            module_dispatch_event(module, app_name, module_id, vfs.clone(), on_test_event);
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
     };
