@@ -149,12 +149,8 @@ fn event_execution_loop(receiver: &Receiver<ControlFlow<ExitCode, HermesEvent>>)
     loop {
         match receiver.recv() {
             Ok(ControlFlow::Continue(event)) => targeted_app_event_execution(&event),
-            Ok(ControlFlow::Break(exit_code)) => {
-                break Exit::Done { exit_code };
-            },
-            Err(mpsc::RecvError) => {
-                break Exit::QueueClosed;
-            },
+            Ok(ControlFlow::Break(exit_code)) => break Exit::Done { exit_code },
+            Err(mpsc::RecvError) => break Exit::QueueClosed,
         }
     }
 }
