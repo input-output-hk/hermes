@@ -17,6 +17,9 @@
 #   just get-local-athena     # Build & package WASM modules
 #   just run-athena       # Run the application
 #
+# Frontend Development:
+#   just build-frontend   # Generate Flutter/Dart web assets
+#
 # File Formats:
 #   .happ - Hermes Application Package (complete application bundle)
 #   .hmod - Hermes Module Package (individual WASM component with manifest)
@@ -66,6 +69,59 @@ get-local-hermes:
     echo "✅ Hermes build complete!"
     echo "📦 Binary location: $(realpath target/release/hermes)"
     echo "📏 Binary size: $(ls -lh target/release/hermes | awk '{print $5}')"
+
+# Build Flutter frontend for Hermes web interface
+#
+# Generates web frontend assets that can communicate with the Hermes runtime via HTTP.
+# This creates a complete Flutter/Dart web application with HTTP client code,
+# data models, UI components, and multi-language support.
+#
+# Generated Assets:
+#   - HTTP client code (*.chopper.dart) - API communication with Hermes
+#   - Data models (*.g.dart) - JSON serialization/deserialization
+#   - UI components (*.gen.dart) - Generated Flutter widgets
+#   - Localization files (l10n/*.dart) - Multi-language support
+#
+# Build Process:
+#   1. Cleans any existing frontend assets (ensures fresh build)
+#   2. Clones catalyst-voices Flutter project from GitHub
+#   3. Sets up Flutter development environment with dependencies
+#   4. Runs code generation tools (melos l10n, build_runner, etc.)
+#   5. Saves all generated assets to local frontend/ directory
+#
+# Output: frontend/ directory with complete Flutter web assets
+# Duration: ~5-10 minutes (includes Git clone and Flutter setup)
+# Usage: Generated assets can be integrated into web frontend that calls Hermes endpoints
+build-frontend: clean-frontend
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "🌐 Building Flutter frontend for Hermes web interface..."
+    echo "📥 Cloning catalyst-voices repository..."
+    echo "🎯 Target: Generated Flutter/Dart web assets"
+
+    # Generate frontend assets using Earthly
+    # The --save_locally=true flag ensures all generated files are saved to ./frontend/
+    earthly +code-generator --save_locally=true
+
+    echo "✅ Frontend build complete!"
+    echo "📦 Generated assets location: $(realpath frontend/)"
+    
+    if [ -d "frontend" ]; then
+        echo "📏 Total generated files: $(find frontend -type f | wc -l)"
+        echo "🎨 Asset types generated:"
+        echo "   - HTTP clients: $(find frontend -name "*.chopper.dart" | wc -l) files"
+        echo "   - Data models: $(find frontend -name "*.g.dart" | wc -l) files"
+        echo "   - UI components: $(find frontend -name "*.gen.dart" | wc -l) files"
+        echo "   - Localization: $(find frontend -path "*/l10n/*.dart" | wc -l) files"
+        echo ""
+        echo "💡 Next steps:"
+        echo "   1. Integrate assets into your web application"
+        echo "   2. Configure HTTP client to call Hermes endpoints"
+        echo "   3. Build and deploy web frontend alongside Hermes runtime"
+    else
+        echo "⚠️  No frontend directory created - check build output above"
+    fi
 
 # Build and package the Athena HTTP proxy WASM component
 #
@@ -136,6 +192,7 @@ get-local-athena:
 #
 # Files cleaned: ~/.hermes/*.hfs (Hermes state files)
 # Safe to run: Only removes application cache, not source code
+# Note: For frontend assets, use 'just clean-frontend'
 clean-hfs:
     @echo "🧹 Cleaning Hermes state files..."
     @if [ -d ~/.hermes ]; then \
@@ -234,6 +291,22 @@ run-athena:
 # Example with custom config: REDIRECT_ALLOWED_HOSTS=example.com just build-run-all
 build-run-all: clean-hfs get-local-hermes get-local-athena run-athena
 
+# Complete build workflow including frontend - full stack development
+#
+# Builds everything needed for a complete Hermes application with web frontend:
+#   1. Frontend assets (Flutter/Dart web components)
+#   2. Hermes runtime engine 
+#   3. WASM application modules
+#   4. Runs the complete stack
+#
+# Use this for:
+#   ✅ Full-stack development with web UI
+#   ✅ Demo environments with frontend + backend
+#   ✅ Integration testing across all components
+#
+# Duration: ~8-15 minutes (includes frontend generation)
+build-run-all-with-frontend: build-frontend clean-hfs get-local-hermes get-local-athena run-athena
+
 # Development helper: Quick rebuild of just the WASM components
 #
 # Use this when you're iterating on the HTTP proxy module code and don't need
@@ -255,24 +328,33 @@ status:
     echo ""
 
     echo "🔧 Hermes Engine:"
-    if [ -f "../target/release/hermes" ]; then
-        echo "   ✅ Binary: $(ls -lh ../target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f "target/release/hermes" ]; then
+        echo "   ✅ Binary: $(ls -lh target/release/hermes | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Binary: Not found (run 'just get-local-hermes')"
     fi
     echo ""
 
     echo "📦 Athena Application:"
-    if [ -f "athena/app.happ" ]; then
-        echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f "hermes/apps/athena/app.happ" ]; then
+        echo "   ✅ Package: $(ls -lh hermes/apps/athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
 
-    if [ -f "athena/modules/http-proxy/lib/http_proxy.wasm" ]; then
-        echo "   ✅ WASM Module: $(ls -lh athena/modules/http-proxy/lib/http_proxy.wasm | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f "hermes/apps/athena/modules/http-proxy/lib/http_proxy.wasm" ]; then
+        echo "   ✅ WASM Module: $(ls -lh hermes/apps/athena/modules/http-proxy/lib/http_proxy.wasm | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ WASM Module: Not found"
+    fi
+    echo ""
+
+    echo "🌐 Frontend Assets:"
+    if [ -d "frontend" ]; then
+        echo "   ✅ Generated: $(find frontend -type f | wc -l) files"
+        echo "   📏 Directory size: $(du -sh frontend 2>/dev/null | cut -f1)"
+    else
+        echo "   ❌ Frontend: Not found (run 'just build-frontend')"
     fi
     echo ""
 
@@ -282,9 +364,12 @@ status:
     echo ""
 
     echo "💡 Quick Commands:"
-    echo "   just build-run-all    # Complete rebuild and run"
-    echo "   just dev-athena       # Quick WASM rebuild and run"
-    echo "   just clean-hfs        # Clear application state"
+    echo "   just build-run-all                 # Backend only"
+    echo "   just build-run-all-with-frontend   # Full stack with web UI"
+    echo "   just build-frontend                # Generate web assets only"
+    echo "   just clean-frontend                # Remove generated frontend assets"
+    echo "   just dev-athena                    # Quick WASM rebuild"
+    echo "   just clean-hfs                     # Clear application state"
 
 # Fix and Check Markdown files
 check-markdown:
@@ -298,3 +383,21 @@ check-spelling:
 # Pre Push Checks - intended to be run by a git pre-push hook.
 pre-push: check-markdown check-spelling
     just hermes/pre-push
+
+# Clean up frontend assets directory
+#
+# Removes the generated frontend/ directory containing Flutter/Dart assets.
+# Use this when you want to regenerate frontend assets from scratch or
+# clean up disk space after frontend development.
+#
+# Files cleaned: frontend/ directory (all generated Flutter/Dart assets)
+# Safe to run: Only removes generated assets, not source code
+clean-frontend:
+    @echo "🧹 Cleaning frontend assets..."
+    @if [ -d "frontend" ]; then \
+        echo "📁 Found frontend/ directory"; \
+        rm -rf frontend; \
+        echo "✅ Removed frontend/ directory"; \
+    else \
+        echo "ℹ️  frontend/ directory does not exist (nothing to clean)"; \
+    fi

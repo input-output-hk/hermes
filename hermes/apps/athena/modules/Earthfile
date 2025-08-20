@@ -208,7 +208,6 @@ local-build-http-proxy:
 #   - Production deployment preparation
 #
 # Duration: ~3-7 minutes total (depending on cache state and number of modules)
-# Output: All build artifacts ready for packaging and deployment
 build-all:
     # Build the Hermes runtime engine
     BUILD +get-local-hermes
