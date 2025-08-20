@@ -3032,7 +3032,6 @@ dependencies = [
  "console",
  "coset",
  "criterion",
- "crossbeam-channel",
  "crossbeam-queue",
  "dashmap",
  "derive_more",

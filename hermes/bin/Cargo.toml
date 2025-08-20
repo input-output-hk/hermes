@@ -51,7 +51,6 @@ hex = "0.4.3"
 tracing = {version="0.1.41", features = ["log"] }
 tracing-subscriber = { version = "0.3.19", features = ["fmt", "json", "time", "env-filter"] }
 libtest-mimic = "0.8.1"
-crossbeam-channel = "0.5.15"
 crossbeam-queue = "0.3.12"
 bip39 = { version="2.2.0", features = ["chinese-simplified", "chinese-traditional", "czech", "french", "italian", "japanese", "korean", "spanish" ] }
 iana-time-zone = "0.1.63"
