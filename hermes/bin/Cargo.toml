@@ -67,6 +67,7 @@ chrono = { version = "0.4.41", features = ["now"] }
 chrono-tz = "0.10.4"
 saffron = "0.1.0"
 tokio = { version = "1.47.0", features = ["macros", "sync", "rt-multi-thread", "rt", "net"] }
+rayon = "1.11.0"
 libsqlite3-sys = {version="0.35.0", features = ["bundled"] }
 stringzilla = "3.12.5"
 temp-dir = "0.1.16"

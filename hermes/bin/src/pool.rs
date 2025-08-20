@@ -1,178 +1,100 @@
-//! Thread pool implementation for parallel WASM module execution.
+//! Global thread pool for parallel WASM module execution.
 //!
-//! This module provides a thread pool that can
-//! execute WASM modules in parallel,
-//! with work-stealing semantics and graceful
-//! handling of multiple modules per event.
+//! This module initializes a global Rayon thread pool
+//! for running WASM modules in parallel. The pool uses
+//! work-stealing for efficient load balancing across
+//! available threads. To avoid saturating the system,
+//! the pool leaves a small margin of CPU capacity
+//! unused — typically 2 threads are reserved for the
+//! main application flow and event loop.
+//!
+//! Each event may execute multiple WASM modules
+//! concurrently within this pool.
 
 use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Mutex, OnceLock,
-    },
-    thread::{available_parallelism, JoinHandle},
+    sync::{atomic::AtomicUsize, Condvar, Mutex, OnceLock},
+    thread::available_parallelism,
 };
 
-use anyhow::anyhow;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use anyhow::{Context, Result};
+use rayon::ThreadPoolBuilder;
 
-/// Singleton instance of the Hermes thread pool.
-pub(crate) static THREAD_POOL_INSTANCE: OnceLock<Pool> = OnceLock::new();
+/// Global counter of currently running tasks.
+static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-/// Failed when thread pool already been initialized.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Thread pool already been initialized.")]
-pub(crate) struct AlreadyInitializedError;
+/// Synchronization primitives for waiting until all tasks finish.
+static TASK_WAIT: OnceLock<(Mutex<()>, Condvar)> = OnceLock::new();
 
-/// This struct represents single thread worker, who
-/// is responsible for processing new incoming tasks.
-struct Worker {
-    /// Handle to process termination.
-    handle: JoinHandle<()>,
+/// Get a reference to the global `(Mutex, Condvar)` tuple,
+/// initializing it if necessary.
+fn get_task_wait() -> &'static (Mutex<()>, Condvar) {
+    TASK_WAIT.get_or_init(|| (Mutex::new(()), Condvar::new()))
 }
 
-/// Wrapper for task to process termination.
-enum Message {
-    /// Worker task.
-    Job(Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>),
-    /// Termination signal.
-    Shutdown,
+/// Initialize the global Rayon thread pool
+///
+/// The number of threads is set to the number of available
+/// CPU cores minus two. This subtraction ensures that
+/// the main thread and event loop threads have enough
+/// CPU capacity to handle orchestration and I/O without
+/// being blocked by compute-heavy WASM tasks. At least
+/// one thread is always used.
+pub(crate) fn init() -> Result<()> {
+    let available_threads = available_parallelism()
+        .map(|num_threads| num_threads.get().saturating_sub(2).max(1))
+        .unwrap_or(1);
+
+    ThreadPoolBuilder::new()
+        .num_threads(available_threads)
+        .build_global()
+        .context("Failed to build global Rayon thread pool")?;
+
+    Ok(())
 }
 
-/// Spawns new pool thread which reads and executes tasks one by one.
-fn spawn(receiver: Receiver<Message>) -> Worker {
-    let handle = std::thread::spawn(move || {
-        while let Ok(task) = receiver.recv() {
-            match task {
-                // Execute the task and log any errors
-                Message::Job(task) => {
-                    if let Err(err) = task() {
-                        tracing::error!("Task execution failed: {err}");
-                    }
-                },
-                Message::Shutdown => break,
+/// Execute a task in the global thread pool
+///
+/// This function increments a global task counter, runs the
+/// given task in Rayon’s pool, and decrements the counter
+/// when the task finishes. If it was the last task, it
+/// notifies any threads waiting in `terminate()`.
+///
+/// # Arguments
+///
+/// * `task` - The closure to run concurrently
+pub(crate) fn execute<F>(task: F)
+where F: FnOnce() + Send + 'static {
+    TASK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    rayon::spawn(move || {
+        task();
+
+        let prev = TASK_COUNTER.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        if prev == 1 {
+            // Last task finished — notify waiting threads
+            let (lock, cvar) = get_task_wait();
+            if let Ok(_guard) = lock.lock() {
+                cvar.notify_all();
             }
         }
     });
-
-    Worker { handle }
 }
 
-pub(crate) struct Pool {
-    /// Workers handles.
-    workers: Mutex<Vec<Worker>>,
-    /// Task queue sender handle.
-    queue: Sender<Message>,
-    /// Has `terminate()` been already called
-    terminated: AtomicBool,
-}
-
-impl Pool {
-    /// Execute a task on the thread pool
-    pub(crate) fn execute(
-        &self,
-        task: Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>,
-    ) -> anyhow::Result<()> {
-        if self.terminated.load(Ordering::Acquire) {
-            return Err(anyhow::anyhow!("Thread pool is shut down"));
-        }
-
-        self.queue
-            .send(Message::Job(task))
-            .map_err(|_| anyhow::anyhow!("Thread pool is shut down"))?;
-        Ok(())
-    }
-
-    /// Terminates the thread pool.]
-    fn terminate(&self) -> anyhow::Result<()> {
-        if self.terminated.swap(true, Ordering::AcqRel) {
-            return Ok(());
-        }
-
-        let mut workers = self
-            .workers
-            .lock()
-            .map_err(|_err| anyhow!("failed to lock mutex"))?;
-        // Ask each worker to shut down.
-        for _ in 0..workers.len() {
-            // If send fails, receivers are already gone; that's fine.
-            self.queue
-                .send(Message::Shutdown)
-                .map_err(|err| anyhow!("failed to send shutdown signal: {err}"))?;
-        }
-
-        let mut mutex_replacement = vec![];
-        std::mem::swap(&mut mutex_replacement, &mut *workers);
-
-        for worker in mutex_replacement {
-            worker
-                .handle
-                .join()
-                .map_err(|_err| anyhow!("failed to terminate worker"))?;
-        }
-
-        Ok(())
-    }
-}
-
-impl Default for Pool {
-    /// Creates pool with `available_parallelism() - 2` threads
-    /// if `available_parallelism() > 2` or just `1`.
-    ///
-    /// Since one thread is used for main execution flow and one for event loop.
-    fn default() -> Self {
-        let (sender, receiver) = unbounded::<Message>();
-
-        let available_threads = available_parallelism()
-            .map(|num_threads| {
-                num_threads
-                    .get()
-                    .checked_sub(2)
-                    .filter(|num_threads| *num_threads > 0)
-            })
-            .unwrap_or(Some(1))
-            .unwrap_or(1);
-
-        let workers = Mutex::new(
-            (0..available_threads)
-                .map(|_| spawn(receiver.clone()))
-                .collect(),
-        );
-
-        Self {
-            workers,
-            queue: sender,
-            terminated: AtomicBool::default(),
+/// Wait for all currently submitted tasks to finish
+///
+/// This function blocks until `TASK_COUNTER` reaches zero,
+/// i.e., until all tasks submitted via `execute()` have
+/// completed.
+pub(crate) fn terminate() {
+    let (lock, cvar) = get_task_wait();
+    if let Ok(mut guard) = lock.lock() {
+        while TASK_COUNTER.load(std::sync::atomic::Ordering::Acquire) != 0 {
+            if let Ok(g) = cvar.wait(guard) {
+                guard = g;
+            } else {
+                // If waiting on Condvar fails, exit loop
+                break;
+            }
         }
     }
-}
-
-/// Initialize the global thread pool
-pub(crate) fn init() -> anyhow::Result<()> {
-    THREAD_POOL_INSTANCE
-        .set(Pool::default())
-        .map_err(|_| AlreadyInitializedError)?;
-
-    Ok(())
-}
-
-/// Execute a task on the global thread pool
-pub(crate) fn execute(
-    task: Box<dyn FnOnce() -> anyhow::Result<()> + Send + 'static>
-) -> anyhow::Result<()> {
-    let pool = THREAD_POOL_INSTANCE
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Thread pool is not initialized"))?;
-
-    pool.execute(task)
-}
-
-/// Terminates the global thread pool
-pub(crate) fn terminate() -> anyhow::Result<()> {
-    let pool = THREAD_POOL_INSTANCE
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("Thread pool is not initialized"))?;
-
-    pool.terminate()?;
-    Ok(())
 }

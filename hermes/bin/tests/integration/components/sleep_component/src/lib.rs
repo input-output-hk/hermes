@@ -16,7 +16,10 @@ mod bindings {
 mod stub;
 mod utils;
 
-use std::{fs, io::Write as _};
+use std::{
+    fs,
+    io::{Seek as _, SeekFrom, Write as _},
+};
 
 use crate::utils::{busy_wait_s, make_payload, test_log};
 
@@ -40,7 +43,10 @@ impl bindings::exports::hermes::init::event::Guest for HttpRequestApp {
             .as_str()
             .expect("http_server is not a string");
 
-        std::fs::File::create(RESPONSES_FILE).expect("failed to create file");
+        let mut file = std::fs::File::create(RESPONSES_FILE).expect("failed to create file");
+        file.write_all(&[0; CONTENT.len()].repeat(REQUEST_COUNT))
+            .expect("failed to write to file");
+        file.flush().expect("failed to flush file");
 
         for i in 0..REQUEST_COUNT
             .try_into()
@@ -68,23 +74,30 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
             String::from_utf8(response).expect("should be valid UTF-8")
         ));
         busy_wait_s(WAIT_FOR_SECS);
-        std::fs::File::options()
-            .append(true)
-            .open(RESPONSES_FILE)
-            .expect("failed to open file")
-            .write_all(CONTENT)
-            .expect("failed to write content to file");
 
-        if std::fs::read(RESPONSES_FILE)
-            .expect("failed to read file")
-            .len()
-            == CONTENT
-                .len()
-                .checked_mul(REQUEST_COUNT)
-                .expect("multiplication overflowed")
-        {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(RESPONSES_FILE)
+            .expect("failed to open file");
+
+        let request_id: usize = request_id
+            .unwrap_or_default()
+            .try_into()
+            .expect("failed to convert to usize");
+        let offset = request_id
+            .checked_mul(CONTENT.len())
+            .expect("offset overflow") as u64;
+
+        file.seek(SeekFrom::Start(offset)).expect("seek failed");
+        file.write_all(CONTENT).expect("failed to write content");
+        file.flush().expect("failed to flush");
+
+        let data = std::fs::read(RESPONSES_FILE).expect("failed to read file");
+        let reference = CONTENT.repeat(5);
+
+        if data == reference {
             test_log(&format!(
-                "Reached {REQUEST_COUNT} responses, calling done()",
+                "All {REQUEST_COUNT} responses written correctly, calling done()",
             ));
             bindings::hermes::init::api::done(0);
         }

@@ -70,6 +70,8 @@ impl Run {
             exit_lock.wait()
         };
 
+        // Wait for scheduled tasks to be finished.
+        pool::terminate();
         Ok(exit)
     }
 }

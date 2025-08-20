@@ -69,7 +69,7 @@ impl Application {
     pub(crate) fn dispatch_event(
         &self,
         event: &Arc<dyn HermesEventPayload>,
-    ) -> anyhow::Result<()> {
+    ) {
         for module in self.indexed_modules.values() {
             module_dispatch_event(
                 module.clone(),
@@ -77,9 +77,8 @@ impl Application {
                 module.id().clone(),
                 self.vfs.clone(),
                 event.clone(),
-            )?;
+            );
         }
-        Ok(())
     }
 
     /// Dispatch event for the target module by the `module_id`.
@@ -98,7 +97,8 @@ impl Application {
             module_id,
             self.vfs.clone(),
             event,
-        )
+        );
+        Ok(())
     }
 }
 
@@ -109,9 +109,9 @@ pub(crate) fn module_dispatch_event(
     module_id: ModuleId,
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
-) -> anyhow::Result<()> {
+) {
     // TODO: fix how init is processed.
-    pool::execute(Box::new(move || -> anyhow::Result<()> {
+    pool::execute(move || {
         let runtime_ctx = HermesRuntimeContext::new(
             app_name,
             module_id,
@@ -123,9 +123,10 @@ pub(crate) fn module_dispatch_event(
         // Advise Runtime Extensions of a new context
         new_context(&runtime_ctx);
 
-        module.execute_event(event.as_ref(), runtime_ctx)?;
-
-        anyhow::Result::Ok(())
-    }))?;
-    Ok(())
+        drop(
+            module
+                .execute_event(event.as_ref(), runtime_ctx)
+                .inspect_err(|err| tracing::error!("module event execution failed: {err}")),
+        );
+    });
 }
