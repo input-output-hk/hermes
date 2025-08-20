@@ -54,8 +54,8 @@ pub(crate) fn regex_specificity_score<T: AsRef<str>>(input: T) -> i32 {
 
     let mut score: i32 = 0;
 
-    // split on alternations, if present, and weight them distinctly, and use the total of weights
-    // divided by the number of alternations.
+    // split on alternations, if present, and weight them distinctly, and use the total of
+    // weights divided by the number of alternations.
     // Theory being the specificity is the average of all the alternatives specificity.
     //let alts = re.bytes().filter(|c| *c == b'|').count();
     let alts: Vec<&str> = re.split('|').collect();
