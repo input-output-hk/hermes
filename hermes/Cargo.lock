@@ -1032,7 +1032,7 @@ source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-b
 dependencies = [
  "anyhow",
  "blake2b_simd",
- "catalyst-types",
+ "catalyst-types 0.0.5",
  "cbork-utils",
  "chrono",
  "dashmap",
@@ -1058,7 +1058,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "cardano-blockchain-types",
- "catalyst-types",
+ "catalyst-types 0.0.5",
  "chrono",
  "cpu-time",
  "crossbeam-channel",
@@ -1154,6 +1154,27 @@ dependencies = [
  "num-traits",
  "orx-concurrent-vec",
  "pallas-crypto 0.33.0",
+ "serde",
+ "strum 0.27.2",
+ "thiserror 2.0.12",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "catalyst-types"
+version = "0.0.6"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types-v0.0.6#600f8462cf5ba4d17bf5f91a4e14da911912f026"
+dependencies = [
+ "base64-url",
+ "chrono",
+ "displaydoc",
+ "ed25519-dalek",
+ "fluent-uri",
+ "fmmap",
+ "minicbor",
+ "num-traits",
+ "orx-concurrent-vec",
  "serde",
  "strum 0.27.2",
  "thiserror 2.0.12",
@@ -3010,6 +3031,7 @@ dependencies = [
  "build-info-build",
  "cardano-blockchain-types",
  "cardano-chain-follower",
+ "catalyst-types 0.0.6",
  "chrono",
  "chrono-tz",
  "clap",
@@ -3035,6 +3057,7 @@ dependencies = [
  "jsonschema",
  "libsqlite3-sys",
  "libtest-mimic",
+ "num-traits",
  "num_cpus",
  "once_cell",
  "pbkdf2",
