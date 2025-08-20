@@ -3,6 +3,7 @@
 //! define a WASM module abstraction with capability to interact with it.
 //!
 //! All implementation based on [wasmtime](https://crates.io/crates/wasmtime) crate dependency.
+#![allow(clippy::unused, unused)]
 
 use std::{
     io::Read,
@@ -11,7 +12,10 @@ use std::{
 
 use rusty_ulid::Ulid;
 use wasmtime::{
-    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
+    component::{
+        types::Component, Component as WasmModule, InstancePre as WasmInstancePre,
+        Linker as WasmLinker,
+    },
     Store as WasmStore,
 };
 
@@ -86,6 +90,11 @@ impl Module {
     ///  - `BadEngineConfigError`
     pub fn from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
+
+        let stub_bytes = include_bytes!("../../../../wasm/stub-module/stub.wasm");
+        let stub_module = WasmModule::new(&engine, stub_bytes)
+            .map_err(|e| BadWASMModuleError(format!("Failed to load stub module: {e}")))?;
+
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| BadWASMModuleError(e.to_string()))?;
 
