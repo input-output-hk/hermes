@@ -72,9 +72,9 @@ where F: FnOnce() + Send + 'static {
         let prev = TASK_COUNTER.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
         if prev == 1 {
             // Last task finished — notify waiting threads
-            let (lock, cvar) = get_task_wait();
+            let (lock, no_active_tasks_cv) = get_task_wait();
             if let Ok(_guard) = lock.lock() {
-                cvar.notify_all();
+                no_active_tasks_cv.notify_all();
             }
         }
     });
@@ -86,10 +86,10 @@ where F: FnOnce() + Send + 'static {
 /// i.e., until all tasks submitted via `execute()` have
 /// completed.
 pub(crate) fn terminate() {
-    let (lock, cvar) = get_task_wait();
+    let (lock, no_active_tasks_cv) = get_task_wait();
     if let Ok(mut guard) = lock.lock() {
         while TASK_COUNTER.load(std::sync::atomic::Ordering::Acquire) != 0 {
-            if let Ok(g) = cvar.wait(guard) {
+            if let Ok(g) = no_active_tasks_cv.wait(guard) {
                 guard = g;
             } else {
                 // If waiting on Condvar fails, exit loop
