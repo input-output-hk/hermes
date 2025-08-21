@@ -1,16 +1,36 @@
 package hermes:stub;
 
 world stub {
+    use wasi:http@0.2.6/types.{incoming-request, response-outparam};
+    use hermes:cardano/api.{block, subscription-id};
+    use hermes:cbor/api.{cbor};
+    use hermes:ipfs/api.{pubsub-message};
+    use hermes:kb-store/api.{kv-values};
+    use hermes:binary/api.{bstr};
+    use hermes:http-gateway/event.{headers, http-gateway-response};
+    use hermes:cron/api.{cron-tagged};
+    use hermes:integration-test/event.{test-result};
+
     import hermes:init/event;
+    import hermes:kv-store/event;
+    import hermes:cron/event;
     import hermes:cardano/event-on-block;
     import hermes:cardano/event-on-immutable-roll-forward;
+    import hermes:ipfs/event;
+    import hermes:http-request/event;
+    import hermes:http-gateway/event;
+    import hermes:integration-test/event;
+    import wasi:http/incoming-handler@0.2.6;
 
-    export event:interface {
-        use hermes:cardano/api.{block, subscription-id};
-        use hermes:cbor/api.{cbor};
-
-        init: func() -> bool;
-        on-cardano-block: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
-        on-cardano-immutable-roll-forward: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
-    }
+    export init: func() -> bool;
+    export kv-update: func(key: string, value: kv-values);
+    export on-cron: func(event: cron-tagged, last: bool) -> bool;
+    export on-cardano-block: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
+    export on-cardano-immutable-roll-forward: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
+    export on-topic: func(message: pubsub-message) -> bool;
+    export on-http-response: func(request-id: option<u64>, response: list<u8>);
+    export reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-gateway-response>;
+    export test: func(test: u32, run: bool) -> option<test-result>;
+    export bench: func(test: u32, run: bool) -> option<test-result>;
+    export handle: func(request: incoming-request,response-out: response-outparam);
 }
