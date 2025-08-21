@@ -14,3 +14,10 @@ bindgen!({
     path: "../../wasm/wasi/wit",
     trappable_imports: true,
 });
+
+pub mod stub {
+    super::bindgen!({
+        path: "../../wasm/stub-module/wit",
+        trappable_imports: true,
+    });
+}

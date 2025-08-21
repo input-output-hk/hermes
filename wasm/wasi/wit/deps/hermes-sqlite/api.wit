@@ -1,0 +1,158 @@
+// cspell: words errcode
+
+/// # SQLite API
+///
+/// SQLite API functionality exposed to the Hermes WASM Modules, predominantly relying on `sqlite3`.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+
+/// SQLite API Interface
+interface api {
+    /// Represents an error with a code and a message.
+    record error-info {
+        /// The numeric result code of the error.
+        code: s32,
+        /// The error message associated with the error code.
+        message: string,
+    }
+
+    // Errors that indicate that something has gone wrong.
+    variant errno {
+        /// An error caused from internal SQLite engine.
+        sqlite(s32),
+        /// An error caused during the conversion of a CString.
+        converting-c-string,
+        /// The in-memory configuration provided is invalid.
+        invalid-in-memory-config,
+        /// The persistent configuration provided is invalid.
+        invalid-persistent-config,
+        /// The database name is missing in the persistent configuration.
+        missing-database-name-for-persistent-config,
+        /// Failed to open the database.
+        failed-opening-database,
+        /// Failed to set the database size limit.
+        failed-setting-database-size,
+        /// Unknown column type is retrieved.
+        unknown-column-type,
+        /// `PRAGMA` commands are not allowed to execute inside Hermes.
+        forbidden-pragma-command,
+        /// Unhandled null pointer is returned while interacting with the database.
+        returned-null-pointer,
+        /// The numeric value is truncated or improperly converted during the execution.  
+        converting-numeric
+    }
+
+    /// The value of a column in a specific data format.
+    variant value {
+        /// A blob or a UTF-8 text in bytes.
+        blob(list<u8>),
+        /// Real number.
+        double(f64),
+        /// 32-bit integer.
+        int32(s32),
+        /// 64-bit integer.
+        int64(s64),
+        /// Null value.
+        null,
+        /// UTF-8 text.
+        text(string)
+    }
+
+    /// The database connection object.
+    resource sqlite {
+        /// Closes a database connection, destructor for `sqlite3`.
+        ///
+        /// Ideally, applications should finalize all prepared statements associated with the `sqlite3` object prior to attempting to close the object.
+        /// If the database connection is associated with unfinalized prepared statements,
+        /// then the function will leave the database connection open and return the `busy` error code.
+        ///
+        /// If an `sqlite3` object is destroyed while a transaction is open, the transaction is automatically rolled back.
+        close: func() -> result<_, errno>;
+
+        /// Retrieves the numeric result code for the most recent failed SQLite operation on a database connection.
+        ///
+        /// # Returns
+        ///
+        /// The error object containing numeric code and detail message for the most recent failed SQLite operation. If there is no recent failed, none is returned.
+        errcode: func() -> option<error-info>;
+
+        /// Compiles SQL text into byte-code that will do the work of querying or updating the database.
+        ///
+        /// ## Parameters
+        ///
+        /// - `db`: Database handle.
+        /// - `sql`: SQL statement, UTF-8 encoded.
+        ///
+        /// ## Returns
+        ///
+        /// A compiled prepared statement that can be executed using `sqlite3_step()`.
+        /// If there is an error or the input text contains no SQL (if the input is an empty string or a comment) then an error code is returned.
+        prepare: func(sql: string) -> result<statement, errno>;
+
+        /// Executes an SQL query directly without preparing it into a statement and returns the result.
+        ///
+        /// ## Parameters
+        ///
+        /// - `sql`: SQL statement, UTF-8 encoded.
+        ///
+        execute: func(sql: string) -> result<_, errno>;
+    }
+
+    /// The prepared statement object.
+    resource statement {
+        /// Stores application data into parameters of the original SQL.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the SQL parameter to be set.
+        /// - `value`: The value to bind to the parameter.
+        ///
+        bind: func(index: u32, value: value) -> result<_, errno>;
+
+        /// Advances a statement to the next result row or to completion.
+        ///
+        /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
+        step: func() -> result<_, errno>;
+
+        /// Returns information about a single column of the current result row of a query.
+        ///
+        /// If the SQL statement does not currently point to a valid row, or if the column index is out of range, the result is undefined.
+        ///
+        /// ## Parameters
+        ///
+        /// - `index`: The index of the column for which information should be returned. The leftmost column of the result set has the index 0.
+        ///
+        /// ## Returns
+        ///
+        /// The value of a result column in a specific data format.
+        column: func(index: u32) -> result<value, errno>;
+
+        /// Destroys a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
+        /// then the function results without errors. If the most recent evaluation of statement failed, then the function results the appropriate error code.
+        ///
+        /// The application must finalize every prepared statement in order to avoid resource leaks.
+        /// It is a grievous error for the application to try to use a prepared statement after it has been finalized.
+        /// Any use of a prepared statement after it has been finalized can result in undefined and undesirable behavior such as segfaults and heap corruption.
+        finalize: func() -> result<_, errno>;
+    }
+
+    /// Opens a connection to a new or existing SQLite database.
+    ///
+    /// ## Parameters
+    ///
+    /// - `readonly`: If set to true, the database is opened in read-only mode. An error is returned if the database doesn't already exist.
+    /// - `memory`: If set to true, the database will be opened as an in-memory database.
+    ///
+    /// ## Returns
+    ///
+    /// If the database is opened (and/or created) successfully, then the `sqlite3` object is returned. Otherwise an error code is returned.
+    open: func(readonly: bool, memory: bool) -> result<sqlite, errno>;
+}
+
+/// World just for the Hermes 'sqlite' API.
+world sqlite-api {
+    import api;
+}

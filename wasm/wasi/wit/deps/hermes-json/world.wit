@@ -1,0 +1,5 @@
+package hermes:json;
+
+world all {
+    import api;
+}

@@ -1,0 +1,34 @@
+/// # Binary Data API
+///
+/// Binary Data types and functions.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+
+// cspell: words
+
+/// Binary API Interface - Imports ONLY
+interface api {
+    // Binary String (bstr) is a list of bytes.
+    //    This type is used to indicate the data is an arbitrary array of bytes.
+    type bstr = list<u8>;
+
+    // 128 bit value
+    type b128 = tuple<u64, u64>;
+
+    // 256 bit value
+    type b256 = tuple<u64, u64, u64, u64>;
+
+    // 512 bit value
+    type b512 = tuple<u64, u64, u64, u64, u64, u64, u64, u64>;
+
+}
+
+
+/// World just for the Hermes 'cron' API and Event.
+world binary-api {
+    import api;
+}
+  

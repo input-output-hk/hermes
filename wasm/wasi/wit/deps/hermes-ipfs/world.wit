@@ -1,0 +1,6 @@
+package hermes:ipfs;
+
+world all {
+    import api;
+    export event;
+}
