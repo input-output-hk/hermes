@@ -1,19 +1,26 @@
 #include "bindings_src/hermes.h"
 
+// Exported Functions from `hermes:init/event`
+//bool exports_hermes_init_event_init(void) {return false;}
+bool exports_event_init(void) {
+  exports_hermes_init_event_init();
+}
+
+void exports_hermes_cardano_event_on_block_on_cardano_block(exports_hermes_cardano_event_on_block_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_block_borrow_block_t block){}
+void event_on_cardano_block(event_borrow_subscription_id_t subscription_id, event_borrow_block_t block) {
+  exports_hermes_cardano_event_on_block_on_cardano_block(subscription_id, block);
+}
+
+void exports_hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(exports_hermes_cardano_event_on_immutable_roll_forward_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_immutable_roll_forward_borrow_block_t block){}
+void event_on_cardano_immutable_roll_forward(event_borrow_subscription_id_t subscription_id, event_borrow_block_t block) {
+  exports_hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(subscription_id, block);
+}
+
 // Exported Functions from `wasi:http/incoming-handler@0.2.0`
 void exports_wasi_http_incoming_handler_handle(exports_wasi_http_incoming_handler_own_incoming_request_t request, exports_wasi_http_incoming_handler_own_response_outparam_t response_out) {
 
 }
 
-// Exported Functions from `hermes:cardano/event-on-block`
-void exports_hermes_cardano_event_on_block_on_cardano_block(exports_hermes_cardano_event_on_block_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_block_borrow_block_t block)
-{
-}
-
-// Exported Functions from `hermes:cardano/event-on-immutable-roll-forward`
-void exports_hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(exports_hermes_cardano_event_on_immutable_roll_forward_borrow_subscription_id_t subscription_id, exports_hermes_cardano_event_on_immutable_roll_forward_borrow_block_t block)
-{
-}
 
 // Exported Functions from `hermes:cron/event`
 bool exports_hermes_cron_event_on_cron(exports_hermes_cron_event_cron_tagged_t *event, bool last) {
@@ -25,12 +32,6 @@ bool exports_hermes_cron_event_on_cron(exports_hermes_cron_event_cron_tagged_t *
 bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_bstr_t *body, exports_hermes_http_gateway_event_headers_t *headers, hermes_string_t *path, hermes_string_t *method, exports_hermes_http_gateway_event_http_gateway_response_t *ret){
   return false;
 };
-
-
-// Exported Functions from `hermes:init/event`
-bool exports_hermes_init_event_init(void) {
-  return false;
-}
 
 // Exported Functions from `hermes:ipfs/event`
 bool exports_hermes_ipfs_event_on_topic(exports_hermes_ipfs_event_pubsub_message_t *message) {

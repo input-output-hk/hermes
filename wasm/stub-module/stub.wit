@@ -1,0 +1,16 @@
+package hermes:stub;
+
+world stub {
+    import hermes:init/event;
+    import hermes:cardano/event-on-block;
+    import hermes:cardano/event-on-immutable-roll-forward;
+
+    export event:interface {
+        use hermes:cardano/api.{block, subscription-id};
+        use hermes:cbor/api.{cbor};
+
+        init: func() -> bool;
+        on-cardano-block: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
+        on-cardano-immutable-roll-forward: func(subscription-id: borrow<subscription-id>, block: borrow<block>);
+    }
+}
