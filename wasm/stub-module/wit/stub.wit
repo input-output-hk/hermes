@@ -1,11 +1,11 @@
 package hermes:stub;
 
 world stub {
-    use wasi:http@0.2.6/types.{incoming-request, response-outparam};
+    use wasi:http/types@0.2.6.{incoming-request, response-outparam};
     use hermes:cardano/api.{block, subscription-id};
     use hermes:cbor/api.{cbor};
     use hermes:ipfs/api.{pubsub-message};
-    use hermes:kb-store/api.{kv-values};
+    use hermes:kv-store/api.{kv-values};
     use hermes:binary/api.{bstr};
     use hermes:http-gateway/event.{headers, http-gateway-response};
     use hermes:cron/api.{cron-tagged};
