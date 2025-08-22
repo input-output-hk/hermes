@@ -91,7 +91,7 @@ impl HermesEventPayload for OnBenchEvent {
 /// Fails to execute an event.
 #[allow(dead_code)]
 pub fn execute_event(
-    module: &mut Module,
+    module: Arc<Module>,
     test: u32,
     run: bool,
     event_type: EventType,
@@ -103,31 +103,16 @@ pub fn execute_event(
     let vfs =
         Arc::new(VfsBootstrapper::new(hermes_home_dir.path(), app_name.to_string()).bootstrap()?);
 
+    let module_id = module.id().clone();
     let result = match event_type {
         EventType::Bench => {
-            let on_bench_event = Box::new(OnBenchEvent { test, run });
-            if let Err(err) = module_dispatch_event(
-                module,
-                app_name,
-                module.id().clone(),
-                vfs.clone(),
-                on_bench_event.as_ref(),
-            ) {
-                tracing::error!("{err}");
-            }
+            let on_bench_event = Arc::new(OnBenchEvent { test, run });
+            module_dispatch_event(module, app_name, module_id, vfs.clone(), on_bench_event);
             BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
         EventType::Test => {
-            let on_test_event = Box::new(OnTestEvent { test, run });
-            if let Err(err) = module_dispatch_event(
-                module,
-                app_name,
-                module.id().clone(),
-                vfs.clone(),
-                on_test_event.as_ref(),
-            ) {
-                tracing::error!("{err}");
-            }
+            let on_test_event = Arc::new(OnTestEvent { test, run });
+            module_dispatch_event(module, app_name, module_id, vfs.clone(), on_test_event);
             TEST_RESULT_QUEUE.get_or_init(SegQueue::new).pop()
         },
     };

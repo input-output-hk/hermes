@@ -8,6 +8,7 @@ mod hdf5;
 mod ipfs;
 mod logger;
 mod packaging;
+mod pool;
 mod reactor;
 mod runtime_context;
 mod runtime_extensions;
