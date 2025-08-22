@@ -3,7 +3,9 @@
 use super::{super::state::get_statement_state, core};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::sqlite::api::{Errno, HostStatement, Statement, Value},
+    runtime_extensions::bindings::hermes::sqlite::api::{
+        Errno, HostStatement, Statement, StepResult, Value,
+    },
 };
 
 impl HostStatement for HermesRuntimeContext {
@@ -29,10 +31,14 @@ impl HostStatement for HermesRuntimeContext {
     ///
     /// After a prepared statement has been prepared, this function must be called one or
     /// more times to evaluate the statement.
+    ///
+    /// ## Returns
+    ///
+    /// A `step-result` indicating the status of the step.
     fn step(
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
-    ) -> wasmtime::Result<Result<(), Errno>> {
+    ) -> wasmtime::Result<Result<StepResult, Errno>> {
         let mut app_state = get_statement_state().get_app_state(self.app_name())?;
         let stmt_ptr = app_state.get_object(&resource)?;
         Ok(core::step(*stmt_ptr as *mut _))
@@ -60,6 +66,21 @@ impl HostStatement for HermesRuntimeContext {
         let stmt_ptr = app_state.get_object(&resource)?;
         let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
         Ok(core::column(*stmt_ptr as *mut _, index))
+    }
+
+    /// Reset a prepared statement object back to its initial state, ready to be
+    /// re-executed.
+    ///
+    /// This function clears all previous bindings, resets the statement to the beginning,
+    /// and prepares it for another execution. This must be called before reusing a
+    /// statement with new parameter bindings.
+    fn reset(
+        &mut self,
+        resource: wasmtime::component::Resource<Statement>,
+    ) -> wasmtime::Result<Result<(), Errno>> {
+        let mut app_state = get_statement_state().get_app_state(self.app_name())?;
+        let stmt_ptr = app_state.get_object(&resource)?;
+        Ok(core::reset(*stmt_ptr as *mut _))
     }
 
     /// Destroys a prepared statement object. If the most recent evaluation of the

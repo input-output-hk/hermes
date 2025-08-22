@@ -61,6 +61,14 @@ interface api {
         text(string)
     }
 
+    /// The result of advancing a prepared SQLite statement by one step.
+    enum step-result {
+        /// Indicates that the statement has finished executing.
+        done,
+        /// Indicates that there is a new row of result.
+        row,
+    }
+
     /// The database connection object.
     resource sqlite {
         /// Closes a database connection, destructor for `sqlite3`.
@@ -115,7 +123,11 @@ interface api {
         /// Advances a statement to the next result row or to completion.
         ///
         /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
-        step: func() -> result<_, errno>;
+        /// 
+        /// ## Returns
+        /// 
+        /// A `step-result` indicating the status of the step.
+        step: func() -> result<step-result, errno>;
 
         /// Returns information about a single column of the current result row of a query.
         ///
@@ -129,6 +141,13 @@ interface api {
         ///
         /// The value of a result column in a specific data format.
         column: func(index: u32) -> result<value, errno>;
+
+        /// Reset a prepared statement object back to its initial state, ready to be re-executed.
+        ///
+        /// This function clears all previous bindings, resets the statement to the beginning,
+        /// and prepares it for another execution. This must be called before reusing a statement
+        /// with new parameter bindings.
+        reset: func() -> result<_, errno>;
 
         /// Destroys a prepared statement object. If the most recent evaluation of the statement encountered no errors or if the statement is never been evaluated,
         /// then the function results without errors. If the most recent evaluation of statement failed, then the function results the appropriate error code.
