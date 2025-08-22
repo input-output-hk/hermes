@@ -343,8 +343,6 @@ impl HostBlock for HermesRuntimeContext {
     /// - 1 - for any data read from the blockchain during a *backfill* on initial sync
     /// - 2+ - for each subsequent rollback detected while reading live blocks.
     ///
-    /// Note: This fork terminology is different from fork in blockchain.
-    ///
     /// ** Returns **
     ///
     /// - `u64` : The fork count.
