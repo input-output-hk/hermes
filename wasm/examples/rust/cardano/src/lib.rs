@@ -15,6 +15,7 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
         let is_immutable = block.is_immutable();
         let is_rollback = block.is_rollback();
         let network = subscription_id.get_network();
+        let fork = block.get_fork();
         if let Ok(txn) = block.get_txn(0) {
             txn_hash = txn.get_txn_hash();
         }
@@ -26,7 +27,7 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
             None,
             None,
             None,
-            format!("✈️ - on_cardano_block event trigger - subscription ID: {subscription_id:?}, network: {network:?}, slot: {slot:?}, is rollback: {is_rollback:?}, is immutable: {is_immutable}, txn hash: {txn_hash:?}").as_str(),
+            format!("✈️ - on_cardano_block event trigger - subscription ID: {subscription_id:?}, network: {network:?}, slot: {slot:?}, is rollback: {is_rollback:?}, is immutable: {is_immutable}, txn hash: {txn_hash:?}, fork: {fork:?}").as_str(),
             None,
         );
     }
