@@ -6,7 +6,8 @@ use super::super::{
 };
 
 /// A signature payload object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayload {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
@@ -21,7 +22,8 @@ pub(crate) struct SignaturePayload {
 }
 
 /// A `SignaturePayload` config object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 struct SignaturePayloadConfig {
     /// Hash of the config JSON file.
     file: Option<Blake2b256>,
@@ -30,7 +32,8 @@ struct SignaturePayloadConfig {
 }
 
 /// A `SignaturePayload` settings object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 struct SignaturePayloadSettings {
     /// Hash of the settings schema JSON file.
     schema: Blake2b256,
@@ -228,7 +231,7 @@ impl SignaturePayloadEncoding for SignaturePayload {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

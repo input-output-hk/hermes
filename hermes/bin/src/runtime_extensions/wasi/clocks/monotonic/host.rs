@@ -29,7 +29,10 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _when: Instant,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Create a `pollable` that will resolve after the specified duration has
@@ -38,6 +41,9 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _when: Duration,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

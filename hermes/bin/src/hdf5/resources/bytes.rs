@@ -8,7 +8,7 @@ use std::{
 use super::ResourceTrait;
 
 /// Raw bytes resource struct.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct BytesResource {
     /// name of the resource
     name: String,

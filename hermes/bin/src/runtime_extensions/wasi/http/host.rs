@@ -40,14 +40,20 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
     ) -> wasmtime::Result<
         Option<Result<Result<wasmtime::component::Resource<IncomingResponse>, ErrorCode>, ()>>,
     > {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns a pollable which becomes ready when either the Response has
@@ -57,7 +63,10 @@ impl http::types::HostFutureIncomingResponse for HermesRuntimeContext {
         &mut self,
         _self_: wasmtime::component::Resource<FutureIncomingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -66,7 +75,10 @@ impl http::types::HostFields for HermesRuntimeContext {
     ///
     /// The resulting `fields` is mutable.
     fn new(&mut self) -> wasmtime::Result<wasmtime::component::Resource<Fields>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Construct an HTTP Fields.
@@ -88,7 +100,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         &mut self,
         _entries: Vec<(FieldKey, FieldValue)>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Fields>, HeaderError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get all of the values corresponding to a key. If the key is not present
@@ -100,7 +115,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         _fields: wasmtime::component::Resource<Fields>,
         _name: FieldKey,
     ) -> wasmtime::Result<Vec<FieldValue>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns `true` when the key is present in this `fields`. If the key is
@@ -110,7 +128,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         _fields: wasmtime::component::Resource<Fields>,
         _name: FieldKey,
     ) -> wasmtime::Result<bool> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set all of the values for a key. Clears any existing values for that
@@ -123,7 +144,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         _name: FieldKey,
         _value: Vec<FieldValue>,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Delete all values for a key. Does nothing if no values for the key
@@ -135,7 +159,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         _fields: wasmtime::component::Resource<Fields>,
         _name: FieldKey,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Append a value for a key. Does not change or delete any existing
@@ -148,7 +175,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         _name: FieldKey,
         _value: FieldValue,
     ) -> wasmtime::Result<Result<(), HeaderError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Retrieve the full set of keys and values in the Fields. Like the
@@ -161,7 +191,10 @@ impl http::types::HostFields for HermesRuntimeContext {
         &mut self,
         _fields: wasmtime::component::Resource<Fields>,
     ) -> wasmtime::Result<Vec<(FieldKey, FieldValue)>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Make a deep copy of the Fields. Equivalent in behavior to calling the
@@ -171,14 +204,20 @@ impl http::types::HostFields for HermesRuntimeContext {
         &mut self,
         _fields: wasmtime::component::Resource<Fields>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Fields>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<Fields>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -208,14 +247,20 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
     ) -> wasmtime::Result<
         Option<Result<Result<Option<wasmtime::component::Resource<Trailers>>, ErrorCode>, ()>>,
     > {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns a pollable which becomes ready when either the trailers have"
@@ -225,7 +270,10 @@ impl http::types::HostFutureTrailers for HermesRuntimeContext {
         &mut self,
         _self_: wasmtime::component::Resource<FutureTrailers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -243,7 +291,10 @@ impl http::types::HostOutgoingBody for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingBody>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutputStream>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Finalize an outgoing body, optionally providing trailers. This must be
@@ -260,14 +311,20 @@ impl http::types::HostOutgoingBody for HermesRuntimeContext {
         _this: wasmtime::component::Resource<OutgoingBody>,
         _trailers: Option<wasmtime::component::Resource<Trailers>>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingBody>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -281,7 +338,10 @@ impl HostOutgoingResponse for HermesRuntimeContext {
         &mut self,
         _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<OutgoingResponse>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the HTTP Status Code for the Response.
@@ -289,7 +349,10 @@ impl HostOutgoingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<StatusCode> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the HTTP Status Code for the Response. Fails if the status-code
@@ -299,7 +362,10 @@ impl HostOutgoingResponse for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutgoingResponse>,
         _status_code: StatusCode,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the headers associated with the Request.
@@ -314,7 +380,10 @@ impl HostOutgoingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the resource corresponding to the outgoing Body for this Response.
@@ -326,14 +395,20 @@ impl HostOutgoingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutgoingBody>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingResponse>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -357,7 +432,10 @@ impl http::types::HostIncomingBody for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingBody>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<InputStream>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Takes ownership of `incoming-body`, and returns a `future-trailers`.
@@ -366,14 +444,20 @@ impl http::types::HostIncomingBody for HermesRuntimeContext {
         &mut self,
         _this: wasmtime::component::Resource<IncomingBody>,
     ) -> wasmtime::Result<wasmtime::component::Resource<FutureTrailers>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<IncomingBody>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -383,7 +467,10 @@ impl HostIncomingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<StatusCode> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the headers from the incoming response.
@@ -397,7 +484,10 @@ impl HostIncomingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the incoming body. May be called at most once. Returns error
@@ -406,14 +496,20 @@ impl HostIncomingResponse for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<IncomingBody>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<IncomingResponse>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -432,14 +528,20 @@ impl http::types::HostResponseOutparam for HermesRuntimeContext {
         _param: wasmtime::component::Resource<ResponseOutparam>,
         _response: Result<wasmtime::component::Resource<OutgoingResponse>, ErrorCode>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<ResponseOutparam>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Send an HTTP 1xx response.
@@ -462,14 +564,20 @@ impl http::types::HostResponseOutparam for HermesRuntimeContext {
         _status: u16,
         _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
 impl http::types::HostRequestOptions for HermesRuntimeContext {
     /// Construct a default `request-options` value.
     fn new(&mut self) -> wasmtime::Result<wasmtime::component::Resource<RequestOptions>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// The timeout for the initial connect to the HTTP Server.
@@ -477,7 +585,10 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the timeout for the initial connect to the HTTP Server. An error
@@ -487,7 +598,10 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<RequestOptions>,
         _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// The timeout for receiving the first byte of the Response body.
@@ -495,7 +609,10 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the timeout for receiving the first byte of the Response body. An
@@ -505,7 +622,10 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<RequestOptions>,
         _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// The timeout for receiving subsequent chunks of bytes in the Response
@@ -514,7 +634,10 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<Option<Duration>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the timeout for receiving subsequent chunks of bytes in the Response
@@ -525,14 +648,20 @@ impl http::types::HostRequestOptions for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<RequestOptions>,
         _duration: Option<Duration>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<RequestOptions>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -551,7 +680,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _headers: wasmtime::component::Resource<Headers>,
     ) -> wasmtime::Result<wasmtime::component::Resource<OutgoingRequest>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the resource corresponding to the outgoing Body for this
@@ -564,7 +696,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<OutgoingBody>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the Method for the Request.
@@ -572,7 +707,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Method> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the Method for the Request. Fails if the string present in a
@@ -582,7 +720,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutgoingRequest>,
         _method: Method,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the combination of the HTTP Path and Query for the Request.
@@ -591,7 +732,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<String>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the combination of the HTTP Path and Query for the Request.
@@ -602,7 +746,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutgoingRequest>,
         _path_with_query: Option<String>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the HTTP Related Scheme for the Request. When `none`, the
@@ -611,7 +758,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<Scheme>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the HTTP Related Scheme for the Request. When `none`, the
@@ -622,7 +772,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutgoingRequest>,
         _scheme: Option<Scheme>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the HTTP Authority for the Request. A value of `none` may be used
@@ -632,7 +785,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<Option<String>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Set the HTTP Authority for the Request. A value of `none` may be used
@@ -644,7 +800,10 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         _rep: wasmtime::component::Resource<OutgoingRequest>,
         _authority: Option<String>,
     ) -> wasmtime::Result<Result<(), ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the headers associated with the Request.
@@ -659,14 +818,20 @@ impl http::types::HostOutgoingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<OutgoingRequest>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -676,7 +841,10 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Method> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the path with query parameters from the request, as a string.
@@ -684,7 +852,10 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<String>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the protocol scheme from the request.
@@ -692,7 +863,10 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<Scheme>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Returns the authority from the request, if it was present.
@@ -700,7 +874,10 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Option<String>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the `headers` associated with the request.
@@ -715,7 +892,10 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Headers>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Gives the `incoming-body` associated with this request. Will only
@@ -724,14 +904,20 @@ impl http::types::HostIncomingRequest for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<IncomingBody>, ()>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<IncomingRequest>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -751,7 +937,10 @@ impl http::types::Host for HermesRuntimeContext {
         &mut self,
         _err: wasmtime::component::Resource<IoError>,
     ) -> wasmtime::Result<Option<ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -772,7 +961,10 @@ impl http::outgoing_handler::Host for HermesRuntimeContext {
         _options: Option<wasmtime::component::Resource<RequestOptions>>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<FutureIncomingResponse>, ErrorCode>>
     {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -792,6 +984,9 @@ impl http::incoming_handler::Host for HermesRuntimeContext {
         _request: wasmtime::component::Resource<IncomingRequest>,
         _response_out: wasmtime::component::Resource<ResponseOutparam>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

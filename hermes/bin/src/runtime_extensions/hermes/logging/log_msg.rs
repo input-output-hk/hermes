@@ -25,7 +25,7 @@ pub(crate) fn log_message(
     );
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_log_msg {
     use super::*;
     use crate::{

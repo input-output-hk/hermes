@@ -17,7 +17,8 @@ use super::{
 use crate::errors::Errors;
 
 /// COSE signature object.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Signature<T> {
     /// Signatures collection.
     cose_signatures: Vec<CoseSignature>,
@@ -249,7 +250,7 @@ impl SignaturePayloadEncoding for serde_json::Value {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
     use crate::packaging::sign::{

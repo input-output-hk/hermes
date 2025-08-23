@@ -1,13 +1,26 @@
 //! Hermes IPFS runtime extension event handler implementation.
+use std::fmt::Display;
+
 use crate::{
     event::HermesEventPayload, runtime_extensions::bindings::hermes::ipfs::api::PubsubMessage,
 };
 
 /// Event handler for the `on-topic` event.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct OnTopicEvent {
     ///  Topic message received.
     pub(crate) message: PubsubMessage,
+}
+
+impl Display for OnTopicEvent {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        #[allow(clippy::use_debug)]
+        let msg = format!("{:?}", self.message);
+        write!(f, "Message: {msg}")
+    }
 }
 
 impl HermesEventPayload for OnTopicEvent {
