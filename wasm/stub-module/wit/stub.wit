@@ -7,20 +7,38 @@ world stub {
     use hermes:ipfs/api.{pubsub-message};
     use hermes:kv-store/api.{kv-values};
     use hermes:binary/api.{bstr};
-    use hermes:http-gateway/event.{headers, http-gateway-response};
     use hermes:cron/api.{cron-tagged};
+    use hermes:http-gateway/event.{headers, http-gateway-response};
     use hermes:integration-test/event.{test-result};
 
-    import hermes:init/event;
-    import hermes:kv-store/event;
-    import hermes:cron/event;
-    import hermes:cardano/event-on-block;
-    import hermes:cardano/event-on-immutable-roll-forward;
-    import hermes:ipfs/event;
-    import hermes:http-request/event;
-    import hermes:http-gateway/event;
-    import hermes:integration-test/event;
-    import wasi:http/incoming-handler@0.2.6;
+    // include hermes:wasi/hermes;
+
+    import wasi:http/types@0.2.6;
+    import hermes:binary/api;
+    import hermes:cardano/api;
+    import hermes:cbor/api;
+    import hermes:cron/api;
+    import hermes:crypto/api;
+    import hermes:hash/api;
+    import hermes:init/api;
+    import hermes:ipfs/api;
+    import hermes:json/api;
+    import hermes:kv-store/api;
+    import hermes:localtime/api;
+    import hermes:logging/api;
+    import hermes:sqlite/api;
+    import hermes:http-request/api;
+
+    // export hermes:init/event;
+    // export hermes:kv-store/event;
+    // export hermes:cron/event;
+    // export hermes:cardano/event-on-block;
+    // export hermes:cardano/event-on-immutable-roll-forward;
+    // export hermes:ipfs/event;
+    // export hermes:http-request/event;
+    // export hermes:http-gateway/event;
+    // export hermes:integration-test/event;
+    // export wasi:http/incoming-handler@0.2.6;
 
     export init: func() -> bool;
     export kv-update: func(key: string, value: kv-values);

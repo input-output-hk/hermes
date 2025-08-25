@@ -114,6 +114,44 @@ impl Module {
         })
     }
 
+    /// Instantiate WASM module from bytes
+    ///
+    /// # Errors
+    ///  - `BadWASMModuleError`
+    ///  - `BadEngineConfigError`
+    pub fn from_bytes_with_stub(module_bytes: &[u8]) -> anyhow::Result<Self> {
+        let engine = Engine::new()?;
+        let wasm_module = WasmModule::new(&engine, module_bytes)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+
+        let stub_module = wasmtime::Module::new(
+            &engine,
+            include_bytes!("../../../../wasm/stub-module/stub.wasm"),
+        )?;
+
+        let mut linker = WasmLinker::new(&engine);
+        linker.allow_shadowing(true);
+        linker.define_unknown_imports_as_traps(&wasm_module)?;
+        linker.root().module("hermes", &stub_module)?;
+
+        bindings::Hermes::add_to_linker::<_, HermesRuntimeContext>(
+            &mut linker,
+            &LinkOptions::default(),
+            |state: &mut HermesRuntimeContext| state,
+        )
+        .map_err(|e| BadWASMModuleError(e.to_string()))?;
+        let pre_instance = linker
+            .instantiate_pre(&wasm_module)
+            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+
+        Ok(Self {
+            pre_instance,
+            engine,
+            id: ModuleId(Ulid::generate()),
+            exc_counter: AtomicU32::new(0),
+        })
+    }
+
     /// Instantiate WASM module reader
     ///
     /// # Errors

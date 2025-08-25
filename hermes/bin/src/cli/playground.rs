@@ -93,7 +93,7 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
         let wasm_buf = fs::read(file_path)?;
-        let module = Module::from_bytes(&wasm_buf)?;
+        let module = Module::from_bytes_with_stub(&wasm_buf)?;
         modules.push((name, module));
     }
 
