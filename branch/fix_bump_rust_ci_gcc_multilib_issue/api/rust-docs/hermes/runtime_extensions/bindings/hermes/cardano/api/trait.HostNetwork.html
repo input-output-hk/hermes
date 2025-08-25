@@ -1,0 +1,208 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `HostNetwork` trait in crate `hermes`."><title>HostNetwork in hermes::runtime_extensions::bindings::hermes::cardano::api - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../../static.files/rustdoc-7dc20aaa.css"><meta name="rustdoc-vars" data-root-path="../../../../../../" data-static-root-path="../../../../../../static.files/" data-current-crate="hermes" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0-nightly (809200ec9 2025-08-24)" data-channel="nightly" data-search-js="search-5fc2c5c0.js" data-stringdex-js="stringdex-0e748618.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../../../static.files/main-17c00ba7.js"></script><noscript><link rel="stylesheet" href="../../../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">HostNetwork</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../../hermes/index.html">hermes</a><span class="version">0.0.5</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Host<wbr>Network</a></h2><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.drop" title="drop">drop</a></li><li><a href="#tymethod.get_block" title="get_block">get_block</a></li><li><a href="#tymethod.get_tips" title="get_tips">get_tips</a></li><li><a href="#tymethod.new" title="new">new</a></li><li><a href="#tymethod.subscribe_block" title="subscribe_block">subscribe_block</a></li><li><a href="#tymethod.subscribe_immutable_roll_forward" title="subscribe_immutable_roll_forward">subscribe_immutable_roll_forward</a></li></ul><h3><a href="#foreign-impls">Implementations on Foreign Types</a></h3><ul class="block"><li><a href="#impl-HostNetwork-for-%26mut+_T" title="&#38;mut _T">&#38;mut _T</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In hermes::<wbr>runtime_<wbr>extensions::<wbr>bindings::<wbr>hermes::<wbr>cardano::<wbr>api</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../../index.html">hermes</a>::<wbr><a href="../../../../index.html">runtime_extensions</a>::<wbr><a href="../../../index.html">bindings</a>::<wbr><a href="../../index.html">hermes</a>::<wbr><a href="../index.html">cardano</a>::<wbr><a href="index.html">api</a></div><h1>Trait <span class="trait">Host<wbr>Network</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a> </span></div><pre class="rust item-decl"><code>pub trait HostNetwork {
+    // Required methods
+    fn <a href="#tymethod.new" class="fn">new</a>(
+        &amp;mut self,
+        network: <a class="enum" href="enum.CardanoNetwork.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CardanoNetwork">CardanoNetwork</a>,
+    ) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;, <a class="enum" href="enum.CreateNetworkError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CreateNetworkError">CreateNetworkError</a>&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.subscribe_block" class="fn">subscribe_block</a>(
+        &amp;mut self,
+        self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+        start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+    ) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.subscribe_immutable_roll_forward" class="fn">subscribe_immutable_roll_forward</a>(
+        &amp;mut self,
+        self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+        start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+    ) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.get_block" class="fn">get_block</a>(
+        &amp;mut self,
+        self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+        start: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>&gt;,
+        step: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>,
+    ) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Resource&lt;<a class="enum" href="enum.Block.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Block">Block</a>&gt;&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.get_tips" class="fn">get_tips</a>(
+        &amp;mut self,
+        self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    ) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>)&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.drop" class="fn">drop</a>(&amp;mut self, rep: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;;
+}</code></pre><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.new" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.new" class="fn">new</a>(
+    &amp;mut self,
+    network: <a class="enum" href="enum.CardanoNetwork.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CardanoNetwork">CardanoNetwork</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;, <a class="enum" href="enum.CreateNetworkError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CreateNetworkError">CreateNetworkError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Create a new Cardano network instance.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>network</code>: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(network)</code>: A resource network, if successfully create network resource.</li>
+<li><code>error(create-network-error)</code>: If creating network resource failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.subscribe_block" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.subscribe_block" class="fn">subscribe_block</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Subscribe to blockchain block events, start from a specified starting point.</p>
+<p>This sets up a subscription to receive new block and block rollback updates starting from the
+given <code>start</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: The slot to begin following from.</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(u32)</code>: A unsigned integer represent the underlying 32-bit representation of subscription ID
+resource. this subscription. Use to distinguishes events from different subscribers
+and provides control over subscription management.The ID must be unique across all
+active subscriptions.</li>
+<li><code>error(subscribe-error)</code>: If subscription failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.subscribe_immutable_roll_forward" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.subscribe_immutable_roll_forward" class="fn">subscribe_immutable_roll_forward</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Subscribe to blockchain immutable rolls forward.</p>
+<p>This sets up a subscription to receive event when the immutable part of the blockchain
+roll forwards.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: The slot to begin following from.</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(u32)</code>: A unsigned integer represent the underlying 32-bit representation of subscription ID
+resource. this subscription. Use to distinguishes events from different subscribers
+and provides control over subscription management.The ID must be unique across all
+active subscriptions.</li>
+<li><code>error(subscribe-error)</code>: If subscription failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.get_block" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.get_block" class="fn">get_block</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>&gt;,
+    step: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Resource&lt;<a class="enum" href="enum.Block.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Block">Block</a>&gt;&gt;&gt;</h4></section></summary><div class="docblock"><p>Get a block relative to <code>start</code> by <code>step</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: Slot to begin retrieval from, current tip if <code>None</code>.</li>
+<li><code>step</code>
+-<code>0</code> : the block at <code>start</code>, will return <code>None</code> if there is no block exactly at this <code>start</code> slot.
+-<code>+n</code>: the <code>n</code>‑th block <em>after</em> the given <code>start</code> slot.
+–<code>‑n</code>: the <code>n</code>‑th block <em>before</em> the given <code>start</code> slot.</li>
+</ul>
+<p>Note: For both <code>+n</code> and <code>-n</code>, the <code>start</code> does not need to be a true block.
+They will return the block which appears at this block offset, given the arbitrary start point.
+IF the <code>start</code> block does exist, it will never returned with a positive or negative <code>step</code>, as it is <code>step</code> 0.</p>
+<p>Example, Given three consecutive blocks at slots <code>100</code>, <code>200</code> and <code>300</code> the following will be returned:
+- <code>start = 100, step = 0</code> -&gt; 100 (Exact match)
+- <code>start = 100, step = 2</code> -&gt; 300 (Skips 200)
+- <code>start = 150, step = 1</code> -&gt; 200 (Rounds up from 150)
+- <code>start = 200, step = 1</code> -&gt; 300 (Forward iteration)
+- <code>start = 300, step = -2</code> -&gt; 100 (Skips 200)
+- <code>start = 250, step = -2</code> -&gt; 100 (Rounds down to 200 first)</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>Returns a <code>block</code> resource, <code>None</code> if block cannot be retrieved.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.get_tips" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.get_tips" class="fn">get_tips</a>(&amp;mut self, self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>)&gt;&gt;</h4></section></summary><div class="docblock"><p>Retrieve the current tips of the blockchain.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>A tuple of two slots:
+<ul>
+<li>The immutable tip.</li>
+<li>The mutable tip.
+<code>None</code> if the tips cannot be retrieved.</li>
+</ul>
+</li>
+</ul>
+</div></details><section id="tymethod.drop" class="method"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><h4 class="code-header">fn <a href="#tymethod.drop" class="fn">drop</a>(&amp;mut self, rep: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</h4></section></div><h2 id="foreign-impls" class="section-header">Implementations on Foreign Types<a href="#foreign-impls" class="anchor">§</a></h2><details class="toggle implementors-toggle"><summary><section id="impl-HostNetwork-for-%26mut+_T" class="impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#impl-HostNetwork-for-%26mut+_T" class="anchor">§</a><h3 class="code-header">impl&lt;_T: <a class="trait" href="trait.HostNetwork.html" title="trait hermes::runtime_extensions::bindings::hermes::cardano::api::HostNetwork">HostNetwork</a> + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt; <a class="trait" href="trait.HostNetwork.html" title="trait hermes::runtime_extensions::bindings::hermes::cardano::api::HostNetwork">HostNetwork</a> for <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;mut _T</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.new" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.new" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.new" class="fn">new</a>(
+    &amp;mut self,
+    network: <a class="enum" href="enum.CardanoNetwork.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CardanoNetwork">CardanoNetwork</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;, <a class="enum" href="enum.CreateNetworkError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::CreateNetworkError">CreateNetworkError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Create a new Cardano network instance.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>network</code>: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(network)</code>: A resource network, if successfully create network resource.</li>
+<li><code>error(create-network-error)</code>: If creating network resource failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.subscribe_block" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.subscribe_block" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.subscribe_block" class="fn">subscribe_block</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Subscribe to blockchain block events, start from a specified starting point.</p>
+<p>This sets up a subscription to receive new block and block rollback updates starting from the
+given <code>start</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: The slot to begin following from.</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(u32)</code>: A unsigned integer represent the underlying 32-bit representation of subscription ID
+resource. this subscription. Use to distinguishes events from different subscribers
+and provides control over subscription management.The ID must be unique across all
+active subscriptions.</li>
+<li><code>error(subscribe-error)</code>: If subscription failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.subscribe_immutable_roll_forward" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.subscribe_immutable_roll_forward" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.subscribe_immutable_roll_forward" class="fn">subscribe_immutable_roll_forward</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="enum.SyncSlot.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SyncSlot">SyncSlot</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>, <a class="enum" href="enum.SubscribeError.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::SubscribeError">SubscribeError</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Subscribe to blockchain immutable rolls forward.</p>
+<p>This sets up a subscription to receive event when the immutable part of the blockchain
+roll forwards.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: The slot to begin following from.</li>
+</ul>
+<p><strong>Returns</strong></p>
+<ul>
+<li><code>ok(u32)</code>: A unsigned integer represent the underlying 32-bit representation of subscription ID
+resource. this subscription. Use to distinguishes events from different subscribers
+and provides control over subscription management.The ID must be unique across all
+active subscriptions.</li>
+<li><code>error(subscribe-error)</code>: If subscription failed.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.get_block" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.get_block" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.get_block" class="fn">get_block</a>(
+    &amp;mut self,
+    self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;,
+    start: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>&gt;,
+    step: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.i64.html">i64</a>,
+) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;Resource&lt;<a class="enum" href="enum.Block.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Block">Block</a>&gt;&gt;&gt;</h4></section></summary><div class="docblock"><p>Get a block relative to <code>start</code> by <code>step</code>.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li><code>start</code>: Slot to begin retrieval from, current tip if <code>None</code>.</li>
+<li><code>step</code>
+-<code>0</code> : the block at <code>start</code>, will return <code>None</code> if there is no block exactly at this <code>start</code> slot.
+-<code>+n</code>: the <code>n</code>‑th block <em>after</em> the given <code>start</code> slot.
+–<code>‑n</code>: the <code>n</code>‑th block <em>before</em> the given <code>start</code> slot.</li>
+</ul>
+<p>Note: For both <code>+n</code> and <code>-n</code>, the <code>start</code> does not need to be a true block.
+They will return the block which appears at this block offset, given the arbitrary start point.
+IF the <code>start</code> block does exist, it will never returned with a positive or negative <code>step</code>, as it is <code>step</code> 0.</p>
+<p>Example, Given three consecutive blocks at slots <code>100</code>, <code>200</code> and <code>300</code> the following will be returned:
+- <code>start = 100, step = 0</code> -&gt; 100 (Exact match)
+- <code>start = 100, step = 2</code> -&gt; 300 (Skips 200)
+- <code>start = 150, step = 1</code> -&gt; 200 (Rounds up from 150)
+- <code>start = 200, step = 1</code> -&gt; 300 (Forward iteration)
+- <code>start = 300, step = -2</code> -&gt; 100 (Skips 200)
+- <code>start = 250, step = -2</code> -&gt; 100 (Rounds down to 200 first)</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>Returns a <code>block</code> resource, <code>None</code> if block cannot be retrieved.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.get_tips" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.get_tips" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.get_tips" class="fn">get_tips</a>(&amp;mut self, self_: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u64.html">u64</a>)&gt;&gt;</h4></section></summary><div class="docblock"><p>Retrieve the current tips of the blockchain.</p>
+<p><strong>Returns</strong></p>
+<ul>
+<li>A tuple of two slots:
+<ul>
+<li>The immutable tip.</li>
+<li>The mutable tip.
+<code>None</code> if the tips cannot be retrieved.</li>
+</ul>
+</li>
+</ul>
+</div></details><section id="method.drop" class="method trait-impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/bindings.rs.html#13-16">Source</a><a href="#method.drop" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.drop" class="fn">drop</a>(&amp;mut self, rep: Resource&lt;<a class="enum" href="enum.Network.html" title="enum hermes::runtime_extensions::bindings::hermes::cardano::api::Network">Network</a>&gt;) -&gt; <a class="type" href="https://docs.rs/anyhow/1.0.99/anyhow/type.Result.html" title="type anyhow::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</h4></section></div></details><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><section id="impl-HostNetwork-for-HermesRuntimeContext" class="impl"><a class="src rightside" href="../../../../../../src/hermes/runtime_extensions/hermes/cardano/host.rs.html#23-242">Source</a><a href="#impl-HostNetwork-for-HermesRuntimeContext" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.HostNetwork.html" title="trait hermes::runtime_extensions::bindings::hermes::cardano::api::HostNetwork">HostNetwork</a> for <a class="struct" href="../../../../../runtime_context/struct.HermesRuntimeContext.html" title="struct hermes::runtime_context::HermesRuntimeContext">HermesRuntimeContext</a></h3></section></div><script src="../../../../../../trait.impl/hermes/runtime_extensions/bindings/hermes/cardano/api/trait.HostNetwork.js" async></script></section></div></main></body></html>

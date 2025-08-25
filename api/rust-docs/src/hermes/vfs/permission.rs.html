@@ -1,0 +1,170 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `bin/src/vfs/permission.rs`."><title>permission.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-069232aa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hermes" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0-nightly (8e62bfd31 2025-08-12)" data-channel="nightly" data-search-js="search-6c528b5c.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-68b7e25d.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-eebb9057.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">hermes/vfs/</div>permission.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Permissions state management of the Hermes virtual file system.
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>std::sync::{
+<a href=#4 id=4 data-nosnippet>4</a>    atomic::{AtomicBool, Ordering},
+<a href=#5 id=5 data-nosnippet>5</a>    Arc,
+<a href=#6 id=6 data-nosnippet>6</a>};
+<a href=#7 id=7 data-nosnippet>7</a>
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>dashmap::DashMap;
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span><span class="kw">crate</span>::utils::parse_path;
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a><span class="doccomment">/// Permission level type.
+<a href=#13 id=13 data-nosnippet>13</a></span><span class="attr">#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+<a href=#14 id=14 data-nosnippet>14</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>PermissionLevel {
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// Read only permission level.
+<a href=#16 id=16 data-nosnippet>16</a>    </span>Read,
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// Read and write permission level.
+<a href=#18 id=18 data-nosnippet>18</a>    </span><span class="attr">#[default]
+<a href=#19 id=19 data-nosnippet>19</a>    </span>ReadAndWrite,
+<a href=#20 id=20 data-nosnippet>20</a>}
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">impl </span>From&lt;PermissionLevel&gt; <span class="kw">for </span>bool {
+<a href=#23 id=23 data-nosnippet>23</a>    <span class="kw">fn </span>from(level: PermissionLevel) -&gt; <span class="self">Self </span>{
+<a href=#24 id=24 data-nosnippet>24</a>        <span class="kw">match </span>level {
+<a href=#25 id=25 data-nosnippet>25</a>            PermissionLevel::Read =&gt; <span class="bool-val">false</span>,
+<a href=#26 id=26 data-nosnippet>26</a>            PermissionLevel::ReadAndWrite =&gt; <span class="bool-val">true</span>,
+<a href=#27 id=27 data-nosnippet>27</a>        }
+<a href=#28 id=28 data-nosnippet>28</a>    }
+<a href=#29 id=29 data-nosnippet>29</a>}
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">impl </span>From&lt;bool&gt; <span class="kw">for </span>PermissionLevel {
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">fn </span>from(level: bool) -&gt; <span class="self">Self </span>{
+<a href=#33 id=33 data-nosnippet>33</a>        <span class="kw">if </span>level {
+<a href=#34 id=34 data-nosnippet>34</a>            PermissionLevel::ReadAndWrite
+<a href=#35 id=35 data-nosnippet>35</a>        } <span class="kw">else </span>{
+<a href=#36 id=36 data-nosnippet>36</a>            PermissionLevel::Read
+<a href=#37 id=37 data-nosnippet>37</a>        }
+<a href=#38 id=38 data-nosnippet>38</a>    }
+<a href=#39 id=39 data-nosnippet>39</a>}
+<a href=#40 id=40 data-nosnippet>40</a>
+<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// VFS permissions state stored in the radix tree structure, where the
+<a href=#42 id=42 data-nosnippet>42</a>/// each node relates to a single path element with the permission level.
+<a href=#43 id=43 data-nosnippet>43</a>/// `PermissionLevel::ReadAndWrite` is a default permission level so if permission was not
+<a href=#44 id=44 data-nosnippet>44</a>/// defined for the path explicitly `PermissionsState` will return the
+<a href=#45 id=45 data-nosnippet>45</a>/// `PermissionLevel::ReadAndWrite` permission level for the asked path.
+<a href=#46 id=46 data-nosnippet>46</a></span><span class="attr">#[derive(Debug)]
+<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PermissionsState {
+<a href=#48 id=48 data-nosnippet>48</a>    <span class="doccomment">/// Tree's root node.
+<a href=#49 id=49 data-nosnippet>49</a>    </span>root: PermissionNodeRef,
+<a href=#50 id=50 data-nosnippet>50</a>}
+<a href=#51 id=51 data-nosnippet>51</a>
+<a href=#52 id=52 data-nosnippet>52</a><span class="doccomment">/// `PermissionsTree` node type.
+<a href=#53 id=53 data-nosnippet>53</a></span><span class="attr">#[derive(Debug)]
+<a href=#54 id=54 data-nosnippet>54</a></span><span class="kw">struct </span>PermissionNode {
+<a href=#55 id=55 data-nosnippet>55</a>    <span class="doccomment">/// Node permission level.
+<a href=#56 id=56 data-nosnippet>56</a>    </span>permission: AtomicBool,
+<a href=#57 id=57 data-nosnippet>57</a>    <span class="doccomment">/// Node childs.
+<a href=#58 id=58 data-nosnippet>58</a>    </span>childs: DashMap&lt;String, PermissionNodeRef&gt;,
+<a href=#59 id=59 data-nosnippet>59</a>}
+<a href=#60 id=60 data-nosnippet>60</a>
+<a href=#61 id=61 data-nosnippet>61</a><span class="kw">impl </span>Default <span class="kw">for </span>PermissionNode {
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#63 id=63 data-nosnippet>63</a>        <span class="self">Self </span>{
+<a href=#64 id=64 data-nosnippet>64</a>            permission: AtomicBool::new(PermissionLevel::default().into()),
+<a href=#65 id=65 data-nosnippet>65</a>            childs: DashMap::new(),
+<a href=#66 id=66 data-nosnippet>66</a>        }
+<a href=#67 id=67 data-nosnippet>67</a>    }
+<a href=#68 id=68 data-nosnippet>68</a>}
+<a href=#69 id=69 data-nosnippet>69</a>
+<a href=#70 id=70 data-nosnippet>70</a><span class="doccomment">/// Convenient type of the referenced `PermissionNode`.
+<a href=#71 id=71 data-nosnippet>71</a></span><span class="kw">type </span>PermissionNodeRef = Arc&lt;PermissionNode&gt;;
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a><span class="kw">impl </span>PermissionsState {
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// Creates a new `PermissionsTree` instance with the root node which relates to the
+<a href=#75 id=75 data-nosnippet>75</a>    /// "/" path with the `PermissionLevel::ReadAndWrite` default permission level.
+<a href=#76 id=76 data-nosnippet>76</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">let </span>root = PermissionNodeRef::default();
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="self">Self </span>{ root }
+<a href=#79 id=79 data-nosnippet>79</a>    }
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Adds a new path to the `PermissionsTree` with the provided permission level.
+<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_permission(
+<a href=#83 id=83 data-nosnippet>83</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#84 id=84 data-nosnippet>84</a>        path: <span class="kw-2">&amp;</span>str,
+<a href=#85 id=85 data-nosnippet>85</a>        permission: PermissionLevel,
+<a href=#86 id=86 data-nosnippet>86</a>    ) {
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">let </span>path_elements = parse_path(path);
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span><span class="kw-2">mut </span>walk = <span class="self">self</span>.root.clone();
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">for </span>path_element <span class="kw">in </span>path_elements {
+<a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">let </span>node = walk.clone();
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(child_node) = node.childs.get(<span class="kw-2">&amp;</span>path_element) {
+<a href=#93 id=93 data-nosnippet>93</a>                walk = child_node.value().clone();
+<a href=#94 id=94 data-nosnippet>94</a>            } <span class="kw">else </span>{
+<a href=#95 id=95 data-nosnippet>95</a>                <span class="kw">let </span>new_node = PermissionNodeRef::default();
+<a href=#96 id=96 data-nosnippet>96</a>                node.childs.insert(path_element, new_node.clone());
+<a href=#97 id=97 data-nosnippet>97</a>                walk = new_node;
+<a href=#98 id=98 data-nosnippet>98</a>            };
+<a href=#99 id=99 data-nosnippet>99</a>        }
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="comment">// Update the last node with the provided permission
+<a href=#101 id=101 data-nosnippet>101</a>        </span>walk.permission.store(permission.into(), Ordering::Release);
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Gets the permission level for the provided path.
+<a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_permission(
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#107 id=107 data-nosnippet>107</a>        path: <span class="kw-2">&amp;</span>str,
+<a href=#108 id=108 data-nosnippet>108</a>    ) -&gt; PermissionLevel {
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span><span class="kw-2">mut </span>permission: PermissionLevel = <span class="self">self</span>.root.permission.load(Ordering::Acquire).into();
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span>path_elements = parse_path(path);
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">let </span><span class="kw-2">mut </span>walk = <span class="self">self</span>.root.clone();
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="kw">for </span>path_element <span class="kw">in </span>path_elements {
+<a href=#115 id=115 data-nosnippet>115</a>            <span class="kw">let </span>node = walk.clone();
+<a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(child_node) = node.childs.get(<span class="kw-2">&amp;</span>path_element) {
+<a href=#117 id=117 data-nosnippet>117</a>                permission = child_node.permission.load(Ordering::Acquire).into();
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>                <span class="kw">if </span>permission == PermissionLevel::Read {
+<a href=#120 id=120 data-nosnippet>120</a>                    <span class="kw">break</span>;
+<a href=#121 id=121 data-nosnippet>121</a>                }
+<a href=#122 id=122 data-nosnippet>122</a>
+<a href=#123 id=123 data-nosnippet>123</a>                walk = child_node.clone();
+<a href=#124 id=124 data-nosnippet>124</a>            } <span class="kw">else </span>{
+<a href=#125 id=125 data-nosnippet>125</a>                <span class="kw">break</span>;
+<a href=#126 id=126 data-nosnippet>126</a>            };
+<a href=#127 id=127 data-nosnippet>127</a>        }
+<a href=#128 id=128 data-nosnippet>128</a>
+<a href=#129 id=129 data-nosnippet>129</a>        permission
+<a href=#130 id=130 data-nosnippet>130</a>    }
+<a href=#131 id=131 data-nosnippet>131</a>}
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a><span class="attr">#[cfg(test)]
+<a href=#134 id=134 data-nosnippet>134</a></span><span class="kw">mod </span>tests {
+<a href=#135 id=135 data-nosnippet>135</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#136 id=136 data-nosnippet>136</a>
+<a href=#137 id=137 data-nosnippet>137</a>    <span class="attr">#[test]
+<a href=#138 id=138 data-nosnippet>138</a>    </span><span class="kw">fn </span>permission_level_test() {
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="macro">assert!</span>(!Into::&lt;bool&gt;::into(PermissionLevel::Read));
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="macro">assert!</span>(Into::&lt;bool&gt;::into(PermissionLevel::ReadAndWrite));
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="macro">assert_eq!</span>(Into::&lt;PermissionLevel&gt;::into(<span class="bool-val">false</span>), PermissionLevel::Read);
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="macro">assert_eq!</span>(
+<a href=#144 id=144 data-nosnippet>144</a>            Into::&lt;PermissionLevel&gt;::into(<span class="bool-val">true</span>),
+<a href=#145 id=145 data-nosnippet>145</a>            PermissionLevel::ReadAndWrite
+<a href=#146 id=146 data-nosnippet>146</a>        );
+<a href=#147 id=147 data-nosnippet>147</a>    }
+<a href=#148 id=148 data-nosnippet>148</a>
+<a href=#149 id=149 data-nosnippet>149</a>    <span class="attr">#[test]
+<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="kw">fn </span>permission_tree_test() {
+<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span><span class="kw-2">mut </span>tree = PermissionsState::new();
+<a href=#152 id=152 data-nosnippet>152</a>
+<a href=#153 id=153 data-nosnippet>153</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">""</span>), PermissionLevel::ReadAndWrite);
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"/a/b"</span>), PermissionLevel::ReadAndWrite);
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a>        tree.add_permission(<span class="string">"/a/b"</span>, PermissionLevel::Read);
+<a href=#157 id=157 data-nosnippet>157</a>        tree.add_permission(<span class="string">"c/b"</span>, PermissionLevel::Read);
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"a"</span>), PermissionLevel::ReadAndWrite);
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"a/b"</span>), PermissionLevel::Read);
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"c"</span>), PermissionLevel::ReadAndWrite);
+<a href=#162 id=162 data-nosnippet>162</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"c/b"</span>), PermissionLevel::Read);
+<a href=#163 id=163 data-nosnippet>163</a>
+<a href=#164 id=164 data-nosnippet>164</a>        tree.add_permission(<span class="string">"/a/b"</span>, PermissionLevel::ReadAndWrite);
+<a href=#165 id=165 data-nosnippet>165</a>        tree.add_permission(<span class="string">"a"</span>, PermissionLevel::Read);
+<a href=#166 id=166 data-nosnippet>166</a>
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"a"</span>), PermissionLevel::Read);
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="macro">assert_eq!</span>(tree.get_permission(<span class="string">"a/b"</span>), PermissionLevel::Read);
+<a href=#169 id=169 data-nosnippet>169</a>    }
+<a href=#170 id=170 data-nosnippet>170</a>}</code></pre></div></section></main></body></html>
