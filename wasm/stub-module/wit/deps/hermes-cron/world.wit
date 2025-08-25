@@ -1,6 +1,0 @@
-package hermes:cron;
-
-world all {
-    import api;
-    export event;
-}

@@ -1,6 +1,0 @@
-package hermes:kv-store;
-
-world all {
-    import api;
-    export event;
-}

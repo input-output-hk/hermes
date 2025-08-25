@@ -1,5 +1,0 @@
-package hermes:logging;
-
-world all {
-    import api;
-}

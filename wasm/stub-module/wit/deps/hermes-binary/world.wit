@@ -1,5 +1,0 @@
-package hermes:binary;
-
-world all {
-    import api;
-}

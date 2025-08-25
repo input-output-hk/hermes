@@ -1,5 +1,0 @@
-package hermes:cbor;
-
-world all {
-    import api;
-}

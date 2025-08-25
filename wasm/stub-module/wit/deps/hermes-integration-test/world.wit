@@ -1,5 +1,0 @@
-package hermes:integration-test;
-
-world all {
-    export event;
-}
