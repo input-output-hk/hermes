@@ -140,16 +140,18 @@ local-build-http-proxy:
     COPY http-proxy/lib/manifest_module.json .
     COPY http-proxy/lib/metadata.json .
     COPY http-proxy/lib/settings.schema.json .
+    
+    # Copy the web-build directory as web assets
+    COPY --keep-ts --dir ../../../web-build ./web
 
     # Compile Rust code to WebAssembly
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/http_proxy.wasm"
 
-    # Export build artifacts
+    # Export build artifacts including web assets
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm http_proxy.wasm
-    
-    # Save to local filesystem in expected location for packaging
+    SAVE ARTIFACT web AS LOCAL http-proxy/lib/web
     SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
 
 # Future Module Build Targets

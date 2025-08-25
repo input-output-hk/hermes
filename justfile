@@ -93,6 +93,10 @@ get-local-athena:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    echo "🌐 Building Flutter web assets..."
+    just build-flutter-web
+
+
     echo "🔨 Building HTTP proxy WASM component..."
     echo "📍 Module location: athena/modules/http-proxy/"
     echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"

@@ -3,6 +3,7 @@
     "name": "http_proxy",
     "metadata": "metadata.json",
     "component": "http_proxy.wasm",
+    "www": "web-build/",
     "config": {
         "file": "config.json",
         "schema": "config.schema.json"
