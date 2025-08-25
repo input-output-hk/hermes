@@ -298,3 +298,7 @@ check-spelling:
 # Pre Push Checks - intended to be run by a git pre-push hook.
 pre-push: check-markdown check-spelling
     just hermes/pre-push
+
+# Build Flutter web assets from external Catalyst Voices repository
+build-flutter-web:
+    earthly --artifact github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web ./web-build

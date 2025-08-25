@@ -43,20 +43,40 @@ const EVENT_TIMEOUT: u64 = 1;
 #[derive(Debug)]
 pub(crate) struct Hostname(pub String);
 
+/// Add security headers to response
+fn add_security_headers<B>(mut response: Response<B>) -> Response<B> 
+where B: Body {
+    let headers = response.headers_mut();
+    
+    // Add COOP and COEP headers for enabling SharedArrayBuffer and other features
+    headers.insert(
+        "Cross-Origin-Opener-Policy",
+        "same-origin".parse().unwrap(),
+    );
+    headers.insert(
+        "Cross-Origin-Embedder-Policy", 
+        "require-corp".parse().unwrap(),
+    );
+    
+    response
+}
+
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
 where B: Body + From<String> {
-    Ok(Response::builder()
+    let response = Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(err.into())?)
+        .body(err.into())?;
+    Ok(add_security_headers(response))
 }
 
 /// HTTP not found response generator
 pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
 where B: Body + From<&'static str> {
-    Ok(Response::builder()
+    let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body("Not Found".into())?)
+        .body("Not Found".into())?;
+    Ok(add_security_headers(response))
 }
 
 /// Extractor that resolves the hostname of the request.
@@ -106,7 +126,7 @@ pub(crate) async fn router(
     {
         route_to_hermes(req, app_name.clone()).await?
     } else {
-        return Ok(error_response("Hostname not valid".to_owned())?);
+        return Ok(add_security_headers(error_response("Hostname not valid".to_owned())?));
     };
 
     connection_manager
@@ -123,7 +143,7 @@ pub(crate) async fn router(
         connection_manager, app_name
     );
 
-    Ok(response)
+    Ok(add_security_headers(response))
 }
 
 /// Routes HTTP requests to WASM modules or static file handlers
@@ -211,9 +231,11 @@ where
 
     match &receiver.recv_timeout(Duration::from_secs(EVENT_TIMEOUT))? {
         HTTPEventMsg::HttpEventResponse(resp) => {
-            Ok(Response::new(serde_json::to_string(&resp)?.into()))
+            let mut response = Response::new(serde_json::to_string(&resp)?.into());
+            response = add_security_headers(response);
+            Ok(response)
         },
-        HTTPEventMsg::HTTPEventReceiver => Ok(error_response("HTTP event msg error".to_owned())?),
+        HTTPEventMsg::HTTPEventReceiver => Ok(add_security_headers(error_response("HTTP event msg error".to_owned())?)),
     }
 }
 
@@ -228,7 +250,9 @@ where
     let app = reactor::get_app(app_name)?;
     let file = app.vfs().read(path)?;
 
-    Ok(Response::new(file.into()))
+    let mut response = Response::new(file.into());
+    response = add_security_headers(response);
+    Ok(response)
 }
 
 /// Check if valid path to static files.
