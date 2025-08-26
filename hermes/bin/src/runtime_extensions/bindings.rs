@@ -12,5 +12,7 @@ use wasmtime::component::bindgen;
 
 bindgen!({
     path: "../../wasm/wasi/wit",
-    trappable_imports: true,
+    imports: {
+        default: trappable,
+    },
 });
