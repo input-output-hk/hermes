@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:fix/gcc-multilib-arm AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.10 AS rust-ci
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.5.4 AS go-ci
 
 # Use when debugging cat-ci locally.
