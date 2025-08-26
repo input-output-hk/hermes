@@ -142,7 +142,7 @@ local-build-http-proxy:
     COPY http-proxy/lib/settings.schema.json .
     
     # Copy the web-build directory as web assets
-    COPY --keep-ts --dir ../../../web-build ./web
+    COPY --keep-ts --dir ./web-build ./web
 
     # Compile Rust code to WebAssembly
     DO rust-ci+CARGO \

@@ -83,11 +83,18 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
         .ok_or(anyhow!("No host header"))?
         .to_str()?;
 
+
+
+    // Strip port if present (e.g., "app.hermes.local:5000" -> "app.hermes.local")
+    let host = host.split(':').next().unwrap_or(host);
+
     // <app.name>.hermes.local
     // host = hermes.local
     let (app, host) = host
         .split_once('.')
         .ok_or(anyhow::anyhow!("Malformed Host header"))?;
+
+
 
     Ok((ApplicationName(app.to_owned()), Hostname(host.to_owned())))
 }
@@ -114,6 +121,8 @@ pub(crate) async fn router(
     info!("connection manager {:?}", connection_manager);
 
     let (app_name, resolved_host) = host_resolver(req.headers())?;
+
+    info!("conor app name: {:?} resolved host: {:?}", app_name, resolved_host);
 
     let response = if config
         .valid_hosts

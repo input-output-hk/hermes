@@ -96,15 +96,18 @@ get-local-athena:
     echo "🌐 Building Flutter web assets..."
     just build-flutter-web
 
+    echo "📁 Copying web assets to module build location..."
+    cp -r web-build hermes/apps/athena/modules/
 
     echo "🔨 Building HTTP proxy WASM component..."
     echo "📍 Module location: athena/modules/http-proxy/"
     echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
-    # Step 1: Build WASM module using Earthly (local development target)
-    # This compiles Rust source to optimized WASM binary and saves locally
+    # Step 1: Build WASM module using Earthly
     earthly ./hermes/apps/athena/modules+local-build-http-proxy
-    echo "✅ WASM compilation complete"
+    
+    # Clean up copied assets
+    rm -rf hermes/apps/athena/modules/web-build
 
     echo "📦 Packaging module with Hermes CLI..."
     echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
