@@ -3,8 +3,9 @@
 use std::ffi::CString;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_OK,
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
+    sqlite3, sqlite3_busy_timeout, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64,
+    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
+    SQLITE_OPEN_READWRITE,
 };
 
 use crate::{
@@ -46,7 +47,7 @@ pub(super) fn open(
         SQLITE_OPEN_READONLY
     } else {
         SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
-    };
+    } | SQLITE_OPEN_NOMUTEX;
 
     let c_path =
         CString::new(db_path.to_string_lossy().as_bytes()).map_err(|_| Errno::ConvertingCString)?;
@@ -57,6 +58,11 @@ pub(super) fn open(
         return Err(Errno::Sqlite(rc));
     } else if db_ptr.is_null() {
         return Err(Errno::FailedOpeningDatabase);
+    }
+
+    let rc = unsafe { sqlite3_busy_timeout(db_ptr, 30000) };
+    if rc != SQLITE_OK {
+        return Err(Errno::Sqlite(rc));
     }
 
     // config database size limitation
