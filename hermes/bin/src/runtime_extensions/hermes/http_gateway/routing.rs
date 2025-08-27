@@ -122,7 +122,7 @@ pub(crate) async fn router(
 
     let (app_name, resolved_host) = host_resolver(req.headers())?;
 
-    info!("conor app name: {:?} resolved host: {:?}", app_name, resolved_host);
+    info!("app name: {:?} resolved host: {:?}", app_name, resolved_host);
 
     let response = if config
         .valid_hosts
@@ -261,11 +261,16 @@ where
         path.strip_prefix('/').unwrap_or(path)
     };
 
+    info!("Serving Flutter asset: {} for app: {:?}", file_path, app_name); // Add this debug log
+
     // Get the app and read from VFS
     let app = reactor::get_app(app_name)?;
 
+    info!("Got app from reactor");
+
     match app.vfs().read(file_path) {
         Ok(file_contents) => {
+            info!("Successfully read file: {} ({} bytes)", file_path, file_contents.len());
             let mut response = Response::new(file_contents.into());
 
             // Set proper MIME type
@@ -284,12 +289,17 @@ where
             response = add_security_headers(response)?;
             Ok(response)
         },
-        Err(_) => {
+        Err(e) => {
+            info!("Failed to read file: {} - Error: {:?}", file_path, e); // Add this debug log
             // Fallback to index.html for SPA routing, but only if we weren't already trying to serve index.html
             match file_path {
-                "index.html" => serve_flutter_not_found(),
+                "index.html" => {
+                    info!("index.html not found, serving 404"); // Add this debug log
+                    serve_flutter_not_found()
+                },
                 _ => match app.vfs().read("index.html") {
                     Ok(index_contents) => {
+                        info!("Fallback to index.html successful ({} bytes)", index_contents.len()); // Add this debug log
                         let mut response = Response::new(index_contents.into());
                         response.headers_mut().insert(
                             "Content-Type",
@@ -306,7 +316,10 @@ where
                         response = add_security_headers(response)?;
                         Ok(response)
                     },
-                    Err(_) => serve_flutter_not_found(),
+                    Err(fallback_e) => {
+                        info!("Fallback to index.html also failed: {:?}", fallback_e); // Add this debug log
+                        serve_flutter_not_found()
+                    },
                 },
             }
         },

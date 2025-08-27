@@ -1,5 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+    "name": "athena",
     "icon": "icon.svg",
     "metadata": "metadata.json",
     "modules": [
@@ -8,5 +9,5 @@
             "name": "http_proxy"
         }
     ],
-    "www": "modules/http-proxy/lib/web"
+    "www": "./modules/http-proxy/lib/web"
 }
