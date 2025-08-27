@@ -43,6 +43,13 @@ pub(super) fn open(
 
         (db_name, persistent_config)
     };
+
+    // Setting SQLITE_OPEN_NOMUTEX is enough, without setting env var, since
+    // by default SQLITE_THREADSAFE=1 is used, and doc says:
+    //
+    // If single-thread mode has not been selected at compile-time or start-time,
+    // then individual database connections can be created as either multi-thread or
+    // serialized.
     let flags = if readonly {
         SQLITE_OPEN_READONLY
     } else {
@@ -60,7 +67,7 @@ pub(super) fn open(
         return Err(Errno::FailedOpeningDatabase);
     }
 
-    let rc = unsafe { sqlite3_busy_timeout(db_ptr, 30000) };
+    let rc = unsafe { sqlite3_busy_timeout(db_ptr, 5000) };
     if rc != SQLITE_OK {
         return Err(Errno::Sqlite(rc));
     }
