@@ -33,12 +33,10 @@ fn get_task_wait() -> &'static (Mutex<()>, Condvar) {
 
 /// Initialize the global Rayon thread pool
 ///
-/// The number of threads is set to the number of available
-/// CPU cores minus two. This subtraction ensures that
-/// the main thread and event loop threads have enough
-/// CPU capacity to handle orchestration and I/O without
-/// being blocked by compute-heavy WASM tasks. At least
-/// one thread is always used.
+/// The number of threads is set to (CPU cores - 2).
+/// Reserving two cores helps the main thread and event loop
+/// remain responsive, reducing CPU contention with compute-heavy
+/// WASM tasks. At least one worker thread is always created.
 pub(crate) fn init() -> Result<()> {
     let available_threads = available_parallelism()
         .map(|num_threads| num_threads.get().saturating_sub(2).max(1))

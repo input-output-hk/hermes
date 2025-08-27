@@ -110,7 +110,7 @@ pub(crate) fn module_dispatch_event(
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
-    // TODO: fix how init is processed.
+    // TODO(@aido-mth): fix how init is processed. https://github.com/input-output-hk/hermes/issues/490
     pool::execute(move || {
         let runtime_ctx = HermesRuntimeContext::new(
             app_name,
