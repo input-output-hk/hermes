@@ -147,10 +147,14 @@ fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Mess
             crate::event::TargetApp::List(app_names),
             crate::event::TargetModule::All,
         )) {
-            tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+            tracing::error!(
+                on_topic_event = %on_topic_event,
+                err = err.to_string(),
+                "Failed to send on_topic_event.",
+            );
         }
     } else {
-        tracing::error!("failed to send on_topic_event. IPFS is uninitialized");
+        tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
     }
 }
 

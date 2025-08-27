@@ -10,7 +10,7 @@ use super::ResourceTrait;
 
 /// File system resource.
 /// A simple wrapper over `PathBuf`
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct FsResource(PathBuf);
 
 impl Display for FsResource {

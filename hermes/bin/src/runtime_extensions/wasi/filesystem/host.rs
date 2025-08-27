@@ -109,7 +109,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _length: Filesize,
         _advice: Advice,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Synchronize the data of a file to disk.
@@ -122,7 +125,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         &mut self,
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get flags associated with a descriptor.
@@ -135,7 +141,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         &mut self,
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<DescriptorFlags, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get the dynamic type of a descriptor.
@@ -174,7 +183,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _size: Filesize,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Adjust the timestamps of an open file or directory.
@@ -188,7 +200,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _data_access_timestamp: NewTimestamp,
         _data_modification_timestamp: NewTimestamp,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read from a descriptor, without using and updating the descriptor\'s offset.
@@ -208,7 +223,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _length: Filesize,
         _offset: Filesize,
     ) -> wasmtime::Result<Result<(Vec<u8>, bool), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Write to a descriptor, without using and updating the descriptor\'s offset.
@@ -226,7 +244,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _buffer: Vec<u8>,
         _offset: Filesize,
     ) -> wasmtime::Result<Result<Filesize, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read directory entries from a directory.
@@ -243,7 +264,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<DirectoryEntryStream>, ErrorCode>>
     {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Synchronize the data and metadata of a file to disk.
@@ -256,7 +280,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         &mut self,
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Create a directory.
@@ -267,7 +294,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Return the attributes of an open file or directory.
@@ -290,7 +320,12 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
 
         let f = match &*descriptor {
             Descriptor::File(f) => f,
-            Descriptor::Dir(_) => todo!(),
+            Descriptor::Dir(_) => {
+                #[allow(clippy::todo)]
+                {
+                    todo!()
+                }
+            },
         };
 
         let Ok(size) = f
@@ -323,7 +358,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _path_flags: PathFlags,
         _path: String,
     ) -> wasmtime::Result<Result<DescriptorStat, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Adjust the timestamps of a file or directory.
@@ -340,7 +378,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _data_access_timestamp: NewTimestamp,
         _data_modification_timestamp: NewTimestamp,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Create a hard link.
@@ -354,7 +395,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _new_descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _new_path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Open a file or directory.
@@ -442,7 +486,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _path: String,
     ) -> wasmtime::Result<Result<String, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Remove a directory.
@@ -455,7 +502,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Rename a filesystem object.
@@ -468,7 +518,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _new_descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _new_path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Create a symbolic link (also known as a "symlink").
@@ -483,7 +536,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _old_path: String,
         _new_path: String,
     ) -> wasmtime::Result<Result<(), ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Unlink a filesystem object that is not a directory.
@@ -529,7 +585,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _descriptor: wasmtime::component::Resource<WasiDescriptor>,
         _other: wasmtime::component::Resource<WasiDescriptor>,
     ) -> wasmtime::Result<bool> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Return a hash of the metadata associated with a filesystem object referred
@@ -568,7 +627,10 @@ impl filesystem::types::HostDescriptor for HermesRuntimeContext {
         _path_flags: PathFlags,
         _path: String,
     ) -> wasmtime::Result<Result<MetadataHashValue, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
@@ -587,14 +649,20 @@ impl filesystem::types::HostDirectoryEntryStream for HermesRuntimeContext {
         &mut self,
         _dir: wasmtime::component::Resource<DirectoryEntryStream>,
     ) -> wasmtime::Result<Result<Option<DirectoryEntry>, ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<DirectoryEntryStream>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -613,7 +681,10 @@ impl filesystem::types::Host for HermesRuntimeContext {
         &mut self,
         _err: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<Option<ErrorCode>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
