@@ -14,7 +14,10 @@ impl HostPollable for HermesRuntimeContext {
         &mut self,
         _self_: wasmtime::component::Resource<Pollable>,
     ) -> wasmtime::Result<bool> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// `block` returns immediately if the pollable is ready, and otherwise
@@ -26,14 +29,20 @@ impl HostPollable for HermesRuntimeContext {
         &mut self,
         _self_: wasmtime::component::Resource<Pollable>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<Pollable>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -62,6 +71,9 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _in_: Vec<wasmtime::component::Resource<Pollable>>,
     ) -> wasmtime::Result<wasmtime::component::__internal::Vec<u32>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

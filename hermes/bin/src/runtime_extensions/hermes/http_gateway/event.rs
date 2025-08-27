@@ -40,7 +40,7 @@ type Body = Vec<u8>;
 // ============================================================================
 
 /// MPSC message types for HTTP event communication
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub(crate) enum HTTPEventMsg {
     /// Receiver acknowledgment
     HTTPEventReceiver,
@@ -71,7 +71,7 @@ pub(crate) struct HTTPEvent {
 // ============================================================================
 
 /// Security configuration for validating internal redirects
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RedirectConfig {
     /// Allowed URL schemes (e.g., "https")
     pub schemes: HashSet<String>,

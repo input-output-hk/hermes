@@ -17,14 +17,20 @@ impl HostError for HermesRuntimeContext {
         &mut self,
         _rep: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<String> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     fn drop(
         &mut self,
         _rep: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 

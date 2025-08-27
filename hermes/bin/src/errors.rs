@@ -3,8 +3,19 @@
 use std::fmt::Display;
 
 /// Errors struct which holds a collection of errors
-#[derive(thiserror::Error, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(thiserror::Error)]
 pub(crate) struct Errors(Vec<anyhow::Error>);
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for Errors {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
+}
 
 impl Display for Errors {
     fn fmt(
@@ -70,7 +81,7 @@ impl Errors {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

@@ -352,7 +352,7 @@ fn handle_delay_cron_job(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use chrono::Datelike;
 

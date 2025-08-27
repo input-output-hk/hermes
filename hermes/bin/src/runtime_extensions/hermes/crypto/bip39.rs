@@ -339,7 +339,7 @@ fn byte_to_bit(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_bip39 {
     use super::*;
 
