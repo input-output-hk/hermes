@@ -1,12 +1,16 @@
 //! Core functionality implementation for the `SQLite` open function.
 
-use std::ffi::CString;
+use std::{
+    ffi::{c_int, c_void, CString},
+    time::Duration,
+};
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_busy_timeout, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64,
+    sqlite3, sqlite3_busy_handler, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64,
     SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
     SQLITE_OPEN_READWRITE,
 };
+use rand::random;
 
 use crate::{
     app::ApplicationName,
@@ -18,6 +22,41 @@ use crate::{
 
 /// The default page size of `SQLite`.
 const PAGE_SIZE: u32 = 4_096;
+
+/// Custom `SQLite` busy handler with exponential backoff and random jitter.
+///
+/// This handler is called whenever `SQLite` encounters a `SQLITE_BUSY` state
+/// (e.g. when the database file is locked by another transaction).
+///
+/// Behavior:
+/// - Uses exponential backoff: delays grow as 10, 20, 40, 80… ms.
+/// - Adds a random jitter (0–99 ms) to reduce lock-step retries across threads.
+/// - Clamps the maximum delay per attempt to 5000 ms (5 seconds).
+/// - Returns `1` to tell `SQLite` to retry, or would return `0` to abort with
+///   `SQLITE_BUSY`.
+///
+/// Notes:
+/// - The `n` parameter is the number of times the handler has been invoked for the same
+///   lock.
+/// - `_data` is a user-provided pointer passed via `sqlite3_busy_handler`, unused here.
+extern "C" fn busy_handler(
+    _data: *mut c_void,
+    n: c_int,
+) -> c_int {
+    // add 0–99 ms of randomness to avoid all clients retrying in lock-step
+    let jitter = random::<u64>() % 100;
+    let exp: u32 = (n.saturating_sub(1)).try_into().unwrap_or(0);
+
+    // grows exponentially: 10, 20, 40, 80… milliseconds
+    // use saturating_pow and saturating_mul to avoid integer overflows
+    let delay = 10u64.saturating_mul(2u64.saturating_pow(exp));
+
+    // add the random shift, but ensure the total wait is ≤ 5000 ms (5 seconds)
+    let wait_ms = delay.saturating_add(jitter).min(5000);
+
+    std::thread::sleep(Duration::from_millis(wait_ms));
+    1
+}
 
 /// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(
@@ -67,7 +106,7 @@ pub(super) fn open(
         return Err(Errno::FailedOpeningDatabase);
     }
 
-    let rc = unsafe { sqlite3_busy_timeout(db_ptr, 5000) };
+    let rc = unsafe { sqlite3_busy_handler(db_ptr, Some(busy_handler), std::ptr::null_mut()) };
     if rc != SQLITE_OK {
         return Err(Errno::Sqlite(rc));
     }
