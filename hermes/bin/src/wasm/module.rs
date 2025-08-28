@@ -11,7 +11,9 @@ use std::{
 
 use rusty_ulid::Ulid;
 use wasmtime::{
-    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
+    component::{
+        self, Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker,
+    },
     Store as WasmStore,
 };
 
@@ -30,7 +32,7 @@ pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
-    pub(crate) instance: bindings::Hermes,
+    pub(crate) instance: component::Instance,
 }
 
 /// Module id type
@@ -147,7 +149,9 @@ impl Module {
         state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
-        let instance = bindings::HermesPre::new(self.pre_instance.clone())?
+        let instance = self
+            .pre_instance
+            .clone()
             .instantiate(&mut store)
             .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
@@ -186,8 +190,8 @@ pub mod bench {
             ) -> anyhow::Result<()> {
                 instance
                     .instance
-                    .hermes_init_event()
-                    .call_init(&mut instance.store)?;
+                    .hermes_init_event_init(&mut instance.store)?
+                    .call(&mut instance.store, ())?;
                 Ok(())
             }
         }

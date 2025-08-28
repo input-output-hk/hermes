@@ -1,7 +1,10 @@
 //! KV-Store runtime extension event handler implementation.
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings::hermes::kv_store::api::KvValues,
+    event::HermesEventPayload,
+    runtime_extensions::bindings::{
+        hermes::kv_store::api::KvValues, partial_exports::ComponentInstanceExt,
+    },
 };
 
 /// KV update event
@@ -13,6 +16,7 @@ struct KVUpdateEvent {
     value: KvValues,
 }
 
+#[allow(dead_code)]
 impl HermesEventPayload for KVUpdateEvent {
     fn event_name(&self) -> &'static str {
         "kv-update"
@@ -22,11 +26,10 @@ impl HermesEventPayload for KVUpdateEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        module.instance.hermes_kv_store_event().call_kv_update(
-            &mut module.store,
-            &self.key,
-            &self.value,
-        )?;
+        module
+            .instance
+            .hermes_kv_store_event_kv_update(&mut module.store)?
+            .call(&mut module.store, (&self.key, &self.value))?;
         Ok(())
     }
 }

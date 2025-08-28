@@ -8,6 +8,8 @@
 
 use wasmtime::component::bindgen;
 
+pub mod partial_exports;
+
 bindgen!({
     path: "../../wasm/wasi/wit",
     trappable_imports: true,

@@ -5,7 +5,9 @@ use tracing::error;
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
-    runtime_extensions::hermes::cardano::STATE,
+    runtime_extensions::{
+        bindings::partial_exports::ComponentInstanceExt as _, hermes::cardano::STATE,
+    },
     wasm::module::ModuleId,
 };
 
@@ -36,8 +38,8 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 
         module
             .instance
-            .hermes_cardano_event_on_block()
-            .call_on_cardano_block(&mut module.store, subscription_id, block)?;
+            .hermes_cardano_event_on_block_on_cardano_block(&mut module.store)?
+            .call(&mut module.store, (subscription_id, block))?;
         Ok(())
     }
 }
@@ -85,8 +87,10 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
 
         module
             .instance
-            .hermes_cardano_event_on_immutable_roll_forward()
-            .call_on_cardano_immutable_roll_forward(&mut module.store, subscription_id, block)?;
+            .hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(
+                &mut module.store,
+            )?
+            .call(&mut module.store, (subscription_id, block))?;
         Ok(())
     }
 }

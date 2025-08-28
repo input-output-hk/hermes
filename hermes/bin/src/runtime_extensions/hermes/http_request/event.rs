@@ -1,4 +1,6 @@
-use crate::event::HermesEventPayload;
+use crate::{
+    event::HermesEventPayload, runtime_extensions::bindings::partial_exports::ComponentInstanceExt as _,
+};
 
 /// Event payload for the `on-http-response` event.
 pub(super) struct OnHttpResponseEvent {
@@ -19,8 +21,8 @@ impl HermesEventPayload for OnHttpResponseEvent {
     ) -> anyhow::Result<()> {
         module
             .instance
-            .hermes_http_request_event()
-            .call_on_http_response(&mut module.store, self.request_id, &self.response)?;
+            .hermes_http_request_event_on_http_response(&mut module.store)?
+            .call(&mut module.store, (self.request_id, &self.response))?;
         Ok(())
     }
 }

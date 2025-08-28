@@ -13,7 +13,10 @@ use url::Url;
 
 use crate::{
     event::HermesEventPayload,
-    runtime_extensions::bindings::exports::hermes::http_gateway::event::HttpGatewayResponse,
+    runtime_extensions::bindings::{
+        exports::hermes::http_gateway::event::HttpGatewayResponse,
+        partial_exports::ComponentInstanceExt as _,
+    },
 };
 
 // ============================================================================
@@ -213,13 +216,18 @@ impl HermesEventPayload for HTTPEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let event_response = module.instance.hermes_http_gateway_event().call_reply(
-            &mut module.store,
-            &self.body.as_ref().to_vec(),
-            &self.headers,
-            &self.path,
-            &self.method,
-        )?;
+        let (event_response,) = module
+            .instance
+            .hermes_http_gateway_event_reply(&mut module.store)?
+            .call(
+                &mut module.store,
+                (
+                    &self.body.as_ref().to_vec(),
+                    &self.headers,
+                    &self.path,
+                    &self.method,
+                ),
+            )?;
 
         match event_response {
             Some(HttpGatewayResponse::Http(resp)) => {
@@ -326,10 +334,10 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (name.to_string(), vec![value
-                    .to_str()
-                    .unwrap_or("")
-                    .to_string()])
+                (
+                    name.to_string(),
+                    vec![value.to_str().unwrap_or("").to_string()],
+                )
             })
             .collect();
 

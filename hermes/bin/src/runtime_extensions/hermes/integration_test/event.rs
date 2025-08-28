@@ -12,7 +12,9 @@ use temp_dir::TempDir;
 use crate::{
     app::{module_dispatch_event, ApplicationName},
     event::HermesEventPayload,
-    runtime_extensions::bindings::exports::hermes::integration_test::event::TestResult,
+    runtime_extensions::bindings::{
+        exports::hermes::integration_test::event::TestResult, partial_exports::ComponentInstanceExt as _,
+    },
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -49,10 +51,10 @@ impl HermesEventPayload for OnTestEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let result: Option<TestResult> = module
+        let (result,): (Option<TestResult>,) = module
             .instance
-            .hermes_integration_test_event()
-            .call_test(&mut module.store, self.test, self.run)?;
+            .hermes_integration_test_event_test(&mut module.store)?
+            .call(&mut module.store, (self.test, self.run))?;
         TEST_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
@@ -75,10 +77,10 @@ impl HermesEventPayload for OnBenchEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let result: Option<TestResult> = module
+        let (result,): (Option<TestResult>,) = module
             .instance
-            .hermes_integration_test_event()
-            .call_bench(&mut module.store, self.test, self.run)?;
+            .hermes_integration_test_event_bench(&mut module.store)?
+            .call(&mut module.store, (self.test, self.run))?;
         BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
