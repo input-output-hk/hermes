@@ -1,6 +1,7 @@
-use crate::{hermes::*, RbacRegistrationComponent};
-
-use crate::hermes::exports::hermes::cardano::event_on_immutable_roll_forward;
+use crate::{
+    hermes::{exports::hermes::cardano::event_on_immutable_roll_forward, *},
+    RbacRegistrationComponent,
+};
 
 impl exports::hermes::integration_test::event::Guest for RbacRegistrationComponent {
     fn test(
@@ -63,7 +64,7 @@ impl exports::hermes::http_request::event::Guest for RbacRegistrationComponent {
     fn on_http_response(
         _request_id: Option<u64>,
         _response: Vec<u8>,
-    ) -> () {
+    ) {
     }
 }
 
