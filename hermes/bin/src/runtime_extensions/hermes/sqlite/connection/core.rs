@@ -126,8 +126,8 @@ mod tests {
         open(false, true, app_name)
     }
 
-    fn init_fs() -> Result<*mut sqlite3, Errno> {
-        let app_name = ApplicationName(String::from(TMP_DIR));
+    fn init_fs(app_name: String) -> Result<*mut sqlite3, Errno> {
+        let app_name = ApplicationName(app_name);
 
         open(false, false, app_name)
     }
@@ -241,8 +241,8 @@ mod tests {
 
     #[test]
     fn test_multiple_threads_does_not_conflict() {
-        fn task() {
-            let db_ptr = init_fs().unwrap();
+        fn task(app_name: String) {
+            let db_ptr = init_fs(app_name).unwrap();
             let statement = prepare(
                 db_ptr,
                 r"
@@ -260,7 +260,8 @@ mod tests {
             close(db_ptr).expect("failed to close connection");
         }
 
-        let db_ptr = init_fs().unwrap();
+        let uuid = uuid::Uuid::new_v4().to_string();
+        let db_ptr = init_fs(uuid.clone()).unwrap();
         execute(
             db_ptr,
             r"
@@ -275,7 +276,8 @@ mod tests {
 
         let mut handlers = vec![];
         for _ in 0..100 {
-            handlers.push(std::thread::spawn(task));
+            let app_name = uuid.clone();
+            handlers.push(std::thread::spawn(move || task(app_name)));
         }
 
         for handler in handlers {
