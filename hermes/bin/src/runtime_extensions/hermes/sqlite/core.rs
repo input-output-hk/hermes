@@ -22,6 +22,10 @@ use crate::{
 
 /// The default page size of `SQLite`.
 const PAGE_SIZE: u32 = 4_096;
+/// Max delay for sql query to retry.
+const MAX_DELAY_MS: u64 = 30000;
+/// Jitter to avoid all clients retrying in lock-step.
+const JITTER_MS: u64 = MAX_DELAY_MS * 2 / 10;
 
 /// Custom `SQLite` busy handler with exponential backoff and random jitter.
 ///
@@ -30,8 +34,9 @@ const PAGE_SIZE: u32 = 4_096;
 ///
 /// Behavior:
 /// - Uses exponential backoff: delays grow as 10, 20, 40, 80… ms.
-/// - Adds a random jitter (0–99 ms) to reduce lock-step retries across threads.
-/// - Clamps the maximum delay per attempt to 5000 ms (5 seconds).
+/// - Adds a random jitter (0–(`JITTER_MS` - 1) ms) to reduce lock-step retries across
+///   threads.
+/// - Clamps the maximum delay per attempt to `MAX_DELAY_MS` ms.
 /// - Returns `1` to tell `SQLite` to retry, or would return `0` to abort with
 ///   `SQLITE_BUSY`.
 ///
@@ -43,16 +48,15 @@ extern "C" fn busy_handler(
     _data: *mut c_void,
     n: c_int,
 ) -> c_int {
-    // add 0–99 ms of randomness to avoid all clients retrying in lock-step
-    let jitter = random::<u64>() % 100;
+    // add (`JITTER_MS` - 1) ms of randomness to avoid all clients retrying in lock-step
+    let jitter = random::<u64>() % JITTER_MS;
     let exp: u32 = (n.saturating_sub(1)).try_into().unwrap_or(0);
 
     // grows exponentially: 10, 20, 40, 80… milliseconds
-    // use saturating_pow and saturating_mul to avoid integer overflows
     let delay = 10u64.saturating_mul(2u64.saturating_pow(exp));
 
-    // add the random shift, but ensure the total wait is ≤ 5000 ms (5 seconds)
-    let wait_ms = delay.saturating_add(jitter).min(5000);
+    // add the random shift, but ensure the total wait is ≤ `MAX_DELAY_MS` ms
+    let wait_ms = delay.saturating_add(jitter).min(MAX_DELAY_MS);
 
     std::thread::sleep(Duration::from_millis(wait_ms));
     1
