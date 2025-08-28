@@ -1,11 +1,16 @@
 //! Core functionality implementation for the `SQLite` open function.
 
-use std::ffi::CString;
+use std::{
+    ffi::{c_int, c_void, CString},
+    time::Duration,
+};
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64, SQLITE_OK,
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
+    sqlite3, sqlite3_busy_handler, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64,
+    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
+    SQLITE_OPEN_READWRITE,
 };
+use rand::random;
 
 use crate::{
     app::ApplicationName,
@@ -17,6 +22,45 @@ use crate::{
 
 /// The default page size of `SQLite`.
 const PAGE_SIZE: u32 = 4_096;
+/// Max delay for sql query to retry.
+const MAX_DELAY_MS: u64 = 30000;
+/// Jitter to avoid all clients retrying in lock-step.
+const JITTER_MS: u64 = MAX_DELAY_MS * 2 / 10;
+
+/// Custom `SQLite` busy handler with exponential backoff and random jitter.
+///
+/// This handler is called whenever `SQLite` encounters a `SQLITE_BUSY` state
+/// (e.g. when the database file is locked by another transaction).
+///
+/// Behavior:
+/// - Uses exponential backoff: delays grow as 10, 20, 40, 80… ms.
+/// - Adds a random jitter (0–(`JITTER_MS` - 1) ms) to reduce lock-step retries across
+///   threads.
+/// - Clamps the maximum delay per attempt to `MAX_DELAY_MS` ms.
+/// - Returns `1` to tell `SQLite` to retry, or would return `0` to abort with
+///   `SQLITE_BUSY`.
+///
+/// Notes:
+/// - The `n` parameter is the number of times the handler has been invoked for the same
+///   lock.
+/// - `_data` is a user-provided pointer passed via `sqlite3_busy_handler`, unused here.
+extern "C" fn busy_handler(
+    _data: *mut c_void,
+    n: c_int,
+) -> c_int {
+    // add (`JITTER_MS` - 1) ms of randomness to avoid all clients retrying in lock-step
+    let jitter = random::<u64>() % JITTER_MS;
+    let exp: u32 = (n.saturating_sub(1)).try_into().unwrap_or(0);
+
+    // grows exponentially: 10, 20, 40, 80… milliseconds
+    let delay = 10u64.saturating_mul(2u64.saturating_pow(exp));
+
+    // add the random shift, but ensure the total wait is ≤ `MAX_DELAY_MS` ms
+    let wait_ms = delay.saturating_add(jitter).min(MAX_DELAY_MS);
+
+    std::thread::sleep(Duration::from_millis(wait_ms));
+    1
+}
 
 /// Opens a connection to a new or existing `SQLite` database.
 pub(super) fn open(
@@ -42,11 +86,18 @@ pub(super) fn open(
 
         (db_name, persistent_config)
     };
+
+    // Setting SQLITE_OPEN_NOMUTEX is enough, without setting env var, since
+    // by default SQLITE_THREADSAFE=1 is used, and doc says:
+    //
+    // If single-thread mode has not been selected at compile-time or start-time,
+    // then individual database connections can be created as either multi-thread or
+    // serialized.
     let flags = if readonly {
         SQLITE_OPEN_READONLY
     } else {
         SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
-    };
+    } | SQLITE_OPEN_NOMUTEX;
 
     let c_path =
         CString::new(db_path.to_string_lossy().as_bytes()).map_err(|_| Errno::ConvertingCString)?;
@@ -57,6 +108,11 @@ pub(super) fn open(
         return Err(Errno::Sqlite(rc));
     } else if db_ptr.is_null() {
         return Err(Errno::FailedOpeningDatabase);
+    }
+
+    let rc = unsafe { sqlite3_busy_handler(db_ptr, Some(busy_handler), std::ptr::null_mut()) };
+    if rc != SQLITE_OK {
+        return Err(Errno::Sqlite(rc));
     }
 
     // config database size limitation

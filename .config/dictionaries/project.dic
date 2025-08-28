@@ -131,6 +131,7 @@ nbaz
 netkey
 nextest
 nolfs
+nomutex
 nostack
 notadb
 nsec
@@ -208,6 +209,7 @@ testdocs
 testunit
 thiserror
 thollander
+threadsafe
 timelike
 timespec
 tinygo
