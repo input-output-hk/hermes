@@ -9,7 +9,7 @@ pub(crate) fn parse_path(path: &str) -> Vec<String> {
         .collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

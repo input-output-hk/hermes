@@ -6,7 +6,8 @@ use super::super::{schema_validation::SchemaValidator, FileError};
 use crate::hdf5::resources::ResourceBuilder;
 
 /// Hermes application package manifest.json definition.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Package name.
     pub(crate) name: String,
@@ -23,7 +24,8 @@ pub(crate) struct Manifest {
 }
 
 /// `Manifest` `modules` item field definition.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct ManifestModule {
     /// Path to the WASM module package file.
     pub(crate) package: ResourceBuilder,
@@ -152,7 +154,7 @@ mod serde_def {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use temp_dir::TempDir;
 

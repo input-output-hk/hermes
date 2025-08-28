@@ -5,7 +5,7 @@ use std::io::Read;
 use super::super::schema_validation::SchemaValidator;
 
 /// Config schema object.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct ConfigSchema {
     /// config schema JSON object.
     json: serde_json::Map<String, serde_json::Value>,
@@ -44,7 +44,8 @@ impl ConfigSchema {
 }
 
 /// Config object.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct Config {
     /// config JSON object.
     json: serde_json::Map<String, serde_json::Value>,

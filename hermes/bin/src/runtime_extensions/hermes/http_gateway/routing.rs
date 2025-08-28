@@ -1,10 +1,7 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc,
-    },
+    sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
 
@@ -16,7 +13,8 @@ use hyper::{
     HeaderMap, Request, Response, StatusCode,
 };
 use regex::Regex;
-use tracing::info;
+#[allow(unused_imports, reason = "`debug` used only in debug builds.")]
+use tracing::{debug, info};
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
@@ -40,7 +38,7 @@ const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 const EVENT_TIMEOUT: u64 = 1;
 
 /// hostname (node name)
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
@@ -80,22 +78,19 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
 pub(crate) async fn router(
     req: Request<Incoming>,
-    connection_manager: Arc<ConnectionManager>,
+    connection_manager: ConnectionManager,
     ip: SocketAddr,
     config: Config,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
 
-    connection_manager
-        .get_connection_manager_context()
-        .try_lock()
-        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
-        .insert(
-            unique_request_id.clone(),
-            (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
-        );
+    connection_manager.insert(
+        unique_request_id.clone(),
+        (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
+    );
 
-    info!("connection manager {:?}", connection_manager);
+    #[cfg(debug_assertions)]
+    debug!("connection manager {:?}", connection_manager);
 
     let (app_name, resolved_host) = host_resolver(req.headers())?;
 
@@ -109,19 +104,13 @@ pub(crate) async fn router(
         return Ok(error_response("Hostname not valid".to_owned())?);
     };
 
-    connection_manager
-        .get_connection_manager_context()
-        .try_lock()
-        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
-        .insert(
-            unique_request_id,
-            (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
-        );
-
-    info!(
-        "connection manager {:?} app {:?}",
-        connection_manager, app_name
+    connection_manager.insert(
+        unique_request_id,
+        (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
     );
+
+    #[cfg(debug_assertions)]
+    debug!("connection manager {connection_manager} app {app_name}");
 
     Ok(response)
 }
@@ -242,7 +231,7 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use regex::Regex;
 

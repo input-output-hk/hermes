@@ -8,7 +8,6 @@ use tokio::sync::{mpsc, oneshot};
 use super::{
     event::{CronDuration, OnCronEvent},
     state::{cron_queue_delay, cron_queue_trigger, send_hermes_on_cron_event},
-    Error,
 };
 use crate::{
     app::ApplicationName,
@@ -16,7 +15,7 @@ use crate::{
 };
 
 /// Cron Job Delay.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct CronJobDelay {
     /// Scheduled time for running the event.
     pub(crate) timestamp: CronDuration,
@@ -25,7 +24,7 @@ pub(crate) struct CronJobDelay {
 }
 
 /// Scheduled Date and Time for sending a cron event.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum CronJob {
     /// Add a new cron job for the given app.
     Add(ApplicationName, OnCronEvent, oneshot::Sender<bool>),
@@ -72,7 +71,7 @@ impl CronEventQueue {
         Ok(self
             .sender
             .as_ref()
-            .ok_or(Error::CronQueueTaskFailed)?
+            .ok_or(anyhow::anyhow!("Cron Queue Task Failed"))?
             .blocking_send(cron_job)?)
     }
 
@@ -154,7 +153,7 @@ impl CronEventQueue {
     pub(crate) fn trigger(&self) -> anyhow::Result<()> {
         let trigger_time: CronDuration = chrono::Utc::now()
             .timestamp_nanos_opt()
-            .ok_or(Error::InvalidTimestamp)?
+            .ok_or(anyhow::anyhow!("Invalid Timestamp"))?
             .try_into()?;
         // drop the old waiting task if it has passed.
         if let Some((_key, (_, handle))) = self
@@ -163,7 +162,9 @@ impl CronEventQueue {
                 *waiting_for <= trigger_time
             })
         {
-            handle.join().map_err(|_| Error::CronQueueTaskFailed)?;
+            handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("Cron Queue Task Failed"))?;
         }
         // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
@@ -280,7 +281,7 @@ fn new_waiting_task(
     (timestamp, handle)
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use std::thread::sleep;
 

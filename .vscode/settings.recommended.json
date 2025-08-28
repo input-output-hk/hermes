@@ -38,8 +38,7 @@
     "Earthfile": "earthfile"
   },
   "rust-analyzer.linkedProjects": [
-    "./hermes/Cargo.toml",
-    "./wasm/wasi-hermes-component-adapter/Cargo.toml"
+    "./hermes/Cargo.toml"
   ],
   "rust-analyzer.check.overrideCommand": [
     "bash",
