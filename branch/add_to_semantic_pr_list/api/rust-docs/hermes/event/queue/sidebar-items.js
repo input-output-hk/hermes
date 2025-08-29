@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["event_execution_loop","init","send","targeted_app_event_execution","targeted_module_event_execution"],"static":["EVENT_QUEUE_INSTANCE"],"struct":["AlreadyInitializedError","CannotAddEventError","HermesEventQueue","NotInitializedError"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["collect_apps","collect_modules","create_one_module_app","create_temp_dir_child","init_ipfs"],"struct":["Playground"]};
