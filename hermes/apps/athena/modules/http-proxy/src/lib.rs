@@ -24,11 +24,22 @@
 mod hermes;
 mod stub;
 
-use crate::hermes::exports::hermes::http_gateway::event::{HttpGatewayResponse};
-use crate::hermes::hermes::binary::api::Bstr;
+use crate::hermes::exports::hermes::http_gateway::event::HttpGatewayResponse;
 use crate::hermes::exports::hermes::http_gateway::event::HttpResponse;
+use crate::hermes::hermes::binary::api::Bstr;
 
+use regex::RegexSet;
 use std::sync::OnceLock;
+
+/// What to do when a route pattern matches
+#[derive(Debug, Clone, Copy)]
+enum RouteAction {
+    External, // Forward to Cat Voices
+    Static,   // Serve natively
+}
+
+/// Compiled patterns for efficient matching
+static ROUTE_MATCHER: OnceLock<(RegexSet, Vec<RouteAction>)> = OnceLock::new();
 
 /// External Cat Voices host for temporary external routing
 /// TODO: Make this configurable via environment variables or config file
@@ -48,13 +59,8 @@ const EXTERNAL_ROUTE_PATTERNS: &[&str] = &[
 /// TODO: Make static content patterns configurable
 const STATIC_PATTERN: &str = r"^/static/.+$";
 
-/// Compiled regex patterns (initialized once at runtime)
-/// TODO: Replace with hot-reloadable configuration system
-static EXTERNAL_ROUTE_REGEX: OnceLock<Vec<regex::Regex>> = OnceLock::new();
-static STATIC_REGEX: OnceLock<regex::Regex> = OnceLock::new();
-
 /// HTTP proxy component providing configurable request routing.
-/// 
+///
 /// Currently serves as a temporary bridge to external Cat Voices endpoints
 /// while native implementations are developed. The long-term vision is to
 /// evolve this into a full-featured configurable proxy supporting:
@@ -65,41 +71,46 @@ static STATIC_REGEX: OnceLock<regex::Regex> = OnceLock::new();
 /// - A/B testing and canary deployments
 struct HttpProxyComponent;
 
-/// Initialize regex patterns (called once at startup)
-/// TODO: Replace with configuration-driven pattern compilation
-fn init_regex() -> &'static Vec<regex::Regex> {
-    EXTERNAL_ROUTE_REGEX.get_or_init(|| {
-        EXTERNAL_ROUTE_PATTERNS
-            .iter()
-            .map(|pattern| {
-                regex::Regex::new(pattern)
-                    .unwrap_or_else(|e| panic!("Invalid regex pattern '{}': {}", pattern, e))
-            })
-            .collect()
+/// Initialize all route patterns as a single RegexSet
+fn init_route_matcher() -> &'static (RegexSet, Vec<RouteAction>) {
+    ROUTE_MATCHER.get_or_init(|| {
+        let mut patterns = Vec::new();
+        let mut actions = Vec::new();
+
+        // External routes (redirect to Cat Voices)
+        for pattern in EXTERNAL_ROUTE_PATTERNS {
+            patterns.push(*pattern);
+            actions.push(RouteAction::External);
+        }
+
+        // Static content (serve natively)
+        patterns.push(STATIC_PATTERN);
+        actions.push(RouteAction::Static);
+
+        // Compile all patterns together for performance
+        let regex_set = RegexSet::new(&patterns).unwrap_or_else(|e| {
+            log_warn(&format!("Failed to compile patterns: {}", e));
+            RegexSet::empty()
+        });
+
+        (regex_set, actions)
     })
 }
 
-/// Initialize static content regex pattern
-/// TODO: Support multiple static content patterns from configuration
-fn init_static_regex() -> &'static regex::Regex {
-    STATIC_REGEX.get_or_init(|| {
-        regex::Regex::new(STATIC_PATTERN)
-            .unwrap_or_else(|e| panic!("Invalid static regex pattern '{}': {}", STATIC_PATTERN, e))
-    })
+/// Get the action for a given path
+fn get_route_action(path: &str) -> Option<RouteAction> {
+    let (regex_set, actions) = init_route_matcher();
+    regex_set.matches(path).iter().next().map(|i| actions[i])
 }
 
-/// Determines if a request should be routed to external Cat Voices system
-/// TODO: Replace with configurable routing decision engine
+/// Check if path should route externally
 fn should_route_externally(path: &str) -> bool {
-    let patterns = init_regex();
-    patterns.iter().any(|regex| regex.is_match(path))
+    matches!(get_route_action(path), Some(RouteAction::External))
 }
 
-/// Determines if a path is static content using regex matching
-/// TODO: Integrate with configurable content serving strategies
+/// Check if path is static content
 fn is_static_content(path: &str) -> bool {
-    let regex = init_static_regex();
-    regex.is_match(path)
+    matches!(get_route_action(path), Some(RouteAction::Static))
 }
 
 /// Creates an external route redirect response
@@ -122,8 +133,14 @@ fn create_static_response(path: &str) -> HttpGatewayResponse {
 
 /// Creates a 404 not found response
 /// TODO: Make error responses configurable (custom error pages, etc.)
-fn create_not_found_response(method: &str, path: &str) -> HttpGatewayResponse {
-    log_warn(&format!("Route not found (no native implementation or external routing configured): {} {}", method, path));
+fn create_not_found_response(
+    method: &str,
+    path: &str,
+) -> HttpGatewayResponse {
+    log_warn(&format!(
+        "Route not found (no native implementation or external routing configured): {} {}",
+        method, path
+    ));
     HttpGatewayResponse::Http(HttpResponse {
         code: 404,
         headers: vec![("content-type".to_string(), vec!["text/html".to_string()])],
@@ -136,7 +153,10 @@ fn log_info(message: &str) {
     hermes::hermes::logging::api::log(
         hermes::hermes::logging::api::Level::Info,
         Some("http-proxy"),
-        None, None, None, None,
+        None,
+        None,
+        None,
+        None,
         message,
         None,
     );
@@ -147,7 +167,10 @@ fn log_debug(message: &str) {
     hermes::hermes::logging::api::log(
         hermes::hermes::logging::api::Level::Debug,
         Some("http-proxy"),
-        None, None, None, None,
+        None,
+        None,
+        None,
+        None,
         message,
         None,
     );
@@ -158,7 +181,10 @@ fn log_warn(message: &str) {
     hermes::hermes::logging::api::log(
         hermes::hermes::logging::api::Level::Warn,
         Some("http-proxy"),
-        None, None, None, None,
+        None,
+        None,
+        None,
+        None,
         message,
         None,
     );
@@ -168,13 +194,15 @@ fn log_warn(message: &str) {
 fn format_response_type(response: &HttpGatewayResponse) -> String {
     match response {
         HttpGatewayResponse::Http(resp) => format!("HTTP {}", resp.code),
-        HttpGatewayResponse::InternalRedirect(_) => "EXTERNAL_REDIRECT (temporary bridge)".to_string(),
+        HttpGatewayResponse::InternalRedirect(_) => {
+            "EXTERNAL_REDIRECT (temporary bridge)".to_string()
+        },
     }
 }
 
 impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
     /// Routes HTTP requests through configurable proxy logic.
-    /// 
+    ///
     /// Current implementation provides temporary bridging to external Cat Voices
     /// endpoints while native implementations are developed. Future versions will
     /// support sophisticated routing rules, backend selection, and middleware chains.
@@ -195,9 +223,9 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
         };
 
         log_info(&format!(
-            "Request completed: {} {} -> {}", 
-            method, 
-            path, 
+            "Request completed: {} {} -> {}",
+            method,
+            path,
             format_response_type(&response)
         ));
 

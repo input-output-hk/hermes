@@ -133,7 +133,10 @@ async fn route_to_hermes(
     req: Request<Incoming>,
     app_name: ApplicationName,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
-    // Create MPSC channel for async WASM communication
+    // Create synchronous MPSC channel for receiving WASM module responses
+    // Used in request-response pattern: HTTP request → global event queue → WASM modules →
+    // response channel TODO: Replace with oneshot channel since we only expect one
+    // response per HTTP request
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 

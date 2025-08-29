@@ -16,7 +16,6 @@ bootstrapper
 BROTLI
 cantopen
 cardano
-catfact
 cbor
 cbork
 cdylib
@@ -243,7 +242,6 @@ projectcatalyst
 yamux
 justfile
 sandboxing
-catfact
 rustup
 rollouts
 subpaths
