@@ -9,4 +9,5 @@ crate-type = ["cdylib"]
 [dependencies]
 wit-bindgen = "0.43.0"
 serde = { version = "1.0", features = ["derive"] }
-tracing = "*"
+tracing = "0.1.41"
+regex = "1.10"
