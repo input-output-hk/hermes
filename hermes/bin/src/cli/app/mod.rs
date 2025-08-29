@@ -16,6 +16,7 @@ pub(crate) enum Commands {
 
 impl Commands {
     /// Execute cli module command
+    #[allow(dead_code)]
     pub(crate) fn exec(self) -> anyhow::Result<()> {
         match self {
             Commands::Package(cmd) => cmd.exec(),

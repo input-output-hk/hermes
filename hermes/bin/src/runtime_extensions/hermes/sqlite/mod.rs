@@ -10,7 +10,4 @@ mod statement;
 pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
     state::get_db_state().add_app(ctx.app_name().clone());
     state::get_statement_state().add_app(ctx.app_name().clone());
-
-    connection::new_context(ctx);
-    statement::new_context(ctx);
 }

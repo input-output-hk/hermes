@@ -6,7 +6,10 @@ use once_cell::sync::OnceCell;
 use crate::{
     app::{Application, ApplicationName},
     event::{self, queue::ExitLock},
-    runtime_extensions::hermes::init,
+    runtime_extensions::{
+        hermes::init,
+        init::trait_app::{RteApp, RteInitApp},
+    },
 };
 
 /// Global Hermes reactor state
@@ -50,6 +53,8 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     let reactor = REACTOR_STATE.get().ok_or(anyhow::anyhow!(
         "Reactor not been initialized. Call `HermesEventQueue::init` first."
     ))?;
+
+    RteApp::new().init(app.name())?;
 
     let app_name = app.name().clone();
     reactor.apps.insert(app_name.clone(), app);

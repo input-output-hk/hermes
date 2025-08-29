@@ -356,7 +356,6 @@ impl AppIpfsState {
         Ok(())
     }
 
-    #[allow(dead_code)]
     /// List of pinned files by an app.
     pub(crate) fn list_pinned_files(
         &self,
