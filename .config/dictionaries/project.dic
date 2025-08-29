@@ -16,7 +16,6 @@ bootstrapper
 BROTLI
 cantopen
 cardano
-catfact
 cbor
 cbork
 cdylib
@@ -240,3 +239,14 @@ xpub
 yamux
 yoroi
 zstack
+reqwest
+projectcatalyst
+yamux
+justfile
+sandboxing
+rustup
+rollouts
+subpaths
+reloadable
+asat
+

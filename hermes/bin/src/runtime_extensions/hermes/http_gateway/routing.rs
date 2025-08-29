@@ -115,20 +115,42 @@ pub(crate) async fn router(
     Ok(response)
 }
 
-/// Route single request to hermes backend
+/// Routes HTTP requests to WASM modules or static file handlers
+///
+/// Converts incoming HTTP requests into structured events for WASM processing,
+/// preserving full URLs including query parameters for accurate forwarding.
+///
+/// ## Routing
+/// - `/api/*` → WASM modules via event queue
+/// - Valid paths → Static file system
+/// - Invalid paths → HTTP 404
+///
+/// ## Key Features
+/// - Preserves query parameters (e.g., `?asat=SLOT:95022059`)
+/// - Multi-value header support
+/// - Async request/response via MPSC channels
 async fn route_to_hermes(
     req: Request<Incoming>,
     app_name: ApplicationName,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
+    // Create synchronous MPSC channel for receiving WASM module responses
+    // Used in request-response pattern: HTTP request → global event queue → WASM modules →
+    // response channel TODO: Replace with oneshot channel since we only expect one
+    // response per HTTP request
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
     let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
-    let path = req.uri().path().to_string();
 
+    // Include query parameters in path (crucial for redirects)
+    let path = uri
+        .path_and_query()
+        .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str)
+        .to_string();
+
+    // Convert headers to multi-value format
     let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
-
     for (header_name, header_val) in req.headers() {
         header_map
             .entry(header_name.to_string())
@@ -137,6 +159,7 @@ async fn route_to_hermes(
     }
 
     let (_parts, body) = req.into_parts();
+
     if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
         compose_http_event(
             method,
