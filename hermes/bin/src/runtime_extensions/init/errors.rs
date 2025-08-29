@@ -321,15 +321,11 @@ mod tests {
             trait_name: "trait::name",
         });
 
-        add_rte_error!(
-            errors,
-            rte_metadata,
-            ResourceAllocation {
-                resource: "GPU".to_string(),
-                expected: "4".to_string(),
-                available: "2".to_string(),
-            }
-        );
+        add_rte_error!(errors, rte_metadata, ResourceAllocation {
+            resource: "GPU".to_string(),
+            expected: "4".to_string(),
+            available: "2".to_string(),
+        });
 
         assert_eq!(errors.len(), 1, "There should be one error collected");
 
@@ -361,15 +357,11 @@ mod tests {
             trait_name: "trait::name",
         });
 
-        add_rte_error!(
-            errors,
-            rte_metadata,
-            ResourceAllocation {
-                resource: "CPU".to_string(),
-                expected: "8".to_string(),
-                available: "4".to_string(),
-            }
-        );
+        add_rte_error!(errors, rte_metadata, ResourceAllocation {
+            resource: "CPU".to_string(),
+            expected: "8".to_string(),
+            available: "4".to_string(),
+        });
 
         add_rte_error!(
             errors,
@@ -382,15 +374,11 @@ mod tests {
             std::io::Error::other("inner error"),
         );
 
-        add_rte_error!(
-            errors,
-            rte_metadata,
-            Permission {
-                permission: "Access".to_string(),
-                requires: "Admin".to_string(),
-                current: "User".to_string(),
-            }
-        );
+        add_rte_error!(errors, rte_metadata, Permission {
+            permission: "Access".to_string(),
+            requires: "Admin".to_string(),
+            current: "User".to_string(),
+        });
 
         // Check each variant type
         assert!(matches!(
@@ -422,23 +410,15 @@ mod tests {
             trait_name: "trait::name",
         });
 
-        add_rte_error!(
-            errors1,
-            rte_metadata,
-            Runtime {
-                description: "Something failed".to_string(),
-            }
-        );
+        add_rte_error!(errors1, rte_metadata, Runtime {
+            description: "Something failed".to_string(),
+        });
 
-        add_rte_error!(
-            errors2,
-            rte_metadata,
-            Permission {
-                permission: "Access".to_string(),
-                requires: "Admin".to_string(),
-                current: "User".to_string(),
-            }
-        );
+        add_rte_error!(errors2, rte_metadata, Permission {
+            permission: "Access".to_string(),
+            requires: "Admin".to_string(),
+            current: "User".to_string(),
+        });
 
         errors1.extend(errors2);
 
