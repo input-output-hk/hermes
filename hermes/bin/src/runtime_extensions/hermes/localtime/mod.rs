@@ -11,9 +11,6 @@ use crate::runtime_extensions::bindings::{
 mod host;
 mod time;
 
-/// Advise Runtime Extensions of a new context
-pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
 /// Get `Tz` from an optional `Timezone`.
 ///
 /// If present, `tz` is parsed into `Tz`, otherwise the system timezone is

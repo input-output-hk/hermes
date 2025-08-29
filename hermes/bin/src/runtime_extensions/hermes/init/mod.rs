@@ -9,9 +9,6 @@ use crate::{
 mod event;
 mod host;
 
-/// Advise Runtime Extensions of a new context
-pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
 /// Emit Init event for a provided Hermes app target
 pub(crate) fn emit_init_event(target_app: ApplicationName) -> anyhow::Result<()> {
     let init_event = HermesEvent::new(

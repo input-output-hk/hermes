@@ -283,6 +283,8 @@ fn new_waiting_task(
 
 #[cfg(all(test, debug_assertions))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use std::thread::sleep;
 
     use temp_dir::TempDir;

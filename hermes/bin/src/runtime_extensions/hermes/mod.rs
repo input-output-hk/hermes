@@ -21,19 +21,8 @@ pub(crate) mod sqlite;
 
 /// Advise Runtime Extensions of a new context
 pub(crate) fn new_context(ctx: &HermesRuntimeContext) {
-    binary::new_context(ctx);
     cardano::new_context(ctx);
-    cbor::new_context(ctx);
-    cron::new_context(ctx);
     crypto::new_context(ctx);
-    hash::new_context(ctx);
-    init::new_context(ctx);
-    ipfs::new_context(ctx);
-    json::new_context(ctx);
-    kv_store::new_context(ctx);
-    localtime::new_context(ctx);
-    logging::new_context(ctx);
     sqlite::new_context(ctx);
     http_gateway::new_context(ctx);
-    http_request::new_context(ctx);
 }

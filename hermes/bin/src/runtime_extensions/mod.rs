@@ -6,6 +6,7 @@ use tracing::{span, Level};
 mod app_config;
 pub(crate) mod bindings;
 pub mod hermes;
+pub(crate) mod init;
 mod resource_manager;
 mod utils;
 mod wasi;

@@ -18,9 +18,6 @@ mod host;
 mod queue;
 mod state;
 
-/// Advise Runtime Extensions of a new context
-pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
 /// Create a delayed crontab entry.
 pub(crate) fn mkdelay_crontab(
     duration: Instant,

@@ -3,7 +3,6 @@
 #![type_length_limit = "45079293105"]
 
 pub mod app;
-#[allow(dead_code)]
 pub mod cli;
 pub mod errors;
 pub mod event;

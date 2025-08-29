@@ -1,5 +1,5 @@
 //! Hermes WASM module package tests.
-
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use std::io::{Read, Write};
 
 use temp_dir::TempDir;
@@ -191,7 +191,12 @@ pub(crate) fn check_module_package_integrity(
     assert_eq!(module_content.metadata, package_metadata);
 
     // check WASM component file
-    assert!(module_package.get_component().is_ok());
+    let app_name = ApplicationName::new(
+        &package_metadata
+            .get_name()
+            .expect("Should have an application name in the manifest"),
+    );
+    assert!(module_package.get_component(&app_name).is_ok());
 
     // check config and config schema JSON files
     let config_info = module_package.get_config_info().unwrap().unwrap();
@@ -388,7 +393,8 @@ fn corrupted_component_test() {
             )
             .unwrap();
 
-        assert!(package.get_component().is_ok());
+        let app_name = ApplicationName::new("CorruptedComponentTest");
+        assert!(package.get_component(&app_name).is_ok());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."
