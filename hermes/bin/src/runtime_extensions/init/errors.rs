@@ -81,8 +81,8 @@ impl RuntimeExtensionErrors {
         self.0.push(error)
     }
 
-    /// Push a new `RuntimeExtensionError` into the collection oif errors.
-    /// But ONLY if the status is an error..
+    /// Push a new `RuntimeExtensionError` into the collection of errors.
+    /// But ONLY if the status is an error.
     #[allow(dead_code)]
     pub fn maybe(
         &self,
