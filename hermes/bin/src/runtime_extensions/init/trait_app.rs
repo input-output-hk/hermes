@@ -86,6 +86,8 @@ pub(crate) trait RteInitApp {
 static RTE_INIT_APP_REGISTRY: () = ();
 
 /// Locks the Initialized `DashSet` to stop race conditions, but only for specific apps.
+/// TODO (SJ): Replace with a true key locked map.
+/// <https://github.com/input-output-hk/catalyst-internal-docs/issues/39#issuecomment-3240936500>
 static IS_RTE_APP_LOCK: LazyLock<KeyedLock<String>> = LazyLock::new(KeyedLock::<String>::new);
 
 /// Is the RTE Initialized
