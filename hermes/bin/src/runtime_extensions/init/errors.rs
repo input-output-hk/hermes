@@ -108,7 +108,7 @@ impl RuntimeExtensionErrors {
 }
 
 /// Thread Safe Error Type
-type ThreadSafeError = Arc<Box<dyn std::error::Error + Send + Sync + 'static>>;
+type ThreadSafeError = Arc<dyn std::error::Error + Send + Sync + 'static>;
 
 #[derive(Clone, thiserror::Error, Debug)]
 #[error("{0}")]
