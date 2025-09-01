@@ -20,14 +20,18 @@ use wasmtime::{
     AsContextMut,
 };
 
+/// WASM function lookup failure.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// A WIT interface and/or function is missing from WASM exports. 
     #[error("event handler is not exported")]
     NotExported,
+    /// An export is found but its signature doesn't match the one defined in WIT.
     #[error("invalid event handler signature")]
     InvalidSignature,
 }
 
+/// Lookup a function in WASM by its path and signature.
 fn get_typed_func<Params, Return>(
     instance: &component::Instance,
     store: &mut wasmtime::Store<HermesRuntimeContext>,
@@ -50,6 +54,8 @@ where
     untyped.typed(store).map_err(|_| Error::InvalidSignature)
 }
 
+/// Defines an extension trait for [`wasmtime::component::Instance`] and immediately implements it.
+/// Uses [`get_typed_func`] internally.
 macro_rules! define_exports {
     ($(#[$attr:meta])* $vis:vis trait $ext_trait:ident {$(
         #[wit($wit_interface:literal, $wit_func:literal)]
