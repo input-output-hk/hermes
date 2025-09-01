@@ -1,6 +1,5 @@
 //! Init runtime extension implementation.
 
-mod event;
 mod host;
 
 /// Advise Runtime Extensions of a new context
