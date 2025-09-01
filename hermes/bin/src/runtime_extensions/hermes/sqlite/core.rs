@@ -163,7 +163,7 @@ pub(super) fn open(
     }
 
     if !memory && !readonly {
-        // TODO(anyone): fix issue with locks during hermes app execution
+        // TODO(anyone): fix issue with locks during hermes app execution https://github.com/input-output-hk/hermes/issues/521
         // enable_wal_mode(db_ptr)?;
     }
 
