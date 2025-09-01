@@ -58,7 +58,7 @@ pub(crate) trait RteInitRuntime {
         RteInitPriority::default().priority(init)
     }
 
-    /// Initialize the Runtime extension at node startup.
+    /// Finalize the Runtime extension at node startup.
     /// Is infallible, because runtime extensions should not fail to initialize.
     ///
     /// Note: `self` is not required to be used by the implemented function.

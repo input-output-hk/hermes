@@ -10,7 +10,7 @@ pub(crate) struct InstanceData<'a, T: ?Sized + 'static> {
     pub instance: Box<T>,
 }
 
-/// Helper to make running `init` anf `fini` for a Trait registry easy and consistent.
+/// Helper to make running `init` and `fini` for a Trait registry easy and consistent.
 #[macro_export]
 macro_rules! run_init_fini {
     (
