@@ -12,7 +12,7 @@ use tracing::{error, span, Level};
 use crate::{
     run_init_fini,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::init::{errors::RteInitResult, executor, priority::RteInitPriority},
+    runtime_extensions::init::{errors::RteInitResult, priority::RteInitPriority},
 };
 
 /// Runtime Extension needs Initialization during Event Dispatch by the Node.

@@ -23,7 +23,7 @@ macro_rules! run_init_fini {
         use $crate::runtime_extensions::init::errors::RuntimeExtensionErrors;
 
         /// Data we use to help sort initialization and finalization of runtime extensions.
-        type InstanceData<'a> = executor::InstanceData<'a, dyn $rte_trait>;
+        type InstanceData<'a> = $crate::runtime_extensions::init::executor::InstanceData<'a, dyn $rte_trait>;
 
         let errors = RuntimeExtensionErrors::new();
 
@@ -73,6 +73,9 @@ macro_rules! run_init_fini {
             // initialization became bigger or more complex.  Runtime, App and Module initialization are not time
             // sensitive, so would not be hurt, but would likely not help performance to be parallel executed to
             // any noticeable degree.
+            // Runtime Initialization dispatch is designed to be thread safe, so they can be executed in parallel
+            // Individual runtime extensions can rely on the initializers not calling them more than once or
+            // in a way which would not be thread safe if executed concurrently.
             span!(
                 Level::DEBUG,
                 $span_label,

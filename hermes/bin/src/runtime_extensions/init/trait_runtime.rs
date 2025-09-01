@@ -11,8 +11,7 @@ use tracing::{error, span, Level};
 use crate::{
     add_rte_error, run_init_fini,
     runtime_extensions::init::{
-        errors::{RteInitResult, RuntimeExtensionError, RuntimeExtensionErrors, SimpleError},
-        executor,
+        errors::{RteInitResult, RuntimeExtensionErrors},
         metadata::RteMetadata,
         priority::RteInitPriority,
     },
@@ -123,20 +122,16 @@ impl RteInitRuntime for RteRuntime {
                 errors
             },
             Err(e) => {
+                let msg = "Poisoned `IS_RTE_RUNTIME_INITIALIZED` on RTE Runtime Initialization. Should never happen.";
                 error!(
                     error = ?e,
                     "Failed to acquire lock on RTE Runtime Initialization. Should never happen."
                 );
 
                 let errors = RuntimeExtensionErrors::new();
-                add_rte_error!(
-                    errors,
-                    RteMetadata::none(),
-                    Runtime {
-                        description: "Failed to acquire lock on Init.".to_string(),
-                    },
-                    SimpleError::new(e),
-                );
+                add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
+                    description: msg.to_string(),
+                });
                 Err(errors)
             },
         }
@@ -170,7 +165,7 @@ impl RteInitRuntime for RteRuntime {
                         errors
                     },
                     Err(e) => {
-                        let msg = "Failed to acquire Finalized lock on RTE Runtime Finalization. Should never happen.";
+                        let msg = "Poisoned `IS_RTE_RUNTIME_FINALIZED` on RTE Runtime Finalization. Should never happen.";
 
                         error!(
                             error = ?e,
@@ -178,34 +173,24 @@ impl RteInitRuntime for RteRuntime {
                         );
 
                         let errors = RuntimeExtensionErrors::new();
-                        add_rte_error!(
-                            errors,
-                            RteMetadata::none(),
-                            Runtime {
-                                description: msg.to_string(),
-                            },
-                            SimpleError::new(e),
-                        );
+                        add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
+                            description: msg.to_string(),
+                        });
                         Err(errors)
                     },
                 }
             },
             Err(e) => {
-                let msg = "Failed to acquire Initialized lock on RTE Runtime Finalization. Should never happen.";
+                let msg = "Poisoned `IS_RTE_RUNTIME_INITIALIZED` on RTE Runtime Finalization. Should never happen.";
                 error!(
                     error = ?e,
                     msg
                 );
 
                 let errors = RuntimeExtensionErrors::new();
-                add_rte_error!(
-                    errors,
-                    RteMetadata::none(),
-                    Runtime {
-                        description: msg.to_string(),
-                    },
-                    SimpleError::new(e)
-                );
+                add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
+                    description: msg.to_string(),
+                });
                 Err(errors)
             },
         }

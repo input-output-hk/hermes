@@ -12,7 +12,7 @@ use tracing::{error, span, Level};
 use crate::{
     app::ApplicationName,
     run_init_fini,
-    runtime_extensions::init::{errors::RteInitResult, executor, priority::RteInitPriority},
+    runtime_extensions::init::{errors::RteInitResult, priority::RteInitPriority},
     wasm::module::ModuleId,
 };
 

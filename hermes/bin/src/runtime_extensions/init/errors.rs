@@ -2,7 +2,7 @@
 //!
 //! Note, while this is similar to `ProblemReport`,
 //! it is strictly an Error encountered during initialization/finalization.
-use std::{error::Error, fmt::Display, sync::Arc};
+use std::{fmt::Display, sync::Arc};
 
 use orx_concurrent_vec::ConcurrentVec;
 
@@ -22,7 +22,13 @@ impl Display for RuntimeExtensionErrors {
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
-        f.write_str("")
+        // TODO: (SJ) needs a reasonable Display implementation when we actually have code that
+        // uses this error properly.
+        f.write_str("[\n]")?;
+        for err in self.0.iter() {
+            f.write_fmt(format_args!("  {},\n", err.cloned()))?;
+        }
+        f.write_str("]")
     }
 }
 
@@ -107,32 +113,19 @@ impl RuntimeExtensionErrors {
     }
 }
 
-/// Thread Safe Error Type
-type ThreadSafeError = Arc<dyn std::error::Error + Send + Sync + 'static>;
-
+/// Generic `RuntimeExtensionError` with specific Kinds of errors within it.
 #[derive(Clone, thiserror::Error, Debug)]
-#[error("{0}")]
-/// Simple Error string wrapper we use when we can't embed the real error in a
-/// `RuntimeExtensionError`
-pub(crate) struct SimpleError(String);
-
-impl SimpleError {
-    /// Create a new `SimpleError` from any standard error
-    pub fn new<E: Error>(err: E) -> Self {
-        SimpleError(format!("{err}"))
-    }
-}
-
-impl From<&str> for SimpleError {
-    fn from(value: &str) -> Self {
-        SimpleError(value.to_string())
-    }
-}
-
-impl From<String> for SimpleError {
-    fn from(value: String) -> Self {
-        SimpleError(value)
-    }
+#[allow(dead_code)]
+#[error("{rte_metadata}@({file}:{line}) : {kind}")]
+pub(crate) struct RuntimeExtensionError {
+    /// Metadata about the runtime extension who's resource which failed.
+    pub rte_metadata: RteMetadata,
+    /// File where the error occurred.
+    pub file: String,
+    /// Line in file where we recorded the error.
+    pub line: u32,
+    /// What kind of error (and its parameters)
+    pub kind: RuntimeExtensionErrorKind,
 }
 
 /// All individual errors that a runtime extension can make.
@@ -143,98 +136,61 @@ impl From<String> for SimpleError {
 /// All other data is customized to match the error.
 #[derive(Clone, thiserror::Error, Debug)]
 #[allow(dead_code)]
-pub(crate) enum RuntimeExtensionError {
+pub(crate) enum RuntimeExtensionErrorKind {
     /// A Resource Allocation Failed
-    #[error("{rte_metadata}: resource: {resource} allocation error. Expected {expected}, Available {available})")]
+    #[error("resource: {resource} allocation error. Expected {expected}, Available {available}")]
     #[allow(dead_code)]
     ResourceAllocation {
-        /// Metadata about the runtime extension who's resource which failed.
-        rte_metadata: RteMetadata,
-        /// File where the error occurred.
-        file: String,
-        /// Line in file where we recorded the error.
-        line: u32,
         /// Resource that actually failed
         resource: String,
         /// How much of the resource we required
         expected: String,
         /// How much of the resource was available.
         available: String,
-        /// Resource inner error if any
-        error: Option<ThreadSafeError>,
     },
 
     /// A Resource Deallocation Failed
-    #[error("{rte_metadata}: resource: {resource} deallocation error. Expected {expected}, Available {available})")]
+    #[error("resource: {resource} deallocation error. {reason}")]
     #[allow(dead_code)]
     ResourceDeallocation {
-        /// Metadata about the runtime extension who's resource which failed.
-        rte_metadata: RteMetadata,
-        /// File where the error occurred.
-        file: String,
-        /// Line in file where we recorded the error.
-        line: u32,
         /// Resource that actually failed
         resource: String,
-        /// How much of the resource we required
-        expected: String,
-        /// How much of the resource was available.
-        available: String,
-        /// Resource inner error if any
-        error: Option<ThreadSafeError>,
+        /// Why we failed to deallocate the resource.
+        reason: String,
     },
 
     /// A Permissions Error Occurred
-    #[error("{rte_metadata}: permission: {permission} not granted. Requires {requires}, Current {current})")]
+    #[error("permission: {permission} not granted. Requires {requires}, Current {current})")]
     #[allow(dead_code)]
     Permission {
-        /// Metadata about the runtime extension who's resource which failed.
-        rte_metadata: RteMetadata,
-        /// File where the error occurred.
-        file: String,
-        /// Line in file where we recorded the error.
-        line: u32,
         /// Permission check the runtime extension lacks or failed
         permission: String,
         /// What permission would be required to solve the problem
         requires: String,
         /// The permission we have
         current: String,
-        /// Resource inner error if any
-        error: Option<ThreadSafeError>,
     },
 
     /// A Missing Export has been detected in a Module
-    #[error("{rte_metadata}: missing export: {export} not present, required by {required_by}.")]
+    #[error("missing export: {export} not present, required by {required_by}.")]
     #[allow(dead_code)]
     MissingExport {
-        /// Metadata about the runtime extension who's resource which failed.
-        rte_metadata: RteMetadata,
-        /// File where the error occurred.
-        file: String,
-        /// Line in file where we recorded the error.
-        line: u32,
-        /// What event function is missing in a WASM Module
+        /// What is the missing export that the runtime extension expected?
         export: String,
         /// What API Import made the export required.
         required_by: String,
-        /// Resource inner error if any
-        error: Option<ThreadSafeError>,
     },
 
-    /// A General Rust Runtime Error Occurred (that is not one of the above)
-    #[error("{rte_metadata}: runtime: {description}")]
-    Runtime {
-        /// File where the error occurred.
-        file: String,
-        /// Line in file where we recorded the error.
-        line: u32,
-        /// Metadata about the runtime extension who's resource which failed.
-        rte_metadata: RteMetadata,
+    /// Only use this for errors which should be impossible at runtime, but are
+    /// theoretically possible (such a mutex poisoning).
+    /// Any other error type should be extrapolated to one of the kinds of errors
+    /// here (or a new kind is added) and they should be high level enough that the
+    /// handler of the errors can reason through them and provide guidance to the user
+    /// about what went wrong, and what they need to do to correct it.
+    #[error("impossible: {description}")]
+    ImpossibleError {
         /// Permission check the runtime extension lacks or failed
         description: String,
-        /// Resource inner error if any
-        error: Option<ThreadSafeError>,
     },
 }
 
@@ -260,29 +216,16 @@ pub(crate) enum RuntimeExtensionError {
 #[macro_export]
 macro_rules! add_rte_error {
     // With error provided
-    ($container:expr, $rte_metadata:expr, $variant:ident { $($field:ident : $value:expr),* $(,)? } , $error:expr $(,)? ) => {{
-        let err = RuntimeExtensionError::$variant {
+    ($container:expr, $rte_metadata:expr, $variant:ident { $($field:ident : $value:expr),* $(,)? } ) => {{
+        let err = $crate::runtime_extensions::init::errors::RuntimeExtensionError {
             rte_metadata: $rte_metadata.clone(),
-            $(
-                $field: $value,
-            )*
-            error: Some(std::sync::Arc::new(Box::new($error))),
             file: file!().to_string(),
             line: line!(),
-        };
-        $container.0.push(err);
-    }};
-
-    // Without error field
-    ($container:expr, $rte_metadata:expr, $variant:ident { $($field:ident : $value:expr),* $(,)? }) => {{
-        let err = RuntimeExtensionError::$variant {
-            rte_metadata: $rte_metadata.clone(),
-            $(
-                $field: $value,
-            )*
-            error: None,
-            file: file!().to_string(),
-            line: line!(),
+            kind: $crate::runtime_extensions::init::errors::RuntimeExtensionErrorKind::$variant {
+                $(
+                    $field: $value,
+                )*
+            }
         };
         $container.0.push(err);
     }};
@@ -329,16 +272,21 @@ mod tests {
 
         assert_eq!(errors.len(), 1, "There should be one error collected");
 
-        if let Some(RuntimeExtensionError::ResourceAllocation {
-            rte_metadata: m,
-            file,
-            line,
-            ..
-        }) = errors.get(0)
-        {
-            assert_eq!(m, rte_metadata, "RteMetadata should match the one provided");
-            assert_eq!(file, file!(), "File should match the current file macro"); // Note: this will match the macro invocation line in tests
-            assert!(line > 0, "Line number should be greater than zero");
+        if let Some(err) = errors.get(0) {
+            assert_eq!(
+                err.rte_metadata, rte_metadata,
+                "RteMetadata should match the one provided"
+            );
+            assert_eq!(
+                err.file,
+                file!(),
+                "File should match the current file macro"
+            ); // Note: this will match the macro invocation line in tests
+            assert!(err.line > 0, "Line number should be greater than zero");
+            assert!(matches!(
+                err.kind,
+                RuntimeExtensionErrorKind::ResourceAllocation { .. }
+            ));
         } else {
             panic!("Expected a ResourceAllocation variant");
         }
@@ -363,16 +311,10 @@ mod tests {
             available: "4".to_string(),
         });
 
-        add_rte_error!(
-            errors,
-            rte_metadata,
-            ResourceDeallocation {
-                resource: "Memory".to_string(),
-                expected: "16GB".to_string(),
-                available: "8GB".to_string(),
-            },
-            std::io::Error::other("inner error"),
-        );
+        add_rte_error!(errors, rte_metadata, ResourceDeallocation {
+            resource: "Memory".to_string(),
+            reason: "Memory region is locked and can not be freed.".to_string(),
+        });
 
         add_rte_error!(errors, rte_metadata, Permission {
             permission: "Access".to_string(),
@@ -382,16 +324,16 @@ mod tests {
 
         // Check each variant type
         assert!(matches!(
-            errors.get(0),
-            Some(RuntimeExtensionError::ResourceAllocation { .. })
+            errors.get(0).map(|e| e.kind.clone()),
+            Some(RuntimeExtensionErrorKind::ResourceAllocation { .. })
         ));
         assert!(matches!(
-            errors.get(1),
-            Some(RuntimeExtensionError::ResourceDeallocation { .. })
+            errors.get(1).map(|e| e.kind.clone()),
+            Some(RuntimeExtensionErrorKind::ResourceDeallocation { .. })
         ));
         assert!(matches!(
-            errors.get(2),
-            Some(RuntimeExtensionError::Permission { .. })
+            errors.get(2).map(|e| e.kind.clone()),
+            Some(RuntimeExtensionErrorKind::Permission { .. })
         ));
         assert!(errors.get(3).is_none());
     }
@@ -410,8 +352,8 @@ mod tests {
             trait_name: "trait::name",
         });
 
-        add_rte_error!(errors1, rte_metadata, Runtime {
-            description: "Something failed".to_string(),
+        add_rte_error!(errors1, rte_metadata, ImpossibleError {
+            description: "Something impossible failed".to_string(),
         });
 
         add_rte_error!(errors2, rte_metadata, Permission {
@@ -429,16 +371,12 @@ mod tests {
         );
 
         assert!(matches!(
-            errors1.get(0),
-            Some(RuntimeExtensionError::Runtime { .. })
+            errors1.get(0).map(|e| e.kind.clone()),
+            Some(RuntimeExtensionErrorKind::ImpossibleError { .. })
         ));
         assert!(matches!(
-            errors1.get(1),
-            Some(RuntimeExtensionError::Permission { .. })
-        ));
-        assert!(matches!(
-            errors1.get(2),
-            Some(RuntimeExtensionError::Permission { .. })
+            errors1.get(1).map(|e| e.kind.clone()),
+            Some(RuntimeExtensionErrorKind::Permission { .. })
         ));
     }
 }
