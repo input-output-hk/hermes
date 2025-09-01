@@ -22,7 +22,7 @@ use std::fs;
 use crate::utils::{busy_wait_s, make_payload, test_log};
 
 const REQUEST_COUNT: usize = 5;
-const WAIT_FOR_SECS: u64 = 1;
+const WAIT_FOR_SECS: u64 = 5;
 
 struct HttpRequestApp;
 

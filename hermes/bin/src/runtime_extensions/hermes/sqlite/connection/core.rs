@@ -260,8 +260,11 @@ mod tests {
             close(db_ptr).expect("failed to close connection");
         }
 
-        let uuid = uuid::Uuid::new_v4().to_string();
-        let db_ptr = init_fs(uuid.clone()).unwrap();
+        // Running db in memory and in file mode at the same time
+        // causes issues during test run
+        const APP_NAME: &str = "counter-app";
+
+        let db_ptr = init_fs(APP_NAME.to_string()).unwrap();
         execute(
             db_ptr,
             r"
@@ -276,7 +279,7 @@ mod tests {
 
         let mut handlers = vec![];
         for _ in 0..100 {
-            let app_name = uuid.clone();
+            let app_name = APP_NAME.to_string();
             handlers.push(std::thread::spawn(move || task(app_name)));
         }
 
