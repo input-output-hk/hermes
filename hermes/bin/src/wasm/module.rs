@@ -112,7 +112,7 @@ impl Module {
         Ok(Self {
             pre_instance,
             engine,
-            id: ModuleId(Ulid::generate()),
+            id,
             exc_counter: AtomicU32::new(0),
         })
     }
