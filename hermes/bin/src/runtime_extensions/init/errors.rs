@@ -67,7 +67,7 @@ impl RuntimeExtensionErrors {
         }
     }
 
-    /// Push a new `RuntimeExtensionError` into the collection oif errors.
+    /// Push a new `RuntimeExtensionError` into the collection of errors.
     /// This is how we accumulate individual errors.
     #[allow(dead_code)]
     pub fn push(
