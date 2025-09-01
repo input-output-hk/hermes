@@ -1,5 +1,5 @@
 use crate::{
-    database::{data::RbacDbData, SQLITE},
+    database::SQLITE,
     hermes,
     utils::log::{log_error, log_info},
 };

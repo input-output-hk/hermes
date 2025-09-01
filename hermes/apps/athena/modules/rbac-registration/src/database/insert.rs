@@ -85,6 +85,21 @@ fn bind_rbac_registration(
 ) {
     const FUNCTION_NAME: &str = "bind_rbac_registration";
 
+    // Try to convert slot safely, if fail exit the function so no binding is done.
+    let slot: Value = match data.slot.try_into() {
+        Ok(s) => s,
+        Err(e) => {
+            log_error(
+                FILE_NAME,
+                FUNCTION_NAME,
+                "slot.try_into()",
+                &format!("🚨 Failed to convert slot: {e}"),
+                None,
+            );
+            return;
+        },
+    };
+
     bind_with_log(stmt, FUNCTION_NAME, 1, &data.txn_id.into(), "txn_id");
     bind_with_log(
         stmt,
@@ -93,7 +108,8 @@ fn bind_rbac_registration(
         &data.catalyst_id.into(),
         "catalyst_id",
     );
-    bind_with_log(stmt, FUNCTION_NAME, 3, &data.slot.into(), "slot");
+
+    bind_with_log(stmt, FUNCTION_NAME, 3, &slot, "slot");
     bind_with_log(stmt, FUNCTION_NAME, 4, &data.txn_idx.into(), "txn_idx");
     bind_with_log(
         stmt,
@@ -167,6 +183,21 @@ fn bind_rbac_stake_address(
     data: RbacStakeDbData,
 ) {
     const FUNCTION_NAME: &str = "bind_rbac_stake_address";
+    // Try to convert slot safely, if fail exit the function so no binding is done.
+    let slot: Value = match data.slot.try_into() {
+        Ok(s) => s,
+        Err(e) => {
+            log_error(
+                FILE_NAME,
+                FUNCTION_NAME,
+                "slot.try_into()",
+                &format!("🚨 Failed to convert slot: {e}"),
+                None,
+            );
+            return;
+        },
+    };
+
     bind_with_log(
         stmt,
         FUNCTION_NAME,
@@ -174,7 +205,7 @@ fn bind_rbac_stake_address(
         &data.stake_address.into(),
         "stake_address",
     );
-    bind_with_log(stmt, FUNCTION_NAME, 2, &data.slot.into(), "slot");
+    bind_with_log(stmt, FUNCTION_NAME, 2, &slot, "slot");
     bind_with_log(stmt, FUNCTION_NAME, 3, &data.txn_idx.into(), "txn_idx");
     bind_with_log(
         stmt,

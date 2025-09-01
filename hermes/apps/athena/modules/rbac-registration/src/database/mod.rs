@@ -7,7 +7,6 @@ pub(crate) mod insert;
 pub(crate) mod select;
 
 use crate::{
-    database::data::RbacDbData,
     hermes::{
         self,
         hermes::sqlite::api::{Sqlite, Statement, Value},

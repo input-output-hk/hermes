@@ -12,8 +12,11 @@ use utils::log::log_error;
 use crate::{
     database::{
         create::create_rbac_tables,
-        data::RbacDbData,
-        insert::{insert_rbac_registration, prepare_insert_rbac_registration},
+        data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
+        insert::{
+            insert_rbac_registration, insert_rbac_stake_address, prepare_insert_rbac_registration,
+            prepare_insert_rbac_stake_address,
+        },
     },
     utils::log::log_info,
 };
@@ -27,40 +30,53 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
         subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
-        let stmt = prepare_insert_rbac_registration().unwrap();
+        let rbac_stmt = prepare_insert_rbac_registration().unwrap_or(return);
+        let rbac_stake_stmt = prepare_insert_rbac_stake_address().unwrap_or(return);
 
         let registrations =
             get_rbac_registration(block.raw(), subscription_id.get_network(), block.get_fork());
-
         for reg in registrations {
             // Data needed for db
-            let txn_id = reg.txn_hash();
-            let cat_id = reg.catalyst_id();
-            let slot = reg.origin().point().slot_or_default();
-            let txn_idx = reg.origin().txn_index();
-            let purpose = reg.purpose();
-            let prv_txn_id = reg.previous_transaction();
-            let problem_report = reg.report();
+            let txn_id: Vec<u8> = reg.txn_hash().into();
+            let catalyst_id: Option<String> =
+                reg.catalyst_id().map(|id| id.as_short_id().to_string());
+            let slot: u64 = reg.origin().point().slot_or_default().into();
+            let txn_idx: u16 = reg.origin().txn_index().into();
+            let purpose: Option<String> = reg.purpose().map(|p| p.to_string());
+            let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(|p| p.into());
+            let problem_report: Option<String> = reg
+                .report()
+                .is_problematic()
+                .then(|| serde_json::to_string(&reg.report()).ok())
+                .flatten();
             // Can contain multiple stake addresses
             let stake_addresses = reg.role_0_stake_addresses();
 
             let data = RbacDbData {
-                txn_id: txn_id.into(),
-                catalyst_id: cat_id.map(|id| id.as_short_id().to_string()),
-                slot: slot.into(),
-                txn_idx: txn_idx.into(),
-                prv_txn_id: prv_txn_id.map(|id| id.into()),
-                purpose: purpose.map(|p| p.to_string()),
-                problem_report: problem_report
-                    .is_problematic()
-                    .then(|| serde_json::to_string(&problem_report).ok())
-                    .flatten(),
+                txn_id,
+                catalyst_id: catalyst_id.clone(),
+                slot,
+                txn_idx,
+                prv_txn_id,
+                purpose,
+                problem_report,
             };
-            log_info(FILE_NAME, "", &format!("💫 {data:?}"), "", None);
-            insert_rbac_registration(&stmt, data);
-        }
+            // log_info(FILE_NAME, "", &format!("💫 {data:?}"), "", None);
+            insert_rbac_registration(&rbac_stmt, data);
 
-        stmt.finalize().unwrap();
+            for stake_address in stake_addresses {
+                let data = RbacStakeDbData {
+                    stake_address: stake_address.into(),
+                    slot,
+                    txn_idx,
+                    catalyst_id: catalyst_id.clone(),
+                };
+                // log_info(FILE_NAME, "", &format!("💫 {data:?}"), "", None);
+                insert_rbac_stake_address(&rbac_stake_stmt, data);
+            }
+        }
+        rbac_stake_stmt.finalize();
+        rbac_stmt.finalize();
     }
 }
 
@@ -120,7 +136,7 @@ fn get_rbac_registration(
     network: hermes::hermes::cardano::api::CardanoNetwork,
     fork_counter: u64,
 ) -> Vec<Cip509> {
-    const FUNCTION_NAME: &str = "get_rbac_reg";
+    const FUNCTION_NAME: &str = "get_rbac_registration";
     // Create a pallas block from a raw block data
     let pallas_block =
         match cardano_blockchain_types::pallas_traverse::MultiEraBlock::decode(&raw_block) {
