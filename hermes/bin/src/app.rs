@@ -82,6 +82,18 @@ impl Application {
         Ok(())
     }
 
+    pub(crate) fn init(&self) -> bool {
+        for module in self.indexed_modules.values() {
+            if !module.init(self.name.0.clone(), Arc::clone(&self.vfs)) {
+                tracing::error!("Initializing module failed");
+                return false;
+            } else {
+                tracing::error!("Initializing module successful");
+            }
+        }
+        true
+    }
+
     /// Dispatch event for the target module by the `module_id`.
     pub(crate) fn dispatch_event_for_target_module(
         &self,

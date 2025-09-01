@@ -6,7 +6,10 @@
 
 use std::{
     io::Read,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 
 use rusty_ulid::Ulid;
@@ -16,9 +19,14 @@ use wasmtime::{
 };
 
 use crate::{
+    app::ApplicationName,
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::{self, LinkOptions},
+    runtime_extensions::{
+        bindings::{self, LinkOptions},
+        new_context,
+    },
+    vfs::Vfs,
     wasm::engine::Engine,
 };
 
@@ -104,6 +112,34 @@ impl Module {
             id: ModuleId(Ulid::generate()),
             exc_counter: AtomicU32::new(0),
         })
+    }
+
+    /// TODO: docs
+    pub fn init(
+        &self,
+        app_name: String,
+        vfs: Arc<Vfs>,
+    ) -> bool {
+        let runtime_ctx = HermesRuntimeContext::new(
+            ApplicationName(app_name),
+            self.id.clone(),
+            "init_function_call".to_string(),
+            0,
+            vfs,
+        );
+
+        new_context(&runtime_ctx);
+
+        let mut store = WasmStore::new(&self.engine, runtime_ctx);
+        //let instance = self.pre_instance.instantiate(store).unwrap();
+        let instance = bindings::HermesPre::new(self.pre_instance.clone())
+            .expect("HermesPre::new")
+            .instantiate(&mut store)
+            .expect("instantiate");
+        instance
+            .hermes_init_event()
+            .call_init(&mut store)
+            .expect("hermes_init_event")
     }
 
     /// Instantiate WASM module reader
