@@ -15,7 +15,7 @@ use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
         exports::hermes::http_gateway::event::HttpGatewayResponse,
-        partial_exports::ComponentInstanceExt as _,
+        unchecked_exports::ComponentInstanceExt as _,
     },
 };
 

@@ -13,7 +13,7 @@ use crate::{
     app::{module_dispatch_event, ApplicationName},
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        exports::hermes::integration_test::event::TestResult, partial_exports::ComponentInstanceExt as _,
+        exports::hermes::integration_test::event::TestResult, unchecked_exports::ComponentInstanceExt as _,
     },
     vfs::VfsBootstrapper,
     wasm::module::Module,

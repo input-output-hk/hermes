@@ -6,7 +6,7 @@ use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
     runtime_extensions::{
-        bindings::partial_exports::ComponentInstanceExt as _, hermes::cardano::STATE,
+        bindings::unchecked_exports::ComponentInstanceExt as _, hermes::cardano::STATE,
     },
     wasm::module::ModuleId,
 };

@@ -3,7 +3,7 @@
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        hermes::kv_store::api::KvValues, partial_exports::ComponentInstanceExt,
+        hermes::kv_store::api::KvValues, unchecked_exports::ComponentInstanceExt,
     },
 };
 

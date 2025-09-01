@@ -4,7 +4,7 @@ use std::fmt::Display;
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        hermes::ipfs::api::PubsubMessage, partial_exports::ComponentInstanceExt as _,
+        hermes::ipfs::api::PubsubMessage, unchecked_exports::ComponentInstanceExt as _,
     },
 };
 

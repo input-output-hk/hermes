@@ -1,7 +1,8 @@
 //! Init runtime extension event handler implementation.
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings::partial_exports::ComponentInstanceExt as _,
+    event::HermesEventPayload,
+    runtime_extensions::bindings::unchecked_exports::ComponentInstanceExt as _,
 };
 
 /// Init event

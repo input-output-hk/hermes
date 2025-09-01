@@ -172,7 +172,7 @@ pub mod bench {
     use super::*;
     use crate::{
         app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext,
-        runtime_extensions::bindings::partial_exports::ComponentInstanceExt as _,
+        runtime_extensions::bindings::unchecked_exports::ComponentInstanceExt as _,
         vfs::VfsBootstrapper,
     };
 

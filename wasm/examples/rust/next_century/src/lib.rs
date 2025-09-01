@@ -1,7 +1,6 @@
 // Allow everything since this is generated code.
 #[allow(clippy::all, unused)]
 mod hermes;
-mod stub;
 
 struct TestComponent;
 

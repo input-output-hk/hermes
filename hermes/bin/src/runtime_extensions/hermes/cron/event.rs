@@ -8,7 +8,7 @@ use super::state::cron_queue_rm;
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        hermes::cron::api::CronTagged, partial_exports::ComponentInstanceExt as _,
+        hermes::cron::api::CronTagged, unchecked_exports::ComponentInstanceExt as _,
     },
 };
 
