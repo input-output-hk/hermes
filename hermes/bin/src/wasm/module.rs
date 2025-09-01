@@ -171,7 +171,9 @@ impl Module {
 pub mod bench {
     use super::*;
     use crate::{
-        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
+        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext,
+        runtime_extensions::bindings::partial_exports::ComponentInstanceExt as _,
+        vfs::VfsBootstrapper,
     };
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.

@@ -4,16 +4,74 @@ use crate::{
         cardano::{event_on_block::Block, event_on_immutable_roll_forward::SubscriptionId},
         cron::event::CronTagged,
         http_gateway::event::HttpGatewayResponse,
+        integration_test::event::TestResult,
         ipfs::event::PubsubMessage,
         kv_store::event::KvValues,
     },
 };
 
-use super::exports::hermes::integration_test::event::TestResult;
 use wasmtime::{
     component::{self, ComponentNamedList, Resource, TypedFunc},
     AsContextMut,
 };
+
+fn get_typed_func<Params, Return>(
+    instance: &component::Instance,
+    store: &mut wasmtime::Store<HermesRuntimeContext>,
+    wit_interface_name: &str,
+    wit_func_name: &str,
+) -> Result<TypedFunc<Params, Return>, Error>
+where
+    Params: ComponentNamedList + component::Lower,
+    Return: ComponentNamedList + component::Lift,
+{
+    let Some(untyped) = instance
+        .get_export_index(store.as_context_mut(), None, wit_interface_name)
+        .and_then(|interface_idx| {
+            instance.get_export_index(store.as_context_mut(), Some(&interface_idx), wit_func_name)
+        })
+        .and_then(|func_idx| instance.get_func(store.as_context_mut(), func_idx))
+    else {
+        return Err(Error::NotExported);
+    };
+    untyped.typed(store).map_err(|_| Error::InvalidSignature)
+}
+
+macro_rules! define_exports {
+    ($(
+        #[wit($wit_interface:literal, $wit_func:literal)]
+        fn $rust_func:ident$(<$l:lifetime>)?($($param_name:ident: $param:ty),* $(,)?) $(-> $return:ty)?;
+    )*) => {
+        #[allow(dead_code)]
+        pub trait ComponentInstanceExt1 {$(
+            #[doc = concat!($wit_func , " from \"", $wit_interface, "\n\n# Params\n\n" $(, "- ", stringify!($param_name))*)]
+            fn $rust_func$(<$l>)?(
+                self,
+                store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
+            ) -> Result<::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>, Error>;
+        )*}
+    };
+}
+
+define_exports! {
+    #[wit("hermes:init/event", "init")]
+    fn init() -> bool;
+
+    #[wit("hermes:cardano/event-on-block", "on-cardano-block")]
+    fn hermes_cardano_event_on_block_on_cardano_block(
+        subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
+    );
+
+    #[wit("hermes:cardano/event-on-immutable-roll-forward", "on-immutable-roll-forward")]
+    fn hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(
+        subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
+    );
+
+    #[wit("hermes:cron/event", "on-cron")]
+    fn hermes_cron_event_on_cron<'p>(
+        event: &'p CronTagged, last: bool,
+    ) -> bool;
+}
 
 pub type OnCardanoBlock = TypedFunc<(Resource<SubscriptionId>, Resource<Block>), ()>;
 
@@ -101,28 +159,6 @@ pub trait ComponentInstanceExt {
         self,
         store: &mut wasmtime::Store<HermesRuntimeContext>,
     ) -> Result<OnHttpResponse<'p>, Error>;
-}
-
-fn get_typed_func<Params, Return>(
-    instance: &component::Instance,
-    store: &mut wasmtime::Store<HermesRuntimeContext>,
-    wit_interface_name: &str,
-    wit_func_name: &str,
-) -> Result<TypedFunc<Params, Return>, Error>
-where
-    Params: ComponentNamedList + component::Lower,
-    Return: ComponentNamedList + component::Lift,
-{
-    let Some(untyped) = instance
-        .get_export_index(store.as_context_mut(), None, wit_interface_name)
-        .and_then(|interface_idx| {
-            instance.get_export_index(store.as_context_mut(), Some(&interface_idx), wit_func_name)
-        })
-        .and_then(|func_idx| instance.get_func(store.as_context_mut(), func_idx))
-    else {
-        return Err(Error::NotExported);
-    };
-    untyped.typed(store).map_err(|_| Error::InvalidSignature)
 }
 
 impl ComponentInstanceExt for &component::Instance {
