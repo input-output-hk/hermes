@@ -221,12 +221,7 @@ impl HermesEventPayload for HTTPEvent {
             .hermes_http_gateway_event_reply(&mut module.store)?
             .call(
                 &mut module.store,
-                (
-                    &self.body.as_ref().to_vec(),
-                    &self.headers,
-                    &self.path,
-                    &self.method,
-                ),
+                (&self.body, &self.headers, &self.path, &self.method),
             )?;
 
         match event_response {
