@@ -13,7 +13,7 @@ use permission::PermissionsState;
 use crate::hdf5 as hermes_hdf5;
 
 /// Hermes virtual file system type.
-pub struct Vfs {
+pub(crate) struct Vfs {
     /// HDF5 root directory of the virtual file system.
     root: hermes_hdf5::Dir,
     /// VFS permissions state.
