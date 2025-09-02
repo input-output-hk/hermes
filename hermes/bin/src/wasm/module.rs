@@ -114,7 +114,7 @@ impl Module {
         })
     }
 
-    /// TODO: docs
+    /// Initializes the WASM module by calling its `init` function.
     pub(crate) fn init(
         &self,
         app_name: ApplicationName,
