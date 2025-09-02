@@ -18,9 +18,13 @@ use wasmtime::{
 };
 
 use crate::{
+    app::ApplicationName,
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::{self, LinkOptions},
+    runtime_extensions::{
+        bindings::{self, LinkOptions},
+        init::trait_module::{RteInitModule, RteModule},
+    },
     wasm::engine::Engine,
 };
 
@@ -81,7 +85,10 @@ impl Module {
     /// # Errors
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
-    pub fn from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn from_bytes(
+        app_name: &ApplicationName,
+        module_bytes: &[u8],
+    ) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
             .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
@@ -100,10 +107,14 @@ impl Module {
             .instantiate_pre(&wasm_module)
             .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
+        let id = ModuleId(Ulid::generate());
+
+        RteModule::new().init(app_name, &id)?;
+
         Ok(Self {
             pre_instance,
             engine,
-            id: ModuleId(Ulid::generate()),
+            id,
             exc_counter: AtomicU32::new(0),
         })
     }
@@ -114,10 +125,13 @@ impl Module {
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
     ///  - `io::Error`
-    pub fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
+    pub fn from_reader(
+        app_name: &ApplicationName,
+        mut reader: impl Read,
+    ) -> anyhow::Result<Self> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes)?;
-        Self::from_bytes(&bytes)
+        Self::from_bytes(app_name, &bytes)
     }
 
     /// Get the module id
@@ -204,10 +218,12 @@ pub mod bench {
             }
         }
 
-        let module =
-            Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
-
         let app_name = ApplicationName("integration-test".to_owned());
+        let module = Module::from_bytes(
+            &app_name,
+            include_bytes!("../../../../wasm/stub-module/stub.wasm"),
+        )
+        .unwrap();
 
         let hermes_home_dir = Cli::hermes_home().unwrap();
 

@@ -12,5 +12,7 @@ pub(crate) mod unchecked_exports;
 
 bindgen!({
     path: "../../wasm/wasi/wit",
-    trappable_imports: true,
+    imports: {
+        default: trappable,
+    }
 });
