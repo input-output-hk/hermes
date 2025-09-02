@@ -5,6 +5,7 @@ use super::{
     Metadata, ModulePackage, Signature,
 };
 use crate::{
+    app::ApplicationName,
     hdf5::{Dir, File},
     wasm::module::Module,
 };
@@ -52,8 +53,11 @@ impl AppModuleInfo {
     }
 
     /// Get module's WASM component
-    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.package.get_component()
+    pub(crate) fn get_component(
+        &self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<Module> {
+        self.package.get_component(app_name)
     }
 
     /// Get module's metadata
