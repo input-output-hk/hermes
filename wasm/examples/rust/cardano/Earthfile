@@ -18,7 +18,6 @@ build:
 
     COPY --keep-ts --dir src .
     COPY Cargo.toml .
-    COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
