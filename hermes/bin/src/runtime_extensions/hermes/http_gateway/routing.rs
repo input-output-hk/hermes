@@ -1,3 +1,4 @@
+use std::result::Result::Ok;
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -5,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Ok};
+use anyhow::anyhow;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     self,
@@ -14,7 +15,7 @@ use hyper::{
 };
 use regex::Regex;
 #[allow(unused_imports, reason = "`debug` used only in debug builds.")]
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
@@ -30,7 +31,7 @@ use crate::{
 const WEBASM_ROUTE: &str = "/api";
 
 /// Check path is valid for static files
-const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
+const VALID_PATH: &str = r"^(/.*|/)$";
 
 /// Attempts to wait for a value on this receiver,
 /// returning an error if the corresponding channel has hung up,
@@ -43,7 +44,9 @@ pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
-where B: Body + From<String> {
+where
+    B: Body + From<String>,
+{
     Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into())?)
@@ -51,7 +54,9 @@ where B: Body + From<String> {
 
 /// HTTP not found response generator
 pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
-where B: Body + From<&'static str> {
+where
+    B: Body + From<&'static str>,
+{
     Ok(Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body("Not Found".into())?)
@@ -64,6 +69,9 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
         .get("Host")
         .ok_or(anyhow!("No host header"))?
         .to_str()?;
+
+    // Strip port if present (e.g., "app.hermes.local:5000" -> "app.hermes.local")
+    let host = host.split(':').next().unwrap_or(host);
 
     // <app.name>.hermes.local
     // host = hermes.local
@@ -101,7 +109,7 @@ pub(crate) async fn router(
     {
         route_to_hermes(req, app_name.clone()).await?
     } else {
-        return Ok(error_response("Hostname not valid".to_owned())?);
+        return error_response("Hostname not valid".to_owned());
     };
 
     connection_manager.insert(
@@ -170,7 +178,7 @@ async fn route_to_hermes(
             &lambda_recv_answer,
         )
     } else if is_valid_path(uri.path()).is_ok() {
-        serve_static_data(uri.path(), &app_name)
+        serve_flutter_assets(&path, &app_name)
     } else {
         Ok(not_found()?)
     }
@@ -209,20 +217,6 @@ where
     }
 }
 
-/// Serves static data with 1:1 mapping
-fn serve_static_data<B>(
-    path: &str,
-    app_name: &ApplicationName,
-) -> anyhow::Result<Response<B>>
-where
-    B: Body + From<Vec<u8>>,
-{
-    let app = reactor::get_app(app_name)?;
-    let file = app.vfs().read(path)?;
-
-    Ok(Response::new(file.into()))
-}
-
 /// Check if valid path to static files.
 fn is_valid_path(path: &str) -> anyhow::Result<()> {
     let regex = Regex::new(VALID_PATH)?;
@@ -232,6 +226,170 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
     } else {
         Err(anyhow::anyhow!("Not a valid path {:?}", path))
     }
+}
+
+/// Serves Flutter web build assets with proper MIME types
+fn serve_flutter_assets<B>(
+    path: &str,
+    app_name: &ApplicationName,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
+    let file_path = if path == "/" {
+        "www/index.html".to_string()
+    } else {
+        let clean_path = path.strip_prefix('/').unwrap_or(path);
+        format!("www/{clean_path}")
+    };
+
+    info!("serving static file @:{}", file_path);
+
+    // ADD THIS LOGGING
+    if file_path.contains("flutter_bootstrap.js") {
+        info!("🔍 DEBUGGING flutter_bootstrap.js request:");
+        info!("   Original path: {}", path);
+        info!("   Computed file_path: {}", file_path);
+    }
+
+    let app = reactor::get_app(app_name)?;
+
+    if let Ok(file_contents) = app.vfs().read(&file_path) {
+        let mut response = Response::new(file_contents.into());
+
+        if let Some(extension) = get_file_extension(&file_path) {
+            let content_type = get_flutter_content_type(extension);
+            info!(
+                "File: {} -> Extension: {} -> Content-Type: {}",
+                file_path, extension, content_type
+            );
+            response
+                .headers_mut()
+                .insert("Content-Type", content_type.parse()?);
+        }
+
+        add_flutter_cache_headers(&mut response, &file_path)?;
+        response = add_security_headers(response)?;
+        Ok(response)
+    } else {
+        // NEW: Don't fall back to index.html for JavaScript/WASM files
+        if let Some(_extension @ ("js" | "wasm" | "json" | "css" | "map")) = get_file_extension(&file_path) {
+            error!("Critical asset missing: {}", file_path);
+            return Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body("Asset not found".as_bytes().to_vec().into())?);
+        }
+
+        // Only fall back to index.html for navigation routes (no extension or HTML files)
+        match file_path.as_str() {
+            "www/index.html" => serve_flutter_not_found(),
+            _ => match app.vfs().read("www/index.html") {
+                Ok(index_contents) => {
+                    let mut response = Response::new(index_contents.into());
+                    response
+                        .headers_mut()
+                        .insert("Content-Type", "text/html".parse()?);
+                    response.headers_mut().insert(
+                        "Cache-Control",
+                        "no-cache, no-store, must-revalidate".parse()?,
+                    );
+                    response = add_security_headers(response)?;
+                    Ok(response)
+                },
+                Err(_) => serve_flutter_not_found(),
+            },
+        }
+    }
+}
+
+/// Add security headers to response
+fn add_security_headers<B>(mut response: Response<B>) -> anyhow::Result<Response<B>>
+where
+    B: Body,
+{
+    let headers = response.headers_mut();
+
+    // Add COOP and COEP headers for enabling SharedArrayBuffer and other features
+    headers.insert(
+        "Cross-Origin-Opener-Policy",
+        "same-origin"
+            .parse()
+            .map_err(|e| anyhow!("Invalid COOP header value: {}", e))?,
+    );
+    headers.insert(
+        "Cross-Origin-Embedder-Policy",
+        "require-corp"
+            .parse()
+            .map_err(|e| anyhow!("Invalid COEP header value: {}", e))?,
+    );
+
+    Ok(response)
+}
+
+/// Extract file extension from path for MIME type detection
+fn get_file_extension(path: &str) -> Option<&str> {
+    path.split('.').next_back()
+}
+
+/// Returns the appropriate MIME type for Flutter web assets based on file extension
+///
+/// Maps common web asset file extensions to their corresponding MIME types
+/// for proper browser handling. Defaults to `application/octet-stream` for
+/// unknown extensions.
+fn get_flutter_content_type(extension: &str) -> &'static str {
+    match extension {
+        "html" => "text/html",
+        "js" => "application/javascript",
+        "dart" => "application/dart",
+        "wasm" => "application/wasm",
+        "css" => "text/css",
+        "json" => "application/json",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "woff" | "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Adds appropriate cache headers to Flutter asset responses
+///
+/// Sets long-term caching for static assets (1 year) but no caching for
+/// index.html and service worker files to ensure proper application updates.
+fn add_flutter_cache_headers<B>(
+    response: &mut Response<B>,
+    file_path: &str,
+) -> anyhow::Result<()> {
+    if !file_path.ends_with("index.html") && !file_path.ends_with("flutter_service_worker.js") {
+        response.headers_mut().insert(
+            "Cache-Control",
+            "public, max-age=31536000"
+                .parse()
+                .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
+        );
+    } else {
+        response.headers_mut().insert(
+            "Cache-Control",
+            "no-cache, no-store, must-revalidate"
+                .parse()
+                .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
+        );
+    }
+    Ok(())
+}
+
+/// HTTP not found response generator for Flutter assets
+fn serve_flutter_not_found<B>() -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
+    let response = Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body("Not Found".as_bytes().to_vec().into())?;
+    add_security_headers(response)
 }
 
 #[cfg(all(test, debug_assertions))]

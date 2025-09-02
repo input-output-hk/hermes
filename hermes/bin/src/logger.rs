@@ -6,7 +6,7 @@ use derive_more::Display;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time},
-    FmtSubscriber,
+    EnvFilter, FmtSubscriber,
 };
 
 use crate::runtime_extensions::bindings::hermes::logging;
@@ -169,6 +169,8 @@ pub(crate) fn init(logger_config: &LoggerConfig) -> anyhow::Result<()> {
         .with_timer(time::UtcTime::rfc_3339())
         .with_span_events(FmtSpan::CLOSE)
         .with_max_level(LevelFilter::from_level(logger_config.log_level.into()))
+        // Hardcode the filter to always suppress IPFS noise
+        .with_env_filter(EnvFilter::new("hermes=info,rust_ipfs=error"))
         .finish();
 
     Ok(tracing::subscriber::set_global_default(subscriber)?)

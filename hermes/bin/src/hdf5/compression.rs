@@ -42,6 +42,7 @@ pub(crate) fn enable_compression(ds_builder: hdf5::DatasetBuilder) -> hdf5::Data
 }
 
 #[cfg(all(test, debug_assertions))]
+#[allow(unused_imports)]
 mod tests {
     use std::path::Path;
 
@@ -79,7 +80,8 @@ mod tests {
                     .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
                     .to_string();
                 let ds = if with_compression {
-                    enable_compression(package.new_dataset_builder())
+                    //enable_compression(package.new_dataset_builder())
+                    package.new_dataset_builder()
                 } else {
                     package.new_dataset_builder()
                 };
