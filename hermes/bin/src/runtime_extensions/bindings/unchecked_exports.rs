@@ -5,25 +5,15 @@
 //! use.
 
 use wasmtime::{
-    component::{self, ComponentNamedList, Resource, TypedFunc},
+    component::{self, ComponentNamedList, TypedFunc},
     AsContextMut,
 };
 
-use crate::{
-    runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::exports::hermes::{
-        cardano::{event_on_block::Block, event_on_immutable_roll_forward::SubscriptionId},
-        cron::event::CronTagged,
-        http_gateway::event::HttpGatewayResponse,
-        integration_test::event::TestResult,
-        ipfs::event::PubsubMessage,
-        kv_store::event::KvValues,
-    },
-};
+use crate::runtime_context::HermesRuntimeContext;
 
 /// WASM function lookup failure.
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub(crate) enum Error {
     /// A WIT interface and/or function is missing from WASM exports.
     #[error("event handler is not exported")]
     NotExported,
@@ -57,20 +47,23 @@ where
 
 /// Defines an extension trait for [`wasmtime::component::Instance`] and immediately
 /// implements it. Uses [`get_typed_func`] internally.
-macro_rules! define_exports {
+macro_rules! define {
     ($(#[$attr:meta])* $vis:vis trait $ext_trait:ident {$(
         #[wit($wit_interface:literal, $wit_func:literal)]
         fn $rust_func:ident$(<$l:lifetime>)?($($param_name:ident: $param:ty),* $(,)?) $(-> $return:ty)?;
-    )*}) => {::paste::paste! { 
+    )*}) => {::paste::paste! {
         $vis trait $ext_trait {$(
             #[doc = concat!("Looks up \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
             fn [<lookup_ $rust_func>]$(<$l>)?(
                 &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
-            ) -> Result<::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>, Error>;
-        
+            ) -> Result<
+                ::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>,
+                $crate::runtime_extensions::bindings::unchecked_exports::Error
+            >;
+
             #[doc = concat!("Looks up and calls \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
-            #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n")] 
+            #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n")]
             #[allow(unused_parens, reason = "needed for codegen in no-return case")]
             fn $rust_func$(<$l>)?(
                 &self,
@@ -90,59 +83,15 @@ macro_rules! define_exports {
             fn [<lookup_ $rust_func>]$(<$l>)?(
                 &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
-            ) -> Result<::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>, Error> {
-                use $crate::runtime_extensions::bindings::unchecked_exports::get_typed_func;
-                get_typed_func(self, store, $wit_interface, $wit_func)
+            ) -> Result<
+                ::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>,
+                $crate::runtime_extensions::bindings::unchecked_exports::Error
+            >
+            {
+                $crate::runtime_extensions::bindings::unchecked_exports::get_typed_func(self, store, $wit_interface, $wit_func)
             }
         )*}
     }};
 }
 
-pub(crate) use define_exports;
-
-define_exports! {
-    /// Extends [`wasmtime::component::Instance`] with guest accessors
-    /// similar to the ones generated for [`super::Hermes`] by [`wasmtime::component::bindgen`].
-    pub(crate) trait ComponentInstanceExt {
-        #[wit("hermes:cardano/event-on-block", "on-cardano-block")]
-        fn hermes_cardano_event_on_block_on_cardano_block(
-            subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
-        );
-
-        #[wit("hermes:cardano/event-on-immutable-roll-forward", "on-immutable-roll-forward")]
-        fn hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(
-            subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
-        );
-
-        #[wit("hermes:cron/event", "on-cron")]
-        fn hermes_cron_event_on_cron(
-            event: &CronTagged, last: bool,
-        ) -> bool;
-
-        #[wit("hermes:init/event", "init")]
-        fn hermes_init_event_init() -> bool;
-
-        #[wit("hermes:ipfs/event", "on-topic")]
-        fn hermes_ipfs_event_on_topic(message: &PubsubMessage) -> bool;
-
-        #[wit("hermes:kv-store/event", "kv-update")]
-        fn hermes_kv_store_event_kv_update<'p>(key: &'p str, value: &'p KvValues);
-
-        #[wit("hermes:integration-test/event", "test")]
-        fn hermes_integration_test_event_test(test: u32, run: bool) -> Option<TestResult>;
-
-        #[wit("hermes:integration-test/event", "bench")]
-        fn hermes_integration_test_event_bench(test: u32, run: bool) -> Option<TestResult>;
-
-        #[wit("hermes:http-gateway/event", "reply")]
-        fn hermes_http_gateway_event_reply<'p> (
-            body: &'p [u8],
-            headers: &'p [(String, Vec<String>)],
-            path: &'p str,
-            method: &'p str,
-        ) -> Option<HttpGatewayResponse>;
-
-        #[wit("hermes:http-request/event", "on-http-response")]
-        fn hermes_http_request_event_on_http_response(request_id: Option<u64>, response: &[u8]);
-    }
-}
+pub(crate) use define;

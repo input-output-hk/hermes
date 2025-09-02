@@ -13,12 +13,22 @@ use crate::{
     app::{module_dispatch_event, ApplicationName},
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        exports::hermes::integration_test::event::TestResult,
-        unchecked_exports::ComponentInstanceExt as _,
+        exports::hermes::integration_test::event::TestResult, unchecked_exports,
     },
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for integration test.
+    trait ComponentInstanceExt {
+        #[wit("hermes:integration-test/event", "test")]
+        fn hermes_integration_test_event_test(test: u32, run: bool) -> Option<TestResult>;
+
+        #[wit("hermes:integration-test/event", "bench")]
+        fn hermes_integration_test_event_bench(test: u32, run: bool) -> Option<TestResult>;
+    }
+}
 
 /// Storing results from calling a test event.
 static TEST_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::new();
@@ -52,9 +62,11 @@ impl HermesEventPayload for OnTestEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let result = module
-            .instance
-            .hermes_integration_test_event_test(&mut module.store, self.test, self.run)?;
+        let result = module.instance.hermes_integration_test_event_test(
+            &mut module.store,
+            self.test,
+            self.run,
+        )?;
         TEST_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
@@ -77,9 +89,11 @@ impl HermesEventPayload for OnBenchEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let result = module
-            .instance
-            .hermes_integration_test_event_bench(&mut module.store, self.test, self.run)?;
+        let result = module.instance.hermes_integration_test_event_bench(
+            &mut module.store,
+            self.test,
+            self.run,
+        )?;
         BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }

@@ -172,9 +172,16 @@ pub mod bench {
     use super::*;
     use crate::{
         app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext,
-        runtime_extensions::bindings::unchecked_exports::ComponentInstanceExt as _,
-        vfs::VfsBootstrapper,
+        runtime_extensions::bindings::unchecked_exports, vfs::VfsBootstrapper,
     };
+
+    unchecked_exports::define! {
+        /// Extends [`wasmtime::component::Instance`] with guest functions for init.
+        trait ComponentInstanceExt {
+            #[wit("hermes:init/event", "init")]
+            fn hermes_init_event_init() -> bool;
+        }
+    }
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization

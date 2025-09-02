@@ -1,15 +1,35 @@
 //! Cardano Blockchain runtime extension event handler implementation.
 
 use tracing::error;
+use wasmtime::component::Resource;
 
 use crate::{
     app::ApplicationName,
     event::{HermesEvent, HermesEventPayload, TargetApp, TargetModule},
     runtime_extensions::{
-        bindings::unchecked_exports::ComponentInstanceExt as _, hermes::cardano::STATE,
+        bindings::{
+            hermes::cardano::api::{Block, SubscriptionId},
+            unchecked_exports,
+        },
+        hermes::cardano::STATE,
     },
     wasm::module::ModuleId,
 };
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for cardano.
+    trait ComponentInstanceExt {
+      #[wit("hermes:cardano/event-on-block", "on-cardano-block")]
+        fn hermes_cardano_event_on_block_on_cardano_block(
+            subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
+        );
+
+        #[wit("hermes:cardano/event-on-immutable-roll-forward", "on-immutable-roll-forward")]
+        fn hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(
+            subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
+        );
+    }
+}
 
 /// On Cardano block event
 pub(super) struct OnCardanoBlockEvent {
@@ -33,8 +53,8 @@ impl HermesEventPayload for OnCardanoBlockEvent {
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
         // Create borrow resources to send to wasm
-        let subscription_id = wasmtime::component::Resource::new_borrow(self.subscription_id);
-        let block = wasmtime::component::Resource::new_borrow(self.block);
+        let subscription_id = Resource::new_borrow(self.subscription_id);
+        let block = Resource::new_borrow(self.block);
 
         module
             .instance
@@ -85,8 +105,8 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
         // Create borrow resources to send to wasm
-        let subscription_id = wasmtime::component::Resource::new_borrow(self.subscription_id);
-        let block = wasmtime::component::Resource::new_borrow(self.block);
+        let subscription_id = Resource::new_borrow(self.subscription_id);
+        let block = Resource::new_borrow(self.block);
 
         module
             .instance

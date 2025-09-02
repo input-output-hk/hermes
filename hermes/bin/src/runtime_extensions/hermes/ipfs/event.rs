@@ -3,10 +3,16 @@ use std::fmt::Display;
 
 use crate::{
     event::HermesEventPayload,
-    runtime_extensions::bindings::{
-        hermes::ipfs::api::PubsubMessage, unchecked_exports::ComponentInstanceExt as _,
-    },
+    runtime_extensions::bindings::{hermes::ipfs::api::PubsubMessage, unchecked_exports},
 };
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for ipfs.
+    trait ComponentInstanceExt {
+       #[wit("hermes:ipfs/event", "on-topic")]
+        fn hermes_ipfs_event_on_topic(message: &PubsubMessage) -> bool;
+    }
+}
 
 /// Event handler for the `on-topic` event.
 #[derive(Clone)]

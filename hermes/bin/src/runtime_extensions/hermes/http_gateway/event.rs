@@ -14,8 +14,7 @@ use url::Url;
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        exports::hermes::http_gateway::event::HttpGatewayResponse,
-        unchecked_exports::ComponentInstanceExt as _,
+        exports::hermes::http_gateway::event::HttpGatewayResponse, unchecked_exports,
     },
 };
 
@@ -207,6 +206,19 @@ fn validate_path(
 // HTTP Event Processing
 // ============================================================================
 
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for HTTP gateway.
+    trait ComponentInstanceExt {
+        #[wit("hermes:http-gateway/event", "reply")]
+        fn hermes_http_gateway_event_reply<'p> (
+            body: &'p [u8],
+            headers: &'p [(String, Vec<String>)],
+            path: &'p str,
+            method: &'p str,
+        ) -> Option<HttpGatewayResponse>;
+    }
+}
+
 impl HermesEventPayload for HTTPEvent {
     fn event_name(&self) -> &'static str {
         "http-event"
@@ -329,10 +341,10 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (
-                    name.to_string(),
-                    vec![value.to_str().unwrap_or("").to_string()],
-                )
+                (name.to_string(), vec![value
+                    .to_str()
+                    .unwrap_or("")
+                    .to_string()])
             })
             .collect();
 

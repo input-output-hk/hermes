@@ -7,10 +7,16 @@ use saffron::Cron;
 use super::state::cron_queue_rm;
 use crate::{
     event::HermesEventPayload,
-    runtime_extensions::bindings::{
-        hermes::cron::api::CronTagged, unchecked_exports::ComponentInstanceExt as _,
-    },
+    runtime_extensions::bindings::{hermes::cron::api::CronTagged, unchecked_exports},
 };
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for cron.
+    trait ComponentInstanceExt {
+        #[wit("hermes:cron/event", "on-cron")]
+        fn hermes_cron_event_on_cron(event: &CronTagged, last: bool) -> bool;
+    }
+}
 
 /// Duration in nanoseconds used for the Cron Service.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
@@ -74,11 +80,10 @@ impl HermesEventPayload for OnCronEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let res = module.instance.hermes_cron_event_on_cron(
-            &mut module.store,
-            &self.tag,
-            self.last,
-        )?;
+        let res =
+            module
+                .instance
+                .hermes_cron_event_on_cron(&mut module.store, &self.tag, self.last)?;
         // if the response is `false`, check if the event would
         // re-trigger, if so, remove it.
         if !res && !self.last {
@@ -272,28 +277,22 @@ mod tests {
         // every monday and the first day of January
         let cron: Cron = "0 0 1 1 7".parse().unwrap();
         let times: Vec<DateTime<Utc>> = cron.clone().iter_from(datetime).take(5).collect();
-        assert_eq!(
-            times,
-            vec![
-                Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 1, 3, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 1, 10, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 1, 17, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 1, 24, 0, 0, 0).unwrap(),
-            ]
-        );
+        assert_eq!(times, vec![
+            Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 1, 3, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 1, 10, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 1, 17, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 1, 24, 0, 0, 0).unwrap(),
+        ]);
 
         let cron: Cron = "0 0 1 1,3,5,7,9,11 *".parse().unwrap();
         let times: Vec<DateTime<Utc>> = cron.clone().iter_from(datetime).take(5).collect();
-        assert_eq!(
-            times,
-            vec![
-                Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 3, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 5, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 7, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(1970, 9, 1, 0, 0, 0).unwrap(),
-            ]
-        );
+        assert_eq!(times, vec![
+            Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 3, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 5, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 7, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(1970, 9, 1, 0, 0, 0).unwrap(),
+        ]);
     }
 }
