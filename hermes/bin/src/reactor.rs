@@ -53,9 +53,10 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     reactor.apps.insert(app_name.clone(), app);
 
     let aoo = reactor.apps.get(&app_name).unwrap();
-    if !aoo.init() {
+    if let Err(failed_module) = aoo.init() {
         return Err(anyhow::anyhow!(
-            "Failed to initialize application {app_name}, module: 'TODO'"
+            "Failed to initialize application {}, module: {failed_module}",
+            aoo.name()
         ));
     }
 

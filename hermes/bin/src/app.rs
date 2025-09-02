@@ -82,16 +82,13 @@ impl Application {
         Ok(())
     }
 
-    pub(crate) fn init(&self) -> bool {
+    pub(crate) fn init(&self) -> Result<(), ModuleId> {
         for module in self.indexed_modules.values() {
             if !module.init(self.name.clone(), Arc::clone(&self.vfs)) {
-                tracing::error!("Initializing module failed");
-                return false;
-            } else {
-                tracing::error!("Initializing module successful");
+                return Err(module.id().clone());
             }
         }
-        true
+        Ok(())
     }
 
     /// Dispatch event for the target module by the `module_id`.
