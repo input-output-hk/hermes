@@ -93,10 +93,10 @@ impl Application {
         Ok(())
     }
 
-    pub(crate) fn init(&self) -> Result<(), ModuleId> {
+    pub(crate) fn init(&self) -> anyhow::Result<()> {
         for module in self.indexed_modules.values() {
-            if !module.init(self.name.clone(), Arc::clone(&self.vfs)) {
-                return Err(module.id().clone());
+            if let Err(e) = module.init(self.name.clone(), Arc::clone(&self.vfs)) {
+                anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)
             }
         }
         Ok(())

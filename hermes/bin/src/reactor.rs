@@ -60,13 +60,7 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 
 pub(crate) fn init_app(app_name: &ApplicationName) -> anyhow::Result<()> {
     let app = get_app(&app_name)?;
-    if let Err(failed_module) = app.init() {
-        return Err(anyhow::anyhow!(
-            "Failed to initialize application {}, module: {failed_module}",
-            app.name()
-        ));
-    }
-    Ok(())
+    app.init()
 }
 
 /// Get Hermes application from the Hermes Reactor.
