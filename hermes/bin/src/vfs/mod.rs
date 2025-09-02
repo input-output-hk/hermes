@@ -42,7 +42,6 @@ impl Vfs {
 impl Vfs {
     /// Reads in data in bytes, the number of which is specified by the caller,
     /// from the hdf5 file and stores then into a buffer supplied by the calling process.
-    #[allow(dead_code)]
     pub(crate) fn read(
         &self,
         path: &str,
