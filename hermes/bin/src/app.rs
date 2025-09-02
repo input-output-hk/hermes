@@ -84,7 +84,7 @@ impl Application {
 
     pub(crate) fn init(&self) -> bool {
         for module in self.indexed_modules.values() {
-            if !module.init(self.name.0.clone(), Arc::clone(&self.vfs)) {
+            if !module.init(self.name.clone(), Arc::clone(&self.vfs)) {
                 tracing::error!("Initializing module failed");
                 return false;
             } else {

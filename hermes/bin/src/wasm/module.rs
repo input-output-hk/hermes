@@ -115,13 +115,13 @@ impl Module {
     }
 
     /// TODO: docs
-    pub fn init(
+    pub(crate) fn init(
         &self,
-        app_name: String,
+        app_name: ApplicationName,
         vfs: Arc<Vfs>,
     ) -> bool {
         let runtime_ctx = HermesRuntimeContext::new(
-            ApplicationName(app_name),
+            app_name,
             self.id.clone(),
             "init_function_call".to_string(),
             0,
