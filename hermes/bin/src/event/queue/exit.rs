@@ -7,7 +7,8 @@ use std::{
 };
 
 /// Exit status.
-#[derive(Copy, Clone, Debug, thiserror::Error)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Copy, Clone, thiserror::Error)]
 pub enum Exit {
     /// An application requested runtime abort.
     #[error(
@@ -27,6 +28,16 @@ pub enum Exit {
     /// Timeout elapsed.
     #[error("Event queue closed: timeout")]
     Timeout,
+}
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for Exit {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
 }
 
 impl Exit {

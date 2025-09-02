@@ -19,6 +19,7 @@ const DEFAULT_ENV_N_BENCH: &str = "32";
 use std::{env, error::Error, ffi::OsStr, fs, path::Path, sync::Arc, time::Instant};
 
 use hermes::{
+    app::ApplicationName,
     runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
     wasm::module::Module,
 };
@@ -102,6 +103,8 @@ fn visit_dir(
         .filter_map(|(file_type, path)| file_type.is_dir().then_some(path))
         .collect();
 
+    let app_name = ApplicationName::new("WasmIntegrationTests");
+
     // process `.wasm` files
     for file_path in wasm_file_paths {
         let name = file_path.strip_prefix(path)?.display().to_string();
@@ -109,7 +112,7 @@ fn visit_dir(
         // Execute the wasm tests to get their name
         // Load WASM module in the executor.
         let wasm_buf = fs::read(file_path)?;
-        let module = Arc::new(Module::from_bytes(&wasm_buf)?);
+        let module = Arc::new(Module::from_bytes(&app_name, &wasm_buf)?);
 
         let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
             // Collect the cases in a loop until no more cases.
@@ -181,7 +184,9 @@ fn execute(
 ) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    let module = Arc::new(Module::from_bytes(&wasm_buf)?);
+    let app_name = ApplicationName::new("WasmUnitTest");
+
+    let module = Arc::new(Module::from_bytes(&app_name, &wasm_buf)?);
 
     match execute_event(module, test_case, true, event_type)? {
         Some(result) => {

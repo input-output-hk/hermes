@@ -23,8 +23,8 @@
 #   .hfs  - Hermes File System state files (runtime cache and temporary data)
 #
 # Environment Variables:
-#   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: catfact.ninja)
-#   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /fact)
+#   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: app.dev.projectcatalyst.io)
+#   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /api/gateway/v1/config/frontend)
 
 default:
     @just --list --unsorted
@@ -159,11 +159,11 @@ clean-hfs:
 #
 # Environment Variables (configurable security policies):
 #   REDIRECT_ALLOWED_HOSTS: Comma-separated list of allowed redirect hosts
-#     Default: "catfact.ninja"
+#     Default: "app.dev.projectcatalyst.io"
 #     Example: "api.example.com,service.internal.com"
 #
 #   REDIRECT_ALLOWED_PATH_PREFIXES: Path prefixes allowed for redirects
-#     Default: "/fact"
+#     Default: "/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration"
 #     Example: "/api,/public,/webhooks"
 #
 # Prerequisites:
@@ -171,7 +171,7 @@ clean-hfs:
 #   - Application package must exist (run `just get-local-athena`)
 #
 # Testing the Service:
-#   Once running, test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/dashboard
+#   Once running, test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/gateway/v1/rbac/registration
 run-athena:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -192,15 +192,15 @@ run-athena:
     fi
 
     # Set up security configuration with defaults
-    export REDIRECT_ALLOWED_PATH_PREFIXES="${REDIRECT_ALLOWED_PATH_PREFIXES:-/fact}"
-    export REDIRECT_ALLOWED_HOSTS="${REDIRECT_ALLOWED_HOSTS:-catfact.ninja}"
+    export REDIRECT_ALLOWED_PATH_PREFIXES="${REDIRECT_ALLOWED_PATH_PREFIXES:-/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration}"
+    export REDIRECT_ALLOWED_HOSTS="${REDIRECT_ALLOWED_HOSTS:-app.dev.projectcatalyst.io}"
 
     echo "🛡️  Security Configuration:"
     echo "   Allowed Hosts: $REDIRECT_ALLOWED_HOSTS"
     echo "   Allowed Path Prefixes: $REDIRECT_ALLOWED_PATH_PREFIXES"
     echo ""
     echo "🌐 Starting HTTP server..."
-    echo "💡 Test with: curl -H 'Host: app.hermes.local' http://localhost:5000/api/dashboard"
+    echo "💡 Test with: curl -H 'Host: app.hermes.local' http://localhost:5000/api/gateway/v1/rbac/registration"
     echo "🛑 Press Ctrl+C to stop"
     echo ""
 
@@ -277,8 +277,8 @@ status:
     echo ""
 
     echo "🛡️  Current Security Config:"
-    echo "   Allowed Hosts: ${REDIRECT_ALLOWED_HOSTS:-catfact.ninja (default)}"
-    echo "   Allowed Paths: ${REDIRECT_ALLOWED_PATH_PREFIXES:-/fact (default)}"
+    echo "   Allowed Hosts: ${REDIRECT_ALLOWED_HOSTS:-app.dev.projectcatalyst.io (default)}"
+    echo "   Allowed Paths: ${REDIRECT_ALLOWED_PATH_PREFIXES:-app.dev.projectcatalyst.io (default)}"
     echo ""
 
     echo "💡 Quick Commands:"

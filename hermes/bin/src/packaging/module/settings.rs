@@ -5,7 +5,7 @@ use std::io::Read;
 use super::super::schema_validation::SchemaValidator;
 
 /// Settings schema object.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct SettingsSchema {
     /// settings schema JSON object.
     json: serde_json::Map<String, serde_json::Value>,

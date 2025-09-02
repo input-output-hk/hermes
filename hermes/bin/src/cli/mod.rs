@@ -11,17 +11,21 @@ use std::{path::PathBuf, process::ExitCode};
 use build_info::BUILD_INFO;
 use clap::{Parser, Subcommand};
 use console::{style, Emoji};
+use tracing::error;
 
 use crate::{
     errors::Errors,
     logger::{self, LoggerConfigBuilder},
+    runtime_extensions::init::trait_runtime::{RteInitRuntime, RteRuntime},
 };
 
 /// A parameter identifier specifying the log level.
+#[allow(dead_code)]
 const ENV_LOG_LEVEL: &str = "HERMES_LOG_LEVEL";
 
 /// An exit code returned on non-application errors.
 /// This is consistent with `cargo test` return code.
+#[allow(dead_code)]
 const INTERNAL_FAILURE_CODE: u8 = 101;
 
 /// Hermes
@@ -55,6 +59,7 @@ enum Commands {
 
 impl Cli {
     /// Hermes home directory
+    #[allow(dead_code)]
     pub(crate) fn hermes_home() -> anyhow::Result<PathBuf> {
         let hermes_home = dirs::home_dir()
             .ok_or(anyhow::anyhow!(
@@ -66,6 +71,7 @@ impl Cli {
     }
 
     /// Execute cli commands of the hermes
+    #[allow(dead_code)]
     pub(crate) fn exec(self) -> ExitCode {
         println!("{}{}", Emoji::new("ℹ️", ""), style(BUILD_INFO).yellow());
 
@@ -84,7 +90,14 @@ impl Cli {
 
         logger::init(&log_config).unwrap_or_else(errors.get_add_err_fn());
 
-        let exit_code = match self.command {
+        // Initialize all runtime extensions before doing anything with apps or modules.
+        // TODO (SJ): Better handle errors.
+        if let Err(err) = RteRuntime::new().init() {
+            error!(err=%err,"Runtime Extension Node Init Failed");
+            return ExitCode::FAILURE;
+        }
+
+        let mut exit_code = match self.command {
             Commands::Run(cmd) => cmd.exec(),
             Commands::Module(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS.into()),
             Commands::App(cmd) => cmd.exec().map(|()| ExitCode::SUCCESS.into()),
@@ -98,8 +111,17 @@ impl Cli {
         .unwrap_or(ExitCode::from(INTERNAL_FAILURE_CODE));
 
         if !errors.is_empty() {
-            println!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
-            return ExitCode::FAILURE;
+            error!("{}:\n{}", Emoji::new("🚨", "Errors"), style(errors).red());
+            exit_code = ExitCode::FAILURE;
+            // Keep going so we can finalize the runtime cleanly.
+        }
+
+        // Cleanup all runtime extensions before exiting (after all apps and modules are done).
+        // TODO (SJ): Cleanup error reporting.
+        if let Err(err) = RteRuntime::new().fini() {
+            error!(err=%err,"Runtime Extension Node Finalization Failed");
+            exit_code = ExitCode::FAILURE;
+            // Keep going exit_code reported below anyway.
         }
 
         exit_code

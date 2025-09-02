@@ -24,7 +24,7 @@ static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::ne
 
 /// Represents different types of events.
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum EventType {
     /// Represents a test event.
     Test,

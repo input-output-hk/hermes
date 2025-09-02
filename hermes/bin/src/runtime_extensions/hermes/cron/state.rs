@@ -352,8 +352,9 @@ fn handle_delay_cron_job(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use chrono::Datelike;
 
     use super::*;

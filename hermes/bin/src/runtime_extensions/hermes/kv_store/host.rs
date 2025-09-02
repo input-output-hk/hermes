@@ -13,7 +13,10 @@ impl Host for HermesRuntimeContext {
         _key: String,
         _value: Option<KvValues>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value from the local key-value store
@@ -23,7 +26,10 @@ impl Host for HermesRuntimeContext {
         _key: String,
         _default: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value from the local key-value store
@@ -33,7 +39,10 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _key: String,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value, and then set it (Atomic)
@@ -43,7 +52,10 @@ impl Host for HermesRuntimeContext {
         _key: String,
         _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value, and then add to it (Atomic)
@@ -67,7 +79,10 @@ impl Host for HermesRuntimeContext {
         _key: String,
         _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Check if the Key equals a test value (exact match) and if it does, store the new
@@ -82,7 +97,10 @@ impl Host for HermesRuntimeContext {
         _test: Option<KvValues>,
         _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Subscribe to any updates made to a particular Key.
@@ -92,7 +110,10 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _key: String,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Unsubscribe to any updates made to a particular Key.
@@ -103,6 +124,9 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _key: String,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

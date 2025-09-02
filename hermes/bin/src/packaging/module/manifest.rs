@@ -6,7 +6,8 @@ use super::super::{schema_validation::SchemaValidator, FileError};
 use crate::hdf5::resources::ResourceBuilder;
 
 /// WASM module package manifest.json definition.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// Package name.
     pub(crate) name: String,
@@ -23,7 +24,8 @@ pub(crate) struct Manifest {
 }
 
 /// `Manifest` config definition.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct ManifestConfig {
     /// Path to the config JSON file.
     pub(crate) file: Option<ResourceBuilder>,
@@ -32,7 +34,8 @@ pub(crate) struct ManifestConfig {
 }
 
 /// `Manifest` settings definition.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct ManifestSettings {
     /// Path to the settings schema JSON file.
     pub(crate) schema: ResourceBuilder,
@@ -144,7 +147,7 @@ mod serde_def {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use temp_dir::TempDir;
 

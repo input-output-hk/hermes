@@ -126,7 +126,7 @@ fn calculate_dir_hash(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use temp_dir::TempDir;
 
