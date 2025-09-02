@@ -19,7 +19,7 @@ mod log_msg;
 #[derive(Default)]
 struct RteLogging;
 
-#[traitreg::register]
+#[traitreg::register(default)]
 impl RteInitRuntime for RteLogging {
     fn init(self: Box<Self>) -> RteInitResult {
         debug!("Hermes Runtime Extensions Initialized: Node Runtime");
@@ -44,7 +44,7 @@ impl RteInitRuntime for RteLogging {
     }
 }
 
-#[traitreg::register]
+#[traitreg::register(default)]
 impl RteInitApp for RteLogging {
     fn init(
         self: Box<Self>,
@@ -75,7 +75,7 @@ impl RteInitApp for RteLogging {
     }
 }
 
-#[traitreg::register]
+#[traitreg::register(default)]
 impl RteInitModule for RteLogging {
     fn init(
         self: Box<Self>,
@@ -108,7 +108,7 @@ impl RteInitModule for RteLogging {
     }
 }
 
-#[traitreg::register]
+#[traitreg::register(default)]
 impl RteInitEvent for RteLogging {
     fn init(
         self: Box<Self>,
