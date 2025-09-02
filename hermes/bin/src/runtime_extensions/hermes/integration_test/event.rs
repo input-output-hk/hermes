@@ -52,10 +52,9 @@ impl HermesEventPayload for OnTestEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let (result,): (Option<TestResult>,) = module
+        let result = module
             .instance
-            .hermes_integration_test_event_test(&mut module.store)?
-            .call(&mut module.store, (self.test, self.run))?;
+            .hermes_integration_test_event_test(&mut module.store, self.test, self.run)?;
         TEST_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }
@@ -78,10 +77,9 @@ impl HermesEventPayload for OnBenchEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let (result,): (Option<TestResult>,) = module
+        let result = module
             .instance
-            .hermes_integration_test_event_bench(&mut module.store)?
-            .call(&mut module.store, (self.test, self.run))?;
+            .hermes_integration_test_event_bench(&mut module.store, self.test, self.run)?;
         BENCH_RESULT_QUEUE.get_or_init(SegQueue::new).push(result);
         Ok(())
     }

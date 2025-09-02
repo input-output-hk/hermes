@@ -28,8 +28,7 @@ impl HermesEventPayload for KVUpdateEvent {
     ) -> anyhow::Result<()> {
         module
             .instance
-            .hermes_kv_store_event_kv_update(&mut module.store)?
-            .call(&mut module.store, (&self.key, &self.value))?;
+            .hermes_kv_store_event_kv_update(&mut module.store, &self.key, &self.value)?;
         Ok(())
     }
 }

@@ -17,10 +17,9 @@ impl HermesEventPayload for InitEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let (_res,): (bool,) = module
+        let _res = module
             .instance
-            .hermes_init_event_init(&mut module.store)?
-            .call(&mut module.store, ())?;
+            .hermes_init_event_init(&mut module.store)?;
         Ok(())
     }
 }

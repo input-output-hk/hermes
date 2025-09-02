@@ -35,10 +35,9 @@ impl HermesEventPayload for OnTopicEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let (_res,): (bool,) = module
+        let _res = module
             .instance
-            .hermes_ipfs_event_on_topic(&mut module.store)?
-            .call(&mut module.store, (&self.message,))?;
+            .hermes_ipfs_event_on_topic(&mut module.store, &self.message)?;
         // TODO(@saibatizoku):  WIP: add message handling
         Ok(())
     }

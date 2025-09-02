@@ -94,6 +94,7 @@ uuid = { version = "1.17.0", features = ["v4"] }
 reqwest = "0.12.22"
 url = "2.5.4"
 num-traits = "0.2.19"
+paste = "1.0.15"
 
 [build-dependencies]
 build-info-build = "0.0.41"

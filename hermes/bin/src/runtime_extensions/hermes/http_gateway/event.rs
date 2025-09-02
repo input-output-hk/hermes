@@ -216,13 +216,13 @@ impl HermesEventPayload for HTTPEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let (event_response,) = module
-            .instance
-            .hermes_http_gateway_event_reply(&mut module.store)?
-            .call(
-                &mut module.store,
-                (&self.body, &self.headers, &self.path, &self.method),
-            )?;
+        let event_response = module.instance.hermes_http_gateway_event_reply(
+            &mut module.store,
+            &self.body,
+            &self.headers,
+            &self.path,
+            &self.method,
+        )?;
 
         match event_response {
             Some(HttpGatewayResponse::Http(resp)) => {
@@ -329,10 +329,10 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (name.to_string(), vec![value
-                    .to_str()
-                    .unwrap_or("")
-                    .to_string()])
+                (
+                    name.to_string(),
+                    vec![value.to_str().unwrap_or("").to_string()],
+                )
             })
             .collect();
 

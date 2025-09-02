@@ -38,8 +38,11 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 
         module
             .instance
-            .hermes_cardano_event_on_block_on_cardano_block(&mut module.store)?
-            .call(&mut module.store, (subscription_id, block))?;
+            .hermes_cardano_event_on_block_on_cardano_block(
+                &mut module.store,
+                subscription_id,
+                block,
+            )?;
         Ok(())
     }
 }
@@ -89,8 +92,9 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
             .instance
             .hermes_cardano_event_on_immutable_roll_forward_on_cardano_immutable_roll_forward(
                 &mut module.store,
-            )?
-            .call(&mut module.store, (subscription_id, block))?;
+                subscription_id,
+                block,
+            )?;
         Ok(())
     }
 }

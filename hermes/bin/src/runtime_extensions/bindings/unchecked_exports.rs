@@ -33,7 +33,7 @@ pub enum Error {
 }
 
 /// Lookup a function in WASM by its path and signature.
-fn get_typed_func<Params, Return>(
+pub(crate) fn get_typed_func<Params, Return>(
     instance: &component::Instance,
     store: &mut wasmtime::Store<HermesRuntimeContext>,
     wit_interface_name: &str,
@@ -61,32 +61,49 @@ macro_rules! define_exports {
     ($(#[$attr:meta])* $vis:vis trait $ext_trait:ident {$(
         #[wit($wit_interface:literal, $wit_func:literal)]
         fn $rust_func:ident$(<$l:lifetime>)?($($param_name:ident: $param:ty),* $(,)?) $(-> $return:ty)?;
-    )*}) => {
-        #[allow(dead_code)]
+    )*}) => {::paste::paste! { 
         $vis trait $ext_trait {$(
-            #[doc = concat!('"', $wit_func , "\" from \"", $wit_interface, "\"\n\n# Params\n")]
-            #[doc = concat!($("\n- ", stringify!($param_name), ": ", stringify!($param)),*)]
-            fn $rust_func$(<$l>)?(
-                self,
+            #[doc = concat!("Looks up \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
+            fn [<lookup_ $rust_func>]$(<$l>)?(
+                &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
             ) -> Result<::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>, Error>;
+        
+            #[doc = concat!("Looks up and calls \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
+            #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n")] 
+            #[allow(unused_parens, reason = "needed for codegen in no-return case")]
+            fn $rust_func$(<$l>)?(
+                &self,
+                store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>,
+                $($param_name: $param,)*
+            ) -> ::anyhow::Result<($($return)?)> {
+                use anyhow::Context as _;
+                self.[<lookup_ $rust_func>](store)
+                    .context(concat!("when looking up the export (",$wit_func, " from ", $wit_interface, ')'))?
+                    .call(store, ($($param_name,)*))
+                    .context(concat!("when calling the export (",$wit_func, " from ", $wit_interface, ')'))
+                    $(.map(|(ret,): ($return,)| ret))?
+            }
         )*}
 
-        impl $ext_trait for &::wasmtime::component::Instance {$(
-            fn $rust_func$(<$l>)?(
-                self,
+        impl $ext_trait for ::wasmtime::component::Instance {$(
+            fn [<lookup_ $rust_func>]$(<$l>)?(
+                &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
             ) -> Result<::wasmtime::component::TypedFunc<($($param,)*), ($($return,)?)>, Error> {
+                use $crate::runtime_extensions::bindings::unchecked_exports::get_typed_func;
                 get_typed_func(self, store, $wit_interface, $wit_func)
             }
         )*}
-    };
+    }};
 }
+
+pub(crate) use define_exports;
 
 define_exports! {
     /// Extends [`wasmtime::component::Instance`] with guest accessors
     /// similar to the ones generated for [`super::Hermes`] by [`wasmtime::component::bindgen`].
-    pub trait ComponentInstanceExt {
+    pub(crate) trait ComponentInstanceExt {
         #[wit("hermes:cardano/event-on-block", "on-cardano-block")]
         fn hermes_cardano_event_on_block_on_cardano_block(
             subscription_id: Resource<SubscriptionId>, block_id: Resource<Block>,
@@ -98,15 +115,15 @@ define_exports! {
         );
 
         #[wit("hermes:cron/event", "on-cron")]
-        fn hermes_cron_event_on_cron<'p>(
-            event: &'p CronTagged, last: bool,
+        fn hermes_cron_event_on_cron(
+            event: &CronTagged, last: bool,
         ) -> bool;
 
         #[wit("hermes:init/event", "init")]
         fn hermes_init_event_init() -> bool;
 
         #[wit("hermes:ipfs/event", "on-topic")]
-        fn hermes_ipfs_event_on_topic<'p>(message: &'p PubsubMessage) -> bool;
+        fn hermes_ipfs_event_on_topic(message: &PubsubMessage) -> bool;
 
         #[wit("hermes:kv-store/event", "kv-update")]
         fn hermes_kv_store_event_kv_update<'p>(key: &'p str, value: &'p KvValues);
@@ -126,6 +143,6 @@ define_exports! {
         ) -> Option<HttpGatewayResponse>;
 
         #[wit("hermes:http-request/event", "on-http-response")]
-        fn hermes_http_request_event_on_http_response<'p>(request_id: Option<u64>, response: &'p [u8]);
+        fn hermes_http_request_event_on_http_response(request_id: Option<u64>, response: &[u8]);
     }
 }

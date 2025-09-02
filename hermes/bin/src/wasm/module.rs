@@ -192,8 +192,7 @@ pub mod bench {
             ) -> anyhow::Result<()> {
                 instance
                     .instance
-                    .hermes_init_event_init(&mut instance.store)?
-                    .call(&mut instance.store, ())?;
+                    .hermes_init_event_init(&mut instance.store)?;
                 Ok(())
             }
         }
