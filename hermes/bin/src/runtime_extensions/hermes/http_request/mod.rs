@@ -29,8 +29,5 @@ static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
     }
 });
 
-/// New context for the HTTP Request extension.
-pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod test {}

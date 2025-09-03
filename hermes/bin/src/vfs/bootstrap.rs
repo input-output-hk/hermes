@@ -228,7 +228,7 @@ impl VfsBootstrapper {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use hermes_hdf5::Dir;
     use temp_dir::TempDir;

@@ -13,7 +13,11 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::Application, event::queue::Exit, ipfs, reactor, vfs::VfsBootstrapper, wasm::module::Module,
+    app::{Application, ApplicationName},
+    event::queue::Exit,
+    ipfs, reactor,
+    vfs::VfsBootstrapper,
+    wasm::module::Module,
 };
 
 /// Hermes application playground
@@ -27,7 +31,8 @@ use crate::{
 /// components.
 ///
 /// If an internal error occurred returns 101.
-#[derive(Debug, clap::Args)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(clap::Args)]
 pub struct Playground {
     /// Wasm components to load as apps in this example.
     components: Vec<PathBuf>,
@@ -93,7 +98,8 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
         let wasm_buf = fs::read(file_path)?;
-        let module = Module::from_bytes(&wasm_buf)?;
+        let app_name = ApplicationName::new(&name);
+        let module = Module::from_bytes(&app_name, &wasm_buf)?;
         modules.push((name, module));
     }
 

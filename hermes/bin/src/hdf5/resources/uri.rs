@@ -7,7 +7,8 @@
 /// but the implementation is not compliant with it and conforms with our needs.
 /// The parsing pattern is as follows:
 /// `[schema] :// [host] / [path]`
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct Uri {
     /// URI schema component.
     pub(crate) schema: Option<String>,
@@ -51,13 +52,13 @@ impl Uri {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 
     #[test]
     fn uri_parsing_test() {
-        assert_eq!(
+        debug_assert_eq!(
             Uri::parse_from_str("https://www.google.com/file.txt"),
             Uri {
                 schema: Some("https".to_string()),
