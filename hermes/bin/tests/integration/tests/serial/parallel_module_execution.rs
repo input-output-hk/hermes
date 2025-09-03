@@ -11,7 +11,14 @@ fn parallel_execution() {
     const COMPONENT: &str = "sleep_component";
     const COMPONENT_NAME: &str = "sleep_component";
     const MODULE_NAME: &str = "sleep_module";
-    const EXPECTED_EXECUTION_TIME_IN_SECONDS: u64 = 20;
+    const EVENT_COUNT: usize = 5;
+    const TIME_IN_SECS_PER_EVENT: usize = 5;
+    const BUFFER_SECS: usize = 15;
+    const EXPECTED_EXECUTION_TIME_IN_SECONDS: usize = TIME_IN_SECS_PER_EVENT + BUFFER_SECS;
+    const RESERVED_THREADS_FOR_TASK_QUEUE: usize = 1;
+    const RESERVED_THREAD_FOR_MAIN: usize = 1;
+    const REQUIRED_THREAD_COUNT: usize =
+        EVENT_COUNT + RESERVED_THREADS_FOR_TASK_QUEUE + RESERVED_THREAD_FOR_MAIN;
 
     let temp_dir = TempDir::new().unwrap();
     utils::component::build(COMPONENT, &temp_dir, COMPONENT_NAME)
@@ -36,7 +43,7 @@ fn parallel_execution() {
     ));
 
     // Verify all events started and completed
-    for i in 0..5 {
+    for i in 0..EVENT_COUNT {
         assert!(utils::assert::app_logs_contain(
             &temp_dir,
             &format!("sending sleep app request {i}")
@@ -50,23 +57,26 @@ fn parallel_execution() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        &format!("All {} responses written correctly, calling done()", 5)
+        &format!("All {EVENT_COUNT} responses written correctly, calling done()")
     ));
 
-    // If events run in parallel, total time should be ~5 seconds, not ~25 seconds
-    // Allow some margin for startup/shutdown time and database contention
+    // If events run in parallel, total time should be ~`TIME_SECS_PER_EVENT` seconds, not
+    // ~`TIME_SECS_PER_EVENT` * `EVENT_COUNT` seconds Allow some margin for
+    // startup/shutdown time and database contention
     //
     // Note: if there is not enough threads, then we would have some kind of sequential
     // execution, so this assert would not pass
-    // We need 1 thread for task queue, 1 thread for thread pool and
-    // 5 for each worker to run independently
+    // We need `EVENT_COUNT` threads for all workers to run in parallel,
+    // `RESERVED_THREADS_FOR_TASK_QUEUE` thread(s) for the task queue,
+    // and we also count the `RESERVED_THREAD_FOR_MAIN` itself since it participates
+    // in Rayon’s work stealing.
     if available_parallelism()
         .expect("could not check available number of threads")
         .get()
-        > 6
+        > REQUIRED_THREAD_COUNT
     {
         assert!(
-            execution_time.as_secs() < EXPECTED_EXECUTION_TIME_IN_SECONDS,
+            execution_time.as_secs() < EXPECTED_EXECUTION_TIME_IN_SECONDS as u64,
             "Execution took {} seconds, expected less than {} seconds for parallel execution",
             execution_time.as_secs(),
             EXPECTED_EXECUTION_TIME_IN_SECONDS

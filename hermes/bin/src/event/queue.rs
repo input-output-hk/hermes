@@ -5,7 +5,10 @@ mod exit;
 use std::{
     ops::ControlFlow,
     process::ExitCode,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    },
     thread::{self},
 };
 
@@ -102,7 +105,7 @@ fn targeted_module_event_execution(
             for target_module_id in target_modules {
                 if let Err(err) = app.dispatch_event_for_target_module(
                     target_module_id.clone(),
-                    event.payload().clone(),
+                    Arc::clone(event.payload()),
                 ) {
                     tracing::error!("{err}");
                 }
