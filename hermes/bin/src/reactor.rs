@@ -58,8 +58,9 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     init_app(&app_name)
 }
 
+/// Initialize the Application.
 pub(crate) fn init_app(app_name: &ApplicationName) -> anyhow::Result<()> {
-    let app = get_app(&app_name)?;
+    let app = get_app(app_name)?;
     app.init()
 }
 
