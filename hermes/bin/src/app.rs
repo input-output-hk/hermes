@@ -51,7 +51,7 @@ impl Application {
     /// Create a new Hermes app
     #[must_use]
     pub(crate) fn new(
-        app_name: String,
+        app_name: ApplicationName,
         vfs: Vfs,
         modules: Vec<Module>,
     ) -> Self {
@@ -60,7 +60,7 @@ impl Application {
             .map(|module| (module.id().clone(), module))
             .collect();
         Self {
-            name: ApplicationName(app_name),
+            name: app_name,
             indexed_modules,
             vfs: Arc::new(vfs),
         }

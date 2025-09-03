@@ -1,7 +1,7 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.5.4 AS mdlint-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.5.4 AS cspell-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.5.14 AS mdlint-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.5.14 AS cspell-ci
 
 # cspell: words livedocs sitedocs
     

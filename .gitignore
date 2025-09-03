@@ -97,4 +97,4 @@ Cargo.lock
 *.hmod
 *.wasm
 *.happ
-
+**/target/**/*

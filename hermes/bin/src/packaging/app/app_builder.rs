@@ -3,6 +3,7 @@
 use super::ApplicationPackage;
 use crate::{
     app::{Application, ApplicationName},
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
     vfs::{PermissionLevel, Vfs, VfsBootstrapper},
 };
 
@@ -12,18 +13,21 @@ pub(crate) fn build_app<P: AsRef<std::path::Path>>(
     vfs_dir_path: P,
 ) -> anyhow::Result<Application> {
     let app_name = package.get_app_name()?;
-    let mut bootstrapper = VfsBootstrapper::new(vfs_dir_path, app_name.clone());
+    let application_name = ApplicationName::new(&app_name);
+
+    // If this does not run here, then apps are not initialized before their modules.
+    RteApp::new().init(&application_name)?;
+
+    let mut bootstrapper = VfsBootstrapper::new(vfs_dir_path, app_name);
     mount_to_vfs(package, &mut bootstrapper)?;
     let vfs = bootstrapper.bootstrap()?;
-
-    let application_name = ApplicationName::new(&app_name);
 
     let mut modules = Vec::new();
     for module_info in package.get_modules()? {
         let module = module_info.get_component(&application_name)?;
         modules.push(module);
     }
-    let app = Application::new(app_name, vfs, modules);
+    let app = Application::new(application_name, vfs, modules);
 
     Ok(app)
 }

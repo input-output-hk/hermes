@@ -352,7 +352,7 @@ mod tests {
         let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
             .bootstrap()
             .unwrap();
-        let hermes_app = Application::new(APP_NAME.to_string(), vfs, vec![]);
+        let hermes_app = Application::new(ApplicationName::new(APP_NAME), vfs, vec![]);
 
         crate::reactor::init().unwrap();
         crate::reactor::load_app(hermes_app).unwrap();
