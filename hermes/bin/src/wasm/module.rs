@@ -127,7 +127,7 @@ impl Module {
         &self,
         app_name: ApplicationName,
         vfs: Arc<Vfs>,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<()> {
         let runtime_ctx = HermesRuntimeContext::new(
             app_name,
             self.id.clone(),
@@ -142,7 +142,11 @@ impl Module {
         //let instance = self.pre_instance.instantiate(store).unwrap();
         let instance =
             bindings::HermesPre::new(self.pre_instance.clone())?.instantiate(&mut store)?;
-        instance.hermes_init_event().call_init(&mut store)
+        let init_result = instance.hermes_init_event().call_init(&mut store)?;
+        if !init_result {
+            anyhow::bail!("WASM module init function returned false")
+        }
+        Ok(())
     }
 
     /// Instantiate WASM module reader
