@@ -61,6 +61,7 @@ impl Run {
             Emoji::new("🛠️", ""),
             app.name()
         );
+        // TODO[RC]: Prevent the app from receiving any events until it is fully initialized.
         reactor::load_app(app)?;
 
         let exit = if let Some(timeout_ms) = self.timeout_ms {
