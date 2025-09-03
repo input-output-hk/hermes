@@ -1,7 +1,5 @@
-/dashboard/ @minikin
+* @stevenj @cong-or @rafal-ch @no30bit @bkioshn @aido-mth
 
-/hermes/ @stevenj @cong-or @rafal-ch
+/dashboard/ @minikin @stevenj
 
-/wasm/ @stevenj @cong-or @rafal-ch @no30bit 
-
-.md  @stevenj @minikin
+.md @stevenj @minikin
