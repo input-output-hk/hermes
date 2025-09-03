@@ -5,7 +5,7 @@ mod config;
 mod config_info;
 mod manifest;
 mod settings;
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 pub(crate) mod tests;
 
 pub(crate) use author_payload::{SignaturePayload, SignaturePayloadBuilder};
@@ -26,6 +26,7 @@ use super::{
     FileError, MissingPackageFileError,
 };
 use crate::{
+    app::ApplicationName,
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
@@ -62,7 +63,10 @@ impl ModulePackage {
 
     /// Create a new module package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
+        manifest: &Manifest,
+        output_path: P,
+        package_name: Option<&str>,
+        build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -97,12 +101,29 @@ impl ModulePackage {
 
     /// Validate package with its signature and other contents.
     /// If `untrusted` flag is `true` the signature will not be verified.
-    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
+    pub(crate) fn validate(
+        &self,
+        untrusted: bool,
+    ) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
-        self.get_metadata()
-            .map_or_else(errors.get_add_err_fn(), |_| ());
-        self.get_component()
+        let app_name = match self.get_metadata() {
+            Ok(metadata) => {
+                match metadata.get_name() {
+                    Ok(name) => ApplicationName::new(&name),
+                    Err(e) => {
+                        errors.get_add_err_fn()(e);
+                        ApplicationName::new("UnknownAppName")
+                    },
+                }
+            },
+            Err(e) => {
+                errors.get_add_err_fn()(e);
+                ApplicationName::new("UnknownAppName")
+            },
+        };
+
+        self.get_component(&app_name)
             .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_config_info()
             .map_or_else(errors.get_add_err_fn(), |_| ());
@@ -137,7 +158,9 @@ impl ModulePackage {
     /// Sign the package and store signature inside it.
     /// If signature already exists it will be extended with a new signature.
     pub(crate) fn sign(
-        &self, private_key: &PrivateKey, certificate: &Certificate,
+        &self,
+        private_key: &PrivateKey,
+        certificate: &Certificate,
     ) -> anyhow::Result<()> {
         let mut signature = if let Some(existing_signature) = self.get_signature()? {
             self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
@@ -213,8 +236,12 @@ impl ModulePackage {
     }
 
     /// Get `wasm::module::Module` object from package.
-    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.get_component_file().map(Module::from_reader)?
+    pub(crate) fn get_component(
+        &self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<Module> {
+        let module_data = self.get_component_file()?;
+        Module::from_reader(app_name, module_data)
     }
 
     /// Get `Signature` object from package.
@@ -281,13 +308,20 @@ impl ModulePackage {
     }
 
     /// Copy all content of the `ModulePackage` to the provided `Dir`.
-    pub(crate) fn copy_to_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
+    pub(crate) fn copy_to_dir(
+        &self,
+        dir: &Dir,
+        path: &Path,
+    ) -> anyhow::Result<()> {
         dir.copy_dir(&self.0, path)
     }
 
     /// Validate and write all content of the `Manifest` to the provided `package`.
     fn validate_and_write_from_manifest(
-        manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
+        manifest: &Manifest,
+        package: &Package,
+        build_date: DateTime<Utc>,
+        package_name: &str,
         errors: &mut Errors,
     ) {
         validate_and_write_metadata(
@@ -299,7 +333,10 @@ impl ModulePackage {
         )
         .unwrap_or_else(errors.get_add_err_fn());
 
+        let app_name = ApplicationName::new(&manifest.name);
+
         validate_and_write_component(
+            &app_name,
             &manifest.component.build(),
             package,
             Self::COMPONENT_FILE.into(),
@@ -335,7 +372,11 @@ impl ModulePackage {
 /// Validate metadata.json file and write it to the package to the provided dir path.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    build_date: DateTime<Utc>,
+    name: &str,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -351,11 +392,14 @@ fn validate_and_write_metadata(
 
 /// Validate WASM component file and write it to the package to the provided dir path.
 fn validate_and_write_component(
-    resource: &impl ResourceTrait, dir: &Dir, path: Path,
+    app_name: &ApplicationName,
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
-    Module::from_reader(component_reader)
+    Module::from_reader(app_name, component_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     dir.copy_resource_file(resource, path)?;
@@ -364,7 +408,10 @@ fn validate_and_write_component(
 
 /// Validate config schema and config file and write them to the package.
 fn validate_and_write_config(
-    manifest: &ManifestConfig, dir: &Dir, config_schema_path: Path, config_file_path: Path,
+    manifest: &ManifestConfig,
+    dir: &Dir,
+    config_schema_path: Path,
+    config_file_path: Path,
 ) -> anyhow::Result<()> {
     let config_schema =
         validate_and_write_config_schema(&manifest.schema.build(), dir, config_schema_path)?;
@@ -381,7 +428,9 @@ fn validate_and_write_config(
 
 /// Validate config schema and write it to the package to the provided dir path.
 fn validate_and_write_config_schema(
-    resource: &impl ResourceTrait, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<ConfigSchema> {
     let config_schema_reader = resource.get_reader()?;
     let config_schema = ConfigSchema::from_reader(config_schema_reader)
@@ -395,7 +444,10 @@ fn validate_and_write_config_schema(
 
 /// Validate config file and write it to the package.
 pub(crate) fn validate_and_write_config_file(
-    resource: &impl ResourceTrait, config_schema: &ConfigSchema, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    config_schema: &ConfigSchema,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let config_reader = resource.get_reader()?;
 
@@ -409,7 +461,9 @@ pub(crate) fn validate_and_write_config_file(
 
 /// Validate settings schema file and it to the package.
 fn validate_and_write_settings_schema(
-    resource: &impl ResourceTrait, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let setting_schema_reader = resource.get_reader()?;
     let settings_schema = SettingsSchema::from_reader(setting_schema_reader)
@@ -422,7 +476,9 @@ fn validate_and_write_settings_schema(
 
 /// Write share dir to the package.
 pub(crate) fn write_share_dir(
-    resource: &impl ResourceTrait, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let share_dir = dir.create_dir(path)?;
     share_dir.copy_resource_dir(resource, &Path::default())?;

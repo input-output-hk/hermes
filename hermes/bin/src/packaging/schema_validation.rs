@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use crate::errors::Errors;
 
 /// JSON Schema Draft 7 Validator.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct SchemaValidator {
     /// JSON schema validator instance.
     schema: Validator,
@@ -39,7 +39,10 @@ impl SchemaValidator {
     }
 
     /// Validate JSON value against current schema.
-    pub(crate) fn validate(&self, json: &serde_json::Value) -> anyhow::Result<()> {
+    pub(crate) fn validate(
+        &self,
+        json: &serde_json::Value,
+    ) -> anyhow::Result<()> {
         let mut errors = Errors::new();
         self.schema.iter_errors(json).for_each(|error| {
             errors.add_err(anyhow::anyhow!("{error}"));
@@ -49,7 +52,8 @@ impl SchemaValidator {
 
     /// Validate and deserialize JSON value from reader against current schema.
     pub(crate) fn deserialize_and_validate<R: Read, T: DeserializeOwned>(
-        &self, reader: R,
+        &self,
+        reader: R,
     ) -> anyhow::Result<T> {
         let json_val = serde_json::from_reader(reader)?;
         self.validate(&json_val)?;

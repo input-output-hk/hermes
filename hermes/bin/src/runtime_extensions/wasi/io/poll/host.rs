@@ -10,8 +10,14 @@ impl HostPollable for HermesRuntimeContext {
     /// Return the readiness of a pollable. This function never blocks.
     ///
     /// Returns `true` when the pollable is ready, and `false` otherwise.
-    fn ready(&mut self, _self_: wasmtime::component::Resource<Pollable>) -> wasmtime::Result<bool> {
-        todo!()
+    fn ready(
+        &mut self,
+        _self_: wasmtime::component::Resource<Pollable>,
+    ) -> wasmtime::Result<bool> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// `block` returns immediately if the pollable is ready, and otherwise
@@ -19,12 +25,24 @@ impl HostPollable for HermesRuntimeContext {
     ///
     /// This function is equivalent to calling `poll.poll` on a list
     /// containing only this pollable.
-    fn block(&mut self, _self_: wasmtime::component::Resource<Pollable>) -> wasmtime::Result<()> {
-        todo!()
+    fn block(
+        &mut self,
+        _self_: wasmtime::component::Resource<Pollable>,
+    ) -> wasmtime::Result<()> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Pollable>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(
+        &mut self,
+        _rep: wasmtime::component::Resource<Pollable>,
+    ) -> wasmtime::Result<()> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -50,8 +68,12 @@ impl Host for HermesRuntimeContext {
     /// the pollables has an error, it is indicated by marking the source as
     /// being ready for I/O."]
     fn poll(
-        &mut self, _in_: Vec<wasmtime::component::Resource<Pollable>>,
+        &mut self,
+        _in_: Vec<wasmtime::component::Resource<Pollable>>,
     ) -> wasmtime::Result<wasmtime::component::__internal::Vec<u32>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

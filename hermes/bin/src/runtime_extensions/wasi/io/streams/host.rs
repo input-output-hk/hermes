@@ -34,15 +34,22 @@ impl HostInputStream for HermesRuntimeContext {
     /// as a return value by the callee. The callee may return a list of bytes
     /// less than `len` in size while more bytes are available for reading.
     fn read(
-        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<InputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read bytes from a stream, after blocking until at least one byte can
     /// be read. Except for blocking, behavior is identical to `read`.
     fn blocking_read(
-        &mut self, resource: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self,
+        resource: wasmtime::component::Resource<InputStream>,
+        len: u64,
     ) -> wasmtime::Result<Result<Vec<u8>, StreamError>> {
         let mut app_state = get_input_streams_state().get_app_state(self.app_name())?;
         let Ok(mut stream) = app_state.get_object(&resource) else {
@@ -66,15 +73,22 @@ impl HostInputStream for HermesRuntimeContext {
     /// Behaves identical to `read`, except instead of returning a list
     /// of bytes, returns the number of bytes consumed from the stream.
     fn skip(
-        &mut self, _rep: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<InputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Skip bytes from a stream, after blocking until at least one byte
     /// can be skipped. Except for blocking behavior, identical to `skip`.
     fn blocking_skip(
-        &mut self, rep: wasmtime::component::Resource<InputStream>, len: u64,
+        &mut self,
+        rep: wasmtime::component::Resource<InputStream>,
+        len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         let skipped = match self.blocking_read(rep, len)? {
             Ok(buf) => buf.len(),
@@ -84,7 +98,10 @@ impl HostInputStream for HermesRuntimeContext {
         Ok(Ok(skipped as u64))
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<InputStream>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<InputStream>,
+    ) -> wasmtime::Result<()> {
         let app_state = get_input_streams_state().get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
@@ -97,10 +114,14 @@ impl HostInputStream for HermesRuntimeContext {
     /// Implementations may trap if the `input-stream` is dropped before
     /// all derived `pollable`s created with this function are dropped.
     fn subscribe(
-        &mut self, _self_: wasmtime::component::Resource<InputStream>,
+        &mut self,
+        _self_: wasmtime::component::Resource<InputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 
@@ -115,7 +136,8 @@ impl HostOutputStream for HermesRuntimeContext {
     /// become ready when this function will report at least 1 byte, or an
     /// error.
     fn check_write(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
         /// The number of bytes permitted for the next call to `write`.
         const PERMITTED_BYTES_TO_WRITE_NUM: u64 = 1024 * 1024;
@@ -130,9 +152,14 @@ impl HostOutputStream for HermesRuntimeContext {
     /// returns Err(closed) without writing if the stream has closed since
     /// the last call to check-write provided a permit.
     fn write(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _contents: Vec<u8>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
+        _contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Perform a write of up to 4096 bytes, and then flush the stream. Block
@@ -160,7 +187,9 @@ impl HostOutputStream for HermesRuntimeContext {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_and_flush(
-        &mut self, res: wasmtime::component::Resource<OutputStream>, contents: Vec<u8>,
+        &mut self,
+        res: wasmtime::component::Resource<OutputStream>,
+        contents: Vec<u8>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
         let mut app_state = get_output_streams_state().get_app_state(self.app_name())?;
         let mut stream = app_state.get_object(&res)?;
@@ -183,17 +212,25 @@ impl HostOutputStream for HermesRuntimeContext {
     /// completed. The `subscribe` pollable will become ready when the
     /// flush has completed and the stream can accept more writes.
     fn flush(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Request to flush buffered output, and block until flush completes
     /// and stream is ready for writing again.
     fn blocking_flush(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Write zeroes to a stream.
@@ -203,9 +240,14 @@ impl HostOutputStream for HermesRuntimeContext {
     /// passing a list of bytes, you simply pass the number of zero-bytes
     /// that should be written.
     fn write_zeroes(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Perform a write of up to 4096 zeroes, and then flush the stream.
@@ -233,9 +275,14 @@ impl HostOutputStream for HermesRuntimeContext {
     /// let _ = this.check-write();         // eliding error handling
     /// ```
     fn blocking_write_zeroes_and_flush(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<(), StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read from one stream and write to another.
@@ -252,10 +299,15 @@ impl HostOutputStream for HermesRuntimeContext {
     /// This function returns the number of bytes transferred; it may be less
     /// than `len`.
     fn splice(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
-        _src: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
+        _src: wasmtime::component::Resource<InputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Read from one stream and write to another, with blocking.
@@ -264,13 +316,21 @@ impl HostOutputStream for HermesRuntimeContext {
     /// `output-stream` is ready for writing, and the `input-stream`
     /// is ready for reading, before performing the `splice`.
     fn blocking_splice(
-        &mut self, _rep: wasmtime::component::Resource<OutputStream>,
-        _src: wasmtime::component::Resource<InputStream>, _len: u64,
+        &mut self,
+        _rep: wasmtime::component::Resource<OutputStream>,
+        _src: wasmtime::component::Resource<InputStream>,
+        _len: u64,
     ) -> wasmtime::Result<Result<u64, StreamError>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
-    fn drop(&mut self, rep: wasmtime::component::Resource<OutputStream>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<OutputStream>,
+    ) -> wasmtime::Result<()> {
         let app_state = get_output_streams_state().get_app_state(self.app_name())?;
         app_state.delete_resource(rep)?;
         Ok(())
@@ -285,10 +345,14 @@ impl HostOutputStream for HermesRuntimeContext {
     /// Implementations may trap if the `output-stream` is dropped before
     /// all derived `pollable`s created with this function are dropped.
     fn subscribe(
-        &mut self, _self_: wasmtime::component::Resource<OutputStream>,
+        &mut self,
+        _self_: wasmtime::component::Resource<OutputStream>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
         // TODO: add support for `wasi:io/poll` (Issue <https://github.com/input-output-hk/hermes/issues/440>).
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 

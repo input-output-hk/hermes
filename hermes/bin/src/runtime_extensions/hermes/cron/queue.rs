@@ -8,7 +8,6 @@ use tokio::sync::{mpsc, oneshot};
 use super::{
     event::{CronDuration, OnCronEvent},
     state::{cron_queue_delay, cron_queue_trigger, send_hermes_on_cron_event},
-    Error,
 };
 use crate::{
     app::ApplicationName,
@@ -16,7 +15,7 @@ use crate::{
 };
 
 /// Cron Job Delay.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct CronJobDelay {
     /// Scheduled time for running the event.
     pub(crate) timestamp: CronDuration,
@@ -25,7 +24,7 @@ pub(crate) struct CronJobDelay {
 }
 
 /// Scheduled Date and Time for sending a cron event.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum CronJob {
     /// Add a new cron job for the given app.
     Add(ApplicationName, OnCronEvent, oneshot::Sender<bool>),
@@ -65,17 +64,23 @@ impl CronEventQueue {
     }
 
     /// Spawn a new cron job.
-    pub(crate) fn spawn_cron_job(&self, cron_job: CronJob) -> anyhow::Result<()> {
+    pub(crate) fn spawn_cron_job(
+        &self,
+        cron_job: CronJob,
+    ) -> anyhow::Result<()> {
         Ok(self
             .sender
             .as_ref()
-            .ok_or(Error::CronQueueTaskFailed)?
+            .ok_or(anyhow::anyhow!("Cron Queue Task Failed"))?
             .blocking_send(cron_job)?)
     }
 
     /// Add a new crontab entry.
     pub(crate) fn add_event(
-        &self, app_name: ApplicationName, timestamp: CronDuration, on_cron_event: OnCronEvent,
+        &self,
+        app_name: ApplicationName,
+        timestamp: CronDuration,
+        on_cron_event: OnCronEvent,
     ) {
         self.events
             .entry(app_name)
@@ -91,7 +96,9 @@ impl CronEventQueue {
 
     /// List all the crontab entries for the given app.
     pub(crate) fn ls_events(
-        &self, app_name: &ApplicationName, cron_tagged: Option<&CronEventTag>,
+        &self,
+        app_name: &ApplicationName,
+        cron_tagged: Option<&CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         if let Some(app) = self.events.get(app_name) {
             app.iter().fold(vec![], |mut v, (_, cron_events)| {
@@ -115,7 +122,11 @@ impl CronEventQueue {
     }
 
     /// Remove a crontab entry for the given app.
-    pub(crate) fn rm_event(&self, app_name: &ApplicationName, cron_tagged: &CronTagged) -> bool {
+    pub(crate) fn rm_event(
+        &self,
+        app_name: &ApplicationName,
+        cron_tagged: &CronTagged,
+    ) -> bool {
         let mut response = false;
         if let Some(mut app) = self.events.get_mut(app_name) {
             app.retain(|_ts, events| {
@@ -142,7 +153,7 @@ impl CronEventQueue {
     pub(crate) fn trigger(&self) -> anyhow::Result<()> {
         let trigger_time: CronDuration = chrono::Utc::now()
             .timestamp_nanos_opt()
-            .ok_or(Error::InvalidTimestamp)?
+            .ok_or(anyhow::anyhow!("Invalid Timestamp"))?
             .try_into()?;
         // drop the old waiting task if it has passed.
         if let Some((_key, (_, handle))) = self
@@ -151,7 +162,9 @@ impl CronEventQueue {
                 *waiting_for <= trigger_time
             })
         {
-            handle.join().map_err(|_| Error::CronQueueTaskFailed)?;
+            handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("Cron Queue Task Failed"))?;
         }
         // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
@@ -172,7 +185,11 @@ impl CronEventQueue {
     }
 
     /// Update the waiting task.
-    fn update_waiting_task(&self, timestamp: CronDuration, sleep_duration: CronDuration) {
+    fn update_waiting_task(
+        &self,
+        timestamp: CronDuration,
+        sleep_duration: CronDuration,
+    ) {
         // Create a new waiting task.
         self.waiting_event
             .entry(Self::WAITING_EVENT_TASK_ID)
@@ -193,7 +210,10 @@ impl CronEventQueue {
     ///
     /// This method will also re-schedule the events that have `last = false`.
     fn pop_app_queues_and_send(
-        &self, trigger_time: CronDuration, ts: CronDuration, app_names: &HashSet<ApplicationName>,
+        &self,
+        trigger_time: CronDuration,
+        ts: CronDuration,
+        app_names: &HashSet<ApplicationName>,
     ) -> anyhow::Result<()> {
         for app_name in app_names {
             if let Some(events) = self.pop_from_app_queue(app_name, ts) {
@@ -216,7 +236,9 @@ impl CronEventQueue {
     ///
     /// Because the `BTreeMap` is sorted, the first item is the smallest timestamp..
     fn pop_from_app_queue(
-        &self, app_name: &ApplicationName, timestamp: CronDuration,
+        &self,
+        app_name: &ApplicationName,
+        timestamp: CronDuration,
     ) -> Option<HashSet<OnCronEvent>> {
         self.events
             .get_mut(app_name)
@@ -247,7 +269,8 @@ impl CronEventQueue {
 
 /// Create a new thread that will sleep for `duration` nanoseconds
 fn new_waiting_task(
-    timestamp: CronDuration, duration: CronDuration,
+    timestamp: CronDuration,
+    duration: CronDuration,
 ) -> (CronDuration, std::thread::JoinHandle<()>) {
     let handle = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_nanos(duration.into()));
@@ -258,8 +281,10 @@ fn new_waiting_task(
     (timestamp, handle)
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use std::thread::sleep;
 
     use temp_dir::TempDir;

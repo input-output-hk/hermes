@@ -34,7 +34,10 @@ pub(crate) fn get_public_key(xprivate_key: &XPrv) -> Bip32Ed25519PublicKey {
 ///
 /// # Returns
 /// Returns a tuple of u64 values with length 8 representing the signature.
-pub(crate) fn sign_data(xprivate_key: &XPrv, data: &Bstr) -> Bip32Ed25519Signature {
+pub(crate) fn sign_data(
+    xprivate_key: &XPrv,
+    data: &Bstr,
+) -> Bip32Ed25519Signature {
     let sig: Signature<Bstr> = xprivate_key.sign(data);
     let sig_bytes = sig.to_bytes();
     array_u8_64_to_tuple(sig_bytes)
@@ -53,7 +56,9 @@ pub(crate) fn sign_data(xprivate_key: &XPrv, data: &Bstr) -> Bip32Ed25519Signatu
 /// from `xprivate_key` and data.
 /// True if the signature is valid and match the sign data, false otherwise.
 pub(crate) fn check_signature(
-    xprivate_key: &XPrv, data: &Bstr, signature: Bip32Ed25519Signature,
+    xprivate_key: &XPrv,
+    data: &Bstr,
+    signature: Bip32Ed25519Signature,
 ) -> bool {
     let sig_array = b512_u64_tuple_to_u8_array(&signature);
     // Verify the signature.
@@ -83,7 +88,10 @@ pub(crate) fn check_signature(
 /// # Errors
 ///
 /// Returns an `InvalidDerivationalPath` if the derivation path is invalid.
-pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<XPrv, Errno> {
+pub(crate) fn derive_new_private_key(
+    xprivate_key: XPrv,
+    path: &str,
+) -> Result<XPrv, Errno> {
     let Ok(derivation_path) = path.parse::<DerivationPath>() else {
         return Err(Errno::InvalidDerivationalPath);
     };
@@ -99,7 +107,7 @@ pub(crate) fn derive_new_private_key(xprivate_key: XPrv, path: &str) -> Result<X
     Ok(key)
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_bip32_ed25519 {
     use super::*;
 

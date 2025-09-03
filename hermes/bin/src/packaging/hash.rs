@@ -17,7 +17,10 @@ impl Blake2b256Hasher {
     }
 
     /// Incrementally add bytes to the hasher.
-    pub(crate) fn update(&mut self, bytes: &[u8]) {
+    pub(crate) fn update(
+        &mut self,
+        bytes: &[u8],
+    ) {
         self.0.update(bytes);
     }
 
@@ -29,7 +32,8 @@ impl Blake2b256Hasher {
 }
 
 /// Blake2b-256 hash instance.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Blake2b256([u8; HASH_SIZE]);
 
 impl Blake2b256 {
@@ -81,7 +85,7 @@ impl Blake2b256 {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

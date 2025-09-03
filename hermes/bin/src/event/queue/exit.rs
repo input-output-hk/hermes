@@ -7,7 +7,8 @@ use std::{
 };
 
 /// Exit status.
-#[derive(Copy, Clone, Debug, thiserror::Error)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Copy, Clone, thiserror::Error)]
 pub enum Exit {
     /// An application requested runtime abort.
     #[error(
@@ -27,6 +28,16 @@ pub enum Exit {
     /// Timeout elapsed.
     #[error("Event queue closed: timeout")]
     Timeout,
+}
+
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for Exit {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
 }
 
 impl Exit {
@@ -64,7 +75,10 @@ impl ExitLock {
     /// Set the [`Exit`] value. This will notify the waiting thread.
     ///
     /// This shouldn't exposed the waiting thread.
-    pub(super) fn set(self, exit: Exit) {
+    pub(super) fn set(
+        self,
+        exit: Exit,
+    ) {
         let (condvar, payload) = &*self.0;
         // It doesn't matter if the lock is poisoned
         // because the condvar would catch it anyway.
@@ -93,7 +107,10 @@ impl ExitLock {
 
     /// Blocks until either the [`Exit`] value is set or the timeout elapses.
     #[must_use]
-    pub fn wait_timeout(self, dur: Duration) -> Exit {
+    pub fn wait_timeout(
+        self,
+        dur: Duration,
+    ) -> Exit {
         let (condvar, payload) = &*self.0;
         let Ok(exit) = payload.lock() else {
             return Exit::QueuePoisoned;

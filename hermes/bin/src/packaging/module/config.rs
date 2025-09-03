@@ -5,7 +5,7 @@ use std::io::Read;
 use super::super::schema_validation::SchemaValidator;
 
 /// Config schema object.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct ConfigSchema {
     /// config schema JSON object.
     json: serde_json::Map<String, serde_json::Value>,
@@ -14,7 +14,10 @@ pub(crate) struct ConfigSchema {
 }
 
 impl PartialEq for ConfigSchema {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.json.eq(&other.json)
     }
 }
@@ -41,7 +44,8 @@ impl ConfigSchema {
 }
 
 /// Config object.
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub(crate) struct Config {
     /// config JSON object.
     json: serde_json::Map<String, serde_json::Value>,
@@ -50,7 +54,8 @@ pub(crate) struct Config {
 impl Config {
     /// Create `Config` from reader.
     pub(crate) fn from_reader(
-        reader: impl Read, validator: &SchemaValidator,
+        reader: impl Read,
+        validator: &SchemaValidator,
     ) -> anyhow::Result<Self> {
         let json = validator.deserialize_and_validate(reader)?;
         Ok(Self { json })

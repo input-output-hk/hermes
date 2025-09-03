@@ -9,6 +9,7 @@ use std::{
     thread::{self},
 };
 
+use anyhow::anyhow;
 pub use exit::{Exit, ExitLock};
 use once_cell::sync::OnceCell;
 
@@ -17,26 +18,6 @@ use crate::{app::ApplicationName, reactor};
 
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
-
-/// Failed to add event into the event queue. Event queue is closed.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Failed to add event into the event queue. Event queue is closed.")]
-pub(crate) struct CannotAddEventError;
-
-/// Failed to shutdown event queue. Event queue is closed.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Failed to shutdown event queue. Event queue is closed.")]
-pub(crate) struct CannotShutdownError;
-
-/// Failed when event queue already been initialized.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Event queue already been initialized.")]
-pub(crate) struct AlreadyInitializedError;
-
-/// Failed when event queue not been initialized.
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("Event queue not been initialized. Call `init` first.")]
-pub(crate) struct NotInitializedError;
 
 /// Hermes event queue.
 /// It is a singleton struct.
@@ -57,7 +38,7 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
-        .map_err(|_| AlreadyInitializedError)?;
+        .map_err(|_| anyhow!("Already Initialized"))?;
 
     let (exit_tx, exit_rx) = ExitLock::new_pair();
     thread::spawn(move || {
@@ -73,12 +54,14 @@ pub(crate) fn init() -> anyhow::Result<ExitLock> {
 /// - `CannotAddEventError`
 /// - `NotInitializedError`
 pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
-    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(NotInitializedError)?;
+    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(anyhow!(
+        "Event queue not been initialized. Call `init` first."
+    ))?;
 
     queue
         .sender
         .send(ControlFlow::Continue(event))
-        .map_err(|_| CannotAddEventError)?;
+        .map_err(|_| anyhow!("Failed to add event into the event queue. Event queue is closed."))?;
 
     Ok(())
 }
@@ -89,18 +72,23 @@ pub(crate) fn send(event: HermesEvent) -> anyhow::Result<()> {
 /// - `CannotShutdownQueueError`
 /// - `NotInitializedError`
 pub(crate) fn shutdown(code: ExitCode) -> anyhow::Result<()> {
-    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(NotInitializedError)?;
+    let queue = EVENT_QUEUE_INSTANCE.get().ok_or(anyhow!(
+        "Event queue not been initialized. Call `init` first."
+    ))?;
 
     queue
         .sender
         .send(ControlFlow::Break(code))
-        .map_err(|_| CannotShutdownError)?;
+        .map_err(|_| anyhow!("Failed to shutdown event queue. Event queue is closed."))?;
 
     Ok(())
 }
 
 /// Executes provided Hermes event filtering by target module.
-fn targeted_module_event_execution(target_app_name: &ApplicationName, event: &HermesEvent) {
+fn targeted_module_event_execution(
+    target_app_name: &ApplicationName,
+    event: &HermesEvent,
+) {
     let Ok(app) = reactor::get_app(target_app_name) else {
         tracing::error!("Cannot get app {target_app_name} from reactor");
         return;

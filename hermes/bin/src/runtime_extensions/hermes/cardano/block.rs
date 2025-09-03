@@ -5,7 +5,9 @@ use cardano_chain_follower::{ChainFollower, Kind};
 
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
-    network: Network, start: Option<u64>, step: i64,
+    network: Network,
+    start: Option<u64>,
+    step: i64,
 ) -> anyhow::Result<MultiEraBlock> {
     let handle = std::thread::spawn(move || -> anyhow::Result<MultiEraBlock> {
         let point = if let Some(start_point) = start {
@@ -39,7 +41,10 @@ pub(crate) fn get_block_relative(
 }
 
 /// Calculate point from start and step
-fn calculate_point_from_step(start: u64, step: i64) -> anyhow::Result<Point> {
+fn calculate_point_from_step(
+    start: u64,
+    step: i64,
+) -> anyhow::Result<Point> {
     let target = if step.is_negative() {
         start
             .checked_sub(step.unsigned_abs())
@@ -76,7 +81,10 @@ pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
 }
 
 /// Checks if the block at the given slot is a rollback block or not.
-pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<Option<bool>> {
+pub(crate) fn get_is_rollback(
+    network: Network,
+    slot: Slot,
+) -> anyhow::Result<Option<bool>> {
     let handle = std::thread::spawn(move || -> anyhow::Result<Option<bool>> {
         let rt = match tokio::runtime::Builder::new_current_thread()
             .enable_time()
@@ -104,7 +112,7 @@ pub(crate) fn get_is_rollback(network: Network, slot: Slot) -> anyhow::Result<Op
         .map_err(|e| anyhow::anyhow!("Thread panicked while getting block rollback: {e:?}"))?
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use anyhow::Result;
 

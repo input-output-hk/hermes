@@ -4,8 +4,14 @@ use crate::logger::LogLevel;
 /// Log a message
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn log_message(
-    level: LogLevel, ctx: Option<String>, msg: &str, file: Option<String>,
-    function: Option<String>, line: Option<u32>, col: Option<u32>, data: Option<String>,
+    level: LogLevel,
+    ctx: Option<String>,
+    msg: &str,
+    file: Option<String>,
+    function: Option<String>,
+    line: Option<u32>,
+    col: Option<u32>,
+    data: Option<String>,
 ) {
     tracing::info!(
         level = level.to_string(),
@@ -19,7 +25,7 @@ pub(crate) fn log_message(
     );
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_log_msg {
     use super::*;
     use crate::{

@@ -1,0 +1,11 @@
+{
+    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+    "icon": "icon.svg",
+    "metadata": "metadata.json",
+    "modules": [
+        {
+            "package": "modules/http-proxy/lib/http_proxy.hmod",
+            "name": "http_proxy"
+        }
+    ]
+}

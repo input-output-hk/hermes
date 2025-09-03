@@ -47,7 +47,10 @@ pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
 /// ## Errors
 ///
 /// Returns errors if IPFS node fails to start.
-pub fn bootstrap(base_dir: &Path, default_bootstrap: bool) -> anyhow::Result<()> {
+pub fn bootstrap(
+    base_dir: &Path,
+    default_bootstrap: bool,
+) -> anyhow::Result<()> {
     let ipfs_data_path = base_dir.join("ipfs");
     if !ipfs_data_path.exists() {
         tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
@@ -76,7 +79,10 @@ pub(crate) struct HermesIpfsNode {
 
 impl HermesIpfsNode {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
-    pub(crate) fn init(builder: IpfsBuilder, default_bootstrap: bool) -> anyhow::Result<Self> {
+    pub(crate) fn init(
+        builder: IpfsBuilder,
+        default_bootstrap: bool,
+    ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
         let _handle = std::thread::spawn(move || {
@@ -115,7 +121,10 @@ impl HermesIpfsNode {
     ///
     /// ## Errors
     /// - `Errno::FileAddError`: Failed to add the content
-    fn file_add(&self, contents: IpfsFile) -> Result<hermes_ipfs::IpfsPath, Errno> {
+    fn file_add(
+        &self,
+        contents: IpfsFile,
+    ) -> Result<hermes_ipfs::IpfsPath, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -138,7 +147,10 @@ impl HermesIpfsNode {
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FileGetError`: Failed to get the file
-    pub(crate) fn file_get(&self, ipfs_path: &IpfsPath) -> Result<IpfsFile, Errno> {
+    pub(crate) fn file_get(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<IpfsFile, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
@@ -158,7 +170,10 @@ impl HermesIpfsNode {
     /// - `Errno::InvalidCid`: Invalid CID
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FilePinError`: Failed to pin the file
-    fn file_pin(&self, ipfs_path: &IpfsPath) -> Result<bool, Errno> {
+    fn file_pin(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<bool, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -179,7 +194,10 @@ impl HermesIpfsNode {
     /// - `Errno::InvalidCid`: Invalid CID
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FilePinError`: Failed to pin the file
-    fn file_unpin(&self, ipfs_path: &IpfsPath) -> Result<bool, Errno> {
+    fn file_unpin(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<bool, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -192,7 +210,11 @@ impl HermesIpfsNode {
     }
 
     /// Put DHT Key-Value
-    fn dht_put(&self, key: DhtKey, value: DhtValue) -> Result<bool, Errno> {
+    fn dht_put(
+        &self,
+        key: DhtKey,
+        value: DhtValue,
+    ) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -203,7 +225,10 @@ impl HermesIpfsNode {
     }
 
     /// Get DHT Value by Key
-    fn dht_get(&self, key: DhtKey) -> Result<DhtValue, Errno> {
+    fn dht_get(
+        &self,
+        key: DhtKey,
+    ) -> Result<DhtValue, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -215,7 +240,9 @@ impl HermesIpfsNode {
 
     /// Publish message to a `PubSub` topic
     fn pubsub_publish(
-        &self, topic: PubsubTopic, message: MessageData,
+        &self,
+        topic: PubsubTopic,
+        message: MessageData,
     ) -> Result<PubsubMessageId, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
@@ -229,7 +256,10 @@ impl HermesIpfsNode {
     }
 
     /// Subscribe to a `PubSub` topic
-    fn pubsub_subscribe(&self, topic: &PubsubTopic) -> Result<JoinHandle<()>, Errno> {
+    fn pubsub_subscribe(
+        &self,
+        topic: &PubsubTopic,
+    ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -242,7 +272,10 @@ impl HermesIpfsNode {
     }
 
     /// Evict peer
-    fn peer_evict(&self, peer: &PeerId) -> Result<bool, Errno> {
+    fn peer_evict(
+        &self,
+        peer: &PeerId,
+    ) -> Result<bool, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -291,7 +324,11 @@ impl AppIpfsState {
     }
 
     /// Keep track of `ipfs_path` of file pinned by an app.
-    fn pinned_file(&self, app_name: ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+    fn pinned_file(
+        &self,
+        app_name: ApplicationName,
+        ipfs_path: &IpfsPath,
+    ) -> Result<(), Errno> {
         let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         self.pinned_files
@@ -303,7 +340,11 @@ impl AppIpfsState {
     }
 
     /// Un-pin a file with `ipfs_path` pinned by an app.
-    fn unpinned_file(&self, app_name: &ApplicationName, ipfs_path: &IpfsPath) -> Result<(), Errno> {
+    fn unpinned_file(
+        &self,
+        app_name: &ApplicationName,
+        ipfs_path: &IpfsPath,
+    ) -> Result<(), Errno> {
         let ipfs_path: BaseIpfsPath = ipfs_path.parse().map_err(|_| Errno::InvalidIpfsPath)?;
         let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         self.pinned_files
@@ -315,16 +356,22 @@ impl AppIpfsState {
         Ok(())
     }
 
-    #[allow(dead_code)]
     /// List of pinned files by an app.
-    pub(crate) fn list_pinned_files(&self, app_name: &ApplicationName) -> Vec<String> {
+    pub(crate) fn list_pinned_files(
+        &self,
+        app_name: &ApplicationName,
+    ) -> Vec<String> {
         self.pinned_files.get(app_name).map_or(vec![], |cids| {
             cids.iter().map(std::string::ToString::to_string).collect()
         })
     }
 
     /// Keep track of `dht_key` of DHT value added by an app.
-    fn added_dht_key(&self, app_name: ApplicationName, dht_key: DhtKey) {
+    fn added_dht_key(
+        &self,
+        app_name: ApplicationName,
+        dht_key: DhtKey,
+    ) {
         self.dht_keys
             .entry(app_name)
             .or_default()
@@ -333,7 +380,11 @@ impl AppIpfsState {
     }
 
     /// Keep track of `topic` subscription added by an app.
-    fn added_app_topic_subscription(&self, app_name: ApplicationName, topic: PubsubTopic) {
+    fn added_app_topic_subscription(
+        &self,
+        app_name: ApplicationName,
+        topic: PubsubTopic,
+    ) {
         self.topic_subscriptions
             .entry(topic)
             .or_default()
@@ -342,24 +393,38 @@ impl AppIpfsState {
     }
 
     /// Keep track of `topic` stream handle.
-    fn added_topic_stream(&self, topic: PubsubTopic, handle: JoinHandle<()>) {
+    fn added_topic_stream(
+        &self,
+        topic: PubsubTopic,
+        handle: JoinHandle<()>,
+    ) {
         self.subscriptions_streams.entry(topic).insert(handle);
     }
 
     /// Check if a topic subscription already exists.
-    fn topic_subscriptions_contains(&self, topic: &PubsubTopic) -> bool {
+    fn topic_subscriptions_contains(
+        &self,
+        topic: &PubsubTopic,
+    ) -> bool {
         self.topic_subscriptions.contains_key(topic)
     }
 
     /// Returns a list of apps subscribed to a topic.
-    fn subscribed_apps(&self, topic: &PubsubTopic) -> Vec<ApplicationName> {
+    fn subscribed_apps(
+        &self,
+        topic: &PubsubTopic,
+    ) -> Vec<ApplicationName> {
         self.topic_subscriptions
             .get(topic)
             .map_or(vec![], |apps| apps.value().iter().cloned().collect())
     }
 
     /// Add `peer_id` of evicted peer by an app.
-    fn evicted_peer(&self, app_name: ApplicationName, peer_id: PeerId) {
+    fn evicted_peer(
+        &self,
+        app_name: ApplicationName,
+        peer_id: PeerId,
+    ) {
         self.evicted_peers
             .entry(app_name)
             .or_default()
@@ -369,13 +434,19 @@ impl AppIpfsState {
 }
 
 /// Checks for `DhtKey`, and `DhtValue` validity.
-fn is_valid_dht_content(_key: &DhtKey, value: &DhtValue) -> bool {
+fn is_valid_dht_content(
+    _key: &DhtKey,
+    value: &DhtValue,
+) -> bool {
     // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !value.is_empty()
 }
 
 /// Checks for `PubsubTopic`, and `MessageData` validity.
-fn is_valid_pubsub_content(_topic: &PubsubTopic, message: &MessageData) -> bool {
+fn is_valid_pubsub_content(
+    _topic: &PubsubTopic,
+    message: &MessageData,
+) -> bool {
     // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !message.is_empty()
 }

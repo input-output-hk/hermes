@@ -52,7 +52,10 @@ impl bindings::exports::hermes::cardano::event_on_immutable_roll_forward::Guest 
 }
 
 impl bindings::exports::hermes::cron::event::Guest for HttpRequestApp {
-    fn on_cron(_event: CronTagged, _last: bool) -> bool {
+    fn on_cron(
+        _event: CronTagged,
+        _last: bool,
+    ) -> bool {
         false
     }
 }
@@ -115,7 +118,10 @@ fn make_body(host_uri: &str) -> Vec<u8> {
     request_body.into_bytes()
 }
 
-fn assert_eq<T: PartialEq + std::fmt::Debug>(left: T, right: T) {
+fn assert_eq<T: PartialEq + std::fmt::Debug>(
+    left: T,
+    right: T,
+) {
     if left != right {
         test_log(&format!("{left:?} != {right:?}"));
         bindings::hermes::init::api::done(1);
@@ -123,7 +129,10 @@ fn assert_eq<T: PartialEq + std::fmt::Debug>(left: T, right: T) {
 }
 
 impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
-    fn on_http_response(request_id: Option<u64>, response: Vec<u8>) {
+    fn on_http_response(
+        request_id: Option<u64>,
+        response: Vec<u8>,
+    ) {
         test_log(&format!(
             "got response with request_id={request_id:?}: {}",
             String::from_utf8(response.clone()).expect("should be valid UTF-8"),
@@ -135,29 +144,42 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
 
 impl bindings::exports::hermes::http_gateway::event::Guest for HttpRequestApp {
     fn reply(
-        _body: Bstr, _headers: Headers, _path: String, _method: String,
+        _body: Bstr,
+        _headers: Headers,
+        _path: String,
+        _method: String,
     ) -> Option<HttpGatewayResponse> {
         None
     }
 }
 
 impl bindings::exports::hermes::kv_store::event::Guest for HttpRequestApp {
-    fn kv_update(_key: String, _value: bindings::exports::hermes::kv_store::event::KvValues) {}
+    fn kv_update(
+        _key: String,
+        _value: bindings::exports::hermes::kv_store::event::KvValues,
+    ) {
+    }
 }
 
 impl bindings::exports::wasi::http::incoming_handler::Guest for HttpRequestApp {
-    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
+    fn handle(
+        _request: IncomingRequest,
+        _response_out: ResponseOutparam,
+    ) {
+    }
 }
 
 impl bindings::exports::hermes::integration_test::event::Guest for HttpRequestApp {
     fn test(
-        _test: u32, _run: bool,
+        _test: u32,
+        _run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }
 
     fn bench(
-        _test: u32, _run: bool,
+        _test: u32,
+        _run: bool,
     ) -> Option<bindings::exports::hermes::integration_test::event::TestResult> {
         None
     }

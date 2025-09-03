@@ -13,7 +13,6 @@ use crate::runtime_extensions::bindings::hermes::logging;
 
 /// All valid logging levels.
 #[derive(Clone, Copy, Display, Default)]
-#[allow(dead_code)]
 pub(crate) enum LogLevel {
     /// Errors
     #[display("Error")]
@@ -37,10 +36,10 @@ impl FromStr for LogLevel {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Error and Warn levels are force to Info level
-        // as Info is the highest log level one can choose.
         match s {
-            "error" | "warn" | "info" => Ok(LogLevel::Info),
+            "error" => Ok(LogLevel::Error),
+            "warn" => Ok(LogLevel::Warn),
+            "info" => Ok(LogLevel::Info),
             "debug" => Ok(LogLevel::Debug),
             "trace" => Ok(LogLevel::Trace),
             _ => Err(anyhow::anyhow!("Invalid log level string: {}", s)),
@@ -53,9 +52,9 @@ impl From<logging::api::Level> for LogLevel {
         // Error and Warn levels are force to Info level
         // as Info is the highest log level one can choose.
         match level {
-            logging::api::Level::Info | logging::api::Level::Warn | logging::api::Level::Error => {
-                LogLevel::Info
-            },
+            logging::api::Level::Info => LogLevel::Info,
+            logging::api::Level::Warn => LogLevel::Warn,
+            logging::api::Level::Error => LogLevel::Error,
             logging::api::Level::Debug => LogLevel::Debug,
             logging::api::Level::Trace => LogLevel::Trace,
         }
@@ -101,7 +100,6 @@ pub(crate) struct LoggerConfigBuilder {
     with_line_num: Option<bool>,
 }
 
-#[allow(dead_code)]
 impl LoggerConfigBuilder {
     /// Build the logger configuration.
     pub(crate) fn build(self) -> LoggerConfig {
@@ -114,25 +112,37 @@ impl LoggerConfigBuilder {
     }
 
     /// Set log level.
-    pub(crate) fn log_level(mut self, level: LogLevel) -> Self {
+    pub(crate) fn log_level(
+        mut self,
+        level: LogLevel,
+    ) -> Self {
         self.log_level = Some(level);
         self
     }
 
     /// Enable/disable thread logging.
-    pub(crate) fn with_thread(mut self, enable: bool) -> Self {
+    pub(crate) fn with_thread(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_thread = Some(enable);
         self
     }
 
     /// Enable/disable file logging.
-    pub(crate) fn with_file(mut self, enable: bool) -> Self {
+    pub(crate) fn with_file(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_file = Some(enable);
         self
     }
 
     /// Enable/disable line number logging.
-    pub(crate) fn with_line_num(mut self, enable: bool) -> Self {
+    pub(crate) fn with_line_num(
+        mut self,
+        enable: bool,
+    ) -> Self {
         self.with_line_num = Some(enable);
         self
     }

@@ -1,13 +1,13 @@
 //! Hermes runtime context implementation.
 
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use wasmtime::component::HasData;
 
 use crate::{app::ApplicationName, vfs::Vfs, wasm::module::ModuleId};
 
 /// Hermes Runtime Context. This is passed to the WASM runtime.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct HermesRuntimeContext {
     /// Hermes application name
     app_name: ApplicationName,
@@ -25,6 +25,19 @@ pub(crate) struct HermesRuntimeContext {
     vfs: Arc<Vfs>,
 }
 
+impl Display for HermesRuntimeContext {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{}:{}[{}]",
+            self.app_name, self.module_id, self.event_name, self.exc_counter
+        )
+    }
+}
+
 impl HasData for HermesRuntimeContext {
     type Data<'a> = &'a mut Self;
 }
@@ -32,7 +45,10 @@ impl HasData for HermesRuntimeContext {
 impl HermesRuntimeContext {
     /// Creates a new instance of the `Context`.
     pub(crate) fn new(
-        app_name: ApplicationName, module_id: ModuleId, event_name: String, exc_counter: u32,
+        app_name: ApplicationName,
+        module_id: ModuleId,
+        event_name: String,
+        exc_counter: u32,
         vfs: Arc<Vfs>,
     ) -> Self {
         Self {
@@ -67,7 +83,6 @@ impl HermesRuntimeContext {
     }
 
     /// Get virtual file system
-    #[allow(dead_code)]
     pub(crate) fn vfs(&self) -> &Vfs {
         self.vfs.as_ref()
     }

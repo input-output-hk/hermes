@@ -24,7 +24,7 @@ static BENCH_RESULT_QUEUE: OnceCell<SegQueue<Option<TestResult>>> = OnceCell::ne
 
 /// Represents different types of events.
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum EventType {
     /// Represents a test event.
     Test,
@@ -45,7 +45,10 @@ impl HermesEventPayload for OnTestEvent {
         "test"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let result: Option<TestResult> = module
             .instance
             .hermes_integration_test_event()
@@ -68,7 +71,10 @@ impl HermesEventPayload for OnBenchEvent {
         "bench"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let result: Option<TestResult> = module
             .instance
             .hermes_integration_test_event()
@@ -85,7 +91,10 @@ impl HermesEventPayload for OnBenchEvent {
 /// Fails to execute an event.
 #[allow(dead_code)]
 pub fn execute_event(
-    module: &mut Module, test: u32, run: bool, event_type: EventType,
+    module: &mut Module,
+    test: u32,
+    run: bool,
+    event_type: EventType,
 ) -> anyhow::Result<Option<TestResult>> {
     let app_name = ApplicationName("integration-test".to_owned());
 

@@ -5,6 +5,7 @@ use super::{
     Metadata, ModulePackage, Signature,
 };
 use crate::{
+    app::ApplicationName,
     hdf5::{Dir, File},
     wasm::module::Module,
 };
@@ -24,7 +25,10 @@ pub(crate) struct AppModuleInfo {
 impl AppModuleInfo {
     /// Create a new `AppModuleInfo` instance
     pub(crate) fn new(
-        name: String, package: ModulePackage, app_config: Option<File>, app_share: Option<Dir>,
+        name: String,
+        package: ModulePackage,
+        app_config: Option<File>,
+        app_share: Option<Dir>,
     ) -> Self {
         Self {
             name,
@@ -41,13 +45,19 @@ impl AppModuleInfo {
 
     /// Validate module package with its signature and other contents.
     /// If `untrusted` flag is `true` the signature will not be verified.
-    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
+    pub(crate) fn validate(
+        &self,
+        untrusted: bool,
+    ) -> anyhow::Result<()> {
         self.package.validate(untrusted)
     }
 
     /// Get module's WASM component
-    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.package.get_component()
+    pub(crate) fn get_component(
+        &self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<Module> {
+        self.package.get_component(app_name)
     }
 
     /// Get module's metadata
@@ -106,7 +116,7 @@ impl AppModuleInfo {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::{
         super::{
@@ -117,12 +127,17 @@ mod tests {
     };
 
     impl AppModuleInfo {
-        pub(crate) fn check_module_package_integrity(&self, module_files: &ModulePackageContent) {
+        pub(crate) fn check_module_package_integrity(
+            &self,
+            module_files: &ModulePackageContent,
+        ) {
             check_module_package_integrity(module_files, &self.package);
         }
 
         pub(crate) fn sign(
-            &self, private_key: &PrivateKey, certificate: &Certificate,
+            &self,
+            private_key: &PrivateKey,
+            certificate: &Certificate,
         ) -> anyhow::Result<()> {
             self.package.sign(private_key, certificate)
         }

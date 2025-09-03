@@ -6,7 +6,8 @@ use super::super::{
 };
 
 /// A signature payload object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayload {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
@@ -21,7 +22,8 @@ pub(crate) struct SignaturePayload {
 }
 
 /// A `SignaturePayload` module object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayloadModule {
     /// Name of the WASM module.
     name: String,
@@ -49,7 +51,10 @@ pub(crate) struct SignaturePayloadBuilder {
 
 impl SignaturePayloadBuilder {
     /// Create a new `SignaturePayloadBuilder`.
-    pub(crate) fn new(metadata: Blake2b256, icon: Blake2b256) -> Self {
+    pub(crate) fn new(
+        metadata: Blake2b256,
+        icon: Blake2b256,
+    ) -> Self {
         Self {
             metadata,
             icon,
@@ -60,17 +65,26 @@ impl SignaturePayloadBuilder {
     }
 
     /// Add a new `SignaturePayloadModule` into the list.
-    pub(crate) fn with_module(&mut self, module: SignaturePayloadModule) {
+    pub(crate) fn with_module(
+        &mut self,
+        module: SignaturePayloadModule,
+    ) {
         self.modules.push(module);
     }
 
     /// Set the www directory hash.
-    pub(crate) fn with_www(&mut self, www: Blake2b256) {
+    pub(crate) fn with_www(
+        &mut self,
+        www: Blake2b256,
+    ) {
         self.www = Some(www);
     }
 
     /// Set the share directory hash.
-    pub(crate) fn with_share(&mut self, share: Blake2b256) {
+    pub(crate) fn with_share(
+        &mut self,
+        share: Blake2b256,
+    ) {
         self.share = Some(share);
     }
 
@@ -100,7 +114,10 @@ pub(crate) struct SignaturePayloadModuleBuilder {
 
 impl SignaturePayloadModuleBuilder {
     /// Create a new `SignaturePayloadModuleBuilder`.
-    pub(crate) fn new(name: String, package: Blake2b256) -> Self {
+    pub(crate) fn new(
+        name: String,
+        package: Blake2b256,
+    ) -> Self {
         Self {
             name,
             package,
@@ -110,12 +127,18 @@ impl SignaturePayloadModuleBuilder {
     }
 
     /// Set the config.json file hash.
-    pub(crate) fn with_config(&mut self, config: Blake2b256) {
+    pub(crate) fn with_config(
+        &mut self,
+        config: Blake2b256,
+    ) {
         self.config = Some(config);
     }
 
     /// Set the share directory hash.
-    pub(crate) fn with_share(&mut self, share: Blake2b256) {
+    pub(crate) fn with_share(
+        &mut self,
+        share: Blake2b256,
+    ) {
         self.share = Some(share);
     }
 
@@ -256,7 +279,7 @@ impl SignaturePayloadEncoding for SignaturePayload {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

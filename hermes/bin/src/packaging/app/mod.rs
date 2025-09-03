@@ -4,7 +4,7 @@ mod app_builder;
 mod author_payload;
 mod manifest;
 mod module_info;
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests;
 
 pub(crate) use app_builder::build_app;
@@ -68,7 +68,10 @@ impl ApplicationPackage {
 
     /// Create a new Hermes application package package from a manifest file.
     pub(crate) fn build_from_manifest<P: AsRef<std::path::Path>>(
-        manifest: &Manifest, output_path: P, package_name: Option<&str>, build_date: DateTime<Utc>,
+        manifest: &Manifest,
+        output_path: P,
+        package_name: Option<&str>,
+        build_date: DateTime<Utc>,
     ) -> anyhow::Result<Self> {
         let package_name = package_name.unwrap_or(&manifest.name);
         let mut package_path = output_path.as_ref().join(package_name);
@@ -98,7 +101,10 @@ impl ApplicationPackage {
 
     /// Validate package with its signature and other contents.
     /// If `untrusted` flag is `true` the signature will not be verified.
-    pub(crate) fn validate(&self, untrusted: bool) -> anyhow::Result<()> {
+    pub(crate) fn validate(
+        &self,
+        untrusted: bool,
+    ) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
         self.get_metadata()
@@ -155,7 +161,9 @@ impl ApplicationPackage {
     /// Sign the package as an author and store signature inside it.
     /// If signature already exists it will be extended with a new signature.
     pub(crate) fn author_sign(
-        &self, private_key: &PrivateKey, certificate: &Certificate,
+        &self,
+        private_key: &PrivateKey,
+        certificate: &Certificate,
     ) -> anyhow::Result<()> {
         let mut signature = if let Some(existing_signature) = self.get_author_signature()? {
             self.0.remove_file(Self::AUTHOR_COSE_FILE.into())?;
@@ -263,7 +271,7 @@ impl ApplicationPackage {
 
     /// Get author `Signature` object from package.
     pub(crate) fn get_author_signature(
-        &self,
+        &self
     ) -> anyhow::Result<Option<Signature<author_payload::SignaturePayload>>> {
         self.0
             .get_file(Self::AUTHOR_COSE_FILE.into())
@@ -306,7 +314,10 @@ impl ApplicationPackage {
 
     /// Validate and write all content of the `Manifest` to the provided `package`.
     fn validate_and_write_from_manifest(
-        manifest: &Manifest, package: &Package, build_date: DateTime<Utc>, package_name: &str,
+        manifest: &Manifest,
+        package: &Package,
+        build_date: DateTime<Utc>,
+        package_name: &str,
         errors: &mut Errors,
     ) {
         validate_and_write_icon(&manifest.icon.build(), package, Self::ICON_FILE.into())
@@ -357,7 +368,9 @@ impl ApplicationPackage {
 
 /// Validate icon.svg file and write it to the package to the provided dir path.
 fn validate_and_write_icon(
-    resource: &impl ResourceTrait, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     // Perform validation before copy resource to a file.
     if !is_svg_file(resource, &path)? {
@@ -368,7 +381,10 @@ fn validate_and_write_icon(
 }
 
 /// Validate svg file.
-fn is_svg_file(resource: &impl ResourceTrait, path: &Path) -> anyhow::Result<bool> {
+fn is_svg_file(
+    resource: &impl ResourceTrait,
+    path: &Path,
+) -> anyhow::Result<bool> {
     if !path.to_string().ends_with("svg") {
         return Ok(false);
     }
@@ -393,7 +409,11 @@ fn is_svg_file(resource: &impl ResourceTrait, path: &Path) -> anyhow::Result<boo
 /// Validate metadata.json file and write it to the package to the provided dir path.
 /// Also updates `Metadata` object by setting `build_date` and `name` properties.
 fn validate_and_write_metadata(
-    resource: &impl ResourceTrait, build_date: DateTime<Utc>, name: &str, dir: &Dir, path: Path,
+    resource: &impl ResourceTrait,
+    build_date: DateTime<Utc>,
+    name: &str,
+    dir: &Dir,
+    path: Path,
 ) -> anyhow::Result<()> {
     let metadata_reader = resource.get_reader()?;
 
@@ -409,8 +429,12 @@ fn validate_and_write_metadata(
 
 /// Validate WASM module package and write it to the package to the provided dir path.
 fn validate_and_write_module(
-    manifest: &ManifestModule, dir: &Dir, modules_path: &Path, usr_modules_path: &Path,
-    config_file_name: &str, share_dir_name: &str,
+    manifest: &ManifestModule,
+    dir: &Dir,
+    modules_path: &Path,
+    usr_modules_path: &Path,
+    config_file_name: &str,
+    share_dir_name: &str,
 ) -> anyhow::Result<()> {
     let module_package = ModulePackage::from_file(manifest.package.upload_to_fs())?;
     module_package.validate(true)?;
@@ -448,14 +472,22 @@ fn validate_and_write_module(
 }
 
 /// Write www dir to the package to the provided dir path to the provided dir path.
-fn write_www_dir(resource: &impl ResourceTrait, dir: &Dir, path: Path) -> anyhow::Result<()> {
+fn write_www_dir(
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
+) -> anyhow::Result<()> {
     let www_dir = dir.create_dir(path)?;
     www_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())
 }
 
 /// Write share dir to the package to the provided dir path.
-fn write_share_dir(resource: &impl ResourceTrait, dir: &Dir, path: Path) -> anyhow::Result<()> {
+fn write_share_dir(
+    resource: &impl ResourceTrait,
+    dir: &Dir,
+    path: Path,
+) -> anyhow::Result<()> {
     let share_dir = dir.create_dir(path)?;
     share_dir.copy_resource_dir(resource, &Path::default())?;
     Ok(())

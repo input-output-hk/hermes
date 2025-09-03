@@ -40,7 +40,7 @@ type Body = Vec<u8>;
 // ============================================================================
 
 /// MPSC message types for HTTP event communication
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub(crate) enum HTTPEventMsg {
     /// Receiver acknowledgment
     HTTPEventReceiver,
@@ -71,7 +71,7 @@ pub(crate) struct HTTPEvent {
 // ============================================================================
 
 /// Security configuration for validating internal redirects
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RedirectConfig {
     /// Allowed URL schemes (e.g., "https")
     pub schemes: HashSet<String>,
@@ -114,7 +114,10 @@ impl RedirectConfig {
     }
 
     /// Parse comma-separated environment variable
-    fn parse_env_list(env_var: &str, default: &str) -> HashSet<String> {
+    fn parse_env_list(
+        env_var: &str,
+        default: &str,
+    ) -> HashSet<String> {
         env::var(env_var)
             .unwrap_or_else(|_| default.to_string())
             .split(',')
@@ -128,7 +131,10 @@ impl RedirectConfig {
 // ============================================================================
 
 /// Validates redirect URL against security policies
-fn validate_redirect_location(location: &str, config: &RedirectConfig) -> anyhow::Result<()> {
+fn validate_redirect_location(
+    location: &str,
+    config: &RedirectConfig,
+) -> anyhow::Result<()> {
     let url =
         Url::parse(location).map_err(|_| anyhow::anyhow!("Invalid redirect URL: {}", location))?;
 
@@ -140,7 +146,10 @@ fn validate_redirect_location(location: &str, config: &RedirectConfig) -> anyhow
 }
 
 /// Validates URL scheme against allowed schemes
-fn validate_scheme(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
+fn validate_scheme(
+    url: &Url,
+    config: &RedirectConfig,
+) -> anyhow::Result<()> {
     if !config.schemes.contains(url.scheme()) {
         return Err(anyhow::anyhow!(
             "Redirect scheme '{}' not allowed. Allowed schemes: {:?}",
@@ -152,7 +161,10 @@ fn validate_scheme(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
 }
 
 /// Validates URL host against allowed hosts
-fn validate_host(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
+fn validate_host(
+    url: &Url,
+    config: &RedirectConfig,
+) -> anyhow::Result<()> {
     let host = url
         .host_str()
         .ok_or_else(|| anyhow::anyhow!("No host in redirect URL"))?;
@@ -168,7 +180,10 @@ fn validate_host(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
 }
 
 /// Validates URL path against allowed prefixes
-fn validate_path(url: &Url, config: &RedirectConfig) -> anyhow::Result<()> {
+fn validate_path(
+    url: &Url,
+    config: &RedirectConfig,
+) -> anyhow::Result<()> {
     let path = url.path();
     let path_allowed = config
         .path_prefixes
@@ -194,7 +209,10 @@ impl HermesEventPayload for HTTPEvent {
         "http-event"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let event_response = module.instance.hermes_http_gateway_event().call_reply(
             &mut module.store,
             &self.body.as_ref().to_vec(),
@@ -217,14 +235,22 @@ impl HermesEventPayload for HTTPEvent {
 
 impl HTTPEvent {
     /// Send HTTP response back to client via MPSC channel
-    fn send_http_response(&self, code: Code, headers: HeadersKV, body: Body) -> anyhow::Result<()> {
+    fn send_http_response(
+        &self,
+        code: Code,
+        headers: HeadersKV,
+        body: Body,
+    ) -> anyhow::Result<()> {
         Ok(self
             .sender
             .send(HTTPEventMsg::HttpEventResponse((code, headers, body)))?)
     }
 
     /// Handle internal redirect with security validation
-    fn handle_internal_redirect(&self, location: String) -> anyhow::Result<()> {
+    fn handle_internal_redirect(
+        &self,
+        location: String,
+    ) -> anyhow::Result<()> {
         let config = RedirectConfig::from_env();
 
         if let Err(e) = validate_redirect_location(&location, &config) {
@@ -237,7 +263,10 @@ impl HTTPEvent {
     }
 
     /// Spawn background thread for redirect request
-    fn spawn_redirect_request(&self, location: String) {
+    fn spawn_redirect_request(
+        &self,
+        location: String,
+    ) {
         let headers = self.headers.clone();
         let method = self.method.clone();
         let body = self.body.clone();
@@ -259,7 +288,11 @@ impl HTTPEvent {
 
     /// Build HTTP request for redirect (excludes Host header)
     fn build_request(
-        client: &blocking::Client, location: &str, headers: &HeadersKV, method: &str, body: &Bytes,
+        client: &blocking::Client,
+        location: &str,
+        headers: &HeadersKV,
+        method: &str,
+        body: &Bytes,
     ) -> blocking::RequestBuilder {
         let mut request = client.request(
             request::from_bytes(method.as_bytes()).unwrap_or(request::GET),
@@ -285,7 +318,8 @@ impl HTTPEvent {
 
     /// Process HTTP response and forward to client
     fn process_response(
-        response: blocking::Response, sender: &Sender<HTTPEventMsg>,
+        response: blocking::Response,
+        sender: &Sender<HTTPEventMsg>,
     ) -> anyhow::Result<()> {
         let status_code = response.status().as_u16();
         let headers: HeadersKV = response
@@ -316,7 +350,11 @@ impl HTTPEvent {
     }
 
     /// Send error response to client
-    fn send_error_response(&self, code: Code, message: &str) -> anyhow::Result<()> {
+    fn send_error_response(
+        &self,
+        code: Code,
+        message: &str,
+    ) -> anyhow::Result<()> {
         self.sender.send(HTTPEventMsg::HttpEventResponse((
             code,
             vec![],
@@ -327,7 +365,9 @@ impl HTTPEvent {
 
     /// Helper to send error via sender channel
     fn send_error_via_sender(
-        sender: &Sender<HTTPEventMsg>, code: Code, message: &str,
+        sender: &Sender<HTTPEventMsg>,
+        code: Code,
+        message: &str,
     ) -> anyhow::Result<()> {
         sender.send(HTTPEventMsg::HttpEventResponse((
             code,

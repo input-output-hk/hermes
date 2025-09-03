@@ -39,7 +39,8 @@ where WitType: 'static
     /// Creates a new owned resource from the given object.
     /// Stores a resources link to the original object in the resource manager.
     pub(crate) fn create_resource(
-        &self, object: RustType,
+        &self,
+        object: RustType,
     ) -> wasmtime::component::Resource<WitType> {
         let available_address = self.available_address.load(Ordering::Acquire);
         self.state.insert(available_address, object);
@@ -63,7 +64,8 @@ where WitType: 'static
     /// field of `ApplicationResourceStorage` (so no any `static` variable of this
     /// type will be created), it is fine to add `&mut self` for this method.
     pub(crate) fn get_object<'a>(
-        &'a mut self, resource: &wasmtime::component::Resource<WitType>,
+        &'a mut self,
+        resource: &wasmtime::component::Resource<WitType>,
     ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
         self.state
             .get_mut(&resource.rep())
@@ -75,7 +77,8 @@ where WitType: 'static
     /// function, thats why it is passed by value.
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn delete_resource(
-        &self, resource: wasmtime::component::Resource<WitType>,
+        &self,
+        resource: wasmtime::component::Resource<WitType>,
     ) -> anyhow::Result<RustType> {
         self.delete_resource_rep(resource.rep())
     }
@@ -83,7 +86,10 @@ where WitType: 'static
     /// Removes the resource from the resource manager by its representation.
     /// The resource is properly removed from internal storage.
     /// Returns an error if the resource was not found.
-    pub(crate) fn delete_resource_rep(&self, rep: u32) -> anyhow::Result<RustType> {
+    pub(crate) fn delete_resource_rep(
+        &self,
+        rep: u32,
+    ) -> anyhow::Result<RustType> {
         self.state
             .remove(&rep)
             .map(|(_, v)| v)
@@ -123,7 +129,10 @@ where WitType: 'static
 
     /// Adds new application to the resource manager.
     /// If the application state already exists, do nothing.
-    pub(crate) fn add_app(&self, app_name: ApplicationName) {
+    pub(crate) fn add_app(
+        &self,
+        app_name: ApplicationName,
+    ) {
         if !self.state.contains_key(&app_name) {
             self.state.insert(app_name, ResourceStorage::new());
         }
@@ -137,7 +146,8 @@ where WitType: 'static
     /// **Locking behavior:** May deadlock if called when holding any sort of reference
     /// into the map.
     pub(crate) fn get_app_state<'a>(
-        &'a self, app_name: &ApplicationName,
+        &'a self,
+        app_name: &ApplicationName,
     ) -> anyhow::Result<impl DerefMut<Target = ResourceStorage<WitType, RustType>> + 'a> {
         self.state
             .get_mut(app_name)
@@ -146,7 +156,10 @@ where WitType: 'static
 
     /// Removes application and all associated resources from the resource manager.
     #[allow(dead_code)]
-    pub(crate) fn remove_app(&self, app_name: &ApplicationName) {
+    pub(crate) fn remove_app(
+        &self,
+        app_name: &ApplicationName,
+    ) {
         self.state.remove(app_name);
     }
 
@@ -161,7 +174,7 @@ where WitType: 'static
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

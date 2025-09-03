@@ -24,7 +24,9 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     /// - `mnemonic-phrase` : BIP39 mnemonic.
     /// - `passphrase` : Optional BIP39 passphrase.
     fn new(
-        &mut self, mnemonic: MnemonicPhrase, passphrase: Option<Passphrase>,
+        &mut self,
+        mnemonic: MnemonicPhrase,
+        passphrase: Option<Passphrase>,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
         let passphrase = passphrase.unwrap_or_default();
         // TODO(bkioshn): https://github.com/input-output-hk/hermes/issues/183
@@ -37,7 +39,8 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
 
     /// Get the public key for this private key.
     fn public_key(
-        &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>,
+        &mut self,
+        resource: wasmtime::component::Resource<Bip32Ed25519>,
     ) -> wasmtime::Result<Bip32Ed25519PublicKey> {
         let mut app_state = get_state().get_app_state(self.app_name())?;
         let private_key = app_state.get_object(&resource)?;
@@ -51,7 +54,9 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     ///
     /// - `data` : The data to sign.
     fn sign_data(
-        &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
+        &mut self,
+        resource: wasmtime::component::Resource<Bip32Ed25519>,
+        data: Bstr,
     ) -> wasmtime::Result<Bip32Ed25519Signature> {
         let mut app_state = get_state().get_app_state(self.app_name())?;
         let private_key = app_state.get_object(&resource)?;
@@ -71,7 +76,9 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     /// - `true` : Signature checked OK.
     /// - `false` : Signature check failed.
     fn check_sig(
-        &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, data: Bstr,
+        &mut self,
+        resource: wasmtime::component::Resource<Bip32Ed25519>,
+        data: Bstr,
         sig: Bip32Ed25519Signature,
     ) -> wasmtime::Result<bool> {
         let mut app_state = get_state().get_app_state(self.app_name())?;
@@ -88,7 +95,9 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
     ///
     /// Note: uses BIP32 HD key derivation.
     fn derive(
-        &mut self, resource: wasmtime::component::Resource<Bip32Ed25519>, path: Path,
+        &mut self,
+        resource: wasmtime::component::Resource<Bip32Ed25519>,
+        path: Path,
     ) -> wasmtime::Result<wasmtime::component::Resource<Bip32Ed25519>> {
         let mut app_state = get_state().get_app_state(self.app_name())?;
 
@@ -100,7 +109,10 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         Ok(app_state.create_resource(new_private_key))
     }
 
-    fn drop(&mut self, res: wasmtime::component::Resource<Bip32Ed25519>) -> wasmtime::Result<()> {
+    fn drop(
+        &mut self,
+        res: wasmtime::component::Resource<Bip32Ed25519>,
+    ) -> wasmtime::Result<()> {
         let app_state = get_state().get_app_state(self.app_name())?;
         app_state.delete_resource(res)?;
         Ok(())
@@ -132,7 +144,10 @@ impl Host for HermesRuntimeContext {
     ///     - `word-not-found` : A word in the mnemonic is not found in the word list.
     ///     - `generate-entropy-failed` : Failed to generate entropy.
     fn generate_mnemonic(
-        &mut self, size: u8, prefix: Vec<String>, language: Option<String>,
+        &mut self,
+        size: u8,
+        prefix: Vec<String>,
+        language: Option<String>,
     ) -> wasmtime::Result<Result<Vec<String>, Errno>> {
         Ok(generate_new_mnemonic(size.into(), prefix, language))
     }

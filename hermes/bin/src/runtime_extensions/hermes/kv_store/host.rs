@@ -8,31 +8,54 @@ use crate::{
 impl Host for HermesRuntimeContext {
     /// Set a value in the local key-value store
     /// Setting None will cause the Key to be deleted from the KV store.
-    fn kv_set(&mut self, _key: String, _value: Option<KvValues>) -> wasmtime::Result<()> {
-        todo!()
+    fn kv_set(
+        &mut self,
+        _key: String,
+        _value: Option<KvValues>,
+    ) -> wasmtime::Result<()> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value from the local key-value store
     /// Returns the default if not set.
     fn kv_get_default(
-        &mut self, _key: String, _default: Option<KvValues>,
+        &mut self,
+        _key: String,
+        _default: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value from the local key-value store
     /// Returns None if the Key does not exist in the KV Store.
     /// This is a convenience function, and is equivalent to `kv-get-default(key, none)`
-    fn kv_get(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+    fn kv_get(
+        &mut self,
+        _key: String,
+    ) -> wasmtime::Result<Option<KvValues>> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value, and then set it (Atomic)
     /// Setting None will cause the Key to be deleted from the KV store.
     fn kv_get_set(
-        &mut self, _key: String, _value: Option<KvValues>,
+        &mut self,
+        _key: String,
+        _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Get a value, and then add to it (Atomic)
@@ -52,9 +75,14 @@ impl Host for HermesRuntimeContext {
     /// concatenated
     /// Note: There will be no spaces added.  So "My string" + u32(77) = "My string77"
     fn kv_add(
-        &mut self, _key: String, _value: Option<KvValues>,
+        &mut self,
+        _key: String,
+        _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Check if the Key equals a test value (exact match) and if it does, store the new
@@ -64,23 +92,41 @@ impl Host for HermesRuntimeContext {
     /// equivalent.
     /// For example: `u64(7) != s64(7)`, `f64(-1) != s64(-1)`.
     fn kv_cas(
-        &mut self, _key: String, _test: Option<KvValues>, _value: Option<KvValues>,
+        &mut self,
+        _key: String,
+        _test: Option<KvValues>,
+        _value: Option<KvValues>,
     ) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Subscribe to any updates made to a particular Key.
     /// After this call, this module will receive Key Update events when a key is written.
     /// It returns the current value of the Key and None if it is not set.
-    fn kv_subscribe(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+    fn kv_subscribe(
+        &mut self,
+        _key: String,
+    ) -> wasmtime::Result<Option<KvValues>> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Unsubscribe to any updates made to a particular Key.
     /// After this call, this module will no longer receive Key Update events when a key
     /// is written.
     /// It returns the current value of the Key and None if it is not set.
-    fn kv_unsubscribe(&mut self, _key: String) -> wasmtime::Result<Option<KvValues>> {
-        todo!()
+    fn kv_unsubscribe(
+        &mut self,
+        _key: String,
+    ) -> wasmtime::Result<Option<KvValues>> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

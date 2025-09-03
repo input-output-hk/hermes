@@ -16,16 +16,15 @@ use wasmtime::{
 };
 
 use crate::{
+    app::ApplicationName,
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::{self, LinkOptions},
+    runtime_extensions::{
+        bindings::{self, LinkOptions},
+        init::trait_module::{RteInitModule, RteModule},
+    },
     wasm::engine::Engine,
 };
-
-/// Bad WASM module error
-#[derive(thiserror::Error, Debug)]
-#[error("Bad WASM module:\n {0}")]
-struct BadWASMModuleError(String);
 
 /// Structure defines an abstraction over the WASM module instance.
 /// It holds the state of the WASM module along with its context data.
@@ -39,11 +38,14 @@ pub struct ModuleInstance {
 }
 
 /// Module id type
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ModuleId(pub(crate) Ulid);
 
 impl std::fmt::Display for ModuleId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -81,10 +83,13 @@ impl Module {
     /// # Errors
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
-    pub fn from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn from_bytes(
+        app_name: &ApplicationName,
+        module_bytes: &[u8],
+    ) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
         let mut linker = WasmLinker::new(&engine);
         linker
@@ -95,15 +100,19 @@ impl Module {
             &LinkOptions::default(),
             |state: &mut HermesRuntimeContext| state,
         )
-        .map_err(|e| BadWASMModuleError(e.to_string()))?;
+        .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
+
+        let id = ModuleId(Ulid::generate());
+
+        RteModule::new().init(app_name, &id)?;
 
         Ok(Self {
             pre_instance,
             engine,
-            id: ModuleId(Ulid::generate()),
+            id,
             exc_counter: AtomicU32::new(0),
         })
     }
@@ -114,10 +123,13 @@ impl Module {
     ///  - `BadWASMModuleError`
     ///  - `BadEngineConfigError`
     ///  - `io::Error`
-    pub fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
+    pub fn from_reader(
+        app_name: &ApplicationName,
+        mut reader: impl Read,
+    ) -> anyhow::Result<Self> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes)?;
-        Self::from_bytes(&bytes)
+        Self::from_bytes(app_name, &bytes)
     }
 
     /// Get the module id
@@ -144,12 +156,14 @@ impl Module {
     /// # Errors:
     /// - `BadWASMModuleError`
     pub(crate) fn execute_event(
-        &self, event: &dyn HermesEventPayload, state: HermesRuntimeContext,
+        &self,
+        event: &dyn HermesEventPayload,
+        state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
         let instance = bindings::HermesPre::new(self.pre_instance.clone())?
             .instantiate(&mut store)
-            .map_err(|e| BadWASMModuleError(e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
 
@@ -180,7 +194,10 @@ pub mod bench {
                 "init"
             }
 
-            fn execute(&self, instance: &mut ModuleInstance) -> anyhow::Result<()> {
+            fn execute(
+                &self,
+                instance: &mut ModuleInstance,
+            ) -> anyhow::Result<()> {
                 instance
                     .instance
                     .hermes_init_event()
@@ -189,10 +206,12 @@ pub mod bench {
             }
         }
 
-        let module =
-            Module::from_bytes(include_bytes!("../../../../wasm/stub-module/stub.wasm")).unwrap();
-
         let app_name = ApplicationName("integration-test".to_owned());
+        let module = Module::from_bytes(
+            &app_name,
+            include_bytes!("../../../../wasm/stub-module/stub.wasm"),
+        )
+        .unwrap();
 
         let hermes_home_dir = Cli::hermes_home().unwrap();
 

@@ -6,7 +6,8 @@ use super::super::{
 };
 
 /// A signature payload object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SignaturePayload {
     /// Hash of the metadata JSON file.
     metadata: Blake2b256,
@@ -21,7 +22,8 @@ pub(crate) struct SignaturePayload {
 }
 
 /// A `SignaturePayload` config object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 struct SignaturePayloadConfig {
     /// Hash of the config JSON file.
     file: Option<Blake2b256>,
@@ -30,7 +32,8 @@ struct SignaturePayloadConfig {
 }
 
 /// A `SignaturePayload` settings object.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 struct SignaturePayloadSettings {
     /// Hash of the settings schema JSON file.
     schema: Blake2b256,
@@ -54,7 +57,10 @@ pub(crate) struct SignaturePayloadBuilder {
 
 impl SignaturePayloadBuilder {
     /// Create a new `SignaturePayloadBuilder`.
-    pub(crate) fn new(metadata: Blake2b256, component: Blake2b256) -> Self {
+    pub(crate) fn new(
+        metadata: Blake2b256,
+        component: Blake2b256,
+    ) -> Self {
         Self {
             metadata,
             component,
@@ -66,22 +72,34 @@ impl SignaturePayloadBuilder {
     }
 
     /// Set the config file hash.
-    pub(crate) fn with_config_file(&mut self, file: Blake2b256) {
+    pub(crate) fn with_config_file(
+        &mut self,
+        file: Blake2b256,
+    ) {
         self.config_file = Some(file);
     }
 
     /// Set the config schema hash.
-    pub(crate) fn with_config_schema(&mut self, schema: Blake2b256) {
+    pub(crate) fn with_config_schema(
+        &mut self,
+        schema: Blake2b256,
+    ) {
         self.config_schema = Some(schema);
     }
 
     /// Set the settings schema hash.
-    pub(crate) fn with_settings_schema(&mut self, schema: Blake2b256) {
+    pub(crate) fn with_settings_schema(
+        &mut self,
+        schema: Blake2b256,
+    ) {
         self.settings_schema = Some(schema);
     }
 
     /// Set the share directory hash.
-    pub(crate) fn with_share(&mut self, share: Blake2b256) {
+    pub(crate) fn with_share(
+        &mut self,
+        share: Blake2b256,
+    ) {
         self.share = Some(share);
     }
 
@@ -213,7 +231,7 @@ impl SignaturePayloadEncoding for SignaturePayload {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

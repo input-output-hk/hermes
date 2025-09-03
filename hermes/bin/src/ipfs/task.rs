@@ -49,7 +49,8 @@ pub(crate) enum IpfsCommand {
 
 /// Handle IPFS commands in asynchronous task.
 pub(crate) async fn ipfs_command_handler(
-    hermes_node: HermesIpfs, mut queue_rx: mpsc::Receiver<IpfsCommand>,
+    hermes_node: HermesIpfs,
+    mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
     while let Some(ipfs_command) = queue_rx.recv().await {
         match ipfs_command {
@@ -146,15 +147,22 @@ fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Mess
             crate::event::TargetApp::List(app_names),
             crate::event::TargetModule::All,
         )) {
-            tracing::error!(on_topic_event = ?on_topic_event, "failed to send on_topic_event {err:?}");
+            tracing::error!(
+                on_topic_event = %on_topic_event,
+                err = err.to_string(),
+                "Failed to send on_topic_event.",
+            );
         }
     } else {
-        tracing::error!("failed to send on_topic_event. IPFS is uninitialized");
+        tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
     }
 }
 
 /// Send the response of the IPFS command
-fn send_response<T>(response: T, tx: oneshot::Sender<T>) {
+fn send_response<T>(
+    response: T,
+    tx: oneshot::Sender<T>,
+) {
     if tx.send(response).is_err() {
         tracing::error!("sending IPFS command response should not fail");
     }

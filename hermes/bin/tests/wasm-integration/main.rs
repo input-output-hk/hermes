@@ -19,6 +19,7 @@ const DEFAULT_ENV_N_BENCH: &str = "32";
 use std::{env, error::Error, ffi::OsStr, fs, path::Path, time::Instant};
 
 use hermes::{
+    app::ApplicationName,
     runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
     wasm::module::Module,
 };
@@ -66,7 +67,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Collect all the tests to run from a specified directory
-fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> {
+fn visit_dir(
+    path: &Path,
+    tests: &mut Vec<Trial>,
+) -> Result<(), Box<dyn Error>> {
     let args = Arguments::from_args();
 
     let n_test: u32 = env::var(ENV_N_TEST)
@@ -99,6 +103,8 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
         .filter_map(|(file_type, path)| file_type.is_dir().then_some(path))
         .collect();
 
+    let app_name = ApplicationName::new("WasmIntegrationTests");
+
     // process `.wasm` files
     for file_path in wasm_file_paths {
         let name = file_path.strip_prefix(path)?.display().to_string();
@@ -106,7 +112,7 @@ fn visit_dir(path: &Path, tests: &mut Vec<Trial>) -> Result<(), Box<dyn Error>> 
         // Execute the wasm tests to get their name
         // Load WASM module in the executor.
         let wasm_buf = fs::read(file_path)?;
-        let mut module = Module::from_bytes(&wasm_buf)?;
+        let mut module = Module::from_bytes(&app_name, &wasm_buf)?;
 
         let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
             // Collect the cases in a loop until no more cases.
@@ -171,10 +177,16 @@ fn collect_tests() -> Result<Vec<Trial>, Box<dyn Error>> {
 }
 
 /// Executes a test for a wasm component.
-fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
+fn execute(
+    test_case: u32,
+    path: String,
+    event_type: EventType,
+) -> Result<(), Failed> {
     let wasm_buf = fs::read(path).map_err(|e| format!("Cannot read file: {e}"))?;
 
-    let mut module = Module::from_bytes(&wasm_buf)?;
+    let app_name = ApplicationName::new("WasmUnitTest");
+
+    let mut module = Module::from_bytes(&app_name, &wasm_buf)?;
 
     match execute_event(&mut module, test_case, true, event_type)? {
         Some(result) => {
@@ -189,13 +201,20 @@ fn execute(test_case: u32, path: String, event_type: EventType) -> Result<(), Fa
 }
 
 /// Executes a test for a wasm component.
-fn execute_test(test_case: u32, path: String, event_type: EventType) -> Result<(), Failed> {
+fn execute_test(
+    test_case: u32,
+    path: String,
+    event_type: EventType,
+) -> Result<(), Failed> {
     execute(test_case, path, event_type)
 }
 
 /// Executes a test for a wasm component.
 fn execute_bench(
-    test_mode: bool, test_case: u32, path: String, event_type: EventType,
+    test_mode: bool,
+    test_case: u32,
+    path: String,
+    event_type: EventType,
 ) -> Result<Option<Measurement>, Failed> {
     if test_mode {
         Ok(None)

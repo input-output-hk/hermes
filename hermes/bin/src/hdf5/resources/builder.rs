@@ -9,7 +9,8 @@ use serde::{Deserialize, Deserializer};
 use super::{fs::FsResource, uri::Uri, ResourceTrait};
 
 /// Resource builder definition with the `serde::Deserialize` implementation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) enum ResourceBuilder {
     /// File system resource.
     Fs(PathBuf),
@@ -24,7 +25,10 @@ impl ResourceBuilder {
     }
 
     /// Update current resource to make it relative to the given path.
-    pub(crate) fn make_relative_to<P: AsRef<Path>>(&mut self, to: P) {
+    pub(crate) fn make_relative_to<P: AsRef<Path>>(
+        &mut self,
+        to: P,
+    ) {
         match self {
             Self::Fs(fs) =>
             {
@@ -84,7 +88,7 @@ impl<'de> Deserialize<'de> for ResourceBuilder {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

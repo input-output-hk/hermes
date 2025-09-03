@@ -7,8 +7,18 @@ use super::{
 use crate::errors::Errors;
 
 /// Hermes HDF5 directory object, wrapper of `hdf5::Group`
-#[derive(Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) struct Dir(hdf5::Group);
+
+impl std::fmt::Display for Dir {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", self.path())
+    }
+}
 
 impl Dir {
     /// Create new `Dir`.
@@ -27,7 +37,11 @@ impl Dir {
     }
 
     /// Mount directory from the another HDF5 package to the provided path.
-    pub(crate) fn mount_dir(&self, mounted_dir: &Dir, mut path: Path) -> anyhow::Result<()> {
+    pub(crate) fn mount_dir(
+        &self,
+        mounted_dir: &Dir,
+        mut path: Path,
+    ) -> anyhow::Result<()> {
         let link_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
@@ -43,7 +57,11 @@ impl Dir {
     }
 
     /// Mount file from the another HDF5 package to the provided path.
-    pub(crate) fn mount_file(&self, mounted_file: &File, mut path: Path) -> anyhow::Result<()> {
+    pub(crate) fn mount_file(
+        &self,
+        mounted_file: &File,
+        mut path: Path,
+    ) -> anyhow::Result<()> {
         let link_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
@@ -59,7 +77,10 @@ impl Dir {
     }
 
     /// Create a new empty file in the provided path.
-    pub(crate) fn create_file(&self, mut path: Path) -> anyhow::Result<File> {
+    pub(crate) fn create_file(
+        &self,
+        mut path: Path,
+    ) -> anyhow::Result<File> {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let file = File::create(&dir.0, file_name.as_str())?;
@@ -69,7 +90,9 @@ impl Dir {
 
     /// Copy resource file to the provided path.
     pub(crate) fn copy_resource_file(
-        &self, resource: &impl ResourceTrait, path: Path,
+        &self,
+        resource: &impl ResourceTrait,
+        path: Path,
     ) -> anyhow::Result<()> {
         let mut file = self.create_file(path)?;
         let mut reader = resource.get_reader()?;
@@ -81,7 +104,9 @@ impl Dir {
 
     /// Copy resource dir recursively to the provided path.
     pub(crate) fn copy_resource_dir(
-        &self, resource: &impl ResourceTrait, path: &Path,
+        &self,
+        resource: &impl ResourceTrait,
+        path: &Path,
     ) -> anyhow::Result<()> {
         let dir = self.get_dir(path)?;
 
@@ -103,7 +128,11 @@ impl Dir {
     }
 
     /// Copy other `Dir` recursively content to the current one.
-    pub(crate) fn copy_dir(&self, dir: &Dir, path: &Path) -> anyhow::Result<()> {
+    pub(crate) fn copy_dir(
+        &self,
+        dir: &Dir,
+        path: &Path,
+    ) -> anyhow::Result<()> {
         let resource = Hdf5Resource::Dir(dir.clone());
         self.copy_resource_dir(&resource, path)?;
         Ok(())
@@ -112,7 +141,10 @@ impl Dir {
     /// Create dir recursively from path related to current dir.
     /// If some dir already exists it will be skipped, if some dir does not exist it will
     /// be created.
-    pub(crate) fn create_dir(&self, mut path: Path) -> anyhow::Result<Self> {
+    pub(crate) fn create_dir(
+        &self,
+        mut path: Path,
+    ) -> anyhow::Result<Self> {
         let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         let new_dir = dir
@@ -124,7 +156,10 @@ impl Dir {
     }
 
     /// Remove file by the provided path.
-    pub(crate) fn remove_file(&self, mut path: Path) -> anyhow::Result<()> {
+    pub(crate) fn remove_file(
+        &self,
+        mut path: Path,
+    ) -> anyhow::Result<()> {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
@@ -140,7 +175,10 @@ impl Dir {
     }
 
     /// Remove directory by the provided path.
-    pub(crate) fn remove_dir(&self, mut path: Path) -> anyhow::Result<()> {
+    pub(crate) fn remove_dir(
+        &self,
+        mut path: Path,
+    ) -> anyhow::Result<()> {
         let dir_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
 
@@ -157,7 +195,10 @@ impl Dir {
 
     /// Get file if present from path.
     /// Return error if file does not exist by the provided path.
-    pub(crate) fn get_file(&self, mut path: Path) -> anyhow::Result<File> {
+    pub(crate) fn get_file(
+        &self,
+        mut path: Path,
+    ) -> anyhow::Result<File> {
         let file_name = path.pop_elem();
         let dir = self.get_dir(&path)?;
         dir.0
@@ -168,7 +209,10 @@ impl Dir {
 
     /// Get all files from the provided path.
     /// If path is empty it will return all child files of the current one.
-    pub(crate) fn get_files(&self, path: &Path) -> anyhow::Result<Vec<File>> {
+    pub(crate) fn get_files(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<Vec<File>> {
         let dir = self.get_dir(path)?;
         Ok(dir.0.datasets()?.into_iter().map(File::open).collect())
     }
@@ -176,7 +220,10 @@ impl Dir {
     /// Get dir by the provided path.
     /// Return error if dir does not exist by the provided path.
     /// If path is empty it will return cloned `Dir`.
-    pub(crate) fn get_dir(&self, path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn get_dir(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<Self> {
         let mut dir = self.0.clone();
         for path_element in path.iter() {
             dir = dir
@@ -188,7 +235,10 @@ impl Dir {
 
     /// Get all dirs from the provided path.
     /// If path is empty it will return all child dirs of the current one.
-    pub(crate) fn get_dirs(&self, path: &Path) -> anyhow::Result<Vec<Self>> {
+    pub(crate) fn get_dirs(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<Vec<Self>> {
         let dir = self.get_dir(path)?;
         Ok(dir.0.groups()?.into_iter().map(Self).collect())
     }
@@ -201,7 +251,7 @@ impl Dir {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use std::io::{Read, Write};
 

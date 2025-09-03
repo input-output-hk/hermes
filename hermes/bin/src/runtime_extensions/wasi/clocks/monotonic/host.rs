@@ -26,16 +26,24 @@ impl Host for HermesRuntimeContext {
     ///  Create a `pollable` which will resolve once the specified instant
     ///  has occurred.
     fn subscribe_instant(
-        &mut self, _when: Instant,
+        &mut self,
+        _when: Instant,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
     /// Create a `pollable` that will resolve after the specified duration has
     /// elapsed from the time this function is invoked."]
     fn subscribe_duration(
-        &mut self, _when: Duration,
+        &mut self,
+        _when: Duration,
     ) -> wasmtime::Result<wasmtime::component::Resource<Pollable>> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }

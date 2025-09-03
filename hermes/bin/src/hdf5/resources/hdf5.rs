@@ -11,7 +11,8 @@ use super::{
 };
 
 /// HDF5 resource struct.
-#[derive(Debug, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) enum Hdf5Resource {
     /// HDF5 group.
     Dir(Dir),
@@ -20,10 +21,13 @@ pub(crate) enum Hdf5Resource {
 }
 
 impl Display for Hdf5Resource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         match self {
-            Self::Dir(dir) => dir.fmt(f),
-            Self::File(file) => file.fmt(f),
+            Self::Dir(dir) => write!(f, "Directory: {dir}"),
+            Self::File(file) => write!(f, "File: {file}"),
         }
     }
 }
@@ -69,7 +73,7 @@ impl ResourceTrait for Hdf5Resource {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use temp_dir::TempDir;
 

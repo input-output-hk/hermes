@@ -9,7 +9,8 @@ use crate::runtime_extensions::{
 pub(crate) type Descriptors = ApplicationResourceStorage<filesystem::types::Descriptor, Descriptor>;
 
 /// Represents an open file or directory.
-#[derive(Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) enum Descriptor {
     /// File descriptor.
     File(crate::hdf5::File),

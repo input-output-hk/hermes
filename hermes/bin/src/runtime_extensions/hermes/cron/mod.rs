@@ -18,31 +18,18 @@ mod host;
 mod queue;
 mod state;
 
-/// Advise Runtime Extensions of a new context
-pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {}
-
-/// Cron Error.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// The Cron Queue Task failed to start.
-    #[error("cron queue task failed to start")]
-    CronQueueTaskFailed,
-    /// Invalid timestamp.
-    #[error("invalid timestamp")]
-    InvalidTimestamp,
-}
-
 /// Create a delayed crontab entry.
 pub(crate) fn mkdelay_crontab(
-    duration: Instant, tag: CronEventTag,
+    duration: Instant,
+    tag: CronEventTag,
 ) -> wasmtime::Result<CronJobDelay> {
     // Add the delay to the current time.
     let delayed = Utc::now()
         .checked_add_signed(TimeDelta::nanoseconds(duration.try_into()?))
-        .ok_or(Error::InvalidTimestamp)?;
+        .ok_or(anyhow::anyhow!("Invalid Timestamp"))?;
     let timestamp = delayed
         .timestamp_nanos_opt()
-        .ok_or(Error::InvalidTimestamp)?
+        .ok_or(anyhow::anyhow!("Invalid Timestamp"))?
         .try_into()?;
     let (month, day): (u8, u8) = (delayed.month().try_into()?, delayed.day().try_into()?);
     let (hour, minute): (u8, u8) = (delayed.hour().try_into()?, delayed.minute().try_into()?);
@@ -65,7 +52,11 @@ pub(crate) fn mkdelay_crontab(
 
 /// Convert `CronTime` arguments to a `CronSched`.
 pub(crate) fn mkcron_impl(
-    dow: &CronTime, month: &CronTime, day: &CronTime, hour: &CronTime, minute: &CronTime,
+    dow: &CronTime,
+    month: &CronTime,
+    day: &CronTime,
+    hour: &CronTime,
+    minute: &CronTime,
 ) -> CronSched {
     let dow_schedule: CronSched = cron_time_to_cron_sched_dow(dow);
     let month_schedule: CronSched = cron_time_to_cron_sched_month(month);
@@ -88,7 +79,11 @@ pub(crate) fn mkcron_impl(
 /// If the `CronTime` contains overlapping components, it merges them.
 ///
 /// Returns `CronSched`
-fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> CronSched {
+fn cron_time_to_cron_sched(
+    cron_time: &CronTime,
+    min_val: u8,
+    max_val: u8,
+) -> CronSched {
     // If vec has no components or if it includes `CronComponent::All`, skip processing and
     // return "*"
     let cron_sched: CronSched = if cron_time.is_empty() {
@@ -113,7 +108,11 @@ fn cron_time_to_cron_sched(cron_time: &CronTime, min_val: u8, max_val: u8) -> Cr
 /// Clamp values within the specified `min_val..=max_val` range
 ///
 /// Returns `CronTime`
-fn clamp_cron_time_values(cron_time: &[CronComponent], min_val: u8, max_val: u8) -> CronTime {
+fn clamp_cron_time_values(
+    cron_time: &[CronComponent],
+    min_val: u8,
+    max_val: u8,
+) -> CronTime {
     cron_time
         .iter()
         .fold(BTreeSet::new(), |mut out, cron_component| {
@@ -206,9 +205,17 @@ impl CronComponent {
     const MIN_MONTH: u8 = 1;
 
     /// Clamp inner values within the given range values. Returns `CronComponent`.
-    fn clamp_inner(self, first: u8, last: u8) -> Self {
+    fn clamp_inner(
+        self,
+        first: u8,
+        last: u8,
+    ) -> Self {
         /// Implement clamping inner values within the given range values.
-        fn clamp_val(val: u8, min_limit: u8, max_limit: u8) -> u8 {
+        fn clamp_val(
+            val: u8,
+            min_limit: u8,
+            max_limit: u8,
+        ) -> u8 {
             min(max(val, min_limit), max_limit)
         }
 
@@ -237,7 +244,10 @@ impl CronComponent {
     ///
     /// This method makes no checks to determine if the values are within
     /// any limit.
-    fn merge(self, other: CronComponent) -> Option<Self> {
+    fn merge(
+        self,
+        other: CronComponent,
+    ) -> Option<Self> {
         match self {
             Self::All => Some(self),
             Self::At(when) => {
@@ -266,7 +276,10 @@ impl CronComponent {
 }
 
 impl Display for CronComponent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
         match self {
             Self::All => write!(f, "{}", Self::ALL_STR),
             Self::At(val) => write!(f, "{val}"),
@@ -276,7 +289,10 @@ impl Display for CronComponent {
 }
 
 impl PartialEq for CronComponent {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         match self {
             Self::All => matches!(other, Self::All),
             Self::At(when) => {
@@ -298,7 +314,10 @@ impl PartialEq for CronComponent {
 }
 
 impl PartialOrd for CronComponent {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(
+        &self,
+        other: &Self,
+    ) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
@@ -312,7 +331,10 @@ impl Eq for CronComponent {}
 /// - `Range`
 /// - `At`
 impl Ord for CronComponent {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(
+        &self,
+        other: &Self,
+    ) -> std::cmp::Ordering {
         match self {
             Self::All => {
                 match other {
@@ -337,7 +359,7 @@ impl Ord for CronComponent {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
     use crate::app::ApplicationName;

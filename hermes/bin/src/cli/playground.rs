@@ -13,7 +13,11 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::Application, event::queue::Exit, ipfs, reactor, vfs::VfsBootstrapper, wasm::module::Module,
+    app::{Application, ApplicationName},
+    event::queue::Exit,
+    ipfs, reactor,
+    vfs::VfsBootstrapper,
+    wasm::module::Module,
 };
 
 /// Hermes application playground
@@ -27,7 +31,8 @@ use crate::{
 /// components.
 ///
 /// If an internal error occurred returns 101.
-#[derive(Debug, clap::Args)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(clap::Args)]
 pub struct Playground {
     /// Wasm components to load as apps in this example.
     components: Vec<PathBuf>,
@@ -93,7 +98,8 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
         let wasm_buf = fs::read(file_path)?;
-        let module = Module::from_bytes(&wasm_buf)?;
+        let app_name = ApplicationName::new(&name);
+        let module = Module::from_bytes(&app_name, &wasm_buf)?;
         modules.push((name, module));
     }
 
@@ -102,7 +108,9 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
 
 /// Create one-module application with temp directory VFS.
 fn create_one_module_app(
-    name: String, vfs_dir_path: &Path, module: Module,
+    name: String,
+    vfs_dir_path: &Path,
+    module: Module,
 ) -> anyhow::Result<Application> {
     let vfs_name = [name.as_str(), "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
@@ -112,7 +120,10 @@ fn create_one_module_app(
 }
 
 /// Create a temp subdirectory.
-fn create_temp_dir_child(temp_dir: &TempDir, child_path: &Path) -> anyhow::Result<PathBuf> {
+fn create_temp_dir_child(
+    temp_dir: &TempDir,
+    child_path: &Path,
+) -> anyhow::Result<PathBuf> {
     let child_absolute_path = temp_dir.path().join(child_path);
     fs::create_dir_all(child_absolute_path.as_path())?;
     Ok(child_absolute_path)
@@ -120,7 +131,10 @@ fn create_temp_dir_child(temp_dir: &TempDir, child_path: &Path) -> anyhow::Resul
 
 /// Collects `.wasm` files in the current directory or sub-directories of the current
 /// directory. Then creates one-module applications out of each of them.
-fn collect_apps(components: &[PathBuf], temp_dir: &TempDir) -> anyhow::Result<Vec<Application>> {
+fn collect_apps(
+    components: &[PathBuf],
+    temp_dir: &TempDir,
+) -> anyhow::Result<Vec<Application>> {
     let modules = collect_modules(components)?;
     let mut apps = Vec::with_capacity(modules.len());
     for (module_name, module) in modules {

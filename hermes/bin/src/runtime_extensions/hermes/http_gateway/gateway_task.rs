@@ -1,18 +1,16 @@
 //! HTTP Gateway task
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{net::SocketAddr, sync::Arc};
 
+use dashmap::DashMap;
 use hyper::{self, service::service_fn};
 use hyper_util::{
     rt::{TokioExecutor, TokioIo},
     server::conn::auto::Builder,
 };
 use tokio::net::TcpListener;
-use tracing::{error, info};
+#[allow(unused_imports, reason = "`debug` used in debug builds.")]
+use tracing::{debug, error, info};
 
 use super::routing::router;
 
@@ -20,11 +18,13 @@ use super::routing::router;
 const GATEWAY_PORT: u16 = 5000;
 
 /// hostname (node name)
-#[derive(Debug, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) struct Hostname(pub String);
 
 /// Config for gateway setup
-#[derive(Debug, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) struct Config {
     /// Valid host names
     pub(crate) valid_hosts: Vec<Hostname>,
@@ -48,37 +48,70 @@ impl Default for Config {
 }
 
 /// Unique identifier for incoming request
-#[derive(Eq, Hash, PartialEq, Clone, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Eq, Hash, PartialEq, Clone)]
 pub(crate) struct EventUID(pub String);
 
 /// Incoming request client IP
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) struct ClientIPAddr(pub SocketAddr);
 
 /// Has the event been processed
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) struct Processed(pub bool);
 
 /// Is the connection still live
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) struct LiveConnection(pub bool);
 
+/// Information about an individual client connection.
+type ClientConnectionInfo = (ClientIPAddr, Processed, LiveConnection);
+
 /// Manages and tracks client connections
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone)]
 pub(crate) struct ConnectionManager {
     /// Connection metadata
-    connection_context: Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>>,
+    connection_context: Arc<DashMap<EventUID, ClientConnectionInfo>>,
+}
+
+impl std::fmt::Display for ConnectionManager {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(
+            f,
+            "{} Concurrent Connections to the ConnectionManager.",
+            self.connection_context.len()
+        )
+    }
 }
 
 impl ConnectionManager {
-    /// Get connection context
-    pub fn get_connection_manager_context(
+    /// Create a new Connection Manager.
+    pub(crate) fn new() -> Self {
+        Self {
+            connection_context: Arc::new(DashMap::new()),
+        }
+    }
+
+    /// Insert into the Connection Manager.
+    pub(crate) fn insert(
         &self,
-    ) -> &Mutex<HashMap<EventUID, (ClientIPAddr, Processed, LiveConnection)>> {
-        &self.connection_context
+        key: EventUID,
+        value: ClientConnectionInfo,
+    ) -> Option<ClientConnectionInfo> {
+        let result = self.connection_context.insert(key, value);
+        #[cfg(debug_assertions)]
+        debug!(result=?result, connection_context = ?self.connection_context, "Connection Manager Inserted.");
+        result
     }
 }
 
@@ -93,9 +126,7 @@ pub(crate) fn spawn() {
 fn executor() {
     let config = Config::default();
 
-    let connection_manager = Arc::new(ConnectionManager {
-        connection_context: Mutex::new(HashMap::new()),
-    });
+    let connection_manager = ConnectionManager::new();
 
     let res = tokio::runtime::Builder::new_current_thread()
         .enable_io()

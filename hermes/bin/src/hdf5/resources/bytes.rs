@@ -8,7 +8,7 @@ use std::{
 use super::ResourceTrait;
 
 /// Raw bytes resource struct.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct BytesResource {
     /// name of the resource
     name: String,
@@ -17,14 +17,20 @@ pub(crate) struct BytesResource {
 }
 
 impl Display for BytesResource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
 impl BytesResource {
     /// Create a new `BytesResource` instance.
-    pub(crate) fn new(name: String, data: Vec<u8>) -> Self {
+    pub(crate) fn new(
+        name: String,
+        data: Vec<u8>,
+    ) -> Self {
         Self { name, data }
     }
 }

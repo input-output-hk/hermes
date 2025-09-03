@@ -1,10 +1,7 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc,
-    },
+    sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
 
@@ -16,7 +13,8 @@ use hyper::{
     HeaderMap, Request, Response, StatusCode,
 };
 use regex::Regex;
-use tracing::info;
+#[allow(unused_imports, reason = "`debug` used only in debug builds.")]
+use tracing::{debug, info};
 
 use super::{
     event::{HTTPEvent, HTTPEventMsg, HeadersKV},
@@ -40,7 +38,7 @@ const VALID_PATH: &str = r"^((/[a-zA-Z0-9-_]+)+|/)$";
 const EVENT_TIMEOUT: u64 = 1;
 
 /// hostname (node name)
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Hostname(pub String);
 
 /// HTTP error response generator
@@ -79,21 +77,20 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
 /// Routing by hostname is a mechanism for isolating API services by giving each API its
 /// own hostname; for example, service-a.api.example.com or service-a.example.com.
 pub(crate) async fn router(
-    req: Request<Incoming>, connection_manager: Arc<ConnectionManager>, ip: SocketAddr,
+    req: Request<Incoming>,
+    connection_manager: ConnectionManager,
+    ip: SocketAddr,
     config: Config,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
 
-    connection_manager
-        .get_connection_manager_context()
-        .try_lock()
-        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
-        .insert(
-            unique_request_id.clone(),
-            (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
-        );
+    connection_manager.insert(
+        unique_request_id.clone(),
+        (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
+    );
 
-    info!("connection manager {:?}", connection_manager);
+    #[cfg(debug_assertions)]
+    debug!("connection manager {:?}", connection_manager);
 
     let (app_name, resolved_host) = host_resolver(req.headers())?;
 
@@ -107,36 +104,53 @@ pub(crate) async fn router(
         return Ok(error_response("Hostname not valid".to_owned())?);
     };
 
-    connection_manager
-        .get_connection_manager_context()
-        .try_lock()
-        .map_err(|_| anyhow::anyhow!("Unable to obtain mutex lock"))?
-        .insert(
-            unique_request_id,
-            (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
-        );
-
-    info!(
-        "connection manager {:?} app {:?}",
-        connection_manager, app_name
+    connection_manager.insert(
+        unique_request_id,
+        (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
     );
+
+    #[cfg(debug_assertions)]
+    debug!("connection manager {connection_manager} app {app_name}");
 
     Ok(response)
 }
 
-/// Route single request to hermes backend
+/// Routes HTTP requests to WASM modules or static file handlers
+///
+/// Converts incoming HTTP requests into structured events for WASM processing,
+/// preserving full URLs including query parameters for accurate forwarding.
+///
+/// ## Routing
+/// - `/api/*` → WASM modules via event queue
+/// - Valid paths → Static file system
+/// - Invalid paths → HTTP 404
+///
+/// ## Key Features
+/// - Preserves query parameters (e.g., `?asat=SLOT:95022059`)
+/// - Multi-value header support
+/// - Async request/response via MPSC channels
 async fn route_to_hermes(
-    req: Request<Incoming>, app_name: ApplicationName,
+    req: Request<Incoming>,
+    app_name: ApplicationName,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
+    // Create synchronous MPSC channel for receiving WASM module responses
+    // Used in request-response pattern: HTTP request → global event queue → WASM modules →
+    // response channel TODO: Replace with oneshot channel since we only expect one
+    // response per HTTP request
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
     let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
-    let path = req.uri().path().to_string();
 
+    // Include query parameters in path (crucial for redirects)
+    let path = uri
+        .path_and_query()
+        .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str)
+        .to_string();
+
+    // Convert headers to multi-value format
     let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
-
     for (header_name, header_val) in req.headers() {
         header_map
             .entry(header_name.to_string())
@@ -145,6 +159,7 @@ async fn route_to_hermes(
     }
 
     let (_parts, body) = req.into_parts();
+
     if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
         compose_http_event(
             method,
@@ -164,7 +179,11 @@ async fn route_to_hermes(
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
 fn compose_http_event<B>(
-    method: String, headers: HeadersKV, body: Bytes, path: String, sender: Sender<HTTPEventMsg>,
+    method: String,
+    headers: HeadersKV,
+    body: Bytes,
+    path: String,
+    sender: Sender<HTTPEventMsg>,
     receiver: &Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<B>>
 where
@@ -191,8 +210,13 @@ where
 }
 
 /// Serves static data with 1:1 mapping
-fn serve_static_data<B>(path: &str, app_name: &ApplicationName) -> anyhow::Result<Response<B>>
-where B: Body + From<Vec<u8>> {
+fn serve_static_data<B>(
+    path: &str,
+    app_name: &ApplicationName,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
     let app = reactor::get_app(app_name)?;
     let file = app.vfs().read(path)?;
 
@@ -210,7 +234,7 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use regex::Regex;
 

@@ -37,7 +37,11 @@ impl Host for HermesRuntimeContext {
     /// If the crontab entry already exists, the retrigger flag can be changed by calling
     /// this function.  This could be useful where a retriggering crontab event is desired
     /// to be stopped, but ONLY after it has triggered once more.
-    fn add(&mut self, entry: CronTagged, retrigger: bool) -> wasmtime::Result<bool> {
+    fn add(
+        &mut self,
+        entry: CronTagged,
+        retrigger: bool,
+    ) -> wasmtime::Result<bool> {
         Ok(cron_queue_add(self.app_name(), entry, retrigger))
     }
 
@@ -64,7 +68,11 @@ impl Host for HermesRuntimeContext {
     /// It is added as a non-retriggering event.
     /// Listing the crontabs after this call will list the delay in addition to all other
     /// crontab entries.
-    fn delay(&mut self, duration: Instant, tag: CronEventTag) -> wasmtime::Result<bool> {
+    fn delay(
+        &mut self,
+        duration: Instant,
+        tag: CronEventTag,
+    ) -> wasmtime::Result<bool> {
         cron_queue_delay(self.app_name(), duration, tag)
     }
 
@@ -84,7 +92,10 @@ impl Host for HermesRuntimeContext {
     ///   crontab may be scheduled may times before a later one.
     /// - `0` - `cron-tagged` - The Tagged crontab event.
     /// - `1` - `bool` - The state of the retrigger flag.
-    fn ls(&mut self, tag: Option<CronEventTag>) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
+    fn ls(
+        &mut self,
+        tag: Option<CronEventTag>,
+    ) -> wasmtime::Result<Vec<(CronTagged, bool)>> {
         Ok(cron_queue_ls(self.app_name(), tag))
     }
 
@@ -101,7 +112,10 @@ impl Host for HermesRuntimeContext {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm(&mut self, entry: CronTagged) -> wasmtime::Result<bool> {
+    fn rm(
+        &mut self,
+        entry: CronTagged,
+    ) -> wasmtime::Result<bool> {
         Ok(cron_queue_rm(self.app_name(), entry))
     }
 
@@ -132,7 +146,12 @@ impl Host for HermesRuntimeContext {
     /// - For example specifying a `month` as `3` and `2-4` will remove the individual
     ///   month and only produce the range.
     fn mkcron(
-        &mut self, dow: CronTime, month: CronTime, day: CronTime, hour: CronTime, minute: CronTime,
+        &mut self,
+        dow: CronTime,
+        month: CronTime,
+        day: CronTime,
+        hour: CronTime,
+        minute: CronTime,
     ) -> wasmtime::Result<CronSched> {
         Ok(mkcron_impl(&dow, &month, &day, &hour, &minute))
     }

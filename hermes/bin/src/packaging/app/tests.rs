@@ -1,5 +1,5 @@
 //! Hermes application package tests.
-
+#![allow(clippy::unwrap_used)]
 use std::io::Write;
 
 use module::{
@@ -99,8 +99,11 @@ fn prepare_default_package_content(modules_num: usize) -> ApplicationPackageCont
 }
 
 fn prepare_package_dir(
-    app_name: String, override_module_name: &[String], build_date: DateTime<Utc>,
-    dir: &std::path::Path, app_package_content: &mut ApplicationPackageContent,
+    app_name: String,
+    override_module_name: &[String],
+    build_date: DateTime<Utc>,
+    dir: &std::path::Path,
+    app_package_content: &mut ApplicationPackageContent,
 ) -> Manifest {
     let app_dir = dir.join(&app_name);
     let metadata_path = app_dir.join("metadata.json");
@@ -173,7 +176,9 @@ fn prepare_package_dir(
 
 #[allow(clippy::indexing_slicing)]
 fn check_app_integrity(
-    app_content: &ApplicationPackageContent, app_package: &ApplicationPackage, manifest: &Manifest,
+    app_content: &ApplicationPackageContent,
+    app_package: &ApplicationPackage,
+    manifest: &Manifest,
 ) {
     // check metadata JSON file
     let package_metadata = app_package.get_metadata().unwrap();

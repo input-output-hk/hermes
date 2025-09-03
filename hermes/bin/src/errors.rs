@@ -3,11 +3,25 @@
 use std::fmt::Display;
 
 /// Errors struct which holds a collection of errors
-#[derive(thiserror::Error, Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(thiserror::Error)]
 pub(crate) struct Errors(Vec<anyhow::Error>);
 
+#[cfg(not(debug_assertions))]
+impl std::fmt::Debug for Errors {
+    fn fmt(
+        &self,
+        _f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        Ok(())
+    }
+}
+
 impl Display for Errors {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         for err in &self.0 {
             write!(f, "- ")?;
             let err_str = err.to_string();
@@ -35,8 +49,12 @@ impl Errors {
     }
 
     /// Add an error to the `Errors`
-    pub(crate) fn add_err<E>(&mut self, err: E)
-    where E: Into<anyhow::Error> {
+    pub(crate) fn add_err<E>(
+        &mut self,
+        err: E,
+    ) where
+        E: Into<anyhow::Error>,
+    {
         let err = err.into();
         match err.downcast::<Errors>() {
             Ok(errs) => self.0.extend(errs.0),
@@ -51,7 +69,10 @@ impl Errors {
     }
 
     /// Return errors if `Errors` is not empty or return `Ok(val)`
-    pub(crate) fn return_result<T>(self, val: T) -> anyhow::Result<T> {
+    pub(crate) fn return_result<T>(
+        self,
+        val: T,
+    ) -> anyhow::Result<T> {
         if self.0.is_empty() {
             Ok(val)
         } else {
@@ -60,7 +81,7 @@ impl Errors {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

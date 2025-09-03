@@ -22,7 +22,10 @@ use crate::runtime_extensions::bindings::hermes::{binary::api::Bstr, hash::api::
 ///
 /// - `InvalidDigestByteLength`: If `outlen` is 0.
 /// - `HashTooBig`: If `outlen` is greater than 64.
-pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno> {
+pub(crate) fn blake2b_impl(
+    buf: &Bstr,
+    outlen: Option<u8>,
+) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2b-512
     let outlen: usize = outlen.unwrap_or(64).into();
 
@@ -62,7 +65,11 @@ pub(crate) fn blake2b_impl(buf: &Bstr, outlen: Option<u8>) -> Result<Bstr, Errno
 /// - `SaltTooBig`: If the length of the salt exceeds 16 bytes.
 /// - `PersonalTooBig`: If the length of the personalization string exceeds 16 bytes.
 pub(crate) fn blake2bmac_impl(
-    buf: &Bstr, outlen: Option<u8>, key: &Bstr, salt: Option<Bstr>, personal: Option<Bstr>,
+    buf: &Bstr,
+    outlen: Option<u8>,
+    key: &Bstr,
+    salt: Option<Bstr>,
+    personal: Option<Bstr>,
 ) -> Result<Bstr, Errno> {
     // Default to 64 bytes Blake2bMac-512
     let outlen: usize = outlen.unwrap_or(64).into();
@@ -101,7 +108,7 @@ pub(crate) fn blake2bmac_impl(
     Ok(hash.as_bytes().into())
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests_blake2b {
     use hex_literal::hex;
 

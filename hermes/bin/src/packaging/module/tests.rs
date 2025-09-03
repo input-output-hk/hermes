@@ -1,5 +1,5 @@
 //! Hermes WASM module package tests.
-
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use std::io::{Read, Write};
 
 use temp_dir::TempDir;
@@ -84,7 +84,10 @@ pub(crate) fn prepare_default_package_content() -> ModulePackageContent {
     }
 }
 
-pub(crate) fn prepare_package_dir_dir(dir: &std::path::Path, package_dir: &PackageDirContent) {
+pub(crate) fn prepare_package_dir_dir(
+    dir: &std::path::Path,
+    package_dir: &PackageDirContent,
+) {
     std::fs::create_dir(dir.join(&package_dir.child_dir_name)).unwrap();
     std::fs::write(
         dir.join(&package_dir.child_dir_name)
@@ -95,7 +98,9 @@ pub(crate) fn prepare_package_dir_dir(dir: &std::path::Path, package_dir: &Packa
 }
 
 pub(crate) fn prepare_module_package_dir(
-    module_name: String, dir: &std::path::Path, module_package_content: &ModulePackageContent,
+    module_name: String,
+    dir: &std::path::Path,
+    module_package_content: &ModulePackageContent,
 ) -> Manifest {
     let module_dir = dir.join(&module_name);
     let config_path = module_dir.join("config.json");
@@ -160,7 +165,10 @@ pub(crate) fn prepare_module_package_dir(
     }
 }
 
-pub(crate) fn check_package_dir_integrity(dir: &Dir, dir_content: &PackageDirContent) {
+pub(crate) fn check_package_dir_integrity(
+    dir: &Dir,
+    dir_content: &PackageDirContent,
+) {
     let child_dir = dir
         .get_dir(&dir_content.child_dir_name.as_str().into())
         .unwrap();
@@ -175,14 +183,20 @@ pub(crate) fn check_package_dir_integrity(dir: &Dir, dir_content: &PackageDirCon
 }
 
 pub(crate) fn check_module_package_integrity(
-    module_content: &ModulePackageContent, module_package: &ModulePackage,
+    module_content: &ModulePackageContent,
+    module_package: &ModulePackage,
 ) {
     // check metadata file
     let package_metadata = module_package.get_metadata().unwrap();
     assert_eq!(module_content.metadata, package_metadata);
 
     // check WASM component file
-    assert!(module_package.get_component().is_ok());
+    let app_name = ApplicationName::new(
+        &package_metadata
+            .get_name()
+            .expect("Should have an application name in the manifest"),
+    );
+    assert!(module_package.get_component(&app_name).is_ok());
 
     // check config and config schema JSON files
     let config_info = module_package.get_config_info().unwrap().unwrap();
@@ -379,7 +393,8 @@ fn corrupted_component_test() {
             )
             .unwrap();
 
-        assert!(package.get_component().is_ok());
+        let app_name = ApplicationName::new("CorruptedComponentTest");
+        assert!(package.get_component(&app_name).is_ok());
         assert!(
             package.validate(false).is_err(),
             "Corrupted signature payload."

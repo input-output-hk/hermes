@@ -1,15 +1,17 @@
 //! Cron runtime extension event handler implementation.
 
+use anyhow::Error;
 use chrono::Utc;
 use saffron::Cron;
 
-use super::{state::cron_queue_rm, Error};
+use super::state::cron_queue_rm;
 use crate::{
     event::HermesEventPayload, runtime_extensions::bindings::hermes::cron::api::CronTagged,
 };
 
 /// Duration in nanoseconds used for the Cron Service.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct CronDuration(u64);
 
 impl CronDuration {
@@ -19,7 +21,10 @@ impl CronDuration {
                     without modifying the original"]
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    pub const fn saturating_sub(self, rhs: Self) -> Self {
+    pub const fn saturating_sub(
+        self,
+        rhs: Self,
+    ) -> Self {
         Self(self.0.saturating_sub(rhs.0))
     }
 }
@@ -28,7 +33,9 @@ impl TryFrom<i64> for CronDuration {
     type Error = Error;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        let duration: u64 = value.try_into().map_err(|_| Error::InvalidTimestamp)?;
+        let duration: u64 = value
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid Timestamp"))?;
         Ok(CronDuration(duration))
     }
 }
@@ -46,7 +53,8 @@ impl From<u64> for CronDuration {
 }
 
 /// On cron event
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct OnCronEvent {
     /// The tagged cron event that was triggered.
     pub(crate) tag: CronTagged,
@@ -59,7 +67,10 @@ impl HermesEventPayload for OnCronEvent {
         "on-cron"
     }
 
-    fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
+    fn execute(
+        &self,
+        module: &mut crate::wasm::module::ModuleInstance,
+    ) -> anyhow::Result<()> {
         let res: bool = module.instance.hermes_cron_event().call_on_cron(
             &mut module.store,
             &self.tag,
@@ -88,7 +99,10 @@ impl OnCronEvent {
     ///
     /// * `Some(CronDuration)` - The next timestamp for the `OnCronEvent`.
     /// * `None` if the timestamp could not be calculated.
-    pub(crate) fn tick_after(&self, start: Option<CronDuration>) -> Option<CronDuration> {
+    pub(crate) fn tick_after(
+        &self,
+        start: Option<CronDuration>,
+    ) -> Option<CronDuration> {
         let cron = self.cron()?;
         if cron.any() {
             let datetime = Self::start_datetime(start)?;
@@ -112,7 +126,10 @@ impl OnCronEvent {
     ///
     /// * `Some(CronDuration)` - The next timestamp for the `OnCronEvent`.
     /// * `None` if the timestamp could not be calculated.
-    pub(crate) fn tick_from(&self, start: Option<CronDuration>) -> Option<CronDuration> {
+    pub(crate) fn tick_from(
+        &self,
+        start: Option<CronDuration>,
+    ) -> Option<CronDuration> {
         let cron = self.cron()?;
         if cron.any() {
             let datetime = Self::start_datetime(start)?;
@@ -145,7 +162,10 @@ impl OnCronEvent {
 }
 
 impl PartialEq for CronTagged {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.tag == other.tag && self.when == other.when
     }
 }
@@ -153,18 +173,24 @@ impl PartialEq for CronTagged {
 impl Eq for CronTagged {}
 
 impl PartialOrd for CronTagged {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(
+        &self,
+        other: &Self,
+    ) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for CronTagged {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(
+        &self,
+        other: &Self,
+    ) -> std::cmp::Ordering {
         self.when.cmp(&other.when).then(self.tag.cmp(&other.tag))
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use chrono::prelude::*;
 

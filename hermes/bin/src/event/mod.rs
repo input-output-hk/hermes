@@ -21,11 +21,13 @@ pub(crate) trait HermesEventPayload: Send + Sync + 'static {
     /// # Returns
     ///
     /// An `anyhow::Result` indicating the success or failure of the payload execution.
-    fn execute(&self, module: &mut ModuleInstance) -> anyhow::Result<()>;
+    fn execute(
+        &self,
+        module: &mut ModuleInstance,
+    ) -> anyhow::Result<()>;
 }
 
 /// Target Hermes app to execute the event
-#[derive(Debug)]
 pub(crate) enum TargetApp {
     /// Execute for all available apps
     #[allow(dead_code)]
@@ -35,7 +37,6 @@ pub(crate) enum TargetApp {
 }
 
 /// Target WASM module to execute the event
-#[derive(Debug)]
 pub(crate) enum TargetModule {
     /// Execute for all available modules
     All,
@@ -58,7 +59,9 @@ pub(crate) struct HermesEvent {
 impl HermesEvent {
     /// Create a new Hermes event
     pub(crate) fn new(
-        payload: impl HermesEventPayload, target_app: TargetApp, target_module: TargetModule,
+        payload: impl HermesEventPayload,
+        target_app: TargetApp,
+        target_module: TargetModule,
     ) -> Self {
         Self {
             payload: Box::new(payload),

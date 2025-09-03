@@ -5,7 +5,7 @@ use std::io::Read;
 use super::super::schema_validation::SchemaValidator;
 
 /// Settings schema object.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct SettingsSchema {
     /// settings schema JSON object.
     json: serde_json::Map<String, serde_json::Value>,
@@ -14,7 +14,10 @@ pub(crate) struct SettingsSchema {
 }
 
 impl PartialEq for SettingsSchema {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(
+        &self,
+        other: &Self,
+    ) -> bool {
         self.json.eq(&other.json)
     }
 }

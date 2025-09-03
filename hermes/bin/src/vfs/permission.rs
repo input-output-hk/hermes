@@ -10,7 +10,8 @@ use dashmap::DashMap;
 use crate::utils::parse_path;
 
 /// Permission level type.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum PermissionLevel {
     /// Read only permission level.
     Read,
@@ -43,14 +44,12 @@ impl From<bool> for PermissionLevel {
 /// `PermissionLevel::ReadAndWrite` is a default permission level so if permission was not
 /// defined for the path explicitly `PermissionsState` will return the
 /// `PermissionLevel::ReadAndWrite` permission level for the asked path.
-#[derive(Debug)]
 pub(crate) struct PermissionsState {
     /// Tree's root node.
     root: PermissionNodeRef,
 }
 
 /// `PermissionsTree` node type.
-#[derive(Debug)]
 struct PermissionNode {
     /// Node permission level.
     permission: AtomicBool,
@@ -79,7 +78,11 @@ impl PermissionsState {
     }
 
     /// Adds a new path to the `PermissionsTree` with the provided permission level.
-    pub(crate) fn add_permission(&mut self, path: &str, permission: PermissionLevel) {
+    pub(crate) fn add_permission(
+        &mut self,
+        path: &str,
+        permission: PermissionLevel,
+    ) {
         let path_elements = parse_path(path);
 
         let mut walk = self.root.clone();
@@ -98,7 +101,10 @@ impl PermissionsState {
     }
 
     /// Gets the permission level for the provided path.
-    pub(crate) fn get_permission(&self, path: &str) -> PermissionLevel {
+    pub(crate) fn get_permission(
+        &self,
+        path: &str,
+    ) -> PermissionLevel {
         let mut permission: PermissionLevel = self.root.permission.load(Ordering::Acquire).into();
 
         let path_elements = parse_path(path);
@@ -123,7 +129,7 @@ impl PermissionsState {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 

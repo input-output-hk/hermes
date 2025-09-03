@@ -47,7 +47,10 @@ pub struct TokioTaskHandle {
 
 impl TokioTaskHandle {
     /// Sends a command to the Tokio runtime task.
-    pub fn send(&self, payload: Payload) -> Result<(), ErrorCode> {
+    pub fn send(
+        &self,
+        payload: Payload,
+    ) -> Result<(), ErrorCode> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
         self.cmd_tx
             .blocking_send(Command::Send {
@@ -108,8 +111,13 @@ enum Connection {
 
 impl Connection {
     /// Creates a new connection to the specified HTTP or HTTPS server.
-    async fn new<S>(addr: S, port: u16) -> Result<Self, ErrorCode>
-    where S: AsRef<str> + Into<String> + core::fmt::Display {
+    async fn new<S>(
+        addr: S,
+        port: u16,
+    ) -> Result<Self, ErrorCode>
+    where
+        S: AsRef<str> + Into<String> + core::fmt::Display,
+    {
         if let Some(sliced_addr) = addr.as_ref().to_ascii_lowercase().strip_prefix(HTTP) {
             let stream = TcpStream::connect((sliced_addr, port))
                 .await
@@ -153,7 +161,10 @@ impl Connection {
 
     /// Sends the HTTP request body and returns the response.
     // TODO[RC]: Timeout or more complex task management needed here
-    async fn send(&mut self, body: &[u8]) -> Result<Vec<u8>, ErrorCode> {
+    async fn send(
+        &mut self,
+        body: &[u8],
+    ) -> Result<Vec<u8>, ErrorCode> {
         let mut response = Vec::new();
         match self {
             Connection::Http(ref mut tcp_stream) => {
@@ -189,9 +200,12 @@ impl Connection {
 
 /// Reads all bytes from the reader until EOF, ignoring `UnexpectedEof` errors.
 async fn read_to_end_ignoring_unexpected_eof<R>(
-    reader: &mut R, buf: &mut Vec<u8>,
+    reader: &mut R,
+    buf: &mut Vec<u8>,
 ) -> std::io::Result<usize>
-where R: AsyncRead + Unpin {
+where
+    R: AsyncRead + Unpin,
+{
     // TODO[RC]: This won't work for payloads that do not include "Connection: close", we need
     // a more sophisticated processing.
     match reader.read_to_end(buf).await {

@@ -14,13 +14,23 @@ impl HostError for HermesRuntimeContext {
     /// details. Parsing this string is a major platform-compatibility
     /// hazard.
     fn to_debug_string(
-        &mut self, _rep: wasmtime::component::Resource<Error>,
+        &mut self,
+        _rep: wasmtime::component::Resource<Error>,
     ) -> wasmtime::Result<String> {
-        todo!()
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<Error>) -> wasmtime::Result<()> {
-        todo!()
+    fn drop(
+        &mut self,
+        _rep: wasmtime::component::Resource<Error>,
+    ) -> wasmtime::Result<()> {
+        #[allow(clippy::todo)]
+        {
+            todo!()
+        }
     }
 }
 

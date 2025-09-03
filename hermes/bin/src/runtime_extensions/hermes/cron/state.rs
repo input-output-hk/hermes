@@ -74,7 +74,12 @@ impl InternalState {
     ///
     /// - `true`: Crontab added successfully.
     /// - `false`: Crontab failed to be added.
-    fn add_crontab(&self, app_name: &ApplicationName, entry: CronTagged, retrigger: bool) -> bool {
+    fn add_crontab(
+        &self,
+        app_name: &ApplicationName,
+        entry: CronTagged,
+        retrigger: bool,
+    ) -> bool {
         let crontab = OnCronEvent {
             tag: entry,
             last: !retrigger,
@@ -105,7 +110,10 @@ impl InternalState {
     /// - `Ok(false)`: Crontab failed to be added.
     /// - `Err`: Returns error if the duration is invalid for generating a crontab entry.
     fn delay_crontab(
-        &self, app_name: &ApplicationName, duration: Instant, tag: CronEventTag,
+        &self,
+        app_name: &ApplicationName,
+        duration: Instant,
+        tag: CronEventTag,
     ) -> wasmtime::Result<bool> {
         let cron_delay = mkdelay_crontab(duration, tag)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -138,7 +146,9 @@ impl InternalState {
     ///   most crontab that will trigger soonest to latest. Crontabs are only listed once,
     ///   in the case where a crontab may be scheduled may times before a later one.
     fn ls_crontabs(
-        &self, app_name: &ApplicationName, tag: Option<CronEventTag>,
+        &self,
+        app_name: &ApplicationName,
+        tag: Option<CronEventTag>,
     ) -> Vec<(CronTagged, bool)> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
@@ -162,7 +172,11 @@ impl InternalState {
     ///
     /// - `true`: The requested crontab was deleted and will not trigger.
     /// - `false`: The requested crontab does not exist.
-    fn rm_crontab(&self, app_name: &ApplicationName, entry: CronTagged) -> bool {
+    fn rm_crontab(
+        &self,
+        app_name: &ApplicationName,
+        entry: CronTagged,
+    ) -> bool {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         drop(
             self.cron_queue
@@ -173,7 +187,10 @@ impl InternalState {
 }
 
 impl Hash for CronTagged {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(
+        &self,
+        state: &mut H,
+    ) {
         self.tag.hash(state);
         self.when.hash(state);
     }
@@ -181,27 +198,35 @@ impl Hash for CronTagged {
 
 /// Add a crontab to the cron queue.
 pub(crate) fn cron_queue_add(
-    app_name: &ApplicationName, entry: CronTagged, retrigger: bool,
+    app_name: &ApplicationName,
+    entry: CronTagged,
+    retrigger: bool,
 ) -> bool {
     CRON_INTERNAL_STATE.add_crontab(app_name, entry, retrigger)
 }
 
 /// List crontabs from the cron queue.
 pub(crate) fn cron_queue_ls(
-    app_name: &ApplicationName, tag: Option<CronEventTag>,
+    app_name: &ApplicationName,
+    tag: Option<CronEventTag>,
 ) -> Vec<(CronTagged, bool)> {
     CRON_INTERNAL_STATE.ls_crontabs(app_name, tag)
 }
 
 /// Delay a crontab in the cron queue.
 pub(crate) fn cron_queue_delay(
-    app_name: &ApplicationName, duration: Instant, tag: CronEventTag,
+    app_name: &ApplicationName,
+    duration: Instant,
+    tag: CronEventTag,
 ) -> wasmtime::Result<bool> {
     CRON_INTERNAL_STATE.delay_crontab(app_name, duration, tag)
 }
 
 /// Remove a crontab from the cron queue.
-pub(crate) fn cron_queue_rm(app_name: &ApplicationName, entry: CronTagged) -> bool {
+pub(crate) fn cron_queue_rm(
+    app_name: &ApplicationName,
+    entry: CronTagged,
+) -> bool {
     CRON_INTERNAL_STATE.rm_crontab(app_name, entry)
 }
 
@@ -212,7 +237,8 @@ pub(crate) fn cron_queue_trigger() -> anyhow::Result<()> {
 
 /// Send event to the Hermes Event Queue.
 pub(crate) fn send_hermes_on_cron_event(
-    app_name: &ApplicationName, on_cron_event: OnCronEvent,
+    app_name: &ApplicationName,
+    on_cron_event: OnCronEvent,
 ) -> anyhow::Result<()> {
     //
     let event = HermesEvent::new(
@@ -257,7 +283,9 @@ async fn cron_queue_task(mut queue_rx: mpsc::Receiver<CronJob>) {
 
 /// Handle the `CronJob::Remove` command.
 fn handle_rm_cron_job(
-    app_name: &ApplicationName, cron_tagged: &CronTagged, response_tx: oneshot::Sender<bool>,
+    app_name: &ApplicationName,
+    cron_tagged: &CronTagged,
+    response_tx: oneshot::Sender<bool>,
 ) {
     let response = CRON_INTERNAL_STATE
         .cron_queue
@@ -269,7 +297,9 @@ fn handle_rm_cron_job(
 
 /// Handle the `CronJob::Add` command.
 fn handle_add_cron_job(
-    app_name: ApplicationName, on_cron_event: OnCronEvent, response_tx: oneshot::Sender<bool>,
+    app_name: ApplicationName,
+    on_cron_event: OnCronEvent,
+    response_tx: oneshot::Sender<bool>,
 ) {
     // Check if the event will trigger by getting the next immediate timestamp.
     let response = if let Some(timestamp) = on_cron_event.tick_from(None) {
@@ -295,7 +325,8 @@ fn handle_add_cron_job(
 
 /// Handle the `CronJob::List` command.
 fn handle_ls_cron_job(
-    app_name: &ApplicationName, cron_tagged: Option<&CronEventTag>,
+    app_name: &ApplicationName,
+    cron_tagged: Option<&CronEventTag>,
     response_tx: oneshot::Sender<Vec<(CronTagged, bool)>>,
 ) {
     let response = CRON_INTERNAL_STATE
@@ -308,7 +339,8 @@ fn handle_ls_cron_job(
 
 /// Handle the `CronJob::Delay` command.
 fn handle_delay_cron_job(
-    app_name: ApplicationName, CronJobDelay { timestamp, event }: CronJobDelay,
+    app_name: ApplicationName,
+    CronJobDelay { timestamp, event }: CronJobDelay,
     response_tx: oneshot::Sender<bool>,
 ) {
     CRON_INTERNAL_STATE
@@ -320,8 +352,9 @@ fn handle_delay_cron_job(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use chrono::Datelike;
 
     use super::*;
@@ -330,7 +363,10 @@ mod tests {
     const APP_NAME: &str = "test";
 
     // triggers every minute, three days from now
-    fn crontab_future_dow(tag: &str, days_from_now: i64) -> CronTagged {
+    fn crontab_future_dow(
+        tag: &str,
+        days_from_now: i64,
+    ) -> CronTagged {
         #[allow(clippy::arithmetic_side_effects)] // Ok in tests.
         let dow = (chrono::Utc::now() + chrono::TimeDelta::try_days(days_from_now).unwrap())
             .weekday()

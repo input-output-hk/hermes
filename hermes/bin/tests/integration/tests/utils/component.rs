@@ -5,7 +5,10 @@ use temp_dir::TempDir;
 // TODO[RC]: Should settings be in the "schema" file?
 const SETTINGS_FILE_NAME: &str = "settings.schema.json";
 
-fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+fn copy_settings_file(
+    component: &str,
+    temp_dir: &TempDir,
+) -> anyhow::Result<()> {
     let settings_file =
         format!("tests/integration/components/{component}/settings/{SETTINGS_FILE_NAME}",);
     let destination_path = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
@@ -18,7 +21,11 @@ fn copy_settings_file(component: &str, temp_dir: &TempDir) -> anyhow::Result<()>
     Ok(())
 }
 
-pub fn set(key: &str, value: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+pub fn set(
+    key: &str,
+    value: &str,
+    temp_dir: &TempDir,
+) -> anyhow::Result<()> {
     let settings_file = temp_dir.as_ref().join(SETTINGS_FILE_NAME);
 
     let placeholder = format!("{{{{{key}}}}}");
@@ -29,7 +36,10 @@ pub fn set(key: &str, value: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn build(component: &str, temp_dir: &TempDir) -> anyhow::Result<()> {
+pub fn build(
+    component: &str,
+    temp_dir: &TempDir,
+) -> anyhow::Result<()> {
     let component_path = format!("tests/integration/components/{component}");
     let output = Command::new("cargo")
         .arg("build")

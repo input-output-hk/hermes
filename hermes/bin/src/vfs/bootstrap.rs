@@ -54,7 +54,10 @@ struct MountedDir {
 
 impl VfsBootstrapper {
     /// Create a new `VfsBootstrapper` instance.
-    pub(crate) fn new<P: AsRef<std::path::Path>>(vfs_dir_path: P, vfs_file_name: String) -> Self {
+    pub(crate) fn new<P: AsRef<std::path::Path>>(
+        vfs_dir_path: P,
+        vfs_file_name: String,
+    ) -> Self {
         Self {
             vfs_dir_path: vfs_dir_path.as_ref().to_path_buf(),
             vfs_file_name,
@@ -65,13 +68,20 @@ impl VfsBootstrapper {
     }
 
     /// Add a `Dir` creation by the provided path during bootstrapping
-    pub(crate) fn with_dir_to_create(&mut self, path: String, permission: PermissionLevel) {
+    pub(crate) fn with_dir_to_create(
+        &mut self,
+        path: String,
+        permission: PermissionLevel,
+    ) {
         self.dirs_to_create.push(DirToCreate { path, permission });
     }
 
     /// Add a mounted file
     pub(crate) fn with_mounted_file(
-        &mut self, to_path: String, file: hermes_hdf5::File, permission: PermissionLevel,
+        &mut self,
+        to_path: String,
+        file: hermes_hdf5::File,
+        permission: PermissionLevel,
     ) {
         self.mounted_files.push(MountedFile {
             to_path,
@@ -82,7 +92,10 @@ impl VfsBootstrapper {
 
     /// Add a mounted dir
     pub(crate) fn with_mounted_dir(
-        &mut self, to_path: String, dir: hermes_hdf5::Dir, permission: PermissionLevel,
+        &mut self,
+        to_path: String,
+        dir: hermes_hdf5::Dir,
+        permission: PermissionLevel,
     ) {
         self.mounted_dirs.push(MountedDir {
             to_path,
@@ -153,8 +166,11 @@ impl VfsBootstrapper {
 
     /// Setup initial content of the VFS.
     fn setup_vfs_content(
-        root: &hermes_hdf5::Dir, dirs_to_create: &[DirToCreate], mounted_files: &[MountedFile],
-        mounted_dirs: &[MountedDir], permissions: &mut PermissionsState,
+        root: &hermes_hdf5::Dir,
+        dirs_to_create: &[DirToCreate],
+        mounted_files: &[MountedFile],
+        mounted_dirs: &[MountedDir],
+        permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         for dir_to_create in dirs_to_create {
             Self::create_dir(root, dir_to_create, permissions)?;
@@ -171,7 +187,9 @@ impl VfsBootstrapper {
 
     /// Create dir for the VFS.
     fn create_dir(
-        root: &hermes_hdf5::Dir, dir_to_create: &DirToCreate, permissions: &mut PermissionsState,
+        root: &hermes_hdf5::Dir,
+        dir_to_create: &DirToCreate,
+        permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         let path_str = dir_to_create.path.as_str();
         permissions.add_permission(path_str, dir_to_create.permission);
@@ -183,7 +201,9 @@ impl VfsBootstrapper {
 
     /// Mount file of the VFS.
     fn mount_file(
-        root: &hermes_hdf5::Dir, mounted: &MountedFile, permissions: &mut PermissionsState,
+        root: &hermes_hdf5::Dir,
+        mounted: &MountedFile,
+        permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         let path_str = format!("{}/{}", mounted.to_path, mounted.file.name());
         permissions.add_permission(path_str.as_str(), mounted.permission);
@@ -195,7 +215,9 @@ impl VfsBootstrapper {
 
     /// Mount dir of the VFS.
     fn mount_dir(
-        root: &hermes_hdf5::Dir, mounted: &MountedDir, permissions: &mut PermissionsState,
+        root: &hermes_hdf5::Dir,
+        mounted: &MountedDir,
+        permissions: &mut PermissionsState,
     ) -> anyhow::Result<()> {
         let path_str = format!("{}/{}", mounted.to_path, mounted.dir.name());
         permissions.add_permission(path_str.as_str(), mounted.permission);
@@ -206,7 +228,7 @@ impl VfsBootstrapper {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use hermes_hdf5::Dir;
     use temp_dir::TempDir;
