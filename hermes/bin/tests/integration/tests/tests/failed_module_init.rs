@@ -27,7 +27,6 @@ fn do_not_load_app_when_module_initialization_fails() {
         &temp_dir,
         "WASM module init function returned false"
     ));
-   
 
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
