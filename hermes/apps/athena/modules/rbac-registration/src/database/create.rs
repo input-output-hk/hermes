@@ -1,5 +1,5 @@
 use crate::{
-    database::SQLITE,
+    hermes::hermes::{self, sqlite::{self, api::Sqlite}},
     utils::log::{log_error, log_info},
 };
 
@@ -10,7 +10,7 @@ const RBAC_REGISTRATION_TABLE: &str = r#"
         txn_id          BLOB NOT NULL,      -- 32 bytes of transaction ID (aka transaction hash)
         slot_no         INTEGER NOT NULL,  -- Slot number
         txn_idx         INTEGER NOT NULL,  -- Index of the transaction in the block
-        prv_txn_id      BLOB NOT NULL,     -- 32 bytes of previous transaction ID (aka transaction hash)
+        prv_txn_id      BLOB,     -- 32 bytes of previous transaction ID (aka transaction hash)
         purpose         TEXT,              -- Registration purpose
         catalyst_id     TEXT,              -- Catalyst short ID - Exist only for Role0
         problem_report  TEXT,              -- Problem report
@@ -26,23 +26,16 @@ const RBAC_STAKE_ADDRESS_TABLE: &str = r#"
     CREATE TABLE IF NOT EXISTS rbac_stake_address (
         stake_address   BLOB NOT NULL,      -- 29 bytes of stake hash (CIP19)
         slot_no         INTEGER NOT NULL,   -- Slot number
-        txn_index       INTEGER NOT NULL,   -- Index of the transaction in the block
+        txn_idx         INTEGER NOT NULL,   -- Index of the transaction in the block
         catalyst_id     TEXT,               -- Catalyst short ID
 
-        PRIMARY KEY (stake_address, slot_no, txn_index)
+        PRIMARY KEY (stake_address, slot_no, txn_idx)
     )
 "#;
 
-pub(crate) fn create_rbac_tables() {
+pub(crate) fn create_rbac_tables(sqlite: &Sqlite) {
     const FUNCTION_NAME: &str = "create_rbac_tables";
-    log_info(
-        FILE_NAME,
-        FUNCTION_NAME,
-        "",
-        &format!("Create table 🍊"),
-        None,
-    );
-    if let Err(e) = SQLITE.execute(RBAC_REGISTRATION_TABLE) {
+    if let Err(e) = sqlite.execute(RBAC_REGISTRATION_TABLE) {
         log_error(
             FILE_NAME,
             FUNCTION_NAME,
@@ -51,7 +44,7 @@ pub(crate) fn create_rbac_tables() {
             None,
         );
     }
-    if let Err(e) = SQLITE.execute(RBAC_STAKE_ADDRESS_TABLE) {
+    if let Err(e) = sqlite.execute(RBAC_STAKE_ADDRESS_TABLE) {
         log_error(
             FILE_NAME,
             FUNCTION_NAME,

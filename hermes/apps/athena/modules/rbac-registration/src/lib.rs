@@ -11,12 +11,17 @@ use utils::log::log_error;
 
 use crate::{
     database::{
+        close_db_connection,
         create::create_rbac_tables,
         data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
         insert::{
             insert_rbac_registration, insert_rbac_stake_address, prepare_insert_rbac_registration,
-            prepare_insert_rbac_stake_address,
+            prepare_insert_rbac_stake_address, RBAC_INSERT_RBAC_REGISTRATION,
+            RBAC_INSERT_STAKE_ADDRESS,
         },
+        open_db_connection,
+        select::select_rbac_root_registration_from_cat_id,
+        SQLITE,
     },
     utils::log::log_info,
 };
@@ -30,12 +35,26 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
         subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &hermes::exports::hermes::cardano::event_on_block::Block,
     ) {
-        let rbac_stmt = prepare_insert_rbac_registration().unwrap_or(return);
-        let rbac_stake_stmt = prepare_insert_rbac_stake_address().unwrap_or(return);
-
         let registrations =
             get_rbac_registration(block.raw(), subscription_id.get_network(), block.get_fork());
-        for reg in registrations {
+
+        // Early exit if no registration to be added into database
+        if registrations.is_empty() {
+            return;
+        }
+
+        let Ok(sqlite) = open_db_connection() else {
+            return;
+        };
+        let Ok(rbac_stmt) = prepare_insert_rbac_registration(&sqlite) else {
+            return;
+        };
+        let Ok(rbac_stake_stmt) = prepare_insert_rbac_stake_address(&sqlite) else {
+            return;
+        };
+
+        for reg in registrations.clone() {
+
             // Data needed for db
             let txn_id: Vec<u8> = reg.txn_hash().into();
             let catalyst_id: Option<String> =
@@ -61,7 +80,6 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
                 purpose,
                 problem_report,
             };
-            // log_info(FILE_NAME, "", &format!("💫 {data:?}"), "", None);
             insert_rbac_registration(&rbac_stmt, data);
 
             for stake_address in stake_addresses {
@@ -71,12 +89,13 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
                     txn_idx,
                     catalyst_id: catalyst_id.clone(),
                 };
-                // log_info(FILE_NAME, "", &format!("💫 {data:?}"), "", None);
                 insert_rbac_stake_address(&rbac_stake_stmt, data);
             }
         }
-        rbac_stake_stmt.finalize();
         rbac_stmt.finalize();
+        rbac_stake_stmt.finalize();
+
+        close_db_connection(sqlite);
     }
 }
 
@@ -84,8 +103,11 @@ impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
         const FUNCTION_NAME: &str = "init";
 
-        create_rbac_tables();
-
+        let Ok(sqlite) = open_db_connection() else {
+            return false;
+        };
+        create_rbac_tables(&sqlite);
+        close_db_connection(sqlite);
         let slot = 87374283;
         let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Specific(slot);
         let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;
