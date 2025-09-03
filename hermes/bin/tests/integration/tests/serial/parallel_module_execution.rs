@@ -11,6 +11,7 @@ fn parallel_execution() {
     const COMPONENT: &str = "sleep_component";
     const COMPONENT_NAME: &str = "sleep_component";
     const MODULE_NAME: &str = "sleep_module";
+    const EXPECTED_EXECUTION_TIME_IN_SECONDS: u64 = 20;
 
     let temp_dir = TempDir::new().unwrap();
     utils::component::build(COMPONENT, &temp_dir, COMPONENT_NAME)
@@ -52,8 +53,8 @@ fn parallel_execution() {
         &format!("All {} responses written correctly, calling done()", 5)
     ));
 
-    // If events run in parallel, total time should be ~1 seconds, not ~5 seconds
-    // Allow some margin for startup/shutdown time
+    // If events run in parallel, total time should be ~5 seconds, not ~25 seconds
+    // Allow some margin for startup/shutdown time and database contention
     //
     // Note: if there is not enough threads, then we would have some kind of sequential
     // execution, so this assert would not pass
@@ -65,9 +66,10 @@ fn parallel_execution() {
         > 6
     {
         assert!(
-            execution_time.as_secs() < 3,
-            "Execution took {} seconds, expected less than 3 seconds for parallel execution",
-            execution_time.as_secs()
+            execution_time.as_secs() < EXPECTED_EXECUTION_TIME_IN_SECONDS,
+            "Execution took {} seconds, expected less than {} seconds for parallel execution",
+            execution_time.as_secs(),
+            EXPECTED_EXECUTION_TIME_IN_SECONDS
         );
     }
 

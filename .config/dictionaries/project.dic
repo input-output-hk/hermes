@@ -7,6 +7,7 @@ aido-mth
 apskhem
 asat
 asyncio
+autocheckpoint
 auditability
 backpressure
 bindgen
@@ -135,6 +136,7 @@ nbaz
 netkey
 nextest
 nolfs
+nomutex
 nostack
 notadb
 nsec
@@ -215,6 +217,7 @@ testdocs
 testunit
 thiserror
 thollander
+threadsafe
 timelike
 timespec
 tinygo

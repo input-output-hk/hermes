@@ -2,7 +2,8 @@
 #![allow(
     clippy::missing_safety_doc,
     clippy::missing_docs_in_private_items,
-    clippy::expect_used
+    clippy::expect_used,
+    clippy::panic
 )]
 
 mod bindings {
@@ -16,17 +17,12 @@ mod bindings {
 mod stub;
 mod utils;
 
-use std::{
-    fs,
-    io::{Seek as _, SeekFrom, Write as _},
-};
+use std::fs;
 
 use crate::utils::{busy_wait_s, make_payload, test_log};
 
 const REQUEST_COUNT: usize = 5;
-const RESPONSES_FILE: &str = "responses.txt";
-const CONTENT: &[u8] = b"\xF0\x9F\xA6\x80\n";
-const WAIT_FOR_SECS: u64 = 1;
+const WAIT_FOR_SECS: u64 = 5;
 
 struct HttpRequestApp;
 
@@ -43,10 +39,21 @@ impl bindings::exports::hermes::init::event::Guest for HttpRequestApp {
             .as_str()
             .expect("http_server is not a string");
 
-        let mut file = std::fs::File::create(RESPONSES_FILE).expect("failed to create file");
-        file.write_all(&[0; CONTENT.len()].repeat(REQUEST_COUNT))
-            .expect("failed to write to file");
-        file.flush().expect("failed to flush file");
+        let sqlite =
+            bindings::hermes::sqlite::api::open(false, false).expect("failed to connect to db");
+        sqlite
+            .execute(
+                r"
+                    CREATE TABLE IF NOT EXISTS counter (
+                        value INTEGER
+                    );
+                    ",
+            )
+            .expect("failed to create DB");
+        sqlite
+            .execute("INSERT INTO counter(value) VALUES(0);")
+            .expect("failed to insert counter");
+        sqlite.close().expect("failed to close connection");
 
         for i in 0..REQUEST_COUNT
             .try_into()
@@ -75,27 +82,54 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
         ));
         busy_wait_s(WAIT_FOR_SECS);
 
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .open(RESPONSES_FILE)
-            .expect("failed to open file");
+        test_log(&format!("sqlite open request_id={request_id:?}"));
+        let sqlite = bindings::hermes::sqlite::api::open(false, false)
+            .inspect_err(|err| {
+                test_log(&format!(
+                    "open failed with request_id={request_id:?} and with: {err:?}"
+                ));
+            })
+            .expect("failed to connect to db");
+        test_log(&format!("sqlite prepare request_id={request_id:?}"));
+        let prep = sqlite
+            .prepare(
+                r"
+                    UPDATE counter
+                    SET value = value + 1
+                    RETURNING value;
+                ",
+            )
+            .inspect_err(|err| {
+                test_log(&format!(
+                    "prepare failed with request_id={request_id:?} and with: {err:?}"
+                ));
+            })
+            .expect("failed to prepare statement");
 
-        let request_id: usize = request_id
-            .unwrap_or_default()
-            .try_into()
-            .expect("failed to convert to usize");
-        let offset = request_id
-            .checked_mul(CONTENT.len())
-            .expect("offset overflow") as u64;
+        test_log(&format!("sqlite step request_id={request_id:?}"));
+        prep.step()
+            .inspect_err(|err| {
+                test_log(&format!(
+                    "step failed request_id={request_id:?} and with: {err:?}"
+                ));
+            })
+            .expect("failed to make step");
 
-        file.seek(SeekFrom::Start(offset)).expect("seek failed");
-        file.write_all(CONTENT).expect("failed to write content");
-        file.flush().expect("failed to flush");
+        test_log(&format!("sqlite column request_id={request_id:?}"));
+        let bindings::hermes::sqlite::api::Value::Int32(value) =
+            prep.column(0).expect("failed to get value")
+        else {
+            panic!("unexpected type!!!");
+        };
 
-        let data = std::fs::read(RESPONSES_FILE).expect("failed to read file");
-        let reference = CONTENT.repeat(5);
+        test_log(&format!("sqlite finalized request_id={request_id:?}"));
+        prep.finalize().expect("failed to finalize statement");
 
-        if data == reference {
+        test_log(&format!("sqlite close request_id={request_id:?}"));
+        sqlite.close().expect("failed to close connection");
+
+        let current_count: usize = value.try_into().expect("failed to convert i32 to usize");
+        if current_count == REQUEST_COUNT {
             test_log(&format!(
                 "All {REQUEST_COUNT} responses written correctly, calling done()",
             ));
