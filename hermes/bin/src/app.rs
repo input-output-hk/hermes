@@ -88,7 +88,7 @@ impl Application {
                 self.name.clone(),
                 module.id().clone(),
                 self.vfs.clone(),
-                Arc::clone(event),
+                event.clone(),
             );
         }
     }
