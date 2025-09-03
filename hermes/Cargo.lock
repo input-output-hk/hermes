@@ -8132,7 +8132,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "test_component"
+name = "test_component_failed_init"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.43.0",
+]
+
+[[package]]
+name = "test_component_http_request_rte_01"
 version = "0.1.0"
 dependencies = [
  "serde_json",
