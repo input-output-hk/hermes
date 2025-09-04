@@ -1,3 +1,4 @@
+aarch
 aido
 asat
 backpressure
@@ -7,6 +8,9 @@ blosc
 Blosc
 BLOSC
 bmac
+bootstrapper
+Bootstrapper
+brotli
 cardano
 Cardano
 CARDANO
@@ -18,7 +22,9 @@ chaincode
 CHAINCODE
 childs
 chrono
+cids
 ciphertext
+codegen
 condvar
 Condvar
 coverallsapp
@@ -41,6 +47,8 @@ fcntl
 fdatasync
 fdstat
 filestat
+filesystems
+finalizer
 fini
 fmtchk
 fmtfix
@@ -81,6 +89,7 @@ mkdelay
 mkdirat
 nanos
 nextest
+oneshot
 openat
 outlen
 outparam
@@ -98,6 +107,8 @@ preprod
 Preprod
 projectcatalyst
 pubk
+pubkey
+PUBKEY
 pwrite
 QMARK
 rafal
@@ -108,6 +119,7 @@ reqwest
 rngs
 rollouts
 rustc
+rustdoc
 rustdocflags
 rustflags
 rustls
