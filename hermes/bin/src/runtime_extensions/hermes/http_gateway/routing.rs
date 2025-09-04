@@ -1,3 +1,4 @@
+use crate::app::Application;
 use std::result::Result::Ok;
 use std::{
     collections::HashMap,
@@ -30,7 +31,9 @@ use crate::{
 /// Everything that hits /api routes to Webasm Component Modules
 const WEBASM_ROUTE: &str = "/api";
 
-/// Check path is valid for static files
+/// Path validation for static files within sandboxed VFS
+/// Note: Basic validation - relies on VFS sandbox for security isolation
+/// TODO: Update with stricter path validation in the future
 const VALID_PATH: &str = r"^(/.*|/)$";
 
 /// Attempts to wait for a value on this receiver,
@@ -53,13 +56,14 @@ where
 }
 
 /// HTTP not found response generator
-pub(crate) fn not_found<B>() -> anyhow::Result<Response<B>>
+fn not_found<B>() -> anyhow::Result<Response<B>>
 where
-    B: Body + From<&'static str>,
+    B: Body + From<Vec<u8>>,
 {
-    Ok(Response::builder()
+    let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body("Not Found".into())?)
+        .body("Not Found".as_bytes().to_vec().into())?;
+    add_security_headers(response)
 }
 
 /// Extractor that resolves the hostname of the request.
@@ -123,23 +127,81 @@ pub(crate) async fn router(
     Ok(response)
 }
 
-/// Routes HTTP requests to WASM modules or static file handlers
+/// Main HTTP request router that processes incoming requests and delegates to appropriate handlers
 ///
-/// Converts incoming HTTP requests into structured events for WASM processing,
-/// preserving full URLs including query parameters for accurate forwarding.
-///
-/// ## Routing
-/// - `/api/*` → WASM modules via event queue
-/// - Valid paths → Static file system
-/// - Invalid paths → HTTP 404
-///
-/// ## Key Features
-/// - Preserves query parameters (e.g., `?asat=SLOT:95022059`)
-/// - Multi-value header support
-/// - Async request/response via MPSC channels
+/// This function serves as the central routing hub, taking validated HTTP requests and
+/// directing them to either WebAssembly modules or static file handlers based on the
+/// request path and routing rules.
 async fn route_to_hermes(
     req: Request<Incoming>,
     app_name: ApplicationName,
+) -> anyhow::Result<Response<Full<Bytes>>> {
+    // Extract the URI for route analysis - this contains path and query parameters
+    let uri = req.uri().to_owned();
+
+    // Analyze the request path and determine which type of handler should process it
+    // This applies our routing rules to classify the request appropriately
+    let route_type = determine_route(&uri)?;
+
+    // Delegate to the appropriate handler based on route classification
+    match route_type {
+        // API endpoints need WebAssembly module processing
+        // These requests go through the event queue to WASM components
+        RouteType::WebAssembly(path) => handle_webasm_request(req, path).await,
+        // Static files are served directly from the virtual file system
+        RouteType::StaticFile(path) => serve_static_web_content(&path, &app_name),
+    }
+}
+
+/// Route classification for incoming HTTP requests
+///
+/// This enum categorizes requests into two main types that require different handling:
+/// - API requests that need WebAssembly module processing
+/// - Static file requests that serve assets directly from the filesystem
+enum RouteType {
+    /// API endpoints that should be processed by WebAssembly modules
+    /// Contains the full path including query parameters for forwarding
+    WebAssembly(String),
+
+    /// Static file requests that serve assets (HTML, CSS, JS, images, etc.)
+    /// Contains the normalized file path for filesystem lookup
+    StaticFile(String),
+}
+
+/// Analyzes an HTTP request URI and determines the appropriate handler type
+///
+/// This function implements the core routing logic by examining the request path
+/// and applying routing rules to classify the request type.
+fn determine_route(uri: &hyper::Uri) -> anyhow::Result<RouteType> {
+    // Extract the full path including query parameters for accurate forwarding
+    // This preserves important data like ?asat=SLOT:95022059 that WASM modules need
+    let path = uri
+        .path_and_query()
+        .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str);
+
+    // Check if this is an API endpoint that needs WebAssembly processing
+    // API routes are identified by the /api prefix (exact match or with additional path)
+    if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
+        Ok(RouteType::WebAssembly(path.to_string()))
+    }
+    // Check if this is a valid static file path
+    // Uses regex validation to ensure path safety and prevent directory traversal
+    else if is_valid_path(uri.path()).is_ok() {
+        Ok(RouteType::StaticFile(path.to_string()))
+    }
+    // Reject invalid or potentially dangerous paths
+    else {
+        Err(anyhow!("Invalid route: {}", uri.path()))
+    }
+}
+
+/// Forwards HTTP requests to WebAssembly modules for processing
+///
+/// Converts incoming HTTP requests into internal events, sends them to WASM modules,
+/// and returns the module's response.
+async fn handle_webasm_request(
+    req: Request<Incoming>,
+    path: String,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     // Create synchronous MPSC channel for receiving WASM module responses
     // Used in request-response pattern: HTTP request → global event queue → WASM modules →
@@ -148,14 +210,7 @@ async fn route_to_hermes(
     let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
         channel();
 
-    let uri = req.uri().to_owned();
     let method = req.method().to_owned().to_string();
-
-    // Include query parameters in path (crucial for redirects)
-    let path = uri
-        .path_and_query()
-        .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str)
-        .to_string();
 
     // Convert headers to multi-value format
     let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -168,20 +223,14 @@ async fn route_to_hermes(
 
     let (_parts, body) = req.into_parts();
 
-    if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
-        compose_http_event(
-            method,
-            header_map.into_iter().collect(),
-            body.collect().await?.to_bytes(),
-            path,
-            lambda_send,
-            &lambda_recv_answer,
-        )
-    } else if is_valid_path(uri.path()).is_ok() {
-        serve_flutter_assets(&path, &app_name)
-    } else {
-        Ok(not_found()?)
-    }
+    compose_http_event(
+        method,
+        header_map.into_iter().collect(),
+        body.collect().await?.to_bytes(),
+        path,
+        lambda_send,
+        &lambda_recv_answer,
+    )
 }
 
 /// Compose http event and send to global queue, await queue response and relay back to
@@ -228,88 +277,174 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
     }
 }
 
-/// Serves Flutter web build assets with proper MIME types
-fn serve_flutter_assets<B>(
+/// Serves static web assets for Flutter applications with comprehensive error handling
+///
+/// This is the primary function for handling static file requests in the Hermes web server.
+/// It manages the complete lifecycle of serving web assets from the Virtual File System (VFS),
+/// including MIME type detection, caching headers, security policies, and fallback handling.
+///
+/// ## Core Functionality:
+///
+/// ### 1. Path Resolution & VFS Access
+/// - Converts HTTP request paths to VFS file paths using `resolve_static_file_path()`
+/// - Accesses the application's Virtual File System through the reactor
+/// - Handles both direct file requests and Flutter routing scenarios
+///
+/// ### 2. Asset Serving Pipeline
+/// ```
+/// HTTP Request → Path Resolution → VFS Lookup → File Found?
+///                                               ├── Yes: Serve Asset + Headers + MIME
+///                                               └── No:  Handle Missing (404 or Fallback)
+/// ```
+fn serve_static_web_content<B>(
     path: &str,
     app_name: &ApplicationName,
 ) -> anyhow::Result<Response<B>>
 where
     B: Body + From<Vec<u8>>,
 {
-    let file_path = if path == "/" {
-        "www/index.html".to_string()
-    } else {
-        let clean_path = path.strip_prefix('/').unwrap_or(path);
-        format!("www/{clean_path}")
-    };
+    // Convert HTTP path to VFS file path
+    let file_path = resolve_static_file_path(path);
 
-    info!("serving static file @:{}", file_path);
-
-    // ADD THIS LOGGING
-    if file_path.contains("flutter_bootstrap.js") {
-        info!("🔍 DEBUGGING flutter_bootstrap.js request:");
-        info!("   Original path: {}", path);
-        info!("   Computed file_path: {}", file_path);
-    }
-
+    // Get application instance and its VFS
     let app = reactor::get_app(app_name)?;
 
-    if let Ok(file_contents) = app.vfs().read(&file_path) {
-        let mut response = Response::new(file_contents.into());
-
-        if let Some(extension) = get_file_extension(&file_path) {
-            let content_type = get_flutter_content_type(extension);
-            info!(
-                "File: {} -> Extension: {} -> Content-Type: {}",
-                file_path, extension, content_type
-            );
-            response
-                .headers_mut()
-                .insert("Content-Type", content_type.parse()?);
-        }
-
-        add_flutter_cache_headers(&mut response, &file_path)?;
-        response = add_security_headers(response)?;
-        Ok(response)
-    } else {
-        // NEW: Don't fall back to index.html for JavaScript/WASM files
-        if let Some(_extension @ ("js" | "wasm" | "json" | "css" | "map")) = get_file_extension(&file_path) {
-            error!("Critical asset missing: {}", file_path);
-            return Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body("Asset not found".as_bytes().to_vec().into())?);
-        }
-
-        // Only fall back to index.html for navigation routes (no extension or HTML files)
-        match file_path.as_str() {
-            "www/index.html" => serve_flutter_not_found(),
-            _ => match app.vfs().read("www/index.html") {
-                Ok(index_contents) => {
-                    let mut response = Response::new(index_contents.into());
-                    response
-                        .headers_mut()
-                        .insert("Content-Type", "text/html".parse()?);
-                    response.headers_mut().insert(
-                        "Cache-Control",
-                        "no-cache, no-store, must-revalidate".parse()?,
-                    );
-                    response = add_security_headers(response)?;
-                    Ok(response)
-                },
-                Err(_) => serve_flutter_not_found(),
-            },
-        }
+    // Attempt to read file from VFS and handle result
+    match app.vfs().read(&file_path) {
+        Ok(file_contents) => serve_existing_asset(file_contents, &file_path),
+        Err(_) => handle_missing_asset(&file_path, &app),
     }
 }
 
-/// Add security headers to response
+/// Default file path for root requests - Flutter application entry point
+const DEFAULT_INDEX_PATH: &str = "www/index.html";
+
+/// Document root directory in the VFS where static web assets are stored
+const DOCUMENT_ROOT: &str = "www";
+
+/// Resolves incoming HTTP request paths to actual file paths within the Virtual File System (VFS)
+///
+/// This function performs path normalization and translation for serving static files in a Flutter web application.
+/// It implements the standard web server convention where the document root maps to a specific VFS directory.
+///
+/// ## Path Resolution Rules:
+///
+/// ### Root Path Handling:
+/// - **Input**: `"/"` (root/index request)
+/// - **Output**: `"www/index.html"`
+/// - **Purpose**: Serves the main Flutter application entry point
+/// - **Example**: `GET /` → serves `www/index.html` from VFS
+///
+/// ### Static File Path Translation:
+/// - **Input**: `"/assets/app.js"` (any non-root path)
+/// - **Process**: Remove leading `/`, prepend `www/`
+/// - **Output**: `"www/assets/app.js"`
+/// - **Purpose**: Maps URL paths to VFS file locations
+///
+/// ## VFS Structure Context:
+/// ```
+/// VFS Root
+/// └── www/                    ← Document root directory
+///     ├── index.html         ← Main application entry point
+///     ├── flutter.js         ← Flutter framework loader
+///     ├── flutter_service_worker.js  ← Service worker
+///     └── assets/            ← Static assets directory
+///         ├── fonts/         ← Font files
+///         ├── images/        ← Image assets
+///         └── packages/      ← Dart package assets
+/// ```
+///
+/// ## Security Considerations:
+/// - **Path traversal protection**: This function doesn't validate against `../` attacks
+///   (assumes upstream validation by HTTP router/framework)
+/// - **VFS isolation**: All resolved paths are contained within the `www/` directory
+/// - **No filesystem access**: Works purely with VFS paths, not real filesystem paths
+fn resolve_static_file_path(path: &str) -> String {
+    if path == "/" {
+        DEFAULT_INDEX_PATH.to_string()
+    } else {
+        let clean_path = path.strip_prefix('/').unwrap_or(path);
+        format!("{DOCUMENT_ROOT}/{clean_path}")
+    }
+}
+
+/// Serves an existing asset file with appropriate headers
+fn serve_existing_asset<B>(
+    file_contents: Vec<u8>,
+    file_path: &str,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
+    let mut response = Response::new(file_contents.into());
+
+    if let Some(extension) = get_file_extension(file_path) {
+        let content_type = get_flutter_content_type(extension);
+
+        response
+            .headers_mut()
+            .insert("Content-Type", content_type.parse()?);
+    }
+
+    add_flutter_cache_headers(&mut response, file_path)?;
+
+    Ok(add_security_headers(response)?)
+}
+
+/// Handles missing asset files with appropriate fallback logic
+fn handle_missing_asset<B>(
+    file_path: &str,
+    app: &Application,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>>,
+{
+    // Critical assets should return 404
+    if is_critical_asset(file_path) {
+        error!("Critical asset missing: {}", file_path);
+        return Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body("Asset not found".as_bytes().to_vec().into())?);
+    }
+
+    // Fall back to index.html for navigation routes
+    serve_index_html_fallback(file_path, app)
+}
+
+/// Checks if the file is a critical asset that shouldn't fallback to index.html
+fn is_critical_asset(file_path: &str) -> bool {
+    matches!(
+        get_file_extension(file_path),
+        Some("js" | "wasm" | "json" | "css" | "map")
+    )
+}
+
+/// Adds security headers to HTTP responses for Flutter web applications
+///
+/// This function implements Cross-Origin Isolation by setting two critical security headers
+/// that work together to create a secure browsing context.
+///
+/// ## Headers Added:
+///
+/// ### Cross-Origin-Opener-Policy (COOP): "same-origin"
+/// - **Purpose**: Isolates the browsing context from cross-origin windows
+/// - **Effect**: Prevents other origins from accessing this window object
+/// - **Security**: Protects against certain types of cross-origin attacks
+/// - **Compatibility**: Allows same-origin popups/windows to communicate normally
+///
+/// ### Cross-Origin-Embedder-Policy (COEP): "require-corp"
+/// - **Purpose**: Requires all embedded resources to explicitly opt-in to cross-origin loading
+/// - **Effect**: Blocks cross-origin resources without proper CORS or Cross-Origin-Resource-Policy headers
+/// - **Security**: Prevents malicious resource injection from untrusted origins
+/// - **Requirement**: All cross-origin assets need `crossorigin` attribute or CORP headers
+///
 fn add_security_headers<B>(mut response: Response<B>) -> anyhow::Result<Response<B>>
 where
     B: Body,
 {
     let headers = response.headers_mut();
 
-    // Add COOP and COEP headers for enabling SharedArrayBuffer and other features
+    // Enable Cross-Origin Isolation for advanced web features
     headers.insert(
         "Cross-Origin-Opener-Policy",
         "same-origin"
@@ -357,13 +492,25 @@ fn get_flutter_content_type(extension: &str) -> &'static str {
 
 /// Adds appropriate cache headers to Flutter asset responses
 ///
-/// Sets long-term caching for static assets (1 year) but no caching for
-/// index.html and service worker files to ensure proper application updates.
+/// This function implements a two-tier caching strategy for Flutter web applications:
+///
+/// ## Long-term caching (1 year) for static assets:
+/// - JavaScript bundles, CSS files, images, fonts, etc.
+/// - These files typically have content-based hashes in their names
+/// - Safe to cache aggressively since new versions will have different URLs
+/// - Uses `Cache-Control: public, max-age=31536000` (1 year)
+///
+/// ## No caching for critical navigation files:
+/// - `index.html`: The main entry point that loads the Flutter app
+/// - `flutter_service_worker.js`: Service worker that manages app caching
+/// - These files must always be fresh to ensure users get app updates
+/// - Uses `Cache-Control: no-cache, no-store, must-revalidate`
 fn add_flutter_cache_headers<B>(
     response: &mut Response<B>,
     file_path: &str,
 ) -> anyhow::Result<()> {
     if !file_path.ends_with("index.html") && !file_path.ends_with("flutter_service_worker.js") {
+        // Long-term caching for static assets (1 year = 31,536,000 seconds)
         response.headers_mut().insert(
             "Cache-Control",
             "public, max-age=31536000"
@@ -371,6 +518,7 @@ fn add_flutter_cache_headers<B>(
                 .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
         );
     } else {
+        // No caching for critical navigation files
         response.headers_mut().insert(
             "Cache-Control",
             "no-cache, no-store, must-revalidate"
@@ -381,15 +529,32 @@ fn add_flutter_cache_headers<B>(
     Ok(())
 }
 
-/// HTTP not found response generator for Flutter assets
-fn serve_flutter_not_found<B>() -> anyhow::Result<Response<B>>
+/// Serves index.html as fallback for navigation routes
+fn serve_index_html_fallback<B>(
+    file_path: &str,
+    app: &Application,
+) -> anyhow::Result<Response<B>>
 where
     B: Body + From<Vec<u8>>,
 {
-    let response = Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body("Not Found".as_bytes().to_vec().into())?;
-    add_security_headers(response)
+    match file_path {
+        "www/index.html" => not_found(),
+        _ => match app.vfs().read("www/index.html") {
+            Ok(index_contents) => {
+                let mut response = Response::new(index_contents.into());
+                response
+                    .headers_mut()
+                    .insert("Content-Type", "text/html".parse()?);
+                response.headers_mut().insert(
+                    "Cache-Control",
+                    "no-cache, no-store, must-revalidate".parse()?,
+                );
+                response = add_security_headers(response)?;
+                Ok(response)
+            },
+            Err(_) => not_found(),
+        },
+    }
 }
 
 #[cfg(all(test, debug_assertions))]

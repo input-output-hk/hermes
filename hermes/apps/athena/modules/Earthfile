@@ -157,23 +157,12 @@ local-build-http-proxy:
     RUN cp *.json /staging/ || true
 
     # Copy web assets to www subdirectory
-    RUN cp index.html /staging/www/ || true
-    RUN cp flutter.js /staging/www/ || true
-    RUN cp main.dart.js /staging/www/ || true
     RUN cp -r assets /staging/www/ || true
     RUN cp -r canvaskit /staging/www/ || true
     RUN cp -r icons /staging/www/ || true
-    RUN cp flutter_bootstrap.js /staging/www/ || echo "⚠️  flutter_bootstrap.js not copied (file missing)"
-    RUN cp main.dart.js_1.part.js /staging/www/ || echo "⚠️  main.dart.js_1.part.js not copied (file missing)"
-    RUN cp sqlite3.wasm /staging/www/ || echo "⚠️  sqlite3.wasm not copied (file missing)"
-    RUN cp drift_worker.js /staging/www/ || echo "⚠️  drift_worker.js not copied (file missing)"
 
-
-    # Right before SAVE ARTIFACT, add this debug
-    RUN echo "=== FINAL DEBUG: What's being saved ==="
-    RUN find /staging -type f | head -20
-    RUN ls -la /staging/
-    RUN ls -la /staging/www/ || echo "No www directory found"
+    # Copy all regular files from current directory to staging/www, skip directories
+    RUN find . -maxdepth 1 -type f -exec cp {} /staging/www/ \; 2>/dev/null || echo "⚠️  Some files may not have been copied"
     
     # Export build artifacts from staging directory
     SAVE ARTIFACT /staging AS LOCAL http-proxy/lib
