@@ -8,4 +8,4 @@ IMPORT ../../../wasi AS wasi
 
 # build - builds the "cardano_age" example Rust wasm component
 build:
-    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --rename=cardano_age.rs.wasm
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --out=cardano_age.rs.wasm

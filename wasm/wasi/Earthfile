@@ -2,6 +2,8 @@ VERSION 0.8
 
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.11 AS rust-ci
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.5.4 AS go-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.5.4 AS wasm-c-ci
+
 
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
@@ -97,7 +99,7 @@ BUILD_RUST_COMPONENT:
     FUNCTION
 
     ARG wasi_src_dir=../wasi
-    ARG rename=.
+    ARG out=out.wasm
 
     FROM +builder --wasi_src_dir=$wasi_src_dir
 
@@ -109,6 +111,26 @@ BUILD_RUST_COMPONENT:
         --output="wasm32-wasip2/release/.*.wasm"
 
     SAVE ARTIFACT target/wasm32-wasip2/release/*.wasm $rename
+
+# builds a wasm32-wasip2 component and saves it as an artifact
+BUILD_C_COMPONENT:
+    FUNCTION
+
+    ARG --required c_files
+    ARG wit_root=root.wit
+    ARG wasi_src_dir=.
+    ARG out=out.wasm
+
+    FROM wasm-c-ci+wasm-c-base
+
+    COPY ..+wasi-src/wasi $wasi_src_dir
+    COPY ./$wit_root $wasi_src_dir/wit/hermes.wit
+    COPY ./$c_files .
+
+    RUN /scripts/std_build.py --wit_path=$wasi_src_dir/wit --c_files=$c_files --out=out.wasm
+
+    SAVE ARTIFACT out.wasm $out
+
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:

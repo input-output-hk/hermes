@@ -8,4 +8,4 @@ IMPORT ../../../wasi AS wasi
 
 # build - builds the "next_century" example Rust wasm component
 build:
-    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --rename=next_century.rs.wasm
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --out=next_century.rs.wasm

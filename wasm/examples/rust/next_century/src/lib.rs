@@ -4,7 +4,7 @@ wit_bindgen::generate!({
     inline: "
         package hermes:app;
 
-        world app {
+        world hermes {
             import wasi:clocks/wall-clock@0.2.6;
             import hermes:logging/api;
             import hermes:init/api;
