@@ -1,13 +1,7 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.11 AS rust-ci
-# Use when debugging cat-ci locally.
-# IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
-
 IMPORT ../../wasi AS wasi
 
 # build - builds the IPFS integration test wasm component
 build:
-    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --rename=ipfs.wasm
-
-    SAVE ARTIFACT target/wasm32-wasip2/release/ipfs_test_component.wasm ipfs.wasm
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../wasi --out=ipfs.wasm

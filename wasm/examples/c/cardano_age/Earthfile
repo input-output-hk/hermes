@@ -4,7 +4,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.5.4 AS wasm-c-ci
 # Use when debugging cat-ci locally.
 # IMPORT ../../../../catalyst-ci/earthly/wasm/c AS wasm-c-ci
 
-IMPORT ../../../ AS wasm
+IMPORT ../../../wasi AS wasi
 
 # build - builds the "cardano_age" example C wasm component
 build:
