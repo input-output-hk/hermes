@@ -47,6 +47,7 @@ fcntl
 fdatasync
 fdstat
 filestat
+filestorage
 filesystems
 finalizer
 fini
@@ -147,6 +148,7 @@ thollander
 Timelike
 tinygo
 toolsets
+Traceback
 traitreg
 tweakable
 txns
