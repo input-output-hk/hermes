@@ -1,9 +1,10 @@
 wit_bindgen::generate!({
-    world: "me:my-app/my-world",
+    world: "hermes:app/app",
     path: "../../../wasi/wit",
     inline: "
-        package me:my-app;
-        world my-world {
+        package hermes:app;
+
+        world app {
             import wasi:clocks/wall-clock@0.2.6;
             import hermes:logging/api;
             import hermes:init/api;
