@@ -12,7 +12,7 @@
 //! concurrently within this pool.
 
 use std::{
-    sync::{atomic::AtomicUsize, Condvar, Mutex, OnceLock},
+    sync::{atomic::AtomicUsize, Condvar, Mutex},
     thread::available_parallelism,
 };
 
@@ -23,12 +23,11 @@ use rayon::ThreadPoolBuilder;
 static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Synchronization primitives for waiting until all tasks finish.
-static TASK_WAIT: OnceLock<(Mutex<()>, Condvar)> = OnceLock::new();
+static TASK_WAIT: (Mutex<()>, Condvar) = (Mutex::new(()), Condvar::new());
 
-/// Get a reference to the global `(Mutex, Condvar)` tuple,
-/// initializing it if necessary.
+/// Get a reference to the global `(Mutex, Condvar)` tuple.
 fn get_task_wait() -> &'static (Mutex<()>, Condvar) {
-    TASK_WAIT.get_or_init(|| (Mutex::new(()), Condvar::new()))
+    &TASK_WAIT
 }
 
 /// Initialize the global Rayon thread pool
