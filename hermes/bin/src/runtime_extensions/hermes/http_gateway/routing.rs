@@ -290,12 +290,6 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
 /// - Accesses the application's Virtual File System through the reactor
 /// - Handles both direct file requests and Flutter routing scenarios
 ///
-/// ### 2. Asset Serving Pipeline
-/// ```
-/// HTTP Request → Path Resolution → VFS Lookup → File Found?
-///                                               ├── Yes: Serve Asset + Headers + MIME
-///                                               └── No:  Handle Missing (404 or Fallback)
-/// ```
 fn serve_static_web_content<B>(
     path: &str,
     app_name: &ApplicationName,
@@ -342,17 +336,15 @@ const DOCUMENT_ROOT: &str = "www";
 /// - **Purpose**: Maps URL paths to VFS file locations
 ///
 /// ## VFS Structure Context:
-/// ```
 /// VFS Root
-/// └── www/                    ← Document root directory
-///     ├── index.html         ← Main application entry point
-///     ├── flutter.js         ← Flutter framework loader
-///     ├── flutter_service_worker.js  ← Service worker
-///     └── assets/            ← Static assets directory
-///         ├── fonts/         ← Font files
-///         ├── images/        ← Image assets
-///         └── packages/      ← Dart package assets
-/// ```
+/// |-- www/                    <- Document root directory
+///     |-- index.html         <- Main application entry point
+///     |-- flutter.js         <- Flutter framework loader
+///     |-- `flutter_service_worker.js`  <- Service worker
+///     |-- assets/            <- Static assets directory
+///         |-- fonts/         <- Font files
+///         |-- images/        <- Image assets
+///         |-- packages/      <- Dart package assets
 ///
 /// ## Security Considerations:
 /// - **Path traversal protection**: This function doesn't validate against `../` attacks
@@ -388,7 +380,7 @@ where
 
     add_flutter_cache_headers(&mut response, file_path)?;
 
-    Ok(add_security_headers(response)?)
+    add_security_headers(response)
 }
 
 /// Handles missing asset files with appropriate fallback logic
