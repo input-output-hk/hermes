@@ -48,7 +48,7 @@ mod tests {
     use hdf5::File;
     use temp_dir::TempDir;
 
-    use crate::hdf5::compression::enable_compression;
+    use super::*;
 
     fn copy_dir_recursively_to_package<P: AsRef<std::path::Path>>(
         dir: P,
@@ -79,8 +79,7 @@ mod tests {
                     .ok_or(anyhow::anyhow!("cannot convert path name to str"))?
                     .to_string();
                 let ds = if with_compression {
-                    enable_compression(package.new_dataset_builder());
-                    package.new_dataset_builder()
+                    enable_compression(package.new_dataset_builder())
                 } else {
                     package.new_dataset_builder()
                 };
