@@ -11,7 +11,9 @@ use std::{
 
 use rusty_ulid::Ulid;
 use wasmtime::{
-    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
+    component::{
+        self, Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker,
+    },
     Store as WasmStore,
 };
 
@@ -34,7 +36,7 @@ pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
-    pub(crate) instance: bindings::Hermes,
+    pub(crate) instance: component::Instance,
 }
 
 /// Module id type
@@ -161,7 +163,9 @@ impl Module {
         state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
-        let instance = bindings::HermesPre::new(self.pre_instance.clone())?
+        let instance = self
+            .pre_instance
+            .clone()
             .instantiate(&mut store)
             .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
@@ -181,8 +185,17 @@ impl Module {
 pub mod bench {
     use super::*;
     use crate::{
-        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
+        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext,
+        runtime_extensions::bindings::unchecked_exports, vfs::VfsBootstrapper,
     };
+
+    unchecked_exports::define! {
+        /// Extends [`wasmtime::component::Instance`] with guest functions for init.
+        trait ComponentInstanceExt {
+            #[wit("hermes:init/event", "init")]
+            fn hermes_init_event_init() -> bool;
+        }
+    }
 
     /// Benchmark for executing the `init` event of the Hermes dummy component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization
@@ -200,8 +213,7 @@ pub mod bench {
             ) -> anyhow::Result<()> {
                 instance
                     .instance
-                    .hermes_init_event()
-                    .call_init(&mut instance.store)?;
+                    .hermes_init_event_init(&mut instance.store)?;
                 Ok(())
             }
         }

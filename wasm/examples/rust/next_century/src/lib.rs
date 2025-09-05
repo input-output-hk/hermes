@@ -1,7 +1,21 @@
-// Allow everything since this is generated code.
-#[allow(clippy::all, unused)]
-mod hermes;
-mod stub;
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../../wasi/wit",
+    inline: "
+        package hermes:app;
+
+        world hermes {
+            import wasi:clocks/wall-clock@0.2.6;
+            import hermes:logging/api;
+            import hermes:init/api;
+            
+            export hermes:init/event;
+        }
+    ",
+    generate_all,
+});
+
+export!(TestComponent);
 
 struct TestComponent;
 
@@ -9,8 +23,8 @@ fn log_shutdown() {
     const FILE: &str = "next_century/src/lib.rs";
     const MSG: &str = "Issuing shutdown..";
 
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Info,
+    hermes::logging::api::log(
+        hermes::logging::api::Level::Info,
         Some(&FILE),
         None,
         None,
@@ -21,20 +35,18 @@ fn log_shutdown() {
     );
 }
 
-impl hermes::exports::hermes::init::event::Guest for TestComponent {
+impl exports::hermes::init::event::Guest for TestComponent {
     fn init() -> bool {
         const JAN_1_2100_SECONDS: u64 = 4102434000;
 
-        let now_seconds = hermes::wasi::clocks::wall_clock::now().seconds;
+        let now_seconds = wasi::clocks::wall_clock::now().seconds;
 
         // Waiting for the next century.
         if now_seconds < JAN_1_2100_SECONDS {
             log_shutdown();
-            hermes::hermes::init::api::done(1);
+            hermes::init::api::done(1);
         }
 
         true
     }
 }
-
-hermes::export!(TestComponent with_types_in hermes);

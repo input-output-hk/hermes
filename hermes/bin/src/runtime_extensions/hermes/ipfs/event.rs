@@ -2,8 +2,17 @@
 use std::fmt::Display;
 
 use crate::{
-    event::HermesEventPayload, runtime_extensions::bindings::hermes::ipfs::api::PubsubMessage,
+    event::HermesEventPayload,
+    runtime_extensions::bindings::{hermes::ipfs::api::PubsubMessage, unchecked_exports},
 };
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for ipfs.
+    trait ComponentInstanceExt {
+       #[wit("hermes:ipfs/event", "on-topic")]
+        fn hermes_ipfs_event_on_topic(message: &PubsubMessage) -> bool;
+    }
+}
 
 /// Event handler for the `on-topic` event.
 #[derive(Clone)]
@@ -32,10 +41,9 @@ impl HermesEventPayload for OnTopicEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let _res: bool = module
+        let _res = module
             .instance
-            .hermes_ipfs_event()
-            .call_on_topic(&mut module.store, &self.message)?;
+            .hermes_ipfs_event_on_topic(&mut module.store, &self.message)?;
         // TODO(@saibatizoku):  WIP: add message handling
         Ok(())
     }

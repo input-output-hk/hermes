@@ -13,7 +13,9 @@ use url::Url;
 
 use crate::{
     event::HermesEventPayload,
-    runtime_extensions::bindings::exports::hermes::http_gateway::event::HttpGatewayResponse,
+    runtime_extensions::bindings::{
+        exports::hermes::http_gateway::event::HttpGatewayResponse, unchecked_exports,
+    },
 };
 
 // ============================================================================
@@ -204,6 +206,19 @@ fn validate_path(
 // HTTP Event Processing
 // ============================================================================
 
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for HTTP gateway.
+    trait ComponentInstanceExt {
+        #[wit("hermes:http-gateway/event", "reply")]
+        fn hermes_http_gateway_event_reply<'p> (
+            body: &'p [u8],
+            headers: &'p [(String, Vec<String>)],
+            path: &'p str,
+            method: &'p str,
+        ) -> Option<HttpGatewayResponse>;
+    }
+}
+
 impl HermesEventPayload for HTTPEvent {
     fn event_name(&self) -> &'static str {
         "http-event"
@@ -213,9 +228,9 @@ impl HermesEventPayload for HTTPEvent {
         &self,
         module: &mut crate::wasm::module::ModuleInstance,
     ) -> anyhow::Result<()> {
-        let event_response = module.instance.hermes_http_gateway_event().call_reply(
+        let event_response = module.instance.hermes_http_gateway_event_reply(
             &mut module.store,
-            &self.body.as_ref().to_vec(),
+            &self.body,
             &self.headers,
             &self.path,
             &self.method,
