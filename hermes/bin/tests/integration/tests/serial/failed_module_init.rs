@@ -1,3 +1,4 @@
+use serial_test::serial;
 use temp_dir::TempDir;
 
 use crate::utils;
