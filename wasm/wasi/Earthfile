@@ -108,14 +108,14 @@ BUILD_C_COMPONENT:
     FUNCTION
 
     ARG --required c_files # C code being build
-    ARG wit_root=root.wit # path to a list of imports and exports from hermes
+    ARG wit_root=./hermes.wit # import path for the root world file
     ARG wasi_src_dir=. # where should the /wasi directory reside at compilation
     ARG out=out.wasm # name of the saved artifact
 
     FROM wasm-c-ci+wasm-c-base
 
     COPY ..+wasi-src/wasi $wasi_src_dir
-    COPY ./$wit_root $wasi_src_dir/wit/hermes.wit
+    COPY $wit_root $wasi_src_dir/wit/hermes.wit
     COPY ./$c_files .
 
     RUN /scripts/std_build.py --wit_path=$wasi_src_dir/wit --c_files=$c_files --out=out.wasm

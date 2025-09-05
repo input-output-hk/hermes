@@ -4,4 +4,4 @@ IMPORT ../../wasi AS wasi
 
 # build - generate a wasm component from a C stub file
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files=hashing.c --wasi-src-dir=. --out=hashing.wasm
+    DO wasi+BUILD_C_COMPONENT --c_files=hashing.c --out=hashing.wasm

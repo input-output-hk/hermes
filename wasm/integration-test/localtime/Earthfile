@@ -4,5 +4,5 @@ IMPORT ../../wasi AS wasi
 
 # build - generate a wasm component from a C stub file
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files=localtime.c --wasi-src-dir=. --out=localtime.wasm
+    DO wasi+BUILD_C_COMPONENT --c_files=localtime.c --out=localtime.wasm
 

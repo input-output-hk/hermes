@@ -4,4 +4,4 @@ IMPORT ../../wasi AS wasi
 
 # build - generate a wasm component from a C stub file
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files=smoke-test.c --wasi-src-dir=. --out=smoke-test.wasm
+    DO wasi+BUILD_C_COMPONENT --c_files=smoke-test.c --out=smoke-test.wasm

@@ -4,4 +4,4 @@ IMPORT ../../wasi AS wasi
 
 # build - generate a wasm component
 build:
-    DO wasi+BUILD_C_COMPONENT --wasi-src-dir=. --out=cron.wasm
+    DO wasi+BUILD_C_COMPONENT --out=cron.wasm

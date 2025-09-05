@@ -4,4 +4,4 @@ IMPORT ../../wasi AS wasi
 
 # build - generate a wasm component
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files=logger.c --wasi-src-dir=. --out=logger.wasm
+    DO wasi+BUILD_C_COMPONENT --c_files=logger.c --out=logger.wasm
