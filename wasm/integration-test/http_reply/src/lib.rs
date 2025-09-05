@@ -8,7 +8,7 @@ wit_bindgen::generate!({
         package hermes:app;
 
         world hermes {
-            exports hermes:http-gateway/event;
+            export hermes:http-gateway/event;
             export hermes:integration-test/event;
         }
     ",

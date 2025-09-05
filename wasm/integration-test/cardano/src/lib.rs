@@ -18,8 +18,6 @@ export!(TestComponent);
 use exports::hermes::integration_test::event::TestResult;
 use hermes::cardano;
 
-use pallas_traverse::MultiEraBlock;
-
 struct TestComponent;
 
 fn test_get_data() -> bool {
@@ -73,40 +71,30 @@ fn test_subscribe_block() -> bool {
     true
 }
 
-impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
-    fn test(
-        test: u32,
-        run: bool,
-    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
+impl exports::hermes::integration_test::event::Guest for TestComponent {
+    fn test(test: u32, run: bool) -> Option<TestResult> {
         match test {
             0 => {
                 let status = if run { test_get_data() } else { true };
 
-                Some(
-                    hermes::exports::hermes::integration_test::event::TestResult {
-                        name: "Get data".to_string(),
-                        status,
-                    },
-                )
+                Some(TestResult {
+                    name: "Get data".to_string(),
+                    status,
+                })
             }
             1 => {
                 let status = if run { test_subscribe_block() } else { true };
 
-                Some(
-                    hermes::exports::hermes::integration_test::event::TestResult {
-                        name: "Subscribe block".to_string(),
-                        status,
-                    },
-                )
+                Some(TestResult {
+                    name: "Subscribe block".to_string(),
+                    status,
+                })
             }
             _ => None,
         }
     }
 
-    fn bench(
-        test: u32,
-        run: bool,
-    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
+    fn bench(test: u32, run: bool) -> Option<TestResult> {
         None
     }
 }
