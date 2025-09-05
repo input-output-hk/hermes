@@ -101,14 +101,14 @@ build-c-bindings:
 # build-package-wasm-for-go-bindings - Install tools used to create Go WASM bindings.
 # This mainly packages the local WIT interface/component into a WASM Component artifact.
 #
-# Generating Go WASM bindings requires `go.mod` with a 
+# Generating Go WASM bindings requires `go.mod` with a
 # `tool (go.bytecodealliance.org/cmd/wit-bindgen-go)`
 # For a complete example including Go bindings setup, see `wasm/integration-test/golang/Earthfile`.
 build-package-wasm-for-go-bindings:
-    FROM go-ci+go-wasm-builder 
+    FROM go-ci+go-wasm-builder
     WORKDIR /work
     COPY ..+wasi-src/wasi .
-    # `wkg wit build` uses `wkg.toml` to help resolve import dependencies.  
+    # `wkg wit build` uses `wkg.toml` to help resolve import dependencies.
     # This generate hermes:wasi.wasm
     RUN wkg wit build --wit-dir ./wit
     SAVE ARTIFACT hermes:wasi.wasm

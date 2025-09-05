@@ -4,6 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     event::HermesEventPayload,
+    pool,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         init::trait_event::{RteEvent, RteInitEvent},
@@ -41,7 +42,7 @@ pub(crate) struct Application {
     name: ApplicationName,
 
     /// WASM modules
-    indexed_modules: HashMap<ModuleId, Module>,
+    indexed_modules: HashMap<ModuleId, Arc<Module>>,
 
     /// Application's `Vfs` instance
     vfs: Arc<Vfs>,
@@ -57,7 +58,7 @@ impl Application {
     ) -> Self {
         let indexed_modules = modules
             .into_iter()
-            .map(|module| (module.id().clone(), module))
+            .map(|module| (module.id().clone(), Arc::new(module)))
             .collect();
         Self {
             name: app_name,
@@ -79,18 +80,17 @@ impl Application {
     /// Dispatch event for all available modules.
     pub(crate) fn dispatch_event(
         &self,
-        event: &dyn HermesEventPayload,
-    ) -> anyhow::Result<()> {
+        event: &Arc<dyn HermesEventPayload>,
+    ) {
         for module in self.indexed_modules.values() {
             module_dispatch_event(
-                module,
+                module.clone(),
                 self.name.clone(),
                 module.id().clone(),
                 self.vfs.clone(),
-                event,
-            )?;
+                event.clone(),
+            );
         }
-        Ok(())
     }
 
     /// Initialize every module.
@@ -107,48 +107,61 @@ impl Application {
     pub(crate) fn dispatch_event_for_target_module(
         &self,
         module_id: ModuleId,
-        event: &dyn HermesEventPayload,
+        event: Arc<dyn HermesEventPayload>,
     ) -> anyhow::Result<()> {
         let module = self
             .indexed_modules
             .get(&module_id)
             .ok_or(anyhow::anyhow!("Module {module_id} not found"))?;
         module_dispatch_event(
-            module,
+            module.clone(),
             self.name.clone(),
             module_id,
             self.vfs.clone(),
             event,
-        )
+        );
+        Ok(())
     }
 }
 
 /// Dispatch event
 pub(crate) fn module_dispatch_event(
-    module: &Module,
+    module: Arc<Module>,
     app_name: ApplicationName,
     module_id: ModuleId,
     vfs: Arc<Vfs>,
-    event: &dyn HermesEventPayload,
-) -> anyhow::Result<()> {
-    let runtime_ctx = HermesRuntimeContext::new(
-        app_name,
-        module_id,
-        event.event_name().to_string(),
-        module.exec_counter(),
-        vfs,
-    );
+    event: Arc<dyn HermesEventPayload>,
+) {
+    // TODO(@aido-mth): fix how init is processed. https://github.com/input-output-hk/hermes/issues/490
+    pool::execute(move || {
+        let runtime_ctx = HermesRuntimeContext::new(
+            app_name,
+            module_id,
+            event.event_name().to_string(),
+            module.exec_counter(),
+            vfs,
+        );
 
-    // Advise Runtime Extensions of a new context
-    // TODO: Better handle errors.
-    RteEvent::new().init(&runtime_ctx)?;
-    // TODO: (SJ) Remove when all RTE's are migrated.
-    new_context(&runtime_ctx);
+        // Advise Runtime Extensions of a new context
+        // TODO: Better handle errors.
+        if let Err(err) = RteEvent::new().init(&runtime_ctx) {
+            tracing::error!("module event initialization failed: {err}");
+            return;
+        }
 
-    module.execute_event(event, runtime_ctx.clone())?;
+        // TODO: (SJ) Remove when all RTE's are migrated.
+        new_context(&runtime_ctx);
 
-    // Advise Runtime Extensions that context can be cleaned up.
-    RteEvent::new().fini(&runtime_ctx)?;
+        if let Err(err) = module.execute_event(event.as_ref(), runtime_ctx.clone()) {
+            tracing::error!("module event execution failed: {err}");
+            return;
+        }
 
-    Ok(())
+        // Advise Runtime Extensions that context can be cleaned up.
+        drop(
+            RteEvent::new()
+                .fini(&runtime_ctx)
+                .inspect_err(|err| tracing::error!("module event finalization failed: {err}")),
+        );
+    });
 }

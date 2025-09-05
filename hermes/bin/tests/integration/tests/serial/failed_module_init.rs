@@ -3,13 +3,16 @@ use temp_dir::TempDir;
 use crate::utils;
 
 #[test]
+#[serial]
 fn do_not_load_app_when_module_initialization_fails() {
     const COMPONENT: &str = "failed_init";
+    const MODULE: &str = "test_module";
 
     let temp_dir = TempDir::new().unwrap();
 
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
-    let app_file_name = utils::packaging::package(&temp_dir).expect("failed to package app");
+    let app_file_name =
+        utils::packaging::package(&temp_dir, COMPONENT, MODULE).expect("failed to package app");
 
     // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();
