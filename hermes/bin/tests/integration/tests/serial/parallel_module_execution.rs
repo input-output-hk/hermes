@@ -7,6 +7,7 @@ use crate::utils;
 
 #[test]
 #[serial]
+#[ignore = "can cause deadlock until https://github.com/input-output-hk/hermes/issues/521 is fixed"]
 fn parallel_execution() {
     const COMPONENT: &str = "sleep_component";
     const MODULE: &str = "sleep_module";
