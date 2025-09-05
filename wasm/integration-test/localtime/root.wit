@@ -1,0 +1,7 @@
+package hermes:app;
+
+world hermes {
+    import hermes:localtime/api;
+    
+    export hermes:integration-test/event;
+}

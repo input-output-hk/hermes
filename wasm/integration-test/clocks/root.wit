@@ -1,0 +1,7 @@
+package hermes:app;
+
+world hermes {
+    import wasi:clocks/wall-clock@0.2.6;
+
+    export hermes:integration-test/event;
+}

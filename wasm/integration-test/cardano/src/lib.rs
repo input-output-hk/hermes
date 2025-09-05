@@ -1,19 +1,27 @@
-#![allow(clippy::all, unused)]
-mod hermes;
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../../wasi/wit",
+    inline: "
+        package hermes:app;
 
-use hermes::{
-    exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
-        integration_test::event::TestResult,
-    },
-    hermes::{
-        cardano,
-        cron::api::CronTagged,
-        kv_store::api::KvValues,
-        ipfs::api::PubsubMessage,
-    },
-    wasi::http::types::{IncomingRequest, ResponseOutparam},
-};
+        world hermes {
+            import wasi:clocks/wall-clock@0.2.6;
+            import hermes:cardano/api;
+            import hermes:logging/api;
+            import hermes:init/api;
+            
+            export hermes:init/event;
+            export hermes:cardano/event-on-block;
+            export hermes:cardano/event-on-immutable-roll-forward;
+        }
+    ",
+    generate_all,
+});
+
+export!(TestComponent);
+
+use exports::hermes::integration_test::event::TestResult;
+use hermes::cardano;
 
 use pallas_traverse::MultiEraBlock;
 
@@ -107,62 +115,3 @@ impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
         None
     }
 }
-
-impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
-    fn on_cardano_immutable_roll_forward(
-        _subscription_id: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        _block: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
-    ) {
-    }
-}
-
-impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(
-        _subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
-        _block: &hermes::exports::hermes::cardano::event_on_block::Block,
-    ) {
-    }
-}
-
-impl hermes::exports::hermes::cron::event::Guest for TestComponent {
-    fn on_cron(event: hermes::exports::hermes::cron::event::CronTagged, last: bool) -> bool {
-        false
-    }
-}
-
-impl hermes::exports::hermes::init::event::Guest for TestComponent {
-    fn init() -> bool {
-        true
-    }
-}
-
-impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
-    fn on_topic(message: hermes::exports::hermes::ipfs::event::PubsubMessage) -> bool {
-        false
-    }
-}
-
-impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
-    fn kv_update(_key: String, _value: KvValues) {}
-}
-
-impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
-    fn reply(
-        _body: Bstr,
-        _headers: Headers,
-        _path: String,
-        _method: String,
-    ) -> Option<HttpGatewayResponse> {
-        None
-    }
-}
-
-impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
-    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
-}
-
-impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
-    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
-}
-
-hermes::export!(TestComponent with_types_in hermes);

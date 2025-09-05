@@ -85,20 +85,12 @@ build:
 
     SAVE ARTIFACT wasi-hermes-docs wasi-hermes-docs
 
-# test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
-build-rust-bindings:
-    FROM +builder
-
-    RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
-
-    SAVE ARTIFACT hermes.rs
-
 # builds a wasm32-wasip2 component and saves it as an artifact
 BUILD_RUST_COMPONENT:
     FUNCTION
 
-    ARG wasi_src_dir=../wasi
-    ARG out=out.wasm
+    ARG wasi_src_dir=../wasi # where should the /wasi directory reside at compilation
+    ARG out=out.wasm # name of the saved artifact
 
     FROM +builder --wasi_src_dir=$wasi_src_dir
 
@@ -109,16 +101,16 @@ BUILD_RUST_COMPONENT:
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/.*.wasm"
 
-    SAVE ARTIFACT target/wasm32-wasip2/release/*.wasm $rename
+    SAVE ARTIFACT target/wasm32-wasip2/release/*.wasm $out
 
 # builds a wasm32-wasip2 component and saves it as an artifact
 BUILD_C_COMPONENT:
     FUNCTION
 
-    ARG --required c_files
-    ARG wit_root=root.wit
-    ARG wasi_src_dir=.
-    ARG out=out.wasm
+    ARG --required c_files # C code being build
+    ARG wit_root=root.wit # path to a list of imports and exports from hermes
+    ARG wasi_src_dir=. # where should the /wasi directory reside at compilation
+    ARG out=out.wasm # name of the saved artifact
 
     FROM wasm-c-ci+wasm-c-base
 
@@ -130,6 +122,13 @@ BUILD_C_COMPONENT:
 
     SAVE ARTIFACT out.wasm $out
 
+# test-rust-bindings - Test we can generate rust bindings without error from the hermes default world
+build-rust-bindings:
+    FROM +builder
+
+    RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
+
+    SAVE ARTIFACT hermes.rs
 
 # test-c-bindings - Test we can generate C bindings without error from the hermes default world
 build-c-bindings:

@@ -1,0 +1,7 @@
+package hermes:app;
+
+world hermes {
+    import hermes:crypto/api;
+    
+    export hermes:init/event;
+}
