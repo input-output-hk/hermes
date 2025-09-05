@@ -299,15 +299,24 @@ check-spelling:
 pre-push: check-markdown check-spelling
     just hermes/pre-push
 
-# Clean up the entire lib directory from http-proxy module
-clean-lib:
-    @echo "🧹 Cleaning up http-proxy lib directory..."
-    @if [ -d "apps/modules/http-proxy/lib" ]; then \
-        echo "📁 Found apps/modules/http-proxy/lib/ directory"; \
-        rm -rf apps/modules/http-proxy/lib/*; \
-        echo "✅ Cleaned up apps/modules/http-proxy/lib/ contents"; \
+# Clean up the www directory from http-proxy module after packaging
+#
+# Removes the www directory that gets created in the http-proxy module during
+# the application packaging process. This directory is located at:
+# apps/modules/http-proxy/lib/www
+#
+# When to use:
+#   - After successful packaging to clean up intermediate files
+#   - Before clean builds to ensure no stale www content
+#   - As part of development iteration to reset web assets
+clean-www:
+    @echo "🧹 Cleaning up http-proxy www directory..."
+    @if [ -d "apps/modules/http-proxy/lib/www" ]; then \
+        echo "📁 Found apps/modules/http-proxy/lib/www/ directory"; \
+        rm -rf apps/modules/http-proxy/lib/www/; \
+        echo "✅ Removed apps/modules/http-proxy/lib/www/ directory"; \
     else \
-        echo "ℹ️  apps/modules/http-proxy/lib/ directory does not exist (nothing to clean)"; \
+        echo "ℹ️  apps/modules/http-proxy/lib/www/ directory does not exist (nothing to clean)"; \
     fi
 
 # Enhanced cleanup that includes HFS files and www directory
