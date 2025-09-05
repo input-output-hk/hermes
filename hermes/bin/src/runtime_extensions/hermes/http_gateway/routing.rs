@@ -1,7 +1,7 @@
 use crate::app::Application;
 use std::result::Result::Ok;
 use std::{
-    collections::HashMap,
+
     net::SocketAddr,
     sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
@@ -45,14 +45,79 @@ const EVENT_TIMEOUT: u64 = 1;
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Hostname(pub String);
 
+
+/// Main HTTP request router that processes incoming requests by hostname
+///
+/// Takes an HTTP request and routes it to the appropriate handler based on the
+/// hostname in the Host header. Each hostname corresponds to a different application.
+///
+/// ## Process:
+/// 1. Generates a unique request ID for tracking
+/// 2. Validates the hostname against allowed hosts
+/// 3. Routes valid requests to the Hermes application handler
+/// 4. Tracks connection state in the connection manager
+///
+///
+/// ## Example:
+/// A request with `Host: app.hermes.local` gets routed to the "app" application
+/// if "hermes.local" is in the valid hosts list.
+pub(crate) async fn router(
+    req: Request<Incoming>,
+    connection_manager: ConnectionManager,
+    ip: SocketAddr,
+    config: Config,
+) -> anyhow::Result<Response<Full<Bytes>>> {
+    let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
+    let client_ip = ClientIPAddr(ip);
+
+    // Register connection start
+    connection_manager.insert(
+        unique_request_id.clone(),
+        (client_ip.clone(), Processed(false), LiveConnection(true)),
+    );
+
+    #[cfg(debug_assertions)]
+    debug!("connection manager {:?}", connection_manager);
+
+    // Parse the Host header to extract the application name and resolved hostname
+    // This determines which application should handle the request
+    // For example: "app.hermes.local" -> app_name="app", resolved_host="hermes.local"
+    let (app_name, resolved_host) = host_resolver(req.headers())?;
+
+    // Check if the resolved hostname is in our list of valid/allowed hosts
+    // This is a security measure to prevent routing to unauthorized applications
+    let response = if config.valid_hosts.iter().any(|host| host.0 == resolved_host.0) {
+        // If hostname is valid, route the request to the Hermes WASM runtime
+        // The app_name determines which specific application will handle it
+        route_to_hermes(req, app_name.clone()).await?
+    } else {
+        // If hostname is not in the valid list, reject with an error response
+        // This prevents potential security issues from unauthorized hosts
+        return error_response("Invalid hostname");
+    };
+
+
+    // Mark connection as processed
+    connection_manager.insert(
+        unique_request_id,
+        (client_ip, Processed(true), LiveConnection(false)),
+    );
+
+    #[cfg(debug_assertions)]
+    debug!("connection manager {connection_manager} app {app_name}");
+
+    Ok(response)
+}
+
 /// HTTP error response generator
-pub(crate) fn error_response<B>(err: String) -> anyhow::Result<Response<B>>
+pub(crate) fn error_response<B>(err: impl Into<String>) -> anyhow::Result<Response<B>>
 where
     B: Body + From<String>,
 {
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(err.into())?)
+        .body(err.into().into())
+        .map_err(Into::into)
 }
 
 /// HTTP not found response generator
@@ -62,7 +127,7 @@ where
 {
     let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body("Not Found".as_bytes().to_vec().into())?;
+        .body(b"Not Found".to_vec().into())?;
     add_security_headers(response)
 }
 
@@ -71,61 +136,21 @@ where
 pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationName, Hostname)> {
     let host = headers
         .get("Host")
-        .ok_or(anyhow!("No host header"))?
-        .to_str()?;
+        .and_then(|h| h.to_str().ok())
+        .ok_or_else(|| anyhow!("Missing or invalid Host header"))?;
 
     // Strip port if present (e.g., "app.hermes.local:5000" -> "app.hermes.local")
-    let host = host.split(':').next().unwrap_or(host);
+    let host_without_port = host.split(':').next().unwrap_or(host);
 
-    // <app.name>.hermes.local
-    // host = hermes.local
-    let (app, host) = host
+    // Parse <app.name>.hermes.local format
+    let (app, hostname) = host_without_port
         .split_once('.')
-        .ok_or(anyhow::anyhow!("Malformed Host header"))?;
+        .ok_or_else(|| anyhow!("Malformed Host header: expected format 'app.domain'"))?;
 
-    Ok((ApplicationName(app.to_owned()), Hostname(host.to_owned())))
+    Ok((ApplicationName(app.to_owned()), Hostname(hostname.to_owned())))
 }
 
-/// Routing by hostname is a mechanism for isolating API services by giving each API its
-/// own hostname; for example, service-a.api.example.com or service-a.example.com.
-pub(crate) async fn router(
-    req: Request<Incoming>,
-    connection_manager: ConnectionManager,
-    ip: SocketAddr,
-    config: Config,
-) -> anyhow::Result<Response<Full<Bytes>>> {
-    let unique_request_id = EventUID(rusty_ulid::generate_ulid_string());
 
-    connection_manager.insert(
-        unique_request_id.clone(),
-        (ClientIPAddr(ip), Processed(false), LiveConnection(true)),
-    );
-
-    #[cfg(debug_assertions)]
-    debug!("connection manager {:?}", connection_manager);
-
-    let (app_name, resolved_host) = host_resolver(req.headers())?;
-
-    let response = if config
-        .valid_hosts
-        .iter()
-        .any(|host| host.0 == resolved_host.0.as_str())
-    {
-        route_to_hermes(req, app_name.clone()).await?
-    } else {
-        return error_response("Hostname not valid".to_owned());
-    };
-
-    connection_manager.insert(
-        unique_request_id,
-        (ClientIPAddr(ip), Processed(true), LiveConnection(false)),
-    );
-
-    #[cfg(debug_assertions)]
-    debug!("connection manager {connection_manager} app {app_name}");
-
-    Ok(response)
-}
 
 /// Main HTTP request router that processes incoming requests and delegates to appropriate handlers
 ///
@@ -195,42 +220,35 @@ fn determine_route(uri: &hyper::Uri) -> anyhow::Result<RouteType> {
     }
 }
 
-/// Forwards HTTP requests to WebAssembly modules for processing
+/// Processes HTTP requests for WebAssembly module execution
 ///
-/// Converts incoming HTTP requests into internal events, sends them to WASM modules,
-/// and returns the module's response.
+/// Converts incoming HTTP requests into WASM-compatible format and handles
+/// the async communication with WebAssembly modules.
+///
+/// ## Returns:
+/// HTTP response from the WebAssembly module
 async fn handle_webasm_request(
     req: Request<Incoming>,
     path: String,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
-    // Create synchronous MPSC channel for receiving WASM module responses
-    // Used in request-response pattern: HTTP request → global event queue → WASM modules →
-    // response channel TODO: Replace with oneshot channel since we only expect one
-    // response per HTTP request
-    let (lambda_send, lambda_recv_answer): (Sender<HTTPEventMsg>, Receiver<HTTPEventMsg>) =
-        channel();
-
-    let method = req.method().to_owned().to_string();
+    let (lambda_send, lambda_recv_answer) = channel();
+    let method = req.method().to_string();
 
     // Convert headers to multi-value format
-    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
-    for (header_name, header_val) in req.headers() {
-        header_map
-            .entry(header_name.to_string())
-            .or_default()
-            .push(header_val.to_str()?.to_string());
-    }
+    let headers: HeadersKV = req
+        .headers()
+        .iter()
+        .map(|(name, value)| {
+            let key = name.to_string();
+            let values = vec![value.to_str().unwrap_or_default().to_string()];
+            (key, values)
+        })
+        .collect();
 
     let (_parts, body) = req.into_parts();
+    let body_bytes = body.collect().await?.to_bytes();
 
-    compose_http_event(
-        method,
-        header_map.into_iter().collect(),
-        body.collect().await?.to_bytes(),
-        path,
-        lambda_send,
-        &lambda_recv_answer,
-    )
+    compose_http_event(method, headers, body_bytes, path, lambda_send, &lambda_recv_answer)
 }
 
 /// Compose http event and send to global queue, await queue response and relay back to
@@ -246,23 +264,20 @@ fn compose_http_event<B>(
 where
     B: Body + From<String>,
 {
-    let on_http_event = HTTPEvent {
-        headers,
-        method,
-        path,
-        body,
-        sender,
-    };
-
+    let on_http_event = HTTPEvent { headers, method, path, body, sender };
     let event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
 
     crate::event::queue::send(event)?;
 
-    match &receiver.recv_timeout(Duration::from_secs(EVENT_TIMEOUT))? {
+    let timeout = Duration::from_secs(EVENT_TIMEOUT);
+    match receiver.recv_timeout(timeout)? {
         HTTPEventMsg::HttpEventResponse(resp) => {
-            Ok(Response::new(serde_json::to_string(&resp)?.into()))
-        },
-        HTTPEventMsg::HTTPEventReceiver => Ok(error_response("HTTP event msg error".to_owned())?),
+            let body = serde_json::to_string(&resp)?.into();
+            Ok(Response::new(body))
+        }
+        HTTPEventMsg::HTTPEventReceiver => {
+            error_response("HTTP event message error")
+        }
     }
 }
 
@@ -297,17 +312,13 @@ fn serve_static_web_content<B>(
 where
     B: Body + From<Vec<u8>>,
 {
-    // Convert HTTP path to VFS file path
     let file_path = resolve_static_file_path(path);
-
-    // Get application instance and its VFS
     let app = reactor::get_app(app_name)?;
 
-    // Attempt to read file from VFS and handle result
-    match app.vfs().read(&file_path) {
-        Ok(file_contents) => serve_existing_asset(file_contents, &file_path),
-        Err(_) => handle_missing_asset(&file_path, &app),
-    }
+    app.vfs()
+        .read(&file_path)
+        .and_then(|contents| serve_existing_asset(contents, &file_path))
+        .or_else(|_| handle_missing_asset(&file_path, &app))
 }
 
 /// Default file path for root requests - Flutter application entry point
@@ -484,41 +495,34 @@ fn get_flutter_content_type(extension: &str) -> &'static str {
 
 /// Adds appropriate cache headers to Flutter asset responses
 ///
-/// This function implements a two-tier caching strategy for Flutter web applications:
-///
-/// ## Long-term caching (1 year) for static assets:
-/// - JavaScript bundles, CSS files, images, fonts, etc.
-/// - These files typically have content-based hashes in their names
-/// - Safe to cache aggressively since new versions will have different URLs
-/// - Uses `Cache-Control: public, max-age=31536000` (1 year)
-///
-/// ## No caching for critical navigation files:
-/// - `index.html`: The main entry point that loads the Flutter app
-/// - `flutter_service_worker.js`: Service worker that manages app caching
-/// - These files must always be fresh to ensure users get app updates
-/// - Uses `Cache-Control: no-cache, no-store, must-revalidate`
+/// Implements a two-tier caching strategy:
+/// - Critical files (index.html, service worker): No caching
+/// - Static assets: Long-term caching (1 year)
 fn add_flutter_cache_headers<B>(
     response: &mut Response<B>,
     file_path: &str,
 ) -> anyhow::Result<()> {
-    if !file_path.ends_with("index.html") && !file_path.ends_with("flutter_service_worker.js") {
-        // Long-term caching for static assets (1 year = 31,536,000 seconds)
-        response.headers_mut().insert(
-            "Cache-Control",
-            "public, max-age=31536000"
-                .parse()
-                .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
-        );
+    // Determine cache strategy based on file type
+    let cache_control = if is_critical_file(file_path) {
+        "no-cache, no-store, must-revalidate"
     } else {
-        // No caching for critical navigation files
-        response.headers_mut().insert(
-            "Cache-Control",
-            "no-cache, no-store, must-revalidate"
-                .parse()
-                .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
-        );
-    }
+        "public, max-age=31536000" // 1 year
+    };
+
+    // Apply cache header
+    response.headers_mut().insert(
+        "Cache-Control",
+        cache_control
+            .parse()
+            .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
+    );
+
     Ok(())
+}
+
+/// Checks if a file requires no caching (critical navigation files)
+fn is_critical_file(file_path: &str) -> bool {
+    file_path.ends_with("index.html") || file_path.ends_with("flutter_service_worker.js")
 }
 
 /// Serves index.html as fallback for navigation routes

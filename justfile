@@ -232,7 +232,7 @@ run-athena:
 #
 # Environment Variables: Same as run-athena (see above)
 # Example with custom config: REDIRECT_ALLOWED_HOSTS=example.com just build-run-all
-build-run-all: clean-hfs get-local-hermes get-local-athena run-athena
+build-run-all: clean-hfs get-local-hermes get-local-athena clean-www run-athena
 
 # Development helper: Quick rebuild of just the WASM components
 #
@@ -298,3 +298,17 @@ check-spelling:
 # Pre Push Checks - intended to be run by a git pre-push hook.
 pre-push: check-markdown check-spelling
     just hermes/pre-push
+
+# Clean up the entire lib directory from http-proxy module
+clean-lib:
+    @echo "🧹 Cleaning up http-proxy lib directory..."
+    @if [ -d "apps/modules/http-proxy/lib" ]; then \
+        echo "📁 Found apps/modules/http-proxy/lib/ directory"; \
+        rm -rf apps/modules/http-proxy/lib/*; \
+        echo "✅ Cleaned up apps/modules/http-proxy/lib/ contents"; \
+    else \
+        echo "ℹ️  apps/modules/http-proxy/lib/ directory does not exist (nothing to clean)"; \
+    fi
+
+# Enhanced cleanup that includes HFS files and www directory
+clean-all: clean-hfs clean-www
