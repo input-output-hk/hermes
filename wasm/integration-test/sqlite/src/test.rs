@@ -1,4 +1,4 @@
-use crate::hermes::hermes::sqlite;
+use crate::hermes::sqlite;
 
 type TestResult = Result<(), sqlite::api::Errno>;
 
@@ -55,8 +55,7 @@ pub(crate) const BENCHES: &[TestItem] = &[
 ];
 
 mod item {
-    use super::TestResult;
-    use crate::sqlite;
+    use super::{TestResult, sqlite};
 
     pub(super) fn open_database_persistent_simple() -> TestResult {
         let sqlite = sqlite::api::open(false, false)?;
@@ -156,8 +155,7 @@ mod item {
 }
 
 mod helper {
-    use super::TestResult;
-    use crate::sqlite;
+    use super::{TestResult, sqlite};
 
     pub(super) fn bench_insert(memory: bool) -> TestResult {
         let sqlite = sqlite::api::open(false, memory)?;
