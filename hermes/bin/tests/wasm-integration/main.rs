@@ -16,7 +16,7 @@ const DEFAULT_ENV_N_TEST: &str = "32";
 /// The default value for the number of benchmarks to run when not specified.
 const DEFAULT_ENV_N_BENCH: &str = "32";
 
-use std::{env, error::Error, ffi::OsStr, fs, path::Path, time::Instant};
+use std::{env, error::Error, ffi::OsStr, fs, path::Path, sync::Arc, time::Instant};
 
 use hermes::{
     app::ApplicationName,
@@ -112,12 +112,12 @@ fn visit_dir(
         // Execute the wasm tests to get their name
         // Load WASM module in the executor.
         let wasm_buf = fs::read(file_path)?;
-        let mut module = Module::from_bytes(&app_name, &wasm_buf)?;
+        let module = Arc::new(Module::from_bytes(&app_name, &wasm_buf)?);
 
         let mut collect = |event_type: EventType, n: u32| -> Result<(), Box<dyn Error>> {
             // Collect the cases in a loop until no more cases.
             for i in 0..n {
-                match execute_event(&mut module, i, false, event_type)? {
+                match execute_event(module.clone(), i, false, event_type)? {
                     Some(result) => {
                         let path_string = file_path.to_string_lossy().to_string();
 
@@ -186,9 +186,9 @@ fn execute(
 
     let app_name = ApplicationName::new("WasmUnitTest");
 
-    let mut module = Module::from_bytes(&app_name, &wasm_buf)?;
+    let module = Arc::new(Module::from_bytes(&app_name, &wasm_buf)?);
 
-    match execute_event(&mut module, test_case, true, event_type)? {
+    match execute_event(module, test_case, true, event_type)? {
         Some(result) => {
             if result.status {
                 Ok(())

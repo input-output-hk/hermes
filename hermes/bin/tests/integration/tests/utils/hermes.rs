@@ -8,9 +8,16 @@ use temp_dir::TempDir;
 use crate::utils::{self, LOG_FILE_NAME};
 
 pub fn build() {
+    #[cfg(debug_assertions)]
     let output = Command::new("cargo")
         .arg("build")
-        .arg("--release") // TODO[RC]: This should respect the proper build profile.
+        .output()
+        .expect("Failed to execute command");
+
+    #[cfg(not(debug_assertions))]
+    let output = Command::new("cargo")
+        .arg("build")
+        .arg("--release")
         .output()
         .expect("Failed to execute command");
 

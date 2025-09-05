@@ -1,6 +1,9 @@
 aarch
 aido
 asat
+asyncio
+auditability
+autocheckpoint
 backpressure
 bkioshn
 blockfetch
@@ -74,6 +77,11 @@ mkdelay
 mkdirat
 nanos
 nextest
+nolfs
+nomutex
+nostack
+notadb
+nsec
 oneshot
 openat
 outlen
@@ -122,6 +130,7 @@ testdocs
 testunit
 thiserror
 thollander
+threadsafe
 timelike
 tinygo
 toolsets
