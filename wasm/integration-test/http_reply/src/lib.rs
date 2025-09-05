@@ -15,6 +15,8 @@ wit_bindgen::generate!({
     generate_all,
 });
 
+export!(TestComponent);
+
 use exports::hermes::{
     http_gateway::event::{Bstr, Guest as _, Headers, HttpGatewayResponse},
     integration_test::event::TestResult,
