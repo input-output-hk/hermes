@@ -26,6 +26,7 @@ use super::{
     FileError, MissingPackageFileError,
 };
 use crate::{
+    app::ApplicationName,
     errors::Errors,
     hdf5::{
         resources::{bytes::BytesResource, ResourceTrait},
@@ -106,9 +107,23 @@ impl ModulePackage {
     ) -> anyhow::Result<()> {
         let mut errors = Errors::new();
 
-        self.get_metadata()
-            .map_or_else(errors.get_add_err_fn(), |_| ());
-        self.get_component()
+        let app_name = match self.get_metadata() {
+            Ok(metadata) => {
+                match metadata.get_name() {
+                    Ok(name) => ApplicationName::new(&name),
+                    Err(e) => {
+                        errors.get_add_err_fn()(e);
+                        ApplicationName::new("UnknownAppName")
+                    },
+                }
+            },
+            Err(e) => {
+                errors.get_add_err_fn()(e);
+                ApplicationName::new("UnknownAppName")
+            },
+        };
+
+        self.get_component(&app_name)
             .map_or_else(errors.get_add_err_fn(), |_| ());
         self.get_config_info()
             .map_or_else(errors.get_add_err_fn(), |_| ());
@@ -221,8 +236,12 @@ impl ModulePackage {
     }
 
     /// Get `wasm::module::Module` object from package.
-    pub(crate) fn get_component(&self) -> anyhow::Result<Module> {
-        self.get_component_file().map(Module::from_reader)?
+    pub(crate) fn get_component(
+        &self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<Module> {
+        let module_data = self.get_component_file()?;
+        Module::from_reader(app_name, module_data)
     }
 
     /// Get `Signature` object from package.
@@ -314,7 +333,10 @@ impl ModulePackage {
         )
         .unwrap_or_else(errors.get_add_err_fn());
 
+        let app_name = ApplicationName::new(&manifest.name);
+
         validate_and_write_component(
+            &app_name,
             &manifest.component.build(),
             package,
             Self::COMPONENT_FILE.into(),
@@ -370,13 +392,14 @@ fn validate_and_write_metadata(
 
 /// Validate WASM component file and write it to the package to the provided dir path.
 fn validate_and_write_component(
+    app_name: &ApplicationName,
     resource: &impl ResourceTrait,
     dir: &Dir,
     path: Path,
 ) -> anyhow::Result<()> {
     let component_reader = resource.get_reader()?;
 
-    Module::from_reader(component_reader)
+    Module::from_reader(app_name, component_reader)
         .map_err(|err| FileError::from_string(resource.to_string(), Some(err)))?;
 
     dir.copy_resource_file(resource, path)?;

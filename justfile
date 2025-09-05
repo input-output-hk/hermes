@@ -205,6 +205,7 @@ run-athena:
     echo ""
 
     # Execute the application with security sandboxing
+    # HERMES_LOG_LEVEL="debug" 
     target/release/hermes run --untrusted hermes/apps/athena/app.happ
 
 # Complete build and run workflow - recommended for most use cases

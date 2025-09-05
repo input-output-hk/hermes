@@ -109,7 +109,13 @@ mod tests {
     use super::*;
     use crate::{
         app::ApplicationName,
-        runtime_extensions::hermes::sqlite::{core::open, statement::core::finalize},
+        runtime_extensions::{
+            bindings::hermes::sqlite::api::Value,
+            hermes::sqlite::{
+                core::open,
+                statement::core::{column, finalize, step},
+            },
+        },
     };
 
     const TMP_DIR: &str = "tmp-dir";
@@ -118,6 +124,12 @@ mod tests {
         let app_name = ApplicationName(String::from(TMP_DIR));
 
         open(false, true, app_name)
+    }
+
+    fn init_fs(app_name: String) -> Result<*mut sqlite3, Errno> {
+        let app_name = ApplicationName(app_name);
+
+        open(false, false, app_name)
     }
 
     #[test]
@@ -225,5 +237,54 @@ mod tests {
         let db_ptr = init().unwrap();
 
         close(db_ptr).unwrap();
+    }
+
+    #[test]
+    fn test_multiple_threads_does_not_conflict() {
+        fn task(app_name: String) {
+            let db_ptr = init_fs(app_name).unwrap();
+            let statement = prepare(
+                db_ptr,
+                r"
+                    UPDATE counter
+                    SET value = value + 1
+                    RETURNING value;
+                ",
+            )
+            .expect("failed to prepare statement");
+            step(statement).expect("failed to make a step");
+            let Value::Int32(_counter) = column(statement, 0).expect("failed to get value") else {
+                panic!("invalid type");
+            };
+            finalize(statement).expect("failed to finalize statement");
+            close(db_ptr).expect("failed to close connection");
+        }
+
+        // Running db in memory and in file mode at the same time
+        // causes issues during test run
+        const APP_NAME: &str = "counter-app";
+
+        let db_ptr = init_fs(APP_NAME.to_string()).unwrap();
+        execute(
+            db_ptr,
+            r"
+                CREATE TABLE IF NOT EXISTS counter (
+                    value INTEGER
+                );
+                ",
+        )
+        .expect("failed to create  table");
+        execute(db_ptr, "INSERT INTO counter(value) VALUES(0);").expect("failed to insert value");
+        close(db_ptr).expect("failed to close connection");
+
+        let mut handlers = vec![];
+        for _ in 0..100 {
+            let app_name = APP_NAME.to_string();
+            handlers.push(std::thread::spawn(move || task(app_name)));
+        }
+
+        for handler in handlers {
+            handler.join().expect("failed to join handler");
+        }
     }
 }

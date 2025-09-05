@@ -3,7 +3,6 @@
 #![type_length_limit = "45079293105"]
 
 pub mod app;
-#[allow(dead_code)]
 pub mod cli;
 pub mod errors;
 pub mod event;
@@ -11,6 +10,7 @@ pub mod hdf5;
 pub mod ipfs;
 pub mod logger;
 pub mod packaging;
+pub mod pool;
 pub mod reactor;
 pub mod runtime_context;
 pub mod runtime_extensions;

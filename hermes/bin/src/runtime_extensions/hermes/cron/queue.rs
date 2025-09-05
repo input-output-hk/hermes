@@ -283,6 +283,8 @@ fn new_waiting_task(
 
 #[cfg(all(test, debug_assertions))]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use std::thread::sleep;
 
     use temp_dir::TempDir;
@@ -350,7 +352,7 @@ mod tests {
         let vfs = VfsBootstrapper::new(temp_dir.path(), APP_NAME.to_string())
             .bootstrap()
             .unwrap();
-        let hermes_app = Application::new(APP_NAME.to_string(), vfs, vec![]);
+        let hermes_app = Application::new(ApplicationName::new(APP_NAME), vfs, vec![]);
 
         crate::reactor::init().unwrap();
         crate::reactor::load_app(hermes_app).unwrap();

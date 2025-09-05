@@ -13,7 +13,11 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::Application, event::queue::Exit, ipfs, reactor, vfs::VfsBootstrapper, wasm::module::Module,
+    app::{Application, ApplicationName},
+    event::queue::Exit,
+    ipfs, reactor,
+    vfs::VfsBootstrapper,
+    wasm::module::Module,
 };
 
 /// Hermes application playground
@@ -94,7 +98,8 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
         let wasm_buf = fs::read(file_path)?;
-        let module = Module::from_bytes(&wasm_buf)?;
+        let app_name = ApplicationName::new(&name);
+        let module = Module::from_bytes(&app_name, &wasm_buf)?;
         modules.push((name, module));
     }
 
@@ -103,13 +108,13 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
 
 /// Create one-module application with temp directory VFS.
 fn create_one_module_app(
-    name: String,
+    name: &str,
     vfs_dir_path: &Path,
     module: Module,
 ) -> anyhow::Result<Application> {
-    let vfs_name = [name.as_str(), "_vfs"].concat();
+    let vfs_name = [name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
-    let app = Application::new(name, vfs, vec![module]);
+    let app = Application::new(ApplicationName::new(name), vfs, vec![module]);
 
     Ok(app)
 }
@@ -135,7 +140,7 @@ fn collect_apps(
     for (module_name, module) in modules {
         let vfs_dir_path =
             create_temp_dir_child(temp_dir, Path::new("vfs").join(&module_name).as_path())?;
-        let app = create_one_module_app(module_name, vfs_dir_path.as_path(), module)?;
+        let app = create_one_module_app(&module_name, vfs_dir_path.as_path(), module)?;
         apps.push(app);
     }
     Ok(apps)
