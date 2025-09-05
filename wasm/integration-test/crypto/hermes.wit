@@ -3,5 +3,5 @@ package hermes:app;
 world hermes {
     import hermes:crypto/api;
     
-    export hermes:init/event;
+    export hermes:integration-test/event;
 }

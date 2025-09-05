@@ -48,3 +48,7 @@ bool exports_hermes_integration_test_event_test(uint32_t test, bool run, exports
 
     return true;
 }
+
+bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, exports_hermes_integration_test_event_test_result_t *ret)
+{
+}

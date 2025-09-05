@@ -5,14 +5,9 @@ wit_bindgen::generate!({
         package hermes:app;
 
         world hermes {
-            import wasi:clocks/wall-clock@0.2.6;
             import hermes:cardano/api;
-            import hermes:logging/api;
-            import hermes:init/api;
             
-            export hermes:init/event;
-            export hermes:cardano/event-on-block;
-            export hermes:cardano/event-on-immutable-roll-forward;
+            export hermes:integration-test/event;
         }
     ",
     generate_all,
