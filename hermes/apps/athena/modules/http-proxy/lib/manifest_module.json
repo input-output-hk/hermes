@@ -9,5 +9,6 @@
     },
     "settings": {
         "schema": "settings.schema.json"
-    }
+    },
+    "share": "www"
 }

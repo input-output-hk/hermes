@@ -9,6 +9,7 @@ VERSION 0.8
 # This includes: rustc, cargo, wasm32-wasip2 target, optimization tools, and build utilities
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
 
+
 # Alternative for local catalyst-ci debugging (uncomment when needed):
 # IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
 
@@ -122,10 +123,7 @@ gen-bindings:
 # Output: http_proxy.wasm - Executable WebAssembly module
 # Duration: ~3-5 minutes (Rust compilation to WASM)
 local-build-http-proxy:
-    # Initialize the Rust CI environment with pre-configured toolchain
     DO rust-ci+SETUP
-
-    # Set working directory for build process
     WORKDIR /app
     
     # Copy source code and project configuration
@@ -140,17 +138,35 @@ local-build-http-proxy:
     COPY http-proxy/lib/manifest_module.json .
     COPY http-proxy/lib/metadata.json .
     COPY http-proxy/lib/settings.schema.json .
+    
+    # Create the missing config.json file (empty JSON object)
+    RUN echo '{}' > config.json
+
+    # Download web assets directly to root level
+    COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
 
     # Compile Rust code to WebAssembly
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/http_proxy.wasm"
 
-    # Export build artifacts
-    SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm http_proxy.wasm
+    # Create staging directory structure
+    RUN mkdir -p /staging/www
+
+    # Copy WASM module and JSON config files to root of staging
+    RUN cp target/wasm32-wasip2/release/http_proxy.wasm /staging/
+    RUN cp *.json /staging/ || true
+
+    # Copy web assets to www subdirectory
+    RUN cp -r assets /staging/www/ || true
+    RUN cp -r canvaskit /staging/www/ || true
+    RUN cp -r icons /staging/www/ || true
+
+    # Copy all regular files from current directory to staging/www, skip directories
+    RUN find . -maxdepth 1 -type f -exec cp {} /staging/www/ \; 2>/dev/null || echo "⚠️  Some files may not have been copied"
     
-    # Save to local filesystem in expected location for packaging
-    SAVE ARTIFACT target/wasm32-wasip2/release/http_proxy.wasm AS LOCAL http-proxy/lib/http_proxy.wasm
+    # Export build artifacts from staging directory
+    SAVE ARTIFACT /staging AS LOCAL http-proxy/lib
 
 # Future Module Build Targets
 # ============================
