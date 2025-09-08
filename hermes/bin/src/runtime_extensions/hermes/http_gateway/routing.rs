@@ -1,8 +1,6 @@
-use crate::app::Application;
-use std::result::Result::Ok;
 use std::{
-
     net::SocketAddr,
+    result::Result::Ok,
     sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
@@ -23,7 +21,7 @@ use super::{
     gateway_task::{ClientIPAddr, Config, ConnectionManager, EventUID, LiveConnection, Processed},
 };
 use crate::{
-    app::ApplicationName,
+    app::{Application, ApplicationName},
     event::{HermesEvent, TargetApp, TargetModule},
     reactor,
 };
@@ -44,7 +42,6 @@ const EVENT_TIMEOUT: u64 = 1;
 /// hostname (node name)
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Hostname(pub String);
-
 
 /// Main HTTP request router that processes incoming requests by hostname
 ///
@@ -86,7 +83,11 @@ pub(crate) async fn router(
 
     // Check if the resolved hostname is in our list of valid/allowed hosts
     // This is a security measure to prevent routing to unauthorized applications
-    let response = if config.valid_hosts.iter().any(|host| host.0 == resolved_host.0) {
+    let response = if config
+        .valid_hosts
+        .iter()
+        .any(|host| host.0 == resolved_host.0)
+    {
         // If hostname is valid, route the request to the Hermes WASM runtime
         // The app_name determines which specific application will handle it
         route_to_hermes(req, app_name.clone()).await?
@@ -95,7 +96,6 @@ pub(crate) async fn router(
         // This prevents potential security issues from unauthorized hosts
         return error_response("Invalid hostname");
     };
-
 
     // Mark connection as processed
     connection_manager.insert(
@@ -111,9 +111,7 @@ pub(crate) async fn router(
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: impl Into<String>) -> anyhow::Result<Response<B>>
-where
-    B: Body + From<String>,
-{
+where B: Body + From<String> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into().into())
@@ -122,9 +120,7 @@ where
 
 /// HTTP not found response generator
 fn not_found<B>() -> anyhow::Result<Response<B>>
-where
-    B: Body + From<Vec<u8>>,
-{
+where B: Body + From<Vec<u8>> {
     let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(b"Not Found".to_vec().into())?;
@@ -147,12 +143,14 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
         .split_once('.')
         .ok_or_else(|| anyhow!("Malformed Host header: expected format 'app.domain'"))?;
 
-    Ok((ApplicationName(app.to_owned()), Hostname(hostname.to_owned())))
+    Ok((
+        ApplicationName(app.to_owned()),
+        Hostname(hostname.to_owned()),
+    ))
 }
 
-
-
-/// Main HTTP request router that processes incoming requests and delegates to appropriate handlers
+/// Main HTTP request router that processes incoming requests and delegates to appropriate
+/// handlers
 ///
 /// This function serves as the central routing hub, taking validated HTTP requests and
 /// directing them to either WebAssembly modules or static file handlers based on the
@@ -248,7 +246,14 @@ async fn handle_webasm_request(
     let (_parts, body) = req.into_parts();
     let body_bytes = body.collect().await?.to_bytes();
 
-    compose_http_event(method, headers, body_bytes, path, lambda_send, &lambda_recv_answer)
+    compose_http_event(
+        method,
+        headers,
+        body_bytes,
+        path,
+        lambda_send,
+        &lambda_recv_answer,
+    )
 }
 
 /// Compose http event and send to global queue, await queue response and relay back to
@@ -264,7 +269,13 @@ fn compose_http_event<B>(
 where
     B: Body + From<String>,
 {
-    let on_http_event = HTTPEvent { headers, method, path, body, sender };
+    let on_http_event = HTTPEvent {
+        headers,
+        method,
+        path,
+        body,
+        sender,
+    };
     let event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
 
     crate::event::queue::send(event)?;
@@ -274,10 +285,8 @@ where
         HTTPEventMsg::HttpEventResponse(resp) => {
             let body = serde_json::to_string(&resp)?.into();
             Ok(Response::new(body))
-        }
-        HTTPEventMsg::HTTPEventReceiver => {
-            error_response("HTTP event message error")
-        }
+        },
+        HTTPEventMsg::HTTPEventReceiver => error_response("HTTP event message error"),
     }
 }
 
@@ -294,9 +303,10 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
 
 /// Serves static web assets for Flutter applications with comprehensive error handling
 ///
-/// This is the primary function for handling static file requests in the Hermes web server.
-/// It manages the complete lifecycle of serving web assets from the Virtual File System (VFS),
-/// including MIME type detection, caching headers, security policies, and fallback handling.
+/// This is the primary function for handling static file requests in the Hermes web
+/// server. It manages the complete lifecycle of serving web assets from the Virtual File
+/// System (VFS), including MIME type detection, caching headers, security policies, and
+/// fallback handling.
 ///
 /// ## Core Functionality:
 ///
@@ -304,7 +314,6 @@ fn is_valid_path(path: &str) -> anyhow::Result<()> {
 /// - Converts HTTP request paths to VFS file paths using `resolve_static_file_path()`
 /// - Accesses the application's Virtual File System through the reactor
 /// - Handles both direct file requests and Flutter routing scenarios
-///
 fn serve_static_web_content<B>(
     path: &str,
     app_name: &ApplicationName,
@@ -327,10 +336,12 @@ const DEFAULT_INDEX_PATH: &str = "www/index.html";
 /// Document root directory in the VFS where static web assets are stored
 const DOCUMENT_ROOT: &str = "www";
 
-/// Resolves incoming HTTP request paths to actual file paths within the Virtual File System (VFS)
+/// Resolves incoming HTTP request paths to actual file paths within the Virtual File
+/// System (VFS)
 ///
-/// This function performs path normalization and translation for serving static files in a Flutter web application.
-/// It implements the standard web server convention where the document root maps to a specific VFS directory.
+/// This function performs path normalization and translation for serving static files in
+/// a Flutter web application. It implements the standard web server convention where the
+/// document root maps to a specific VFS directory.
 ///
 /// ## Path Resolution Rules:
 ///
@@ -424,8 +435,8 @@ fn is_critical_asset(file_path: &str) -> bool {
 
 /// Adds security headers to HTTP responses for Flutter web applications
 ///
-/// This function implements Cross-Origin Isolation by setting two critical security headers
-/// that work together to create a secure browsing context.
+/// This function implements Cross-Origin Isolation by setting two critical security
+/// headers that work together to create a secure browsing context.
 ///
 /// ## Headers Added:
 ///
@@ -436,15 +447,15 @@ fn is_critical_asset(file_path: &str) -> bool {
 /// - **Compatibility**: Allows same-origin popups/windows to communicate normally
 ///
 /// ### Cross-Origin-Embedder-Policy (COEP): "require-corp"
-/// - **Purpose**: Requires all embedded resources to explicitly opt-in to cross-origin loading
-/// - **Effect**: Blocks cross-origin resources without proper CORS or Cross-Origin-Resource-Policy headers
+/// - **Purpose**: Requires all embedded resources to explicitly opt-in to cross-origin
+///   loading
+/// - **Effect**: Blocks cross-origin resources without proper CORS or
+///   Cross-Origin-Resource-Policy headers
 /// - **Security**: Prevents malicious resource injection from untrusted origins
-/// - **Requirement**: All cross-origin assets need `crossorigin` attribute or CORP headers
-///
+/// - **Requirement**: All cross-origin assets need `crossorigin` attribute or CORP
+///   headers
 fn add_security_headers<B>(mut response: Response<B>) -> anyhow::Result<Response<B>>
-where
-    B: Body,
-{
+where B: Body {
     let headers = response.headers_mut();
 
     // Enable Cross-Origin Isolation for advanced web features
@@ -535,20 +546,22 @@ where
 {
     match file_path {
         "www/index.html" => not_found(),
-        _ => match app.vfs().read("www/index.html") {
-            Ok(index_contents) => {
-                let mut response = Response::new(index_contents.into());
-                response
-                    .headers_mut()
-                    .insert("Content-Type", "text/html".parse()?);
-                response.headers_mut().insert(
-                    "Cache-Control",
-                    "no-cache, no-store, must-revalidate".parse()?,
-                );
-                response = add_security_headers(response)?;
-                Ok(response)
-            },
-            Err(_) => not_found(),
+        _ => {
+            match app.vfs().read("www/index.html") {
+                Ok(index_contents) => {
+                    let mut response = Response::new(index_contents.into());
+                    response
+                        .headers_mut()
+                        .insert("Content-Type", "text/html".parse()?);
+                    response.headers_mut().insert(
+                        "Cache-Control",
+                        "no-cache, no-store, must-revalidate".parse()?,
+                    );
+                    response = add_security_headers(response)?;
+                    Ok(response)
+                },
+                Err(_) => not_found(),
+            }
         },
     }
 }
