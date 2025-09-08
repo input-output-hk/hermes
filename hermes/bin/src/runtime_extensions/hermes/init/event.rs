@@ -1,3 +1,5 @@
+//! WASM component initialization export.
+
 use crate::runtime_extensions::bindings::unchecked_exports;
 
 unchecked_exports::define! {

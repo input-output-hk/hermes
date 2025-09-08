@@ -220,6 +220,31 @@ impl Module {
 #[cfg(feature = "bench")]
 pub mod bench {
     use super::*;
+    use crate::{app::ApplicationName, cli::Cli, vfs::VfsBootstrapper};
+
+    /// Benchmark for executing the `init` of the Hermes stub component.
+    /// It aims to measure the overhead of the WASM module and WASM state initialization
+    /// process.
+    pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
+        let app_name = ApplicationName("integration-test".to_owned());
+        let module = Module::from_bytes(
+            &app_name,
+            include_bytes!("../../../../wasm/stub-module/stub.wasm"),
+        )
+        .unwrap();
+
+        let hermes_home_dir = Cli::hermes_home().unwrap();
+
+        let vfs = std::sync::Arc::new(
+            VfsBootstrapper::new(hermes_home_dir, app_name.clone().to_string())
+                .bootstrap()
+                .unwrap(),
+        );
+
+        b.iter(|| {
+            module.init(app_name.clone(), vfs.clone()).unwrap();
+        });
+    }
 
     /// Benchmark for executing the `foo` WASM function of the tiny component.
     /// The general flow of how WASM module is instantiated and executed is the same as in
