@@ -487,7 +487,6 @@ fn get_flutter_content_type(extension: &str) -> &'static str {
     match extension {
         "html" => "text/html",
         "js" => "application/javascript",
-        "dart" => "application/dart",
         "wasm" => "application/wasm",
         "css" => "text/css",
         "json" => "application/json",
