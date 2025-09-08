@@ -400,8 +400,6 @@ where
             .insert("Content-Type", content_type.parse()?);
     }
 
-    add_flutter_cache_headers(&mut response, file_path)?;
-
     add_security_headers(response)
 }
 
@@ -502,38 +500,6 @@ fn get_flutter_content_type(extension: &str) -> &'static str {
         "otf" => "font/otf",
         _ => "application/octet-stream",
     }
-}
-
-/// Adds appropriate cache headers to Flutter asset responses
-///
-/// Implements a two-tier caching strategy:
-/// - Critical files (index.html, service worker): No caching
-/// - Static assets: Long-term caching (1 year)
-fn add_flutter_cache_headers<B>(
-    response: &mut Response<B>,
-    file_path: &str,
-) -> anyhow::Result<()> {
-    // Determine cache strategy based on file type
-    let cache_control = if is_critical_file(file_path) {
-        "no-cache, no-store, must-revalidate"
-    } else {
-        "public, max-age=31536000" // 1 year
-    };
-
-    // Apply cache header
-    response.headers_mut().insert(
-        "Cache-Control",
-        cache_control
-            .parse()
-            .map_err(|e| anyhow!("Invalid cache control header: {}", e))?,
-    );
-
-    Ok(())
-}
-
-/// Checks if a file requires no caching (critical navigation files)
-fn is_critical_file(file_path: &str) -> bool {
-    file_path.ends_with("index.html") || file_path.ends_with("flutter_service_worker.js")
 }
 
 /// Serves index.html as fallback for navigation routes
