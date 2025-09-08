@@ -6,7 +6,10 @@
 
 use std::{
     io::Read,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 
 use rusty_ulid::Ulid;
@@ -22,7 +25,9 @@ use crate::{
     runtime_extensions::{
         bindings::{self, LinkOptions},
         init::trait_module::{RteInitModule, RteModule},
+        new_context,
     },
+    vfs::Vfs,
     wasm::engine::Engine,
 };
 
@@ -115,6 +120,33 @@ impl Module {
             id,
             exc_counter: AtomicU32::new(0),
         })
+    }
+
+    /// Initializes the WASM module by calling its `init` function.
+    pub(crate) fn init(
+        &self,
+        app_name: ApplicationName,
+        vfs: Arc<Vfs>,
+    ) -> anyhow::Result<()> {
+        let runtime_ctx = HermesRuntimeContext::new(
+            app_name,
+            self.id.clone(),
+            "init_function_call".to_string(),
+            0,
+            vfs,
+        );
+
+        new_context(&runtime_ctx);
+
+        let mut store = WasmStore::new(&self.engine, runtime_ctx);
+        //let instance = self.pre_instance.instantiate(store).unwrap();
+        let instance =
+            bindings::HermesPre::new(self.pre_instance.clone())?.instantiate(&mut store)?;
+        let init_result = instance.hermes_init_event().call_init(&mut store)?;
+        if !init_result {
+            anyhow::bail!("WASM module init function returned false")
+        }
+        Ok(())
     }
 
     /// Instantiate WASM module reader

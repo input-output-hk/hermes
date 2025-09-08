@@ -1,5 +1,5 @@
 [package]
-name = "http_request_rte_01"
+name = "failed_init"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -9,8 +9,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wit-bindgen = "0.43.0"
-serde_json = "1.0.0"
-url = "2.5.4"
 
 [lints]
 workspace = true

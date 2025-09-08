@@ -39,7 +39,6 @@ pub fn set(
 pub fn build(
     component: &str,
     temp_dir: &TempDir,
-    component_name: &str,
 ) -> anyhow::Result<()> {
     let component_path = format!("tests/integration/components/{component}");
     let output = Command::new("cargo")
@@ -60,9 +59,9 @@ pub fn build(
     }
 
     let wasm_binary_path =
-        format!("{component_path}/target/wasm32-wasip2/release/{component_name}.wasm",);
+        format!("{component_path}/target/wasm32-wasip2/release/{component}.wasm");
 
-    let destination_path = temp_dir.as_ref().join(format!("{component_name}.wasm"));
+    let destination_path = temp_dir.as_ref().join(format!("{component}.wasm"));
     std::fs::copy(wasm_binary_path, destination_path)?;
 
     copy_settings_file(component, temp_dir)

@@ -93,6 +93,16 @@ impl Application {
         }
     }
 
+    /// Initialize every module.
+    pub(crate) fn init(&self) -> anyhow::Result<()> {
+        for module in self.indexed_modules.values() {
+            if let Err(e) = module.init(self.name.clone(), Arc::clone(&self.vfs)) {
+                anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)
+            }
+        }
+        Ok(())
+    }
+
     /// Dispatch event for the target module by the `module_id`.
     pub(crate) fn dispatch_event_for_target_module(
         &self,
