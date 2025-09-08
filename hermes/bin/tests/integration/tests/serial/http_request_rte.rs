@@ -25,16 +25,14 @@ use crate::utils;
 #[serial]
 fn simple_request() {
     const COMPONENT: &str = "http_request_rte_01";
-    const COMPONENT_NAME: &str = "test_component";
-    const MODULE_NAME: &str = "test_module";
+    const MODULE: &str = "test_module";
 
     let temp_dir = TempDir::new().unwrap();
-    utils::component::build(COMPONENT, &temp_dir, COMPONENT_NAME)
-        .expect("failed to build component");
+    utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let server = utils::http_server::start();
     utils::component::set("http_server", &server.base_url(), &temp_dir).expect("set failed");
-    let app_file_name = utils::packaging::package(&temp_dir, COMPONENT_NAME, MODULE_NAME)
-        .expect("failed to package app");
+    let app_file_name =
+        utils::packaging::package(&temp_dir, COMPONENT, MODULE).expect("failed to package app");
 
     // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();

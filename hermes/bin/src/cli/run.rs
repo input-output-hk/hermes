@@ -62,6 +62,8 @@ impl Run {
             Emoji::new("🛠️", ""),
             app.name()
         );
+        // TODO[RC]: Prevent the app from receiving any events until it is fully initialized.
+        // TODO[RC]: Currently, when a module fails to initialize, the whole app fails to run.
         reactor::load_app(app)?;
 
         let exit = if let Some(timeout_ms) = self.timeout_ms {

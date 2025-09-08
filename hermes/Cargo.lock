@@ -2363,6 +2363,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "failed_init"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.43.0",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3306,6 +3313,15 @@ dependencies = [
  "http 1.3.1",
  "http-body 1.0.1",
  "pin-project-lite",
+]
+
+[[package]]
+name = "http_request_rte_01"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "url",
+ "wit-bindgen 0.43.0",
 ]
 
 [[package]]
@@ -8140,15 +8156,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "test_component"
-version = "0.1.0"
-dependencies = [
- "serde_json",
- "url",
- "wit-bindgen 0.43.0",
 ]
 
 [[package]]

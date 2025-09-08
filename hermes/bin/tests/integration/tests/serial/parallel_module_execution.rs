@@ -7,10 +7,10 @@ use crate::utils;
 
 #[test]
 #[serial]
+#[ignore = "can cause deadlock until https://github.com/input-output-hk/hermes/issues/521 is fixed"]
 fn parallel_execution() {
     const COMPONENT: &str = "sleep_component";
-    const COMPONENT_NAME: &str = "sleep_component";
-    const MODULE_NAME: &str = "sleep_module";
+    const MODULE: &str = "sleep_module";
     const EVENT_COUNT: usize = 5;
     const TIME_IN_SECS_PER_EVENT: usize = 5;
     const BUFFER_SECS: usize = 15;
@@ -21,12 +21,11 @@ fn parallel_execution() {
         EVENT_COUNT + RESERVED_THREADS_FOR_TASK_QUEUE + RESERVED_THREAD_FOR_MAIN;
 
     let temp_dir = TempDir::new().unwrap();
-    utils::component::build(COMPONENT, &temp_dir, COMPONENT_NAME)
-        .expect("failed to build component");
+    utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let server = utils::http_server::start();
     utils::component::set("http_server", &server.base_url(), &temp_dir).expect("set failed");
-    let app_file_name = utils::packaging::package(&temp_dir, COMPONENT_NAME, MODULE_NAME)
-        .expect("failed to package app");
+    let app_file_name =
+        utils::packaging::package(&temp_dir, COMPONENT, MODULE).expect("failed to package app");
 
     // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();
