@@ -64,7 +64,7 @@ macro_rules! define {
 
             #[doc = concat!("Looks up and calls \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
             #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n")]
-            #[allow(unused_parens, reason = "needed for codegen in no-return case")]
+            #[allow(unused_parens, dead_code, reason = "needed for codegen in no-return case")]
             fn $rust_func$(<$l>)?(
                 &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>,

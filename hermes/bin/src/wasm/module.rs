@@ -25,7 +25,8 @@ use crate::{
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        bindings::{self, LinkOptions},
+        bindings::{self, unchecked_exports, LinkOptions},
+        hermes::init::ComponentInstanceExt as _,
         init::trait_module::{RteInitModule, RteModule},
         new_context,
     },
@@ -141,10 +142,13 @@ impl Module {
         new_context(&runtime_ctx);
 
         let mut store = WasmStore::new(&self.engine, runtime_ctx);
-        //let instance = self.pre_instance.instantiate(store).unwrap();
-        let instance =
-            bindings::HermesPre::new(self.pre_instance.clone())?.instantiate(&mut store)?;
-        let init_result = instance.hermes_init_event().call_init(&mut store)?;
+        let instance = self.pre_instance.instantiate(&mut store)?;
+
+        let init_result = match instance.lookup_hermes_init_event_init(&mut store) {
+            Ok(func) => func.call(&mut store, ())?.0,
+            Err(unchecked_exports::Error::NotExported) => true,
+            Err(err) => return Err(err.into()),
+        };
         if !init_result {
             anyhow::bail!("WASM module init function returned false")
         }
