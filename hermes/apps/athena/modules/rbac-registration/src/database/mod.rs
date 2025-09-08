@@ -16,8 +16,7 @@ use crate::{
 };
 use std::sync::LazyLock;
 
-const FILE_NAME: &str = "rbac-registration/src/database/mod.rs";
-
+/// Open database connection.
 pub(crate) fn open_db_connection() -> Result<Sqlite, ()> {
     const FUNCTION_NAME: &str = "open_db_connection";
 
@@ -25,10 +24,10 @@ pub(crate) fn open_db_connection() -> Result<Sqlite, ()> {
         Ok(db) => Ok(db),
         Err(e) => {
             log_error(
-                FILE_NAME,
+                file!(),
                 FUNCTION_NAME,
                 "hermes::sqlite::api::open",
-                &format!("🚨 Failed to open database: {e}"),
+                &format!("Failed to open database: {e}"),
                 None,
             );
             Err(())
@@ -38,34 +37,16 @@ pub(crate) fn open_db_connection() -> Result<Sqlite, ()> {
 
 pub(crate) fn close_db_connection(sqlite: Sqlite) {
     const FUNCTION_NAME: &str = "close_db_connection";
-
     if let Err(e) = sqlite.close() {
         log_error(
-            FILE_NAME,
+            file!(),
             FUNCTION_NAME,
             "hermes::sqlite::api::close",
-            &format!("🚨 Failed to close database: {e}"),
+            &format!("Failed to close database: {e}"),
             None,
         );
     }
 }
-
-// FIXME remove this
-pub static SQLITE: LazyLock<hermes::sqlite::api::Sqlite> = LazyLock::new(|| {
-    match hermes::sqlite::api::open(false, false) {
-        Ok(db) => db,
-        Err(e) => {
-            log_error(
-                FILE_NAME,
-                "lazy open sqlite",
-                "hermes::sqlite::api::open",
-                &format!("Failed to open database: {e}"),
-                None,
-            );
-            panic!("Failed to open database: {e}",);
-        },
-    }
-});
 
 // --------------- Binding helper -------------------
 pub(crate) fn bind_with_log(
@@ -74,14 +55,16 @@ pub(crate) fn bind_with_log(
     idx: u32,
     value: &Value,
     field_name: &str,
-) {
+) -> anyhow::Result<()> {
     if let Err(e) = stmt.bind(idx, value) {
         log_error(
-            FILE_NAME,
+            file!(),
             func_name,
             "hermes::sqlite::bind",
-            &format!("🚨 Failed to bind: {e:?}"),
+            &format!("Failed to bind: {e:?}"),
             Some(&json!({ field_name: format!("{value:?}") }).to_string()),
         );
+        anyhow::bail!("Failed to bind {field_name}");
     }
+    Ok(())
 }
