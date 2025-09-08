@@ -17,7 +17,7 @@ mod bindings {
                 import hermes:logging/api;
                 import hermes:init/api;
                 import hermes:http-request/api;
-                
+
                 export hermes:init/event;
                 export hermes:http-request/event;
             }

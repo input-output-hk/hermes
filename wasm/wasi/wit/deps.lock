@@ -13,11 +13,6 @@ url = "https://github.com/WebAssembly/wasi-filesystem/archive/v0.2.6.tar.gz"
 sha256 = "9eb3e27ea559c679e9fb3c775a7091efedd0dc52aec56d7cd28caba36a76309c"
 sha512 = "4207a911dd647ecbe82727af2145d88fc536f013ef76fc173d7d07729c71e9ff8c08ce911f25fa8511705d62e60d4888c5cc43d498cd3753b164bbe1be2d3a55"
 
-[http]
-url = "https://github.com/WebAssembly/wasi-http/archive/v0.2.6.tar.gz"
-sha256 = "9c2f6eee74e10fa24665091b09742ff9546d9fbb4ac53427f50ac5d5c12e2ad1"
-sha512 = "f8a8d90bb622f7178827f0f97598e13eedf1ca54faa9ed94cf496b305bcbe775caa9af8f414d043578d18af26d37eee03f49347081a3a3ebd75deff37b209196"
-
 [io]
 url = "https://github.com/WebAssembly/wasi-io/archive/v0.2.6.tar.gz"
 sha256 = "671761f464d312e6c26bcaab5e79fe14ac876b72267867579d5c65e053fe2301"

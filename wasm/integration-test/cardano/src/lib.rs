@@ -1,6 +1,6 @@
 wit_bindgen::generate!({
     world: "hermes:app/hermes",
-    path: "../../../wasi/wit",
+    path: "../../wasi/wit",
     inline: "
         package hermes:app;
 
