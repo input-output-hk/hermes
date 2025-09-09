@@ -1,13 +1,13 @@
 //! Data for the `rbac_registration` table.
 
-#[derive(Debug, Clone)]
 /// Data of the `rbac_registration` table.
+#[derive(Debug, Clone)]
 pub(crate) struct RbacDbData {
     /// 32 bytes transaction ID (aka transaction hash).
     pub(crate) txn_id: Vec<u8>,
-    /// Optional Catalyst short ID.
+    /// Optional Catalyst short ID - this only exist for Role 0.
     pub(crate) catalyst_id: Option<String>,
-    /// Slot number
+    /// Slot number.
     pub(crate) slot: u64,
     /// Transaction index.
     pub(crate) txn_idx: u16,
@@ -21,27 +21,4 @@ pub(crate) struct RbacDbData {
     /// If None, it can indicates that this registration is valid.
     /// Otherwise, invalid.
     pub(crate) problem_report: Option<String>,
-}
-
-impl RbacDbData {
-    /// Create a new instance of the `RbacDbData`.
-    fn new(
-        txn_id: Vec<u8>,
-        catalyst_id: Option<String>,
-        slot: u64,
-        txn_idx: u16,
-        prv_txn_id: Option<Vec<u8>>,
-        purpose: Option<String>,
-        problem_report: Option<String>,
-    ) -> Self {
-        Self {
-            txn_id,
-            catalyst_id,
-            slot,
-            txn_idx,
-            prv_txn_id,
-            purpose,
-            problem_report,
-        }
-    }
 }
