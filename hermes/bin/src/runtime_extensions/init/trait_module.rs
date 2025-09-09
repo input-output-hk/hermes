@@ -178,3 +178,23 @@ impl RteInitModule for RteModule {
         errors
     }
 }
+
+#[cfg(all(test, debug_assertions))]
+mod tests {
+    use super::RTE_INIT_MODULE_REGISTRY;
+
+    /// Tests that a new `RuntimeExtensionErrors` is empty
+    #[test]
+    fn test_all_registered_apps_have_constructors() {
+        for registered in RTE_INIT_MODULE_REGISTRY.iter() {
+            // Check all registered App Initializers have constructors.
+            assert!(registered.instanciate().is_some(), "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
+                    registered.name(),
+                    registered.path(),
+                    registered.file(),
+                    registered.trait_name(),
+                    registered.module_path(),
+                );
+        }
+    }
+}

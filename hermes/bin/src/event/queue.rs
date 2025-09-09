@@ -96,15 +96,14 @@ fn targeted_module_event_execution(
 
     match event.target_module() {
         TargetModule::All => {
-            if let Err(err) = app.dispatch_event(event.payload()) {
-                tracing::error!("{err}");
-            }
+            app.dispatch_event(event.payload());
         },
         TargetModule::List(target_modules) => {
             for target_module_id in target_modules {
-                if let Err(err) =
-                    app.dispatch_event_for_target_module(target_module_id.clone(), event.payload())
-                {
+                if let Err(err) = app.dispatch_event_for_target_module(
+                    target_module_id.clone(),
+                    event.payload().clone(),
+                ) {
                     tracing::error!("{err}");
                 }
             }

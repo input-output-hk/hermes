@@ -51,7 +51,7 @@ macro_rules! run_init_fini {
                     file = registered.file(),
                     trait_name = registered.trait_name(),
                     module_path = registered.module_path(),
-                    "Failed to create an instance of the runtime extension for runtime initialization."
+                    "Missing Constructor in the registered runtime extension."
                 );
             }
         }
