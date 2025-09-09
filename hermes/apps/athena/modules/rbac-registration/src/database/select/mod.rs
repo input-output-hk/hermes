@@ -22,7 +22,7 @@ where
 {
     let value = stmt.column(idx).map_err(|_| {
         log_select_column(file!(), func_name, idx, field);
-        anyhow::anyhow!("Failed to get column {} at index {}", field, idx)
+        anyhow::anyhow!("Failed to get column {field} at index {idx}")
     })?;
 
     let v = value.try_into().map_err(|e| {

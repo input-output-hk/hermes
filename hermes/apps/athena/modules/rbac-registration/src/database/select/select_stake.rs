@@ -1,4 +1,4 @@
-//! Select stake address from the rbac_stake_address table.
+//! Select stake address from the `rbac_stake_address` table.
 
 use cardano_blockchain_types::StakeAddress;
 
@@ -38,8 +38,8 @@ const RBAC_SELECT_REG_BY_TXN_ID_ORDER_SLOT_TXN_IDX: &str = r#"
         ORDER BY slot_no ASC, txn_idx ASC
 "#;
 
-/// Find all root registration that has this given catalyst ID.
-/// It should come before the given slot_id and txn_idx.
+/// Find all root registration that has this given catalyst ID, lets say `catalyst_id_1`.
+/// It should come before the given slot_no - `slot_no_1` , and txn_idx - `txn_idx_1`.
 /// eg. The input is slot_no = 20, txn_idx = 2.
 /// It will give these registrations:
 /// slot_no = 20, txn_id = 1
@@ -47,6 +47,9 @@ const RBAC_SELECT_REG_BY_TXN_ID_ORDER_SLOT_TXN_IDX: &str = r#"
 /// slot_no = txn_id = 0
 /// This is use to validate that the given root is valid or not.
 /// Note that the valid root should have the least `slot_no` and least `txn_idx` with no problem report.
+///
+/// If valid chain is found, the given catalyst ID (`catalyst_id_1`) with slot_no (`slot_no_1`) and
+/// txn_idx (`txn_idx_1`) is invalid.
 const RBAC_SELECT_ROOT_REG_BY_CAT_ID_LESS_THAN_SLOT_TXN_IDX: &str = r#"
     SELECT txn_id FROM rbac_registration
         WHERE prv_txn_id IS NULL
@@ -60,7 +63,7 @@ const RBAC_SELECT_ROOT_REG_BY_CAT_ID_LESS_THAN_SLOT_TXN_IDX: &str = r#"
 /// Registration chain from a stake address:
 ///
 /// 1. Start from the newest registration.
-/// - The rule is the newest `stake_address` that is in a valid chain, will take over that `stake_address` in the older chain.
+/// - The rule is the newest `stake_address` that is in a valid chain, will take over the `stake_address` in the older chain.
 /// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid chain2 with slot 20 has `stake_address_A`.
 /// Now `stake_address_A` belong to chain2. because it is the latest one.
 ///
@@ -71,12 +74,12 @@ const RBAC_SELECT_ROOT_REG_BY_CAT_ID_LESS_THAN_SLOT_TXN_IDX: &str = r#"
 ///
 /// Produces [txn_id_1, txn_id_2, …], newest to oldest.
 ///
-/// The there will be 2 cases
+/// Then there will be 2 cases
 ///
-/// a. Root registration (prv_txn_id IS NULL):
-/// - A valid root must have a non-null catalyst_id, no problem_report, and no prv_txn_id.
-/// - Then need to validate by checking whether this catalyst_id was already used
-///   in an earlier root (slot_no < slot_no_root, or same slot with smaller txn_idx).
+/// a. Root registration (`prv_txn_id` IS NULL):
+/// - A valid root must have a non-null catalyst_id, no problem_report, and no `prv_txn_id`.
+/// - Then need to validate by checking whether this root (Catalyst ID) was already used
+///   in an earlier root (slot_no less than current slot, or same slot with smaller `txn_idx`).
 ///
 ///      SELECT txn_id FROM rbac_registration
 ///      WHERE prv_txn_id IS NULL
@@ -89,8 +92,8 @@ const RBAC_SELECT_ROOT_REG_BY_CAT_ID_LESS_THAN_SLOT_TXN_IDX: &str = r#"
 /// - If no earlier root exists -> valid, the given `stake_address` belongs this chain.
 /// - Otherwise -> invalid, continue with next `txn_id`.
 ///
-/// b. Non-root registration (prv_txn_id IS NOT NULL):
-/// - Follow the chain backwards (txn_id -> prv_txn_id -> …) until reaching a root (prv_txn_id IS NULL).
+/// b. Non-root registration (`prv_txn_id` IS NOT NULL):
+/// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root (`prv_txn_id` IS NULL).
 /// - Validate that root using the same rule as (a).
 /// - If root is valid -> stake_address belongs to this chain.
 /// - Otherwise -> continue with next `txn_id`.
@@ -190,11 +193,11 @@ fn get_txn_ids_from_stake_addr(
 ) -> anyhow::Result<Vec<Vec<u8>>> {
     const FUNCTION_NAME: &str = "get_txn_ids_from_stake_addr";
 
-    // --- Get txn_ids for the stake_address, newest first ---
+    // Get txn_ids for the stake_address, newest first
     let mut stmt = sqlite
         .prepare(RBAC_STAKE_ADDR_SELECT_TXN_ID_BY_STAKE_ADDR)
         .map_err(|e| {
-            let err = format!("Failed to prepare RBAC_STAKE_ADDR_SELECT_TXN_ID_BY_STAKE_ADDR: {e}");
+            let err = format!("Failed to prepare txn_ids from stake address: {e}");
             log_error(
                 file!(),
                 FUNCTION_NAME,
@@ -220,7 +223,7 @@ fn get_txn_ids_from_stake_addr(
                 log_error(
                     file!(),
                     FUNCTION_NAME,
-                    "step",
+                    "hermes::sqlite::api::step",
                     &format!("Failed to step: {e}"),
                     None,
                 );
@@ -334,6 +337,10 @@ fn walk_chain_back(
                 slot_no = column_as::<u64>(stmt, 1, function_name, "slot_no")?;
                 cat_id = column_as::<Option<String>>(stmt, 2, function_name, "catalyst_id")?;
                 txn_idx = column_as::<u16>(stmt, 3, function_name, "txn_idx")?;
+
+                if prv_txn_id.is_none() {
+                    break;
+                }
             },
             // Broken chain
             Ok(StepResult::Done) => {

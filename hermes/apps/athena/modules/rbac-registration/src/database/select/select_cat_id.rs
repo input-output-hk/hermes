@@ -1,4 +1,4 @@
-//! Select catalyst ID from the rbac_registration table.
+//! Select catalyst ID from the `rbac_registration` table.
 
 use crate::{
     database::{bind_with_log, select::column_as},
@@ -36,7 +36,41 @@ const RBAC_SELECT_CHILD_REGISTRATION_CHAIN_FROM_CAT_ID: &str = r#"
 
 /// Selects a root registration and all its children, returning the full chain given a catalyst ID.
 /// If no root registration is found for the given `cat_id`, returns an empty list.
+/// 
+/// Root registration:
+/// 
+/// The root registration is the registration with matching `catalyst_id` where
+/// no `prv_txn_id`, no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
+/// In other words, the earliest valid registration containing the given `catalyst_id` is considered the root.
+/// Note that the Catalyst ID is derive from the subject public key or Role 0 registration. 
+/// If the registration chain contains multiple Catalyst IDs (multiple Role 0 subject public keys),
+/// the first catalyst ID in the chain is used.
+/// 
+/// For example, a chain with the first registration having `catalyst_id_a` and the second registration having `catalyst_id_b`,
+/// When requesting for `catalyst_id_b` WILL NOT result in the same chain as requesting for `catalyst_id_a`.
+/// 
+/// In addition, if there is an attempt to creating a new chain with `catalyst_id_b`, the chain will be invalid
+/// since **IT IS NOT ALLOWED TO USE THE PUBLIC KEYS OF AN EXISTING VALID CHAIN**.
 ///
+/// 
+/// Child registration:
+/// 
+/// The child registration is determine by having a `prv_txn_id` pointing back to a parent.
+/// In other words, the child registration is the registration with matching `prv_txn_id` where
+/// no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
+/// 
+/// An update that cause the link to break is considered invalid.
+/// 
+/// For example,
+/// 
+/// Root    : `txn_id` = `a` |  `prv_txn_id` = null | slot 10  | valid |
+/// Child1  : `txn_id` = `b` |  `prv_txn_id` = `a`  | slot 11  | valid |
+/// Child2  : `txn_id` = `c` |  `prv_txn_id` = `b`  | slot 12  | invalid |
+/// Child3  : `txn_id` = `d` |  `prv_txn_id` = `c`  | slot 13  | valid |
+/// Child4  : `txn_id` = `e` |  `prv_txn_id` = `b`  | slot 14  | invalid | 
+/// 
+/// The valid chain will be Root -> Child1 -> Child4
+/// 
 /// # Returns
 ///
 /// * `Ok(Vec<RbacChainInfo>)` – The registration chain associated with the given catalyst ID.
@@ -127,7 +161,7 @@ fn extract_root(
         .prepare(RBAC_SELECT_ROOT_REGISTRATION_CHAIN_BY_CAT_ID)
         .map_err(|e| {
             let err =
-                format!("Failed to prepare RBAC_SELECT_ROOT_REGISTRATION_CHAIN_BY_CAT_ID: {e}");
+                format!("Failed to prepare rbac root statement: {e}");
             log_error(
                 file!(),
                 FUNCTION_NAME,
