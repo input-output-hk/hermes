@@ -13,6 +13,7 @@ use hyper::{
     HeaderMap, Request, Response, StatusCode,
 };
 use regex::Regex;
+use std::sync::LazyLock;
 #[allow(unused_imports, reason = "`debug` used only in debug builds.")]
 use tracing::{debug, error, info};
 
@@ -111,7 +112,9 @@ pub(crate) async fn router(
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: impl Into<String>) -> anyhow::Result<Response<B>>
-where B: Body + From<String> {
+where
+    B: Body + From<String>,
+{
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into().into())
@@ -120,7 +123,9 @@ where B: Body + From<String> {
 
 /// HTTP not found response generator
 fn not_found<B>() -> anyhow::Result<Response<B>>
-where B: Body + From<Vec<u8>> {
+where
+    B: Body + From<Vec<u8>>,
+{
     let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(b"Not Found".to_vec().into())?;
@@ -290,15 +295,25 @@ where
     }
 }
 
-/// Check if valid path to static files.
-fn is_valid_path(path: &str) -> anyhow::Result<()> {
-    let regex = Regex::new(VALID_PATH)?;
+/// Compiled regex for validating static file request paths
+///
+/// Lazily compiled from `VALID_PATH` pattern for efficient path matching.
+/// Returns `None` if the regex pattern is invalid.
+static VALID_PATH_REGEX: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(VALID_PATH).ok());
 
-    if regex.is_match(path) {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!("Not a valid path {:?}", path))
-    }
+/// Validates HTTP request paths for static file serving
+///
+/// Uses regex pattern matching to ensure paths are safe for VFS access.
+/// Allows root path "/" and absolute paths "/path/to/resource".
+///
+/// Primary security relies on VFS sandboxing; this provides basic validation.
+fn is_valid_path(path: &str) -> anyhow::Result<()> {
+    VALID_PATH_REGEX
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Path validation unavailable: invalid regex pattern"))?
+        .is_match(path)
+        .then_some(())
+        .ok_or_else(|| anyhow::anyhow!("Invalid path format: {path:?}"))
 }
 
 /// Serves static web assets for Flutter applications with comprehensive error handling
@@ -453,7 +468,9 @@ fn is_critical_asset(file_path: &str) -> bool {
 /// - **Requirement**: All cross-origin assets need `crossorigin` attribute or CORP
 ///   headers
 fn add_security_headers<B>(mut response: Response<B>) -> anyhow::Result<Response<B>>
-where B: Body {
+where
+    B: Body,
+{
     let headers = response.headers_mut();
 
     // Enable Cross-Origin Isolation for advanced web features
@@ -501,6 +518,24 @@ fn get_flutter_content_type(extension: &str) -> &'static str {
     }
 }
 
+/// HTTP Content-Type header value for HTML documents
+///
+/// Used when serving HTML files, particularly the index.html fallback for Flutter
+/// single-page applications. This MIME type tells browsers to parse the content
+/// as HTML markup.
+const CONTENT_TYPE_HTML: &str = "text/html";
+
+/// Cache-Control header directive to prevent caching
+///
+/// Instructs browsers and intermediate caches to:
+/// - `no-cache`: Always revalidate with server before using cached content
+/// - `no-store`: Never store the response in any cache
+/// - `must-revalidate`: Require revalidation of stale cache entries
+///
+/// Used for index.html to ensure users always get the latest version of the
+/// Flutter application, preventing issues with cached outdated app shells.
+const NO_CACHE_DIRECTIVE: &str = "no-cache, no-store, must-revalidate";
+
 /// Serves index.html as fallback for navigation routes
 fn serve_index_html_fallback<B>(
     file_path: &str,
@@ -511,22 +546,19 @@ where
 {
     match file_path {
         "www/index.html" => not_found(),
-        _ => {
-            match app.vfs().read("www/index.html") {
-                Ok(index_contents) => {
-                    let mut response = Response::new(index_contents.into());
-                    response
-                        .headers_mut()
-                        .insert("Content-Type", "text/html".parse()?);
-                    response.headers_mut().insert(
-                        "Cache-Control",
-                        "no-cache, no-store, must-revalidate".parse()?,
-                    );
-                    response = add_security_headers(response)?;
-                    Ok(response)
-                },
-                Err(_) => not_found(),
-            }
+        _ => match app.vfs().read("www/index.html") {
+            Ok(index_contents) => {
+                let mut response = Response::new(index_contents.into());
+                response
+                    .headers_mut()
+                    .insert("Content-Type", CONTENT_TYPE_HTML.parse()?);
+                response
+                    .headers_mut()
+                    .insert("Cache-Control", NO_CACHE_DIRECTIVE.parse()?);
+                response = add_security_headers(response)?;
+                Ok(response)
+            },
+            Err(_) => not_found(),
         },
     }
 }
