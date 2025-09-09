@@ -24,7 +24,7 @@ bool exports_hermes_http_gateway_event_reply(exports_hermes_http_gateway_event_b
 
 // Exported Functions from `hermes:init/event`
 bool exports_hermes_init_event_init(void) {
-  return false;
+  return true;
 }
 
 // Exported Functions from `hermes:ipfs/event`
