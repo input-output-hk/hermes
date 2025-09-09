@@ -1,16 +1,11 @@
 use std::collections::HashMap;
 
-use crate::{
-    app::ApplicationName,
-    runtime_extensions::{
-        bindings::hermes::sqlite::api::Statement, hermes::sqlite::state::ObjectPointer,
-    },
+use crate::runtime_extensions::{
+    bindings::hermes::sqlite::api::Statement, hermes::sqlite::state::ObjectPointer,
 };
 
-/// Map of app name to db statement resource holder
-pub(super) type StatementState = HashMap<ApplicationName, AppStatement>;
-
 /// Application-specific statement state management
+#[derive(Default)]
 pub(crate) struct AppStatement {
     /// Map of statement resource IDs to their object pointers
     pub(crate) statements: HashMap<u32, ObjectPointer>,

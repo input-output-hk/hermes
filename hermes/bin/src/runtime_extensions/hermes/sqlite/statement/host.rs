@@ -1,6 +1,6 @@
 //! `SQLite` statement host implementation for WASM runtime.
 
-use super::{super::state::StatementStateManager, core};
+use super::{super::state::resource_manager, core};
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::sqlite::api::{
@@ -21,7 +21,7 @@ impl HostStatement for HermesRuntimeContext {
         index: u32,
         value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             let app_state = app_state.ok_or_else(|| {
                 wasmtime::Error::msg("Application not found for statement resource")
             })?;
@@ -43,7 +43,7 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<StepResult, Errno>> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             let app_state = app_state.ok_or_else(|| {
                 wasmtime::Error::msg("Application not found for statement resource")
             })?;
@@ -70,7 +70,7 @@ impl HostStatement for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Statement>,
         index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             let app_state = app_state.ok_or_else(|| {
                 wasmtime::Error::msg("Application not found for statement resource")
             })?;
@@ -90,7 +90,7 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             let app_state = app_state.ok_or_else(|| {
                 wasmtime::Error::msg("Application not found for statement resource")
             })?;
@@ -113,7 +113,7 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             let app_state = app_state.ok_or_else(|| {
                 wasmtime::Error::msg("Application not found for statement resource")
             })?;
@@ -126,7 +126,7 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<()> {
-        StatementStateManager::get_app_state(self.app_name(), |app_state| {
+        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
             if let Some(app_state) = app_state {
                 if let Ok(stmt_ptr) = app_state.delete_resource(&resource) {
                     let _ = core::finalize(stmt_ptr as *mut _);

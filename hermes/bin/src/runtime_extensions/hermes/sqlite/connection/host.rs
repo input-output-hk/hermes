@@ -7,7 +7,7 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Errno, ErrorInfo, HostSqlite, Sqlite, Statement},
-        hermes::sqlite::state::{get_db_app_state_with, StatementStateManager},
+        hermes::sqlite::state::resource_manager,
     },
 };
 
@@ -40,7 +40,7 @@ impl HostSqlite for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let db_ptr = get_db_app_state_with(self.app_name(), |app_state| {
+        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
             match app_state
                 .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
             {
@@ -70,7 +70,7 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_ptr = get_db_app_state_with(self.app_name(), |app_state| {
+        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
             match app_state
                 .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
             {
@@ -86,7 +86,7 @@ impl HostSqlite for HermesRuntimeContext {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stmt = StatementStateManager::get_or_create_app_state(
+                    let stmt = resource_manager::get_or_create_statement_app_state(
                         self.app_name(),
                         |statement| Ok(statement.create_statement_resource(stmt_ptr as _)),
                     )?;
@@ -109,7 +109,7 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = get_db_app_state_with(self.app_name(), |app_state| {
+        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
             match app_state
                 .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
             {

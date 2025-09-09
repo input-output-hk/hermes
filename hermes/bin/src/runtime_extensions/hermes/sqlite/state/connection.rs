@@ -1,16 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, sync::MutexGuard, thread::LocalKey};
-
-use crate::{
-    app::ApplicationName,
-    runtime_extensions::{
-        bindings::hermes::sqlite::api::Sqlite,
-        hermes::sqlite::{connection::core::close, state::ObjectPointer},
-    },
+use crate::runtime_extensions::{
+    bindings::hermes::sqlite::api::Sqlite,
+    hermes::sqlite::{connection::core::close, state::ObjectPointer},
 };
-
-/// Type alias for thread-local database application state
-#[allow(dead_code)]
-pub(crate) type DbAppState = LocalKey<RefCell<DbState<'static>>>;
 
 /// Enumeration representing different types of database handles.
 ///
@@ -78,9 +69,9 @@ impl From<u32> for DbHandle {
 /// This struct manages all database connections for a single application,
 /// including both disk-based and memory-based databases with read-only and
 /// read-write access modes.
-#[derive(Debug, Default)]
+#[derive(Default)]
 #[allow(dead_code)]
-pub(crate) struct AppConnections<'a> {
+pub(crate) struct AppConnections {
     /// Disk-based read-write database connection pointer
     disk_rw: Option<ObjectPointer>,
     /// Disk-based read-only database connection pointer
@@ -90,12 +81,16 @@ pub(crate) struct AppConnections<'a> {
     /// Memory-based read-only database connection pointer
     mem_ro: Option<ObjectPointer>,
     /// Mutex guard for disk database access synchronization
-    disk_guard: Option<MutexGuard<'a, ()>>,
+    /// Note: This field is reserved for future use when mutex synchronization is needed
+    #[allow(dead_code)]
+    disk_guard: Option<()>,
     /// Mutex guard for memory database access synchronization
-    mem_guard: Option<MutexGuard<'a, ()>>,
+    /// Note: This field is reserved for future use when mutex synchronization is needed
+    #[allow(dead_code)]
+    mem_guard: Option<()>,
 }
 
-impl AppConnections<'_> {
+impl AppConnections {
     /// Gets a reference to the connection pointer for the specified database handle.
     ///
     /// # Parameters
@@ -117,7 +112,8 @@ impl AppConnections<'_> {
         }
     }
 
-    /// Gets a mutable reference to the connection pointer for the specified database handle.
+    /// Gets a mutable reference to the connection pointer for the specified database
+    /// handle.
     ///
     /// # Parameters
     ///
@@ -175,8 +171,9 @@ impl AppConnections<'_> {
     }
 }
 
-impl Drop for AppConnections<'_> {
-    /// Automatically closes all database connections when the `AppConnections` is dropped.
+impl Drop for AppConnections {
+    /// Automatically closes all database connections when the `AppConnections` is
+    /// dropped.
     ///
     /// This ensures proper cleanup of database resources and prevents memory leaks.
     fn drop(&mut self) {
@@ -187,13 +184,4 @@ impl Drop for AppConnections<'_> {
             let _ = close(*db_ptr as _);
         }
     }
-}
-
-/// Global database state container for all applications.
-///
-/// This struct holds the connection state for all applications running in the
-/// WASM runtime, providing isolation between different applications.
-pub(crate) struct DbState<'a> {
-    /// Map of application names to their connection states
-    pub(crate) apps: HashMap<ApplicationName, AppConnections<'a>>,
 }

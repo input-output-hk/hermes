@@ -5,9 +5,7 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
-        hermes::sqlite::state::{
-            connection::DbHandle, get_db_app_state_with, get_or_create_db_app_state_with,
-        },
+        hermes::sqlite::state::{connection::DbHandle, resource_manager},
     },
 };
 
@@ -30,17 +28,20 @@ impl Host for HermesRuntimeContext {
         memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let db_handle = DbHandle::from_readonly_and_memory(readonly, memory);
-        if let Some(resource) = get_db_app_state_with(self.app_name(), |app_state| {
-            app_state.and_then(|app_state| app_state.get_connection_resource(db_handle))
-        }) {
+        if let Some(resource) =
+            resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
+                app_state.and_then(|app_state| app_state.get_connection_resource(db_handle))
+            })
+        {
             return Ok(Ok(resource));
         }
 
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
-                let db_id = get_or_create_db_app_state_with(self.app_name(), |app_state| {
-                    app_state.create_connection_resource(db_handle, db_ptr as _)
-                });
+                let db_id = resource_manager::get_or_create_db_app_state_with(
+                    self.app_name(),
+                    |app_state| app_state.create_connection_resource(db_handle, db_ptr as _),
+                );
 
                 Ok(Ok(db_id))
             },
