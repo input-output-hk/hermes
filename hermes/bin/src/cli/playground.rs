@@ -13,7 +13,11 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{Application, ApplicationName}, event::queue::Exit, ipfs, pool, reactor, vfs::VfsBootstrapper, wasm::module::Module
+    app::{Application, ApplicationName},
+    event::queue::Exit,
+    ipfs, pool, reactor,
+    vfs::VfsBootstrapper,
+    wasm::module::Module,
 };
 
 /// Hermes application playground
