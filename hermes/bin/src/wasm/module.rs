@@ -12,6 +12,7 @@ use std::{
     },
 };
 
+use anyhow::Context as _;
 use rusty_ulid::Ulid;
 use wasmtime::{
     component::{
@@ -145,12 +146,16 @@ impl Module {
         let instance = self.pre_instance.instantiate(&mut store)?;
 
         let init_result = match instance.lookup_hermes_init_event_init(&mut store) {
-            Ok(func) => func.call(&mut store, ())?.0,
+            Ok(func) => {
+                func.call(&mut store, ())
+                    .context("unable to call WASM component init function")?
+                    .0
+            },
             Err(unchecked_exports::Error::NotExported) => true,
-            Err(err) => return Err(err.into()),
+            Err(err) => return dbg!(Err(err.into())),
         };
         if !init_result {
-            anyhow::bail!("WASM module init function returned false")
+            anyhow::bail!("WASM component init function returned false")
         }
         Ok(())
     }

@@ -5,6 +5,8 @@ wit_bindgen::generate!({
         package hermes:app;
 
         world hermes {
+            include wasi:filesystem/imports@0.2.6;
+
             export hermes:integration-test/event;
         }
     ",
