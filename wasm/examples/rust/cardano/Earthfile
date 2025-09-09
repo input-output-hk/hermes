@@ -1,9 +1,5 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
-# Use when debugging cat-ci locally.
-# IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
-
 IMPORT ../../../wasi AS wasi
 
 # build - builds the "cardano" example Rust wasm component
