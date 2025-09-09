@@ -152,7 +152,7 @@ impl Module {
                     .0
             },
             Err(unchecked_exports::Error::NotExported) => true,
-            Err(err) => return dbg!(Err(err.into())),
+            Err(err) => return Err(err.into()),
         };
         if !init_result {
             anyhow::bail!("WASM component init function returned false")

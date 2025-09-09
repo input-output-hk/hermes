@@ -13,7 +13,7 @@ use crate::{
         app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
     },
-    pool, reactor,
+    reactor,
 };
 
 /// Run cli command
@@ -56,7 +56,8 @@ impl Run {
         let app = build_app(&package, hermes_home_dir)?;
 
         let exit_lock = reactor::init()?;
-        pool::init()?;
+        // TODO: ?
+        // pool::init()?;
         println!(
             "{} Loading application {}...",
             Emoji::new("🛠️", ""),
@@ -73,7 +74,8 @@ impl Run {
         };
 
         // Wait for scheduled tasks to be finished.
-        pool::terminate();
+        // TODO: ?
+        // pool::terminate();
         Ok(exit)
     }
 }
