@@ -1,6 +1,5 @@
-//! Build the RBAC chain
+//! Build the RBAC registration chain
 
-use anyhow::bail;
 use cardano_blockchain_types::Point;
 use rbac_registration::{cardano::cip509::Cip509, registration::cardano::RegistrationChain};
 
@@ -12,7 +11,9 @@ use crate::{
     utils::{cardano::block::build_block, log::log_error},
 };
 
-/// Information needed to build the RBAC chain
+/// Information needed to build the RBAC chain.
+/// Only need the `slot_no` and `txn_idx` to construct a block and
+/// extract the RBAC information.
 #[derive(Debug, Clone)]
 pub(crate) struct RbacChainInfo {
     /// The slot number of the block that contain the registration.
@@ -23,12 +24,17 @@ pub(crate) struct RbacChainInfo {
 
 /// Build the RBAC registration chain.
 ///
+/// # Arguments
+///
+/// * `network` - The network to build the registration chain.
+/// * `network_resource` - The network resource use for getting block data.
+/// * `rbac_chain_info` - The registration chain information.
+///
 /// # Return
 ///
 /// * `Ok(Option<RegistrationChain>)` – A RBAC registration chain
 ///   or `None` if registration chain is empty.
 /// * `Err(anyhow::Error)` - If any error occurs.
-
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,
     network_resource: &Network,
@@ -37,126 +43,93 @@ pub(crate) fn build_registration_chain(
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = match rbac_chain_info.first() {
-        Some(info) => info,
-        None => {
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "rbac_chain_info.first",
-                "Registration chain info is empty",
-                None,
-            );
-            return Ok(None);
-        },
-    };
+    let first_info = rbac_chain_info.first().ok_or_else(|| {
+        log_error(
+            file!(),
+            FUNCTION_NAME,
+            "rbac_chain_info.first",
+            "Registration chain info is empty",
+            None,
+        );
+        anyhow::anyhow!("Registration chain info is empty")
+    })?;
 
-    let block_resource = match network_resource.get_block(Some(first_info.slot_no), 0) {
-        Some(br) => br,
-        None => {
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "network.get_block",
-                &format!(
-                    "Failed to get block resource at slot {}",
-                    first_info.slot_no
-                ),
-                None,
-            );
-            return bail!("Failed to get block resource");
-        },
-    };
+    // Root registration use to initialize chain
+    let root_reg = get_registration(
+        FUNCTION_NAME,
+        network,
+        network_resource,
+        first_info.slot_no,
+        first_info.txn_idx,
+    )?;
+    let mut reg_chain = RegistrationChain::new(root_reg).ok_or_else(|| {
+        log_error(
+            file!(),
+            FUNCTION_NAME,
+            "RegistrationChain::new",
+            "Failed to initialize registration chain",
+            None,
+        );
+        anyhow::anyhow!("Failed to initialize registration chain")
+    })?;
 
-    let block = match build_block(file!(), FUNCTION_NAME, network, &block_resource) {
-        Some(b) => b,
-        None => {
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "build_block",
-                &format!("Failed to build block at slot {}", first_info.slot_no),
-                None,
-            );
-            return bail!("Failed to build block");
-        },
-    };
-
-    let root_reg = match Cip509::new(&block, first_info.txn_idx.into(), &[]) {
-        Ok(Some(r)) => r,
-        Ok(None) | Err(_) => {
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "Cip509::new",
-                &format!(
-                    "Failed to create root registration at slot {}",
-                    first_info.slot_no
-                ),
-                None,
-            );
-            return bail!("Failed to create registration");
-        },
-    };
-
-    let mut reg_chain = match RegistrationChain::new(root_reg) {
-        Some(chain) => chain,
-        None => {
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "RegistrationChain::new",
-                "Failed to initialize registration chain",
-                None,
-            );
-            return bail!("Failed to initialize registration chain");
-        },
-    };
-
+    // Append children
     for info in rbac_chain_info.iter().skip(1) {
-        let block_resource = match network_resource.get_block(Some(info.slot_no), 0) {
-            Some(br) => br,
-            None => {
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "network.get_block",
-                    &format!("Failed to get block resource at slot {}", info.slot_no),
-                    None,
-                );
-                return bail!("Failed to get block resource");
-            },
-        };
-
-        let block = match build_block(file!(), FUNCTION_NAME, network, &block_resource) {
-            Some(b) => b,
-            None => {
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "build_block",
-                    &format!("Failed to build block at slot {}", info.slot_no),
-                    None,
-                );
-                return bail!("Failed to build block");
-            },
-        };
-
-        let reg = match Cip509::new(&block, info.txn_idx.into(), &[]) {
-            Ok(Some(r)) => r,
-            Ok(None) | Err(_) => {
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "Cip509::new",
-                    &format!("Failed to create registration at slot {}", info.slot_no),
-                    None,
-                );
-                return bail!("Failed to create registration");
-            },
-        };
-
-        reg_chain = reg_chain.update(reg).unwrap();
+        let reg = get_registration(
+            file!(),
+            network,
+            network_resource,
+            info.slot_no,
+            info.txn_idx,
+        )?;
+        reg_chain = reg_chain.update(reg).ok_or_else(|| {
+            log_error(
+                file!(),
+                FUNCTION_NAME,
+                "RegistrationChain::update",
+                &format!(
+                    "Failed to update registration chain at slot {}",
+                    info.slot_no
+                ),
+                None,
+            );
+            anyhow::anyhow!("Failed to update registration chain")
+        })?;
     }
     Ok(Some(reg_chain))
+}
+
+/// Get a RBAC registration (CIP509) from a block.
+fn get_registration(
+    func_name: &str,
+    network: CardanoNetwork,
+    network_resource: &Network,
+    slot_no: u64,
+    txn_idx: u16,
+) -> anyhow::Result<Cip509> {
+    let block_resource = network_resource
+        .get_block(Some(slot_no), 0)
+        .ok_or_else(|| {
+            let err = format!("Failed to get block resource at slot {slot_no}");
+            log_error(file!(), func_name, "network.get_block", &err, None);
+            return anyhow::anyhow!(err);
+        })?;
+
+    // Create a multi-era block
+    let block = build_block(file!(), func_name, network, &block_resource).ok_or_else(|| {
+        let err = format!("Failed to build block at slot {slot_no}");
+        log_error(file!(), func_name, "build_block", &err, None);
+        return anyhow::anyhow!(err);
+    })?;
+
+    match Cip509::new(&block, txn_idx.into(), &[]) {
+        Ok(Some(r)) => Ok(r),
+        // Expect a registration, so treat None as an error
+        Ok(None) | Err(_) => {
+            let err = format!("Failed to get registration at slot {slot_no}");
+
+            log_error(file!(), func_name, "Cip509::new", &err, None);
+            return anyhow::bail!(err);
+        },
+    }
 }
