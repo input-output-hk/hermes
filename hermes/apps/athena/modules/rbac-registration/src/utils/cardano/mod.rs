@@ -1,3 +1,3 @@
-//! Cardano module
+//! Cardano utility module
 
 pub(crate) mod block;
