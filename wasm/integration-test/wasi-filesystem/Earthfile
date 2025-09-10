@@ -4,4 +4,4 @@ IMPORT ../../wasi AS wasi
 
 # build – build the wasi filesystem integration test wasm component
 build:
-    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../wasi --out=wasi-filesystem.wasm
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../wasi --out=wasi_filesystem.wasm

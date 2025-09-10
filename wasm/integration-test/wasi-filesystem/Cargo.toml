@@ -6,7 +6,7 @@ edition = "2021"
 [lib]
 # The name of the built .wasm file.
 # Keep it consistent with Earthly build output name.
-name = "wasi-filesystem"
+name = "wasi_filesystem"
 crate-type = ["cdylib"]
 
 [dependencies]
