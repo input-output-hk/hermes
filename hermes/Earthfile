@@ -111,19 +111,19 @@ test-wasm-examples:
 
     # Copy all wasm module artifacts for running as Hermes applications
 
-    COPY ../wasm/examples/c/cardano_age+build/cardano_age.c.wasm ../wasm/app-components/
-    COPY ../wasm/examples/c/next_century+build/next_century.c.wasm ../wasm/app-components/
-    COPY ../wasm/examples/rust/cardano_age+build/cardano_age.rs.wasm ../wasm/app-components/
-    COPY ../wasm/examples/rust/next_century+build/next_century.rs.wasm ../wasm/app-components/
-    # COPY ../wasm/examples/rust/cardano+build/cardano.rs.wasm ../wasm/app-components/
+    COPY ../wasm/examples/c/cardano_age+build/cardano_age_c.wasm ../wasm/app-components/
+    COPY ../wasm/examples/c/next_century+build/next_century_c.wasm ../wasm/app-components/
+    COPY ../wasm/examples/rust/cardano_age+build/cardano_age_rs.wasm ../wasm/app-components/
+    COPY ../wasm/examples/rust/next_century+build/next_century_rs.wasm ../wasm/app-components/
+    # COPY ../wasm/examples/rust/cardano+build/cardano_rs.wasm ../wasm/app-components/
 
-    RUN ./hermes playground ../wasm/app-components/cardano_age.c.wasm --timeout-ms 10000; \
+    RUN ./hermes playground ../wasm/app-components/cardano_age_c.wasm --timeout-ms 10000; \
         test $? -eq 0
-    RUN ./hermes playground ../wasm/app-components/next_century.c.wasm --timeout-ms 10000; \
+    RUN ./hermes playground ../wasm/app-components/next_century_c.wasm --timeout-ms 10000; \
         test $? -eq 1
-    RUN ./hermes playground ../wasm/app-components/cardano_age.rs.wasm --timeout-ms 10000; \
+    RUN ./hermes playground ../wasm/app-components/cardano_age_rs.wasm --timeout-ms 10000; \
         test $? -eq 0
-    RUN ./hermes playground ../wasm/app-components/next_century.rs.wasm --timeout-ms 10000; \
+    RUN ./hermes playground ../wasm/app-components/next_century_rs.wasm --timeout-ms 10000; \
         test $? -eq 1
     # Example of how to run the Cardano module test
     # Comment out because this is a long running test

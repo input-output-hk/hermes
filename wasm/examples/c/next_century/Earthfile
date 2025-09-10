@@ -4,4 +4,4 @@ IMPORT ../../../wasi AS wasi
 
 # build - builds the "next_century" example C wasm component
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files="next_century.c" --out="next_century.c.wasm"
+    DO wasi+BUILD_C_COMPONENT --c_files="next_century.c" --out="next_century_c.wasm"

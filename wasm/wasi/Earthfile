@@ -96,9 +96,9 @@ BUILD_RUST_COMPONENT:
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
-        --output="wasm32-wasip2/release/.*.wasm"
+        --output="wasm32-wasip2/release/$out"
 
-    SAVE ARTIFACT target/wasm32-wasip2/release/*.wasm $out
+    SAVE ARTIFACT target/wasm32-wasip2/release/$out $out
 
 # builds a wasm32-wasip2 component and saves it as an artifact
 BUILD_C_COMPONENT:

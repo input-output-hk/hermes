@@ -4,4 +4,4 @@ IMPORT ../../../wasi AS wasi
 
 # build - builds the "cardano_age" example C wasm component
 build:
-    DO wasi+BUILD_C_COMPONENT --c_files="cardano_age.c" --out="cardano_age.c.wasm"
+    DO wasi+BUILD_C_COMPONENT --c_files="cardano_age.c" --out="cardano_age_c.wasm"
