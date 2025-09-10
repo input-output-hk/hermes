@@ -6,14 +6,10 @@ use clap::Args;
 use console::Emoji;
 
 use crate::{
-    cli::Cli,
-    event::queue::Exit,
-    ipfs,
-    packaging::{
+    cli::Cli, event::queue::Exit, ipfs, packaging::{
         app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
-    },
-    reactor,
+    }, pool, reactor
 };
 
 /// Run cli command
@@ -56,8 +52,7 @@ impl Run {
         let app = build_app(&package, hermes_home_dir)?;
 
         let exit_lock = reactor::init()?;
-        // TODO: ?
-        // pool::init()?;
+        pool::init()?;
         println!(
             "{} Loading application {}...",
             Emoji::new("🛠️", ""),
@@ -74,8 +69,7 @@ impl Run {
         };
 
         // Wait for scheduled tasks to be finished.
-        // TODO: ?
-        // pool::terminate();
+        pool::terminate();
         Ok(exit)
     }
 }
