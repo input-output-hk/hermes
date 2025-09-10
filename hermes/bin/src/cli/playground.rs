@@ -15,7 +15,7 @@ use temp_dir::TempDir;
 use crate::{
     app::{Application, ApplicationName},
     event::queue::Exit,
-    ipfs, reactor,
+    ipfs, pool, reactor,
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -56,7 +56,7 @@ impl Playground {
         init_ipfs(&temp_dir)?;
 
         let exit_lock = reactor::init()?;
-        // pool::init()?;
+        pool::init()?;
         println!(
             "{} Loading {} application(s)...",
             Emoji::new("🛠️", ""),
@@ -75,7 +75,7 @@ impl Playground {
         };
 
         // Wait for scheduled tasks to be finished.
-        // pool::terminate();
+        pool::terminate();
         Ok(exit)
     }
 }

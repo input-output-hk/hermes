@@ -6,10 +6,14 @@ use clap::Args;
 use console::Emoji;
 
 use crate::{
-    cli::Cli, event::queue::Exit, ipfs, packaging::{
+    cli::Cli,
+    event::queue::Exit,
+    ipfs,
+    packaging::{
         app::{build_app, ApplicationPackage},
         sign::certificate::{self, Certificate},
-    }, pool, reactor
+    },
+    pool, reactor,
 };
 
 /// Run cli command
