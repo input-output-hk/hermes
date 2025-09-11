@@ -101,6 +101,8 @@ impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
         };
         create_rbac_tables(&sqlite);
         close_db_connection(sqlite);
+
+        // Instead of starting from genesis, start from a specific slot just before RBAC data exist.
         let slot = 80374283;
         let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Specific(slot);
         let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;

@@ -33,6 +33,7 @@ pub(crate) fn open_db_connection() -> anyhow::Result<Sqlite> {
     }
 }
 
+/// Close database connection.
 pub(crate) fn close_db_connection(sqlite: Sqlite) {
     const FUNCTION_NAME: &str = "close_db_connection";
     if let Err(e) = sqlite.close() {
