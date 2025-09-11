@@ -1,36 +1,34 @@
 //! Database access layer for RBAC registration.
 
-use once_cell::sync::{Lazy, OnceCell};
 use serde_json::json;
 pub(crate) mod create;
 pub(crate) mod data;
 pub(crate) mod insert;
-pub(crate) mod select;
 
 use crate::{
     hermes::hermes::{
         self,
         sqlite::api::{open, Sqlite, Statement, Value},
     },
-    utils::log::{log_error, log_info},
+    utils::log::{log_error},
 };
-use std::sync::LazyLock;
 
 /// Open database connection.
-pub(crate) fn open_db_connection() -> Result<Sqlite, ()> {
+pub(crate) fn open_db_connection() -> anyhow::Result<Sqlite> {
     const FUNCTION_NAME: &str = "open_db_connection";
 
     match open(false, false) {
         Ok(db) => Ok(db),
         Err(e) => {
+            let err_msg = "Failed to open database";
             log_error(
                 file!(),
                 FUNCTION_NAME,
                 "hermes::sqlite::api::open",
-                &format!("Failed to open database: {e}"),
+                &format!("{err_msg}: {e}"),
                 None,
             );
-            Err(())
+            anyhow::bail!(err_msg)
         },
     }
 }

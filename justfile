@@ -94,12 +94,13 @@ get-local-athena:
     set -euo pipefail
 
     echo "🔨 Building HTTP proxy WASM component..."
-    echo "📍 Module location: athena/modules/http-proxy/"
+    echo "📍 Module location: athena/modules"
     echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
     # Step 1: Build WASM module using Earthly (local development target)
     # This compiles Rust source to optimized WASM binary and saves locally
     earthly ./hermes/apps/athena/modules+local-build-http-proxy
+    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
     echo "✅ WASM compilation complete"
 
     echo "📦 Packaging module with Hermes CLI..."
@@ -108,6 +109,7 @@ get-local-athena:
     # Step 2: Package the WASM module with its configuration into .hmod format
     # The .hmod file contains the WASM binary, manifest, and metadata for the module
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
     echo "✅ Module packaging complete (.hmod file created)"
 
     echo "📦 Packaging application bundle..."

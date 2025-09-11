@@ -1,7 +1,5 @@
 //! RBAC registration database insert.
 
-use serde_json::json;
-
 use crate::{
     database::{
         bind_with_log,
@@ -11,7 +9,7 @@ use crate::{
         self,
         sqlite::api::{Sqlite, Statement, Value},
     },
-    utils::log::{log_error, log_info},
+    utils::log::log_error,
 };
 
 /// Insert data to `rbac_registration` table.
@@ -31,19 +29,20 @@ pub(crate) const RBAC_INSERT_STAKE_ADDRESS: &str = r#"
 "#;
 
 /// Prepare insert statement for `rbac_registration` table.
-pub(crate) fn prepare_insert_rbac_registration(sqlite: &Sqlite) -> Result<Statement, ()> {
+pub(crate) fn prepare_insert_rbac_registration(sqlite: &Sqlite) -> anyhow::Result<Statement> {
     const FUNCTION_NAME: &str = "prepare_insert_rbac_registration";
     match sqlite.prepare(RBAC_INSERT_RBAC_REGISTRATION) {
         Ok(stmt) => Ok(stmt),
         Err(e) => {
+            let err_msg = "Failed to prepare insert statement";
             log_error(
                 file!(),
                 FUNCTION_NAME,
                 "hermes::sqlite::api::prepare",
-                &format!("Failed to prepare insert statement: {e}"),
+                &format!("{err_msg}: {e}"),
                 None,
             );
-            Err(())
+            anyhow::bail!(err_msg)
         },
     }
 }
@@ -127,20 +126,21 @@ fn bind_rbac_registration(
 }
 
 /// Prepare insert statement for `rbac_stake_address` table.
-pub(crate) fn prepare_insert_rbac_stake_address(sqlite: &Sqlite) -> Result<Statement, ()> {
+pub(crate) fn prepare_insert_rbac_stake_address(sqlite: &Sqlite) -> anyhow::Result<Statement> {
     const FUNCTION_NAME: &str = "prepare_insert_rbac_stake_address";
 
     match sqlite.prepare(RBAC_INSERT_STAKE_ADDRESS) {
         Ok(stmt) => Ok(stmt),
         Err(e) => {
+            let err_msg = "Failed to prepare insert statement";
             log_error(
                 file!(),
                 FUNCTION_NAME,
                 "hermes::sqlite::api::prepare",
-                &format!("Failed to prepare insert: {e}"),
+                &format!("{err_msg}: {e}"),
                 None,
             );
-            Err(())
+            anyhow::bail!(err_msg)
         },
     }
 }

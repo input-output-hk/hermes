@@ -1,13 +1,10 @@
-//! Cardano block functions
+//! Cardano block
 
 use cardano_blockchain_types::MultiEraBlock;
 use serde_json::json;
 
 use crate::{
-    hermes::{
-        self,
-        hermes::cardano::api::{Block, CardanoNetwork},
-    },
+    hermes::hermes::cardano::api::{Block, CardanoNetwork},
     utils::log::log_error,
 };
 

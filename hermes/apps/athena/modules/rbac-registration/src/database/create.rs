@@ -5,7 +5,7 @@ use crate::{
         self,
         sqlite::{self, api::Sqlite},
     },
-    utils::log::{log_error, log_info},
+    utils::log::{log_error},
 };
 
 /// RBAC registration database schema.
