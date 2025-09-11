@@ -12,9 +12,12 @@ use std::{
     },
 };
 
+use anyhow::Context as _;
 use rusty_ulid::Ulid;
 use wasmtime::{
-    component::{Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker},
+    component::{
+        self, Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker,
+    },
     Store as WasmStore,
 };
 
@@ -23,7 +26,8 @@ use crate::{
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        bindings::{self, LinkOptions},
+        bindings::{self, unchecked_exports, LinkOptions},
+        hermes::init::ComponentInstanceExt as _,
         init::trait_module::{RteInitModule, RteModule},
         new_context,
     },
@@ -39,7 +43,7 @@ pub struct ModuleInstance {
     /// `wasmtime::Store` entity
     pub(crate) store: WasmStore<HermesRuntimeContext>,
     /// `Instance` entity
-    pub(crate) instance: bindings::Hermes,
+    pub(crate) instance: component::Instance,
 }
 
 /// Module id type
@@ -139,12 +143,19 @@ impl Module {
         new_context(&runtime_ctx);
 
         let mut store = WasmStore::new(&self.engine, runtime_ctx);
-        //let instance = self.pre_instance.instantiate(store).unwrap();
-        let instance =
-            bindings::HermesPre::new(self.pre_instance.clone())?.instantiate(&mut store)?;
-        let init_result = instance.hermes_init_event().call_init(&mut store)?;
+        let instance = self.pre_instance.instantiate(&mut store)?;
+
+        let init_result = match instance.lookup_hermes_init_event_init(&mut store) {
+            Ok(func) => {
+                func.call(&mut store, ())
+                    .context("unable to call WASM component init function")?
+                    .0
+            },
+            Err(unchecked_exports::Error::NotExported) => true,
+            Err(err) => return Err(err.into()),
+        };
         if !init_result {
-            anyhow::bail!("WASM module init function returned false")
+            anyhow::bail!("WASM component init function returned false")
         }
         Ok(())
     }
@@ -193,7 +204,9 @@ impl Module {
         state: HermesRuntimeContext,
     ) -> anyhow::Result<()> {
         let mut store = WasmStore::new(&self.engine, state);
-        let instance = bindings::HermesPre::new(self.pre_instance.clone())?
+        let instance = self
+            .pre_instance
+            .clone()
             .instantiate(&mut store)
             .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
 
@@ -212,32 +225,12 @@ impl Module {
 #[cfg(feature = "bench")]
 pub mod bench {
     use super::*;
-    use crate::{
-        app::ApplicationName, cli::Cli, runtime_context::HermesRuntimeContext, vfs::VfsBootstrapper,
-    };
+    use crate::{app::ApplicationName, cli::Cli, vfs::VfsBootstrapper};
 
-    /// Benchmark for executing the `init` event of the Hermes dummy component.
+    /// Benchmark for executing the `init` of the Hermes stub component.
     /// It aims to measure the overhead of the WASM module and WASM state initialization
     /// process.
     pub fn module_hermes_component_bench(b: &mut criterion::Bencher) {
-        struct Event;
-        impl HermesEventPayload for Event {
-            fn event_name(&self) -> &'static str {
-                "init"
-            }
-
-            fn execute(
-                &self,
-                instance: &mut ModuleInstance,
-            ) -> anyhow::Result<()> {
-                instance
-                    .instance
-                    .hermes_init_event()
-                    .call_init(&mut instance.store)?;
-                Ok(())
-            }
-        }
-
         let app_name = ApplicationName("integration-test".to_owned());
         let module = Module::from_bytes(
             &app_name,
@@ -254,18 +247,7 @@ pub mod bench {
         );
 
         b.iter(|| {
-            module
-                .execute_event(
-                    &Event,
-                    HermesRuntimeContext::new(
-                        app_name.to_owned(),
-                        module.id().clone(),
-                        "init".to_string(),
-                        0,
-                        vfs.clone(),
-                    ),
-                )
-                .unwrap();
+            module.init(app_name.clone(), vfs.clone()).unwrap();
         });
     }
 

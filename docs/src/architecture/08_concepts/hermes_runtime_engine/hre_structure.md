@@ -108,7 +108,7 @@ impl HermesEventPayload for OnCronEvent {
     }
 
     fn execute(&self, module: &mut crate::wasm::module::ModuleInstance) -> anyhow::Result<()> {
-       module.instance.hermes_cron_event().call_on_cron(
+       module.instance.call_hermes_cron_event_on_cron(
             &mut module.store,
             &self.tag,
             self.last,

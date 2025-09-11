@@ -8,6 +8,8 @@
 
 use wasmtime::component::bindgen;
 
+pub(crate) mod unchecked_exports;
+
 bindgen!({
     path: "../../wasm/wasi/wit",
     imports: {
