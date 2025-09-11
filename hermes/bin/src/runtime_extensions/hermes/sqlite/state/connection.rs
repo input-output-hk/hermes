@@ -1,3 +1,5 @@
+//! Connection state management for SQLite database resources.
+
 use crate::runtime_extensions::{
     bindings::hermes::sqlite::api::{Errno, Sqlite},
     hermes::sqlite::state::ObjectPointer,

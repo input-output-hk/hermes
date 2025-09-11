@@ -11,21 +11,36 @@ use crate::{
             connection::DbHandle,
             connection_not_found_err,
             manager::{AppSqliteState, SqliteState},
-            statement::AppStatement,
             ObjectPointer,
         },
     },
 };
 
 thread_local! {
-    /// Global state to hold SQLite resources for all applications.
+    /// Thread-local state to hold SQLite resources for all applications.
     static SQLITE_STATE: RefCell<SqliteState> = RefCell::new(SqliteState::default());
 }
 
-/// Generic function to get application state with a processor closure.
+/// Initializes application state for `SQLite` resources.
 ///
-/// This is the core function that all other functions use internally.
-/// It provides thread-safe access to the `SQLite` state for a specific application.
+/// This function creates a new application state entry if it doesn't exist.
+/// It should be called during the init event to ensure the application state
+/// is properly initialized before any `SQLite` operations are performed.
+///
+/// # Parameters
+///
+/// - `application_name`: The name of the application to initialize state for
+pub(crate) fn init_app_state(application_name: &ApplicationName) {
+    SQLITE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        state.apps.entry(application_name.clone()).or_default();
+    });
+}
+
+/// Tries to get application state if it exists.
+///
+/// This function provides thread-safe access to the `SQLite` state for a specific
+/// application. Returns `None` if the application state doesn't exist.
 ///
 /// # Parameters
 ///
@@ -35,7 +50,7 @@ thread_local! {
 /// # Returns
 ///
 /// The result of the processor closure
-fn with_app_state<F, R>(
+fn try_get_app_state_with<F, R>(
     application_name: &ApplicationName,
     processor: F,
 ) -> R
@@ -43,60 +58,46 @@ where
     F: FnOnce(Option<&mut AppSqliteState>) -> R,
 {
     SQLITE_STATE.with(|state| {
+        // Safe to borrow_mut because all `SQLite` state access goes through
+        // `try_get_app_state_with` and `get_app_state_with` only,
+        // preventing multiple borrows from occurring simultaneously.
         let mut state = state.borrow_mut();
         processor(state.get_app_state(application_name))
     })
 }
 
-/// Generic function to get or create application state with a processor closure.
+/// Gets application state (expects it to exist from init).
 ///
-/// This ensures that the application has `SQLite` state available for use.
-/// If the application doesn't exist in the state, it will be created with default values.
+/// This function provides thread-safe access to the `SQLite` state for a specific
+/// application. The application state should have been initialized during the init event.
 ///
 /// # Parameters
 ///
-/// - `application_name`: The name of the application to get or create state for
+/// - `application_name`: The name of the application to get state for
 /// - `processor`: A closure that processes the application state
 ///
 /// # Returns
 ///
-/// The result of the processor closure
-fn with_or_create_app_state<F, R>(
-    application_name: &ApplicationName,
-    processor: F,
-) -> R
-where
-    F: FnOnce(&mut AppSqliteState) -> R,
-{
-    SQLITE_STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        processor(state.get_or_create_app_state(application_name))
-    })
-}
-
-/// Gets the application-specific statement state, creating it if it doesn't exist.
-///
-/// This function ensures that the application has statement state available for use.
-/// If the application doesn't exist in the state, it will be created with default
-/// values (empty statement map and address counter starting at 0).
-///
-/// # Parameters
-///
-/// - `application_name`: The name of the application to get or create state for
-/// - `processor`: A closure that processes the application state
-///
-/// # Returns
-///
-/// The result of the processor closure, or an error if processing fails
-pub fn get_or_create_statement_app_state<F, R>(
+/// The result of the processor closure, or an error if the application state doesn't
+/// exist
+fn get_app_state_with<F, R>(
     application_name: &ApplicationName,
     processor: F,
 ) -> Result<R, wasmtime::Error>
 where
-    F: FnOnce(&mut AppStatement) -> Result<R, wasmtime::Error>,
+    F: FnOnce(&mut AppSqliteState) -> R,
 {
-    with_or_create_app_state(application_name, |app_state| {
-        processor(AppSqliteState::statements_mut(app_state))
+    SQLITE_STATE.with(|state| {
+        // Safe to borrow_mut because all SQLite state access goes through
+        // `try_get_app_state_with` and `get_app_state_with` only,
+        // preventing multiple borrows from occurring simultaneously.
+        let mut state = state.borrow_mut();
+        match state.get_app_state(application_name) {
+            Some(app_state) => Ok(processor(app_state)),
+            None => Err(wasmtime::Error::msg(format!(
+                "Application '{application_name}' state not found - must be initialized in init event"
+            ))),
+        }
     })
 }
 
@@ -104,10 +105,6 @@ where
 /// without requiring complex closure handling.
 ///
 /// Gets a database connection resource for the specified application and database handle.
-///
-/// This function provides a convenient way to get a connection resource without
-/// duplicating error handling logic. It properly distinguishes between
-/// "application not found" and "connection not found" errors.
 ///
 /// # Parameters
 ///
@@ -117,11 +114,11 @@ where
 /// # Returns
 ///
 /// The connection resource, or None if the application or connection is not found
-pub fn get_connection_resource(
+pub fn try_get_connection_resource(
     application_name: &ApplicationName,
     db_handle: DbHandle,
 ) -> Option<wasmtime::component::Resource<Sqlite>> {
-    with_app_state(application_name, |app_state| {
+    try_get_app_state_with(application_name, |app_state| {
         match app_state {
             Some(app_state) => app_state.get_connection_resource(db_handle),
             None => None,
@@ -148,8 +145,8 @@ pub fn create_connection_resource(
     application_name: &ApplicationName,
     db_handle: DbHandle,
     db_ptr: ObjectPointer,
-) -> wasmtime::component::Resource<Sqlite> {
-    with_or_create_app_state(application_name, |app_state| {
+) -> Result<wasmtime::component::Resource<Sqlite>, wasmtime::Error> {
+    get_app_state_with(application_name, |app_state| {
         app_state.create_connection_resource(db_handle, db_ptr)
     })
 }
@@ -172,7 +169,7 @@ pub fn get_connection_pointer(
     application_name: &ApplicationName,
     db_handle: DbHandle,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    with_app_state(application_name, |app_state| {
+    try_get_app_state_with(application_name, |app_state| {
         match app_state {
             Some(app_state) => {
                 match app_state.connections.get_connection(db_handle) {
@@ -203,7 +200,7 @@ pub fn get_statement_pointer(
     application_name: &ApplicationName,
     resource: &wasmtime::component::Resource<Statement>,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    with_app_state(application_name, |app_state| {
+    try_get_app_state_with(application_name, |app_state| {
         match app_state {
             Some(app_state) => {
                 match app_state.statements.get_object(resource) {
@@ -217,6 +214,30 @@ pub fn get_statement_pointer(
                 ))
             },
         }
+    })
+}
+
+/// Creates a new statement resource for the specified application and statement pointer.
+///
+/// This function provides a convenient way to create a statement resource without
+/// duplicating error handling logic.
+///
+/// # Parameters
+///
+/// - `application_name`: The name of the application
+/// - `stmt_ptr`: The pointer to the statement object
+///
+/// # Returns
+///
+/// A new statement resource
+pub fn create_statement_resource(
+    application_name: &ApplicationName,
+    stmt_ptr: ObjectPointer,
+) -> Result<wasmtime::component::Resource<Statement>, wasmtime::Error> {
+    get_app_state_with(application_name, |app_state| {
+        app_state
+            .statements_mut()
+            .create_statement_resource(stmt_ptr)
     })
 }
 
@@ -238,7 +259,7 @@ pub fn delete_statement_resource(
     application_name: &ApplicationName,
     resource: &wasmtime::component::Resource<Statement>,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    with_app_state(application_name, |app_state| {
+    try_get_app_state_with(application_name, |app_state| {
         match app_state {
             Some(app_state) => app_state.statements.delete_resource(resource),
             None => {

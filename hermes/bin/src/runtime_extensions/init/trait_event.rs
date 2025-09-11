@@ -143,7 +143,11 @@ impl RteInitEvent for RteEvent {
                 event=%ctx.event_name(),
                 exc_count=%ctx.exc_counter(),
                 "Multiple attempts to initialize event..  This does not cause problems, but don't do it.");
-            return Ok(()); // Not an error which should stop us running.
+            // Events are running in different threads, that means that if one app
+            // creates multiple similar events at the same time we would
+            // run init also multiple times, cause execution counter updates
+            // only after event is already executed
+            // return Ok(()); // Not an error which should stop us running.
         }
 
         let errors = run_init_fini!(
@@ -173,7 +177,11 @@ impl RteInitEvent for RteEvent {
                 event=%ctx.event_name(),
                 exc_count=%ctx.exc_counter(),
                 "Multiple attempts to finalize event (or event never initialized).  This does not cause problems, but don't do it.");
-            return Ok(()); // Not an error which should stop us running.
+            // Events are running in different threads, that means that if one app
+            // creates multiple similar events at the same time we would
+            // run fini also multiple times, cause execution counter updates
+            // only after event is already executed
+            // return Ok(()); // Not an error which should stop us running.
         }
 
         let errors = run_init_fini!(

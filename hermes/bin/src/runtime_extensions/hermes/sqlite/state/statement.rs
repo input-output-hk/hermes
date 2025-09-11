@@ -1,3 +1,5 @@
+//! Statement state management for SQLite prepared statement resources.
+
 use std::collections::HashMap;
 
 use crate::runtime_extensions::{

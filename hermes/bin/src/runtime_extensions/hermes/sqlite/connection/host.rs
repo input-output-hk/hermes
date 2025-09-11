@@ -74,9 +74,9 @@ impl HostSqlite for HermesRuntimeContext {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stmt = resource_manager::get_or_create_statement_app_state(
+                    let stmt = resource_manager::create_statement_resource(
                         self.app_name(),
-                        |statement| Ok(statement.create_statement_resource(stmt_ptr as _)),
+                        stmt_ptr as _,
                     )?;
 
                     Ok(Ok(stmt))

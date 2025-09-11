@@ -31,21 +31,19 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let db_handle = DbHandle::from_readonly_and_memory(readonly, memory);
 
-        // Check if connection already exists
         if let Some(resource) =
-            resource_manager::get_connection_resource(self.app_name(), db_handle)
+            resource_manager::try_get_connection_resource(self.app_name(), db_handle)
         {
             return Ok(Ok(resource));
         }
 
-        // Create new connection
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
                 let resource = resource_manager::create_connection_resource(
                     self.app_name(),
                     db_handle,
                     db_ptr as _,
-                );
+                )?;
                 Ok(Ok(resource))
             },
             Err(err) => Ok(Err(err)),

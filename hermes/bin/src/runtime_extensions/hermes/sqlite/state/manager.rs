@@ -63,22 +63,6 @@ pub(crate) struct SqliteState {
 }
 
 impl SqliteState {
-    /// Gets or creates the `SQLite` state for the specified application.
-    ///
-    /// # Parameters
-    ///
-    /// - `application_name`: The name of the application to get or create state for
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to the application's `SQLite` state
-    pub(crate) fn get_or_create_app_state(
-        &mut self,
-        application_name: &ApplicationName,
-    ) -> &mut AppSqliteState {
-        self.apps.entry(application_name.clone()).or_default()
-    }
-
     /// Gets the `SQLite` state for the specified application, if it exists.
     ///
     /// # Parameters

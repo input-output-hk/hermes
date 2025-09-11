@@ -8,11 +8,14 @@ use crate::{
     runtime_extensions::{
         hermes::sqlite::{
             connection::core::close,
-            state::{connection::DbHandle, resource_manager::get_connection_pointer},
+            state::{
+                connection::DbHandle,
+                resource_manager::{get_connection_pointer, init_app_state},
+            },
         },
         init::{
-            errors::RteInitResult, priority::RteInitPriority, trait_app::RteInitApp,
-            trait_event::RteInitEvent, trait_module::RteInitModule, trait_runtime::RteInitRuntime,
+            errors::RteInitResult, trait_app::RteInitApp, trait_event::RteInitEvent,
+            trait_module::RteInitModule, trait_runtime::RteInitRuntime,
         },
     },
     wasm::module::ModuleId,
@@ -29,60 +32,10 @@ mod statement;
 struct RteSqlite;
 
 #[traitreg::register(default)]
-impl RteInitRuntime for RteSqlite {
-    fn init(self: Box<Self>) -> RteInitResult {
-        debug!("Hermes Runtime Extensions Initialized: Node Runtime");
-        Ok(())
-    }
-
-    fn fini(self: Box<Self>) -> RteInitResult {
-        debug!("Hermes Runtime Extensions Finalized: Node Runtime");
-        Ok(())
-    }
-
-    fn priority(
-        &self,
-        init: bool,
-    ) -> i32 {
-        // Runs First on `init` and last on `fini`
-        RteInitPriority {
-            init: i32::MAX,
-            fini: i32::MIN,
-        }
-        .priority(init)
-    }
-}
+impl RteInitRuntime for RteSqlite {}
 
 #[traitreg::register(default)]
-impl RteInitApp for RteSqlite {
-    fn init(
-        self: Box<Self>,
-        name: &ApplicationName,
-    ) -> RteInitResult {
-        debug!(name=%name,"Hermes Runtime Extensions Initialized: App Runtime");
-        Ok(())
-    }
-
-    fn fini(
-        self: Box<Self>,
-        name: &ApplicationName,
-    ) -> RteInitResult {
-        debug!(name=%name, "Hermes Runtime Extensions Finalized: App Runtime");
-        Ok(())
-    }
-
-    fn priority(
-        &self,
-        init: bool,
-    ) -> i32 {
-        // Runs First on `init` and last on `fini`
-        RteInitPriority {
-            init: i32::MAX,
-            fini: i32::MIN,
-        }
-        .priority(init)
-    }
-}
+impl RteInitApp for RteSqlite {}
 
 #[traitreg::register(default)]
 impl RteInitModule for RteSqlite {
@@ -92,28 +45,9 @@ impl RteInitModule for RteSqlite {
         module_id: &ModuleId,
     ) -> RteInitResult {
         debug!(name=%name, module_id=%module_id,"Hermes Runtime Extensions Initialized: Module");
-        Ok(())
-    }
+        init_app_state(name);
 
-    fn fini(
-        self: Box<Self>,
-        name: &ApplicationName,
-        module_id: &ModuleId,
-    ) -> RteInitResult {
-        debug!(name=%name, module_id=%module_id, "Hermes Runtime Extensions Finalized: Module");
         Ok(())
-    }
-
-    fn priority(
-        &self,
-        init: bool,
-    ) -> i32 {
-        // Runs First on `init` and last on `fini`
-        RteInitPriority {
-            init: i32::MAX,
-            fini: i32::MIN,
-        }
-        .priority(init)
     }
 }
 
@@ -129,6 +63,8 @@ impl RteInitEvent for RteSqlite {
                 event=%ctx.event_name(),
                 exc_count=%ctx.exc_counter(),
                 "Hermes Runtime Extensions Initialized: Event");
+
+        init_app_state(ctx.app_name());
         Ok(())
     }
 
@@ -142,6 +78,7 @@ impl RteInitEvent for RteSqlite {
                 event=%ctx.event_name(),
                 exc_count=%ctx.exc_counter(),
                 "Hermes Runtime Extensions Finalized: Event");
+
         for db_handle in [
             DbHandle::DiskRO,
             DbHandle::DiskRW,
@@ -153,18 +90,6 @@ impl RteInitEvent for RteSqlite {
             }
         }
         Ok(())
-    }
-
-    fn priority(
-        &self,
-        init: bool,
-    ) -> i32 {
-        // Runs First on `init` and last on `fini`
-        RteInitPriority {
-            init: i32::MAX,
-            fini: i32::MIN,
-        }
-        .priority(init)
     }
 }
 
