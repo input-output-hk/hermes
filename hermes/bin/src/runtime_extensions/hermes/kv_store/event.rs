@@ -22,7 +22,6 @@ struct KVUpdateEvent {
     value: KvValues,
 }
 
-#[allow(dead_code)]
 impl HermesEventPayload for KVUpdateEvent {
     fn event_name(&self) -> &'static str {
         "kv-update"

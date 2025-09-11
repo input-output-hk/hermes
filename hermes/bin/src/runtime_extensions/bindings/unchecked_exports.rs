@@ -53,7 +53,8 @@ macro_rules! define {
         fn $rust_func:ident$(<$l:lifetime>)?($($param_name:ident: $param:ty),* $(,)?) $(-> $return:ty)?;
     )*}) => {::paste::paste! {
         $vis trait $ext_trait {$(
-            #[doc = concat!("Looks up \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
+            #[doc = concat!("Looks up \"", $wit_func , "\" from \"", $wit_interface, "\".\n\n")]
+            #[doc = "# Panic\n\n Lookup never panics, calling the export can panic if misused (see [`wasmtime::component::Func::call`]).\n"]
             fn [<lookup_ $rust_func>]$(<$l>)?(
                 &self,
                 store: &mut ::wasmtime::Store<$crate::runtime_context::HermesRuntimeContext>
@@ -63,7 +64,8 @@ macro_rules! define {
             >;
 
             #[doc = concat!("Looks up and calls \"", $wit_func , "\" from \"", $wit_interface, "\".\n")]
-            #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n")]
+            #[doc = concat!("This wraps around [`Self::", stringify!([<lookup_ $rust_func>]), "`].\n\n")]
+            #[doc = "# Panic\n\n Calling the export can panic if misused (see [`wasmtime::component::Func::call`]).\n"]
             #[allow(unused_parens, dead_code, reason = "needed for codegen in no-return case")]
             fn $rust_func$(<$l>)?(
                 &self,
