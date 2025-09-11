@@ -4,8 +4,13 @@ use std::collections::HashMap;
 
 use crate::{
     app::ApplicationName,
-    runtime_extensions::hermes::sqlite::state::{
-        connection::AppConnections, statement::AppStatement,
+    runtime_extensions::{
+        bindings::hermes::sqlite::api::Sqlite,
+        hermes::sqlite::state::{
+            connection::{AppConnections, DbHandle},
+            statement::AppStatement,
+            ObjectPointer,
+        },
     },
 };
 
@@ -23,14 +28,27 @@ pub(crate) struct AppSqliteState {
 }
 
 impl AppSqliteState {
-    /// Gets a mutable reference to the connection state.
-    pub(crate) fn connections_mut(&mut self) -> &mut AppConnections {
-        &mut self.connections
-    }
-
     /// Gets a mutable reference to the statement state.
     pub(crate) fn statements_mut(&mut self) -> &mut AppStatement {
         &mut self.statements
+    }
+
+    /// Gets a connection resource for the specified database handle.
+    pub(crate) fn get_connection_resource(
+        &self,
+        db_handle: DbHandle,
+    ) -> Option<wasmtime::component::Resource<Sqlite>> {
+        self.connections.get_connection_resource(db_handle)
+    }
+
+    /// Creates a new connection resource and stores the connection pointer.
+    pub(crate) fn create_connection_resource(
+        &mut self,
+        db_handle: DbHandle,
+        db_ptr: ObjectPointer,
+    ) -> wasmtime::component::Resource<Sqlite> {
+        self.connections
+            .create_connection_resource(db_handle, db_ptr)
     }
 }
 

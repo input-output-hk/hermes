@@ -1,6 +1,6 @@
 use crate::runtime_extensions::{
-    bindings::hermes::sqlite::api::Sqlite,
-    hermes::sqlite::{connection::core::close, state::ObjectPointer},
+    bindings::hermes::sqlite::api::{Errno, Sqlite},
+    hermes::sqlite::state::ObjectPointer,
 };
 
 /// Enumeration representing different types of database handles.
@@ -44,22 +44,16 @@ impl DbHandle {
     }
 }
 
-impl From<u32> for DbHandle {
-    /// Converts a `u32` value to a `DbHandle`.
-    ///
-    /// # Parameters
-    ///
-    /// - `value`: The numeric value to convert
-    ///
-    /// # Returns
-    ///
-    /// The corresponding `DbHandle` variant, defaulting to `MemRW` for invalid values
-    fn from(value: u32) -> Self {
+impl TryFrom<u32> for DbHandle {
+    type Error = Errno;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            0 => DbHandle::DiskRO,
-            1 => DbHandle::DiskRW,
-            2 => DbHandle::MemRO,
-            _ => DbHandle::MemRW,
+            0 => Ok(DbHandle::DiskRO),
+            1 => Ok(DbHandle::DiskRW),
+            2 => Ok(DbHandle::MemRO),
+            3 => Ok(DbHandle::MemRW),
+            _ => Err(Errno::ConvertingNumeric),
         }
     }
 }
@@ -70,7 +64,6 @@ impl From<u32> for DbHandle {
 /// including both disk-based and memory-based databases with read-only and
 /// read-write access modes.
 #[derive(Default)]
-#[allow(dead_code)]
 pub(crate) struct AppConnections {
     /// Disk-based read-write database connection pointer
     disk_rw: Option<ObjectPointer>,
@@ -80,14 +73,6 @@ pub(crate) struct AppConnections {
     mem_rw: Option<ObjectPointer>,
     /// Memory-based read-only database connection pointer
     mem_ro: Option<ObjectPointer>,
-    /// Mutex guard for disk database access synchronization
-    /// Note: This field is reserved for future use when mutex synchronization is needed
-    #[allow(dead_code)]
-    disk_guard: Option<()>,
-    /// Mutex guard for memory database access synchronization
-    /// Note: This field is reserved for future use when mutex synchronization is needed
-    #[allow(dead_code)]
-    mem_guard: Option<()>,
 }
 
 impl AppConnections {
@@ -112,17 +97,17 @@ impl AppConnections {
         }
     }
 
-    /// Gets a mutable reference to the connection pointer for the specified database
+    /// Gets a mutable reference to the connection slot for the specified database
     /// handle.
     ///
     /// # Parameters
     ///
-    /// - `db_handle`: The database handle to get the mutable connection for
+    /// - `db_handle`: The database handle to get the mutable connection slot for
     ///
     /// # Returns
     ///
-    /// A mutable reference to the optional connection pointer
-    pub(crate) fn get_connection_mut(
+    /// A mutable reference to the optional connection pointer slot
+    fn get_connection_slot_mut(
         &mut self,
         db_handle: DbHandle,
     ) -> &mut Option<ObjectPointer> {
@@ -166,22 +151,7 @@ impl AppConnections {
         db_handle: DbHandle,
         db_ptr: ObjectPointer,
     ) -> wasmtime::component::Resource<Sqlite> {
-        *self.get_connection_mut(db_handle) = Some(db_ptr);
+        *self.get_connection_slot_mut(db_handle) = Some(db_ptr);
         wasmtime::component::Resource::new_own(db_handle as _)
-    }
-}
-
-impl Drop for AppConnections {
-    /// Automatically closes all database connections when the `AppConnections` is
-    /// dropped.
-    ///
-    /// This ensures proper cleanup of database resources and prevents memory leaks.
-    fn drop(&mut self) {
-        for db_ptr in [self.disk_rw, self.disk_ro, self.mem_rw, self.mem_ro]
-            .iter()
-            .flatten()
-        {
-            let _ = close(*db_ptr as _);
-        }
     }
 }

@@ -21,7 +21,7 @@ impl AppStatement {
     ) -> wasmtime::component::Resource<Statement> {
         let index = self.available_address;
         self.statements.insert(index, stmt_ptr);
-        self.available_address = self.available_address.saturating_add(1);
+        self.available_address = self.available_address.wrapping_add(1);
         wasmtime::component::Resource::new_own(index)
     }
 

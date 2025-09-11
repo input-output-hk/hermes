@@ -151,7 +151,7 @@ impl RteInitApp for RteApp {
         }
 
         let errors = run_init_fini!(
-            init = true,
+            init = false,
             registry = RTE_INIT_APP_REGISTRY,
             rte_trait = RteInitApp,
             span_label = "Runtime Extension Node Initialization Span",

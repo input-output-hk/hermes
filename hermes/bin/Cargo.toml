@@ -96,7 +96,8 @@ reqwest = "0.12.23"
 url = "2.5.7"
 num-traits = "0.2.19"
 paste = "1.0.15"
-traitreg = "0.3.0"
+# TODO: replace with catalyst fork, or remove git after fix is merged
+traitreg = { version = "0.3.1", git = "https://github.com/no30bit/traitreg" }
 orx-concurrent-vec = "3.7.0"
 keyed-lock = "0.2.3"
 

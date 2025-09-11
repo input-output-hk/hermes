@@ -21,14 +21,9 @@ impl HostStatement for HermesRuntimeContext {
         index: u32,
         value: Value,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            let app_state = app_state.ok_or_else(|| {
-                wasmtime::Error::msg("Application not found for statement resource")
-            })?;
-            let stmt_ptr = app_state.get_object(&resource)?;
-            let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-            Ok(core::bind(*stmt_ptr as *mut _, index, value))
-        })
+        let stmt_ptr = resource_manager::get_statement_pointer(self.app_name(), &resource)?;
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+        Ok(core::bind(stmt_ptr as *mut _, index, value))
     }
 
     /// Advances a statement to the next result row or to completion.
@@ -43,13 +38,8 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<StepResult, Errno>> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            let app_state = app_state.ok_or_else(|| {
-                wasmtime::Error::msg("Application not found for statement resource")
-            })?;
-            let stmt_ptr = app_state.get_object(&resource)?;
-            Ok(core::step(*stmt_ptr as *mut _))
-        })
+        let stmt_ptr = resource_manager::get_statement_pointer(self.app_name(), &resource)?;
+        Ok(core::step(stmt_ptr as *mut _))
     }
 
     /// Returns information about a single column of the current result row of a query.
@@ -70,14 +60,9 @@ impl HostStatement for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Statement>,
         index: u32,
     ) -> wasmtime::Result<Result<Value, Errno>> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            let app_state = app_state.ok_or_else(|| {
-                wasmtime::Error::msg("Application not found for statement resource")
-            })?;
-            let stmt_ptr = app_state.get_object(&resource)?;
-            let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
-            Ok(core::column(*stmt_ptr as *mut _, index))
-        })
+        let stmt_ptr = resource_manager::get_statement_pointer(self.app_name(), &resource)?;
+        let index = i32::try_from(index).map_err(|_| Errno::ConvertingNumeric)?;
+        Ok(core::column(stmt_ptr as *mut _, index))
     }
 
     /// Reset a prepared statement object back to its initial state, ready to be
@@ -90,13 +75,8 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            let app_state = app_state.ok_or_else(|| {
-                wasmtime::Error::msg("Application not found for statement resource")
-            })?;
-            let stmt_ptr = app_state.get_object(&resource)?;
-            Ok(core::reset(*stmt_ptr as *mut _))
-        })
+        let stmt_ptr = resource_manager::get_statement_pointer(self.app_name(), &resource)?;
+        Ok(core::reset(stmt_ptr as *mut _))
     }
 
     /// Destroys a prepared statement object. If the most recent evaluation of the
@@ -113,26 +93,19 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            let app_state = app_state.ok_or_else(|| {
-                wasmtime::Error::msg("Application not found for statement resource")
-            })?;
-            let stmt_ptr = app_state.delete_resource(&resource)?;
-            Ok(core::finalize(stmt_ptr as *mut _))
-        })
+        let stmt_ptr = resource_manager::delete_statement_resource(self.app_name(), &resource)?;
+        Ok(core::finalize(stmt_ptr as *mut _))
     }
 
     fn drop(
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<()> {
-        resource_manager::get_statement_app_state(self.app_name(), |app_state| {
-            if let Some(app_state) = app_state {
-                if let Ok(stmt_ptr) = app_state.delete_resource(&resource) {
-                    let _ = core::finalize(stmt_ptr as *mut _);
-                }
-            }
-            Ok(())
-        })
+        if let Ok(stmt_ptr) =
+            resource_manager::delete_statement_resource(self.app_name(), &resource)
+        {
+            let _ = core::finalize(stmt_ptr as *mut _);
+        }
+        Ok(())
     }
 }

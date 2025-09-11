@@ -1,11 +1,13 @@
 //! `SQLite` host implementation for WASM runtime.
 
-use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
-        hermes::sqlite::state::{connection::DbHandle, resource_manager},
+        hermes::sqlite::{
+            core,
+            state::{connection::DbHandle, resource_manager},
+        },
     },
 };
 
@@ -28,22 +30,23 @@ impl Host for HermesRuntimeContext {
         memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
         let db_handle = DbHandle::from_readonly_and_memory(readonly, memory);
+
+        // Check if connection already exists
         if let Some(resource) =
-            resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
-                app_state.and_then(|app_state| app_state.get_connection_resource(db_handle))
-            })
+            resource_manager::get_connection_resource(self.app_name(), db_handle)
         {
             return Ok(Ok(resource));
         }
 
+        // Create new connection
         match core::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
-                let db_id = resource_manager::get_or_create_db_app_state_with(
+                let resource = resource_manager::create_connection_resource(
                     self.app_name(),
-                    |app_state| app_state.create_connection_resource(db_handle, db_ptr as _),
+                    db_handle,
+                    db_ptr as _,
                 );
-
-                Ok(Ok(db_id))
+                Ok(Ok(resource))
             },
             Err(err) => Ok(Err(err)),
         }

@@ -26,7 +26,7 @@ impl HostSqlite for HermesRuntimeContext {
         &mut self,
         _resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        // Connection close is processed in `Drop`
+        // Connection close is handled automatically in `Drop` implementation
         Ok(Ok(()))
     }
 
@@ -40,16 +40,10 @@ impl HostSqlite for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
-            match app_state
-                .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
-            {
-                Some(connection) => Ok(connection),
-                None => Err(crate::runtime_extensions::hermes::sqlite::state::app_not_found_err()),
-            }
-        })?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
-        Ok(core::errcode(db_ptr as *mut libsqlite3_sys::sqlite3))
+        Ok(core::errcode(db_ptr as *mut _))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -70,14 +64,8 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
-            match app_state
-                .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
-            {
-                Some(connection) => Ok(connection),
-                None => Err(crate::runtime_extensions::hermes::sqlite::state::app_not_found_err()),
-            }
-        })?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
         let result = core::prepare(db_ptr as *mut _, sql.as_str());
 
@@ -109,14 +97,8 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let db_ptr = resource_manager::get_db_app_state_with(self.app_name(), |app_state| {
-            match app_state
-                .and_then(|app_state| app_state.get_connection(resource.rep().into()).copied())
-            {
-                Some(connection) => Ok(connection),
-                None => Err(crate::runtime_extensions::hermes::sqlite::state::app_not_found_err()),
-            }
-        })?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
         Ok(core::execute(db_ptr as *mut _, sql.as_str()))
     }
