@@ -29,7 +29,7 @@ impl TryFrom<u64> for Value {
 
 impl From<u16> for Value {
     fn from(v: u16) -> Self {
-        let i = u64::from(v);
+        let i = i64::from(v);
         Value::Int64(i)
     }
 }

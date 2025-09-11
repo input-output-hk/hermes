@@ -70,7 +70,7 @@ pub(crate) fn build_block(
             file_name,
             func_name,
             "cardano_blockchain_types::MultiEraBlock::new",
-            "Failed to construct multi-era block",
+            &format!("Failed to construct multi-era block: {e}"),
             None,
         );
     })
