@@ -29,7 +29,8 @@ pub(crate) fn app_not_found_err() -> wasmtime::Error {
     )
 }
 
-/// Creates a standardized error for when a connection for application is not found in the state.
+/// Creates a standardized error for when a connection for application is not found in the
+/// state.
 ///
 /// This function returns a consistent error message that indicates the connection
 /// needs to be initialized before accessing connection resources.
