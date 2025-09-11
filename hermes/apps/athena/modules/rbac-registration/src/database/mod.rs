@@ -6,11 +6,8 @@ pub(crate) mod data;
 pub(crate) mod insert;
 
 use crate::{
-    hermes::hermes::{
-        self,
-        sqlite::api::{open, Sqlite, Statement, Value},
-    },
-    utils::log::{log_error},
+    hermes::sqlite::api::{open, Sqlite, Statement, Value},
+    utils::log::log_error,
 };
 
 /// Open database connection.

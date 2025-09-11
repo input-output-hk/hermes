@@ -5,7 +5,7 @@ use crate::{
         bind_with_log,
         data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
     },
-    hermes::hermes::sqlite::api::{Sqlite, Statement, Value},
+    hermes::sqlite::api::{Sqlite, Statement, Value},
     utils::log::log_error,
 };
 

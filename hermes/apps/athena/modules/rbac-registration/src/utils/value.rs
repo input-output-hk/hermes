@@ -1,6 +1,6 @@
 //! Hermes SQLite value conversion.
 
-use crate::hermes::hermes::sqlite::api::Value;
+use crate::hermes::sqlite::api::Value;
 
 // ------ Rust types to SQLite value conversion ------
 

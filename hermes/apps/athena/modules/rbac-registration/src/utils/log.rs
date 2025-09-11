@@ -1,7 +1,7 @@
 //! Logging utilities.
 
 // TODO - This should be removed once <https://github.com/input-output-hk/hermes/issues/505> is implemented.
-use crate::hermes;
+use crate::hermes::logging::api::{log, Level};
 
 /// Error logging.
 pub(crate) fn log_error(
@@ -11,8 +11,8 @@ pub(crate) fn log_error(
     msg: &str,
     data: Option<&str>,
 ) {
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Error,
+    log(
+        Level::Error,
         Some(file),
         Some(function),
         None,
@@ -31,8 +31,8 @@ pub(crate) fn log_info(
     msg: &str,
     data: Option<&str>,
 ) {
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Info,
+    log(
+        Level::Info,
         Some(file),
         Some(function),
         None,

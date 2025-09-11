@@ -5,20 +5,7 @@ IMPORT ../../../../ AS hermes
 IMPORT ../../../../../wasm/wasi AS wasi
     
 build-rbac-registration:
-    DO rust-ci+SETUP
-
-    WORKDIR /app
-
-    COPY --keep-ts --dir src .
-    COPY Cargo.toml .
-    COPY wasi+build-rust-bindings/hermes.rs src/hermes.rs
-
-    
-    DO rust-ci+CARGO \
-        --args "build --target wasm32-wasip2 --release" \
-        --output="wasm32-wasip2/release/rbac_registration.wasm"
-    
-    SAVE ARTIFACT target/wasm32-wasip2/release/rbac_registration.wasm rbac_registration.wasm
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../../../wasm/wasi --out=rbac_registration.wasm
 
 local-build-rbac-registration:
     FROM scratch

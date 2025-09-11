@@ -1,8 +1,27 @@
 //! RBAC Registration Indexing Module
 
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../../wasi/wit",
+    inline: "
+        package hermes:app;
+
+        world hermes {
+            import hermes:cardano/api;
+            import hermes:logging/api;
+            import hermes:init/api;
+            import hermes:sqlite/api;
+            
+            export hermes:init/event;
+            export hermes:cardano/event-on-block;
+        }
+    ",
+    generate_all,
+});
+
+export!(RbacRegistrationComponent);
+
 mod database;
-mod hermes;
-mod stub;
 mod utils;
 
 use rbac_registration::{self, cardano::cip509::Cip509};
@@ -23,12 +42,14 @@ use crate::{
     utils::log::log_info,
 };
 
+use hermes::cardano;
+
 struct RbacRegistrationComponent;
 
-impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistrationComponent {
+impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationComponent {
     fn on_cardano_block(
-        subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
-        block: &hermes::exports::hermes::cardano::event_on_block::Block,
+        subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
+        block: &exports::hermes::cardano::event_on_block::Block,
     ) {
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
 
@@ -41,9 +62,11 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
             return;
         };
         let Ok(rbac_stmt) = prepare_insert_rbac_registration(&sqlite) else {
+            close_db_connection(sqlite);
             return;
         };
         let Ok(rbac_stake_stmt) = prepare_insert_rbac_stake_address(&sqlite) else {
+            close_db_connection(sqlite);
             return;
         };
 
@@ -93,7 +116,7 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for RbacRegistratio
     }
 }
 
-impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
+impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
         const FUNCTION_NAME: &str = "init";
         let Ok(sqlite) = open_db_connection() else {
@@ -104,16 +127,16 @@ impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
 
         // Instead of starting from genesis, start from a specific slot just before RBAC data exist.
         let slot = 80374283;
-        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Specific(slot);
-        let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;
+        let subscribe_from = cardano::api::SyncSlot::Specific(slot);
+        let network = cardano::api::CardanoNetwork::Preprod;
 
-        let network_resource = match hermes::hermes::cardano::api::Network::new(network) {
+        let network_resource = match cardano::api::Network::new(network) {
             Ok(nr) => nr,
             Err(e) => {
                 log_error(
                     file!(),
                     FUNCTION_NAME,
-                    "hermes::hermes::cardano::api::Network::new",
+                    "cardano::api::Network::new",
                     &format!("Failed to create network resource {network:?}: {e}"),
                     None,
                 );
@@ -149,8 +172,8 @@ impl hermes::exports::hermes::init::event::Guest for RbacRegistrationComponent {
 
 /// Get the RBAC registration from a block.
 fn get_rbac_registration(
-    network: hermes::hermes::cardano::api::CardanoNetwork,
-    block_resource: &hermes::hermes::cardano::api::Block,
+    network: cardano::api::CardanoNetwork,
+    block_resource: &hermes::cardano::api::Block,
 ) -> Vec<Cip509> {
     const FUNCTION_NAME: &str = "get_rbac_registration";
 
@@ -161,27 +184,19 @@ fn get_rbac_registration(
     Cip509::from_block(&block, &[])
 }
 
-impl From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
-    fn from(
-        network: hermes::hermes::cardano::api::CardanoNetwork
-    ) -> cardano_blockchain_types::Network {
+impl From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
+    fn from(network: cardano::api::CardanoNetwork) -> cardano_blockchain_types::Network {
         match network {
-            hermes::hermes::cardano::api::CardanoNetwork::Mainnet => {
-                cardano_blockchain_types::Network::Mainnet
-            },
-            hermes::hermes::cardano::api::CardanoNetwork::Preprod => {
-                cardano_blockchain_types::Network::Preprod
-            },
-            hermes::hermes::cardano::api::CardanoNetwork::Preview => {
-                cardano_blockchain_types::Network::Preview
-            },
-            hermes::hermes::cardano::api::CardanoNetwork::TestnetMagic(n) => {
+            cardano::api::CardanoNetwork::Mainnet => cardano_blockchain_types::Network::Mainnet,
+            cardano::api::CardanoNetwork::Preprod => cardano_blockchain_types::Network::Preprod,
+            cardano::api::CardanoNetwork::Preview => cardano_blockchain_types::Network::Preview,
+            cardano::api::CardanoNetwork::TestnetMagic(n) => {
                 // TODO(bkioshn) - This should be mapped to
                 // cardano_blockchain_types::Network::Devnet
                 log_error(
                     file!(),
-                    "From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_types::Network",
-                    "hermes::hermes::cardano::api::CardanoNetwork::TestnetMagic",
+                    "From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network",
+                    "cardano::api::CardanoNetwork::TestnetMagic",
                     "Unsupported network",
                     Some(&json!({ "network": format!("TestnetMagic {n}") }).to_string()),
                 );
@@ -190,5 +205,3 @@ impl From<hermes::hermes::cardano::api::CardanoNetwork> for cardano_blockchain_t
         }
     }
 }
-
-hermes::export!(RbacRegistrationComponent with_types_in hermes);

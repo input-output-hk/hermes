@@ -4,7 +4,7 @@ use cardano_blockchain_types::MultiEraBlock;
 use serde_json::json;
 
 use crate::{
-    hermes::hermes::cardano::api::{Block, CardanoNetwork},
+    hermes::cardano::api::{Block, CardanoNetwork},
     utils::log::log_error,
 };
 
