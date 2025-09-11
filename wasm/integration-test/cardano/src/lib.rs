@@ -1,21 +1,22 @@
-#![allow(clippy::all, unused)]
-mod hermes;
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../wasi/wit",
+    inline: "
+        package hermes:app;
 
-use hermes::{
-    exports::hermes::{
-        http_gateway::event::{Bstr, Headers, HttpGatewayResponse},
-        integration_test::event::TestResult,
-    },
-    hermes::{
-        cardano,
-        cron::api::CronTagged,
-        kv_store::api::KvValues,
-        ipfs::api::PubsubMessage,
-    },
-    wasi::http::types::{IncomingRequest, ResponseOutparam},
-};
+        world hermes {
+            import hermes:cardano/api;
+            
+            export hermes:integration-test/event;
+        }
+    ",
+    generate_all,
+});
 
-use pallas_traverse::MultiEraBlock;
+export!(TestComponent);
+
+use exports::hermes::integration_test::event::TestResult;
+use hermes::cardano;
 
 struct TestComponent;
 
@@ -70,99 +71,30 @@ fn test_subscribe_block() -> bool {
     true
 }
 
-impl hermes::exports::hermes::integration_test::event::Guest for TestComponent {
-    fn test(
-        test: u32,
-        run: bool,
-    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
+impl exports::hermes::integration_test::event::Guest for TestComponent {
+    fn test(test: u32, run: bool) -> Option<TestResult> {
         match test {
             0 => {
                 let status = if run { test_get_data() } else { true };
 
-                Some(
-                    hermes::exports::hermes::integration_test::event::TestResult {
-                        name: "Get data".to_string(),
-                        status,
-                    },
-                )
+                Some(TestResult {
+                    name: "Get data".to_string(),
+                    status,
+                })
             }
             1 => {
                 let status = if run { test_subscribe_block() } else { true };
 
-                Some(
-                    hermes::exports::hermes::integration_test::event::TestResult {
-                        name: "Subscribe block".to_string(),
-                        status,
-                    },
-                )
+                Some(TestResult {
+                    name: "Subscribe block".to_string(),
+                    status,
+                })
             }
             _ => None,
         }
     }
 
-    fn bench(
-        test: u32,
-        run: bool,
-    ) -> Option<hermes::exports::hermes::integration_test::event::TestResult> {
+    fn bench(test: u32, run: bool) -> Option<TestResult> {
         None
     }
 }
-
-impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
-    fn on_cardano_immutable_roll_forward(
-        _subscription_id: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        _block: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
-    ) {
-    }
-}
-
-impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
-    fn on_cardano_block(
-        _subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
-        _block: &hermes::exports::hermes::cardano::event_on_block::Block,
-    ) {
-    }
-}
-
-impl hermes::exports::hermes::cron::event::Guest for TestComponent {
-    fn on_cron(event: hermes::exports::hermes::cron::event::CronTagged, last: bool) -> bool {
-        false
-    }
-}
-
-impl hermes::exports::hermes::init::event::Guest for TestComponent {
-    fn init() -> bool {
-        true
-    }
-}
-
-impl hermes::exports::hermes::ipfs::event::Guest for TestComponent {
-    fn on_topic(message: hermes::exports::hermes::ipfs::event::PubsubMessage) -> bool {
-        false
-    }
-}
-
-impl hermes::exports::hermes::kv_store::event::Guest for TestComponent {
-    fn kv_update(_key: String, _value: KvValues) {}
-}
-
-impl hermes::exports::hermes::http_gateway::event::Guest for TestComponent {
-    fn reply(
-        _body: Bstr,
-        _headers: Headers,
-        _path: String,
-        _method: String,
-    ) -> Option<HttpGatewayResponse> {
-        None
-    }
-}
-
-impl hermes::exports::wasi::http::incoming_handler::Guest for TestComponent {
-    fn handle(_request: IncomingRequest, _response_out: ResponseOutparam) {}
-}
-
-impl hermes::exports::hermes::http_request::event::Guest for TestComponent {
-    fn on_http_response(_request_id: Option<u64>, _response: Vec::<u8>) -> () {}
-}
-
-hermes::export!(TestComponent with_types_in hermes);

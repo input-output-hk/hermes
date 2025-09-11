@@ -1,14 +1,31 @@
-// Allow everything since this is generated code.
-#[allow(clippy::all, unused)]
-mod hermes;
-mod stub;
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../../wasi/wit",
+    inline: "
+        package hermes:app;
+
+        world hermes {
+            import wasi:clocks/wall-clock@0.2.6;
+            import hermes:cardano/api;
+            import hermes:logging/api;
+            import hermes:init/api;
+            
+            export hermes:init/event;
+            export hermes:cardano/event-on-block;
+            export hermes:cardano/event-on-immutable-roll-forward;
+        }
+    ",
+    generate_all,
+});
+
+export!(TestComponent);
 
 struct TestComponent;
 
-impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
+impl exports::hermes::cardano::event_on_block::Guest for TestComponent {
     fn on_cardano_block(
-        subscription_id: &hermes::exports::hermes::cardano::event_on_block::SubscriptionId,
-        block: &hermes::exports::hermes::cardano::event_on_block::Block,
+        subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
+        block: &exports::hermes::cardano::event_on_block::Block,
     ) {
         let mut txn_hash = None;
         let slot = block.get_slot();
@@ -20,8 +37,8 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
             txn_hash = txn.get_txn_hash();
         }
 
-        hermes::hermes::logging::api::log(
-            hermes::hermes::logging::api::Level::Warn,
+        hermes::logging::api::log(
+            hermes::logging::api::Level::Warn,
             None,
             None,
             None,
@@ -33,15 +50,15 @@ impl hermes::exports::hermes::cardano::event_on_block::Guest for TestComponent {
     }
 }
 
-impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
+impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for TestComponent {
     fn on_cardano_immutable_roll_forward(
-        subscription_id: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
-        block: &hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Block,
+        subscription_id: &exports::hermes::cardano::event_on_immutable_roll_forward::SubscriptionId,
+        block: &exports::hermes::cardano::event_on_immutable_roll_forward::Block,
     ) {
         let slot = block.get_slot();
         let network = subscription_id.get_network();
-        hermes::hermes::logging::api::log(
-            hermes::hermes::logging::api::Level::Trace,
+        hermes::logging::api::log(
+            hermes::logging::api::Level::Trace,
             None,
             None,
             None,
@@ -53,10 +70,10 @@ impl hermes::exports::hermes::cardano::event_on_immutable_roll_forward::Guest fo
     }
 }
 
-impl hermes::exports::hermes::init::event::Guest for TestComponent {
+impl exports::hermes::init::event::Guest for TestComponent {
     fn init() -> bool {
-        hermes::hermes::logging::api::log(
-            hermes::hermes::logging::api::Level::Trace,
+        hermes::logging::api::log(
+            hermes::logging::api::Level::Trace,
             None,
             None,
             None,
@@ -66,13 +83,13 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
             None,
         );
 
-        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Tip;
-        let network = hermes::hermes::cardano::api::CardanoNetwork::Preview;
+        let subscribe_from = hermes::cardano::api::SyncSlot::Tip;
+        let network = hermes::cardano::api::CardanoNetwork::Preview;
 
-        let network_resource = hermes::hermes::cardano::api::Network::new(network).unwrap();
+        let network_resource = hermes::cardano::api::Network::new(network).unwrap();
         let subscription_id_resource = network_resource.subscribe_block(subscribe_from).unwrap();
-        hermes::hermes::logging::api::log(
-            hermes::hermes::logging::api::Level::Trace,
+        hermes::logging::api::log(
+            hermes::logging::api::Level::Trace,
             None,
             None,
             None,
@@ -82,13 +99,13 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
             None,
         );
 
-        let subscribe_from = hermes::hermes::cardano::api::SyncSlot::Tip;
-        let network = hermes::hermes::cardano::api::CardanoNetwork::Preprod;
+        let subscribe_from = hermes::cardano::api::SyncSlot::Tip;
+        let network = hermes::cardano::api::CardanoNetwork::Preprod;
 
-        let network_resource = hermes::hermes::cardano::api::Network::new(network).unwrap();
+        let network_resource = hermes::cardano::api::Network::new(network).unwrap();
         let subscription_id_resource = network_resource.subscribe_block(subscribe_from).unwrap();
-        hermes::hermes::logging::api::log(
-            hermes::hermes::logging::api::Level::Trace,
+        hermes::logging::api::log(
+            hermes::logging::api::Level::Trace,
             None,
             None,
             None,
@@ -101,8 +118,8 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
         // https://preview.cardanoscan.io/transaction/ef414973dbf2b9ce59707e75daeb1d7831ed31e84e11f628cbd76bcf01a1f70e?tab=metadata
         let block_resource = network_resource.get_block(Some(87310260), -10).unwrap();
         if let Some(metadata) = block_resource.get_txn(0).unwrap().get_metadata(1226) {
-            hermes::hermes::logging::api::log(
-                hermes::hermes::logging::api::Level::Trace,
+            hermes::logging::api::log(
+                hermes::logging::api::Level::Trace,
                 None,
                 None,
                 None,
@@ -115,8 +132,8 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
 
         let block_resource = network_resource.get_block(Some(87310250), 0).unwrap();
         if block_resource.get_txn(0).unwrap().get_metadata(1).is_none() {
-            hermes::hermes::logging::api::log(
-                hermes::hermes::logging::api::Level::Trace,
+            hermes::logging::api::log(
+                hermes::logging::api::Level::Trace,
                 None,
                 None,
                 None,
@@ -129,5 +146,3 @@ impl hermes::exports::hermes::init::event::Guest for TestComponent {
         true
     }
 }
-
-hermes::export!(TestComponent with_types_in hermes);

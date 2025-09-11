@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+# The name of the built .wasm file.
+# Keep it consistent with Earthly build output name.
+name = "cardano"
 crate-type = ["cdylib"]
 
 [dependencies]
 hex = "0.4.3"
-pallas-traverse = "0.25.0"
 wit-bindgen = "0.43.0"
 
 [profile.release]

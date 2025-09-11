@@ -44,9 +44,7 @@ pub fn run_app(
         .stdout(Stdio::from(log_file.try_clone()?))
         .stderr(Stdio::from(log_file))
         .spawn()?;
-
     let output = child.wait_with_output()?;
-
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!("App failed with error: {}", stderr));

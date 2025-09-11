@@ -1,0 +1,8 @@
+package hermes:app;
+
+world hermes {
+    import hermes:json/api;
+    import hermes:logging/api;
+
+    export hermes:integration-test/event;
+}

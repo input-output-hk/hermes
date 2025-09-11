@@ -1,0 +1,5 @@
+package hermes:app;
+
+world hermes {
+    export hermes:integration-test/event;
+}

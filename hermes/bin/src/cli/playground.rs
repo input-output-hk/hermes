@@ -15,7 +15,7 @@ use temp_dir::TempDir;
 use crate::{
     app::{Application, ApplicationName},
     event::queue::Exit,
-    ipfs, reactor,
+    ipfs, pool, reactor,
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -56,13 +56,15 @@ impl Playground {
         init_ipfs(&temp_dir)?;
 
         let exit_lock = reactor::init()?;
-
+        pool::init()?;
         println!(
             "{} Loading {} application(s)...",
             Emoji::new("🛠️", ""),
             apps.len(),
         );
         for app in apps {
+            // TODO[RC]: Prevent the app from receiving any events until it is fully initialized.
+            // TODO[RC]: Currently, when a module fails to initialize, the whole app fails to run.
             reactor::load_app(app)?;
         }
 
@@ -72,6 +74,8 @@ impl Playground {
             exit_lock.wait()
         };
 
+        // Wait for scheduled tasks to be finished.
+        pool::terminate();
         Ok(exit)
     }
 }

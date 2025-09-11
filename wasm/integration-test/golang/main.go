@@ -10,7 +10,6 @@ import (
 	int_test "hermes-golang-app-test/binding/hermes/integration-test/event"
 	ipfs "hermes-golang-app-test/binding/hermes/ipfs/event"
 	kv "hermes-golang-app-test/binding/hermes/kv-store/event"
-	http_incoming_handler "hermes-golang-app-test/binding/wasi/http/incoming-handler"
 
 	"go.bytecodealliance.org/cm"
 )
@@ -54,8 +53,6 @@ func (t TestModule) Reply(body http_gateway.Bstr, headers http_gateway.Headers, 
 
 func (t TestModule) OnHTTPResponse(requestID cm.Option[uint64], response cm.List[uint8]) {}
 
-func (t TestModule) Handle(request http_incoming_handler.ExportIncomingRequest, responseOut http_incoming_handler.ExportResponseOutparam) {
-}
 
 func init() {
 	module := TestModule{}
@@ -70,7 +67,6 @@ func init() {
 	kv.Exports.KvUpdate = module.KvUpdate
 	http_gateway.Exports.Reply = module.Reply
 	http_request.Exports.OnHTTPResponse = module.OnHTTPResponse
-	http_incoming_handler.Exports.Handle = module.Handle
 }
 
 func main() {}

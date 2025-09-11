@@ -9,12 +9,26 @@
 mod bindings {
 
     wit_bindgen::generate!({
-        world: "hermes",
+        world: "hermes:app/hermes",
         path: "../../../../../../wasm/wasi/wit",
+        inline: "
+            package hermes:app;
+
+            world hermes {
+                import wasi:clocks/monotonic-clock@0.2.6;
+                import hermes:sqlite/api;
+                import hermes:logging/api;
+                import hermes:init/api;
+                import hermes:http-request/api;
+                
+                export hermes:init/event;
+                export hermes:http-request/event;
+            }
+        ",
         generate_all,
     });
 }
-mod stub;
+
 mod utils;
 
 use std::fs;

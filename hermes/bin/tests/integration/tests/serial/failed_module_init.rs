@@ -29,7 +29,7 @@ fn do_not_load_app_when_module_initialization_fails() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "WASM module init function returned false"
+        "WASM component init function returned false"
     ));
 
     // Uncomment the line below if you want to inspect the details
