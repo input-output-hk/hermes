@@ -42,19 +42,3 @@ pub(crate) fn log_info(
         data,
     );
 }
-
-/// Select column error logging.
-pub(crate) fn log_select_column(
-    file: &str,
-    function: &str,
-    idx: u32,
-    field: &str,
-) {
-    log_error(
-        file,
-        function,
-        "stmt::column",
-        &format!("Failed to get {field}, using index {idx}"),
-        None,
-    );
-}

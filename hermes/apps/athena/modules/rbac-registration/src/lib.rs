@@ -53,7 +53,6 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
-        const FUNCTION_NAME: &str = "on_cardano_block";
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
 
         // Early exit if no registration to be added into database

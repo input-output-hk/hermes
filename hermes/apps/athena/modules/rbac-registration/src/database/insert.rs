@@ -49,7 +49,7 @@ pub(crate) fn insert_rbac_registration(
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_registration";
 
-    if let Err(e) = bind_rbac_registration(stmt, data) {
+    if let Err(_) = bind_rbac_registration(stmt, data) {
         return;
     }
     if let Err(e) = stmt.step() {
@@ -133,7 +133,9 @@ pub(crate) fn insert_rbac_stake_address(
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_stake_address";
 
-    bind_rbac_stake_address(stmt, data);
+    if let Err(_) = bind_rbac_stake_address(stmt, data) {
+        return;
+    }
     if let Err(e) = stmt.step() {
         log_error(
             file!(),
