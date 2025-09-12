@@ -273,7 +273,7 @@ pub mod bench {
         );
 
         b.iter(|| {
-            module.init(app_name.clone(), vfs.clone()).unwrap();
+            module.init(vfs.clone()).unwrap();
         });
     }
 
