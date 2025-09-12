@@ -28,7 +28,10 @@ use crate::{
     runtime_extensions::{
         bindings::{self, unchecked_exports, LinkOptions},
         hermes::init::ComponentInstanceExt as _,
-        init::trait_module::{RteInitModule, RteModule},
+        init::{
+            trait_event::{RteEvent, RteInitEvent},
+            trait_module::{RteInitModule, RteModule},
+        },
         new_context,
     },
     vfs::Vfs,
@@ -83,7 +86,13 @@ pub struct Module {
     id: ModuleId,
 
     /// Module's execution counter
+    /// CAN NEVER be used outside this structs methods.
+    /// NEVER add a getter for it.
+    /// ONLY ever use `fetch_add` never read its value otherwise.
     exc_counter: AtomicU32,
+
+    /// The name of the application which owns this module.
+    app_name: ApplicationName,
 }
 
 impl Module {
@@ -123,22 +132,33 @@ impl Module {
             engine,
             id,
             exc_counter: AtomicU32::new(0),
+            app_name: app_name.clone(),
         })
+    }
+
+    /// Make a new context, deliberately private.  Do not make public.
+    fn new_context(
+        &self,
+        event_name: &str,
+        vfs: Arc<Vfs>,
+    ) -> HermesRuntimeContext {
+        HermesRuntimeContext::new(
+            self.app_name.clone(),
+            self.id.clone(),
+            event_name.to_string(),
+            // **MUST** be the only place exc_counter is read and updated.
+            // NEVER read it anywhere else, and never update it anywhere else.
+            self.exc_counter.fetch_add(1, Ordering::SeqCst),
+            vfs,
+        )
     }
 
     /// Initializes the WASM module by calling its `init` function.
     pub(crate) fn init(
         &self,
-        app_name: ApplicationName,
         vfs: Arc<Vfs>,
     ) -> anyhow::Result<()> {
-        let runtime_ctx = HermesRuntimeContext::new(
-            app_name,
-            self.id.clone(),
-            "init_function_call".to_string(),
-            0,
-            vfs,
-        );
+        let runtime_ctx = self.new_context("init_function_call", vfs);
 
         new_context(&runtime_ctx);
 
@@ -180,15 +200,6 @@ impl Module {
         &self.id
     }
 
-    /// Get the module's execution counter
-    pub(crate) fn exec_counter(&self) -> u32 {
-        // Using the highest memory ordering constraint.
-        // It provides a highest consistency guarantee and in some cases could decrease
-        // performance.
-        // We could revise ordering approach for this case in future.
-        self.exc_counter.load(Ordering::SeqCst)
-    }
-
     /// Executes a Hermes event by calling some WASM function.
     /// This function abstraction over actual execution of the WASM function,
     /// actual definition is inside `HermesEventPayload` trait implementation.
@@ -201,9 +212,21 @@ impl Module {
     pub(crate) fn execute_event(
         &self,
         event: &dyn HermesEventPayload,
-        state: HermesRuntimeContext,
+        vfs: Arc<Vfs>,
     ) -> anyhow::Result<()> {
-        let mut store = WasmStore::new(&self.engine, state);
+        let runtime_ctx = self.new_context(event.event_name(), vfs);
+
+        // Advise Runtime Extensions of a new context
+        // TODO: Better handle errors.
+        if let Err(err) = RteEvent::new().init(&runtime_ctx) {
+            tracing::error!("module event initialization failed: {err}");
+            return Err(err.into());
+        }
+
+        // TODO: (SJ) Remove when all RTE's are migrated.
+        new_context(&runtime_ctx);
+
+        let mut store = WasmStore::new(&self.engine, runtime_ctx.clone());
         let instance = self
             .pre_instance
             .clone()
@@ -212,11 +235,12 @@ impl Module {
 
         event.execute(&mut ModuleInstance { store, instance })?;
 
-        // Using the highest memory ordering constraint.
-        // It provides a highest consistency guarantee and in some cases could decrease
-        // performance.
-        // We could revise ordering approach for this case in future.
-        self.exc_counter.fetch_add(1, Ordering::SeqCst);
+        // Advise Runtime Extensions that context can be cleaned up.
+        if let Err(err) = RteEvent::new().fini(&runtime_ctx) {
+            //TODO(SJ): Maybe need better error handling...
+            tracing::error!("module event finalization failed: {err}");
+        }
+
         Ok(())
     }
 }
@@ -247,7 +271,7 @@ pub mod bench {
         );
 
         b.iter(|| {
-            module.init(app_name.clone(), vfs.clone()).unwrap();
+            module.init(vfs.clone()).unwrap();
         });
     }
 
