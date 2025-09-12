@@ -5,11 +5,6 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     event::HermesEventPayload,
     pool,
-    runtime_context::HermesRuntimeContext,
-    runtime_extensions::{
-        init::trait_event::{RteEvent, RteInitEvent},
-        new_context,
-    },
     vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
@@ -83,20 +78,14 @@ impl Application {
         event: &Arc<dyn HermesEventPayload>,
     ) {
         for module in self.indexed_modules.values() {
-            module_dispatch_event(
-                module.clone(),
-                self.name.clone(),
-                module.id().clone(),
-                self.vfs.clone(),
-                event.clone(),
-            );
+            module_dispatch_event(module.clone(), self.vfs.clone(), event.clone());
         }
     }
 
     /// Initialize every module.
     pub(crate) fn init(&self) -> anyhow::Result<()> {
         for module in self.indexed_modules.values() {
-            if let Err(e) = module.init(self.name.clone(), Arc::clone(&self.vfs)) {
+            if let Err(e) = module.init(self.vfs.clone()) {
                 anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)
             }
         }
@@ -106,20 +95,14 @@ impl Application {
     /// Dispatch event for the target module by the `module_id`.
     pub(crate) fn dispatch_event_for_target_module(
         &self,
-        module_id: ModuleId,
+        module_id: &ModuleId,
         event: Arc<dyn HermesEventPayload>,
     ) -> anyhow::Result<()> {
         let module = self
             .indexed_modules
-            .get(&module_id)
+            .get(module_id)
             .ok_or(anyhow::anyhow!("Module {module_id} not found"))?;
-        module_dispatch_event(
-            module.clone(),
-            self.name.clone(),
-            module_id,
-            self.vfs.clone(),
-            event,
-        );
+        module_dispatch_event(module.clone(), self.vfs.clone(), event);
         Ok(())
     }
 }
@@ -127,41 +110,13 @@ impl Application {
 /// Dispatch event
 pub(crate) fn module_dispatch_event(
     module: Arc<Module>,
-    app_name: ApplicationName,
-    module_id: ModuleId,
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
     // TODO(@aido-mth): fix how init is processed. https://github.com/input-output-hk/hermes/issues/490
     pool::execute(move || {
-        let runtime_ctx = HermesRuntimeContext::new(
-            app_name,
-            module_id,
-            event.event_name().to_string(),
-            module.exec_counter(),
-            vfs,
-        );
-
-        // Advise Runtime Extensions of a new context
-        // TODO: Better handle errors.
-        if let Err(err) = RteEvent::new().init(&runtime_ctx) {
-            tracing::error!("module event initialization failed: {err}");
-            return;
-        }
-
-        // TODO: (SJ) Remove when all RTE's are migrated.
-        new_context(&runtime_ctx);
-
-        if let Err(err) = module.execute_event(event.as_ref(), runtime_ctx.clone()) {
+        if let Err(err) = module.execute_event(event.as_ref(), vfs) {
             tracing::error!("module event execution failed: {err}");
-            return;
         }
-
-        // Advise Runtime Extensions that context can be cleaned up.
-        drop(
-            RteEvent::new()
-                .fini(&runtime_ctx)
-                .inspect_err(|err| tracing::error!("module event finalization failed: {err}")),
-        );
     });
 }
