@@ -1,9 +1,6 @@
 //! Create the database tables for RBAC registration.
 
-use crate::{
-    hermes::sqlite::{self, api::Sqlite},
-    utils::log::log_error,
-};
+use crate::{hermes::sqlite::api::Sqlite, utils::log::log_error};
 
 /// RBAC registration database schema.
 const RBAC_REGISTRATION_TABLE: &str = r#"

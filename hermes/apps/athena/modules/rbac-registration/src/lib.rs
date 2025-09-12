@@ -23,8 +23,10 @@ export!(RbacRegistrationComponent);
 
 mod database;
 mod utils;
-
-use rbac_registration::{self, cardano::cip509::Cip509};
+use rbac_registration::{
+    self,
+    cardano::cip509::{Cip0134UriSet, Cip509},
+};
 use serde_json::json;
 use utils::{cardano::block::build_block, log::log_error};
 
@@ -51,6 +53,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
+        const FUNCTION_NAME: &str = "on_cardano_block";
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
 
         // Early exit if no registration to be added into database
@@ -85,9 +88,12 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
                 .then(|| serde_json::to_string(&reg.report()).ok())
                 .flatten();
             // Can contain multiple stake addresses
-            let stake_addresses = reg.role_0_stake_addresses();
+            let stake_addresses = reg
+                .certificate_uris()
+                .map(Cip0134UriSet::stake_addresses)
+                .unwrap_or_default();
 
-            let data = RbacDbData {
+            let rbac_data = RbacDbData {
                 txn_id: txn_id.clone(),
                 catalyst_id: catalyst_id.clone(),
                 slot,
@@ -96,7 +102,6 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
                 purpose,
                 problem_report,
             };
-            insert_rbac_registration(&rbac_stmt, data);
 
             for stake_address in stake_addresses {
                 let data = RbacStakeDbData {
@@ -108,6 +113,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
                 };
                 insert_rbac_stake_address(&rbac_stake_stmt, data);
             }
+            insert_rbac_registration(&rbac_stmt, rbac_data);
         }
         let _ = rbac_stmt.finalize();
         let _ = rbac_stake_stmt.finalize();

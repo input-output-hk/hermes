@@ -1,10 +1,8 @@
 //! RBAC registration database insert.
 
 use crate::{
-    database::{
-        bind_with_log,
-        data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
-    },
+    bind_parameters,
+    database::data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
     hermes::sqlite::api::{Sqlite, Statement, Value},
     utils::log::log_error,
 };
@@ -51,7 +49,9 @@ pub(crate) fn insert_rbac_registration(
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_registration";
 
-    bind_rbac_registration(stmt, data);
+    if let Err(e) = bind_rbac_registration(stmt, data) {
+        return;
+    }
     if let Err(e) = stmt.step() {
         log_error(
             file!(),
@@ -76,7 +76,7 @@ pub(crate) fn insert_rbac_registration(
 fn bind_rbac_registration(
     stmt: &Statement,
     data: RbacDbData,
-) {
+) -> anyhow::Result<()> {
     const FUNCTION_NAME: &str = "bind_rbac_registration";
 
     // Try to convert slot safely, if fail exit the function so no binding is done.
@@ -90,36 +90,20 @@ fn bind_rbac_registration(
                 &format!("Failed to convert slot: {e}"),
                 None,
             );
-            return;
+            anyhow::bail!("Failed to convert slot: {e}");
         },
     };
+    bind_parameters!(stmt, FUNCTION_NAME,
+        data.txn_id => "txn_id",
+        slot => "slot_no",
+        data.txn_idx => "txn_idx",
+        data.prv_txn_id => "prv_txn_id",
+        data.purpose => "purpose",
+        data.catalyst_id.map(|id| id.trim().to_string()) => "catalyst_id",
+        data.problem_report => "problem_report"
+    )?;
 
-    bind_with_log(stmt, FUNCTION_NAME, 1, &data.txn_id.into(), "txn_id");
-    bind_with_log(stmt, FUNCTION_NAME, 2, &slot, "slot_no");
-    bind_with_log(stmt, FUNCTION_NAME, 3, &data.txn_idx.into(), "txn_idx");
-    bind_with_log(
-        stmt,
-        FUNCTION_NAME,
-        4,
-        &data.prv_txn_id.into(),
-        "prv_txn_id",
-    );
-    bind_with_log(stmt, FUNCTION_NAME, 5, &data.purpose.into(), "purpose");
-    bind_with_log(
-        stmt,
-        FUNCTION_NAME,
-        6,
-        &data.catalyst_id.map(|id| id.trim().to_string()).into(),
-        "catalyst_id",
-    );
-
-    bind_with_log(
-        stmt,
-        FUNCTION_NAME,
-        7,
-        &data.problem_report.into(),
-        "problem_report",
-    );
+    Ok(())
 }
 
 /// Prepare insert statement for `rbac_stake_address` table.
@@ -174,7 +158,7 @@ pub(crate) fn insert_rbac_stake_address(
 fn bind_rbac_stake_address(
     stmt: &Statement,
     data: RbacStakeDbData,
-) {
+) -> anyhow::Result<()> {
     const FUNCTION_NAME: &str = "bind_rbac_stake_address";
 
     // Try to convert slot safely, if fail exit the function so no binding is done.
@@ -188,25 +172,16 @@ fn bind_rbac_stake_address(
                 &format!("Failed to convert slot: {e}"),
                 None,
             );
-            return;
+            anyhow::bail!("Failed to convert slot: {e}");
         },
     };
 
-    bind_with_log(
-        stmt,
-        FUNCTION_NAME,
-        1,
-        &data.stake_address.into(),
-        "stake_address",
-    );
-    bind_with_log(stmt, FUNCTION_NAME, 2, &slot, "slot_no");
-    bind_with_log(stmt, FUNCTION_NAME, 3, &data.txn_idx.into(), "txn_idx");
-    bind_with_log(
-        stmt,
-        FUNCTION_NAME,
-        4,
-        &data.catalyst_id.map(|id| id.trim().to_string()).into(),
-        "catalyst_id",
-    );
-    bind_with_log(stmt, FUNCTION_NAME, 5, &data.txn_id.into(), "txn_id");
+    bind_parameters!(stmt, FUNCTION_NAME,
+        data.stake_address => "stake_address",
+        slot => "slot_no",
+        data.txn_idx => "txn_idx",
+        data.catalyst_id.map(|id| id.trim().to_string()) => "catalyst_id",
+        data.txn_id => "txn_id"
+    )?;
+    Ok(())
 }

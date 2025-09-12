@@ -1,12 +1,11 @@
 //! Database access layer for RBAC registration.
 
-use serde_json::json;
 pub(crate) mod create;
 pub(crate) mod data;
 pub(crate) mod insert;
 
 use crate::{
-    hermes::sqlite::api::{open, Sqlite, Statement, Value},
+    hermes::sqlite::api::{open, Sqlite},
     utils::log::log_error,
 };
 
@@ -45,22 +44,28 @@ pub(crate) fn close_db_connection(sqlite: Sqlite) {
 }
 
 // --------------- Binding helper -------------------
-pub(crate) fn bind_with_log(
-    stmt: &Statement,
-    func_name: &str,
-    idx: u32,
-    value: &Value,
-    field_name: &str,
-) -> anyhow::Result<()> {
-    if let Err(e) = stmt.bind(idx, value) {
-        log_error(
-            file!(),
-            func_name,
-            "hermes::sqlite::bind",
-            &format!("Failed to bind: {e:?}"),
-            Some(&json!({ field_name: format!("{value:?}") }).to_string()),
-        );
-        anyhow::bail!("Failed to bind {field_name}");
-    }
-    Ok(())
+
+/// A macro to bind parameters to a prepared statement.
+#[macro_export]
+macro_rules! bind_parameters {
+    ($stmt:expr, $func_name:expr, $($field:expr => $field_name:expr),*) => {
+        {
+            let mut idx = 1;
+            $(                    
+                let value: Value = $field.into();
+                if let Err(e) = $stmt.bind(idx, &value) {
+                   log_error(
+                        file!(),
+                        $func_name,
+                        "hermes::sqlite::bind",
+                        &format!("Failed to bind: {e:?}"),
+                        Some(&serde_json::json!({ $field_name: format!("{value:?}") }).to_string()),
+                    );
+                    anyhow::bail!("Failed to bind {}", $field_name);
+                }
+                idx += 1;
+            )*
+            Ok::<(), anyhow::Error>(())
+        }
+    };
 }
