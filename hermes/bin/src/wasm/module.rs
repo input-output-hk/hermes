@@ -236,12 +236,10 @@ impl Module {
         event.execute(&mut ModuleInstance { store, instance })?;
 
         // Advise Runtime Extensions that context can be cleaned up.
-        // WHY explicit Drop???
-        drop(
-            RteEvent::new()
-                .fini(&runtime_ctx)
-                .inspect_err(|err| tracing::error!("module event finalization failed: {err}")),
-        );
+        if let Err(err) = RteEvent::new().fini(&runtime_ctx) {
+            //TODO(SJ): Maybe need better error handling...
+            tracing::error!("module event finalization failed: {err}");
+        }
 
         Ok(())
     }
