@@ -116,7 +116,7 @@ mod tests {
         runtime_extensions::{
             bindings::hermes::sqlite::api::Value,
             hermes::sqlite::{
-                core::open,
+                kernel::open,
                 statement::core::{column, finalize, step},
             },
         },

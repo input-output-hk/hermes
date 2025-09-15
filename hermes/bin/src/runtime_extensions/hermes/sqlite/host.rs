@@ -5,7 +5,7 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
         hermes::sqlite::{
-            core,
+            kernel,
             state::{connection::DbHandle, resource_manager},
         },
     },
@@ -37,7 +37,7 @@ impl Host for HermesRuntimeContext {
             return Ok(Ok(resource));
         }
 
-        match core::open(readonly, memory, self.app_name().clone()) {
+        match kernel::open(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
                 let resource = resource_manager::create_connection_resource(
                     self.app_name(),

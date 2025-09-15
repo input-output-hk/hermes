@@ -16,8 +16,8 @@ use crate::{
 };
 
 mod connection;
-mod core;
 mod host;
+mod kernel;
 mod state;
 mod statement;
 
