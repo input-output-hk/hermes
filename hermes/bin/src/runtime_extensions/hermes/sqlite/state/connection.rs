@@ -2,7 +2,7 @@
 
 use crate::runtime_extensions::{
     bindings::hermes::sqlite::api::{Errno, Sqlite},
-    hermes::sqlite::state::ObjectPointer,
+    hermes::sqlite::{connection::core::close, state::ObjectPointer},
 };
 
 /// Enumeration representing different types of database handles.
@@ -75,6 +75,17 @@ pub(crate) struct AppConnections {
     mem_rw: Option<ObjectPointer>,
     /// Memory-based read-only database connection pointer
     mem_ro: Option<ObjectPointer>,
+}
+
+impl Drop for AppConnections {
+    fn drop(&mut self) {
+        for db_ptr in [self.disk_rw, self.disk_ro, self.mem_rw, self.mem_ro]
+            .iter()
+            .flatten()
+        {
+            let _ = close(*db_ptr as _);
+        }
+    }
 }
 
 impl AppConnections {

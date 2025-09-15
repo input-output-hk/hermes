@@ -101,10 +101,13 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<()> {
-        if let Ok(stmt_ptr) =
-            resource_manager::delete_statement_resource(self.app_name(), &resource)
-        {
-            let _ = core::finalize(stmt_ptr as *mut _);
+        match resource_manager::delete_statement_resource(self.app_name(), &resource) {
+            Ok(stmt_ptr) => {
+                let _ = core::finalize(stmt_ptr as *mut _);
+            },
+            Err(err) => {
+                tracing::error!("Failed to delete statement resource on drop: {err}");
+            },
         }
         Ok(())
     }
