@@ -22,3 +22,4 @@ jobs:
         utils
         general
         deps
+        athena

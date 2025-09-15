@@ -11,6 +11,7 @@ blosc
 bmac
 bootstrapper
 brotli
+canvaskit
 cardano
 cbor
 cdylib
@@ -20,6 +21,7 @@ chrono
 cids
 ciphertext
 codegen
+COEP
 condvar
 coverallsapp
 cpus
@@ -31,8 +33,10 @@ dalek
 dashmap
 datelike
 dcbor
+Devnet
 dotstar
 earthfile
+Embedder
 errno
 fadvise
 fcntl
@@ -151,6 +155,3 @@ xprivate
 xprv
 xpub
 zilla
-Embedder
-COEP
-canvaskit
