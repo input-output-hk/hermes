@@ -108,7 +108,7 @@ mod item {
         let sqlite = sqlite::api::open(false, true)?;
         let stmt = sqlite.prepare("SELECT 1;")?;
 
-        stmt.finalize()?;
+        sqlite::api::Statement::finalize(stmt)?;
         sqlite.close()
     }
 
@@ -135,7 +135,7 @@ mod item {
         let stmt = sqlite.prepare(insert_sql)?;
         stmt.bind(1, &value)?;
         stmt.step()?;
-        stmt.finalize()?;
+        sqlite::api::Statement::finalize(stmt)?;
 
         // retrieve value
         let retrieve_sql = "SELECT value FROM dummy WHERE id = 1;";
@@ -143,7 +143,7 @@ mod item {
         let stmt = sqlite.prepare(retrieve_sql)?;
         stmt.step()?;
         let retrieved_value = stmt.column(0)?;
-        stmt.finalize()?;
+        sqlite::api::Statement::finalize(stmt)?;
 
         sqlite.close()?;
 
@@ -173,7 +173,7 @@ mod helper {
             let stmt = sqlite.prepare(insert_sql)?;
             stmt.bind(1, &value)?;
             stmt.step()?;
-            stmt.finalize()?;
+            sqlite::api::Statement::finalize(stmt)?;
         }
 
         sqlite.close()

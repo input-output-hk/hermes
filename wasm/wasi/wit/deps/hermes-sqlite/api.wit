@@ -155,7 +155,7 @@ interface api {
         /// The application must finalize every prepared statement in order to avoid resource leaks.
         /// It is a grievous error for the application to try to use a prepared statement after it has been finalized.
         /// Any use of a prepared statement after it has been finalized can result in undefined and undesirable behavior such as segfaults and heap corruption.
-        finalize: func() -> result<_, errno>;
+        finalize: static func(self: statement) -> result<_, errno>;
     }
 
     /// Opens a connection to a new or existing SQLite database.

@@ -177,7 +177,7 @@ impl RteInitEvent for RteEvent {
         }
 
         let errors = run_init_fini!(
-            init = true,
+            init = false,
             registry = RTE_INIT_EVENT_REGISTRY,
             rte_trait = RteInitEvent,
             span_label = "Runtime Extension Event Finalization Span",

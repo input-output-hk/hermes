@@ -168,7 +168,7 @@ impl RteInitModule for RteModule {
         }
 
         let errors = run_init_fini!(
-            init = true,
+            init = false,
             registry = RTE_INIT_MODULE_REGISTRY,
             rte_trait = RteInitModule,
             span_label = "Runtime Extension Module Initialization Span",
