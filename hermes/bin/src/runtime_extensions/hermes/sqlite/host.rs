@@ -1,9 +1,15 @@
 //! `SQLite` host implementation for WASM runtime.
 
-use super::{core, state::get_db_state};
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
+    runtime_extensions::{
+        bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
+        hermes::sqlite::{
+            connection::core::close,
+            kernel,
+            state::{connection::DbHandle, resource_manager},
+        },
+    },
 };
 
 impl Host for HermesRuntimeContext {
@@ -24,12 +30,33 @@ impl Host for HermesRuntimeContext {
         readonly: bool,
         memory: bool,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Sqlite>, Errno>> {
-        match core::open(readonly, memory, self.app_name().clone()) {
-            Ok(db_ptr) => {
-                let app_state = get_db_state().get_app_state(self.app_name())?;
-                let db_id = app_state.create_resource(db_ptr as _);
+        let db_handle = DbHandle::from_readonly_and_memory(readonly, memory);
 
-                Ok(Ok(db_id))
+        if let Some(resource) =
+            resource_manager::try_get_connection_resource(self.app_name(), db_handle)
+        {
+            return Ok(Ok(resource));
+        }
+
+        match kernel::open(readonly, memory, self.app_name().clone()) {
+            Ok(db_ptr) => {
+                match resource_manager::create_connection_resource(
+                    self.app_name(),
+                    db_handle,
+                    db_ptr as _,
+                ) {
+                    Ok(resource) => Ok(Ok(resource)),
+                    Err(err) => {
+                        if let Err(errno) = close(db_ptr) {
+                            anyhow::bail!(
+                            "failed to create connection resource: {err}, also failed to close the connection with errno: {errno}..."
+                        )
+                        }
+                        anyhow::bail!(
+                            "failed to create connection resource: {err}, closing the connection..."
+                        )
+                    },
+                }
             },
             Err(err) => Ok(Err(err)),
         }

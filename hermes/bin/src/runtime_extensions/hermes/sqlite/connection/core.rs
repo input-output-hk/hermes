@@ -93,6 +93,10 @@ pub(crate) fn execute(
     db_ptr: *mut sqlite3,
     sql: &str,
 ) -> Result<(), Errno> {
+    if validate_sql(sql) {
+        return Err(Errno::ForbiddenPragmaCommand);
+    }
+
     let sql_cstring = std::ffi::CString::new(sql).map_err(|_| Errno::ConvertingCString)?;
 
     let rc = unsafe { sqlite3_exec(db_ptr, sql_cstring.as_ptr(), None, null_mut(), null_mut()) };
@@ -112,7 +116,7 @@ mod tests {
         runtime_extensions::{
             bindings::hermes::sqlite::api::Value,
             hermes::sqlite::{
-                core::open,
+                kernel::open,
                 statement::core::{column, finalize, step},
             },
         },
@@ -145,6 +149,16 @@ mod tests {
         let stmt_ptr = prepare(db_ptr, sql);
 
         assert!(matches!(stmt_ptr, Err(Errno::ForbiddenPragmaCommand)));
+
+        let sql = "pragma page_size;";
+        let result = execute(db_ptr, sql);
+
+        assert!(matches!(result, Err(Errno::ForbiddenPragmaCommand)));
+
+        let sql = "PRAGMA page_size;";
+        let result = execute(db_ptr, sql);
+
+        assert!(matches!(result, Err(Errno::ForbiddenPragmaCommand)));
 
         close(db_ptr).unwrap();
     }

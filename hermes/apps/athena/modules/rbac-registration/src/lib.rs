@@ -55,7 +55,7 @@ use crate::{
     utils::log::log_info,
 };
 
-use hermes::cardano;
+use hermes::{cardano, sqlite::api::Statement};
 
 struct RbacRegistrationComponent;
 
@@ -173,6 +173,8 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         }
 
         // ------- Finalize and close DB Connection -------
+        // let _ = Statement::finalize(rbac_stmt);
+        // let _ = Statement::finalize(rbac_stake_stmt);
         DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNCTION_NAME);
         DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNCTION_NAME);
         DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNCTION_NAME);

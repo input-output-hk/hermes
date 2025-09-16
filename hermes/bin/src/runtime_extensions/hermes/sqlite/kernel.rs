@@ -80,7 +80,6 @@ extern "C" fn busy_handler(
 /// # Returns
 /// * `Ok(())` on success.
 /// * `Err(Errno)` if any of the configuration steps fail.
-#[allow(unused)]
 fn enable_wal_mode(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     let pragmas = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
     let c_pragmas = std::ffi::CString::new(pragmas).map_err(|_| Errno::ConvertingCString)?;
@@ -163,8 +162,7 @@ pub(super) fn open(
     }
 
     if !memory && !readonly {
-        // TODO(anyone): fix issue with locks during hermes app execution https://github.com/input-output-hk/hermes/issues/521
-        // enable_wal_mode(db_ptr)?;
+        enable_wal_mode(db_ptr)?;
     }
 
     // config database size limitation

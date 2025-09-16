@@ -15,12 +15,14 @@ mod bindings {
             package hermes:app;
 
             world hermes {
+                include wasi:cli/imports@0.2.6;
+
                 import wasi:clocks/monotonic-clock@0.2.6;
                 import hermes:sqlite/api;
                 import hermes:logging/api;
                 import hermes:init/api;
                 import hermes:http-request/api;
-                
+
                 export hermes:init/event;
                 export hermes:http-request/event;
             }
@@ -137,7 +139,8 @@ impl bindings::exports::hermes::http_request::event::Guest for HttpRequestApp {
         };
 
         test_log(&format!("sqlite finalized request_id={request_id:?}"));
-        prep.finalize().expect("failed to finalize statement");
+        bindings::hermes::sqlite::api::Statement::finalize(prep)
+            .expect("failed to finalize statement");
 
         test_log(&format!("sqlite close request_id={request_id:?}"));
         sqlite.close().expect("failed to close connection");

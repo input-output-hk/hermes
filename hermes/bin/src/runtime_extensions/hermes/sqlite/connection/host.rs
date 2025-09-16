@@ -2,12 +2,12 @@
 
 //! `SQLite` connection object host implementation for WASM runtime.
 
-use super::{super::state::get_db_state, core};
+use super::core;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Errno, ErrorInfo, HostSqlite, Sqlite, Statement},
-        hermes::sqlite::state::get_statement_state,
+        hermes::sqlite::state::resource_manager,
     },
 };
 
@@ -24,12 +24,10 @@ impl HostSqlite for HermesRuntimeContext {
     /// is automatically rolled back.
     fn close(
         &mut self,
-        resource: wasmtime::component::Resource<Sqlite>,
+        _resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let app_state = get_db_state().get_app_state(self.app_name())?;
-        let db_ptr = app_state.delete_resource(resource)?;
-
-        Ok(core::close(db_ptr as *mut _))
+        // Connection close is handled automatically in `Drop` implementation
+        Ok(Ok(()))
     }
 
     /// Retrieves the numeric result code for the most recent failed `SQLite` operation on
@@ -42,10 +40,10 @@ impl HostSqlite for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<Option<ErrorInfo>> {
-        let mut app_state = get_db_state().get_app_state(self.app_name())?;
-        let db_ptr = app_state.get_object(&resource)?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
-        Ok(core::errcode(*db_ptr as *mut _))
+        Ok(core::errcode(db_ptr as *mut _))
     }
 
     /// Compiles SQL text into byte-code that will do the work of querying or updating the
@@ -66,18 +64,20 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Statement>, Errno>> {
-        let mut db_app_state = get_db_state().get_app_state(self.app_name())?;
-        let db_ptr = db_app_state.get_object(&resource)?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
-        let result = core::prepare(*db_ptr as *mut _, sql.as_str());
+        let result = core::prepare(db_ptr as *mut _, sql.as_str());
 
         match result {
             Ok(stmt_ptr) => {
                 if stmt_ptr.is_null() {
                     Ok(Err(Errno::ReturnedNullPointer))
                 } else {
-                    let stm_app_state = get_statement_state().get_app_state(self.app_name())?;
-                    let stmt = stm_app_state.create_resource(stmt_ptr as _);
+                    let stmt = resource_manager::create_statement_resource(
+                        self.app_name(),
+                        stmt_ptr as _,
+                    )?;
 
                     Ok(Ok(stmt))
                 }
@@ -97,21 +97,16 @@ impl HostSqlite for HermesRuntimeContext {
         resource: wasmtime::component::Resource<Sqlite>,
         sql: String,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let mut app_state = get_db_state().get_app_state(self.app_name())?;
-        let db_ptr = app_state.get_object(&resource)?;
+        let db_handle = resource.rep().try_into()?;
+        let db_ptr = resource_manager::get_connection_pointer(self.app_name(), db_handle)?;
 
-        Ok(core::execute(*db_ptr as *mut _, sql.as_str()))
+        Ok(core::execute(db_ptr as *mut _, sql.as_str()))
     }
 
     fn drop(
         &mut self,
-        rep: wasmtime::component::Resource<Sqlite>,
+        _rep: wasmtime::component::Resource<Sqlite>,
     ) -> wasmtime::Result<()> {
-        let app_state = get_db_state().get_app_state(self.app_name())?;
-        if let Ok(db_ptr) = app_state.delete_resource(rep) {
-            let _ = core::close(db_ptr as *mut _);
-        }
-
         Ok(())
     }
 }
