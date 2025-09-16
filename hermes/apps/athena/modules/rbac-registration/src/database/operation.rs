@@ -10,7 +10,7 @@ pub(crate) enum Operation {
     /// Delete operation.
     Delete,
     /// Select operation.
-    SELECT,
+    Select,
     /// Create operation.
-    CREATE,
+    Create,
 }

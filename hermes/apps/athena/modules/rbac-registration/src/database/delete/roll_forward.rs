@@ -8,12 +8,12 @@ use crate::{
 /// Prepare delete statement for deleting data for roll forward from given volatile table.
 pub(crate) fn prepare_roll_forward_delete_from_volatile(
     sqlite: &Sqlite,
-    table_name: &str,
+    table: &str,
 ) -> anyhow::Result<Statement> {
     const FUNCTION_NAME: &str = "prepare_roll_forward_delete_from_volatile";
     DatabaseStatement::prepare_statement(
         sqlite,
-        &QueryBuilder::delete_roll_forward(table_name),
+        &QueryBuilder::delete_roll_forward(table),
         Operation::Delete,
         FUNCTION_NAME,
     )

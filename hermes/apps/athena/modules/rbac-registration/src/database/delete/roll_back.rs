@@ -13,7 +13,7 @@ pub(crate) fn prepare_roll_back_delete_from_volatile(
     const FUNCTION_NAME: &str = "prepare_roll_back_delete_from_volatile";
     DatabaseStatement::prepare_statement(
         sqlite,
-        &QueryBuilder::delete_roll_forward(table),
+        &QueryBuilder::delete_roll_back(table),
         Operation::Delete,
         FUNCTION_NAME,
     )

@@ -24,7 +24,7 @@ impl DatabaseStatement {
                 file!(),
                 func_name,
                 "hermes::sqlite::api::execute",
-                &error.to_string(),
+                &error,
                 None,
             );
             anyhow::bail!(error);
@@ -47,7 +47,7 @@ impl DatabaseStatement {
                     file!(),
                     func_name,
                     "hermes::sqlite::api::prepare",
-                    &error.to_string(),
+                    &error,
                     None,
                 );
                 anyhow::bail!(error);
@@ -74,6 +74,7 @@ impl DatabaseStatement {
         Ok(())
     }
 
+    /// Finalize a statement.
     pub(crate) fn finalize_statement(
         stmt: Statement,
         func_name: &str,
@@ -103,14 +104,15 @@ impl DatabaseStatement {
     {
         bind_fn(stmt)?;
         if let Err(e) = stmt.step() {
+            let error = format!("Failed to step: {e}");
             crate::utils::log::log_error(
                 file!(),
                 func_name,
                 "hermes::sqlite::api::step",
-                &format!("Failed to step: {e:?}"),
+                &error,
                 None,
             );
-            anyhow::bail!("Failed to execute statement");
+            anyhow::bail!(error);
         }
         Self::reset_statement(stmt, func_name)?;
 
@@ -132,14 +134,9 @@ impl DatabaseStatement {
             let slot: Value = match slot_no.try_into() {
                 Ok(s) => s,
                 Err(e) => {
-                    log_error(
-                        file!(),
-                        func_name,
-                        "slot.try_into()",
-                        &format!("Failed to convert slot: {e}"),
-                        None,
-                    );
-                    anyhow::bail!("Failed to convert slot: {e}");
+                    let error = format!("Failed to convert slot: {e}");
+                    log_error(file!(), func_name, "slot.try_into()", &error, None);
+                    anyhow::bail!(error);
                 },
             };
             bind_parameters!(stmt, func_name, slot => "slot_no")?;

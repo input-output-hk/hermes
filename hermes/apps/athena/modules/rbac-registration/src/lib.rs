@@ -64,7 +64,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
-        const FUNC_NAME: &str = "on_cardano_block";
+        const FUNCTION_NAME: &str = "on_cardano_block";
 
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
 
@@ -173,10 +173,10 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         }
 
         // ------- Finalize and close DB Connection -------
-        DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNC_NAME);
-        DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNC_NAME);
-        DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNC_NAME);
-        DatabaseStatement::finalize_statement(rbac_stake_volatile_stmt, FUNC_NAME);
+        DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNCTION_NAME);
+        DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNCTION_NAME);
+        DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNCTION_NAME);
+        DatabaseStatement::finalize_statement(rbac_stake_volatile_stmt, FUNCTION_NAME);
         close_db_connection(sqlite);
         close_db_connection(sqlite_in_mem);
     }
@@ -289,7 +289,7 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
             return false;
         };
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(false) else {
+        let Ok(sqlite_in_mem) = open_db_connection(true) else {
             return false;
         };
         create_rbac_persistent_tables(&sqlite);
