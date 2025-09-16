@@ -79,7 +79,7 @@ impl DatabaseStatement {
         stmt: Statement,
         func_name: &str,
     ) -> anyhow::Result<()> {
-        if let Err(e) = stmt.finalize() {
+        if let Err(e) = Statement::finalize(stmt) {
             let error = format!("Failed to finalize {e}");
             log_error(
                 file!(),
