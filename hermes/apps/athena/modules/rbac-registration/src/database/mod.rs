@@ -2,29 +2,41 @@
 
 pub(crate) mod create;
 pub(crate) mod data;
+pub(crate) mod delete;
 pub(crate) mod insert;
+pub(crate) mod operation;
+pub(crate) mod query_builder;
+pub(crate) mod statement;
 
 use crate::{
     hermes::sqlite::api::{open, Sqlite},
     utils::log::log_error,
 };
 
-/// Open database connection.
-pub(crate) fn open_db_connection() -> anyhow::Result<Sqlite> {
-    const FUNCTION_NAME: &str = "open_db_connection";
+/// RBAC registration persistent table name.
+pub(crate) const RBAC_REGISTRATION_PERSISTENT_TABLE_NAME: &str = "rbac_registration_persistent";
+/// RBAC registration volatile table name.
+pub(crate) const RBAC_REGISTRATION_VOLATILE_TABLE_NAME: &str = "rbac_registration_volatile";
+/// RBAC stake address persistent table name.
+pub(crate) const RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME: &str = "rbac_stake_address_persistent";
+/// RBAC stake address volatile table name.
+pub(crate) const RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME: &str = "rbac_stake_address_volatile";
 
-    match open(false, false) {
+/// Open database connection.
+pub(crate) fn open_db_connection(is_mem: bool) -> anyhow::Result<Sqlite> {
+    const FUNCTION_NAME: &str = "open_db_connection";
+    match open(false, is_mem) {
         Ok(db) => Ok(db),
         Err(e) => {
-            let err_msg = "Failed to open database";
+            let error = "Failed to open database";
             log_error(
                 file!(),
                 FUNCTION_NAME,
                 "hermes::sqlite::api::open",
-                &format!("{err_msg}: {e}"),
+                &format!("{error}: {e}"),
                 None,
             );
-            anyhow::bail!(err_msg)
+            anyhow::bail!(error)
         },
     }
 }
@@ -51,7 +63,7 @@ macro_rules! bind_parameters {
     ($stmt:expr, $func_name:expr, $($field:expr => $field_name:expr),*) => {
         {
             let mut idx = 1;
-            $(                    
+            $(
                 let value: Value = $field.into();
                 if let Err(e) = $stmt.bind(idx, &value) {
                    log_error(
