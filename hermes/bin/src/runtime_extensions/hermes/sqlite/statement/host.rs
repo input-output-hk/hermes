@@ -93,8 +93,12 @@ impl HostStatement for HermesRuntimeContext {
         &mut self,
         resource: wasmtime::component::Resource<Statement>,
     ) -> wasmtime::Result<Result<(), Errno>> {
-        let stmt_ptr = resource_manager::delete_statement_resource(self.app_name(), &resource)?;
-        Ok(core::finalize(stmt_ptr as *mut _))
+        if resource.owned() {
+            let stmt_ptr = resource_manager::delete_statement_resource(self.app_name(), &resource)?;
+            Ok(core::finalize(stmt_ptr as *mut _))
+        } else {
+            anyhow::bail!("finalize called on borrowed resource")
+        }
     }
 
     fn drop(
