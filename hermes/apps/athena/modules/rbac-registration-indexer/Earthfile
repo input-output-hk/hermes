@@ -11,8 +11,7 @@ local-build-rbac-registration-indexer:
     COPY +build-rbac-registration-indexer/rbac_registration_indexer.wasm .
     SAVE ARTIFACT rbac_registration_indexer.wasm AS LOCAL lib/rbac_registration_indexer.wasm
 
-
-package-rbac-registration-indexer-module:
+rbac-registration-indexer-package-module:
     FROM hermes+build
     
     COPY lib/ .
