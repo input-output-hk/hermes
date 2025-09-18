@@ -1,17 +1,19 @@
 use crate::{hermes::*, HttpProxyComponent};
 
-use crate::hermes::exports::hermes::cardano::event_on_immutable_roll_forward;
 use crate::hermes::exports::hermes::cardano::event_on_block;
+use crate::hermes::exports::hermes::cardano::event_on_immutable_roll_forward;
 
 impl exports::hermes::integration_test::event::Guest for HttpProxyComponent {
     fn test(
-        _test: u32, _run: bool,
+        _test: u32,
+        _run: bool,
     ) -> Option<exports::hermes::integration_test::event::TestResult> {
         None
     }
 
     fn bench(
-        _test: u32, _run: bool,
+        _test: u32,
+        _run: bool,
     ) -> Option<exports::hermes::integration_test::event::TestResult> {
         None
     }
@@ -34,7 +36,10 @@ impl exports::hermes::cardano::event_on_block::Guest for HttpProxyComponent {
 }
 
 impl exports::hermes::cron::event::Guest for HttpProxyComponent {
-    fn on_cron(_event: hermes::cron::api::CronTagged, _last: bool) -> bool {
+    fn on_cron(
+        _event: hermes::cron::api::CronTagged,
+        _last: bool,
+    ) -> bool {
         false
     }
 }
@@ -46,19 +51,19 @@ impl exports::hermes::ipfs::event::Guest for HttpProxyComponent {
 }
 
 impl exports::hermes::kv_store::event::Guest for HttpProxyComponent {
-    fn kv_update(_key: String, _value: hermes::kv_store::api::KvValues) {}
-}
-
-impl exports::wasi::http::incoming_handler::Guest for HttpProxyComponent {
-    fn handle(
-        _request: wasi::http::types::IncomingRequest,
-        _response_out: wasi::http::types::ResponseOutparam,
+    fn kv_update(
+        _key: String,
+        _value: hermes::kv_store::api::KvValues,
     ) {
     }
 }
 
 impl exports::hermes::http_request::event::Guest for HttpProxyComponent {
-    fn on_http_response(_request_id: Option<u64>, _response: Vec<u8>) -> () {}
+    fn on_http_response(
+        _request_id: Option<u64>,
+        _response: Vec<u8>,
+    ) -> () {
+    }
 }
 
 fn log_cardano_age(days: f64) {
@@ -82,7 +87,6 @@ impl exports::hermes::init::event::Guest for HttpProxyComponent {
     fn init() -> bool {
         const CARDANO_LAUNCH_SECONDS: u64 = 1506246291;
         const SECONDS_IN_A_DAY: u64 = 24 * 60 * 60;
-
 
         let elapsed_seconds = crate::hermes::wasi::clocks::wall_clock::now()
             .seconds
