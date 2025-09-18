@@ -1,0 +1,22 @@
+VERSION 0.8
+
+IMPORT ../../../../ AS hermes
+IMPORT ../../../../../wasm/wasi AS wasi
+    
+build-rbac-registration-indexer:
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../../../wasm/wasi --out=rbac_registration_indexer.wasm
+
+local-build-rbac-registration-indexer:
+    FROM scratch
+    COPY +build-rbac-registration-indexer/rbac_registration_indexer.wasm .
+    SAVE ARTIFACT rbac_registration_indexer.wasm AS LOCAL lib/rbac_registration_indexer.wasm
+
+
+package-rbac-registration-indexer-module:
+    FROM hermes+build
+    
+    COPY lib/ .
+    COPY +build-rbac-registration_indexer/rbac_registration_indexer.wasm .
+
+    RUN ./target/release/hermes module package manifest_module.json
+    SAVE ARTIFACT rbac_registration_indexer.hmod
