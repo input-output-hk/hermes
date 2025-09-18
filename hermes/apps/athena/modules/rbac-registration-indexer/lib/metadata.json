@@ -1,8 +1,8 @@
 {
 	"$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
-	"name": "RBAC registration service",
+	"name": "RBAC registration indexer",
 	"version": "V0.1.0",
-	"description": "Catalyst Role based access control registration service",
+	"description": "Catalyst Role based access control registration indexer",
 	"src": [
 		"https://github.com/input-output-hk/hermes",
 		"https://github.com/input-output-hk/catalyst-voices"
