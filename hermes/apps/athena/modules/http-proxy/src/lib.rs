@@ -215,21 +215,23 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
         log_info(&format!("Processing HTTP request: {} {}", method, path));
 
         let response = if should_route_externally(&path) {
-            create_external_redirect(&path)
+            Some(create_external_redirect(&path))
         } else if is_static_content(&path) {
-            create_static_response(&path)
+            Some(create_static_response(&path))
         } else {
-            create_not_found_response(&method, &path)
+            Some(create_not_found_response(&method, &path))
         };
 
-        log_info(&format!(
-            "Request completed: {} {} -> {}",
-            method,
-            path,
-            format_response_type(&response)
-        ));
+        if let Some(ref resp) = response {
+            log_info(&format!(
+                "Request completed: {} {} -> {}",
+                method,
+                path,
+                format_response_type(resp)
+            ));
+        }
 
-        Some(response)
+        response
     }
 }
 

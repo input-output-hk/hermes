@@ -100,6 +100,7 @@ get-local-athena:
     # Step 1: Build WASM module using Earthly (local development target)
     # This compiles Rust source to optimized WASM binary and saves locally
     earthly ./hermes/apps/athena/modules+local-build-http-proxy
+    earthly ./hermes/apps/athena/modules+local-build-voting-index
     earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
     echo "✅ WASM compilation complete"
 
@@ -109,6 +110,7 @@ get-local-athena:
     # Step 2: Package the WASM module with its configuration into .hmod format
     # The .hmod file contains the WASM binary, manifest, and metadata for the module
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/voting-index/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
     echo "✅ Module packaging complete (.hmod file created)"
 

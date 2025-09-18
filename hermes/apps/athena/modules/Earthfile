@@ -168,6 +168,46 @@ local-build-http-proxy:
     # Export build artifacts from staging directory
     SAVE ARTIFACT /staging AS LOCAL http-proxy/lib
 
+
+
+local-build-voting-index:
+    DO rust-ci+SETUP
+    WORKDIR /app
+    
+    # Copy source code and project configuration
+    COPY --keep-ts --dir voting-index/src .
+    COPY voting-index/Cargo.toml .
+    
+    # Integrate generated WIT bindings into the build
+    COPY +gen-bindings/hermes.rs src/hermes.rs
+
+     # Copy module configuration and metadata files
+    COPY voting-index/lib/config.schema.json .
+    COPY voting-index/lib/manifest_module.json .
+    COPY voting-index/lib/metadata.json .
+    COPY voting-index/lib/settings.schema.json .
+
+    # Create the missing config.json file (empty JSON object)
+    RUN echo '{}' > config.json
+
+    # Compile Rust code to WebAssembly
+    DO rust-ci+CARGO \
+        --args "build --target wasm32-wasip2 --release" \
+        --output="wasm32-wasip2/release/voting_index.wasm"
+    
+    # Create staging directory structure
+    RUN mkdir -p /staging/
+
+    # Copy WASM module and JSON config files to root of staging
+    RUN cp target/wasm32-wasip2/release/voting_index.wasm /staging/
+    RUN cp *.json /staging/ || true
+
+    # Export build artifacts from staging directory
+    SAVE ARTIFACT /staging AS LOCAL voting-index/lib
+
+
+
+
 # Future Module Build Targets
 # ============================
 # 🚀 COMING SOON: Additional module build targets following the same pattern as build-http-proxy

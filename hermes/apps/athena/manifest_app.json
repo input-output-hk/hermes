@@ -9,6 +9,10 @@
 			"name": "http_proxy"
 		},
 		{
+			"package": "modules/voting-index/lib/voting_index.hmod",
+			"name": "voting_index"
+		},
+		{
 			"package": "modules/rbac-registration/lib/rbac_registration.hmod",
 			"name": "rbac_registration"
 		}
