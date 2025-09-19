@@ -12,7 +12,7 @@ local-build-rbac-registration:
     SAVE ARTIFACT rbac_registration.wasm AS LOCAL lib/rbac_registration.wasm
 
 
-package-rbac-registration-module:
+rbac-registration-package-module:
     FROM hermes+build
     
     COPY lib/ .
