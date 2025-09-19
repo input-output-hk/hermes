@@ -1,0 +1,13 @@
+{
+    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+    "name": "rbac_registration",
+    "metadata": "metadata.json",
+    "component": "rbac_registration.wasm",
+    "config": {
+        "file": "config.json",
+        "schema": "config.schema.json"
+    },
+    "settings": {
+        "schema": "settings.schema.json"
+    }
+}
