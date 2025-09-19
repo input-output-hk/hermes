@@ -228,7 +228,7 @@ fn get_registration_info_from_txn_id(
     const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
 
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
-    bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id");
+    bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`

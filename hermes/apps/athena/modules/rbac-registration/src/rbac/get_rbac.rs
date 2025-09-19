@@ -62,6 +62,7 @@ pub(crate) fn get_active_inactive_stake_address(
     network: CardanoNetwork,
     network_resource: &Network,
 ) -> anyhow::Result<(Active, Inactive)> {
+    const FUNCTION_NAME: &str = "get_active_inactive_stake_address";
     let mut active_stake_addresses: Vec<StakeAddress> = Vec::new();
     let mut inactive_stake_addresses: Vec<StakeAddress> = Vec::new();
     for s in stake_addresses {
@@ -80,7 +81,7 @@ pub(crate) fn get_active_inactive_stake_address(
             let error = format!("There should be a chain associated with the stake address {s}");
             log_error(
                 file!(),
-                "get_active_inactive_stake_address",
+                FUNCTION_NAME,
                 "build_registration_chain",
                 &error,
                 None,
