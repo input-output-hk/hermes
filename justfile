@@ -100,7 +100,7 @@ get-local-athena:
     # Step 1: Build WASM module using Earthly (local development target)
     # This compiles Rust source to optimized WASM binary and saves locally
     earthly ./hermes/apps/athena/modules+local-build-http-proxy
-    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration-indexer
+    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
     earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
     echo "✅ WASM compilation complete"
 
