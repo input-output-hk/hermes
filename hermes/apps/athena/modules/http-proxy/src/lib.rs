@@ -20,16 +20,30 @@
 //! proxy system capable of routing between multiple backends, supporting A/B testing,
 //! gradual rollouts, and advanced traffic management scenarios.
 
-#[allow(clippy::all, unused)]
-mod hermes;
-mod stub;
-
-use crate::hermes::exports::hermes::http_gateway::event::HttpGatewayResponse;
-use crate::hermes::exports::hermes::http_gateway::event::HttpResponse;
-use crate::hermes::hermes::binary::api::Bstr;
-
 use regex::RegexSet;
 use std::sync::OnceLock;
+
+use exports::hermes::http_gateway::event::{
+    Bstr, Guest as _, Headers, HttpGatewayResponse, HttpResponse,
+};
+
+wit_bindgen::generate!({
+    world: "hermes:app/hermes",
+    path: "../../../wasi/wit",
+    inline: "
+        package hermes:app;
+
+        world hermes {
+            import hermes:logging/api;
+            export hermes:http-gateway/event;
+            
+        }
+    ",
+    generate_all,
+});
+export!(HttpProxyComponent);
+
+use hermes::logging::api::{log, Level};
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]
@@ -150,8 +164,8 @@ fn create_not_found_response(
 
 /// Logs an info message
 fn log_info(message: &str) {
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Info,
+    log(
+        Level::Info,
         Some("http-proxy"),
         None,
         None,
@@ -164,8 +178,8 @@ fn log_info(message: &str) {
 
 /// Logs a debug message
 fn log_debug(message: &str) {
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Debug,
+    log(
+        Level::Debug,
         Some("http-proxy"),
         None,
         None,
@@ -178,8 +192,8 @@ fn log_debug(message: &str) {
 
 /// Logs a warning message
 fn log_warn(message: &str) {
-    hermes::hermes::logging::api::log(
-        hermes::hermes::logging::api::Level::Warn,
+    log(
+        Level::Warn,
         Some("http-proxy"),
         None,
         None,
@@ -200,7 +214,7 @@ fn format_response_type(response: &HttpGatewayResponse) -> String {
     }
 }
 
-impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
+impl exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
     /// Routes HTTP requests through configurable proxy logic.
     ///
     /// Current implementation provides temporary bridging to external Cat Voices
@@ -208,7 +222,7 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
     /// support sophisticated routing rules, backend selection, and middleware chains.
     fn reply(
         _body: Vec<u8>,
-        _headers: hermes::exports::hermes::http_gateway::event::Headers,
+        _headers: Headers,
         path: String,
         method: String,
     ) -> Option<HttpGatewayResponse> {
@@ -232,5 +246,3 @@ impl hermes::exports::hermes::http_gateway::event::Guest for HttpProxyComponent 
         Some(response)
     }
 }
-
-hermes::export!(HttpProxyComponent with_types_in hermes);
