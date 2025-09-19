@@ -86,7 +86,9 @@ fn get_rbac_data(
     const FUNCTION_NAME: &str = "get_rbac_data";
     // Testing get rbac data from catalyst id
     // This cat id contain no child registration.
+    /* cspell:disable */
     // its stake address `stake_test1urgduxg0zec4zw4k3v33ftsc79ffdwzzj6ka2d3w86dyudqmmj5tv` is inactive
+    /* cspell:enable */
     // because other valid registration take over it.
     let cat_id_1 = "preprod.cardano/5HHBcNOAs8uMfQ-II5M3DBXtR0Tp3j3x1GCS6ZxsWzU";
     let rbac_1 =
@@ -108,17 +110,19 @@ fn get_rbac_data(
         FUNCTION_NAME,
         "",
         &format!(
-            "📕 From catalyst id {cat_id_1}: Catid {}, All stake addresses: {:?}, Active stake address: {active_1:?}, Inactive stake address: {inactive_1:?})",
+            "📕 From catalyst id {cat_id_1}: Cat ID {}, All stake addresses: {:?}, Active stake address: {active_1:?}, Inactive stake address: {inactive_1:?})",
             rbac_1.catalyst_id(),
             rbac_1.stake_addresses()
         ),
         None,
     );
 
+    /* cspell:disable */
     // Testing get rbac data from stake address
     // `stake_test1urgduxg0zec4zw4k3v33ftsc79ffdwzzj6ka2d3w86dyudqmmj5tv`
     // `e0d0de190f1671513ab68b2314ae18f15296b84296add5362e3e9a4e34`
     // This stake address is taken by `preprod.cardano/ZtnkJZNZHskfS6mhChVstXRrhDPUdzTGwFidSg_YjsA`
+    /* cspell:enable */
     let hash: Hash<28> = "d0de190f1671513ab68b2314ae18f15296b84296add5362e3e9a4e34"
         .parse()
         .unwrap();
@@ -148,7 +152,7 @@ fn get_rbac_data(
         FUNCTION_NAME,
         "",
         &format!(
-            "📕 From stake address {stake_address}: Catid {}, All stake addresses: {:?}, Active stake address: {active_2:?}, Inactive stake address: {inactive_2:?})",
+            "📕 From stake address {stake_address}: Cat ID {}, All stake addresses: {:?}, Active stake address: {active_2:?}, Inactive stake address: {inactive_2:?})",
             rbac_2.catalyst_id(),
             rbac_2.stake_addresses()
         ),
