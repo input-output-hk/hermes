@@ -16,17 +16,18 @@ use crate::{
         sqlite::api::Sqlite,
     },
     rbac::build_rbac_chain::build_registration_chain,
-    utils::log::log_info,
+    utils::log::log_error,
 };
 
 /// Get the RBAC chain by Catalyst ID.
 pub(crate) fn get_rbac_chain_from_cat_id(
     sqlite: &Sqlite,
+    sqlite_in_mem: &Sqlite,
     cat_id: &str,
     network: CardanoNetwork,
     network_resource: &Network,
 ) -> anyhow::Result<Option<RegistrationChain>> {
-    let chain_info = select_rbac_registration_chain_from_cat_id(sqlite, cat_id)?;
+    let chain_info = select_rbac_registration_chain_from_cat_id(sqlite, sqlite_in_mem, cat_id)?;
 
     let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
     Ok(reg_chain)
@@ -35,30 +36,40 @@ pub(crate) fn get_rbac_chain_from_cat_id(
 /// Get the RBAC chain by Stake address.
 pub(crate) fn get_rbac_chain_from_stake_address(
     sqlite: &Sqlite,
+    sqlite_in_mem: &Sqlite,
     stake_address: StakeAddress,
     network: CardanoNetwork,
     network_resource: &Network,
 ) -> anyhow::Result<Option<RegistrationChain>> {
-    let chain_info = select_rbac_registration_chain_from_stake_addr(sqlite, stake_address)?;
+    let chain_info =
+        select_rbac_registration_chain_from_stake_addr(sqlite, sqlite_in_mem, stake_address)?;
     let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
     Ok(reg_chain)
 }
 
+/// Active stake addresses type.
 type Active = Vec<StakeAddress>;
+
+/// Inactive stake addresses type.
 type Inactive = Vec<StakeAddress>;
+
+/// Get the active and inactive stake addresses given Catalyst ID.
 pub(crate) fn get_active_inactive_stake_address(
     stake_addresses: HashSet<StakeAddress>,
     cat_id: &CatalystId,
     sqlite: &Sqlite,
+    sqlite_in_mem: &Sqlite,
     network: CardanoNetwork,
     network_resource: &Network,
 ) -> anyhow::Result<(Active, Inactive)> {
     let mut active_stake_addresses: Vec<StakeAddress> = Vec::new();
     let mut inactive_stake_addresses: Vec<StakeAddress> = Vec::new();
     for s in stake_addresses {
-        let chain_info = select_rbac_registration_chain_from_stake_addr(sqlite, s.clone()).unwrap();
+        let chain_info =
+            select_rbac_registration_chain_from_stake_addr(sqlite, sqlite_in_mem, s.clone())?;
         let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
-        // There should be a chain associated with the stake address
+        // There should be a chain associated with the stake address, since the stake address
+        // is extracted from the valid registration chain.
         if let Some(r) = reg_chain {
             if r.catalyst_id() == cat_id {
                 active_stake_addresses.push(s);
@@ -66,7 +77,15 @@ pub(crate) fn get_active_inactive_stake_address(
                 inactive_stake_addresses.push(s);
             }
         } else {
-            anyhow::bail!("There should be a chain associated with the stake address {s}");
+            let error = format!("There should be a chain associated with the stake address {s}");
+            log_error(
+                file!(),
+                "get_active_inactive_stake_address",
+                "build_registration_chain",
+                &error,
+                None,
+            );
+            anyhow::bail!(error);
         }
     }
     Ok((active_stake_addresses, inactive_stake_addresses))

@@ -40,14 +40,15 @@ pub(crate) fn build_registration_chain(
 
     // The first registration (root)
     let first_info = rbac_chain_info.first().ok_or_else(|| {
+        let error = "Registration chain info is empty";
         log_error(
             file!(),
             FUNCTION_NAME,
             "rbac_chain_info.first",
-            "Registration chain info is empty",
+            &error,
             None,
         );
-        anyhow::anyhow!("Registration chain info is empty")
+        anyhow::anyhow!(error)
     })?;
 
     // Root registration use to initialize chain
@@ -59,14 +60,15 @@ pub(crate) fn build_registration_chain(
         first_info.txn_idx,
     )?;
     let mut reg_chain = RegistrationChain::new(root_reg).ok_or_else(|| {
+        let error = "Failed to initialize registration chain";
         log_error(
             file!(),
             FUNCTION_NAME,
             "RegistrationChain::new",
-            "Failed to initialize registration chain",
+            &error,
             None,
         );
-        anyhow::anyhow!("Failed to initialize registration chain")
+        anyhow::anyhow!(error)
     })?;
 
     // Append children
@@ -79,17 +81,18 @@ pub(crate) fn build_registration_chain(
             info.txn_idx,
         )?;
         reg_chain = reg_chain.update(reg).ok_or_else(|| {
+            let error = format!(
+                "Failed to update registration chain at slot {}",
+                info.slot_no
+            );
             log_error(
                 file!(),
                 FUNCTION_NAME,
                 "RegistrationChain::update",
-                &format!(
-                    "Failed to update registration chain at slot {}",
-                    info.slot_no
-                ),
+                &error,
                 None,
             );
-            anyhow::anyhow!("Failed to update registration chain")
+            anyhow::anyhow!(error)
         })?;
     }
     Ok(Some(reg_chain))
@@ -123,7 +126,6 @@ fn get_registration(
         // Expect a registration, so treat None as an error
         Ok(None) | Err(_) => {
             let err = format!("Failed to get registration at slot {slot_no}");
-
             log_error(file!(), func_name, "Cip509::new", &err, None);
             anyhow::bail!(err)
         },

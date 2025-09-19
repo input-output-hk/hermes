@@ -43,3 +43,76 @@ where
         opt.map(|v| v.into()).unwrap_or(Value::Null)
     }
 }
+
+// ------ SQLite value to Rust types conversion ------
+
+impl TryFrom<Value> for String {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Text(s) => Ok(s),
+            _ => Err(anyhow::anyhow!("Value is not a Text")),
+        }
+    }
+}
+
+impl TryFrom<Value> for Vec<u8> {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => Ok(b),
+            _ => Err(anyhow::anyhow!("Value is not a Blob")),
+        }
+    }
+}
+
+impl TryFrom<Value> for u64 {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Int64(i) => {
+                u64::try_from(i).map_err(|_| anyhow::anyhow!("Cannot convert Int64 to u64"))
+            },
+            Value::Int32(i) => {
+                u64::try_from(i).map_err(|_| anyhow::anyhow!("Cannot convert Int32 to u64"))
+            },
+            _ => Err(anyhow::anyhow!("Value is not an integer")),
+        }
+    }
+}
+
+impl TryFrom<Value> for u16 {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Int64(i) => {
+                u16::try_from(i).map_err(|_| anyhow::anyhow!("Cannot convert Int64 to u16"))
+            },
+            Value::Int32(i) => {
+                u16::try_from(i).map_err(|_| anyhow::anyhow!("Cannot convert Int32 to u16"))
+            },
+            _ => Err(anyhow::anyhow!("Value is not an integer")),
+        }
+    }
+}
+
+impl<T> TryFrom<Value> for Option<T>
+where
+    T: TryFrom<Value, Error = anyhow::Error>,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Null => Ok(None),
+            other => {
+                let t = T::try_from(other)?;
+                Ok(Some(t))
+            },
+        }
+    }
+}

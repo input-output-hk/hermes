@@ -1,7 +1,14 @@
+//! Database access layer for RBAC registration.
+
 pub(crate) mod operation;
 pub(crate) mod query_builder;
 pub(crate) mod select;
 pub(crate) mod statement;
+
+use crate::{
+    hermes::sqlite::api::{open, Sqlite},
+    utils::log::log_error,
+};
 
 /// RBAC registration persistent table name.
 pub(crate) const RBAC_REGISTRATION_PERSISTENT_TABLE_NAME: &str = "rbac_registration_persistent";
@@ -54,7 +61,7 @@ macro_rules! bind_parameters {
         {
             let mut idx = 1;
             $(
-                let value: Value = $field.into();
+                let value: Value = $field.try_into()?;
                 if let Err(e) = $stmt.bind(idx, &value) {
                    log_error(
                         file!(),

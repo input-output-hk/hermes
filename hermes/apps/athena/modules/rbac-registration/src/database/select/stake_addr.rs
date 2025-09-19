@@ -55,28 +55,28 @@ use crate::{
 /// - If root is valid -> stake_address belongs to this chain.
 /// - Otherwise -> continue with next `txn_id`.
 ///
-/// 3. If no valid root/chain is found after checking all candidates, then `stake_address` does not belong to any valid registration.
+/// 3. If no valid root/chain is found after checking all candidates, then `stake_address` does not belong to any valid registration
+/// and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     sqlite: &Sqlite,
+    sqlite_in_mem: &Sqlite,
     stake_addr: StakeAddress,
 ) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
 
     // Convert the given stake address to Vec<u8> which will be use in the query
     let stake: Vec<u8> = stake_addr.try_into().map_err(|e| {
-        log_error(
-            file!(),
-            FUNCTION_NAME,
-            "stake_addr.try_into",
-            "Failed to convert stake address to Vec<u8>",
-            None,
-        );
-        anyhow::anyhow!("Failed to convert stake address StakeAddress: {e:?}")
+        let error = format!("Failed to convert stake address StakeAddress: {e:?}");
+        log_error(file!(), FUNCTION_NAME, "stake_addr.try_into", &error, None);
+        anyhow::anyhow!(error)
     })?;
 
-    // List of transaction IDs that contain the given stake address
-    let mut txn_ids =
-        get_txn_ids_from_stake_addr(&stake, sqlite, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME)?;
+    // List of transaction IDs that contain the given stake address, newest first
+    let mut txn_ids = get_txn_ids_from_stake_addr(
+        &stake,
+        sqlite_in_mem,
+        RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+    )?;
     txn_ids.extend(get_txn_ids_from_stake_addr(
         &stake,
         sqlite,
@@ -91,7 +91,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
     let reg_v_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        sqlite_in_mem,
         &QueryBuilder::select_reg_by_txn_id(RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
@@ -106,7 +106,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
     let root_validate_v_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        sqlite_in_mem,
         &QueryBuilder::select_root_reg_by_cat_id_less_than_slot_txn_idx(
             RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         ),
@@ -115,11 +115,15 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     )?;
 
     for cur_txn in txn_ids {
+        // Reset first to ensure the statement is in a clean state
+        DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(&reg_v_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
+
         // Get registration information, trying persistent first, then volatile
-        let registration_info =
-            get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn, FUNCTION_NAME).or_else(
-                |_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn, FUNCTION_NAME),
-            )?;
+        let registration_info = get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn)
+            .or_else(|_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn))?;
 
         // Handle the case where no registration is found for this txn_id
         let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
@@ -137,7 +141,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         // Search persistent first then volatile
         if prv_txn_id.is_some() {
             (cat_id, slot_no, txn_idx) =
-                match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id, FUNCTION_NAME)? {
+                match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id)? {
                     Some((cat_id, slot, idx)) => (cat_id, slot, idx),
                     None => {
                         // Broken chain, skip to next transaction
@@ -155,7 +159,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                 slot_no,
                 txn_idx,
             )? {
-                let chain = select_rbac_registration_chain_from_cat_id(sqlite, &id)?;
+                let chain = select_rbac_registration_chain_from_cat_id(sqlite, sqlite_in_mem, &id)?;
                 // Finalize statements before returning
                 DatabaseStatement::finalize_statement(root_validate_p_stmt, FUNCTION_NAME)?;
                 DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
@@ -164,9 +168,6 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                 return Ok(chain);
             }
         }
-        // Reset statements for next iteration
-        DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
-        DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
     }
     DatabaseStatement::finalize_statement(root_validate_p_stmt, FUNCTION_NAME)?;
     DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
@@ -183,7 +184,7 @@ fn get_txn_ids_from_stake_addr(
 ) -> anyhow::Result<Vec<Vec<u8>>> {
     const FUNCTION_NAME: &str = "get_txn_ids_from_stake_addr";
 
-    // Get txn_ids for the stake_address, newest first
+    // Get txn_ids for the stake_address
     let stmt = DatabaseStatement::prepare_statement(
         sqlite,
         &QueryBuilder::select_txn_id_by_stake_addr(table),
@@ -200,7 +201,7 @@ fn get_txn_ids_from_stake_addr(
             Ok(StepResult::Row) => {
                 txn_ids.push(column_as::<Vec<u8>>(&stmt, 0, FUNCTION_NAME, "txn_id")?)
             },
-            Ok(StepResult::Done) => break,
+            Ok(StepResult::Done) => break, // No more rows
             Err(e) => {
                 DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
                 let error = format!("Failed to step in {table}: {e}");
@@ -223,18 +224,19 @@ fn get_txn_ids_from_stake_addr(
 fn get_registration_info_from_txn_id(
     stmt: &Statement,
     txn_id: &[u8],
-    func_name: &str,
 ) -> anyhow::Result<Option<(Option<Vec<u8>>, u64, Option<String>, u16)>> {
-    DatabaseStatement::y(stmt, func_name);
-    bind_parameters!(stmt, func_name, txn_id.to_vec() => "txn_id");
+    const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
+
+    DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
+    bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id");
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
         Ok(StepResult::Row) => Ok(Some((
-            column_as::<Option<Vec<u8>>>(stmt, 0, func_name, "prv_txn_id")?,
-            column_as::<u64>(stmt, 1, func_name, "slot_no")?,
-            column_as::<Option<String>>(stmt, 2, func_name, "catalyst_id")?,
-            column_as::<u16>(stmt, 3, func_name, "txn_idx")?,
+            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
         ))),
         Ok(StepResult::Done) => {
             return Ok(None);
@@ -243,7 +245,7 @@ fn get_registration_info_from_txn_id(
             let error = format!("Failed to step: {e}");
             log_error(
                 file!(),
-                func_name,
+                FUNCTION_NAME,
                 "hermes::sqlite::api::step",
                 &error,
                 None,
@@ -251,7 +253,6 @@ fn get_registration_info_from_txn_id(
             anyhow::bail!(error);
         },
     };
-
     result
 }
 
@@ -260,20 +261,21 @@ fn walk_chain_back(
     reg_p_stmt: &Statement,
     reg_v_stmt: &Statement,
     mut prv_txn_id: Option<Vec<u8>>,
-    func_name: &str,
 ) -> anyhow::Result<Option<(Option<String>, u64, u16)>> {
+    const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
+
     let mut cat_id = None;
     let mut slot_no = 0;
     let mut txn_idx = 0;
 
     while let Some(prev) = prv_txn_id.take() {
         // Reset statements before each use
-        DatabaseStatement::reset_statement(reg_p_stmt, func_name)?;
-        DatabaseStatement::reset_statement(reg_v_stmt, func_name)?;
+        DatabaseStatement::reset_statement(reg_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(reg_v_stmt, FUNCTION_NAME)?;
 
         // Try persistent first, then volatile
-        let reg_info = get_registration_info_from_txn_id(reg_p_stmt, &prev, func_name)
-            .or_else(|_| get_registration_info_from_txn_id(reg_v_stmt, &prev, func_name))?;
+        let reg_info = get_registration_info_from_txn_id(reg_p_stmt, &prev)
+            .or_else(|_| get_registration_info_from_txn_id(reg_v_stmt, &prev))?;
 
         match reg_info {
             Some((next_prv_txn_id, next_slot_no, next_cat_id, next_txn_idx)) => {
@@ -320,7 +322,13 @@ fn is_valid_root(
         Ok(StepResult::Done) => true,
         Err(e) => {
             let error = format!("Failed to step: {e}");
-            log_error(file!(), FUNCTION_NAME, "step", &error, None);
+            log_error(
+                file!(),
+                FUNCTION_NAME,
+                "hermes::sqlite::api::step",
+                &error,
+                None,
+            );
             anyhow::bail!(error);
         },
     };
@@ -343,7 +351,13 @@ fn is_valid_root(
         Ok(StepResult::Done) => true,
         Err(e) => {
             let error = format!("Failed to step: {e}");
-            log_error(file!(), FUNCTION_NAME, "step", &error, None);
+            log_error(
+                file!(),
+                FUNCTION_NAME,
+                "hermes::sqlite::api::step",
+                &error,
+                None,
+            );
             anyhow::bail!(error);
         },
     };

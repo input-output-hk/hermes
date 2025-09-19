@@ -12,6 +12,8 @@ use crate::{
     utils::log::log_error,
 };
 
+/// Registration chain from a catalyst ID.
+/// 
 /// Selects a root registration and all its children, returning the full chain given a catalyst ID.
 /// If no root registration is found for the given `cat_id`, returns an empty list.
 ///
@@ -56,6 +58,7 @@ use crate::{
 /// * `Err(anyhow::Error)` – If any error occurs.
 pub(crate) fn select_rbac_registration_chain_from_cat_id(
     sqlite: &Sqlite,
+    sqlite_in_mem: &Sqlite,
     cat_id: &str,
 ) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_cat_id";
@@ -65,7 +68,7 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
         extract_root(sqlite, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?
     {
         r
-    } else if let Some(r) = extract_root(sqlite, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)? {
+    } else if let Some(r) = extract_root(sqlite_in_mem, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)? {
         r
     } else {
         return Ok(vec![]); // no root found
@@ -80,7 +83,7 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     )?;
 
     let v_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        sqlite_in_mem,
         &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
@@ -102,7 +105,8 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
                 txn_id = next_txn_id;
                 chain.push(RbacChainInfo { slot_no, txn_idx });
             },
-            None => break, // End of chain
+            // No child found for both persistent and volatile
+            None => break,
         }
     }
     DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
@@ -126,6 +130,7 @@ fn extract_root(
     )?;
     bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
 
+    // The first valid root registration is chosen
     let result = match stmt.step() {
         Ok(StepResult::Row) => {
             let txn_id = stmt.column(0)?;
@@ -159,6 +164,7 @@ fn extract_child(
 ) -> anyhow::Result<Option<(Value, u64, u16)>> {
     const FUNCTION_NAME: &str = "extract_child";
 
+    // Reset first to ensure the statement is in a clean state
     DatabaseStatement::reset_statement(&stmt, FUNCTION_NAME)?;
     bind_parameters!(stmt, FUNCTION_NAME, txn_id.clone() => "txn_id")?;
     let result = match stmt.step() {
