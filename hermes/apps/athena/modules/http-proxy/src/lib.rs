@@ -34,6 +34,7 @@ wit_bindgen::generate!({
         package hermes:app;
 
         world hermes {
+            include wasi:cli/imports@0.2.6;
             import hermes:logging/api;
             export hermes:http-gateway/event;
             
