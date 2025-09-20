@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_ENV_TIMEOUT_MS","ENV_TIMEOUT_MS"],"fn":["collect_apps","collect_modules","create_one_module_app","create_temp_dir_child","get_timeout_ms","init_ipfs","init_logger","main","main_internal"],"struct":["Arguments"]};

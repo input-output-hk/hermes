@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DbHandle"],"struct":["AppConnections"]};

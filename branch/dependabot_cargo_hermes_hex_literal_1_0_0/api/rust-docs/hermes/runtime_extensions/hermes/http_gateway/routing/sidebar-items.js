@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVENT_TIMEOUT","VALID_PATH","WEBASM_ROUTE"],"fn":["compose_http_event","error_response","host_resolver","is_valid_path","not_found","route_to_hermes","router","serve_static_data"],"struct":["Hostname"]};
