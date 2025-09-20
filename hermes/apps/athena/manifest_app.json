@@ -9,7 +9,7 @@
 			"name": "http_proxy"
 		},
 		{
-			"package": "modules/rbac-registration/lib/rbac_registration_indexer.hmod",
+			"package": "modules/rbac-registration-indexer/lib/rbac_registration_indexer.hmod",
 			"name": "rbac_registration_indexer"
 		}
 	],
