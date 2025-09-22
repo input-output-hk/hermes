@@ -13,7 +13,7 @@ use crate::{
 };
 
 /// Registration chain from a catalyst ID.
-/// 
+///
 /// Selects a root registration and all its children, returning the full chain given a catalyst ID.
 /// If no root registration is found for the given `cat_id`, returns an empty list.
 ///
@@ -64,15 +64,13 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_cat_id";
 
     // --- Find the root ---
-    let (mut txn_id, mut chain) = if let Some(r) =
-        extract_root(sqlite, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?
-    {
-        r
-    } else if let Some(r) = extract_root(sqlite_in_mem, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)? {
-        r
-    } else {
-        return Ok(vec![]); // no root found
-    };
+    let (mut txn_id, mut chain) =
+        match extract_root(sqlite, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(|| {
+            extract_root(sqlite_in_mem, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?
+        }) {
+            Some(val) => val,
+            None => return Ok(vec![]),
+        };
 
     // --- Find children ---
     let p_stmt = DatabaseStatement::prepare_statement(
@@ -88,30 +86,33 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
         Operation::Select,
         FUNCTION_NAME,
     )?;
-    loop {
-        // Try to find child in persistent table first
-        // Persistent first
-        if let Some((next_txn_id, slot_no, txn_idx)) =
-            extract_child(&p_stmt, &RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, &txn_id)?
-        {
-            txn_id = next_txn_id;
-            chain.push(RbacChainInfo { slot_no, txn_idx });
-            continue;
-        }
-
-        // Then volatile
-        match extract_child(&v_stmt, &RBAC_REGISTRATION_VOLATILE_TABLE_NAME, &txn_id)? {
-            Some((next_txn_id, slot_no, txn_idx)) => {
+    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
+        loop {
+            // Persistent first
+            if let Some((next_txn_id, slot_no, txn_idx)) =
+                extract_child(&p_stmt, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, &txn_id)?
+            {
                 txn_id = next_txn_id;
                 chain.push(RbacChainInfo { slot_no, txn_idx });
-            },
-            // No child found for both persistent and volatile
-            None => break,
+                continue;
+            }
+
+            // Then volatile
+            match extract_child(&v_stmt, RBAC_REGISTRATION_VOLATILE_TABLE_NAME, &txn_id)? {
+                Some((next_txn_id, slot_no, txn_idx)) => {
+                    txn_id = next_txn_id;
+                    chain.push(RbacChainInfo { slot_no, txn_idx });
+                },
+                None => break,
+            }
         }
-    }
+        Ok(chain)
+    })();
+
     DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
     DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
-    Ok(chain)
+
+    result
 }
 
 /// Extract the root registration.
@@ -131,14 +132,17 @@ fn extract_root(
     bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
 
     // The first valid root registration is chosen
-    let result = match stmt.step() {
+    let result = (|| match stmt.step() {
         Ok(StepResult::Row) => {
             let txn_id = stmt.column(0)?;
             let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
             let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
-            Some((txn_id.clone(), vec![RbacChainInfo { slot_no, txn_idx }]))
+            Ok(Some((
+                txn_id.clone(),
+                vec![RbacChainInfo { slot_no, txn_idx }],
+            )))
         },
-        Ok(StepResult::Done) => None,
+        Ok(StepResult::Done) => Ok(None),
         Err(e) => {
             let error = format!("Failed to step in {table}: {e}");
             log_error(
@@ -150,10 +154,9 @@ fn extract_root(
             );
             anyhow::bail!(error);
         },
-    };
-
+    })();
     DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
-    Ok(result)
+    result
 }
 
 /// Extract the child registration.

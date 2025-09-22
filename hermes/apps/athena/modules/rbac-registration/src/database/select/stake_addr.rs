@@ -12,7 +12,10 @@ use crate::{
         RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
     },
-    hermes::sqlite::api::{Sqlite, Statement, StepResult, Value},
+    hermes::{
+        logging::api::{log, Level},
+        sqlite::api::{Sqlite, Statement, StepResult, Value},
+    },
     rbac::build_rbac_chain::RbacChainInfo,
     utils::log::log_error,
 };
@@ -114,66 +117,73 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    for cur_txn in txn_ids {
-        // Reset first to ensure the statement is in a clean state
-        DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
-        DatabaseStatement::reset_statement(&reg_v_stmt, FUNCTION_NAME)?;
-        DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
-        DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
+    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
+        for cur_txn in txn_ids {
+            // Reset first to ensure the statement is in a clean state
+            DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
+            DatabaseStatement::reset_statement(&reg_v_stmt, FUNCTION_NAME)?;
+            DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
+            DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
 
-        // Get registration information, trying persistent first, then volatile
-        let registration_info = get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn)
-            .or_else(|_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn))?;
+            let registration_info = get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn)
+                .or_else(|_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn))?;
 
-        // Handle the case where no registration is found for this txn_id
-        let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
-            Some(info) => info,
-            None => {
-                // This txn_id exists in stake address table but not in registration table
-                // This SHOULD NOT happen
-                // Skip to next transaction
-                continue;
-            },
-        };
+            let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
+                Some(info) => info,
+                None => {
+                    // This txn_id exists in stake address table but not in registration table
+                    // This SHOULD NOT happen
+                    // Skip to next transaction
+                    log(
+                        Level::Warn,
+                        None,
+                        Some(FUNCTION_NAME),
+                        None,
+                        None,
+                        None,
+                        "Registration info not found",
+                        None,
+                    );
+                    continue;
+                },
+            };
+            // This mean the registration in this transaction id IS NOT a root.
+            // This check can be omitted, but is here just for readability.
+            // Search persistent first then volatile
+            if prv_txn_id.is_some() {
+                (cat_id, slot_no, txn_idx) =
+                    match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id)? {
+                        Some((cat_id, slot, idx)) => (cat_id, slot, idx),
+                        None => {
+                            // Broken chain, skip to next transaction
+                            continue;
+                        },
+                    }
+            }
 
-        // This mean the registration in this transaction id IS NOT a root.
-        // This check can be omitted, but is here just for readability.
-        // Search persistent first then volatile
-        if prv_txn_id.is_some() {
-            (cat_id, slot_no, txn_idx) =
-                match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id)? {
-                    Some((cat_id, slot, idx)) => (cat_id, slot, idx),
-                    None => {
-                        // Broken chain, skip to next transaction
-                        continue;
-                    },
+            if let Some(id) = cat_id {
+                // Perform a check on whether the cat id is already used by other valid chain.
+                if is_valid_root(
+                    &root_validate_p_stmt,
+                    &root_validate_v_stmt,
+                    &id,
+                    slot_no,
+                    txn_idx,
+                )? {
+                    return select_rbac_registration_chain_from_cat_id(sqlite, sqlite_in_mem, &id);
                 }
-        }
-
-        if let Some(id) = cat_id {
-            // Perform a check on whether the cat id is already used by other valid chain.
-            if is_valid_root(
-                &root_validate_p_stmt,
-                &root_validate_v_stmt,
-                &id,
-                slot_no,
-                txn_idx,
-            )? {
-                let chain = select_rbac_registration_chain_from_cat_id(sqlite, sqlite_in_mem, &id)?;
-                // Finalize statements before returning
-                DatabaseStatement::finalize_statement(root_validate_p_stmt, FUNCTION_NAME)?;
-                DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
-                DatabaseStatement::finalize_statement(reg_p_stmt, FUNCTION_NAME)?;
-                DatabaseStatement::finalize_statement(reg_v_stmt, FUNCTION_NAME)?;
-                return Ok(chain);
             }
         }
-    }
-    DatabaseStatement::finalize_statement(root_validate_p_stmt, FUNCTION_NAME)?;
-    DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
+        Ok(vec![])
+    })();
+
+    // cleanup always runs here
     DatabaseStatement::finalize_statement(reg_p_stmt, FUNCTION_NAME)?;
     DatabaseStatement::finalize_statement(reg_v_stmt, FUNCTION_NAME)?;
-    Ok(vec![])
+    DatabaseStatement::finalize_statement(root_validate_p_stmt, FUNCTION_NAME)?;
+    DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
+
+    result
 }
 
 /// Get a list of transaction IDs that contain the given stake address.
@@ -195,29 +205,31 @@ fn get_txn_ids_from_stake_addr(
     bind_parameters!(stmt, FUNCTION_NAME, stake.to_vec() => "stake_address")?;
 
     // List of transactions ID that contain the given stake address
-    let mut txn_ids: Vec<Vec<u8>> = Vec::new();
-    loop {
-        match stmt.step() {
-            Ok(StepResult::Row) => {
-                txn_ids.push(column_as::<Vec<u8>>(&stmt, 0, FUNCTION_NAME, "txn_id")?)
-            },
-            Ok(StepResult::Done) => break, // No more rows
-            Err(e) => {
-                DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
-                let error = format!("Failed to step in {table}: {e}");
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "hermes::sqlite::api::step",
-                    &error,
-                    None,
-                );
-                anyhow::bail!(error);
-            },
+    let result: anyhow::Result<Vec<Vec<u8>>> = (|| {
+        let mut txn_ids: Vec<Vec<u8>> = Vec::new();
+        loop {
+            match stmt.step() {
+                Ok(StepResult::Row) => {
+                    txn_ids.push(column_as::<Vec<u8>>(&stmt, 0, FUNCTION_NAME, "txn_id")?);
+                },
+                Ok(StepResult::Done) => break,
+                Err(e) => {
+                    let error = format!("Failed to step in {table}: {e}");
+                    log_error(
+                        file!(),
+                        FUNCTION_NAME,
+                        "hermes::sqlite::api::step",
+                        &error,
+                        None,
+                    );
+                    anyhow::bail!(error);
+                },
+            }
         }
-    }
+        Ok(txn_ids)
+    })();
     DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
-    Ok(txn_ids)
+    result
 }
 
 // Get registration info by transaction id.
