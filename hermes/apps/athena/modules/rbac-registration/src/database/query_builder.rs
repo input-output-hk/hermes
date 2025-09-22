@@ -76,7 +76,7 @@ impl QueryBuilder {
     /// slot_no = 20, txn_id = 1
     /// slot_no = 9 txn_id = 2
     /// slot_no = txn_id = 0
-    /// This is use to validate that the given root is valid or not.
+    /// This is used to validate that the given root is valid or not.
     /// Note that the valid root should have the least `slot_no` and least `txn_idx` with no problem report.
     ///
     /// If valid chain is found, the given catalyst ID (`catalyst_id_1`) with slot_no (`slot_no_1`) and

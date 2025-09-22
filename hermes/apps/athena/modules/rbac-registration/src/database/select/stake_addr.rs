@@ -147,7 +147,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                     continue;
                 },
             };
-            // This mean the registration in this transaction id IS NOT a root.
+            // This means the registration in this transaction id IS NOT a root.
             // This check can be omitted, but is here just for readability.
             // Search persistent first then volatile
             if prv_txn_id.is_some() {
@@ -162,7 +162,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
             }
 
             if let Some(id) = cat_id {
-                // Perform a check on whether the cat id is already used by other valid chain.
+                // Perform a check on whether the cat id is already used by other valid chains.
                 if is_valid_root(
                     &root_validate_p_stmt,
                     &root_validate_v_stmt,

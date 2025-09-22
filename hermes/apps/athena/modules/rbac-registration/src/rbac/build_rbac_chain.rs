@@ -12,9 +12,9 @@ use crate::{
 /// extract the RBAC information.
 #[derive(Debug, Clone)]
 pub(crate) struct RbacChainInfo {
-    /// The slot number of the block that contain the registration.
+    /// The slot number of the block that contains the registration.
     pub(crate) slot_no: u64,
-    /// The transaction index that contain the registration.
+    /// The transaction index that contains the registration.
     pub(crate) txn_idx: u16,
 }
 
@@ -23,7 +23,7 @@ pub(crate) struct RbacChainInfo {
 /// # Arguments
 ///
 /// * `network` - The network to build the registration chain.
-/// * `network_resource` - The network resource use for getting block data.
+/// * `network_resource` - The network resource used for getting block data.
 /// * `rbac_chain_info` - The registration chain information.
 ///
 /// # Return

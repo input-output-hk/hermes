@@ -35,11 +35,11 @@ use crate::{
 ///
 /// Child registration:
 ///
-/// The child registration is determine by having a `prv_txn_id` pointing back to a parent.
+/// The child registration is determined by having a `prv_txn_id` pointing back to a parent.
 /// In other words, the child registration is the registration with matching `prv_txn_id` where
 /// no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
 ///
-/// An update that cause the link to break is considered invalid.
+/// An update that causes the link to break is considered invalid.
 ///
 /// For example,
 ///
