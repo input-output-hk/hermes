@@ -1,0 +1,59 @@
+VERSION 0.8
+
+IMPORT ../../../../ AS hermes
+IMPORT ../../../../../wasm/wasi AS wasi
+    
+build-http-proxy:
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../../../wasm/wasi --out=http_proxy.wasm
+
+
+
+# HTTP Proxy WASM Module Build
+# =============================
+# Compiles the HTTP proxy Rust code into a WebAssembly module using the wasm32-wasip2 target.
+# This creates a sandboxed, portable component that can run in the Hermes runtime.
+#
+# Build Pipeline:
+#   1. Set up Rust toolchain with WASM target support
+#   2. Copy source code and dependencies into build container
+#   3. Generate and integrate WIT bindings (shared across modules)
+#   4. Compile to optimized WASM binary
+#   5. Export artifacts for packaging
+#
+# Compilation Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)
+# Optimization: Release mode with size optimizations (opt-level = "z", lto = true)
+# Output: http_proxy.wasm - Executable WebAssembly module
+# Duration: ~3-5 minutes (Rust compilation to WASM)
+local-build-http-proxy:
+    FROM alpine
+    COPY +build-http-proxy/http_proxy.wasm .
+    
+    # Copy module configuration and metadata files
+    COPY lib/config.schema.json .
+    COPY lib/manifest_module.json .
+    COPY lib/metadata.json .
+    COPY lib/settings.schema.json .
+    
+    # Create the missing config.json file (empty JSON object)
+    RUN echo '{}' > config.json
+
+    # Download web assets directly to root level
+    COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
+
+    # Create staging directory structure
+    RUN mkdir -p /staging/www
+
+    # Copy WASM module and JSON config files to root of staging
+    RUN cp http_proxy.wasm /staging/
+    RUN cp *.json /staging/ || true
+
+    # Copy web assets to www subdirectory
+    RUN cp -r assets /staging/www/ || true
+    RUN cp -r canvaskit /staging/www/ || true
+    RUN cp -r icons /staging/www/ || true
+
+    # Copy all regular files from current directory to staging/www, skip directories
+    RUN find . -maxdepth 1 -type f -exec cp {} /staging/www/ \; 2>/dev/null || echo "⚠️  Some files may not have been copied"
+    
+    # Export build artifacts from staging directory
+    SAVE ARTIFACT /staging AS LOCAL lib
