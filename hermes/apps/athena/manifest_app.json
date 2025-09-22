@@ -11,6 +11,10 @@
 		{
 			"package": "modules/rbac-registration-indexer/lib/rbac_registration_indexer.hmod",
 			"name": "rbac_registration_indexer"
+		},
+		{
+			"package": "modules/rbac-registration/lib/rbac_registration.hmod",
+			"name": "rbac_registration"
 		}
 	],
 	"www": "modules/http-proxy/lib/www"

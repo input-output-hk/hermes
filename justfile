@@ -102,6 +102,7 @@ get-local-athena:
     
     earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy
     earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
+    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
 
     echo "✅ WASM compilation complete"
 
@@ -112,6 +113,7 @@ get-local-athena:
     # The .hmod file contains the WASM binary, manifest, and metadata for the module
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
     echo "✅ Module packaging complete (.hmod file created)"
 
     echo "📦 Packaging application bundle..."
