@@ -2,6 +2,7 @@
 
 wit_bindgen::generate!({
     world: "hermes:app/hermes",
+    // path: "/home/bkioshn/Work/Catalyst/hermes/wasm/wasi/wit",
     path: "../../../wasi/wit",
     inline: "
         package hermes:app;
@@ -43,11 +44,13 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
         const FUNCTION_NAME: &str = "init";
 
-        let Ok(sqlite) = open_db_connection(false) else {
+        let Ok(persistent) = open_db_connection(false) else {
             return false;
         };
         // For volatile table
-        let Ok(sqlite_in_mem) = open_db_connection(false) else {
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(volatile) = open_db_connection(false) else {
             return false;
         };
 
@@ -70,16 +73,16 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
 
         // ----- Get registration chain -----
         // Once the data is indexed, we can get the registration chain from catalyst ID or stake address.
-        get_rbac_data(&sqlite, &sqlite_in_mem, network, &network_resource);
-        close_db_connection(sqlite);
-        close_db_connection(sqlite_in_mem);
+        get_rbac_data(&persistent, &volatile, network, &network_resource);
+        close_db_connection(persistent);
+        close_db_connection(volatile);
         true
     }
 }
 
 fn get_rbac_data(
-    sqlite: &Sqlite,
-    sqlite_in_mem: &Sqlite,
+    persistent: &Sqlite,
+    volatile: &Sqlite,
     network: cardano::api::CardanoNetwork,
     network_resource: &cardano::api::Network,
 ) {
@@ -92,15 +95,15 @@ fn get_rbac_data(
     // because other valid registration take over it.
     let cat_id_1 = "preprod.cardano/5HHBcNOAs8uMfQ-II5M3DBXtR0Tp3j3x1GCS6ZxsWzU";
     let rbac_1 =
-        get_rbac_chain_from_cat_id(sqlite, sqlite_in_mem, cat_id_1, network, network_resource)
+        get_rbac_chain_from_cat_id(persistent, volatile, cat_id_1, network, network_resource)
             .unwrap()
             .unwrap();
     // No active, 1 inactive
     let (active_1, inactive_1) = get_active_inactive_stake_address(
         rbac_1.stake_addresses(),
         rbac_1.catalyst_id(),
-        sqlite,
-        sqlite_in_mem,
+        persistent,
+        volatile,
         network,
         network_resource,
     )
@@ -129,8 +132,8 @@ fn get_rbac_data(
     let stake_address = StakeAddress::new(Network::Preprod, false, hash.into());
 
     let rbac_2 = get_rbac_chain_from_stake_address(
-        sqlite,
-        sqlite_in_mem,
+        persistent,
+        volatile,
         stake_address.clone(),
         network,
         network_resource,
@@ -141,8 +144,8 @@ fn get_rbac_data(
     let (active_2, inactive_2) = get_active_inactive_stake_address(
         rbac_2.stake_addresses(),
         rbac_2.catalyst_id(),
-        sqlite,
-        sqlite_in_mem,
+        persistent,
+        volatile,
         network,
         network_resource,
     )

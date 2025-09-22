@@ -61,8 +61,8 @@ use crate::{
 /// 3. If no valid root/chain is found after checking all candidates, then `stake_address` does not belong to any valid registration
 /// and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
-    sqlite: &Sqlite,
-    sqlite_in_mem: &Sqlite,
+    persistent: &Sqlite,
+    volatile: &Sqlite,
     stake_addr: StakeAddress,
 ) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
@@ -75,33 +75,30 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     })?;
 
     // List of transaction IDs that contain the given stake address, newest first
-    let mut txn_ids = get_txn_ids_from_stake_addr(
-        &stake,
-        sqlite_in_mem,
-        RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
-    )?;
+    let mut txn_ids =
+        get_txn_ids_from_stake_addr(&stake, volatile, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME)?;
     txn_ids.extend(get_txn_ids_from_stake_addr(
         &stake,
-        sqlite,
+        persistent,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME,
     )?);
 
     // --- Prepare statements ---
     let reg_p_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        persistent,
         &QueryBuilder::select_reg_by_txn_id(RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
     let reg_v_stmt = DatabaseStatement::prepare_statement(
-        sqlite_in_mem,
+        volatile,
         &QueryBuilder::select_reg_by_txn_id(RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
 
     let root_validate_p_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        persistent,
         &QueryBuilder::select_root_reg_by_cat_id_less_than_slot_txn_idx(
             RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
         ),
@@ -109,7 +106,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
     let root_validate_v_stmt = DatabaseStatement::prepare_statement(
-        sqlite_in_mem,
+        volatile,
         &QueryBuilder::select_root_reg_by_cat_id_less_than_slot_txn_idx(
             RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         ),
@@ -170,7 +167,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                     slot_no,
                     txn_idx,
                 )? {
-                    return select_rbac_registration_chain_from_cat_id(sqlite, sqlite_in_mem, &id);
+                    return select_rbac_registration_chain_from_cat_id(persistent, volatile, &id);
                 }
             }
         }

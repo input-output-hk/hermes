@@ -57,31 +57,31 @@ use crate::{
 ///   If the vector is empty, no chain is found.
 /// * `Err(anyhow::Error)` – If any error occurs.
 pub(crate) fn select_rbac_registration_chain_from_cat_id(
-    sqlite: &Sqlite,
-    sqlite_in_mem: &Sqlite,
+    persistent: &Sqlite,
+    volatile: &Sqlite,
     cat_id: &str,
 ) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_cat_id";
 
     // --- Find the root ---
     let (mut txn_id, mut chain) =
-        match extract_root(sqlite, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(|| {
-            extract_root(sqlite_in_mem, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?
-        }) {
+        match extract_root(persistent, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(
+            || extract_root(volatile, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?,
+        ) {
             Some(val) => val,
             None => return Ok(vec![]),
         };
 
     // --- Find children ---
     let p_stmt = DatabaseStatement::prepare_statement(
-        sqlite,
+        persistent,
         &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
 
     let v_stmt = DatabaseStatement::prepare_statement(
-        sqlite_in_mem,
+        volatile,
         &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
