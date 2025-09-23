@@ -23,13 +23,11 @@
 use regex::RegexSet;
 use std::sync::OnceLock;
 
-use exports::hermes::http_gateway::event::{
-    Bstr, Guest as _, Headers, HttpGatewayResponse, HttpResponse,
-};
+use exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
-wit_bindgen::generate!({
+shared::bindings_generate!({
     world: "hermes:app/hermes",
-    path: "../../../wasi/wit",
+    path: "../../../../../wasm/wasi/wit",
     inline: "
         package hermes:app;
 
@@ -40,11 +38,11 @@ wit_bindgen::generate!({
             
         }
     ",
-    generate_all,
+    share: ["hermes:logging"],
 });
 export!(HttpProxyComponent);
 
-use hermes::logging::api::{log, Level};
+use shared::bindings::hermes::logging::api::{log, Level};
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]

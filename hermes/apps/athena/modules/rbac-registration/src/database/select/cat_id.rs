@@ -1,15 +1,23 @@
 //! Select from Catalyst ID.
 
 use crate::{
-    bind_parameters,
     database::{
-        operation::Operation, query_builder::QueryBuilder, select::column_as,
-        statement::DatabaseStatement, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
+        query_builder::QueryBuilder, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
         RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
     },
-    hermes::sqlite::api::{Sqlite, Statement, StepResult, Value},
     rbac::build_rbac_chain::RbacChainInfo,
-    utils::log::log_error,
+};
+
+use shared::{
+    bindings::hermes::sqlite::api::{Sqlite, Statement, StepResult, Value},
+    sqlite_bind_parameters,
+    utils::{
+        log::log_error,
+        sqlite::{
+            operation::Operation,
+            statement::{column_as, DatabaseStatement},
+        },
+    },
 };
 
 /// Registration chain from a catalyst ID.
@@ -109,8 +117,8 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
         Ok(chain)
     })();
 
-    DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
-    DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
+    let _ = DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
+    let _ = DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
 
     result
 }
@@ -129,7 +137,7 @@ fn extract_root(
         Operation::Select,
         FUNCTION_NAME,
     )?;
-    bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
 
     // The first valid root registration is chosen
     let result = (|| match stmt.step() {
@@ -169,7 +177,7 @@ fn extract_child(
 
     // Reset first to ensure the statement is in a clean state
     DatabaseStatement::reset_statement(&stmt, FUNCTION_NAME)?;
-    bind_parameters!(stmt, FUNCTION_NAME, txn_id.clone() => "txn_id")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.clone() => "txn_id")?;
     let result = match stmt.step() {
         Ok(StepResult::Row) => {
             let next_txn_id = stmt.column(0)?;

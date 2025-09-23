@@ -2,22 +2,28 @@
 
 use cardano_blockchain_types::StakeAddress;
 
-use crate::{
-    bind_parameters,
-    database::{
-        operation::Operation,
-        query_builder::QueryBuilder,
-        select::{cat_id::select_rbac_registration_chain_from_cat_id, column_as},
-        statement::DatabaseStatement,
-        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
-    },
-    hermes::{
+use shared::{
+    bindings::hermes::{
         logging::api::{log, Level},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
+    sqlite_bind_parameters,
+    utils::{
+        log::log_error,
+        sqlite::{
+            operation::Operation,
+            statement::{column_as, DatabaseStatement},
+        },
+    },
+};
+
+use crate::{
+    database::{
+        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
+        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+    },
     rbac::build_rbac_chain::RbacChainInfo,
-    utils::log::log_error,
 };
 
 /// Registration chain from a stake address:
@@ -199,7 +205,7 @@ fn get_txn_ids_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    bind_parameters!(stmt, FUNCTION_NAME, stake.to_vec() => "stake_address")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, stake.to_vec() => "stake_address")?;
 
     // List of transactions ID that contain the given stake address
     let result: anyhow::Result<Vec<Vec<u8>>> = (|| {
@@ -237,7 +243,7 @@ fn get_registration_info_from_txn_id(
     const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
 
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
-    bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
@@ -318,7 +324,7 @@ fn is_valid_root(
     const FUNCTION_NAME: &str = "is_valid_root";
 
     // Try persistent first
-    bind_parameters!(stmt_p, FUNCTION_NAME,
+    sqlite_bind_parameters!(stmt_p, FUNCTION_NAME,
         cat_id.to_string() => "catalyst_id",
         slot_no => "slot_no",
         slot_no => "slot_no",
@@ -348,7 +354,7 @@ fn is_valid_root(
     }
 
     // Then check volatile if persistent passed
-    bind_parameters!(stmt_v, FUNCTION_NAME,
+    sqlite_bind_parameters!(stmt_v, FUNCTION_NAME,
         cat_id.to_string() => "catalyst_id",
         slot_no => "slot_no",
         slot_no => "slot_no",

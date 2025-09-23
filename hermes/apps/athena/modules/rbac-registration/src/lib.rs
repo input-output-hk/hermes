@@ -1,8 +1,8 @@
 //! RBAC Registration Module
 
-wit_bindgen::generate!({
+shared::bindings_generate!({
     world: "hermes:app/hermes",
-    path: "../../../wasi/wit",
+    path: "../../../../../wasm/wasi/wit",
     inline: "
         package hermes:app;
 
@@ -16,26 +16,28 @@ wit_bindgen::generate!({
             export hermes:init/event;
         }
     ",
-    generate_all,
+    share: ["hermes:cardano", "hermes:logging", "hermes:sqlite"],
 });
 
-use crate::{
-    database::{close_db_connection, open_db_connection},
-    hermes::{cardano, sqlite::api::Sqlite},
-    rbac::get_rbac::{
-        get_active_inactive_stake_address, get_rbac_chain_from_cat_id,
-        get_rbac_chain_from_stake_address,
-    },
-    utils::log::{log_error, log_info},
+use crate::rbac::get_rbac::{
+    get_active_inactive_stake_address, get_rbac_chain_from_cat_id,
+    get_rbac_chain_from_stake_address,
 };
+
+use shared::{
+    bindings::hermes::{cardano, sqlite::api::Sqlite},
+    utils::{
+        log::{log_error, log_info},
+        sqlite::{close_db_connection, open_db_connection},
+    },
+};
+
 use cardano_blockchain_types::{pallas_primitives::Hash, Network, StakeAddress};
-use serde_json::json;
 
 export!(RbacRegistrationComponent);
 
 mod database;
 mod rbac;
-mod utils;
 
 struct RbacRegistrationComponent;
 
@@ -160,26 +162,4 @@ fn get_rbac_data(
         ),
         None,
     );
-}
-
-impl From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
-    fn from(network: cardano::api::CardanoNetwork) -> cardano_blockchain_types::Network {
-        match network {
-            cardano::api::CardanoNetwork::Mainnet => cardano_blockchain_types::Network::Mainnet,
-            cardano::api::CardanoNetwork::Preprod => cardano_blockchain_types::Network::Preprod,
-            cardano::api::CardanoNetwork::Preview => cardano_blockchain_types::Network::Preview,
-            cardano::api::CardanoNetwork::TestnetMagic(n) => {
-                // TODO(bkioshn) - This should be mapped to
-                // cardano_blockchain_types::Network::Devnet
-                log_error(
-                    file!(),
-                    "From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network",
-                    "cardano::api::CardanoNetwork::TestnetMagic",
-                    "Unsupported network",
-                    Some(&json!({ "network": format!("TestnetMagic {n}") }).to_string()),
-                );
-                panic!("Unsupported network");
-            },
-        }
-    }
 }

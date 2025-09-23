@@ -1,18 +1,5 @@
 VERSION 0.8
 
-# External Build Dependencies
-# ===========================
-# Import pre-configured build environments and tools from external repositories.
-# These provide standardized Rust toolchains, WASM compilation support, and CI/CD utilities.
-
-# Catalyst CI Rust Environment - provides pre-configured Rust toolchain with WASM support
-# This includes: rustc, cargo, wasm32-wasip2 target, optimization tools, and build utilities
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
-
-
-# Alternative for local catalyst-ci debugging (uncomment when needed):
-# IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
-
 # WASI Bindings Generator - provides WebAssembly Interface Types (WIT) binding generation
 # This generates Rust code from WIT files that define WebAssembly component interfaces
 IMPORT ../../../../wasm/wasi AS wasi
@@ -89,10 +76,7 @@ gen-bindings:
 #
 # Duration: ~3-7 minutes total (depending on cache state and number of modules)
 # Output: All build artifacts ready for packaging and deployment
-build-all:
-    # Build the Hermes runtime engine
-    BUILD +get-local-hermes
-    
+build-all:    
     # Build all WASM modules (currently just HTTP proxy, more coming soon)
     BUILD +build-http-proxy
     

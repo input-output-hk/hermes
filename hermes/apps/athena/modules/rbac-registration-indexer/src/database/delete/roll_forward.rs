@@ -1,9 +1,11 @@
 //! Handle block forward from volatile table.
 
-use crate::{
-    database::{operation::Operation, query_builder::QueryBuilder, statement::DatabaseStatement},
-    hermes::sqlite::api::{Sqlite, Statement},
+use shared::{
+    bindings::hermes::sqlite::api::{Sqlite, Statement},
+    utils::sqlite::{operation::Operation, statement::DatabaseStatement},
 };
+
+use crate::database::query_builder::QueryBuilder;
 
 /// Prepare delete statement for deleting data for roll forward from given volatile table.
 pub(crate) fn prepare_roll_forward_delete_from_volatile(

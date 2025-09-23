@@ -1,9 +1,11 @@
 //! Handle block rollback from volatile table.
 
-use crate::{
-    database::{operation::Operation, query_builder::QueryBuilder, statement::DatabaseStatement},
-    hermes::sqlite::api::{Sqlite, Statement},
+use shared::{
+    bindings::hermes::sqlite::api::{Sqlite, Statement},
+    utils::sqlite::{operation::Operation, statement::DatabaseStatement},
 };
+
+use crate::database::query_builder::QueryBuilder;
 
 /// Prepare delete statement for deleting data when rollback happen from given volatile table.
 pub(crate) fn prepare_roll_back_delete_from_volatile(

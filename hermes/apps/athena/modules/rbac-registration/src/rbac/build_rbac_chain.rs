@@ -2,8 +2,8 @@
 
 use rbac_registration::{cardano::cip509::Cip509, registration::cardano::RegistrationChain};
 
-use crate::{
-    hermes::cardano::api::{CardanoNetwork, Network},
+use shared::{
+    bindings::hermes::cardano::api::{CardanoNetwork, Network},
     utils::{cardano::block::build_block, log::log_error},
 };
 
