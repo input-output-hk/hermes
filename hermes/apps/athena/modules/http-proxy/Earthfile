@@ -4,10 +4,7 @@ IMPORT ../../../../ AS hermes
 IMPORT ../../../../../wasm/wasi AS wasi
     
 build-http-proxy:
-        DO wasi+BUILD_RUST_COMPONENT \
-        --workspace-dir=../../../athena \
-        --wasi-src-dir=../../../../../wasm/wasi \
-        --out=http_proxy.wasm \
+        DO wasi+BUILD_RUST_COMPONENT --src="src ../../shared" --wasi-src-dir=../../../../../wasm/wasi --out=http_proxy.wasm
 
 
 

@@ -4,10 +4,7 @@ IMPORT ../../../../ AS hermes
 IMPORT ../../../../../wasm/wasi AS wasi
     
 build-rbac-registration:
-    DO wasi+BUILD_RUST_COMPONENT \
-        --workspace-dir=../../../athena \
-        --wasi-src-dir=../../../../../wasm/wasi \
-        --out=rbac_registration.wasm
+        DO wasi+BUILD_RUST_COMPONENT --src="src ../../shared" --wasi-src-dir=../../../../../wasm/wasi --out=rbac_registration.wasm
 
 local-build-rbac-registration:
     FROM scratch
