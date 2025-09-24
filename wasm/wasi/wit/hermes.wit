@@ -1,6 +1,9 @@
 package hermes:wasi;
 
 /// This import every single API for a module.
+/// Modules ONLY need to import API's they actually use.
+/// Modules only need to implement the exports they require.
+/// Take note of any permissions attached to a particular API before using it.
 world imports {
     /// All possible WASI compatible Imports
     import wasi:cli/environment@0.2.6;
@@ -31,30 +34,4 @@ world imports {
     import hermes:logging/api;
     import hermes:sqlite/api;
     import hermes:http-request/api;
-}
-
-/// This import every single API and exports every single entrypoint for a module.
-/// Modules ONLY need to import API's they actually use.
-/// Modules only need to implement the exports they require.
-/// Take note of any permissions attached to a particular API before using it.
-world hermes {
-  include imports;
-
-  /// All possible Hermes Imports/Exports
-  include hermes:binary/all;
-  include hermes:cardano/all;
-  include hermes:cbor/all;
-  include hermes:cron/all;
-  include hermes:crypto/all;
-  include hermes:hash/all;
-  include hermes:init/all;
-  include hermes:ipfs/all;
-  include hermes:json/all;
-  include hermes:kv-store/all;
-  include hermes:localtime/all;
-  include hermes:logging/all;
-  include hermes:sqlite/all;
-  include hermes:integration-test/all;
-  include hermes:http-gateway/all;
-  include hermes:http-request/all;
 }
