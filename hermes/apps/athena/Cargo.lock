@@ -1675,8 +1675,6 @@ dependencies = [
  "rbac-registration 0.0.9",
  "serde_json",
  "shared",
- "strum 0.27.2",
- "strum_macros 0.27.2",
 ]
 
 [[package]]
@@ -1689,8 +1687,6 @@ dependencies = [
  "rbac-registration 0.0.9",
  "serde_json",
  "shared",
- "strum 0.27.2",
- "strum_macros 0.27.2",
 ]
 
 [[package]]
