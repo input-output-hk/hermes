@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT ../../../../wasm AS wasm
+IMPORT ../../../wasm AS wasm
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
 
 # Make am Artifact which consists of the shared crate src.
