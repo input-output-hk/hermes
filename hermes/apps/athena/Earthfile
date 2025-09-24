@@ -4,15 +4,15 @@ IMPORT ../../../wasm AS wasm
 IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
 
 # Make am Artifact which consists of the shared crate src.
-shared-src:
+workspace-src:
     FROM scratch
 
     WORKDIR /
-    COPY --keep-ts --dir shared .
+    COPY --keep-ts --dir shared/src ./
+    COPY shared/Cargo.toml ./shared/
     COPY Cargo.toml .
 
-    SAVE ARTIFACT Cargo.toml Cargo.toml
-    SAVE ARTIFACT /shared shared
+    SAVE ARTIFACT .
 
 # Athena modules builder.
 builder:
@@ -21,9 +21,7 @@ builder:
     DO rust-ci+SETUP
 
     COPY wasm+wasi-src/wasi $wasi_src_dir
-
-    COPY +shared-src/Cargo.toml .
-    COPY +shared-src/shared ./shared
+    COPY +workspace-src/* .
 
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
 BUILD_ATHENA_COMPONENT:
@@ -39,7 +37,7 @@ BUILD_ATHENA_COMPONENT:
     COPY Cargo.toml modules/module/Cargo.toml
 
     DO rust-ci+CARGO \
-        --args "build --p $package --target wasm32-wasip2 --release" \
+        --args "build -p $package --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/$out"
 
     SAVE ARTIFACT target/wasm32-wasip2/release/$out $out

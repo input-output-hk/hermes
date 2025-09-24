@@ -4,7 +4,7 @@ IMPORT ../../../../ AS hermes
 IMPORT ../.. AS athena
     
 build-rbac-registration:
-        DO athena+BUILD_ATHENA_COMPONENT --out=rbac_registration.wasm
+        DO athena+BUILD_ATHENA_COMPONENT --package=rbac-registration --out=rbac_registration.wasm
 
 local-build-rbac-registration:
     FROM scratch
