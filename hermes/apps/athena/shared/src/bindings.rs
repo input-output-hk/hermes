@@ -6,9 +6,8 @@
 pub use wit_bindgen;
 
 wit_bindgen::generate!({
-    world: "hermes",
+    world: "imports",
     path: "../../../../wasm/wasi/wit",
-    disable_custom_section_link_helpers: true,
     generate_all,
 });
 

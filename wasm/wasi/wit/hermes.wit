@@ -1,24 +1,44 @@
 package hermes:wasi;
 
+/// This import every single API for a module.
+world imports {
+    /// All possible WASI compatible Imports
+    import wasi:cli/environment@0.2.6;
+    import wasi:cli/exit@0.2.6;
+    import wasi:cli/stdin@0.2.6;
+    import wasi:cli/stdout@0.2.6;
+    import wasi:cli/stderr@0.2.6;
+    import wasi:clocks/monotonic-clock@0.2.6;
+    import wasi:clocks/wall-clock@0.2.6;
+    import wasi:filesystem/types@0.2.6;
+    import wasi:filesystem/preopens@0.2.6;
+    import wasi:random/random@0.2.6;
+    import wasi:random/insecure@0.2.6;
+    import wasi:random/insecure-seed@0.2.6;
+
+    /// All possible Hermes Imports
+    import hermes:binary/api;
+    import hermes:cardano/api;
+    import hermes:cbor/api;
+    import hermes:cron/api;
+    import hermes:crypto/api;
+    import hermes:hash/api;
+    import hermes:init/api;
+    import hermes:ipfs/api;
+    import hermes:json/api;
+    import hermes:kv-store/api;
+    import hermes:localtime/api;
+    import hermes:logging/api;
+    import hermes:sqlite/api;
+    import hermes:http-request/api;
+}
+
 /// This import every single API and exports every single entrypoint for a module.
 /// Modules ONLY need to import API's they actually use.
 /// Modules only need to implement the exports they require.
 /// Take note of any permissions attached to a particular API before using it.
 world hermes {
-
-  /// All possible WASI compatible Imports
-  import wasi:cli/environment@0.2.6;
-  import wasi:cli/exit@0.2.6;
-  import wasi:cli/stdin@0.2.6;
-  import wasi:cli/stdout@0.2.6;
-  import wasi:cli/stderr@0.2.6;
-  import wasi:clocks/monotonic-clock@0.2.6;
-  import wasi:clocks/wall-clock@0.2.6;
-  import wasi:filesystem/types@0.2.6;
-  import wasi:filesystem/preopens@0.2.6;
-  import wasi:random/random@0.2.6;
-  import wasi:random/insecure@0.2.6;
-  import wasi:random/insecure-seed@0.2.6;
+  include imports;
 
   /// All possible Hermes Imports/Exports
   include hermes:binary/all;
