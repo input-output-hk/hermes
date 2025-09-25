@@ -7,7 +7,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.5.14 AS wasm-c-c
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
-#cspell: words rustfmt wasi autodrop teavm
+#cspell: words rustfmt wasi autodrop teavm CFLAGS sysroot
 
 # Make am Artifact which consists of the WIT SRC.
 builder:
