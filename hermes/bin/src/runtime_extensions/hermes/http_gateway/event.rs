@@ -14,7 +14,7 @@ use url::Url;
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        exports::hermes::http_gateway::event::HttpGatewayResponse, unchecked_exports,
+        hermes::http_gateway::api::HttpGatewayResponse, unchecked_exports,
     },
 };
 
@@ -341,10 +341,10 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (name.to_string(), vec![value
-                    .to_str()
-                    .unwrap_or("")
-                    .to_string()])
+                (
+                    name.to_string(),
+                    vec![value.to_str().unwrap_or("").to_string()],
+                )
             })
             .collect();
 

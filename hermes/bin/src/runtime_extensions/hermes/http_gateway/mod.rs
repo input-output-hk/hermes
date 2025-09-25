@@ -2,6 +2,7 @@
 
 use gateway_task::spawn;
 
+mod host;
 mod event;
 mod gateway_task;
 /// Gateway routing logic

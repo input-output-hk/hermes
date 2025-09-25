@@ -6,10 +6,7 @@ use tokio::runtime::Runtime;
 use crate::{
     app::ApplicationName,
     runtime_extensions::{
-        bindings::{
-            exports::hermes::cardano::event_on_block::SubscriptionId,
-            hermes::cardano::api::{Block, Network, Transaction},
-        },
+        bindings::hermes::cardano::api::{Block, Network, SubscriptionId, Transaction},
         resource_manager::ApplicationResourceStorage,
     },
 };

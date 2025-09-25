@@ -34,4 +34,6 @@ world imports {
     import hermes:logging/api;
     import hermes:sqlite/api;
     import hermes:http-request/api;
+    import hermes:http-gateway/api;
+    import hermes:integration-test/api;
 }

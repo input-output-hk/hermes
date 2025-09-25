@@ -7,22 +7,8 @@
 
 /// Logging API Interface
 interface event {
-
     use hermes:binary/api.{bstr};
-
-    type header = tuple<string, list<string>>;
-    type headers = list<header>;
-
-    record http-response{
-        code: u16,
-        headers: headers,
-        body: bstr
-    }
-
-    variant http-gateway-response {
-        http(http-response),
-        internal-redirect(string),
-    }
+    use api.{headers, http-gateway-response};
 
     reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-gateway-response>;
 }
