@@ -94,6 +94,9 @@ BUILD_RUST_COMPONENT:
     COPY --keep-ts --dir src .
     COPY Cargo.toml .
 
+    # Fix missing header error when compiling zstd while building rbac-registration
+    ENV CFLAGS_wasm32_wasip2="--sysroot=/usr/aarch64-linux-gnu"
+
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \
         --output="wasm32-wasip2/release/$out"
