@@ -11,6 +11,15 @@ wasi-src:
 
     SAVE ARTIFACT /wasi wasi
 
+# Make a wit file artifact exporting and importing every hermes WIT interface
+wasi-stub-src:
+    FROM scratch
+
+    WORKDIR /
+    COPY stub-module/hermes.wit .
+
+    SAVE ARTIFACT hermes.wit
+
 # Build and locally save an output artifact
 save-c-integration-test-local:
     FROM scratch

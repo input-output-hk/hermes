@@ -1,8 +1,10 @@
 package hermes:wasi;
 
-/// This exports every single entrypoint for a module.
+/// This includes every single interface for a module.
 world hermes {
-  /// All possible Hermes exports
+  include wasi:cli/imports@0.2.6;
+
+  /// All possible Hermes imports and exports
   include hermes:binary/all;
   include hermes:cardano/all;
   include hermes:cbor/all;

@@ -2,15 +2,6 @@ VERSION 0.8
 
 IMPORT ../wasi AS wasi
 
-# A WIT file exporting and importing every hermes WIT interface
-wasi-src:
-    FROM scratch
-
-    WORKDIR /
-    COPY hermes.wit .
-
-    SAVE ARTIFACT hermes.wit
-
 # build - generate a wasm component from a C stub file
 build:
     DO wasi+BUILD_C_COMPONENT --c_files=stub-module.c --out=stub.wasm
