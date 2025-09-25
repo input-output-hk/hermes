@@ -2,12 +2,13 @@
 name = "rbac-registration-indexer"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-shared = { path = "../../shared" }
+shared = { version = "0.1.0", path = "../../shared" }
 anyhow = "1.0.98"
 serde_json = "1.0.142"
 
