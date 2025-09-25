@@ -123,7 +123,7 @@ BUILD_C_COMPONENT:
 build-rust-bindings:
     FROM +builder
 
-    RUN wit-bindgen rust --generate-all -w hermes:wasi/hermes ../wasi/wit
+    RUN wit-bindgen rust --generate-all -w hermes:wasi/imports ../wasi/wit
 
     SAVE ARTIFACT hermes.rs
 

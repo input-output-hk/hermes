@@ -1,4 +1,4 @@
-package hermes:app;
+package hermes:wasi;
 
 /// This exports every single entrypoint for a module.
 world hermes {
