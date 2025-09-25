@@ -15,7 +15,7 @@ wit_bindgen::generate!({
 
 export!(TestComponent);
 
-use exports::hermes::integration_test::event::TestResult;
+use hermes::integration_test::api::TestResult;
 use hermes::ipfs::api::{self as ipfs_api, IpfsContent, PeerId, PubsubMessage};
 
 const IPFS_DEMO_FILE: &[u8] = b"ipfs file uploaded from wasm";

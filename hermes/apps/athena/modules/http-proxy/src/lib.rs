@@ -23,7 +23,7 @@
 use regex::RegexSet;
 use std::sync::OnceLock;
 
-use exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
+use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
 shared::bindings_generate!({
     world: "hermes:app/hermes",
@@ -34,6 +34,8 @@ shared::bindings_generate!({
         world hermes {
             include wasi:cli/imports@0.2.6;
             import hermes:logging/api;
+            import hermes:http-gateway/api;
+
             export hermes:http-gateway/event;
             
         }

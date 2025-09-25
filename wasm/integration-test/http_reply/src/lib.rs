@@ -17,10 +17,9 @@ wit_bindgen::generate!({
 
 export!(TestComponent);
 
-use exports::hermes::{
-    http_gateway::event::{Bstr, Guest as _, Headers, HttpGatewayResponse},
-    integration_test::event::TestResult,
-};
+use exports::http_gateway::event::Guest as _;
+use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse};
+use hermes::integration_test::api::TestResult,
 
 struct TestComponent;
 
