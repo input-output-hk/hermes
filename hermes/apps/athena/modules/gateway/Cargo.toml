@@ -1,0 +1,58 @@
+[package]
+name = "gateway"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[workspace]
+
+[dependencies]
+wit-bindgen = "0.43.0"
+tracing = { version = "0.1.41", features = ["log"] }
+regex = "1.11.1"
+
+
+rbac-registration = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.10" }
+cardano-chain-follower = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-chain-follower/v0.0.14" }
+catalyst-signed-doc = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-signed-doc/v0.0.7" }
+catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
+
+serde_json = { version = "1.0.132", features = ["arbitrary_precision"] }
+thiserror = "1.0.68"
+chrono = "0.4.38"
+tokio = { version = "1.41.0", default-features = false, features = ["rt", "macros"] }
+dotenvy = "0.15.7"
+hex = "0.4.3"
+anyhow = "1.0.99"
+duration-string = "0.4.0"
+ed25519-dalek = "2.1.1"
+strum = { version = "0.26.3", features = ["derive"] }
+num-bigint = "0.4.6"
+futures = "0.3.31"
+moka = { version = "0.12.8", features = ["future"] }
+poem = { version = "=3.1.6", features = ["embed", "prometheus", "compression"] }
+poem-openapi = { version = "=5.1.5", features = [
+    "openapi-explorer",
+    "rapidoc",
+    "redoc",
+    "swagger-ui",
+    "uuid",
+    "url",
+    "chrono",
+] }
+uuid = { version = "1.12.1", features = ["v4", "v7", "serde"] }
+blake2b_simd = "1.0.2"
+url = "2.5.3"
+num-traits = "0.2.19"
+base64 = "0.22.1"
+bech32 = "0.11.0"
+const_format = "0.2.33"
+bytes = "1.9.0"
+mime = "0.3.17"
+derive_more = { version = "2.0.1", default-features = false, features = [
+    "from",
+    "into",
+] }
+get-size2 = { version = "0.6.2", features = ["derive"] }
