@@ -16,7 +16,7 @@ use crate::{
         logging::api::{log, Level},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
-    rbac::build_rbac_chain::RbacChainInfo,
+    rbac::{registration_location::RegistrationLocation, rbac_chain_metadata::RbacChainMetadata},
     utils::log::log_error,
 };
 
@@ -64,7 +64,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
     volatile: &Sqlite,
     stake_addr: StakeAddress,
-) -> anyhow::Result<Vec<RbacChainInfo>> {
+) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
 
     // Convert the given stake address to Vec<u8> which will be use in the query
@@ -114,7 +114,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
+    let result: anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> = (|| {
         for cur_txn in txn_ids {
             // Reset first to ensure the statement is in a clean state
             DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
@@ -171,7 +171,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                 }
             }
         }
-        Ok(vec![])
+        Ok((vec![], RbacChainMetadata::default()))
     })();
 
     // cleanup always runs here
