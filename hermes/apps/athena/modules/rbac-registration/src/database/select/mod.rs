@@ -8,6 +8,13 @@ use crate::{
     utils::log::log_error,
 };
 
+/// Enum to track which table the registration came from
+#[derive(Debug, Clone)]
+pub(crate) enum TableSource {
+    Persistent,
+    Volatile,
+}
+
 /// Convert a SQLite column value to a Rust type.
 pub(crate) fn column_as<T>(
     stmt: &Statement,

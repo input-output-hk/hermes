@@ -4,19 +4,9 @@ use rbac_registration::{cardano::cip509::Cip509, registration::cardano::Registra
 
 use crate::{
     hermes::cardano::api::{CardanoNetwork, Network},
+    rbac::registration_location::RegistrationLocation,
     utils::{cardano::block::build_block, log::log_error},
 };
-
-/// Information needed to build the RBAC chain.
-/// Only need the `slot_no` and `txn_idx` to construct a block and
-/// extract the RBAC information.
-#[derive(Debug, Clone)]
-pub(crate) struct RbacChainInfo {
-    /// The slot number of the block that contains the registration.
-    pub(crate) slot_no: u64,
-    /// The transaction index that contains the registration.
-    pub(crate) txn_idx: u16,
-}
 
 /// Build the RBAC registration chain.
 ///
@@ -34,7 +24,7 @@ pub(crate) struct RbacChainInfo {
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,
     network_resource: &Network,
-    rbac_chain_info: Vec<RbacChainInfo>,
+    rbac_chain_info: Vec<RegistrationLocation>,
 ) -> anyhow::Result<Option<RegistrationChain>> {
     const FUNCTION_NAME: &str = "build_registration_chain";
 
