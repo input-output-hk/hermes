@@ -1,10 +1,18 @@
 //! RBAC registration V1 chain.
 
+use std::collections::HashMap;
+
+use catalyst_types::catalyst_id::role_index::RoleId;
 use serde::Serialize;
 
 use crate::service::{
-    common::{catalyst_id::CatalystId, transaction_id::TxnId, uuidv4::Uuidv4},
-    registration_get::v1::{chain_info::ChainInfo, role_data::RoleMap},
+    api::registration_get::v1::{
+        chain_info::ChainInfo, role_data::RbacRoleData, role_map::RoleMap,
+    },
+    common::types::{
+        cardano::{catalyst_id::CatalystId, transaction_id::TxnId},
+        generic::uuidv4::UUIDv4,
+    },
 };
 
 /// A chain of valid RBAC registration.
@@ -17,7 +25,7 @@ pub struct RbacRegistrationChain {
     /// An ID of the last volatile transaction.
     pub(crate) last_volatile_txn: Option<TxnId>,
     /// A list of registration purposes.
-    pub(crate) purpose: Vec<Uuidv4>,
+    pub(crate) purpose: Vec<UUIDv4>,
     /// A map of role number to role data.
     pub(crate) roles: RoleMap,
 }
@@ -34,8 +42,11 @@ impl RbacRegistrationChain {
             .purpose()
             .iter()
             .copied()
-            .map(Uuidv4::from)
-            .collect::<Vec<_>>()
+            .map(|uuid| {
+                let uuid_str = uuid.to_string();
+                UUIDv4::try_from(uuid_str.as_str()).map_err(anyhow::Error::msg)
+            })
+            .collect::<Result<Vec<_>, _>>()?
             .into();
         let roles = role_data(info)?.into();
 
@@ -55,7 +66,8 @@ fn role_data(info: &ChainInfo) -> anyhow::Result<HashMap<RoleId, RbacRoleData>> 
         .role_data_history()
         .iter()
         .map(|(&role, data)| {
-            RbacRoleData::new(data, info.last_persistent_slot, &info.chain).map(|rbac| (role, rbac))
+            RbacRoleData::new(data, info.last_persistent_slot, &info.chain, info.network)
+                .map(|rbac| (role, rbac))
         })
         .collect()
 }

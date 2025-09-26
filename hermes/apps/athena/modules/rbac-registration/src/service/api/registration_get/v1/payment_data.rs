@@ -1,16 +1,14 @@
 //! A role payment address information.
 
 use cardano_blockchain_types::pallas_addresses::ShelleyAddress;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::service::{
-    common::cip19_shelley_address::Cip19ShelleyAddress,
-    registration_get::v1::types::ServiceDateTime,
-};
+use crate::service::common::types::cardano::cip19_shelley_address::Cip19ShelleyAddress;
+use crate::service::common::types::generic::date_time::DateTime as ServiceDateTime;
 
 /// A role payment address information.
 #[derive(Debug, Clone, Serialize)]
-
 pub(crate) struct PaymentData {
     /// Indicates if the data is persistent or volatile.
     is_persistent: bool,

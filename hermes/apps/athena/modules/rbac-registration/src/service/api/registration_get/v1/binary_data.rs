@@ -2,7 +2,10 @@
 
 use serde::Serialize;
 
-use crate::service::common::ed25519_public_keys::Ed25519HexEncodedPublicKey;
+use crate::service::{
+    common::types::generic::ed25519_public_keys::Ed25519HexEncodedPublicKey,
+    utilities::as_hex_string,
+};
 
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct HexEncodedBinaryData(String);

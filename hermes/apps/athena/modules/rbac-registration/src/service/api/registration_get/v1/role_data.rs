@@ -1,3 +1,5 @@
+//! A RBAC role data map.
+
 use std::collections::HashMap;
 
 use anyhow::Context;
@@ -8,18 +10,9 @@ use rbac_registration::{
 };
 use serde::Serialize;
 
-use crate::service::registration_get::v1::{
+use crate::service::api::registration_get::v1::{
     extended_data::ExtendedData, key_data::KeyData, payment_data::PaymentData,
 };
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct RoleMap(HashMap<RoleId, RbacRoleData>);
-
-impl From<HashMap<RoleId, RbacRoleData>> for RoleMap {
-    fn from(value: HashMap<RoleId, RbacRoleData>) -> Self {
-        Self(value)
-    }
-}
 
 /// A RBAC registration role data.
 #[derive(Debug, Clone, Serialize)]

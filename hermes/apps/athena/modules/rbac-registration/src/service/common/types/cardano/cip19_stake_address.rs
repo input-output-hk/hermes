@@ -52,3 +52,11 @@ impl TryFrom<String> for Cip19StakeAddress {
         };
     }
 }
+
+impl TryFrom<&str> for Cip19StakeAddress {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.to_string().try_into()
+    }
+}

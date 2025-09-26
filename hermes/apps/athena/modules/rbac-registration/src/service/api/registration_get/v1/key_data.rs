@@ -14,11 +14,9 @@ use rbac_registration::{
 use serde::Serialize;
 
 use crate::service::{
-    common::ed25519_public_keys::Ed25519HexEncodedPublicKey,
-    registration_get::v1::{
-        binary_data::HexEncodedBinaryData,
-        key_type::{KeyType, KeyTypeWrapper},
-        types::ServiceDateTime,
+    api::registration_get::{key_type::KeyType, v1::binary_data::HexEncodedBinaryData},
+    common::types::generic::{
+        date_time::DateTime as ServiceDateTime, ed25519_public_keys::Ed25519HexEncodedPublicKey,
     },
 };
 use chrono::{DateTime, Utc};
@@ -32,7 +30,7 @@ pub(crate) struct KeyData {
     /// A time when the data was added.
     time: ServiceDateTime,
     /// A type of the key.
-    key_type: KeyTypeWrapper,
+    key_type: KeyType,
     /// A value of the key.
     key_value: Option<HexEncodedBinaryData>,
 }
@@ -48,7 +46,7 @@ impl KeyData {
     ) -> anyhow::Result<Self> {
         let key_value;
 
-        let key_type = KeyTypeWrapper(match key_ref.local_ref {
+        let key_type = match key_ref.local_ref {
             LocalRefInt::X509Certs => {
                 key_value = encode_x509(chain.x509_certs(), key_ref.key_offset, point)?;
                 KeyType::X509
@@ -61,10 +59,11 @@ impl KeyData {
                 key_value = convert_pub_key(chain.simple_keys(), key_ref.key_offset, point)?;
                 KeyType::Pubkey
             },
-        });
+        };
 
         Ok(Self {
             is_persistent: is_persistent.into(),
+            // FIXME
             time: time.into(),
             key_type,
             key_value,
