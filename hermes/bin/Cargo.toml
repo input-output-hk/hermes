@@ -89,7 +89,7 @@ dirs = "6.0.0"
 regex = "1.11.2"
 rustls = { version = "0.23.31", default-features = false, features = ["ring","brotli","zlib"] }
 webpki-roots = "1.0.2"
-tokio-rustls = { version = "0.26.2", default-features = false, features = ["ring"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring"] }
 usvg = "0.45.1"
 uuid = { version = "1.18.0", features = ["v4"] }
 reqwest = "0.12.23"
