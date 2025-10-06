@@ -19,7 +19,7 @@ export!(TestComponent);
 
 use exports::http_gateway::event::Guest as _;
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse};
-use hermes::integration_test::api::TestResult,
+use hermes::integration_test::api::TestResult;
 
 struct TestComponent;
 
