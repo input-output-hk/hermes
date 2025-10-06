@@ -8,6 +8,8 @@ wit_bindgen::generate!({
         package hermes:app;
 
         world hermes {
+            import hermes:http-gateway/api;
+
             export hermes:http-gateway/event;
             export hermes:integration-test/event;
         }
@@ -17,7 +19,7 @@ wit_bindgen::generate!({
 
 export!(TestComponent);
 
-use exports::http_gateway::event::Guest as _;
+use exports::hermes::http_gateway::event::Guest as _;
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse};
 use hermes::integration_test::api::TestResult;
 
