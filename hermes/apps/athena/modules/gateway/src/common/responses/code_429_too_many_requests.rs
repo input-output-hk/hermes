@@ -1,12 +1,11 @@
 //! Define `TooManyRequests` response type.
 
-use poem_openapi::{types::Example, Object};
 use uuid::Uuid;
 
 use crate::common;
 
-#[derive(Object)]
-#[oai(example)]
+// #[derive(Object)]
+// #[oai(example)]
 /// The client has sent too many requests in a given amount of time.
 pub(crate) struct TooManyRequests {
     /// Unique ID of this Server Error so that it can be located easily for debugging.
@@ -31,9 +30,9 @@ impl TooManyRequests {
     }
 }
 
-impl Example for TooManyRequests {
-    /// Example for the Too Many Requests Payload.
-    fn example() -> Self {
-        Self::new(None)
-    }
-}
+// impl Example for TooManyRequests {
+//     /// Example for the Too Many Requests Payload.
+//     fn example() -> Self {
+//         Self::new(None)
+//     }
+// }

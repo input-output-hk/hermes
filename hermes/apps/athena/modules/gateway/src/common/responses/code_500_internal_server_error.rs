@@ -1,14 +1,13 @@
 //! Define `ServerError` type.
 
-use poem_openapi::{types::Example, Object};
 use uuid::Uuid;
 
 /// While using macro-vis lib, you will get the `uncommon_codepoints` warning, so you will
 /// probably want to place this in your crate root
 use crate::{common, settings::Settings};
 
-#[derive(Object)]
-#[oai(example, skip_serializing_if_is_none)]
+// #[derive(Object)]
+// #[oai(example, skip_serializing_if_is_none)]
 /// An internal server error occurred.
 ///
 /// *The contents of this response should be reported to the projects issue tracker.*
@@ -45,9 +44,9 @@ impl InternalServerError {
     }
 }
 
-impl Example for InternalServerError {
-    /// Example for the Server Error Payload.
-    fn example() -> Self {
-        Self::new(None)
-    }
-}
+// impl Example for InternalServerError {
+//     /// Example for the Server Error Payload.
+//     fn example() -> Self {
+//         Self::new(None)
+//     }
+// }

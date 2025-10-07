@@ -5,14 +5,9 @@
 use std::sync::LazyLock;
 
 use anyhow::bail;
-use cardano_chain_follower::{pallas_addresses::Address, StakeAddress};
+use cardano_blockchain_types::{pallas_addresses::Address, StakeAddress};
 use const_format::concatcp;
-use poem_openapi::{
-    registry::{MetaExternalDocument, MetaSchema, MetaSchemaRef},
-    types::{Example, ParseError, ParseFromJSON, ParseFromParameter, ParseResult, ToJSON, Type},
-};
 use regex::Regex;
-use serde_json::Value;
 
 use crate::common::types::string_types::impl_string_types;
 
@@ -48,24 +43,6 @@ pub(crate) const MAX_LENGTH: usize = TEST_STAKE.len() + 1 + ENCODED_ADDR_LEN;
 /// String Format
 pub(crate) const FORMAT: &str = "cardano:cip19-address";
 
-/// External document for Cardano addresses.
-static EXTERNAL_DOCS: LazyLock<MetaExternalDocument> = LazyLock::new(|| MetaExternalDocument {
-    url: "https://cips.cardano.org/cip/CIP-19".to_owned(),
-    description: Some("CIP-19 - Cardano Addresses".to_owned()),
-});
-
-/// Schema for `StakeAddress`.
-static STAKE_SCHEMA: LazyLock<MetaSchema> = LazyLock::new(|| MetaSchema {
-    title: Some(TITLE.to_owned()),
-    description: Some(DESCRIPTION),
-    example: Some(Value::String(EXAMPLE.to_string())),
-    external_docs: Some(EXTERNAL_DOCS.clone()),
-    min_length: Some(MIN_LENGTH),
-    max_length: Some(MAX_LENGTH),
-    pattern: Some(PATTERN.to_string()),
-    ..MetaSchema::ANY
-});
-
 /// Validate `Cip19StakeAddress` This part is done separately from the `PATTERN`
 fn is_valid(stake_addr: &str) -> bool {
     /// Regex to validate `Cip19StakeAddress`
@@ -81,13 +58,7 @@ fn is_valid(stake_addr: &str) -> bool {
     false
 }
 
-impl_string_types!(
-    Cip19StakeAddress,
-    "string",
-    FORMAT,
-    Some(STAKE_SCHEMA.clone()),
-    is_valid
-);
+impl_string_types!(Cip19StakeAddress, "string", FORMAT, is_valid);
 
 impl TryFrom<&str> for Cip19StakeAddress {
     type Error = anyhow::Error;
@@ -135,12 +106,6 @@ impl TryInto<StakeAddress> for Cip19StakeAddress {
     }
 }
 
-impl Example for Cip19StakeAddress {
-    fn example() -> Self {
-        Self(EXAMPLE.to_owned())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,16 +119,6 @@ mod tests {
     const INVALID_STAKE_ADDRESS: &str =
         "invalid1u9nlq5nmuzthw3vhgakfpxyq4r0zl2c0p8uqy24gpyjsa6c3df4h6";
     // cspell: enable
-
-    #[test]
-    fn test_cip19_stake_address() {
-        let valid = [EXAMPLE, VALID_PROD_STAKE_ADDRESS, VALID_TEST_STAKE_ADDRESS];
-        for v in valid {
-            assert!(Cip19StakeAddress::parse_from_parameter(v).is_ok());
-        }
-
-        assert!(Cip19StakeAddress::parse_from_parameter(INVALID_STAKE_ADDRESS).is_err());
-    }
 
     #[test]
     fn test_valid_stake_address_from_string() {

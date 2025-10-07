@@ -5,10 +5,6 @@
 use std::sync::LazyLock;
 
 use const_format::concatcp;
-use poem_openapi::{
-    registry::{MetaSchema, MetaSchemaRef},
-    types::{Example, ParseError, ParseFromJSON, ParseFromParameter, ParseResult, ToJSON, Type},
-};
 use regex::Regex;
 use serde_json::Value;
 
@@ -27,17 +23,6 @@ const MIN_LENGTH: usize = 1;
 /// Validation Regex Pattern
 const PATTERN: &str = concatcp!("^(.){", MIN_LENGTH, ",", MAX_LENGTH, "}$");
 
-/// Schema
-static SCHEMA: LazyLock<MetaSchema> = LazyLock::new(|| MetaSchema {
-    title: Some(TITLE.to_owned()),
-    description: Some(DESCRIPTION),
-    example: Some(Value::String(EXAMPLE.to_string())),
-    max_length: Some(MAX_LENGTH),
-    min_length: Some(MIN_LENGTH),
-    pattern: Some(PATTERN.to_string()),
-    ..MetaSchema::ANY
-});
-
 /// Check if we match the regex.
 fn is_valid(msg: &str) -> bool {
     /// Validation pattern
@@ -47,25 +32,12 @@ fn is_valid(msg: &str) -> bool {
     RE.is_match(msg)
 }
 
-impl_string_types!(
-    ErrorMessage,
-    "string",
-    "error",
-    Some(SCHEMA.clone()),
-    is_valid
-);
+impl_string_types!(ErrorMessage, "string", "error", is_valid);
 
 #[allow(clippy::derivable_impls)]
 impl Default for ErrorMessage {
     fn default() -> Self {
         Self(String::default())
-    }
-}
-
-impl Example for ErrorMessage {
-    /// An example of error message.
-    fn example() -> Self {
-        Self(EXAMPLE.to_owned())
     }
 }
 

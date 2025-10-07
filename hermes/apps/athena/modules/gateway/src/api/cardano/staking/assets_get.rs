@@ -5,9 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use cardano_chain_follower::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
-use futures::{stream, TryStreamExt};
-use poem_openapi::{payload::Json, ApiResponse};
+use cardano_blockchain_types::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
 
 use crate::{
     api::cardano::staking::db_mocked::{
@@ -19,7 +17,7 @@ use crate::{
             network::Network,
             stake_info::{FullStakeInfo, StakeInfo, StakedTxoAssetInfo},
         },
-        responses::WithErrorResponses,
+        responses::{ErrorResponses, WithErrorResponses},
         types::cardano::{
             ada_value::AdaValue, asset_name::AssetName, asset_value::AssetValue,
             cip19_stake_address::Cip19StakeAddress, hash28::HexEncodedHash28, slot_no::SlotNo,
@@ -32,17 +30,18 @@ use crate::{
 struct Session;
 
 /// Endpoint responses.
-#[derive(ApiResponse)]
+// #[derive(ApiResponse)]
 pub(crate) enum Responses {
     /// ## Ok
     ///
     /// The amount of ADA staked by the queried stake address, as at the indicated slot.
-    #[oai(status = 200)]
-    Ok(Json<FullStakeInfo>),
+    // #[oai(status = 200)]
+    // Ok(Json<FullStakeInfo>),
+    Ok(FullStakeInfo),
     /// ## Not Found
     ///
     /// The queried stake address was not found at the requested slot number.
-    #[oai(status = 404)]
+    // #[oai(status = 404)]
     NotFound,
 }
 
@@ -50,14 +49,14 @@ pub(crate) enum Responses {
 pub(crate) type AllResponses = WithErrorResponses<Responses>;
 
 /// # GET `/staked_ada`
-pub(crate) async fn endpoint(
+pub(crate) fn endpoint(
     stake_address: Cip19StakeAddress,
     provided_network: Option<Network>,
     slot_num: Option<SlotNo>,
 ) -> AllResponses {
-    match build_full_stake_info_response(stake_address, provided_network, slot_num).await {
-        Ok(None) => Responses::NotFound.into(),
-        Ok(Some(full_stake_info)) => Responses::Ok(Json(full_stake_info)).into(),
+    match build_full_stake_info_response(stake_address, provided_network, slot_num) {
+        Ok(None) => AllResponses::Error(ErrorResponses::NotFound),
+        Ok(Some(full_stake_info)) => AllResponses::With(Responses::Ok(full_stake_info)),
         Err(err) => AllResponses::handle_error(&err),
     }
 }
@@ -78,13 +77,14 @@ struct TxoInfo {
 }
 
 /// Building a full stake info response from the provided arguments.
-async fn build_full_stake_info_response(
+fn build_full_stake_info_response(
     stake_address: Cip19StakeAddress,
     provided_network: Option<Network>,
     slot_num: Option<SlotNo>,
 ) -> anyhow::Result<Option<FullStakeInfo>> {
     if let Some(provided_network) = provided_network {
-        if cardano_chain_follower::Network::from(provided_network) != Settings::cardano_network() {
+        if cardano_blockchain_types::Network::from(provided_network) != Settings::cardano_network()
+        {
             return Ok(None);
         }
     }
@@ -98,15 +98,13 @@ async fn build_full_stake_info_response(
         persistent_session,
         stake_address.clone(),
         TxoAssetsState::default(),
-    )
-    .await?;
+    )?;
 
     let volatile_txo_state = calculate_assets_state(
         volatile_session,
         stake_address.clone(),
         persistent_txo_state.clone(),
-    )
-    .await?;
+    )?;
 
     if volatile_txo_state.is_empty() && persistent_txo_state.is_empty() {
         return Ok(None);
@@ -125,19 +123,19 @@ async fn build_full_stake_info_response(
 ///
 /// This function also updates the spent column if it detects that a TXO was spent
 /// between lookups.
-async fn calculate_assets_state(
+fn calculate_assets_state(
     session: Arc<Session>,
     stake_address: Cip19StakeAddress,
     mut txo_base_state: TxoAssetsState,
 ) -> anyhow::Result<TxoAssetsState> {
     let address: StakeAddress = stake_address.try_into()?;
 
-    let (mut txos, txo_assets) = futures::try_join!(
-        get_txo(&session, &address),
-        get_txo_assets(&session, &address)
-    )?;
+    let (mut txos, txo_assets) = (
+        get_txo(&session, &address)?,
+        get_txo_assets(&session, &address)?,
+    );
 
-    let _params = update_spent(&session, &address, &mut txo_base_state.txos, &mut txos).await?;
+    let _params = update_spent(&session, &address, &mut txo_base_state.txos, &mut txos)?;
 
     // Extend the base state with current session data (used to calculate volatile data)
     let txos = txo_base_state.txos.into_iter().chain(txos).collect();
@@ -162,7 +160,7 @@ async fn calculate_assets_state(
 type TxoMap = HashMap<(TransactionId, i16), TxoInfo>;
 
 /// Returns a map of TXO infos for the given stake address.
-async fn get_txo(
+fn get_txo(
     _session: &Session,
     _stake_address: &StakeAddress,
 ) -> anyhow::Result<TxoMap> {
@@ -228,7 +226,7 @@ pub(crate) struct GetAssetsByStakeAddressQuery {
 }
 
 /// Returns a map of txo asset infos for the given stake address.
-async fn get_txo_assets(
+fn get_txo_assets(
     _session: &Session,
     _stake_address: &StakeAddress,
 ) -> anyhow::Result<TxoAssetsMap> {
@@ -262,7 +260,7 @@ async fn get_txo_assets(
 /// for the `base_txos` data (it is covering the case when inside the persistent part we
 /// have a txo which is spent inside the volatile, so to not incorrectly mix up records
 /// from these two tables, inserting some rows from persistent to volatile section).
-async fn update_spent(
+fn update_spent(
     session: &Session,
     stake_address: &StakeAddress,
     base_txos: &mut TxoMap,
@@ -281,15 +279,15 @@ async fn update_spent(
 
     for chunk in txn_hashes.chunks(100) {
         // : scylla::client::pager::TypedRowStream<GetTxiByTxnHashesQuery>
-        let mut txi_stream = stream::iter::<Vec<anyhow::Result<GetTxiByTxnHashesQuery>>>(vec![])
-            .err_into::<anyhow::Error>();
+        let txi_stream: Vec<anyhow::Result<GetTxiByTxnHashesQuery>> = vec![];
         // GetTxiByTxnHashesQuery::execute(
         //     session,
         //     GetTxiByTxnHashesQueryParams::new(chunk.to_vec()),
         // )
         // .await?;
+        let mut txi_stream = txi_stream.into_iter();
 
-        while let Some(row) = txi_stream.try_next().await? {
+        while let Some(row) = txi_stream.next().transpose()? {
             let key = (row.txn_id.into(), row.txo.into());
             if let Some(txo_info) = txos.get_mut(&key) {
                 params.push(UpdateTxoSpentQueryParams {

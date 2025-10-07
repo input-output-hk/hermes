@@ -1,18 +1,15 @@
 //! Catalyst RBAC Security Scheme
-use std::{env, error::Error, time::Duration};
+use std::{env, time::Duration};
 
+use bytes::Bytes;
 use catalyst_types::catalyst_id::role_index::RoleId;
-use poem::{error::ResponseError, http::StatusCode, IntoResponse, Request};
-use poem_openapi::{auth::Bearer, SecurityScheme};
+use headers::authorization::Bearer;
+use http::Request;
 use tracing::{debug, error};
 
 use super::token::CatalystRBACTokenV1;
 use crate::{
-    common::{
-        auth::api_key::check_api_key,
-        responses::{ErrorResponses, WithErrorResponses},
-        types::headers::retry_after::{RetryAfterHeader, RetryAfterOption},
-    },
+    common::auth::api_key::check_api_key,
     // db::index::session::CassandraSessionError,
     rbac::latest_rbac_chain,
 };
@@ -21,13 +18,13 @@ use crate::{
 pub(crate) const AUTHORIZATION_HEADER: &str = "Authorization";
 
 /// Catalyst RBAC Access Token
-#[derive(SecurityScheme)]
-#[oai(
-    ty = "bearer",
-    key_name = "Authorization", // MUST match the `AUTHORIZATION_HEADER` constant.
-    bearer_format = "catalyst-rbac-token",
-    checker = "checker_api_catalyst_auth"
-)]
+// #[derive(SecurityScheme)]
+// #[oai(
+//     ty = "bearer",
+//     key_name = "Authorization", // MUST match the `AUTHORIZATION_HEADER` constant.
+//     bearer_format = "catalyst-rbac-token",
+//     checker = "checker_api_catalyst_auth"
+// )]
 #[allow(clippy::module_name_repetitions)]
 pub(crate) struct CatalystRBACSecurityScheme(CatalystRBACTokenV1);
 
@@ -44,23 +41,23 @@ impl From<CatalystRBACSecurityScheme> for CatalystRBACTokenV1 {
 #[error("Service unavailable while processing a Catalyst RBAC Token")]
 pub struct ServiceUnavailableError(pub anyhow::Error);
 
-impl ResponseError for ServiceUnavailableError {
-    fn status(&self) -> StatusCode {
-        StatusCode::SERVICE_UNAVAILABLE
-    }
+// impl ResponseError for ServiceUnavailableError {
+//     fn status(&self) -> StatusCode {
+//         StatusCode::SERVICE_UNAVAILABLE
+//     }
 
-    /// Convert this error to a HTTP response.
-    fn as_response(&self) -> poem::Response
-    where
-        Self: Error + Send + Sync + 'static,
-    {
-        WithErrorResponses::<()>::service_unavailable(
-            &self.0,
-            RetryAfterOption::Some(RetryAfterHeader::default()),
-        )
-        .into_response()
-    }
-}
+//     /// Convert this error to a HTTP response.
+//     fn as_response(&self) -> poem::Response
+//     where
+//         Self: Error + Send + Sync + 'static,
+//     {
+//         WithErrorResponses::<()>::service_unavailable(
+//             &self.0,
+//             RetryAfterOption::Some(RetryAfterHeader::default()),
+//         )
+//         .into_response()
+//     }
+// }
 
 /// Authentication token error.
 #[derive(Debug, thiserror::Error)]
@@ -79,19 +76,19 @@ enum AuthTokenError {
     LatestSigningKey,
 }
 
-impl ResponseError for AuthTokenError {
-    fn status(&self) -> StatusCode {
-        StatusCode::UNAUTHORIZED
-    }
+// impl ResponseError for AuthTokenError {
+//     fn status(&self) -> StatusCode {
+//         StatusCode::UNAUTHORIZED
+//     }
 
-    /// Convert this error to a HTTP response.
-    fn as_response(&self) -> poem::Response
-    where
-        Self: Error + Send + Sync + 'static,
-    {
-        ErrorResponses::unauthorized(self.to_string()).into_response()
-    }
-}
+//     /// Convert this error to a HTTP response.
+//     fn as_response(&self) -> poem::Response
+//     where
+//         Self: Error + Send + Sync + 'static,
+//     {
+//         ErrorResponses::unauthorized(self.to_string()).into_response()
+//     }
+// }
 
 /// Token does not have required access rights
 ///
@@ -100,20 +97,20 @@ impl ResponseError for AuthTokenError {
 #[error("Insufficient Permission for Catalyst RBAC Token: {0:?}")]
 pub struct AuthTokenAccessViolation(Vec<String>);
 
-impl ResponseError for AuthTokenAccessViolation {
-    fn status(&self) -> StatusCode {
-        StatusCode::FORBIDDEN
-    }
+// impl ResponseError for AuthTokenAccessViolation {
+//     fn status(&self) -> StatusCode {
+//         StatusCode::FORBIDDEN
+//     }
 
-    /// Convert this error to a HTTP response.
-    fn as_response(&self) -> poem::Response
-    where
-        Self: Error + Send + Sync + 'static,
-    {
-        // TODO: Actually check permissions needed for an endpoint.
-        ErrorResponses::forbidden(Some(self.0.clone())).into_response()
-    }
-}
+//     /// Convert this error to a HTTP response.
+//     fn as_response(&self) -> poem::Response
+//     where
+//         Self: Error + Send + Sync + 'static,
+//     {
+//         // TODO: Actually check permissions needed for an endpoint.
+//         ErrorResponses::forbidden(Some(self.0.clone())).into_response()
+//     }
+// }
 
 /// Time in the past the Token can be valid for.
 const MAX_TOKEN_AGE: Duration = Duration::from_secs(60 * 60); // 1 hour.
@@ -126,14 +123,14 @@ const MAX_TOKEN_SKEW: Duration = Duration::from_secs(5 * 60); // 5 minutes
 ///
 /// [here]: https://github.com/input-output-hk/catalyst-voices/blob/main/docs/src/catalyst-standards/permissionless-auth/auth-header.md#backend-processing-of-the-token
 async fn checker_api_catalyst_auth(
-    req: &Request,
+    req: &Request<Bytes>,
     bearer: Bearer,
-) -> poem::Result<CatalystRBACTokenV1> {
+) -> anyhow::Result<CatalystRBACTokenV1> {
     /// Temporary: Conditional RBAC for testing
     const RBAC_OFF: &str = "RBAC_OFF";
 
     // Deserialize the token: this performs the 1-5 steps of the validation.
-    let token = CatalystRBACTokenV1::parse(&bearer.token).map_err(|e| {
+    let token = CatalystRBACTokenV1::parse(&bearer.token()).map_err(|e| {
         debug!("Corrupt auth token: {e:?}");
         AuthTokenError::ParseRbacToken(e.to_string())
     })?;

@@ -1,10 +1,6 @@
 //! Either has No Authorization, or RBAC Token.
 
-use poem::{
-    web::headers::{authorization::Bearer, Authorization, HeaderMapExt},
-    Request, RequestBody,
-};
-use poem_openapi::{registry::Registry, ApiExtractor, ApiExtractorType, ExtractParamOptions};
+// use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 
 use super::{
     none::NoAuthorization,
@@ -20,37 +16,37 @@ pub(crate) enum NoneOrRBAC {
     None(NoAuthorization),
 }
 
-impl<'a> ApiExtractor<'a> for NoneOrRBAC {
-    type ParamRawType = ();
-    type ParamType = ();
+// impl<'a> ApiExtractor<'a> for NoneOrRBAC {
+//     type ParamRawType = ();
+//     type ParamType = ();
 
-    const TYPES: &'static [ApiExtractorType] = &[ApiExtractorType::SecurityScheme];
+//     const TYPES: &'static [ApiExtractorType] = &[ApiExtractorType::SecurityScheme];
 
-    fn register(registry: &mut Registry) {
-        CatalystRBACSecurityScheme::register(registry);
-        NoAuthorization::register(registry);
-    }
+//     fn register(registry: &mut Registry) {
+//         CatalystRBACSecurityScheme::register(registry);
+//         NoAuthorization::register(registry);
+//     }
 
-    fn security_schemes() -> Vec<&'static str> {
-        let mut schemas = Vec::new();
-        schemas.extend(CatalystRBACSecurityScheme::security_schemes());
-        schemas.extend(NoAuthorization::security_schemes());
-        schemas
-    }
+//     fn security_schemes() -> Vec<&'static str> {
+//         let mut schemas = Vec::new();
+//         schemas.extend(CatalystRBACSecurityScheme::security_schemes());
+//         schemas.extend(NoAuthorization::security_schemes());
+//         schemas
+//     }
 
-    async fn from_request(
-        req: &'a Request,
-        body: &mut RequestBody,
-        param_opts: ExtractParamOptions<Self::ParamType>,
-    ) -> poem::Result<Self> {
-        if req.headers().typed_get::<Authorization<Bearer>>().is_some() {
-            let auth = CatalystRBACSecurityScheme::from_request(req, body, param_opts).await?;
-            Ok(NoneOrRBAC::RBAC(auth))
-        } else {
-            Ok(NoneOrRBAC::None(NoAuthorization))
-        }
-    }
-}
+//     async fn from_request(
+//         req: &'a Request,
+//         body: &mut RequestBody,
+//         param_opts: ExtractParamOptions<Self::ParamType>,
+//     ) -> poem::Result<Self> {
+//         if req.headers().typed_get::<Authorization<Bearer>>().is_some() {
+//             let auth = CatalystRBACSecurityScheme::from_request(req, body, param_opts).await?;
+//             Ok(NoneOrRBAC::RBAC(auth))
+//         } else {
+//             Ok(NoneOrRBAC::None(NoAuthorization))
+//         }
+//     }
+// }
 
 impl From<NoneOrRBAC> for Option<CatalystRBACTokenV1> {
     fn from(value: NoneOrRBAC) -> Self {

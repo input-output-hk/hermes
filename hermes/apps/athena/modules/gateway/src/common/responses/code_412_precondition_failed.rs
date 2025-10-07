@@ -1,15 +1,11 @@
 //! Define `Precondition Failed` response type.
 
-use poem_openapi::{
-    types::{Example, ToJSON},
-    Object,
-};
-
 use crate::{common, common::types::array_types::impl_array_types};
 
 /// The client has not sent valid data in its request, headers, parameters or body.
-#[derive(Object, Debug, Clone)]
-#[oai(example)]
+// #[derive(Object, Debug, Clone)]
+#[derive(Debug, Clone)]
+// #[oai(example)]
 pub(crate) struct PreconditionFailed {
     /// Details of each error in the content that was detected.
     ///
@@ -20,7 +16,7 @@ pub(crate) struct PreconditionFailed {
 
 impl PreconditionFailed {
     /// Create a new `ContentErrorDetail` Response Payload.
-    pub(crate) fn new(errors: Vec<poem::Error>) -> Self {
+    pub(crate) fn new(errors: Vec<anyhow::Error>) -> Self {
         let mut detail = vec![];
         for error in errors {
             detail.push(ContentErrorDetail::new(&error));
@@ -32,66 +28,36 @@ impl PreconditionFailed {
     }
 }
 
-impl Example for PreconditionFailed {
-    /// Example for the Too Many Requests Payload.
-    fn example() -> Self {
-        Self {
-            detail: Example::example(),
-        }
-    }
-}
-
 // List of Content Error Details
-impl_array_types!(
-    ContentErrorDetailList,
-    ContentErrorDetail,
-    Some(poem_openapi::registry::MetaSchema {
-        example: Self::example().to_json(),
-        min_items: Some(1),
-        max_items: Some(1000),
-        items: Some(Box::new(ContentErrorDetail::schema_ref())),
-        ..poem_openapi::registry::MetaSchema::ANY
-    })
-);
+impl_array_types!(ContentErrorDetailList, ContentErrorDetail);
 
-impl Example for ContentErrorDetailList {
-    fn example() -> Self {
-        Self(vec![Example::example()])
-    }
-}
-
-//--------------------------------------------------------------------------------------
-
-#[derive(Object, Debug, Clone)]
-#[oai(example)]
-/// Individual details of a single error that was detected with the content of the
-/// request.
+#[derive(Debug, Clone)]
 pub(crate) struct ContentErrorDetail {
     /// The location of the error
-    #[oai(skip_serializing_if_is_none)]
+    // #[oai(skip_serializing_if_is_none)]
     loc: Option<common::types::generic::error_list::ErrorList>,
     /// The error message.
-    #[oai(skip_serializing_if_is_none)]
+    // #[oai(skip_serializing_if_is_none)]
     msg: Option<common::types::generic::error_msg::ErrorMessage>,
     /// The type of error
-    #[oai(rename = "type", skip_serializing_if_is_none)]
+    // #[oai(rename = "type", skip_serializing_if_is_none)]
     err_type: Option<common::types::generic::error_msg::ErrorMessage>,
 }
 
-impl Example for ContentErrorDetail {
-    /// Example for the `ContentErrorDetail` Payload.
-    fn example() -> Self {
-        Self {
-            loc: Some(vec!["body".into()].into()),
-            msg: Some("Value is not a valid dict.".into()),
-            err_type: Some("type_error.dict".into()),
-        }
-    }
-}
+// impl Example for ContentErrorDetail {
+//     /// Example for the `ContentErrorDetail` Payload.
+//     fn example() -> Self {
+//         Self {
+//             loc: Some(vec!["body".into()].into()),
+//             msg: Some("Value is not a valid dict.".into()),
+//             err_type: Some("type_error.dict".into()),
+//         }
+//     }
+// }
 
 impl ContentErrorDetail {
     /// Create a new `ContentErrorDetail` Response Payload.
-    pub(crate) fn new(error: &poem::Error) -> Self {
+    pub(crate) fn new(error: &anyhow::Error) -> Self {
         // TODO: See if we can get more info from the error than this.
         Self {
             loc: None,

@@ -1,15 +1,11 @@
 //! Define `Forbidden` response type.
 
-use poem_openapi::{
-    types::{Example, ToJSON},
-    Object,
-};
 use uuid::Uuid;
 
 use crate::{common, common::types::array_types::impl_array_types};
 
-#[derive(Object)]
-#[oai(example)]
+// #[derive(Object)]
+// #[oai(example)]
 /// The client has not sent valid authentication credentials for the requested
 /// resource.
 pub(crate) struct Forbidden {
@@ -44,15 +40,15 @@ impl Forbidden {
     }
 }
 
-impl Example for Forbidden {
-    /// Example for the Too Many Requests Payload.
-    fn example() -> Self {
-        Self::new(
-            None,
-            Some(vec!["VOTER".to_string(), "PROPOSER".to_string()]),
-        )
-    }
-}
+// impl Example for Forbidden {
+//     /// Example for the Too Many Requests Payload.
+//     fn example() -> Self {
+//         Self::new(
+//             None,
+//             Some(vec!["VOTER".to_string(), "PROPOSER".to_string()]),
+//         )
+//     }
+// }
 
 // List of roles
 impl_array_types!(
@@ -74,8 +70,8 @@ impl_array_types!(
     })
 );
 
-impl Example for RoleList {
-    fn example() -> Self {
-        Self(vec!["VOTER".to_string(), "PROPOSER".to_string()])
-    }
-}
+// impl Example for RoleList {
+//     fn example() -> Self {
+//         Self(vec!["VOTER".to_string(), "PROPOSER".to_string()])
+//     }
+// }

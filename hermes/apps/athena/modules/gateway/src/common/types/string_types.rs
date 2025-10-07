@@ -32,11 +32,11 @@
 /// impl <stuff> for MyNewType { ... }
 /// ```
 macro_rules! impl_string_types {
-    ($(#[$docs:meta])* $ty:ident, $type_name:literal, $format:expr, $schema:expr ) => {
-        impl_string_types!($(#[$docs])* $ty, $type_name, $format, $schema, |_| true);
+    ($(#[$docs:meta])* $ty:ident, $type_name:literal, $format:expr) => {
+        impl_string_types!($(#[$docs])* $ty, $type_name, $format, |_| true);
     };
 
-    ($(#[$docs:meta])* $ty:ident, $type_name:literal, $format:expr, $schema:expr, $validator:expr) => {
+    ($(#[$docs:meta])* $ty:ident, $type_name:literal, $format:expr, $validator:expr) => {
         $(#[$docs])*
         #[derive(Debug, Clone, Eq, PartialEq, Hash)]
         pub(crate) struct $ty(String);
@@ -64,73 +64,6 @@ macro_rules! impl_string_types {
         impl From<$ty> for String {
             fn from(val: $ty) -> Self {
                 val.0
-            }
-        }
-
-        impl Type for $ty {
-            const IS_REQUIRED: bool = true;
-
-            type RawValueType = Self;
-
-            type RawElementValueType = Self;
-
-            fn name() -> std::borrow::Cow<'static, str> {
-                format!("{}({})", $type_name, $format).into()
-            }
-
-            fn schema_ref() -> MetaSchemaRef {
-                let schema_ref = MetaSchemaRef::Inline(Box::new(MetaSchema::new_with_format($type_name, $format)));
-                if let Some(schema) = $schema {
-                    schema_ref.merge(schema)
-                } else {
-                    schema_ref
-                }
-            }
-
-            fn as_raw_value(&self) -> Option<&Self::RawValueType> {
-                Some(self)
-            }
-
-            fn raw_element_iter<'a>(
-                &'a self,
-            ) -> Box<dyn Iterator<Item = &'a Self::RawElementValueType> + 'a> {
-                Box::new(self.as_raw_value().into_iter())
-            }
-
-            #[inline]
-            fn is_empty(&self) -> bool {
-                self.0.is_empty()
-            }
-        }
-
-        impl ParseFromJSON for $ty {
-            fn parse_from_json(value: Option<Value>) -> ParseResult<Self> {
-                let value = value.unwrap_or_default();
-                if let Value::String(value) = value {
-                    let validator = $validator;
-                    if !validator(&value) {
-                        return Err(format!("invalid {}", $format).into());
-                    }
-                    Ok(Self(value))
-                } else {
-                    Err(ParseError::expected_type(value))
-                }
-            }
-        }
-
-        impl ParseFromParameter for $ty {
-            fn parse_from_parameter(value: &str) -> ParseResult<Self> {
-                let validator = $validator;
-                if !validator(value) {
-                    return Err(format!("invalid {}", $format).into());
-                }
-                Ok(Self(value.to_string()))
-            }
-        }
-
-        impl ToJSON for $ty {
-            fn to_json(&self) -> Option<Value> {
-                Some(Value::String(self.0.clone()))
             }
         }
     };
