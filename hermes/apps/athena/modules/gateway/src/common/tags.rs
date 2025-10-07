@@ -1,8 +1,7 @@
 //! `OpenAPI` Tags we need to classify the endpoints.
-use poem_openapi::Tags;
 
 /// `OpenAPI` Tags
-#[derive(Tags)]
+// #[derive(Tags)]
 pub(crate) enum ApiTags {
     /// Service Health and Readiness.
     Health,

@@ -124,28 +124,6 @@ impl StringEnvVar {
         }
     }
 
-    /// New Env Var that is optional.
-    pub(super) fn new_optional(
-        var_name: &str,
-        redacted: bool,
-    ) -> Option<Self> {
-        match env::var(var_name) {
-            Ok(value) => {
-                let value = Self { value, redacted };
-                info!(env = var_name, value = %value, "Env Var Defined");
-                Some(value)
-            },
-            Err(VarError::NotPresent) => {
-                info!(env = var_name, "Env Var Not Set");
-                None
-            },
-            Err(error) => {
-                error!(env = var_name, error = ?error, "Env Var Error");
-                None
-            },
-        }
-    }
-
     /// Convert an Envvar into the required Enum Type.
     pub(super) fn new_as_enum<T: FromStr + Display + VariantNames>(
         var_name: &str,
@@ -183,71 +161,6 @@ impl StringEnvVar {
         value
     }
 
-    /// Convert an Envvar into the required Duration type.
-    pub(crate) fn new_as_duration(
-        var_name: &str,
-        default: Duration,
-    ) -> Duration {
-        let choices = "A value in the format of `[0-9]+(ns|us|ms|[smhdwy])`";
-        let default = DurationString::new(default);
-
-        let raw_value = StringEnvVar::new(
-            var_name,
-            (default.to_string().as_str(), false, choices).into(),
-        )
-        .as_string();
-
-        DurationString::try_from(raw_value.clone())
-            .inspect_err(|err| {
-                error!(
-                    error = ?err,
-                    default = ?default,
-                    duration_str = raw_value,
-                    "Invalid Duration string. Defaulting to default value.",
-                );
-            })
-            .unwrap_or(default)
-            .into()
-    }
-
-    /// Convert an Envvar into an integer in the bounded range.
-    pub(super) fn new_as_int<T>(
-        var_name: &str,
-        default: T,
-        min: T,
-        max: T,
-    ) -> T
-    where
-        T: FromStr + Display + PartialOrd + tracing::Value,
-        <T as std::str::FromStr>::Err: std::fmt::Display,
-    {
-        let choices = format!("A value in the range {min} to {max} inclusive");
-
-        let raw_value = StringEnvVar::new(
-            var_name,
-            (default.to_string().as_str(), false, choices.as_str()).into(),
-        )
-        .as_string();
-
-        match raw_value.parse::<T>() {
-            Ok(value) => {
-                if value < min {
-                    error!("{var_name} out of range. Range = {min} to {max} inclusive. Clamped to {min}");
-                    min
-                } else if value > max {
-                    error!("{var_name} out of range. Range = {min} to {max} inclusive. Clamped to {max}");
-                    max
-                } else {
-                    value
-                }
-            },
-            Err(error) => {
-                error!(error=%error, default=default, "{var_name} not an integer. Range = {min} to {max} inclusive. Defaulted");
-                default
-            },
-        }
-    }
-
     /// Get the read env var as a str.
     ///
     /// # Returns
@@ -255,15 +168,6 @@ impl StringEnvVar {
     /// * &str - the value
     pub(crate) fn as_str(&self) -> &str {
         &self.value
-    }
-
-    /// Get the read env var as a str.
-    ///
-    /// # Returns
-    ///
-    /// * &str - the value
-    pub(crate) fn as_string(&self) -> String {
-        self.value.clone()
     }
 }
 

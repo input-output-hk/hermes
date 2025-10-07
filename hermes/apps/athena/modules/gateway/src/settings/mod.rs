@@ -1,5 +1,5 @@
 //! Command line and environment variable settings for the service
-use cardano_chain_follower::Network;
+use cardano_blockchain_types::Network;
 use dotenvy::dotenv;
 use std::sync::LazyLock;
 use tracing::error;

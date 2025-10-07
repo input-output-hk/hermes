@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use cardano_chain_follower::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
+use cardano_blockchain_types::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
 
 /// A `TransactionHash` wrapper that can be stored to and load from a database.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

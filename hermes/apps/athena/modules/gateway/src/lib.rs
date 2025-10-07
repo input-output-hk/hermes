@@ -7,13 +7,10 @@ mod settings;
 mod utilities;
 mod utils;
 
-use futures::executor::block_on;
 use regex::RegexSet;
 use std::sync::OnceLock;
 
-use exports::hermes::http_gateway::event::{
-    Bstr, Guest as _, Headers, HttpGatewayResponse, HttpResponse,
-};
+use exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
 wit_bindgen::generate!({
     world: "hermes:app/hermes",
@@ -34,7 +31,10 @@ export!(CatGatewayAPI);
 
 use hermes::logging::api::{log, Level};
 
-use crate::api::cardano::staking::{self, Api};
+use crate::{
+    api::cardano::staking::{self, Api},
+    common::{auth::none::NoAuthorization, types::cardano::cip19_stake_address::Cip19StakeAddress},
+};
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]
@@ -233,13 +233,12 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
 
         let response = match path.to_lowercase().as_str() {
             STAKE_ROUTE => {
-                let response = block_on(Api::staked_ada_get(
-                    &Api,
-                    todo!(),
-                    todo!(),
-                    todo!(),
-                    todo!(),
-                ));
+                let response = Api.staked_ada_get(
+                    Cip19StakeAddress::try_from("asd").unwrap(),
+                    None,
+                    None,
+                    common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
+                );
                 todo!("transform response")
             },
             _ => create_not_found_response(&method, &path),

@@ -1,12 +1,11 @@
 //! Define `Service Unavailable` Response Body.
 
-use poem_openapi::{types::Example, Object};
 use uuid::Uuid;
 
 use crate::common;
 
-#[derive(Object)]
-#[oai(example)]
+// #[derive(Object)]
+// #[oai(example)]
 /// The service is not available, try again later.
 ///
 /// *This is returned when the service either has not started,
@@ -40,9 +39,9 @@ impl ServiceUnavailable {
     }
 }
 
-impl Example for ServiceUnavailable {
-    /// Example for the Service Unavailable Payload.
-    fn example() -> Self {
-        Self::new(None)
-    }
-}
+// impl Example for ServiceUnavailable {
+//     /// Example for the Service Unavailable Payload.
+//     fn example() -> Self {
+//         Self::new(None)
+//     }
+// }

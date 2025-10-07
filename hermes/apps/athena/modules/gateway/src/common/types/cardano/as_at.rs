@@ -13,17 +13,12 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use cardano_chain_follower::Slot;
 use chrono::DateTime;
 use const_format::concatcp;
-use poem_openapi::{
-    registry::{MetaSchema, MetaSchemaRef},
-    types::{ParseError, ParseFromParameter, ParseResult, Type},
-};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::{common::types::cardano::slot_no::SlotNo, settings::Settings};
+use crate::common::types::cardano::slot_no::SlotNo;
 
 /// Title.
 const TITLE: &str = "As At this Time OR Slot.";
@@ -83,77 +78,10 @@ fn parse_parameter(param: &str) -> Result<(String, u64)> {
     Ok((whence.to_owned(), when))
 }
 
-/// Schema.
-static SCHEMA: LazyLock<MetaSchema> = LazyLock::new(|| MetaSchema {
-    title: Some(TITLE.to_owned()),
-    description: Some(DESCRIPTION),
-    example: Some(Value::String(EXAMPLE.to_string())),
-    max_length: Some(*MAX_LENGTH),
-    min_length: Some(*MIN_LENGTH),
-    pattern: Some(PATTERN.to_string()),
-    ..poem_openapi::registry::MetaSchema::ANY
-});
-
 /// As at time from query string parameter.
 /// Store (Whence, When and decoded `SlotNo`) in a tuple for easier access.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) struct AsAt((String, u64, SlotNo));
-
-impl Type for AsAt {
-    type RawElementValueType = Self;
-    type RawValueType = Self;
-
-    const IS_REQUIRED: bool = true;
-
-    fn name() -> std::borrow::Cow<'static, str> {
-        "string(slot or time)".into()
-    }
-
-    fn schema_ref() -> MetaSchemaRef {
-        let schema_ref = MetaSchemaRef::Inline(Box::new(MetaSchema::new_with_format(
-            "string",
-            "slot or time",
-        )));
-        schema_ref.merge(SCHEMA.clone())
-    }
-
-    fn as_raw_value(&self) -> Option<&Self::RawValueType> {
-        Some(self)
-    }
-
-    fn raw_element_iter<'a>(
-        &'a self
-    ) -> Box<dyn Iterator<Item = &'a Self::RawElementValueType> + 'a> {
-        Box::new(self.as_raw_value().into_iter())
-    }
-}
-
-impl ParseFromParameter for AsAt {
-    fn parse_from_parameter(value: &str) -> ParseResult<Self> {
-        let (whence, when) = parse_parameter(value)?;
-        let slot = if whence == TIME_DISCRIMINATOR {
-            let network = Settings::cardano_network();
-            let Ok(epoch_time) = when.try_into() else {
-                return Err(ParseError::from(format!(
-                    "time {when} too far in the future"
-                )));
-            };
-            let Some(datetime) = DateTime::from_timestamp(epoch_time, 0) else {
-                return Err(ParseError::from(format!("invalid time {when}")));
-            };
-            let Some(slot) = network.time_to_slot(datetime) else {
-                return Err(ParseError::from(format!(
-                    "invalid time {when} for network: {network}"
-                )));
-            };
-            slot
-        } else {
-            Slot::from_saturating(when)
-        };
-        let slot_no: SlotNo = slot.into();
-        Ok(Self((whence, when, slot_no)))
-    }
-}
 
 impl From<AsAt> for SlotNo {
     fn from(value: AsAt) -> Self {
@@ -167,23 +95,5 @@ impl Display for AsAt {
         f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result {
         write!(f, "{}:{}", self.0 .0, self.0 .1)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_string_to_slot_no() {
-        let valid = [&EXAMPLE, "SLOT:12396302", "TIME:1736164751"];
-
-        for v in &valid {
-            assert!(AsAt::parse_from_parameter(v).is_ok());
-        }
-        let invalid = ["TIME:123456789012345678901", "TIME:"];
-        for v in &invalid {
-            assert!(AsAt::parse_from_parameter(v).is_err());
-        }
     }
 }

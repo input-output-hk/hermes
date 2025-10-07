@@ -1,12 +1,11 @@
 //! Define `Unauthorized` response type.
 
-use poem_openapi::{types::Example, Object};
 use uuid::Uuid;
 
 use crate::common;
 
-#[derive(Object)]
-#[oai(example)]
+// #[derive(Object)]
+// #[oai(example)]
 // Keep this message consistent with the response comment.
 /// The client has not sent valid authentication credentials for the requested
 /// resource.
@@ -33,9 +32,9 @@ impl Unauthorized {
     }
 }
 
-impl Example for Unauthorized {
-    /// Example
-    fn example() -> Self {
-        Self::new(None)
-    }
-}
+// impl Example for Unauthorized {
+//     /// Example
+//     fn example() -> Self {
+//         Self::new(None)
+//     }
+// }
