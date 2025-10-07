@@ -207,6 +207,12 @@ impl From<cardano_blockchain_types::Network> for CardanoNetwork {
             cardano_blockchain_types::Network::Mainnet => CardanoNetwork::Mainnet,
             cardano_blockchain_types::Network::Preprod => CardanoNetwork::Preprod,
             cardano_blockchain_types::Network::Preview => CardanoNetwork::Preview,
+            // TODO - Properly implement devnet
+            cardano_blockchain_types::Network::Devnet { magic, .. } => {
+                CardanoNetwork::TestnetMagic(magic)
+            },
+            // This should never happen, if it does, panic
+            _ => panic!("Unsupported network: {network}"),
         }
     }
 }

@@ -52,16 +52,14 @@ pub(crate) enum SubscriptionType {
 }
 
 /// Initialize state
-static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
-    State {
-        network: ApplicationResourceStorage::new(),
-        network_lookup: DashMap::new(),
-        block: ApplicationResourceStorage::new(),
-        transaction: ApplicationResourceStorage::new(),
-        subscription_id: ApplicationResourceStorage::new(),
-        subscriptions: DashMap::new(),
-        sync_state: DashMap::new(),
-    }
+static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
+    network: ApplicationResourceStorage::new(),
+    network_lookup: DashMap::new(),
+    block: ApplicationResourceStorage::new(),
+    transaction: ApplicationResourceStorage::new(),
+    subscription_id: ApplicationResourceStorage::new(),
+    subscriptions: DashMap::new(),
+    sync_state: DashMap::new(),
 });
 
 /// Advise Runtime Extensions of a new context
@@ -78,7 +76,7 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
 pub enum CardanoError {
     /// Network not supported.
     #[error("Network {0} is not supported")]
-    NetworkNotSupported(u32),
+    NetworkNotSupported(u64),
 }
 
 #[cfg(not(debug_assertions))]
