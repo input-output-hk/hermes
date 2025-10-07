@@ -12,5 +12,6 @@ anyhow = "1.0.98"
 serde_json = "1.0.142"
 
 cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
+cardano-chain-follower = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-chain-follower/v0.0.14" }
 rbac-registration = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs", tag = "rbac-registration/v0.0.9" }
 catalyst-types = { version = "0.0.7",  git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
