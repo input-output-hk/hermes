@@ -7,8 +7,7 @@ VERSION 0.8
 
 # Catalyst CI Rust Environment - provides pre-configured Rust toolchain with WASM support
 # This includes: rustc, cargo, wasm32-wasip2 target, optimization tools, and build utilities
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
-
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.17 AS rust-ci
 
 # Alternative for local catalyst-ci debugging (uncomment when needed):
 # IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
