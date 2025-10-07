@@ -133,7 +133,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             let problem_report: Option<String> = reg
                 .report()
                 .is_problematic()
-                .then(|| serde_json::to_string(&reg.report()).ok())
+                .then(|| Some(format!("{:?}", reg.report())))
                 .flatten();
             // Can contain multiple stake addresses
             let stake_addresses = reg
