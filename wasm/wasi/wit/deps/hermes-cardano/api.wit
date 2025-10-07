@@ -53,6 +53,8 @@ interface api {
     enum create-network-error {
         /// Network not supported.
         network-not-supported,
+        /// Unknown network.
+        unknown-network
     }
     
     /// Errors that can happen for block.

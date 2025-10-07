@@ -47,7 +47,7 @@ pub fn run_app(
     let output = child.wait_with_output()?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!("App failed with error: {}", stderr));
+        return Err(anyhow::anyhow!("App failed with error: {stderr}"));
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())

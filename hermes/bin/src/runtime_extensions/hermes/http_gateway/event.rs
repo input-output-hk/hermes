@@ -138,7 +138,7 @@ fn validate_redirect_location(
     config: &RedirectConfig,
 ) -> anyhow::Result<()> {
     let url =
-        Url::parse(location).map_err(|_| anyhow::anyhow!("Invalid redirect URL: {}", location))?;
+        Url::parse(location).map_err(|_| anyhow::anyhow!("Invalid redirect URL: {location}"))?;
 
     validate_scheme(&url, config)?;
     validate_host(&url, config)?;

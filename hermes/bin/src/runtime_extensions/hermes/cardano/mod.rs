@@ -52,14 +52,16 @@ pub(crate) enum SubscriptionType {
 }
 
 /// Initialize state
-static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
-    network: ApplicationResourceStorage::new(),
-    network_lookup: DashMap::new(),
-    block: ApplicationResourceStorage::new(),
-    transaction: ApplicationResourceStorage::new(),
-    subscription_id: ApplicationResourceStorage::new(),
-    subscriptions: DashMap::new(),
-    sync_state: DashMap::new(),
+static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
+    State {
+        network: ApplicationResourceStorage::new(),
+        network_lookup: DashMap::new(),
+        block: ApplicationResourceStorage::new(),
+        transaction: ApplicationResourceStorage::new(),
+        subscription_id: ApplicationResourceStorage::new(),
+        subscriptions: DashMap::new(),
+        sync_state: DashMap::new(),
+    }
 });
 
 /// Advise Runtime Extensions of a new context
@@ -77,6 +79,9 @@ pub enum CardanoError {
     /// Network not supported.
     #[error("Network {0} is not supported")]
     NetworkNotSupported(u64),
+    /// Unknown network.
+    #[error("Unknown network")]
+    UnknownNetwork,
 }
 
 #[cfg(not(debug_assertions))]
