@@ -121,7 +121,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         };
 
         // ------- Extract and insert RBAC registrations into DB -------
-        for reg in registrations.clone() {
+        for reg in registrations {
             // Data needed for db
             let txn_id: Vec<u8> = reg.txn_hash().into();
             let catalyst_id: Option<String> =
