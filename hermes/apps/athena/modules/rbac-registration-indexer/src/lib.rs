@@ -29,7 +29,7 @@ use rbac_registration::{
     cardano::cip509::{Cip0134UriSet, Cip509},
 };
 use serde_json::json;
-use utils::{cardano::block::build_block, log::log_error};
+use utils::{cardano::block::build_block, log::log_error, problem_report::problem_report_to_json};
 
 use crate::{
     database::{
@@ -55,7 +55,7 @@ use crate::{
     utils::log::log_info,
 };
 
-use hermes::{cardano, sqlite::api::Statement};
+use hermes::cardano;
 
 struct RbacRegistrationComponent;
 
@@ -130,11 +130,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             let txn_idx: u16 = reg.origin().txn_index().into();
             let purpose: Option<String> = reg.purpose().map(|p| p.to_string());
             let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(|p| p.into());
-            let problem_report: Option<String> = reg
-                .report()
-                .is_problematic()
-                .then(|| Some(format!("{:?}", reg.report())))
-                .flatten();
+            let problem_report: Option<String> = problem_report_to_json(reg.report());
             // Can contain multiple stake addresses
             let stake_addresses = reg
                 .certificate_uris()
