@@ -31,6 +31,7 @@ use rbac_registration::{
 use shared::{
     bindings::hermes::{cardano, sqlite::api::Sqlite},
     utils::{
+        problem_report::problem_report_to_json,
         cardano::block::build_block,
         log::{log_error, log_info},
         sqlite::{close_db_connection, open_db_connection, statement::DatabaseStatement},
@@ -118,7 +119,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         };
 
         // ------- Extract and insert RBAC registrations into DB -------
-        for reg in registrations.clone() {
+        for reg in registrations {
             // Data needed for db
             let txn_id: Vec<u8> = reg.txn_hash().into();
             let catalyst_id: Option<String> =
@@ -127,11 +128,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             let txn_idx: u16 = reg.origin().txn_index().into();
             let purpose: Option<String> = reg.purpose().map(|p| p.to_string());
             let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(|p| p.into());
-            let problem_report: Option<String> = reg
-                .report()
-                .is_problematic()
-                .then(|| serde_json::to_string(&reg.report()).ok())
-                .flatten();
+            let problem_report: Option<String> = problem_report_to_json(reg.report());
             // Can contain multiple stake addresses
             let stake_addresses = reg
                 .certificate_uris()

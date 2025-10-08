@@ -75,7 +75,10 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
 pub enum CardanoError {
     /// Network not supported.
     #[error("Network {0} is not supported")]
-    NetworkNotSupported(u32),
+    NetworkNotSupported(u64),
+    /// Unknown network.
+    #[error("Unknown network")]
+    UnknownNetwork,
 }
 
 #[cfg(not(debug_assertions))]

@@ -2,5 +2,6 @@
 
 #[cfg(feature = "cardano-blockchain-types")]
 pub mod cardano;
-pub mod sqlite;
 pub mod log;
+pub mod problem_report;
+pub mod sqlite;

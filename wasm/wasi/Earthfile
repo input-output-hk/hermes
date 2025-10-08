@@ -7,7 +7,7 @@ IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.5.14 AS wasm-c-c
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
 
-#cspell: words rustfmt wasi autodrop teavm
+#cspell: words rustfmt wasi autodrop teavm CFLAGS sysroot
 
 # Make am Artifact which consists of the WIT SRC.
 builder:
@@ -93,6 +93,9 @@ BUILD_RUST_COMPONENT:
 
     COPY --keep-ts --dir src .
     COPY Cargo.toml .
+
+    # Fix missing header error when compiling zstd while building rbac-registration
+    ENV CFLAGS_wasm32_wasip2="--sysroot=/usr/aarch64-linux-gnu"
 
     DO rust-ci+CARGO \
         --args "build --target wasm32-wasip2 --release" \

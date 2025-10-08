@@ -458,7 +458,7 @@ impl HostSubscriptionId for HermesRuntimeContext {
     ) -> wasmtime::Result<CardanoNetwork> {
         let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
-        Ok((*network).into())
+        Ok((*network).try_into()?)
     }
 
     /// Unsubscribing block event of this `subscription-id` instance.

@@ -107,7 +107,7 @@ impl Module {
     ) -> anyhow::Result<Self> {
         let engine = Engine::new()?;
         let wasm_module = WasmModule::new(&engine, module_bytes)
-            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {e}"))?;
 
         let mut linker = WasmLinker::new(&engine);
         linker
@@ -118,10 +118,10 @@ impl Module {
             &LinkOptions::default(),
             |state: &mut HermesRuntimeContext| state,
         )
-        .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
+        .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {e}"))?;
         let pre_instance = linker
             .instantiate_pre(&wasm_module)
-            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {e}"))?;
 
         let id = ModuleId(Ulid::generate());
 
@@ -231,7 +231,7 @@ impl Module {
             .pre_instance
             .clone()
             .instantiate(&mut store)
-            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Bad WASM module:\n {e}"))?;
 
         event.execute(&mut ModuleInstance { store, instance })?;
 

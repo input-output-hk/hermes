@@ -474,13 +474,13 @@ where B: Body {
         "Cross-Origin-Opener-Policy",
         "same-origin"
             .parse()
-            .map_err(|e| anyhow!("Invalid COOP header value: {}", e))?,
+            .map_err(|e| anyhow!("Invalid COOP header value: {e}"))?,
     );
     headers.insert(
         "Cross-Origin-Embedder-Policy",
         "require-corp"
             .parse()
-            .map_err(|e| anyhow!("Invalid COEP header value: {}", e))?,
+            .map_err(|e| anyhow!("Invalid COEP header value: {e}"))?,
     );
 
     Ok(response)
