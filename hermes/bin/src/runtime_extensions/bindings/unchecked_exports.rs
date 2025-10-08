@@ -1,4 +1,5 @@
-//! Hermes WIT exports for event handlers. These aren't checked for presence in WASM until use.
+//! Hermes WIT exports for event handlers. These aren't checked for presence in WASM until
+//! use.
 
 use wasmtime::{
     component::{self, ComponentNamedList, TypedFunc},
