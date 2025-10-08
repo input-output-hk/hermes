@@ -7,8 +7,7 @@ VERSION 0.8
 
 # Catalyst CI Rust Environment - provides pre-configured Rust toolchain with WASM support
 # This includes: rustc, cargo, wasm32-wasip2 target, optimization tools, and build utilities
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.14 AS rust-ci
-
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.17 AS rust-ci
 
 # Alternative for local catalyst-ci debugging (uncomment when needed):
 # IMPORT ../../../catalyst-ci/earthly/rust AS rust-ci
@@ -139,3 +138,14 @@ save-local-hermes:
     # Save the binary to local filesystem for development use
     # This makes it available at ./hermes in the calling directory
     SAVE ARTIFACT hermes AS LOCAL ./hermes
+
+# Build wasm32-wasip2 for each modules
+modules-build-wasm32-wasip2:
+    BUILD ./rbac-registration+build-rbac-registration
+    BUILD ./rbac-registration-indexer+build-rbac-registration-indexer
+    BUILD ./http-proxy+build-http-proxy
+
+# Run build modules wasm32-wasip2 for the specify architect
+# Comment this out if it take long time for CI to build.
+build-all-host-modules-build-wasm32-wasip2:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +modules-build-wasm32-wasip2

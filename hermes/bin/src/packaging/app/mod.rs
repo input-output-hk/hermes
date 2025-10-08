@@ -148,8 +148,8 @@ impl ApplicationPackage {
             anyhow::ensure!(
                 &expected_payload == signature_payload,
                 "Application package signature payload mismatch.\nExpected: {}\nGot: {}",
-                expected_payload.to_json().to_string(),
-                signature_payload.to_json().to_string()
+                expected_payload.to_json(),
+                signature_payload.to_json()
             );
             signature.verify()?;
             Ok(())

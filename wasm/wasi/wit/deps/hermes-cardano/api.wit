@@ -26,8 +26,8 @@ interface api {
         preprod,
         /// Cardano Preview Network :- "NetworkId": 0, "NetworkMagic": 2
         preview,
-        /// Custom Test Network :- "NetworkId": 0,  "NetworkMagic": u32
-        testnet-magic(u32),
+        /// Custom Test Network :- "NetworkId": 0,  "NetworkMagic": u64
+        testnet-magic(u64),
     }
 
     /// A sync slot variation.
@@ -53,6 +53,8 @@ interface api {
     enum create-network-error {
         /// Network not supported.
         network-not-supported,
+        /// Unknown network.
+        unknown-network
     }
     
     /// Errors that can happen for block.

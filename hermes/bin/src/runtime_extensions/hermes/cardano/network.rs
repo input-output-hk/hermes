@@ -201,12 +201,18 @@ pub(crate) fn sync_slot_to_point(
     }
 }
 
-impl From<cardano_blockchain_types::Network> for CardanoNetwork {
-    fn from(network: cardano_blockchain_types::Network) -> Self {
-        match network {
+impl TryFrom<cardano_blockchain_types::Network> for CardanoNetwork {
+    type Error = CardanoError;
+
+    fn try_from(network: cardano_blockchain_types::Network) -> Result<Self, Self::Error> {
+        Ok(match network {
             cardano_blockchain_types::Network::Mainnet => CardanoNetwork::Mainnet,
             cardano_blockchain_types::Network::Preprod => CardanoNetwork::Preprod,
             cardano_blockchain_types::Network::Preview => CardanoNetwork::Preview,
-        }
+            cardano_blockchain_types::Network::Devnet { magic, .. } => {
+                CardanoNetwork::TestnetMagic(magic)
+            },
+            _ => return Err(CardanoError::UnknownNetwork),
+        })
     }
 }

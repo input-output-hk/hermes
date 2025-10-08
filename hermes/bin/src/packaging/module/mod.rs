@@ -145,8 +145,8 @@ impl ModulePackage {
             anyhow::ensure!(
                 &expected_payload == signature_payload,
                 "Module package signature payload mismatch.\nExpected: {}\nGot: {}",
-                expected_payload.to_json().to_string(),
-                signature_payload.to_json().to_string()
+                expected_payload.to_json(),
+                signature_payload.to_json()
             );
             signature.verify()?;
             Ok(())
