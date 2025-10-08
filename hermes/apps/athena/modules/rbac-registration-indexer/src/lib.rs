@@ -27,13 +27,12 @@ use rbac_registration::{
     self,
     cardano::cip509::{Cip0134UriSet, Cip509},
 };
-
 use shared::{
     bindings::hermes::{cardano, sqlite::api::Sqlite},
     utils::{
-        problem_report::problem_report_to_json,
         cardano::block::build_block,
         log::{log_error, log_info},
+        problem_report::problem_report_to_json,
         sqlite::{close_db_connection, open_db_connection, statement::DatabaseStatement},
     },
 };
@@ -290,7 +289,8 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
 
-        // Instead of starting from genesis, start from a specific slot just before RBAC data exist.
+        // Instead of starting from genesis, start from a specific slot just before RBAC data
+        // exist.
         let slot = 80374283;
         let subscribe_from = cardano::api::SyncSlot::Specific(slot);
         let network = cardano::api::CardanoNetwork::Preprod;

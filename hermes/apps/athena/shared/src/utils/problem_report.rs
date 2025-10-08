@@ -1,15 +1,12 @@
 //! Problem report utils.
 
-use catalyst_types::problem_report::ProblemReport;
+pub use catalyst_types::problem_report::ProblemReport;
 
 /// Converts problem report to JSON.
-pub(crate) fn problem_report_to_json(report: &ProblemReport) -> Option<String> {
+pub fn problem_report_to_json(report: &ProblemReport) -> Option<String> {
     if !report.is_problematic() {
         return None;
     }
-    let mut obj = serde_json::json!({
-        "context": report.context(),
-    });
 
     let entries: Vec<_> = report
         .entries()

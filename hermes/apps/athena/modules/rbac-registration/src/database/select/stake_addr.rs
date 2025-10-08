@@ -1,7 +1,6 @@
 //! Select stake address.
 
 use cardano_blockchain_types::StakeAddress;
-
 use shared::{
     bindings::hermes::{
         logging::api::{log, Level},
@@ -29,9 +28,11 @@ use crate::{
 /// Registration chain from a stake address:
 ///
 /// 1. Start from the newest registration.
-/// - The rule is the newest `stake_address` that is in a valid chain, will take over the `stake_address` in the older chain.
-/// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid chain2 with slot 20 has `stake_address_A`.
-/// Now `stake_address_A` belong to chain2. because it is the latest one.
+/// - The rule is the newest `stake_address` that is in a valid chain, will take over the
+///   `stake_address` in the older chain.
+/// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid
+/// chain2 with slot 20 has `stake_address_A`. Now `stake_address_A` belong to chain2.
+/// because it is the latest one.
 ///
 ///      SELECT txn_id
 ///      FROM rbac_stake_address
@@ -43,9 +44,11 @@ use crate::{
 /// Then there will be 2 cases
 ///
 /// a. Root registration (`prv_txn_id` IS NULL):
-/// - A valid root must have a non-null catalyst_id, no problem_report, and no `prv_txn_id`.
+/// - A valid root must have a non-null catalyst_id, no problem_report, and no
+///   `prv_txn_id`.
 /// - Then need to validate by checking whether this root (Catalyst ID) was already used
-///   in an earlier root (slot_no less than current slot, or same slot with smaller `txn_idx`).
+///   in an earlier root (slot_no less than current slot, or same slot with smaller
+///   `txn_idx`).
 ///
 ///      SELECT txn_id FROM rbac_registration
 ///      WHERE prv_txn_id IS NULL
@@ -59,12 +62,14 @@ use crate::{
 /// - Otherwise -> invalid, continue with next `txn_id`.
 ///
 /// b. Non-root registration (`prv_txn_id` IS NOT NULL):
-/// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root (`prv_txn_id` IS NULL).
+/// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root
+///   (`prv_txn_id` IS NULL).
 /// - Validate that root using the same rule as (a).
 /// - If root is valid -> stake_address belongs to this chain.
 /// - Otherwise -> continue with next `txn_id`.
 ///
-/// 3. If no valid root/chain is found after checking all candidates, then `stake_address` does not belong to any valid registration
+/// 3. If no valid root/chain is found after checking all candidates, then `stake_address`
+///    does not belong to any valid registration
 /// and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
@@ -247,12 +252,14 @@ fn get_registration_info_from_txn_id(
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
-        Ok(StepResult::Row) => Ok(Some((
-            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
-            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
-            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
-            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
-        ))),
+        Ok(StepResult::Row) => {
+            Ok(Some((
+                column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+                column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+                column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+                column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
+            )))
+        },
         Ok(StepResult::Done) => {
             return Ok(None);
         },

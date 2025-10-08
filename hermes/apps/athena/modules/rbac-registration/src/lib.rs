@@ -19,11 +19,7 @@ shared::bindings_generate!({
     share: ["hermes:cardano", "hermes:logging", "hermes:sqlite"],
 });
 
-use crate::rbac::get_rbac::{
-    get_active_inactive_stake_address, get_rbac_chain_from_cat_id,
-    get_rbac_chain_from_stake_address,
-};
-
+use cardano_blockchain_types::{pallas_primitives::Hash, Network, StakeAddress};
 use shared::{
     bindings::hermes::{cardano, sqlite::api::Sqlite},
     utils::{
@@ -32,7 +28,10 @@ use shared::{
     },
 };
 
-use cardano_blockchain_types::{pallas_primitives::Hash, Network, StakeAddress};
+use crate::rbac::get_rbac::{
+    get_active_inactive_stake_address, get_rbac_chain_from_cat_id,
+    get_rbac_chain_from_stake_address,
+};
 
 export!(RbacRegistrationComponent);
 
@@ -73,7 +72,8 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         };
 
         // ----- Get registration chain -----
-        // Once the data is indexed, we can get the registration chain from catalyst ID or stake address.
+        // Once the data is indexed, we can get the registration chain from catalyst ID or stake
+        // address.
         get_rbac_data(&persistent, &volatile, network, &network_resource);
         close_db_connection(persistent);
         close_db_connection(volatile);
@@ -91,7 +91,8 @@ fn get_rbac_data(
     // Testing get rbac data from catalyst id
     // This cat id contain no child registration.
     /* cspell:disable */
-    // its stake address `stake_test1urgduxg0zec4zw4k3v33ftsc79ffdwzzj6ka2d3w86dyudqmmj5tv` is inactive
+    // its stake address `stake_test1urgduxg0zec4zw4k3v33ftsc79ffdwzzj6ka2d3w86dyudqmmj5tv` is
+    // inactive
     /* cspell:enable */
     // because other valid registration take over it.
     let cat_id_1 = "preprod.cardano/5HHBcNOAs8uMfQ-II5M3DBXtR0Tp3j3x1GCS6ZxsWzU";
@@ -125,7 +126,8 @@ fn get_rbac_data(
     // Testing get rbac data from stake address
     // `stake_test1urgduxg0zec4zw4k3v33ftsc79ffdwzzj6ka2d3w86dyudqmmj5tv`
     // `e0d0de190f1671513ab68b2314ae18f15296b84296add5362e3e9a4e34`
-    // This stake address is taken by `preprod.cardano/ZtnkJZNZHskfS6mhChVstXRrhDPUdzTGwFidSg_YjsA`
+    // This stake address is taken by
+    // `preprod.cardano/ZtnkJZNZHskfS6mhChVstXRrhDPUdzTGwFidSg_YjsA`
     /* cspell:enable */
     let hash: Hash<28> = "d0de190f1671513ab68b2314ae18f15296b84296add5362e3e9a4e34"
         .parse()

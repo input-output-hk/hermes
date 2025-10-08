@@ -20,10 +20,10 @@
 //! proxy system capable of routing between multiple backends, supporting A/B testing,
 //! gradual rollouts, and advanced traffic management scenarios.
 
-use regex::RegexSet;
 use std::sync::OnceLock;
 
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
+use regex::RegexSet;
 
 shared::bindings_generate!({
     world: "hermes:app/hermes",
@@ -80,7 +80,7 @@ const STATIC_PATTERN: &str = r"^/static/.+$";
 /// while native implementations are developed. The long-term vision is to
 /// evolve this into a full-featured configurable proxy supporting:
 /// - Dynamic backend selection
-/// - Load balancing strategies  
+/// - Load balancing strategies
 /// - Circuit breakers and health checks
 /// - Request/response middleware chains
 /// - A/B testing and canary deployments

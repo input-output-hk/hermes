@@ -36,8 +36,7 @@ impl From<u16> for Value {
 
 // Generic option conversion
 impl<T> From<Option<T>> for Value
-where
-    T: Into<Value>,
+where T: Into<Value>
 {
     fn from(opt: Option<T>) -> Self {
         opt.map(|v| v.into()).unwrap_or(Value::Null)
@@ -101,8 +100,7 @@ impl TryFrom<Value> for u16 {
 }
 
 impl<T> TryFrom<Value> for Option<T>
-where
-    T: TryFrom<Value, Error = anyhow::Error>,
+where T: TryFrom<Value, Error = anyhow::Error>
 {
     type Error = anyhow::Error;
 

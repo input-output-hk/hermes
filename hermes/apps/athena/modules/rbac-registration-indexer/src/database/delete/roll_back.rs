@@ -7,7 +7,8 @@ use shared::{
 
 use crate::database::query_builder::QueryBuilder;
 
-/// Prepare delete statement for deleting data when rollback happen from given volatile table.
+/// Prepare delete statement for deleting data when rollback happen from given volatile
+/// table.
 pub(crate) fn prepare_roll_back_delete_from_volatile(
     sqlite: &Sqlite,
     table: &str,

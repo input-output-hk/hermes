@@ -1,4 +1,4 @@
-//! Hermes bindings generated with [`::wit_bindgen`]. 
+//! Hermes bindings generated with [`::wit_bindgen`].
 //! They can be reused when using `share` keyword of [`bindings_generate`] macro.
 
 /// Re-exported [`::wit-bindgen`] crate, so that [`bindings_generate`] is self-reliant.
@@ -18,7 +18,7 @@ macro_rules! bindings_generate {
         world: $world:literal,
         path: $path:literal,
         inline: $inline:literal,
-        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)? 
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
         share: [] $(,)?
     }) => {
         ::shared::bindings::wit_bindgen::generate!({
@@ -34,7 +34,7 @@ macro_rules! bindings_generate {
         world: $world:literal,
         path: $path:literal,
         inline: $inline:literal,
-        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)? 
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
         share: ["hermes:cardano" $(, $share:tt)* $(,)?] $(,)?
     }) => {
         $crate::bindings_generate!({
@@ -55,7 +55,7 @@ macro_rules! bindings_generate {
         world: $world:literal,
         path: $path:literal,
         inline: $inline:literal,
-        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)? 
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
         share: ["hermes:logging" $(, $share:tt)* $(,)?] $(,)?
     }) => {
         $crate::bindings_generate!({
@@ -74,7 +74,7 @@ macro_rules! bindings_generate {
         world: $world:literal,
         path: $path:literal,
         inline: $inline:literal,
-        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)? 
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
         share: ["hermes:sqlite" $(, $share:tt)* $(,)?] $(,)?
     }) => {
         $crate::bindings_generate!({

@@ -1,13 +1,5 @@
 //! Select from Catalyst ID.
 
-use crate::{
-    database::{
-        query_builder::QueryBuilder, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
-        RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-    },
-    rbac::build_rbac_chain::RbacChainInfo,
-};
-
 use shared::{
     bindings::hermes::sqlite::api::{Sqlite, Statement, StepResult, Value},
     sqlite_bind_parameters,
@@ -20,32 +12,43 @@ use shared::{
     },
 };
 
+use crate::{
+    database::{
+        query_builder::QueryBuilder, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
+        RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+    },
+    rbac::build_rbac_chain::RbacChainInfo,
+};
+
 /// Registration chain from a catalyst ID.
 ///
-/// Selects a root registration and all its children, returning the full chain given a catalyst ID.
-/// If no root registration is found for the given `cat_id`, returns an empty list.
+/// Selects a root registration and all its children, returning the full chain given a
+/// catalyst ID. If no root registration is found for the given `cat_id`, returns an empty
+/// list.
 ///
 /// Root registration:
 ///
 /// The root registration is the registration with matching `catalyst_id` where
 /// no `prv_txn_id`, no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
-/// In other words, the earliest valid registration containing the given `catalyst_id` is considered the root.
-/// Note that the Catalyst ID is derive from the subject public key or Role 0 registration.
-/// If the registration chain contains multiple Catalyst IDs (multiple Role 0 subject public keys),
-/// the first catalyst ID in the chain is used.
+/// In other words, the earliest valid registration containing the given `catalyst_id` is
+/// considered the root. Note that the Catalyst ID is derive from the subject public key
+/// or Role 0 registration. If the registration chain contains multiple Catalyst IDs
+/// (multiple Role 0 subject public keys), the first catalyst ID in the chain is used.
 ///
-/// For example, a chain with the first registration having `catalyst_id_a` and the second registration having `catalyst_id_b`,
-/// When requesting for `catalyst_id_b` WILL NOT result in the same chain as requesting for `catalyst_id_a`.
+/// For example, a chain with the first registration having `catalyst_id_a` and the second
+/// registration having `catalyst_id_b`, When requesting for `catalyst_id_b` WILL NOT
+/// result in the same chain as requesting for `catalyst_id_a`.
 ///
-/// In addition, if there is an attempt to creating a new chain with `catalyst_id_b`, the chain will be invalid
-/// since **IT IS NOT ALLOWED TO USE THE PUBLIC KEYS OF AN EXISTING VALID CHAIN**.
+/// In addition, if there is an attempt to creating a new chain with `catalyst_id_b`, the
+/// chain will be invalid since **IT IS NOT ALLOWED TO USE THE PUBLIC KEYS OF AN EXISTING
+/// VALID CHAIN**.
 ///
 ///
 /// Child registration:
 ///
-/// The child registration is determined by having a `prv_txn_id` pointing back to a parent.
-/// In other words, the child registration is the registration with matching `prv_txn_id` where
-/// no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
+/// The child registration is determined by having a `prv_txn_id` pointing back to a
+/// parent. In other words, the child registration is the registration with matching
+/// `prv_txn_id` where no `problem_report` - valid, least `slot_no`, and least `txn_idx`.
 ///
 /// An update that causes the link to break is considered invalid.
 ///
@@ -61,8 +64,8 @@ use shared::{
 ///
 /// # Returns
 ///
-/// * `Ok(Vec<RbacChainInfo>)` – The registration chain associated with the given catalyst ID.
-///   If the vector is empty, no chain is found.
+/// * `Ok(Vec<RbacChainInfo>)` – The registration chain associated with the given catalyst
+///   ID. If the vector is empty, no chain is found.
 /// * `Err(anyhow::Error)` – If any error occurs.
 pub(crate) fn select_rbac_registration_chain_from_cat_id(
     persistent: &Sqlite,
@@ -140,28 +143,30 @@ fn extract_root(
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
 
     // The first valid root registration is chosen
-    let result = (|| match stmt.step() {
-        Ok(StepResult::Row) => {
-            let txn_id = stmt.column(0)?;
-            let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
-            let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
-            Ok(Some((
-                txn_id.clone(),
-                vec![RbacChainInfo { slot_no, txn_idx }],
-            )))
-        },
-        Ok(StepResult::Done) => Ok(None),
-        Err(e) => {
-            let error = format!("Failed to step in {table}: {e}");
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "hermes::sqlite::api::step",
-                &error,
-                None,
-            );
-            anyhow::bail!(error);
-        },
+    let result = (|| {
+        match stmt.step() {
+            Ok(StepResult::Row) => {
+                let txn_id = stmt.column(0)?;
+                let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
+                let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
+                Ok(Some((txn_id.clone(), vec![RbacChainInfo {
+                    slot_no,
+                    txn_idx,
+                }])))
+            },
+            Ok(StepResult::Done) => Ok(None),
+            Err(e) => {
+                let error = format!("Failed to step in {table}: {e}");
+                log_error(
+                    file!(),
+                    FUNCTION_NAME,
+                    "hermes::sqlite::api::step",
+                    &error,
+                    None,
+                );
+                anyhow::bail!(error);
+            },
+        }
     })();
     DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
     result

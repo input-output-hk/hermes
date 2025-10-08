@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use cardano_blockchain_types::StakeAddress;
 use catalyst_types::catalyst_id::CatalystId;
 use rbac_registration::registration::cardano::RegistrationChain;
-
 use shared::{
     bindings::hermes::{
         cardano::api::{CardanoNetwork, Network},
