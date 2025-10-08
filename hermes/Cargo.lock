@@ -3118,7 +3118,9 @@ dependencies = [
  "url",
  "usvg",
  "uuid",
+ "wasmprinter 0.239.0",
  "wasmtime",
+ "wat",
  "webpki-roots 1.0.2",
  "x509-cert",
 ]
@@ -9007,6 +9009,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasmprinter"
+version = "0.239.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3981f3d51f39f24f5fc90f93049a90f08dbbca8deba602cd46bb8ca67a94718"
+dependencies = [
+ "anyhow",
+ "termcolor",
+ "wasmparser 0.239.0",
+]
+
+[[package]]
 name = "wasmtime"
 version = "36.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9075,7 +9088,7 @@ dependencies = [
  "target-lexicon",
  "wasm-encoder 0.236.1",
  "wasmparser 0.236.1",
- "wasmprinter",
+ "wasmprinter 0.236.1",
  "wasmtime-internal-component-util",
 ]
 

@@ -148,6 +148,7 @@ usvg
 utimensat
 wasi
 wasip
+wasmprinter
 wasmtime
 webasm
 webpki

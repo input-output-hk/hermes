@@ -3,3 +3,5 @@
 
 mod engine;
 pub mod module;
+#[allow(dead_code, unused)]
+mod patcher;
