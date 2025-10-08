@@ -4,13 +4,6 @@ use anyhow::bail;
 use cardano_blockchain_types::Slot;
 use num_bigint::BigInt;
 
-/// Title.
-const TITLE: &str = "Cardano Blockchain Slot Number";
-/// Description.
-const DESCRIPTION: &str = "The Slot Number of a Cardano Block on the chain.";
-/// Example.
-pub(crate) const EXAMPLE: u64 = 1_234_567;
-
 /// Slot number
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub(crate) struct SlotNo(u64);

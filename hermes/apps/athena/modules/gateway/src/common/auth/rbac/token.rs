@@ -17,8 +17,6 @@ use ed25519_dalek::{ed25519::signature::Signer, Signature, SigningKey, Verifying
 use rbac_registration::registration::cardano::RegistrationChain;
 use regex::Regex;
 
-use crate::rbac::latest_rbac_chain;
-
 /// Captures just the digits after last slash
 /// This Regex should not fail
 #[allow(clippy::unwrap_used)]
@@ -182,15 +180,6 @@ impl CatalystRBACTokenV1 {
     #[allow(dead_code)]
     pub(crate) fn network(&self) -> Network {
         self.network
-    }
-
-    /// Returns a corresponded registration chain if any registrations present.
-    /// If it is a first call, fetch all data from the database and initialize it.
-    pub(crate) async fn reg_chain(&mut self) -> Result<Option<RegistrationChain>> {
-        if self.reg_chain.is_none() {
-            self.reg_chain = latest_rbac_chain(&self.catalyst_id).await?.map(|i| i.chain);
-        }
-        Ok(self.reg_chain.clone())
     }
 }
 

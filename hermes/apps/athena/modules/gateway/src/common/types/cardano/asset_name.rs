@@ -1,40 +1,6 @@
 //! Cardano Native Asset Name.
 
-use std::sync::LazyLock;
-
-use const_format::concatcp;
-use regex::Regex;
-
 use crate::common::types::string_types::impl_string_types;
-
-/// Title.
-const TITLE: &str = "Cardano Native Asset Name";
-/// Description.
-const DESCRIPTION: &str = r"The name given to the native asset when it was minted.
-If the name can be converted to UTF8, its string is represented directly.
-Otherwise it will be represented as escaped ascii.
-Any `\` present in the name will be replaced with `\\` in all cases.";
-
-/// Example.
-const EXAMPLE: &str = "My Cool\nAsset";
-/// Maximum asset name in bytes.
-const ASSET_NAME_MAX_BYTES: usize = 32;
-/// Minimum length.
-const MIN_LENGTH: usize = 0;
-/// Maximum length calculated from maximum length of escaped string * max number of bytes
-/// of asset name. <https://www.gnu.org/software/gawk/manual/html_node/Escape-Sequences.html>
-const MAX_LENGTH: usize = ASSET_NAME_MAX_BYTES * 4;
-/// Validation Regex Pattern
-/// Can be anything
-const PATTERN: &str = concatcp!(r"^[\S\s]{", "0,", MAX_LENGTH, "}$");
-
-/// Validate `AssetName` This part is done separately from the `PATTERN`
-fn is_valid(name: &str) -> bool {
-    /// Regex to validate `AssetName`
-    #[allow(clippy::unwrap_used)] // Safe because the Regex is constant.
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(PATTERN).unwrap());
-    RE.is_match(name)
-}
 
 impl_string_types!(AssetName, "string", "cardano:asset_name", is_valid);
 

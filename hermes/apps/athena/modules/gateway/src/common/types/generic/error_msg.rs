@@ -2,35 +2,7 @@
 
 // cspell: words impls
 
-use std::sync::LazyLock;
-
-use const_format::concatcp;
-use regex::Regex;
-use serde_json::Value;
-
 use crate::common::types::string_types::impl_string_types;
-
-/// Title.
-const TITLE: &str = "Error Message";
-/// Description.
-const DESCRIPTION: &str = "This is an error message.";
-/// Example.
-const EXAMPLE: &str = "An error has occurred, the details of the error are ...";
-/// Error message string maximum length
-const MAX_LENGTH: usize = 60000;
-/// Error message string minimum length
-const MIN_LENGTH: usize = 1;
-/// Validation Regex Pattern
-const PATTERN: &str = concatcp!("^(.){", MIN_LENGTH, ",", MAX_LENGTH, "}$");
-
-/// Check if we match the regex.
-fn is_valid(msg: &str) -> bool {
-    /// Validation pattern
-    #[allow(clippy::unwrap_used)] // Safe because the Regex is constant.  Can never panic in prod.
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(PATTERN).unwrap());
-
-    RE.is_match(msg)
-}
 
 impl_string_types!(ErrorMessage, "string", "error", is_valid);
 

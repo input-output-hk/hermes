@@ -5,12 +5,6 @@
 use anyhow::Context;
 use catalyst_types::catalyst_id::CatalystId as CatalystIdInner;
 
-/// Catalyst Id String Format
-pub(crate) const FORMAT: &str = "catalyst_id";
-
-/// Minimum format for Catalyst Id. (<`text`/`public_key_base64_url`>)
-pub(crate) const PATTERN: &str = r".+\/[A-Za-z0-9_-]{43}";
-
 /// A Catalyst identifier.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub(crate) struct CatalystId(CatalystIdInner);

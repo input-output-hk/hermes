@@ -6,10 +6,8 @@ use std::{
     env::{self, VarError},
     fmt::{self, Display},
     str::FromStr,
-    time::Duration,
 };
 
-use duration_string::DurationString;
 use strum::VariantNames;
 use tracing::{error, info};
 
