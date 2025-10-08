@@ -1,5 +1,7 @@
 use std::path::Path;
 
+const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
+
 #[derive(Debug)]
 struct WasmInternals {
     core_module: String,
@@ -25,14 +27,37 @@ impl Patcher {
 
     pub fn patch(&self) -> Result<(), anyhow::Error> {
         let WasmInternals {
-            core_module,
+            mut core_module,
             component_part,
         } = self.core_and_component()?;
 
-        println!("Core Module:\n{}", core_module);
-        println!("Component Part:\n{}", component_part);
+        let next_type_index = Self::get_next_core_type_index(&core_module);
 
         Ok(())
+    }
+
+    fn get_core_item_count<S: AsRef<str>>(
+        item: S,
+        core_module: S,
+    ) -> u32 {
+        let mut start = 0;
+        let mut count = 0;
+
+        loop {
+            match core_module.as_ref()[start..].find(item.as_ref()) {
+                Some(pos) => {
+                    count += 1;
+                    start += pos + item.as_ref().len();
+                },
+                None => break,
+            };
+        }
+
+        count
+    }
+
+    fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> u32 {
+        Self::get_core_item_count("type (;", core_module.as_ref())
     }
 
     fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
@@ -164,6 +189,92 @@ mod tests {
             strip_whitespaces(&component_part),
             strip_whitespaces(EXPECTED_COMPONENT)
         );
+    }
+
+    #[test]
+    fn gets_next_core_type_index() {
+        const CORE_1: &str = r#"
+            (core module (;0;)
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_1);
+        assert_eq!(index, 0);
+
+        const CORE_2: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_2);
+        assert_eq!(index, 3);
+
+        const CORE_3: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (type (;3;) (func))
+                (type (;4;) (func))
+                (type (;5;) (func))
+                (type (;6;) (func))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_3);
+        assert_eq!(index, 7);
+    }
+
+        #[test]
+    fn gets_next_core_type_index() {
+        const CORE_1: &str = r#"
+            (core module (;0;)
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_1);
+        assert_eq!(index, 0);
+
+        const CORE_2: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_2);
+        assert_eq!(index, 3);
+
+        const CORE_3: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (type (;3;) (func))
+                (type (;4;) (func))
+                (type (;5;) (func))
+                (type (;6;) (func))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_type_index(&CORE_3);
+        assert_eq!(index, 7);
     }
 
     #[test]
