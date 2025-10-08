@@ -26,7 +26,7 @@ build-gateway:
 # Duration: ~3-5 minutes (Rust compilation to WASM)
 local-build-gateway:
     FROM alpine
-    COPY +build-http-proxy/gateway.wasm .
+    COPY +build-gateway/gateway.wasm .
 
     # Copy module configuration and metadata files
     COPY lib/config.schema.json .
@@ -36,9 +36,6 @@ local-build-gateway:
 
     # Create the missing config.json file (empty JSON object)
     RUN echo '{}' > config.json
-
-    # Download web assets directly to root level
-    COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
 
     # Copy WASM module and JSON config files to root of staging
     RUN cp gateway.wasm /staging/

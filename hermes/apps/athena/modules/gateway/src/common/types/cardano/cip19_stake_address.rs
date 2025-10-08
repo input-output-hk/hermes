@@ -2,61 +2,18 @@
 //!
 //! More information can be found in [CIP-19](https://cips.cardano.org/cip/CIP-19)
 
-use std::sync::LazyLock;
-
 use anyhow::bail;
 use cardano_blockchain_types::{pallas_addresses::Address, StakeAddress};
-use const_format::concatcp;
-use regex::Regex;
 
 use crate::common::types::string_types::impl_string_types;
 
-/// Stake address title.
-const TITLE: &str = "Cardano stake address";
-/// Stake address description.
-const DESCRIPTION: &str = "Cardano stake address, also known as a reward address.";
-/// Stake address example.
-// cSpell:disable
-pub(crate) const EXAMPLE: &str = "stake_test1uqehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gssrtvn";
 // cSpell:enable
 /// Production Stake Address Identifier
 const PROD_STAKE: &str = "stake";
 /// Test Stake Address Identifier
 const TEST_STAKE: &str = "stake_test";
-/// Regex Pattern
-pub(crate) const PATTERN: &str = concatcp!(
-    "^(",
-    PROD_STAKE,
-    "|",
-    TEST_STAKE,
-    ")1[a,c-h,j-n,p-z,0,2-9]{53}$"
-);
-/// Length of the encoded address.
-const ENCODED_ADDR_LEN: usize = 53;
 /// Length of the decoded address.
 const DECODED_ADDR_LEN: usize = 29;
-/// Minimum length
-pub(crate) const MIN_LENGTH: usize = PROD_STAKE.len() + 1 + ENCODED_ADDR_LEN;
-/// Minimum length
-pub(crate) const MAX_LENGTH: usize = TEST_STAKE.len() + 1 + ENCODED_ADDR_LEN;
-
-/// String Format
-pub(crate) const FORMAT: &str = "cardano:cip19-address";
-
-/// Validate `Cip19StakeAddress` This part is done separately from the `PATTERN`
-fn is_valid(stake_addr: &str) -> bool {
-    /// Regex to validate `Cip19StakeAddress`
-    #[allow(clippy::unwrap_used)] // Safe because the Regex is constant.
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(PATTERN).unwrap());
-
-    if RE.is_match(stake_addr) {
-        if let Ok((hrp, addr)) = bech32::decode(stake_addr) {
-            let hrp = hrp.as_str();
-            return addr.len() == DECODED_ADDR_LEN && (hrp == PROD_STAKE || hrp == TEST_STAKE);
-        }
-    }
-    false
-}
 
 impl_string_types!(Cip19StakeAddress, "string", FORMAT, is_valid);
 

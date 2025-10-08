@@ -98,50 +98,50 @@ pub(crate) struct UpdateTxoSpentQueryParams {
     pub spent_slot: DbSlot,
 }
 
-impl Into<TxnIndex> for DbTxnIndex {
-    fn into(self) -> TxnIndex {
-        self.0.into()
+impl From<DbTxnIndex> for TxnIndex {
+    fn from(val: DbTxnIndex) -> Self {
+        val.0.into()
     }
 }
 
-impl Into<i16> for DbTxnOutputOffset {
-    fn into(self) -> i16 {
-        self.0
+impl From<DbTxnOutputOffset> for i16 {
+    fn from(val: DbTxnOutputOffset) -> Self {
+        val.0
     }
 }
 
-impl Into<Slot> for DbSlot {
-    fn into(self) -> Slot {
-        self.0.into()
+impl From<DbSlot> for Slot {
+    fn from(val: DbSlot) -> Self {
+        val.0.into()
     }
 }
 
-impl Into<DbStakeAddress> for StakeAddress {
-    fn into(self) -> DbStakeAddress {
-        DbStakeAddress(self.into())
+impl From<StakeAddress> for DbStakeAddress {
+    fn from(val: StakeAddress) -> Self {
+        DbStakeAddress(val)
     }
 }
 
-impl Into<DbTxnIndex> for TxnIndex {
-    fn into(self) -> DbTxnIndex {
-        DbTxnIndex(self.into())
+impl From<TxnIndex> for DbTxnIndex {
+    fn from(val: TxnIndex) -> Self {
+        DbTxnIndex(val.into())
     }
 }
 
-impl Into<DbTxnOutputOffset> for i16 {
-    fn into(self) -> DbTxnOutputOffset {
-        DbTxnOutputOffset(self)
+impl From<i16> for DbTxnOutputOffset {
+    fn from(val: i16) -> Self {
+        DbTxnOutputOffset(val)
     }
 }
 
-impl Into<DbSlot> for Slot {
-    fn into(self) -> DbSlot {
-        DbSlot(self.into())
+impl From<Slot> for DbSlot {
+    fn from(val: Slot) -> Self {
+        DbSlot(val.into())
     }
 }
 
-impl Into<TransactionId> for DbTransactionId {
-    fn into(self) -> TransactionId {
-        self.0
+impl From<DbTransactionId> for TransactionId {
+    fn from(val: DbTransactionId) -> Self {
+        val.0
     }
 }

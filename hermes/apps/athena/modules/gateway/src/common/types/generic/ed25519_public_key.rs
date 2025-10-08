@@ -11,18 +11,8 @@ use crate::{
     common::types::string_types::impl_string_types, utilities::as_hex_string, utils::ed25519,
 };
 
-/// Title.
-const TITLE: &str = "Ed25519 Public Key";
-/// Description.
-const DESCRIPTION: &str = "This is a 32 Byte Hex encoded Ed25519 Public Key.";
-/// Example.
-const EXAMPLE: &str = "0x56CDD154355E078A0990F9E633F9553F7D43A68B2FF9BEF78B9F5C71C808A7C8";
-/// Length of the hex encoded string
-pub(crate) const ENCODED_LENGTH: usize = ed25519::HEX_ENCODED_LENGTH;
 /// Validation Regex Pattern
 pub(crate) const PATTERN: &str = "^0x[A-Fa-f0-9]{64}$";
-/// Format
-pub(crate) const FORMAT: &str = "hex:ed25519-public-key";
 
 /// Validate `Ed25519HexEncodedPublicKey` This part is done separately from the `PATTERN`
 fn is_valid(hex_key: &str) -> bool {
@@ -37,23 +27,6 @@ fn is_valid(hex_key: &str) -> bool {
 }
 
 impl_string_types!(Ed25519HexEncodedPublicKey, "string", FORMAT, is_valid);
-
-impl Ed25519HexEncodedPublicKey {
-    /// Extra examples of 32 bytes ED25519 Public Key.
-    pub(crate) fn examples(index: usize) -> Self {
-        match index {
-            0 => Self(
-                "0xDEF855AE45F3BF9640A5298A38B97617DE75600F796F17579BFB815543624B24".to_owned(),
-            ),
-            1 => Self(
-                "0x83B3B55589797EF953E24F4F0DBEE4D50B6363BCF041D15F6DBD33E014E54711".to_owned(),
-            ),
-            _ => Self(
-                "0xA3E52361AFDE840918E2589DBAB9967C8027FB4431E83D36E338748CD6E3F820".to_owned(),
-            ),
-        }
-    }
-}
 
 impl TryFrom<&str> for Ed25519HexEncodedPublicKey {
     type Error = anyhow::Error;

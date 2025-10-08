@@ -180,7 +180,7 @@ fn get_txo(
             err.into_inner()
         });
         let query_key = &row.key;
-        let key = (query_value.txn_id.into(), query_key.txo.into());
+        let key = (query_value.txn_id, query_key.txo.into());
         txo_map.insert(
             key,
             TxoInfo {
@@ -261,7 +261,7 @@ fn get_txo_assets(
 /// have a txo which is spent inside the volatile, so to not incorrectly mix up records
 /// from these two tables, inserting some rows from persistent to volatile section).
 fn update_spent(
-    session: &Session,
+    _session: &Session,
     stake_address: &StakeAddress,
     base_txos: &mut TxoMap,
     txos: &mut TxoMap,
@@ -277,7 +277,7 @@ fn update_spent(
 
     let mut params = Vec::new();
 
-    for chunk in txn_hashes.chunks(100) {
+    for _chunk in txn_hashes.chunks(100) {
         // : scylla::client::pager::TypedRowStream<GetTxiByTxnHashesQuery>
         let txi_stream: Vec<anyhow::Result<GetTxiByTxnHashesQuery>> = vec![];
         // GetTxiByTxnHashesQuery::execute(

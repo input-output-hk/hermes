@@ -6,77 +6,9 @@
 //!
 //! Hex encoded string which represents a 28 byte hash.
 
-use std::{
-    cmp::{max, min},
-    fmt::{self, Display},
-    sync::LazyLock,
-};
-
-use anyhow::{bail, Result};
-use chrono::DateTime;
-use const_format::concatcp;
-use regex::Regex;
-use serde_json::Value;
+use std::fmt::{self, Display};
 
 use crate::common::types::cardano::slot_no::SlotNo;
-
-/// Title.
-const TITLE: &str = "As At this Time OR Slot.";
-/// Description.
-const DESCRIPTION: &str = "Restrict the query to this time.
-Time can be represented as either the blockchains slot number,
-or the number of seconds since midnight 1970, UTC.
-
-If this parameter is not defined, the query will retrieve data up to the current time.";
-/// Example whence.
-const EXAMPLE_WHENCE: &str = TIME_DISCRIMINATOR;
-/// Example time.
-const EXAMPLE_TIME: u64 = 1_730_861_339; // Date and time (UTC): November 6, 2024 2:48:59 AM
-/// Example
-static EXAMPLE: LazyLock<String> = LazyLock::new(|| {
-    // Note, the SlotNumber here is wrong, but its not used for generating the example, so
-    // thats OK.
-    let example = AsAt((EXAMPLE_WHENCE.to_owned(), EXAMPLE_TIME, SlotNo::default()));
-    format!("{example}")
-});
-/// Time Discriminator
-const TIME_DISCRIMINATOR: &str = "TIME";
-/// Slot Discriminator
-const SLOT_DISCRIMINATOR: &str = "SLOT";
-/// Validation Regex Pattern
-const PATTERN: &str = concatcp!(
-    "^(",
-    SLOT_DISCRIMINATOR,
-    "|",
-    TIME_DISCRIMINATOR,
-    r"):(\d{1,20})$"
-);
-/// Minimum parameter length
-static MIN_LENGTH: LazyLock<usize> =
-    LazyLock::new(|| min(TIME_DISCRIMINATOR.len(), SLOT_DISCRIMINATOR.len()) + ":0".len());
-/// Maximum parameter length
-static MAX_LENGTH: LazyLock<usize> = LazyLock::new(|| {
-    max(TIME_DISCRIMINATOR.len(), SLOT_DISCRIMINATOR.len()) + ":".len() + u64::MAX.to_string().len()
-});
-
-/// Parse the `AsAt` parameter from the Query string provided.
-fn parse_parameter(param: &str) -> Result<(String, u64)> {
-    /// Regex to parse the parameter
-    #[allow(clippy::unwrap_used)] // Safe because the Regex is constant.  Can never panic in prod.
-    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(PATTERN).unwrap());
-
-    let Some(results) = RE.captures(param) else {
-        bail!("Not a valid `as_at` parameter.");
-    };
-    let whence = &results[1];
-    let Ok(when) = results[2].parse::<u64>() else {
-        bail!(
-            "Not a valid `as_at` parameter. Invalid {} specified.",
-            whence
-        );
-    };
-    Ok((whence.to_owned(), when))
-}
 
 /// As at time from query string parameter.
 /// Store (Whence, When and decoded `SlotNo`) in a tuple for easier access.

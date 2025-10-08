@@ -5,17 +5,6 @@ use std::fmt::Display;
 use anyhow::bail;
 use num_bigint::BigInt;
 
-/// Title.
-const TITLE: &str = "Cardano Blockchain ADA coins value";
-/// Description.
-const DESCRIPTION: &str = "The ADA coins value of a Cardano Block on the chain.";
-/// Example.
-pub(crate) const EXAMPLE: u64 = 1_234_567;
-/// Minimum.
-const MINIMUM: u64 = 0;
-/// Maximum.
-const MAXIMUM: u64 = u64::MAX;
-
 /// ADA coins value on the blockchain.
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
 pub(crate) struct AdaValue(u64);

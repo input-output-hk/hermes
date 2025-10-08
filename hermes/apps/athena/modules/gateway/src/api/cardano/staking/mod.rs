@@ -3,17 +3,11 @@
 use crate::common::{
     auth::none_or_rbac::NoneOrRBAC,
     objects::cardano::network::Network,
-    tags::ApiTags,
     types::cardano::{self, cip19_stake_address::Cip19StakeAddress, slot_no::SlotNo},
 };
 
 mod assets_get;
 mod db_mocked;
-
-/// As at time from query string parameter.
-/// Store (Whence, When and decoded `SlotNo`) in a tuple for easier access.
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) struct AsAt((String, u64, SlotNo));
 
 /// Cardano Staking API Endpoints
 pub(crate) struct Api;

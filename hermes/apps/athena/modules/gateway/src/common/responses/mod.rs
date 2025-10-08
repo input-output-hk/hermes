@@ -1,16 +1,10 @@
 //! Generic Responses are all contained in their own modules, grouped by response codes.
 
-use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
-};
-
 use code_401_unauthorized::Unauthorized;
 use code_403_forbidden::Forbidden;
 use code_412_precondition_failed::PreconditionFailed;
 use code_429_too_many_requests::TooManyRequests;
 use code_503_service_unavailable::ServiceUnavailable;
-use http::StatusCode;
 use tracing::{debug, error};
 
 mod code_401_unauthorized;
@@ -23,11 +17,7 @@ pub(crate) mod code_503_service_unavailable;
 
 use code_500_internal_server_error::InternalServerError;
 
-use super::types::headers::{
-    access_control_allow_origin::AccessControlAllowOriginHeader,
-    ratelimit::RateLimitHeader,
-    retry_after::{RetryAfterHeader, RetryAfterOption},
-};
+use super::types::headers::retry_after::{RetryAfterHeader, RetryAfterOption};
 
 /// Default error responses
 // #[derive(ApiResponse)]
@@ -52,6 +42,7 @@ pub(crate) enum ErrorResponses {
     /// resource.
     // #[oai(status = 401)]
     // Unauthorized(Json<Unauthorized>),
+    #[allow(dead_code)]
     Unauthorized(Unauthorized),
 
     /// ## Forbidden
@@ -60,6 +51,7 @@ pub(crate) enum ErrorResponses {
     /// resource.
     // #[oai(status = 403)]
     // Forbidden(Json<Forbidden>),
+    #[allow(dead_code)]
     Forbidden(Forbidden),
 
     /// ## URI Too Long
@@ -153,12 +145,8 @@ impl<T> WithErrorResponses<T> {
     /// Handle a 5xx response.
     /// Returns a Server Error or a Service Unavailable response.
     pub(crate) fn handle_error(err: &anyhow::Error) -> Self {
-        match err {
-            err => {
-                debug!(error=?err, "Handling Response for Internal Error");
-                Self::internal_error(err)
-            },
-        }
+        debug!(error=?err, "Handling Response for Internal Error");
+        Self::internal_error(err)
     }
 
     /// Handle a 503 service unavailable error response with passing a response `msg`.
