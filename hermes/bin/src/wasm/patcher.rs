@@ -1,6 +1,12 @@
 use std::path::Path;
 
-struct Patcher {
+#[derive(Debug)]
+struct WasmInternals {
+    core_module: String,
+    component_part: String,
+}
+
+pub(crate) struct Patcher {
     wat: String,
 }
 
@@ -16,11 +22,55 @@ impl Patcher {
             wat: wat.as_ref().to_string(),
         })
     }
+
+    pub fn patch(&self) -> Result<(), anyhow::Error> {
+        let WasmInternals {
+            core_module,
+            component_part,
+        } = self.core_and_component()?;
+
+        println!("Core Module:\n{}", core_module);
+        println!("Component Part:\n{}", component_part);
+
+        Ok(())
+    }
+
+    fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
+        let module_start = self
+            .wat
+            .find("(core module")
+            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
+        let mut module_end = module_start;
+
+        let mut count = 1;
+        for ch in self.wat[(module_start + 1)..].chars() {
+            module_end += 1;
+            if ch == '(' {
+                count += 1;
+            } else if ch == ')' {
+                count -= 1;
+                if count == 0 {
+                    break;
+                }
+            }
+        }
+
+        let core_module = &self.wat[module_start..=module_end];
+        let component_part = &self.wat[(module_end + 1)..];
+        let last_parenthesis = component_part
+            .rfind(')')
+            .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
+
+        Ok(WasmInternals {
+            core_module: core_module.to_string(),
+            component_part: component_part[..last_parenthesis].to_string(),
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::wasm::patcher::Patcher;
+    use crate::wasm::patcher::{Patcher, WasmInternals};
 
     const TEST_MODULE: &str = "../../wasm/test_wasm_modules/patcher_test.wasm";
 
@@ -31,7 +81,7 @@ mod tests {
                 (type (;1;) (func (result i32)))
                 (type (;2;) (func (param i32 i32) (result i32)))
                 (func $two (;1;) (type 1) (result i32)
-                i32.const 2
+                    i32.const 2
                 )
             )
             (core instance (;0;) (instantiate 0))
@@ -41,7 +91,7 @@ mod tests {
             (func (;0;) (type 0) (canon lift (core func 0)))
             (export (;1;) "two" (func 0))
             (@producers
-            (processed-by "wit-component" "0.229.0")
+                (processed-by "wit-component" "0.229.0")
             )
         )
     "#;
@@ -53,9 +103,12 @@ mod tests {
                 (type (;1;) (func (result i32)))
                 (type (;2;) (func (param i32 i32) (result i32)))
                 (func $two (;1;) (type 1) (result i32)
-                i32.const 2
-            )
+                    i32.const 2
     "#;
+
+    fn strip_whitespaces(s: &str) -> String {
+        s.chars().filter(|c| !c.is_whitespace()).collect()
+    }
 
     #[test]
     fn builds_from_path() {
@@ -70,5 +123,52 @@ mod tests {
     #[test]
     fn fails_on_incorrect_wat() {
         assert!(Patcher::from_str(MAKESHIFT_INCORRECT_WAT).is_err());
+    }
+
+    #[test]
+    fn extracts_wasm_internals() {
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
+        let WasmInternals {
+            core_module,
+            component_part,
+        } = patcher.core_and_component().expect("should extract parts");
+
+        const EXPECTED_CORE: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+
+        const EXPECTED_COMPONENT: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+
+        assert_eq!(
+            strip_whitespaces(&core_module),
+            strip_whitespaces(EXPECTED_CORE)
+        );
+        assert_eq!(
+            strip_whitespaces(&component_part),
+            strip_whitespaces(EXPECTED_COMPONENT)
+        );
+    }
+
+    #[test]
+    fn foo() {
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
     }
 }
