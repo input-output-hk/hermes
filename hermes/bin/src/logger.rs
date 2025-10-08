@@ -42,7 +42,7 @@ impl FromStr for LogLevel {
             "info" => Ok(LogLevel::Info),
             "debug" => Ok(LogLevel::Debug),
             "trace" => Ok(LogLevel::Trace),
-            _ => Err(anyhow::anyhow!("Invalid log level string: {}", s)),
+            _ => Err(anyhow::anyhow!("Invalid log level string: {s}")),
         }
     }
 }

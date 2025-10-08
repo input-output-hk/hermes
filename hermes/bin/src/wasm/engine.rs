@@ -34,12 +34,8 @@ impl Engine {
         config.wasm_component_model(true);
         config.consume_fuel(false);
 
-        let engine = WasmEngine::new(&config).map_err(|e| {
-            anyhow!(
-                "Incorrect `wasmtime::Engine` configuration: {}",
-                e.to_string()
-            )
-        })?;
+        let engine = WasmEngine::new(&config)
+            .map_err(|e| anyhow!("Incorrect `wasmtime::Engine` configuration: {e}",))?;
 
         Ok(Self(engine))
     }
