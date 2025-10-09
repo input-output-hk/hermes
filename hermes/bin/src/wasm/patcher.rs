@@ -3,6 +3,7 @@ use std::path::Path;
 use regex::Regex;
 
 const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
+const FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
 
 #[derive(Debug)]
 struct WasmInternals {
@@ -26,6 +27,12 @@ impl From<&'static str> for WatElementMatcher {
     }
 }
 
+impl From<Regex> for WatElementMatcher {
+    fn from(re: Regex) -> Self {
+        WatElementMatcher::Regex(re)
+    }
+}
+
 impl WatElementMatcher {
     fn first_match<S: AsRef<str>>(
         &self,
@@ -40,7 +47,14 @@ impl WatElementMatcher {
                     }
                 })
             },
-            WatElementMatcher::Regex(re) => todo!(), //re.find(s.as_ref()).map(|m| m.start()),
+            WatElementMatcher::Regex(re) => {
+                re.find(s.as_ref()).map(|m| {
+                    WatMatch {
+                        pos: m.start(),
+                        len: m.end() - m.start(),
+                    }
+                })
+            },
         }
     }
 }
@@ -73,6 +87,7 @@ impl Patcher {
         Ok(())
     }
 
+    // TODO[RC]: It would be more robust to use a proper parser here (`wasmparser`).
     fn get_core_item_count<I, S>(
         item: I,
         core_module: S,
@@ -100,6 +115,13 @@ impl Patcher {
 
     fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> u32 {
         Self::get_core_item_count("type (;", core_module.as_ref())
+    }
+
+    fn get_next_core_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+        Self::get_core_item_count(
+            Regex::new(FUNC_REGEX).expect("this should be a proper regex"),
+            core_module.as_ref(),
+        )
     }
 
     fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
@@ -274,6 +296,57 @@ mod tests {
             "#;
         let index = Patcher::get_next_core_type_index(&CORE_3);
         assert_eq!(index, 7);
+    }
+
+    #[test]
+    fn gets_next_core_func_index() {
+        const CORE_1: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+            )
+            "#;
+        let index = Patcher::get_next_core_func_index(&CORE_1);
+        assert_eq!(index, 0);
+
+        const CORE_2: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_func_index(&CORE_2);
+        assert_eq!(index, 1);
+
+        const CORE_3: &str = r#"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (type (;3;) (func))
+                (type (;4;) (func))
+                (type (;5;) (func))
+                (type (;6;) (func))
+                (func $two1 (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+                (func $two2 (;2;) (type 1) (result i32)
+                    i32.const 2
+                )
+                (func $two3 (;3;) (type 1) (result i32)
+                    i32.const 2
+                )
+                (func $two4 (;4;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            "#;
+        let index = Patcher::get_next_core_func_index(&CORE_3);
+        assert_eq!(index, 4);
     }
 
     #[test]
