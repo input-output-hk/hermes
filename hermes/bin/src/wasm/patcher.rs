@@ -4,7 +4,9 @@ use regex::Regex;
 
 const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
 
-const FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
+const CORE_FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
+
+const COMPONENT_FUNC_REGEX: &str = r#"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)"#;
 
 const CORE_INJECTED_TYPES: &str = r#"
     (type (;{CORE_TYPE_ID_1};) (func (result i32)))
@@ -27,6 +29,7 @@ const CORE_INJECTED_EXPORTS: &str = r#"
     "#;
 
 const COMPONENT_INJECTIONS: &str = r#"
+    (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func (;{CORE_FUNC_ID_1};)))
     (func (;{COMPONENT_FUNC_ID_1};) (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {CORE_FUNC_ID_1})))
     (export (;{COMPONENT_FUNC_ID_1_EXPORT};) "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
@@ -133,18 +136,29 @@ impl Patcher {
         let core_func_1_index = next_core_func_index.to_string();
         let core_func_1_export_index = (next_core_func_index + 1).to_string();
 
+        let next_component_type_index = Self::get_next_component_type_index(&component_part);
+        let component_type_1_index = next_core_func_index.to_string();
+
+        let next_component_func_index = Self::get_next_component_func_index(&component_part);
+        let component_func_1_index = next_component_func_index.to_string();
+        let component_func_1_export_index = (next_component_func_index + 1).to_string();
+
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
             .replace("{CORE_FUNC_ID_1}", &core_func_1_index)
-            .replace("{CORE_TYPE_ID_1}", &core_type_1_index);
-
-        println!("{component_injections}");
+            .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
+            .replace("{COMPONENT_TYPE_ID_1}", &component_type_1_index)
+            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index)
+            .replace(
+                "{COMPONENT_FUNC_ID_1_EXPORT}",
+                &component_func_1_export_index,
+            );
 
         Ok(())
     }
 
     // TODO[RC]: It would be more robust to use a proper parser here (`wasmparser`).
-    fn get_core_item_count<I, S>(
+    fn get_item_count<I, S>(
         item: I,
         core_module: S,
     ) -> u32
@@ -169,13 +183,24 @@ impl Patcher {
         count
     }
 
+    fn get_next_component_type_index<S: AsRef<str>>(component: S) -> u32 {
+        Self::get_item_count("type (;", component.as_ref())
+    }
+
     fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> u32 {
-        Self::get_core_item_count("type (;", core_module.as_ref())
+        Self::get_item_count("type (;", core_module.as_ref())
+    }
+
+    fn get_next_component_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+        Self::get_item_count(
+            Regex::new(COMPONENT_FUNC_REGEX).expect("this should be a proper regex"),
+            core_module.as_ref(),
+        )
     }
 
     fn get_next_core_func_index<S: AsRef<str>>(core_module: S) -> u32 {
-        Self::get_core_item_count(
-            Regex::new(FUNC_REGEX).expect("this should be a proper regex"),
+        Self::get_item_count(
+            Regex::new(CORE_FUNC_REGEX).expect("this should be a proper regex"),
             core_module.as_ref(),
         )
     }
@@ -355,6 +380,55 @@ mod tests {
     }
 
     #[test]
+    fn gets_next_component_type_index() {
+        const COMPONENT_1: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+        let index = Patcher::get_next_component_type_index(&COMPONENT_1);
+        assert_eq!(index, 0);
+
+        const COMPONENT_2: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (type (;1;) (func (result u8)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+        let index = Patcher::get_next_component_type_index(&COMPONENT_2);
+        assert_eq!(index, 2);
+
+        const COMPONENT_3: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (type (;1;) (func (result u8)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (type (;2;) (func (result u8)))
+            (type (;3;) (func (result u8)))
+            (type (;4;) (func (result u8)))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+        let index = Patcher::get_next_component_type_index(&COMPONENT_3);
+        assert_eq!(index, 5);
+    }
+
+    #[test]
     fn gets_next_core_func_index() {
         const CORE_1: &str = r#"
             (core module (;0;)
@@ -403,6 +477,57 @@ mod tests {
             "#;
         let index = Patcher::get_next_core_func_index(&CORE_3);
         assert_eq!(index, 4);
+    }
+
+    #[test]
+    fn gets_next_component_func_index() {
+        const COMPONENT_1: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+        let index = Patcher::get_next_component_func_index(&COMPONENT_1);
+        assert_eq!(index, 0);
+
+        const COMPONENT_2: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (func (;1;) (type 0) (canon lift (core func 0)))
+            (func (;2;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+        let index = Patcher::get_next_component_func_index(&COMPONENT_2);
+        assert_eq!(index, 3);
+
+        const COMPONENT_3: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            (func (;1;) (type 0) (canon lift (core func 0)))
+            (func (;2;) (type 0) (canon lift (core func 0)))
+            (func (;3;) (type 0) (canon lift (core func 0)))
+            (func (;4;) (type 0) (canon lift (core func 0)))
+            (func (;5;) (type 0) (canon lift (core func 0)))
+            "#;
+        let index = Patcher::get_next_component_func_index(&COMPONENT_3);
+        assert_eq!(index, 6);
     }
 
     #[test]
