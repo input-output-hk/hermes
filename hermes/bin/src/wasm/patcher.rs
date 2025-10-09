@@ -96,14 +96,26 @@ pub(crate) struct Patcher {
 impl Patcher {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, anyhow::Error> {
         let wat = wasmprinter::print_file(path)?;
+        Self::validate_core_module(&wat)?;
         Ok(Self { wat })
     }
 
-    pub fn from_str<P: AsRef<str>>(wat: P) -> Result<Self, anyhow::Error> {
+    pub fn from_str<S: AsRef<str>>(wat: S) -> Result<Self, anyhow::Error> {
         let _syntax_check = wat::parse_str(wat.as_ref())?;
+        Self::validate_core_module(&wat)?;
         Ok(Self {
             wat: wat.as_ref().to_string(),
         })
+    }
+
+    fn validate_core_module<S: AsRef<str>>(wat: S) -> Result<(), anyhow::Error> {
+        let core_module_count = Self::get_item_count("(core module (;", &wat);
+        if core_module_count != 1 {
+            return Err(anyhow::anyhow!(
+                "expected exactly one core module, found {core_module_count}"
+            ));
+        }
+        Ok(())
     }
 
     pub fn patch(&self) -> Result<String, anyhow::Error> {
@@ -235,7 +247,7 @@ impl Patcher {
         let core_module = &self.wat[module_start..=module_end];
         let core_last_parenthesis = core_module
             .rfind(')')
-            .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
+            .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in core part"))?;
         let component_part = &self.wat[(module_end + 1)..];
         let component_last_parenthesis = component_part
             .rfind(')')
@@ -252,7 +264,10 @@ impl Patcher {
 mod tests {
     use crate::wasm::patcher::{Patcher, WasmInternals};
 
-    const TEST_MODULE: &str = "../../wasm/test_wasm_modules/patcher_test.wasm";
+    const COMPONENT_SINGLE_CORE_MODULE: &str =
+        "tests/test_wasm_files/component_single_core_module.wasm";
+    const COMPONENT_MULTIPLE_CORE_MODULES: &str =
+        "tests/test_wasm_files/component_multiple_core_modules.wasm";
 
     const MAKESHIFT_CORRECT_WAT: &str = r#"
         (component
@@ -292,7 +307,7 @@ mod tests {
 
     #[test]
     fn builds_from_path() {
-        assert!(Patcher::from_file(TEST_MODULE).is_ok());
+        assert!(Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).is_ok());
     }
 
     #[test]
@@ -545,5 +560,17 @@ mod tests {
         let result = patcher.patch().expect("should patch");
         let reencoded = wat::parse_str(&result);
         assert!(reencoded.is_ok());
+
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let reencoded = wat::parse_str(&result);
+        assert!(reencoded.is_ok());
+    }
+
+    #[test]
+    fn incorrect_wasm_returns_error() {
+        let patcher = Patcher::from_file(COMPONENT_MULTIPLE_CORE_MODULES);
+        assert!(patcher.is_err());
     }
 }
