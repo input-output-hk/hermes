@@ -3,23 +3,33 @@ use std::path::Path;
 use regex::Regex;
 
 const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
+
 const FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
+
 const CORE_INJECTED_TYPES: &str = r#"
-    (type (;{TYPE_ID_1};) (func (result i32)))
-    (type (;{TYPE_ID_2};) (func (param i32) (result i64)))
+    (type (;{CORE_TYPE_ID_1};) (func (result i32)))
+    (type (;{CORE_TYPE_ID_2};) (func (param i32) (result i64)))
     "#;
+
 const CORE_INJECTED_FUNCTIONS: &str = r#"
-    (func ${MAGIC}get-memory-size (type {TYPE_ID_1}) (result i32)
+    (func ${MAGIC}get-memory-size (type {CORE_TYPE_ID_1}) (result i32)
         memory.size
     )
-    (func ${MAGIC}get-memory-raw-bytes (type {TYPE_ID_2}) (param i32) (result i64)
+    (func ${MAGIC}get-memory-raw-bytes (type {CORE_TYPE_ID_2}) (param i32) (result i64)
         local.get 0
         i64.load
     )
     "#;
+
 const CORE_INJECTED_EXPORTS: &str = r#"
     (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
     (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
+    "#;
+
+const COMPONENT_INJECTIONS: &str = r#"
+    (alias core export 0 "{MAGIC}get-memory-size" (core func (;{CORE_FUNC_ID_1};)))
+    (func (;{COMPONENT_FUNC_ID_1};) (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {CORE_FUNC_ID_1})))
+    (export (;{COMPONENT_FUNC_ID_1_EXPORT};) "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
     "#;
 
 #[derive(Debug)]
@@ -99,26 +109,36 @@ impl Patcher {
             component_part,
         } = self.core_and_component()?;
 
-        let next_type_index = Self::get_next_core_type_index(&core_module);
-        let next_func_index = Self::get_next_core_func_index(&core_module);
+        let next_core_type_index = Self::get_next_core_type_index(&core_module);
 
-        let type_1_index = next_type_index.to_string();
-        let type_2_index = (next_type_index + 1).to_string();
+        let core_type_1_index = next_core_type_index.to_string();
+        let core_type_2_index = (next_core_type_index + 1).to_string();
 
         let core_type_injection = CORE_INJECTED_TYPES
-            .replace("{TYPE_ID_1}", &type_1_index)
-            .replace("{TYPE_ID_2}", &type_2_index);
+            .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
+            .replace("{CORE_TYPE_ID_2}", &core_type_2_index);
 
         let core_func_injection = CORE_INJECTED_FUNCTIONS
             .replace("{MAGIC}", MAGIC)
-            .replace("{TYPE_ID_1}", &type_1_index)
-            .replace("{TYPE_ID_2}", &type_2_index);
+            .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
+            .replace("{CORE_TYPE_ID_2}", &core_type_2_index);
 
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
 
         println!("{core_type_injection}");
         println!("{core_func_injection}");
         println!("{core_export_injection}");
+
+        let next_core_func_index = Self::get_next_core_func_index(&core_module);
+        let core_func_1_index = next_core_func_index.to_string();
+        let core_func_1_export_index = (next_core_func_index + 1).to_string();
+
+        let component_injections = COMPONENT_INJECTIONS
+            .replace("{MAGIC}", MAGIC)
+            .replace("{CORE_FUNC_ID_1}", &core_func_1_index)
+            .replace("{CORE_TYPE_ID_1}", &core_type_1_index);
+
+        println!("{component_injections}");
 
         Ok(())
     }
