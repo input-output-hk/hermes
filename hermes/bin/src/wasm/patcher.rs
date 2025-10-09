@@ -4,6 +4,19 @@ use regex::Regex;
 
 const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
 const FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
+const CORE_INJECTED_TYPES: &str = r#"
+    (type (;{TYPE_ID_1};) (func (result i32)))
+    (type (;{TYPE_ID_2};) (func (param i32) (result i64)))
+    "#;
+const CORE_INJECTED_FUNCTIONS: &str = r#"
+    (func ${MAGIC}get-memory-size (type {TYPE_ID_1}) (result i32)
+        memory.size
+    )
+    (func ${MAGIC}get-memory-raw-bytes (type {TYPE_ID_2}) (param i32) (result i64)
+        local.get 0
+        i64.load
+    )
+    "#;
 
 #[derive(Debug)]
 struct WasmInternals {
@@ -83,6 +96,22 @@ impl Patcher {
         } = self.core_and_component()?;
 
         let next_type_index = Self::get_next_core_type_index(&core_module);
+        let next_func_index = Self::get_next_core_func_index(&core_module);
+
+        let type_1_index = next_type_index.to_string();
+        let type_2_index = (next_type_index + 1).to_string();
+
+        let core_type_injection = CORE_INJECTED_TYPES
+            .replace("{TYPE_ID_1}", &type_1_index)
+            .replace("{TYPE_ID_2}", &type_2_index);
+
+        let core_func_injection = CORE_INJECTED_FUNCTIONS
+            .replace("{MAGIC}", MAGIC)
+            .replace("{TYPE_ID_1}", &type_1_index)
+            .replace("{TYPE_ID_2}", &type_2_index);
+
+        println!("{core_type_injection}");
+        println!("{core_func_injection}");
 
         Ok(())
     }
