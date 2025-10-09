@@ -4,7 +4,7 @@ use strum::Display;
 
 /// Database operations variation.
 #[derive(Display)]
-pub(crate) enum Operation {
+pub enum Operation {
     /// Insert operation.
     Insert,
     /// Delete operation.

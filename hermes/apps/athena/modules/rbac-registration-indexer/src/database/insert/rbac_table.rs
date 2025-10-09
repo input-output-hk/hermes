@@ -1,13 +1,15 @@
 //! Insert data to `rbac_registration` table.
-use crate::{
-    bind_parameters,
-    database::{
-        data::rbac_db::RbacDbData, operation::Operation, query_builder::QueryBuilder,
-        statement::DatabaseStatement,
+
+use shared::{
+    bindings::hermes::sqlite::api::{Sqlite, Statement, Value},
+    sqlite_bind_parameters,
+    utils::{
+        log::log_error,
+        sqlite::{operation::Operation, statement::DatabaseStatement},
     },
-    hermes::sqlite::api::{Sqlite, Statement, Value},
-    utils::log::log_error,
 };
+
+use crate::database::{data::rbac_db::RbacDbData, query_builder::QueryBuilder};
 
 /// Prepare insert statement for `rbac_registration` table.
 pub(crate) fn prepare_insert_rbac_registration(
@@ -30,7 +32,7 @@ pub(crate) fn insert_rbac_registration(
     data: RbacDbData,
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_registration";
-    DatabaseStatement::bind_step_reset_statement(
+    let _ = DatabaseStatement::bind_step_reset_statement(
         stmt,
         |stmt| bind_rbac_registration(stmt, data),
         FUNCTION_NAME,
@@ -57,7 +59,7 @@ fn bind_rbac_registration(
             anyhow::bail!("Failed to convert slot: {e}");
         },
     };
-    bind_parameters!(stmt, FUNCTION_NAME,
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME,
         data.txn_id => "txn_id",
         slot => "slot_no",
         data.txn_idx => "txn_idx",

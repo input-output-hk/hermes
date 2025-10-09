@@ -1,10 +1,9 @@
 //! SQLite Statement implementation.
 
 use crate::{
-    bind_parameters,
-    database::operation::Operation,
-    hermes::sqlite::api::{Sqlite, Statement, Value},
-    utils::log::log_error,
+    bindings::hermes::sqlite::api::{Sqlite, Statement, Value},
+    sqlite_bind_parameters,
+    utils::{log::log_error, sqlite::operation::Operation},
 };
 
 /// Database statement.
@@ -12,7 +11,7 @@ pub struct DatabaseStatement;
 
 impl DatabaseStatement {
     /// Execute a statement.
-    pub(crate) fn execute_statement(
+    pub fn execute_statement(
         sqlite: &Sqlite,
         query: &str,
         operation: Operation,
@@ -33,7 +32,7 @@ impl DatabaseStatement {
     }
 
     /// Prepare statement.
-    pub(crate) fn prepare_statement(
+    pub fn prepare_statement(
         sqlite: &Sqlite,
         query: &str,
         operation: Operation,
@@ -56,7 +55,7 @@ impl DatabaseStatement {
     }
 
     /// Reset a statement.
-    pub(crate) fn reset_statement(
+    pub fn reset_statement(
         stmt: &Statement,
         func_name: &str,
     ) -> anyhow::Result<()> {
@@ -75,7 +74,7 @@ impl DatabaseStatement {
     }
 
     /// Finalize a statement.
-    pub(crate) fn finalize_statement(
+    pub fn finalize_statement(
         stmt: Statement,
         func_name: &str,
     ) -> anyhow::Result<()> {
@@ -94,7 +93,7 @@ impl DatabaseStatement {
     }
 
     /// Bind -> step -> reset a prepared statement.
-    pub(crate) fn bind_step_reset_statement<F>(
+    pub fn bind_step_reset_statement<F>(
         stmt: &Statement,
         bind_fn: F,
         func_name: &str,
@@ -121,7 +120,7 @@ impl DatabaseStatement {
 
     /// Bind slot to prepared statement.
     /// This is commonly used to bind slot to a prepared statement.
-    pub(crate) fn bind_slot(
+    pub fn bind_slot(
         stmt: &Statement,
         slot_no: u64,
         func_name: &str,
@@ -139,11 +138,39 @@ impl DatabaseStatement {
                     anyhow::bail!(error);
                 },
             };
-            bind_parameters!(stmt, func_name, slot => "slot_no")?;
+            sqlite_bind_parameters!(stmt, func_name, slot => "slot_no")?;
             Ok(())
         }
 
         Self::bind_step_reset_statement(stmt, |stmt| bind(stmt, slot_no, func_name), func_name)?;
         Ok(())
     }
+}
+
+/// Convert a SQLite column value to a Rust type.
+pub fn column_as<T>(
+    stmt: &Statement,
+    index: u32,
+    func_name: &str,
+    field_name: &str,
+) -> anyhow::Result<T>
+where
+    T: TryFrom<Value, Error = anyhow::Error>,
+{
+    let value = stmt.column(index)?;
+    T::try_from(value).map_err(|e| {
+        log_error(
+            file!(),
+            func_name,
+            "column_as",
+            &format!(
+                "Failed to convert column {} to {}: {}",
+                field_name,
+                std::any::type_name::<T>(),
+                e
+            ),
+            None,
+        );
+        e
+    })
 }

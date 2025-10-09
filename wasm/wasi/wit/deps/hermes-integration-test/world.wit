@@ -1,5 +1,7 @@
 package hermes:integration-test;
 
 world all {
+    import api;
+    
     export event;
 }

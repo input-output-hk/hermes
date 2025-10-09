@@ -15,7 +15,7 @@ wit_bindgen::generate!({
 
 export!(TestComponent);
 
-use exports::hermes::integration_test::event::TestResult;
+use hermes::integration_test::api::TestResult;
 
 mod tests;
 

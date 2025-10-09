@@ -4,7 +4,7 @@ use cardano_blockchain_types::MultiEraBlock;
 use serde_json::json;
 
 use crate::{
-    hermes::cardano::api::{Block, CardanoNetwork},
+    bindings::hermes::cardano::api::{Block, CardanoNetwork},
     utils::log::log_error,
 };
 
@@ -13,7 +13,7 @@ use crate::{
 /// # Return
 ///
 /// * `Option<MultiEraBlock>` - A `MultiEraBlock` if successful, `None` otherwise
-pub(crate) fn build_block(
+pub fn build_block(
     file_name: &str,
     func_name: &str,
     network: CardanoNetwork,

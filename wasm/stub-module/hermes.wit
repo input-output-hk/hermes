@@ -1,0 +1,24 @@
+package hermes:wasi;
+
+/// This includes every single interface for a module.
+world hermes {
+  include wasi:cli/imports@0.2.6;
+
+  /// All possible Hermes imports and exports
+  include hermes:binary/all;
+  include hermes:cardano/all;
+  include hermes:cbor/all;
+  include hermes:cron/all;
+  include hermes:crypto/all;
+  include hermes:hash/all;
+  include hermes:init/all;
+  include hermes:ipfs/all;
+  include hermes:json/all;
+  include hermes:kv-store/all;
+  include hermes:localtime/all;
+  include hermes:logging/all;
+  include hermes:sqlite/all;
+  include hermes:integration-test/all;
+  include hermes:http-gateway/all;
+  include hermes:http-request/all;
+}

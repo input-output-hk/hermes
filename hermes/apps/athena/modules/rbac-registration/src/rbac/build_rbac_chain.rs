@@ -1,9 +1,8 @@
 //! Build the RBAC registration chain
 
 use rbac_registration::{cardano::cip509::Cip509, registration::cardano::RegistrationChain};
-
-use crate::{
-    hermes::cardano::api::{CardanoNetwork, Network},
+use shared::{
+    bindings::hermes::cardano::api::{CardanoNetwork, Network},
     utils::{cardano::block::build_block, log::log_error},
 };
 
@@ -28,8 +27,8 @@ pub(crate) struct RbacChainInfo {
 ///
 /// # Return
 ///
-/// * `Ok(Option<RegistrationChain>)` – A RBAC registration chain
-///   or `None` if registration chain is empty.
+/// * `Ok(Option<RegistrationChain>)` – A RBAC registration chain or `None` if
+///   registration chain is empty.
 /// * `Err(anyhow::Error)` - If any error occurs.
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,

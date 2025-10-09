@@ -10,7 +10,7 @@ name = "next_century_rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.43.0"
+wit-bindgen = "0.46.0"
 
 [profile.release]
 # Significantly reduces WASM size.

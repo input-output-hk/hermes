@@ -19,7 +19,7 @@ export!(TestComponent);
 
 mod test;
 
-use exports::hermes::integration_test::event::TestResult;
+use hermes::integration_test::api::TestResult;
 use hermes::sqlite;
 use test::*;
 

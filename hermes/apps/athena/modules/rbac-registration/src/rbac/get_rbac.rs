@@ -5,18 +5,20 @@ use std::collections::HashSet;
 use cardano_blockchain_types::StakeAddress;
 use catalyst_types::catalyst_id::CatalystId;
 use rbac_registration::registration::cardano::RegistrationChain;
+use shared::{
+    bindings::hermes::{
+        cardano::api::{CardanoNetwork, Network},
+        sqlite::api::Sqlite,
+    },
+    utils::log::log_error,
+};
 
 use crate::{
     database::select::{
         cat_id::select_rbac_registration_chain_from_cat_id,
         stake_addr::select_rbac_registration_chain_from_stake_addr,
     },
-    hermes::{
-        cardano::api::{CardanoNetwork, Network},
-        sqlite::api::Sqlite,
-    },
     rbac::build_rbac_chain::build_registration_chain,
-    utils::log::log_error,
 };
 
 /// Get the RBAC chain by Catalyst ID.

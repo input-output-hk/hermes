@@ -1,12 +1,14 @@
 //! Create the database tables for RBAC registration.
 
-use crate::{
-    database::{
-        operation::Operation, query_builder::QueryBuilder, statement::DatabaseStatement,
-        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
-    },
-    hermes::sqlite::api::Sqlite,
+use shared::{
+    bindings::hermes::sqlite::api::Sqlite,
+    utils::sqlite::{operation::Operation, statement::DatabaseStatement},
+};
+
+use crate::database::{
+    query_builder::QueryBuilder, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
+    RBAC_REGISTRATION_VOLATILE_TABLE_NAME, RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME,
+    RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
 };
 
 /// Create a persistent `rbac_registration` and `rbac_stake_address` table.

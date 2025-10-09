@@ -6,12 +6,7 @@
 
 /// Integration Test API Interface
 interface event {
-
-    // Time in localtime format.
-    record test-result {
-        name: string,   // Name of the test
-        status: bool,   // True = test passed, False = failed.
-    }
+    use api.{test-result};
 
     /// Run or List a WASM provided integration test.
     ///

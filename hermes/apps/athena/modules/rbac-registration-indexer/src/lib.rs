@@ -1,7 +1,7 @@
 //! RBAC Registration Indexing Module
-wit_bindgen::generate!({
+shared::bindings_generate!({
     world: "hermes:app/hermes",
-    path: "../../../wasi/wit",
+    path: "../../../../../wasm/wasi/wit",
     inline: "
         package hermes:app;
 
@@ -17,45 +17,42 @@ wit_bindgen::generate!({
             export hermes:cardano/event-on-immutable-roll-forward;
         }
     ",
-    generate_all,
+    share: ["hermes:cardano", "hermes:logging", "hermes:sqlite"],
 });
 
 export!(RbacRegistrationComponent);
 
 mod database;
-mod utils;
 use rbac_registration::{
     self,
     cardano::cip509::{Cip0134UriSet, Cip509},
 };
-use serde_json::json;
-use utils::{cardano::block::build_block, log::log_error, problem_report::problem_report_to_json};
-
-use crate::{
-    database::{
-        close_db_connection,
-        create::{create_rbac_persistent_tables, create_rbac_volatile_tables},
-        data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
-        delete::{
-            roll_back::{prepare_roll_back_delete_from_volatile, roll_back_delete_from_volatile},
-            roll_forward::{
-                prepare_roll_forward_delete_from_volatile, roll_forward_delete_from_volatile,
-            },
-        },
-        insert::{
-            rbac_table::{insert_rbac_registration, prepare_insert_rbac_registration},
-            stake_addr_table::{insert_rbac_stake_address, prepare_insert_rbac_stake_address},
-        },
-        open_db_connection,
-        statement::DatabaseStatement,
-        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+use shared::{
+    bindings::hermes::{cardano, sqlite::api::Sqlite},
+    utils::{
+        cardano::block::build_block,
+        log::{log_error, log_info},
+        problem_report::problem_report_to_json,
+        sqlite::{close_db_connection, open_db_connection, statement::DatabaseStatement},
     },
-    hermes::sqlite::api::Sqlite,
-    utils::log::log_info,
 };
 
-use hermes::cardano;
+use crate::database::{
+    create::{create_rbac_persistent_tables, create_rbac_volatile_tables},
+    data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
+    delete::{
+        roll_back::{prepare_roll_back_delete_from_volatile, roll_back_delete_from_volatile},
+        roll_forward::{
+            prepare_roll_forward_delete_from_volatile, roll_forward_delete_from_volatile,
+        },
+    },
+    insert::{
+        rbac_table::{insert_rbac_registration, prepare_insert_rbac_registration},
+        stake_addr_table::{insert_rbac_stake_address, prepare_insert_rbac_stake_address},
+    },
+    RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+    RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+};
 
 struct RbacRegistrationComponent;
 
@@ -169,10 +166,10 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         }
 
         // ------- Finalize and close DB Connection -------
-        DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNCTION_NAME);
-        DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNCTION_NAME);
-        DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNCTION_NAME);
-        DatabaseStatement::finalize_statement(rbac_stake_volatile_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(rbac_stake_volatile_stmt, FUNCTION_NAME);
         close_db_connection(sqlite);
         close_db_connection(sqlite_in_mem);
     }
@@ -235,7 +232,7 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         // 1. Indexing the persistent data from the latest slot.
         // 2. Delete all data in volatile table up to `slot`
         let subscribe_from = cardano::api::SyncSlot::Specific(immutable);
-        let subscription_id_resource = match network_resource.subscribe_block(subscribe_from) {
+        let _subscription_id_resource = match network_resource.subscribe_block(subscribe_from) {
             Ok(id) => {
                 // Destroy the current subscription
                 subscription_id.unsubscribe();
@@ -270,8 +267,8 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         roll_forward_delete_from_volatile(&stake_addr_delete_stmt, block.get_slot());
 
         // Finalize and close DB Connection
-        DatabaseStatement::finalize_statement(rbac_delete_stmt, FUNCTION_NAME);
-        DatabaseStatement::finalize_statement(stake_addr_delete_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(rbac_delete_stmt, FUNCTION_NAME);
+        let _ = DatabaseStatement::finalize_statement(stake_addr_delete_stmt, FUNCTION_NAME);
         close_db_connection(sqlite);
         close_db_connection(sqlite_in_mem);
     }
@@ -292,7 +289,8 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
 
-        // Instead of starting from genesis, start from a specific slot just before RBAC data exist.
+        // Instead of starting from genesis, start from a specific slot just before RBAC data
+        // exist.
         let slot = 80374283;
         let subscribe_from = cardano::api::SyncSlot::Specific(slot);
         let network = cardano::api::CardanoNetwork::Preprod;
@@ -368,26 +366,4 @@ fn get_rbac_registration(
         None => return vec![],
     };
     Cip509::from_block(&block, &[])
-}
-
-impl From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
-    fn from(network: cardano::api::CardanoNetwork) -> cardano_blockchain_types::Network {
-        match network {
-            cardano::api::CardanoNetwork::Mainnet => cardano_blockchain_types::Network::Mainnet,
-            cardano::api::CardanoNetwork::Preprod => cardano_blockchain_types::Network::Preprod,
-            cardano::api::CardanoNetwork::Preview => cardano_blockchain_types::Network::Preview,
-            cardano::api::CardanoNetwork::TestnetMagic(n) => {
-                // TODO(bkioshn) - This should be mapped to
-                // cardano_blockchain_types::Network::Devnet
-                log_error(
-                    file!(),
-                    "From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network",
-                    "cardano::api::CardanoNetwork::TestnetMagic",
-                    "Unsupported network",
-                    Some(&json!({ "network": format!("TestnetMagic {n}") }).to_string()),
-                );
-                panic!("Unsupported network");
-            },
-        }
-    }
 }

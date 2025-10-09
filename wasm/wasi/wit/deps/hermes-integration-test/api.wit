@@ -1,0 +1,10 @@
+/// Types used by Integration Test API Interface
+
+/// Integration Test types Interface
+interface api {
+    // Time in localtime format.
+    record test-result {
+        name: string,   // Name of the test
+        status: bool,   // True = test passed, False = failed.
+    }
+}
