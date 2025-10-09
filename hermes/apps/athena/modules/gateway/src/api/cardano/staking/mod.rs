@@ -1,5 +1,7 @@
 //! Cardano Staking API Endpoints.
 
+use serde::{Deserialize, Serialize};
+
 use crate::common::{
     auth::none_or_rbac::NoneOrRBAC,
     objects::cardano::network::Network,
@@ -11,6 +13,25 @@ mod db_mocked;
 
 /// Cardano Staking API Endpoints
 pub(crate) struct Api;
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct GetStakedAdaRequest {
+    // Cardano network type.
+    // If omitted network type is identified from the stake address.
+    // If specified it must be correspondent to the network type encoded in the stake
+    // address.
+    // As `preprod` and `preview` network types in the stake address encoded as a
+    // `testnet`, to specify `preprod` or `preview` network type use this
+    // query parameter.
+    // network: Query<Option<Network>>,
+    pub(crate) network: Option<Network>,
+    // A time point at which the assets should be calculated.
+    // If omitted latest slot number is used.
+    // asat: Query<Option<cardano::query::AsAt>>,
+    pub(crate) asat: Option<cardano::as_at::AsAt>,
+    // No Authorization required, but Token permitted.
+    // pub(crate) auth: NoneOrRBAC,
+}
 
 // #[OpenApi(tag = "ApiTags::Cardano")]
 impl Api {

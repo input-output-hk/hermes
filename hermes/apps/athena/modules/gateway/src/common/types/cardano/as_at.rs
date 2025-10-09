@@ -8,11 +8,13 @@
 
 use std::fmt::{self, Display};
 
+use serde::{Deserialize, Serialize};
+
 use crate::common::types::cardano::slot_no::SlotNo;
 
 /// As at time from query string parameter.
 /// Store (Whence, When and decoded `SlotNo`) in a tuple for easier access.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) struct AsAt((String, u64, SlotNo));
 
 impl From<AsAt> for SlotNo {

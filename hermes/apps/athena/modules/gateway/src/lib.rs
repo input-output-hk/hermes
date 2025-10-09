@@ -8,9 +8,9 @@ mod settings;
 mod utilities;
 mod utils;
 
-use exports::hermes::http_gateway::event::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
+use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
-wit_bindgen::generate!({
+shared::bindings_generate!({
     world: "hermes:app/hermes",
     path: "../../../../../wasm/wasi/wit",
     inline: "
@@ -23,14 +23,14 @@ wit_bindgen::generate!({
 
         }
     ",
-    generate_all,
+    share: ["hermes:logging"],
 });
 export!(CatGatewayAPI);
 
-use hermes::logging::api::{log, Level};
+use shared::bindings::hermes::logging::api::{log, Level};
 
 use crate::{
-    api::cardano::staking::Api,
+    api::cardano::staking::{Api, GetStakedAdaRequest},
     common::{auth::none::NoAuthorization, types::cardano::cip19_stake_address::Cip19StakeAddress},
 };
 
@@ -78,6 +78,19 @@ fn log_info(message: &str) {
         None,
     );
 }
+/// Logs an info message
+fn log_err(message: &str) {
+    log(
+        Level::Error,
+        Some("http-proxy"),
+        None,
+        None,
+        None,
+        None,
+        message,
+        None,
+    );
+}
 
 /// Logs a warning message
 fn log_warn(message: &str) {
@@ -110,8 +123,8 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
     /// endpoints while native implementations are developed. Future versions will
     /// support sophisticated routing rules, backend selection, and middleware chains.
     fn reply(
-        _body: Vec<u8>,
-        _headers: Headers,
+        body: Vec<u8>,
+        headers: Headers,
         path: String,
         method: String,
     ) -> Option<HttpGatewayResponse> {
@@ -119,12 +132,30 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
 
         let response = match path.to_lowercase().as_str() {
             STAKE_ROUTE => {
-                let _response = Api.staked_ada_get(
+                log_info(&format!(
+                    "Processing STAKE_ROUTE: {} {} {:?} {:?}",
+                    method, path, body, headers
+                ));
+                let request: GetStakedAdaRequest = serde_json::from_slice(&body)
+                    .inspect_err(|err| {
+                        log_err(&format!("request parse failed: {err}",));
+                    })
+                    .unwrap();
+                let response = Api.staked_ada_get(
                     Cip19StakeAddress::try_from("asd").unwrap(),
-                    None,
-                    None,
+                    request.network,
+                    request.asat,
                     common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
                 );
+                match response {
+                    common::responses::WithErrorResponses::With(_v) => {
+                        log_info(&format!("processed STAKE_ROUTE"))
+                    },
+                    common::responses::WithErrorResponses::Error(_error_responses) => {
+                        log_info(&format!("processed with err STAKE_ROUTE"))
+                    },
+                }
+
                 todo!("transform response")
             },
             _ => create_not_found_response(&method, &path),

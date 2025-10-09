@@ -1,8 +1,10 @@
 //! Defines API schemas of Cardano network types.
 
+use serde::{Deserialize, Serialize};
+
 /// Cardano network type.
 // #[derive(Clone, Enum, Debug)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Network {
     /// Cardano mainnet.
     // #[oai(rename = "mainnet")]
