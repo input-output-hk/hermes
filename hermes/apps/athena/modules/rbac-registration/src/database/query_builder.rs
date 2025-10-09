@@ -69,18 +69,19 @@ impl QueryBuilder {
         )
     }
 
-    /// Find all root registration that has this given catalyst ID, lets say `catalyst_id_1`.
-    /// It should come before the given slot_no - `slot_no_1` , and txn_idx - `txn_idx_1`.
-    /// eg. The input is slot_no = 20, txn_idx = 2.
+    /// Find all root registration that has this given catalyst ID, lets say
+    /// `catalyst_id_1`. It should come before the given slot_no - `slot_no_1` , and
+    /// txn_idx - `txn_idx_1`. eg. The input is slot_no = 20, txn_idx = 2.
     /// It will give these registrations:
     /// slot_no = 20, txn_id = 1
     /// slot_no = 9 txn_id = 2
     /// slot_no = txn_id = 0
     /// This is used to validate that the given root is valid or not.
-    /// Note that the valid root should have the least `slot_no` and least `txn_idx` with no problem report.
+    /// Note that the valid root should have the least `slot_no` and least `txn_idx` with
+    /// no problem report.
     ///
-    /// If valid chain is found, the given catalyst ID (`catalyst_id_1`) with slot_no (`slot_no_1`) and
-    /// txn_idx (`txn_idx_1`) is invalid.
+    /// If valid chain is found, the given catalyst ID (`catalyst_id_1`) with slot_no
+    /// (`slot_no_1`) and txn_idx (`txn_idx_1`) is invalid.
     pub(crate) fn select_root_reg_by_cat_id_less_than_slot_txn_idx(table: &str) -> String {
         format!(
             r#"

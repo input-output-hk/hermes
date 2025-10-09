@@ -113,7 +113,7 @@ impl Module {
         linker
             .allow_shadowing(true)
             .define_unknown_imports_as_traps(&wasm_module)?;
-        bindings::Hermes::add_to_linker::<_, HermesRuntimeContext>(
+        bindings::Imports::add_to_linker::<_, HermesRuntimeContext>(
             &mut linker,
             &LinkOptions::default(),
             |state: &mut HermesRuntimeContext| state,

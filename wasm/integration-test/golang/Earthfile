@@ -11,6 +11,7 @@ build:
     WORKDIR /work
 
     COPY wasm+wasi-src/wasi .
+    COPY wasm+wasi-stub-src/hermes.wit wit
     COPY main.go go.mod .
     RUN go mod tidy
 

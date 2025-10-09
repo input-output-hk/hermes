@@ -20,31 +20,31 @@
 //! proxy system capable of routing between multiple backends, supporting A/B testing,
 //! gradual rollouts, and advanced traffic management scenarios.
 
-use regex::RegexSet;
 use std::sync::OnceLock;
 
-use exports::hermes::http_gateway::event::{
-    Bstr, Guest as _, Headers, HttpGatewayResponse, HttpResponse,
-};
+use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
+use regex::RegexSet;
 
-wit_bindgen::generate!({
+shared::bindings_generate!({
     world: "hermes:app/hermes",
-    path: "../../../wasi/wit",
+    path: "../../../../../wasm/wasi/wit",
     inline: "
         package hermes:app;
 
         world hermes {
             include wasi:cli/imports@0.2.6;
             import hermes:logging/api;
+            import hermes:http-gateway/api;
+
             export hermes:http-gateway/event;
             
         }
     ",
-    generate_all,
+    share: ["hermes:logging"],
 });
 export!(HttpProxyComponent);
 
-use hermes::logging::api::{log, Level};
+use shared::bindings::hermes::logging::api::{log, Level};
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]
@@ -80,7 +80,7 @@ const STATIC_PATTERN: &str = r"^/static/.+$";
 /// while native implementations are developed. The long-term vision is to
 /// evolve this into a full-featured configurable proxy supporting:
 /// - Dynamic backend selection
-/// - Load balancing strategies  
+/// - Load balancing strategies
 /// - Circuit breakers and health checks
 /// - Request/response middleware chains
 /// - A/B testing and canary deployments

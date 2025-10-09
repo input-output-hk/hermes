@@ -1,31 +1,38 @@
 //! Select stake address.
 
 use cardano_blockchain_types::StakeAddress;
-
-use crate::{
-    bind_parameters,
-    database::{
-        operation::Operation,
-        query_builder::QueryBuilder,
-        select::{cat_id::select_rbac_registration_chain_from_cat_id, column_as},
-        statement::DatabaseStatement,
-        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
-    },
-    hermes::{
+use shared::{
+    bindings::hermes::{
         logging::api::{log, Level},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
-    rbac::{registration_location::RegistrationLocation, rbac_chain_metadata::RbacChainMetadata},
-    utils::log::log_error,
+    sqlite_bind_parameters,
+    utils::{
+        log::log_error,
+        sqlite::{
+            operation::Operation,
+            statement::{column_as, DatabaseStatement},
+        },
+    },
+};
+
+use crate::{
+    database::{
+        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
+        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+        RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+    },
+    rbac::build_rbac_chain::RbacChainInfo,
 };
 
 /// Registration chain from a stake address:
 ///
 /// 1. Start from the newest registration.
-/// - The rule is the newest `stake_address` that is in a valid chain, will take over the `stake_address` in the older chain.
-/// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid chain2 with slot 20 has `stake_address_A`.
-/// Now `stake_address_A` belong to chain2. because it is the latest one.
+/// - The rule is the newest `stake_address` that is in a valid chain, will take over the
+///   `stake_address` in the older chain.
+/// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid
+/// chain2 with slot 20 has `stake_address_A`. Now `stake_address_A` belong to chain2.
+/// because it is the latest one.
 ///
 ///      SELECT txn_id
 ///      FROM rbac_stake_address
@@ -37,9 +44,11 @@ use crate::{
 /// Then there will be 2 cases
 ///
 /// a. Root registration (`prv_txn_id` IS NULL):
-/// - A valid root must have a non-null catalyst_id, no problem_report, and no `prv_txn_id`.
+/// - A valid root must have a non-null catalyst_id, no problem_report, and no
+///   `prv_txn_id`.
 /// - Then need to validate by checking whether this root (Catalyst ID) was already used
-///   in an earlier root (slot_no less than current slot, or same slot with smaller `txn_idx`).
+///   in an earlier root (slot_no less than current slot, or same slot with smaller
+///   `txn_idx`).
 ///
 ///      SELECT txn_id FROM rbac_registration
 ///      WHERE prv_txn_id IS NULL
@@ -53,12 +62,14 @@ use crate::{
 /// - Otherwise -> invalid, continue with next `txn_id`.
 ///
 /// b. Non-root registration (`prv_txn_id` IS NOT NULL):
-/// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root (`prv_txn_id` IS NULL).
+/// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root
+///   (`prv_txn_id` IS NULL).
 /// - Validate that root using the same rule as (a).
 /// - If root is valid -> stake_address belongs to this chain.
 /// - Otherwise -> continue with next `txn_id`.
 ///
-/// 3. If no valid root/chain is found after checking all candidates, then `stake_address` does not belong to any valid registration
+/// 3. If no valid root/chain is found after checking all candidates, then `stake_address`
+///    does not belong to any valid registration
 /// and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
@@ -199,7 +210,7 @@ fn get_txn_ids_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    bind_parameters!(stmt, FUNCTION_NAME, stake.to_vec() => "stake_address")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, stake.to_vec() => "stake_address")?;
 
     // List of transactions ID that contain the given stake address
     let result: anyhow::Result<Vec<Vec<u8>>> = (|| {
@@ -237,7 +248,7 @@ fn get_registration_info_from_txn_id(
     const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
 
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
-    bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
+    sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
@@ -318,7 +329,7 @@ fn is_valid_root(
     const FUNCTION_NAME: &str = "is_valid_root";
 
     // Try persistent first
-    bind_parameters!(stmt_p, FUNCTION_NAME,
+    sqlite_bind_parameters!(stmt_p, FUNCTION_NAME,
         cat_id.to_string() => "catalyst_id",
         slot_no => "slot_no",
         slot_no => "slot_no",
@@ -348,7 +359,7 @@ fn is_valid_root(
     }
 
     // Then check volatile if persistent passed
-    bind_parameters!(stmt_v, FUNCTION_NAME,
+    sqlite_bind_parameters!(stmt_v, FUNCTION_NAME,
         cat_id.to_string() => "catalyst_id",
         slot_no => "slot_no",
         slot_no => "slot_no",
