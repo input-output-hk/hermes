@@ -17,6 +17,10 @@ const CORE_INJECTED_FUNCTIONS: &str = r#"
         i64.load
     )
     "#;
+const CORE_INJECTED_EXPORTS: &str = r#"
+    (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
+    (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
+    "#;
 
 #[derive(Debug)]
 struct WasmInternals {
@@ -110,8 +114,11 @@ impl Patcher {
             .replace("{TYPE_ID_1}", &type_1_index)
             .replace("{TYPE_ID_2}", &type_2_index);
 
+        let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
+
         println!("{core_type_injection}");
         println!("{core_func_injection}");
+        println!("{core_export_injection}");
 
         Ok(())
     }
