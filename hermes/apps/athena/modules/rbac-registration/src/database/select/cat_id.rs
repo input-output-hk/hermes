@@ -71,37 +71,17 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     persistent: &Sqlite,
     volatile: &Sqlite,
     cat_id: &str,
-) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
+) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_cat_id";
 
-    let mut metadata = RbacChainMetadata::default();
-
     // --- Find the root ---
-    let (mut txn_id, mut chain, root_source) =
+    let (mut txn_id, mut chain) =
         match extract_root(persistent, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(
             || extract_root(volatile, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?,
         ) {
             Some(val) => val,
-            None => return Ok((vec![], metadata)),
+            None => return Ok(vec![]),
         };
-
-    // Update tracking variable based on the root source
-    match root_source {
-        TableSource::Persistent => {
-            metadata.last_persistent_txn = Some(txn_id.clone().try_into()?);
-            // This should not fail
-            metadata.last_persistent_slot = Some(
-                chain
-                    .first()
-                    .ok_or_else(|| anyhow::anyhow!("Chain is empty when extracting slot_no"))?
-                    .slot_no
-                    .into(),
-            );
-        },
-        TableSource::Volatile => {
-            metadata.last_volatile_txn = Some(txn_id.clone().try_into()?);
-        },
-    }
 
     // --- Find children ---
     let p_stmt = DatabaseStatement::prepare_statement(
@@ -117,17 +97,14 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
         Operation::Select,
         FUNCTION_NAME,
     )?;
-    let result: anyhow::Result<Vec<RegistrationLocation>> = (|| {
+    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
         loop {
             // Persistent first
             if let Some((next_txn_id, slot_no, txn_idx)) =
                 extract_child(&p_stmt, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, &txn_id)?
             {
                 txn_id = next_txn_id;
-                chain.push(RegistrationLocation { slot_no, txn_idx });
-
-                metadata.last_persistent_txn = Some(txn_id.clone().try_into()?);
-                metadata.last_persistent_slot = Some(slot_no.into());
+                chain.push(RbacChainInfo { slot_no, txn_idx });
                 continue;
             }
 
@@ -135,9 +112,7 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
             match extract_child(&v_stmt, RBAC_REGISTRATION_VOLATILE_TABLE_NAME, &txn_id)? {
                 Some((next_txn_id, slot_no, txn_idx)) => {
                     txn_id = next_txn_id;
-                    chain.push(RegistrationLocation { slot_no, txn_idx });
-
-                    metadata.last_volatile_txn = Some(txn_id.clone().try_into()?);
+                    chain.push(RbacChainInfo { slot_no, txn_idx });
                 },
                 None => break,
             }
@@ -148,7 +123,7 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     let _ = DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
     let _ = DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
 
-    result.map(|chain| (chain, metadata))
+    result
 }
 
 /// Extract the root registration.
@@ -156,7 +131,7 @@ fn extract_root(
     sqlite: &Sqlite,
     cat_id: &str,
     table: &str,
-) -> anyhow::Result<Option<(Value, Vec<RegistrationLocation>, TableSource)>> {
+) -> anyhow::Result<Option<(Value, Vec<RbacChainInfo>)>> {
     const FUNCTION_NAME: &str = "extract_root";
 
     let stmt = DatabaseStatement::prepare_statement(

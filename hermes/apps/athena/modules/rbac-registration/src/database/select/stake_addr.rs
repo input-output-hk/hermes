@@ -75,7 +75,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
     volatile: &Sqlite,
     stake_addr: StakeAddress,
-) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
+) -> anyhow::Result<Vec<RbacChainInfo>> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
 
     // Convert the given stake address to Vec<u8> which will be use in the query
@@ -125,7 +125,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    let result: anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> = (|| {
+    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
         for cur_txn in txn_ids {
             // Reset first to ensure the statement is in a clean state
             DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
@@ -182,7 +182,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
                 }
             }
         }
-        Ok((vec![], RbacChainMetadata::default()))
+        Ok(vec![])
     })();
 
     // cleanup always runs here
