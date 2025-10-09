@@ -3,9 +3,10 @@
 use anyhow::bail;
 use cardano_blockchain_types::Slot;
 use num_bigint::BigInt;
+use serde::{Deserialize, Serialize};
 
 /// Slot number
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) struct SlotNo(u64);
 
 impl SlotNo {

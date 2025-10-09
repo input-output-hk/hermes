@@ -37,6 +37,9 @@ local-build-gateway:
     # Create the missing config.json file (empty JSON object)
     RUN echo '{}' > config.json
 
+    # Create staging directory structure
+    RUN mkdir -p /staging/
+
     # Copy WASM module and JSON config files to root of staging
     RUN cp gateway.wasm /staging/
     RUN cp *.json /staging/ || true
