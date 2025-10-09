@@ -17,15 +17,19 @@ use crate::service::api::registration_get::v1::{
 /// A RBAC registration role data.
 #[derive(Debug, Clone, Serialize)]
 pub struct RbacRoleData {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     /// A list of role signing keys.
     signing_keys: Vec<KeyData>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     /// A list of role encryption keys.
     encryption_keys: Vec<KeyData>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     /// A list of role payment addresses.
     payment_addresses: Vec<PaymentData>,
     /// A map of the extended data.
     ///
     /// Unlike other fields, we don't track history for this data.
+    #[serde(skip_serializing_if = "ExtendedData::is_empty")]
     extended_data: ExtendedData,
 }
 

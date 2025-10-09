@@ -13,3 +13,9 @@ impl From<HashMap<u8, Vec<u8>>> for ExtendedData {
         Self(value)
     }
 }
+
+impl ExtendedData {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}

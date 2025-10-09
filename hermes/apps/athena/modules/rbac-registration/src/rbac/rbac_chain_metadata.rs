@@ -1,3 +1,5 @@
+//! RBAC chain metadata.
+
 use cardano_blockchain_types::{hashes::TransactionId, Slot};
 
 #[derive(Debug, Clone, Default)]

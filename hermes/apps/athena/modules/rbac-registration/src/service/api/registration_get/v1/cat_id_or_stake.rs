@@ -1,6 +1,6 @@
-use crate::service::common::types::cardano::{
-    catalyst_id::CatalystId, cip19_stake_address::Cip19StakeAddress,
-};
+use catalyst_types::catalyst_id::CatalystId;
+
+use crate::service::common::types::cardano::cip19_stake_address::Cip19StakeAddress;
 
 /// A Query Parameter that can take a CIP-19 stake address, or a Catalyst Id
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ impl TryFrom<&str> for CatIdOrStake {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match CatalystId::try_from(value) {
+        match value.parse::<CatalystId>() {
             Ok(cat_id) => Ok(Self::CatId(cat_id)),
             Err(_) => match Cip19StakeAddress::try_from(value) {
                 Ok(stake_addr) => Ok(Self::Address(stake_addr)),
