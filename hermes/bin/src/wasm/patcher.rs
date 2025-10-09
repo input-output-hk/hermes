@@ -106,10 +106,10 @@ impl Patcher {
         })
     }
 
-    pub fn patch(&self) -> Result<(), anyhow::Error> {
+    pub fn patch(&self) -> Result<String, anyhow::Error> {
         let WasmInternals {
             mut core_module,
-            component_part,
+            mut component_part,
         } = self.core_and_component()?;
 
         let next_core_type_index = Self::get_next_core_type_index(&core_module);
@@ -127,10 +127,6 @@ impl Patcher {
             .replace("{CORE_TYPE_ID_2}", &core_type_2_index);
 
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
-
-        println!("{core_type_injection}");
-        println!("{core_func_injection}");
-        println!("{core_export_injection}");
 
         let next_core_func_index = Self::get_next_core_func_index(&core_module);
         let core_func_1_index = next_core_func_index.to_string();
@@ -154,7 +150,18 @@ impl Patcher {
                 &component_func_1_export_index,
             );
 
-        Ok(())
+        core_module.push_str(&core_type_injection);
+        component_part.push_str(&component_injections);
+
+        Ok(format!(
+            "
+            (component 
+                {core_module}
+            )
+            
+            {component_part}
+            )"
+        ))
     }
 
     // TODO[RC]: It would be more robust to use a proper parser here (`wasmparser`).
@@ -226,14 +233,17 @@ impl Patcher {
         }
 
         let core_module = &self.wat[module_start..=module_end];
+        let core_last_parenthesis = core_module
+            .rfind(')')
+            .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
         let component_part = &self.wat[(module_end + 1)..];
-        let last_parenthesis = component_part
+        let component_last_parenthesis = component_part
             .rfind(')')
             .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
 
         Ok(WasmInternals {
-            core_module: core_module.to_string(),
-            component_part: component_part[..last_parenthesis].to_string(),
+            core_module: core_module[..core_last_parenthesis].to_string(),
+            component_part: component_part[..component_last_parenthesis].to_string(),
         })
     }
 }
@@ -311,7 +321,6 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
-            )
             "#;
 
         const EXPECTED_COMPONENT: &str = r#"
@@ -531,8 +540,10 @@ mod tests {
     }
 
     #[test]
-    fn foo() {
+    fn patched_wat_can_be_encoded() {
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
         let result = patcher.patch().expect("should patch");
+        let reencoded = wat::parse_str(&result);
+        assert!(reencoded.is_ok());
     }
 }
