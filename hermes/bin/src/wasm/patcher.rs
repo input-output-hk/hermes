@@ -1,11 +1,48 @@
 use std::path::Path;
 
+use regex::Regex;
+
 const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
 
 #[derive(Debug)]
 struct WasmInternals {
     core_module: String,
     component_part: String,
+}
+
+struct WatMatch {
+    pos: usize,
+    len: usize,
+}
+
+enum WatElementMatcher {
+    Exact(&'static str),
+    Regex(Regex),
+}
+
+impl From<&'static str> for WatElementMatcher {
+    fn from(s: &'static str) -> Self {
+        WatElementMatcher::Exact(s)
+    }
+}
+
+impl WatElementMatcher {
+    fn first_match<S: AsRef<str>>(
+        &self,
+        s: S,
+    ) -> Option<WatMatch> {
+        match self {
+            WatElementMatcher::Exact(sub) => {
+                s.as_ref().find(sub).map(|pos| {
+                    WatMatch {
+                        pos,
+                        len: sub.len(),
+                    }
+                })
+            },
+            WatElementMatcher::Regex(re) => todo!(), //re.find(s.as_ref()).map(|m| m.start()),
+        }
+    }
 }
 
 pub(crate) struct Patcher {
@@ -36,18 +73,23 @@ impl Patcher {
         Ok(())
     }
 
-    fn get_core_item_count<S: AsRef<str>>(
-        item: S,
+    fn get_core_item_count<I, S>(
+        item: I,
         core_module: S,
-    ) -> u32 {
+    ) -> u32
+    where
+        I: Into<WatElementMatcher>,
+        S: AsRef<str>,
+    {
         let mut start = 0;
         let mut count = 0;
 
+        let matcher: WatElementMatcher = item.into();
         loop {
-            match core_module.as_ref()[start..].find(item.as_ref()) {
-                Some(pos) => {
+            match matcher.first_match(&core_module.as_ref()[start..]) {
+                Some(WatMatch { pos, len }) => {
                     count += 1;
-                    start += pos + item.as_ref().len();
+                    start += pos + len;
                 },
                 None => break,
             };
@@ -192,49 +234,6 @@ mod tests {
     }
 
     #[test]
-    fn gets_next_core_type_index() {
-        const CORE_1: &str = r#"
-            (core module (;0;)
-                (func $two (;1;) (type 1) (result i32)
-                    i32.const 2
-                )
-            )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_1);
-        assert_eq!(index, 0);
-
-        const CORE_2: &str = r#"
-            (core module (;0;)
-                (type (;0;) (func))
-                (type (;1;) (func (result i32)))
-                (type (;2;) (func (param i32 i32) (result i32)))
-                (func $two (;1;) (type 1) (result i32)
-                    i32.const 2
-                )
-            )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_2);
-        assert_eq!(index, 3);
-
-        const CORE_3: &str = r#"
-            (core module (;0;)
-                (type (;0;) (func))
-                (type (;1;) (func (result i32)))
-                (type (;2;) (func (param i32 i32) (result i32)))
-                (type (;3;) (func))
-                (type (;4;) (func))
-                (type (;5;) (func))
-                (type (;6;) (func))
-                (func $two (;1;) (type 1) (result i32)
-                    i32.const 2
-                )
-            )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_3);
-        assert_eq!(index, 7);
-    }
-
-        #[test]
     fn gets_next_core_type_index() {
         const CORE_1: &str = r#"
             (core module (;0;)
