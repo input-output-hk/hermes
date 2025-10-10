@@ -110,6 +110,7 @@ serial_test = { version = "3.2.0", features = ["file_locks"] }
 # An override with the "wat" and "addr2line" features added (debug purposes).
 wasmtime = { version = "36.0.2", default-features = false, features = ["runtime", "cranelift", "component-model", "wat", "addr2line"] }
 httpmock = "0.7.0"
+wasmtime-wasi = "36.0.2"
 
 [package.metadata.cargo-machete]
 # This is required for HDF5.

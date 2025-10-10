@@ -2,9 +2,11 @@ use std::path::Path;
 
 use regex::Regex;
 
-const MAGIC: &str = r#"VmUcqq2137emxpaTzkMUYy1SzCPx23lp_hermes_"#;
+const MAGIC: &str = r#"vmucqq2137emxpatzkmuyy1szcpx23lp-hermes-"#;
 
-const CORE_FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\)"#;
+const CORE_FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\(;"#;
+
+const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
 const COMPONENT_FUNC_REGEX: &str = r#"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)"#;
 
@@ -29,10 +31,10 @@ const CORE_INJECTED_EXPORTS: &str = r#"
     "#;
 
 const COMPONENT_INJECTIONS: &str = r#"
-    (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
-    (alias core export 0 "{MAGIC}get-memory-size" (core func (;{CORE_FUNC_ID_1};)))
-    (func (;{COMPONENT_FUNC_ID_1};) (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {CORE_FUNC_ID_1})))
-    (export (;{COMPONENT_FUNC_ID_1_EXPORT};) "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
+    (type (;{COMPONENT_TYPE_ID_1};) (func (result s32)))
+    (alias core export 0 "{MAGIC}get-memory-size" (core func))
+    (func (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_1})))
+    (export "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
     "#;
 
 #[derive(Debug)]
@@ -145,24 +147,25 @@ impl Patcher {
         let core_func_1_export_index = (next_core_func_index + 1).to_string();
 
         let next_component_type_index = Self::get_next_component_type_index(&component_part);
-        let component_type_1_index = next_core_func_index.to_string();
+        let component_type_1_index = next_component_type_index.to_string();
+
+        let next_component_core_func_index =
+            Self::get_next_component_core_func_index(&component_part);
+        let component_core_func_1_index = next_component_core_func_index.to_string();
+        let component_func_1_export_index = (next_component_core_func_index + 1).to_string();
 
         let next_component_func_index = Self::get_next_component_func_index(&component_part);
-        let component_func_1_index = next_component_func_index.to_string();
-        let component_func_1_export_index = (next_component_func_index + 1).to_string();
+        let component_func_1_index = (next_component_func_index * 2).to_string(); // *2 because "export" shares the same index space with "func"
 
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
-            .replace("{CORE_FUNC_ID_1}", &core_func_1_index)
-            .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
             .replace("{COMPONENT_TYPE_ID_1}", &component_type_1_index)
-            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index)
-            .replace(
-                "{COMPONENT_FUNC_ID_1_EXPORT}",
-                &component_func_1_export_index,
-            );
+            .replace("{COMPONENT_CORE_FUNC_ID_1}", &component_core_func_1_index)
+            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index);
 
         core_module.push_str(&core_type_injection);
+        core_module.push_str(&core_func_injection);
+        core_module.push_str(&core_export_injection);
         component_part.push_str(&component_injections);
 
         Ok(format!(
@@ -208,6 +211,13 @@ impl Patcher {
 
     fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> u32 {
         Self::get_item_count("type (;", core_module.as_ref())
+    }
+
+    fn get_next_component_core_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+        Self::get_item_count(
+            Regex::new(COMPONENT_CORE_FUNC_REGEX).expect("this should be a proper regex"),
+            core_module.as_ref(),
+        )
     }
 
     fn get_next_component_func_index<S: AsRef<str>>(core_module: S) -> u32 {
@@ -262,7 +272,13 @@ impl Patcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::wasm::patcher::{Patcher, WasmInternals};
+    use wasmtime::{
+        component::{bindgen, Linker},
+        Engine, Store,
+    };
+    use wasmtime_wasi::{p2::add_to_linker_sync, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+
+    use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
 
     const COMPONENT_SINGLE_CORE_MODULE: &str =
         "tests/test_wasm_files/component_single_core_module.wasm";
@@ -509,13 +525,15 @@ mod tests {
             (core instance (;0;) (instantiate 0))
             (alias core export 0 "memory" (core memory (;0;)))
             (type (;0;) (func (result u8)))
-            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (func (;1;) (type 0) (canon lift (core func 0)))
+            (func (;2;) (type 0) (canon lift (core func 0)))
             (export (;1;) "two" (func 0))
             (@producers
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_func_index(&COMPONENT_1);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_1);
         assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
@@ -531,8 +549,8 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_func_index(&COMPONENT_2);
-        assert_eq!(index, 3);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_2);
+        assert_eq!(index, 1);
 
         const COMPONENT_3: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -540,32 +558,91 @@ mod tests {
             (type (;0;) (func (result u8)))
             (alias core export 0 "two" (core func (;0;)))
             (func (;0;) (type 0) (canon lift (core func 0)))
+            (func (;1;) (type 0) (canon lift (core func 0)))
+            (func (;2;) (type 0) (canon lift (core func 0)))
+            (alias core export 0 "three" (core func (;0;)))
+            (alias core export 0 "four" (core func (;0;)))
+            (alias core export 0 "five" (core func (;0;)))
             (export (;1;) "two" (func 0))
             (@producers
                 (processed-by "wit-component" "0.229.0")
             )
-            (func (;1;) (type 0) (canon lift (core func 0)))
-            (func (;2;) (type 0) (canon lift (core func 0)))
-            (func (;3;) (type 0) (canon lift (core func 0)))
-            (func (;4;) (type 0) (canon lift (core func 0)))
-            (func (;5;) (type 0) (canon lift (core func 0)))
             "#;
-        let index = Patcher::get_next_component_func_index(&COMPONENT_3);
-        assert_eq!(index, 6);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_3);
+        assert_eq!(index, 4);
     }
 
     #[test]
     fn patched_wat_can_be_encoded() {
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
         let result = patcher.patch().expect("should patch");
-        let reencoded = wat::parse_str(&result);
-        assert!(reencoded.is_ok());
+        let encoded = wat::parse_str(&result);
+        assert!(encoded.is_ok());
 
         let patcher =
             Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
         let result = patcher.patch().expect("should patch");
-        let reencoded = wat::parse_str(&result);
-        assert!(reencoded.is_ok());
+        let encoded = wat::parse_str(&result);
+        assert!(encoded.is_ok());
+    }
+
+    #[test]
+    fn injected_get_memory_size_works() {
+        // Step 1: Patch the WASM file
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result).expect("should encode");
+
+        // Step 2: Instantiate the patched WASM
+        struct MyCtx {
+            table: ResourceTable,
+            wasi: WasiCtx,
+        }
+
+        impl WasiView for MyCtx {
+            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
+                wasmtime_wasi::WasiCtxView {
+                    ctx: &mut self.wasi,
+                    table: &mut self.table,
+                }
+            }
+        }
+
+        let engine = Engine::default();
+        let component =
+            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
+        let mut linker = Linker::new(&engine);
+        add_to_linker_sync(&mut linker).expect("should add to linker");
+        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+        let ctx = MyCtx {
+            table: ResourceTable::new(),
+            wasi,
+        };
+        let mut store = Store::new(&engine, ctx);
+        let instance = linker
+            .instantiate(&mut store, &component)
+            .expect("should instantiate");
+
+        // Step 3: Call the injected function
+        let get_memory_size_func = format!("{}get-memory-size", MAGIC);
+
+        let get_memory_size = instance
+            .get_func(&mut store, get_memory_size_func)
+            .expect("should get func")
+            .typed::<(), (i32,)>(&store)
+            .expect("should be a typed func");
+        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
+        get_memory_size
+            .post_return(&mut store)
+            .expect("should post return");
+
+        // Step 4: Check if the returned value matches the original WASM memory size
+        let source_wat =
+            wasmprinter::print_file(COMPONENT_SINGLE_CORE_MODULE).expect("should read");
+        let expected_memory_entry = format!("(memory (;0;) {})", memory_size_in_pages);
+
+        assert!(source_wat.contains(&expected_memory_entry));
     }
 
     #[test]
