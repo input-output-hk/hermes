@@ -14,7 +14,7 @@ const PROD_STAKE: &str = "stake";
 const TEST_STAKE: &str = "stake_test";
 
 /// A Cardano stake address.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct Cip19StakeAddress(String);
 
 impl From<StakeAddress> for Cip19StakeAddress {
@@ -56,17 +56,9 @@ impl TryFrom<String> for Cip19StakeAddress {
 }
 
 impl TryFrom<&str> for Cip19StakeAddress {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         value.to_string().try_into()
-    }
-}
-
-impl TryFrom<String> for Cip19StakeAddress {
-    type Error = Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Cip19StakeAddress::parse(&value)
     }
 }
