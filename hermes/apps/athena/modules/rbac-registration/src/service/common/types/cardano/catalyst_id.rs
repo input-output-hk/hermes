@@ -1,8 +1,8 @@
 //! A Catalyst identifier.
 
-use catalyst_types::catalyst_id::CatalystId as CatalystIdInner;
 use std::fmt::Display;
 
+use catalyst_types::catalyst_id::CatalystId as CatalystIdInner;
 use serde::Serialize;
 
 /// A Catalyst identifier.

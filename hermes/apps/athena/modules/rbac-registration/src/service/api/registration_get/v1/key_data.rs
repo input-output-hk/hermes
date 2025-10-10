@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use anyhow::Context;
 use c509_certificate::c509::C509;
 use cardano_blockchain_types::Point;
+use chrono::{DateTime, Utc};
 use ed25519_dalek::VerifyingKey;
 use minicbor::{Encode, Encoder};
 use rbac_registration::{
@@ -12,6 +13,7 @@ use rbac_registration::{
     registration::cardano::RegistrationChain,
 };
 use serde::Serialize;
+use x509_cert::{certificate::Certificate as X509Certificate, der::Encode as _};
 
 use crate::service::{
     api::registration_get::{key_type::KeyType, v1::binary_data::HexEncodedBinaryData},
@@ -19,8 +21,6 @@ use crate::service::{
         date_time::DateTime as ServiceDateTime, ed25519_public_keys::Ed25519HexEncodedPublicKey,
     },
 };
-use chrono::{DateTime, Utc};
-use x509_cert::{certificate::Certificate as X509Certificate, der::Encode as _};
 
 /// A role data key information.
 #[derive(Debug, Clone, Serialize)]
