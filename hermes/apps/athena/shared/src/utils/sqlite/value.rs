@@ -114,3 +114,17 @@ where T: TryFrom<Value, Error = anyhow::Error>
         }
     }
 }
+
+impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => {
+                let hash: cardano_blockchain_types::hashes::Blake2bHash<32> = b.try_into()?;
+                Ok(hash.into())
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Blob for TransactionId")),
+        }
+    }
+}
