@@ -369,7 +369,7 @@ mod tests {
         )
     "#;
 
-    const MAKESHIFT_INCORRECT_WAT: &str = r#"
+    const MAKESHIFT_INCORRECT_WAT: &str = r"
         (component
             (core module (;0;)
                 (type (;0;) (func))
@@ -377,7 +377,7 @@ mod tests {
                 (type (;2;) (func (param i32 i32) (result i32)))
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
-    "#;
+    ";
 
     fn strip_whitespaces(s: &str) -> String {
         s.chars().filter(|c| !c.is_whitespace()).collect()
@@ -400,13 +400,7 @@ mod tests {
 
     #[test]
     fn extracts_wasm_internals() {
-        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
-        let WasmInternals {
-            core_module,
-            component_part,
-        } = patcher.core_and_component().expect("should extract parts");
-
-        const EXPECTED_CORE: &str = r#"
+        const EXPECTED_CORE: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -414,7 +408,7 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
-            "#;
+            ";
 
         const EXPECTED_COMPONENT: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -428,6 +422,12 @@ mod tests {
             )
             "#;
 
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
+        let WasmInternals {
+            core_module,
+            component_part,
+        } = patcher.core_and_component().expect("should extract parts");
+
         assert_eq!(
             strip_whitespaces(&core_module),
             strip_whitespaces(EXPECTED_CORE)
@@ -440,17 +440,15 @@ mod tests {
 
     #[test]
     fn gets_next_core_type_index() {
-        const CORE_1: &str = r#"
+        const CORE_1: &str = r"
             (core module (;0;)
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
             )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_1).expect("should get index");
-        assert_eq!(index, 0);
+            ";
 
-        const CORE_2: &str = r#"
+        const CORE_2: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -459,11 +457,9 @@ mod tests {
                     i32.const 2
                 )
             )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_2).expect("should get index");
-        assert_eq!(index, 3);
+            ";
 
-        const CORE_3: &str = r#"
+        const CORE_3: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -476,8 +472,15 @@ mod tests {
                     i32.const 2
                 )
             )
-            "#;
-        let index = Patcher::get_next_core_type_index(&CORE_3).expect("should get index");
+            ";
+
+        let index = Patcher::get_next_core_type_index(CORE_1).expect("should get index");
+        assert_eq!(index, 0);
+
+        let index = Patcher::get_next_core_type_index(CORE_2).expect("should get index");
+        assert_eq!(index, 3);
+
+        let index = Patcher::get_next_core_type_index(CORE_3).expect("should get index");
         assert_eq!(index, 7);
     }
 
@@ -493,8 +496,6 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_1).expect("should get index");
-        assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -508,8 +509,6 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_2).expect("should get index");
-        assert_eq!(index, 2);
 
         const COMPONENT_3: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -526,22 +525,27 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_3).expect("should get index");
+
+        let index = Patcher::get_next_component_type_index(COMPONENT_1).expect("should get index");
+        assert_eq!(index, 0);
+
+        let index = Patcher::get_next_component_type_index(COMPONENT_2).expect("should get index");
+        assert_eq!(index, 2);
+
+        let index = Patcher::get_next_component_type_index(COMPONENT_3).expect("should get index");
         assert_eq!(index, 5);
     }
 
     #[test]
     fn gets_next_core_func_index() {
-        const CORE_1: &str = r#"
+        const CORE_1: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
             )
-            "#;
-        let index = Patcher::get_next_core_func_index(&CORE_1).expect("should get index");
-        assert_eq!(index, 0);
+            ";
 
-        const CORE_2: &str = r#"
+        const CORE_2: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -550,11 +554,9 @@ mod tests {
                     i32.const 2
                 )
             )
-            "#;
-        let index = Patcher::get_next_core_func_index(&CORE_2).expect("should get index");
-        assert_eq!(index, 1);
+            ";
 
-        const CORE_3: &str = r#"
+        const CORE_3: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -576,8 +578,15 @@ mod tests {
                     i32.const 2
                 )
             )
-            "#;
-        let index = Patcher::get_next_core_func_index(&CORE_3).expect("should get index");
+            ";
+
+        let index = Patcher::get_next_core_func_index(CORE_1).expect("should get index");
+        assert_eq!(index, 0);
+
+        let index = Patcher::get_next_core_func_index(CORE_2).expect("should get index");
+        assert_eq!(index, 1);
+
+        let index = Patcher::get_next_core_func_index(CORE_3).expect("should get index");
         assert_eq!(index, 4);
     }
 
@@ -595,9 +604,6 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index =
-            Patcher::get_next_component_core_func_index(&COMPONENT_1).expect("should get index");
-        assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -612,9 +618,6 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index =
-            Patcher::get_next_component_core_func_index(&COMPONENT_2).expect("should get index");
-        assert_eq!(index, 1);
 
         const COMPONENT_3: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -632,8 +635,17 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
+
         let index =
-            Patcher::get_next_component_core_func_index(&COMPONENT_3).expect("should get index");
+            Patcher::get_next_component_core_func_index(COMPONENT_1).expect("should get index");
+        assert_eq!(index, 0);
+
+        let index =
+            Patcher::get_next_component_core_func_index(COMPONENT_2).expect("should get index");
+        assert_eq!(index, 1);
+
+        let index =
+            Patcher::get_next_component_core_func_index(COMPONENT_3).expect("should get index");
         assert_eq!(index, 4);
     }
 
@@ -653,13 +665,6 @@ mod tests {
 
     #[test]
     fn injected_get_memory_size_works() {
-        // Step 1: Patch the WASM file
-        let patcher =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
-        let encoded = wat::parse_str(&result).expect("should encode");
-
-        // Step 2: Instantiate the patched WASM
         struct MyCtx {
             table: ResourceTable,
             wasi: WasiCtx,
@@ -674,6 +679,13 @@ mod tests {
             }
         }
 
+        // Step 1: Patch the WASM file
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result).expect("should encode");
+
+        // Step 2: Instantiate the patched WASM
         let engine = Engine::default();
         let component =
             wasmtime::component::Component::new(&engine, encoded).expect("should create component");
@@ -690,7 +702,7 @@ mod tests {
             .expect("should instantiate");
 
         // Step 3: Call the injected function
-        let get_memory_size_func = format!("{}get-memory-size", MAGIC);
+        let get_memory_size_func = format!("{MAGIC}get-memory-size");
 
         let get_memory_size = instance
             .get_func(&mut store, get_memory_size_func)
@@ -705,7 +717,7 @@ mod tests {
         // Step 4: Check if the returned value matches the original WASM memory size
         let source_wat =
             wasmprinter::print_file(COMPONENT_SINGLE_CORE_MODULE).expect("should read");
-        let expected_memory_entry = format!("(memory (;0;) {})", memory_size_in_pages);
+        let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
 
         assert!(source_wat.contains(&expected_memory_entry));
     }
