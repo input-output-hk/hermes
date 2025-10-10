@@ -28,8 +28,8 @@ pub struct RbacRegistrationChain {
     /// An ID of the last volatile transaction.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) last_volatile_txn: Option<TxnId>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     /// A list of registration purposes.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) purpose: Vec<UUIDv4>,
     /// A map of role number to role data.
     // This map should not be empty

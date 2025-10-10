@@ -3,6 +3,7 @@
 use cardano_blockchain_types::hashes::{TransactionId, BLAKE_2B256_SIZE};
 use serde::Serialize;
 
+/// A Cardano transaction ID.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct TxnId(String);
 
