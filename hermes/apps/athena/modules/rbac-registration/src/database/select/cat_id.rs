@@ -143,28 +143,30 @@ fn extract_root(
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, cat_id.to_string() => "catalyst_id")?;
 
     // The first valid root registration is chosen
-    let result = (|| match stmt.step() {
-        Ok(StepResult::Row) => {
-            let txn_id = stmt.column(0)?;
-            let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
-            let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
-            Ok(Some((
-                txn_id.clone(),
-                vec![RbacChainInfo { slot_no, txn_idx }],
-            )))
-        },
-        Ok(StepResult::Done) => Ok(None),
-        Err(e) => {
-            let error = format!("Failed to step in {table}: {e}");
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "hermes::sqlite::api::step",
-                &error,
-                None,
-            );
-            anyhow::bail!(error);
-        },
+    let result = (|| {
+        match stmt.step() {
+            Ok(StepResult::Row) => {
+                let txn_id = stmt.column(0)?;
+                let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
+                let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
+                Ok(Some((txn_id.clone(), vec![RbacChainInfo {
+                    slot_no,
+                    txn_idx,
+                }])))
+            },
+            Ok(StepResult::Done) => Ok(None),
+            Err(e) => {
+                let error = format!("Failed to step in {table}: {e}");
+                log_error(
+                    file!(),
+                    FUNCTION_NAME,
+                    "hermes::sqlite::api::step",
+                    &error,
+                    None,
+                );
+                anyhow::bail!(error);
+            },
+        }
     })();
     DatabaseStatement::finalize_statement(stmt, FUNCTION_NAME)?;
     result
