@@ -32,6 +32,7 @@ pub struct RbacRegistrationChain {
     /// A list of registration purposes.
     pub(crate) purpose: Vec<UUIDv4>,
     /// A map of role number to role data.
+    // This map should not be empty
     pub(crate) roles: RoleMap,
 }
 
