@@ -1,21 +1,33 @@
+//! Patcher for WASM files.
+//! It injects functions to get memory size and read raw memory bytes into the WASM file.
+
+// TODO[RC]: Patcher is not yet wired into the Hermes.
+#![allow(unused)]
+
 use std::path::Path;
 
 use regex::Regex;
 
-const MAGIC: &str = r#"vmucqq2137emxpatzkmuyy1szcpx23lp-hermes-"#;
+/// Magic string to avoid name collisions with existing functions.
+const MAGIC: &str = r"vmucqq2137emxpatzkmuyy1szcpx23lp-hermes-";
 
-const CORE_FUNC_REGEX: &str = r#"\(func\s+\$[^\s()]+[^)]*\(;"#;
+/// Regex to detect the function definitions in the core module.
+const CORE_FUNC_REGEX: &str = r"\(func\s+\$[^\s()]+[^)]*\(;";
 
+/// Regex to detect the aliases of core functions in the component part.
 const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
-const COMPONENT_FUNC_REGEX: &str = r#"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)"#;
+/// Regex to detect the function definitions in the component part.
+const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)";
 
-const CORE_INJECTED_TYPES: &str = r#"
+/// A template for the injected types in the core module.
+const CORE_INJECTED_TYPES: &str = r"
     (type (;{CORE_TYPE_ID_1};) (func (result i32)))
     (type (;{CORE_TYPE_ID_2};) (func (param i32) (result i64)))
-    "#;
+    ";
 
-const CORE_INJECTED_FUNCTIONS: &str = r#"
+/// A template for the injected functions in the core module.
+const CORE_INJECTED_FUNCTIONS: &str = r"
     (func ${MAGIC}get-memory-size (type {CORE_TYPE_ID_1}) (result i32)
         memory.size
     )
@@ -23,13 +35,15 @@ const CORE_INJECTED_FUNCTIONS: &str = r#"
         local.get 0
         i64.load
     )
-    "#;
+    ";
 
+/// A template for the injected exports in the core module.
 const CORE_INJECTED_EXPORTS: &str = r#"
     (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
     (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
     "#;
 
+/// A template for the injected types, functions and exports in the component part.
 const COMPONENT_INJECTIONS: &str = r#"
     (type (;{COMPONENT_TYPE_ID_1};) (func (result s32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
@@ -37,19 +51,28 @@ const COMPONENT_INJECTIONS: &str = r#"
     (export "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
     "#;
 
+/// Holds the extracted core module and component part of a WASM.
 #[derive(Debug)]
 struct WasmInternals {
+    /// The core module part of the WASM.
     core_module: String,
+    /// The component part of the WASM.
     component_part: String,
 }
 
+/// Represents a single match of a WAT element.
 struct WatMatch {
+    /// The position of the match in the string.
     pos: usize,
+    /// The length of the matched string.
     len: usize,
 }
 
+/// A matcher for WAT elements, either by exact string or by regex.
 enum WatElementMatcher {
+    /// Matches an exact string.
     Exact(&'static str),
+    /// Matches a regex pattern.
     Regex(Regex),
 }
 
@@ -66,6 +89,8 @@ impl From<Regex> for WatElementMatcher {
 }
 
 impl WatElementMatcher {
+    /// Finds the first match of the matcher in the given string.
+    #[allow(clippy::arithmetic_side_effects)]
     fn first_match<S: AsRef<str>>(
         &self,
         s: S,
@@ -91,17 +116,21 @@ impl WatElementMatcher {
     }
 }
 
+/// Patcher for WASM files.
 pub(crate) struct Patcher {
+    /// The WAT representation of the WASM file.
     wat: String,
 }
 
 impl Patcher {
+    /// Creates a new patcher from a file path.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, anyhow::Error> {
         let wat = wasmprinter::print_file(path)?;
         Self::validate_core_module(&wat)?;
         Ok(Self { wat })
     }
 
+    /// Creates a new patcher from a WAT string.
     pub fn from_str<S: AsRef<str>>(wat: S) -> Result<Self, anyhow::Error> {
         let _syntax_check = wat::parse_str(wat.as_ref())?;
         Self::validate_core_module(&wat)?;
@@ -110,8 +139,9 @@ impl Patcher {
         })
     }
 
+    /// Validates that the WAT contains exactly one core module.
     fn validate_core_module<S: AsRef<str>>(wat: S) -> Result<(), anyhow::Error> {
-        let core_module_count = Self::get_item_count("(core module (;", &wat);
+        let core_module_count = Self::get_item_count("(core module (;", &wat)?;
         if core_module_count != 1 {
             return Err(anyhow::anyhow!(
                 "expected exactly one core module, found {core_module_count}"
@@ -120,13 +150,16 @@ impl Patcher {
         Ok(())
     }
 
+    /// Patches the WAT by injecting functions to get memory size and read raw memory
+    /// bytes.
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn patch(&self) -> Result<String, anyhow::Error> {
         let WasmInternals {
             mut core_module,
             mut component_part,
         } = self.core_and_component()?;
 
-        let next_core_type_index = Self::get_next_core_type_index(&core_module);
+        let next_core_type_index = Self::get_next_core_type_index(&core_module)?;
 
         let core_type_1_index = next_core_type_index.to_string();
         let core_type_2_index = (next_core_type_index + 1).to_string();
@@ -143,18 +176,15 @@ impl Patcher {
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
 
         let next_core_func_index = Self::get_next_core_func_index(&core_module);
-        let core_func_1_index = next_core_func_index.to_string();
-        let core_func_1_export_index = (next_core_func_index + 1).to_string();
 
-        let next_component_type_index = Self::get_next_component_type_index(&component_part);
+        let next_component_type_index = Self::get_next_component_type_index(&component_part)?;
         let component_type_1_index = next_component_type_index.to_string();
 
         let next_component_core_func_index =
-            Self::get_next_component_core_func_index(&component_part);
+            Self::get_next_component_core_func_index(&component_part)?;
         let component_core_func_1_index = next_component_core_func_index.to_string();
-        let component_func_1_export_index = (next_component_core_func_index + 1).to_string();
 
-        let next_component_func_index = Self::get_next_component_func_index(&component_part);
+        let next_component_func_index = Self::get_next_component_func_index(&component_part)?;
         let component_func_1_index = (next_component_func_index * 2).to_string(); // *2 because "export" shares the same index space with "func"
 
         let component_injections = COMPONENT_INJECTIONS
@@ -179,11 +209,13 @@ impl Patcher {
         ))
     }
 
+    /// Counts the occurrences of a specific element in the given WAT.
     // TODO[RC]: It would be more robust to use a proper parser here (`wasmparser`).
+    #[allow(clippy::arithmetic_side_effects)]
     fn get_item_count<I, S>(
         item: I,
-        core_module: S,
-    ) -> u32
+        wat: S,
+    ) -> Result<u32, anyhow::Error>
     where
         I: Into<WatElementMatcher>,
         S: AsRef<str>,
@@ -192,48 +224,60 @@ impl Patcher {
         let mut count = 0;
 
         let matcher: WatElementMatcher = item.into();
-        loop {
-            match matcher.first_match(&core_module.as_ref()[start..]) {
-                Some(WatMatch { pos, len }) => {
-                    count += 1;
-                    start += pos + len;
-                },
-                None => break,
-            };
+
+        while let Some(WatMatch { pos, len }) = matcher.first_match(
+            wat.as_ref()
+                .get(start..)
+                .ok_or_else(|| anyhow::anyhow!("malformed wat"))?,
+        ) {
+            count += 1;
+            start += pos + len;
         }
 
-        count
+        Ok(count)
     }
 
-    fn get_next_component_type_index<S: AsRef<str>>(component: S) -> u32 {
+    /// Gets the next available component type index.
+    fn get_next_component_type_index<S: AsRef<str>>(component: S) -> Result<u32, anyhow::Error> {
         Self::get_item_count("type (;", component.as_ref())
     }
 
-    fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> u32 {
+    /// Gets the next available core type index.
+    fn get_next_core_type_index<S: AsRef<str>>(core_module: S) -> Result<u32, anyhow::Error> {
         Self::get_item_count("type (;", core_module.as_ref())
     }
 
-    fn get_next_component_core_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+    /// Gets the next available index of the core function alias in the component part.
+    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
+    fn get_next_component_core_func_index<S: AsRef<str>>(
+        core_module: S
+    ) -> Result<u32, anyhow::Error> {
         Self::get_item_count(
             Regex::new(COMPONENT_CORE_FUNC_REGEX).expect("this should be a proper regex"),
             core_module.as_ref(),
         )
     }
 
-    fn get_next_component_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+    /// Gets the next available component function index.
+    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
+    fn get_next_component_func_index<S: AsRef<str>>(core_module: S) -> Result<u32, anyhow::Error> {
         Self::get_item_count(
             Regex::new(COMPONENT_FUNC_REGEX).expect("this should be a proper regex"),
             core_module.as_ref(),
         )
     }
 
-    fn get_next_core_func_index<S: AsRef<str>>(core_module: S) -> u32 {
+    /// Gets the next available core function index.
+    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
+    fn get_next_core_func_index<S: AsRef<str>>(core_module: S) -> Result<u32, anyhow::Error> {
         Self::get_item_count(
             Regex::new(CORE_FUNC_REGEX).expect("this should be a proper regex"),
             core_module.as_ref(),
         )
     }
 
+    /// Extracts the core module and component part from the WAT.
+    #[allow(clippy::arithmetic_side_effects)]
     fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
         let module_start = self
             .wat
@@ -242,7 +286,12 @@ impl Patcher {
         let mut module_end = module_start;
 
         let mut count = 1;
-        for ch in self.wat[(module_start + 1)..].chars() {
+        for ch in self
+            .wat
+            .get((module_start + 1)..)
+            .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
+            .chars()
+        {
             module_end += 1;
             if ch == '(' {
                 count += 1;
@@ -254,18 +303,30 @@ impl Patcher {
             }
         }
 
-        let core_module = &self.wat[module_start..=module_end];
+        let core_module = &self
+            .wat
+            .get(module_start..=module_end)
+            .ok_or_else(|| anyhow::anyhow!("malformed wat"))?;
         let core_last_parenthesis = core_module
             .rfind(')')
             .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in core part"))?;
-        let component_part = &self.wat[(module_end + 1)..];
+        let component_part = &self
+            .wat
+            .get((module_end + 1)..)
+            .ok_or_else(|| anyhow::anyhow!("malformed wat"))?;
         let component_last_parenthesis = component_part
             .rfind(')')
             .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
 
         Ok(WasmInternals {
-            core_module: core_module[..core_last_parenthesis].to_string(),
-            component_part: component_part[..component_last_parenthesis].to_string(),
+            core_module: core_module
+                .get(..core_last_parenthesis)
+                .ok_or_else(|| anyhow::anyhow!("malformed core module"))?
+                .to_string(),
+            component_part: component_part
+                .get(..component_last_parenthesis)
+                .ok_or_else(|| anyhow::anyhow!("malformed component part"))?
+                .to_string(),
         })
     }
 }
@@ -385,7 +446,7 @@ mod tests {
                 )
             )
             "#;
-        let index = Patcher::get_next_core_type_index(&CORE_1);
+        let index = Patcher::get_next_core_type_index(&CORE_1).expect("should get index");
         assert_eq!(index, 0);
 
         const CORE_2: &str = r#"
@@ -398,7 +459,7 @@ mod tests {
                 )
             )
             "#;
-        let index = Patcher::get_next_core_type_index(&CORE_2);
+        let index = Patcher::get_next_core_type_index(&CORE_2).expect("should get index");
         assert_eq!(index, 3);
 
         const CORE_3: &str = r#"
@@ -415,7 +476,7 @@ mod tests {
                 )
             )
             "#;
-        let index = Patcher::get_next_core_type_index(&CORE_3);
+        let index = Patcher::get_next_core_type_index(&CORE_3).expect("should get index");
         assert_eq!(index, 7);
     }
 
@@ -431,7 +492,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_1);
+        let index = Patcher::get_next_component_type_index(&COMPONENT_1).expect("should get index");
         assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
@@ -446,7 +507,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_2);
+        let index = Patcher::get_next_component_type_index(&COMPONENT_2).expect("should get index");
         assert_eq!(index, 2);
 
         const COMPONENT_3: &str = r#"
@@ -464,7 +525,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_type_index(&COMPONENT_3);
+        let index = Patcher::get_next_component_type_index(&COMPONENT_3).expect("should get index");
         assert_eq!(index, 5);
     }
 
@@ -476,7 +537,7 @@ mod tests {
                 (type (;1;) (func (result i32)))
             )
             "#;
-        let index = Patcher::get_next_core_func_index(&CORE_1);
+        let index = Patcher::get_next_core_func_index(&CORE_1).expect("should get index");
         assert_eq!(index, 0);
 
         const CORE_2: &str = r#"
@@ -489,7 +550,7 @@ mod tests {
                 )
             )
             "#;
-        let index = Patcher::get_next_core_func_index(&CORE_2);
+        let index = Patcher::get_next_core_func_index(&CORE_2).expect("should get index");
         assert_eq!(index, 1);
 
         const CORE_3: &str = r#"
@@ -515,7 +576,7 @@ mod tests {
                 )
             )
             "#;
-        let index = Patcher::get_next_core_func_index(&CORE_3);
+        let index = Patcher::get_next_core_func_index(&CORE_3).expect("should get index");
         assert_eq!(index, 4);
     }
 
@@ -533,7 +594,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_1);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_1).expect("should get index");
         assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
@@ -549,7 +610,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_2);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_2).expect("should get index");
         assert_eq!(index, 1);
 
         const COMPONENT_3: &str = r#"
@@ -568,7 +629,7 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_3);
+        let index = Patcher::get_next_component_core_func_index(&COMPONENT_3).expect("should get index");
         assert_eq!(index, 4);
     }
 
