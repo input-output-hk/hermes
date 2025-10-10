@@ -1,8 +1,10 @@
+//! Catalyst ID or stake address.
+
 use catalyst_types::catalyst_id::CatalystId;
 
 use crate::service::common::types::cardano::cip19_stake_address::Cip19StakeAddress;
 
-/// A Query Parameter that can take a CIP-19 stake address, or a Catalyst Id
+/// A CIP-19 stake address, or a Catalyst Id
 #[derive(Debug, Clone)]
 pub(crate) enum CatIdOrStake {
     /// A CIP-19 stake address

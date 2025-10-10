@@ -4,6 +4,7 @@
 
 use crate::service::utilities::as_hex_string;
 
+/// Ed25519 Public Key.
 #[derive(Clone, Debug)]
 pub(crate) struct Ed25519HexEncodedPublicKey(String);
 

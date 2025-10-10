@@ -1,3 +1,5 @@
+//! A RBAC registration chain information.
+
 use cardano_blockchain_types::{hashes::TransactionId, Network, Slot};
 use rbac_registration::registration::cardano::RegistrationChain;
 

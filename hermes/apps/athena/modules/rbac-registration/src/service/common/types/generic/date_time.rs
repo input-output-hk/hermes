@@ -4,7 +4,7 @@ use core::fmt;
 
 use serde::{Serialize, Serializer};
 
-/// Newtype for `DateTime<Utc>`. Should be used for API interfacing `DateTime<Utc>` only.
+/// Date time.
 #[derive(Debug, Clone)]
 pub(crate) struct DateTime(chrono::DateTime<chrono::offset::Utc>);
 

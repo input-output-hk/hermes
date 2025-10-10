@@ -5,8 +5,10 @@
 use cardano_blockchain_types::pallas_addresses::{Address, ShelleyAddress};
 use serde::Serialize;
 
+/// A Cardano Shelley address.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct Cip19ShelleyAddress(String);
+
 impl TryFrom<Vec<u8>> for Cip19ShelleyAddress {
     type Error = anyhow::Error;
 

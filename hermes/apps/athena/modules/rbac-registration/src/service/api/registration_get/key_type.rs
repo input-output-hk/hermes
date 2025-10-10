@@ -4,7 +4,7 @@ use serde::Serialize;
 
 /// A key type for role data.
 #[derive(Debug, Clone, Serialize)]
-
+#[serde(rename_all = "lowercase")]
 pub(crate) enum KeyType {
     /// A public key.
     Pubkey,

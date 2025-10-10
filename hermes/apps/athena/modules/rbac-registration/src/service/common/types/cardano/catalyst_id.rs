@@ -5,6 +5,7 @@ use std::fmt::Display;
 
 use serde::Serialize;
 
+/// A Catalyst identifier.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct CatalystId(String);
 

@@ -30,7 +30,6 @@ impl Serialize for RoleMap {
         let mut map = serializer.serialize_map(Some(self.0.len()))?;
 
         for (key, val) in &self.0 {
-            // Convert RoleId to string and serialize RbacRoleData
             let key_str = key.to_string();
             map.serialize_entry(&key_str, val)?;
         }

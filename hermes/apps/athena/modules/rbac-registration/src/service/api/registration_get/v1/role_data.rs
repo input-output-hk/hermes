@@ -1,4 +1,4 @@
-//! A RBAC role data map.
+//! A role data.
 
 use std::collections::HashMap;
 

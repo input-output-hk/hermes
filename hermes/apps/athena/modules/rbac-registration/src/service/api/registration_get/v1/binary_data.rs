@@ -7,6 +7,7 @@ use crate::service::{
     utilities::as_hex_string,
 };
 
+/// A hex encoded binary data.
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct HexEncodedBinaryData(String);
 

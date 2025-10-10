@@ -16,6 +16,8 @@ use crate::service::{
 };
 
 /// A chain of valid RBAC registration.
+///
+/// A unified data of multiple RBAC registrations.
 #[derive(Debug, Clone, Serialize)]
 pub struct RbacRegistrationChain {
     /// A Catalyst ID.
