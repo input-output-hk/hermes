@@ -9,6 +9,7 @@ use std::path::Path;
 use regex::Regex;
 
 /// Magic string to avoid name collisions with existing functions.
+// cspell:disable-next-line
 const MAGIC: &str = r"vmucqq2137emxpatzkmuyy1szcpx23lp-hermes-";
 
 /// Regex to detect the function definitions in the core module.

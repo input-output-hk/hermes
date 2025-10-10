@@ -111,6 +111,7 @@ readlinkat
 removedir
 renameat
 reqwest
+rfind
 rngs
 rollouts
 rustc
@@ -151,6 +152,7 @@ utimensat
 uuidv
 wasi
 wasip
+wasmparser
 wasmprinter
 wasmtime
 webasm
