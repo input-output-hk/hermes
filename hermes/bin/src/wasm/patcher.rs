@@ -594,7 +594,8 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_1).expect("should get index");
+        let index =
+            Patcher::get_next_component_core_func_index(&COMPONENT_1).expect("should get index");
         assert_eq!(index, 0);
 
         const COMPONENT_2: &str = r#"
@@ -610,7 +611,8 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_2).expect("should get index");
+        let index =
+            Patcher::get_next_component_core_func_index(&COMPONENT_2).expect("should get index");
         assert_eq!(index, 1);
 
         const COMPONENT_3: &str = r#"
@@ -629,7 +631,8 @@ mod tests {
                 (processed-by "wit-component" "0.229.0")
             )
             "#;
-        let index = Patcher::get_next_component_core_func_index(&COMPONENT_3).expect("should get index");
+        let index =
+            Patcher::get_next_component_core_func_index(&COMPONENT_3).expect("should get index");
         assert_eq!(index, 4);
     }
 
