@@ -84,7 +84,7 @@ blake2b_simd = "1.0.3"
 sha2 = "0.10.9"
 ed25519-dalek = { version="2.2.0", features = ["pem"] }
 x509-cert = { version="0.2.5", features = ["pem"] }
-coset = "0.3.8"
+coset = "0.4.0"
 dirs = "6.0.0"
 regex = "1.11.2"
 rustls = { version = "0.23.31", default-features = false, features = ["ring","brotli","zlib"] }
