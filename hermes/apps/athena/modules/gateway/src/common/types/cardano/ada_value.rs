@@ -4,9 +4,12 @@ use std::fmt::Display;
 
 use anyhow::bail;
 use num_bigint::BigInt;
+use serde::{Deserialize, Serialize};
 
 /// ADA coins value on the blockchain.
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
+#[derive(
+    Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
 pub(crate) struct AdaValue(u64);
 
 impl Display for AdaValue {

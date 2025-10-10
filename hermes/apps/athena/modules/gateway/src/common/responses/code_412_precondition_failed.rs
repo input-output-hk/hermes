@@ -1,5 +1,7 @@
 //! Define `Precondition Failed` response type.
 
+use serde::{Deserialize, Serialize};
+
 use crate::{common, common::types::array_types::impl_array_types};
 
 /// The client has not sent valid data in its request, headers, parameters or body.
@@ -31,7 +33,7 @@ impl PreconditionFailed {
 // List of Content Error Details
 impl_array_types!(ContentErrorDetailList, ContentErrorDetail);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ContentErrorDetail {
     /// The location of the error
     // #[oai(skip_serializing_if_is_none)]

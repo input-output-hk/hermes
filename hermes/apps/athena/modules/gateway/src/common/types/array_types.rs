@@ -15,7 +15,7 @@ macro_rules! impl_array_types {
 
     ($(#[$docs:meta])* $ty:ident, $item_ty:ident, $validator:expr) => {
         $(#[$docs])*
-        #[derive(Debug, Default, Clone)]
+        #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
         pub(crate) struct $ty(Vec<$item_ty>);
 
         impl From<Vec<$item_ty>> for $ty {

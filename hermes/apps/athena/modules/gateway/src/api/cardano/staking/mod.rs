@@ -11,6 +11,8 @@ use crate::common::{
 mod assets_get;
 mod db_mocked;
 
+pub use assets_get::Responses;
+
 /// Cardano Staking API Endpoints
 pub(crate) struct Api;
 
