@@ -4,7 +4,6 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use serde::Serialize;
-use uuid::Uuid;
 
 /// UUIDv4
 #[derive(Debug, Clone, Serialize)]
