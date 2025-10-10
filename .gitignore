@@ -95,6 +95,9 @@ Cargo.lock
 
 # Athena build stuff
 *.hmod
-*.wasm
+hermes/apps/athena/**/*.wasm
 *.happ
 **/target/**/*
+
+# Various WASM artifacts for tests
+hermes/bin/tests/integration/**/*.wasm
