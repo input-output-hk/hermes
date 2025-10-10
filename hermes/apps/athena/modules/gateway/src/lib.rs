@@ -8,6 +8,8 @@ mod settings;
 mod utilities;
 mod utils;
 
+use std::sync::OnceLock;
+
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
 shared::bindings_generate!({
@@ -27,14 +29,24 @@ shared::bindings_generate!({
 });
 export!(CatGatewayAPI);
 
+use regex::Regex;
 use shared::bindings::hermes::logging::api::{log, Level};
 
 use crate::{
     api::cardano::staking::{Api, GetStakedAdaRequest},
-    common::{auth::none::NoAuthorization, types::cardano::cip19_stake_address::Cip19StakeAddress},
+    common::{
+        auth::none::NoAuthorization,
+        responses::{ErrorResponses, WithErrorResponses},
+        types::cardano::cip19_stake_address::Cip19StakeAddress,
+    },
 };
 
-const STAKE_ROUTE: &str = "/api/gateway/v1/cardano/assets/:stake_address";
+const STAKE_ROUTE: &str = r"^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$";
+static STAKE_ROUTE_REGEX: OnceLock<Regex> = OnceLock::new();
+
+fn stake_route_regex() -> &'static Regex {
+    STAKE_ROUTE_REGEX.get_or_init(|| Regex::new(STAKE_ROUTE).expect("Invalid Regex"))
+}
 
 /// HTTP proxy component providing configurable request routing.
 ///
@@ -69,7 +81,7 @@ fn create_not_found_response(
 fn log_info(message: &str) {
     log(
         Level::Info,
-        Some("http-proxy"),
+        Some("gateway"),
         None,
         None,
         None,
@@ -82,7 +94,7 @@ fn log_info(message: &str) {
 fn log_err(message: &str) {
     log(
         Level::Error,
-        Some("http-proxy"),
+        Some("gateway"),
         None,
         None,
         None,
@@ -96,7 +108,7 @@ fn log_err(message: &str) {
 fn log_warn(message: &str) {
     log(
         Level::Warn,
-        Some("http-proxy"),
+        Some("gateway"),
         None,
         None,
         None,
@@ -116,6 +128,75 @@ fn format_response_type(response: &HttpGatewayResponse) -> String {
     }
 }
 
+/// Convert successful stake info response to HTTP response
+fn convert_to_http_response(
+    stake_info: crate::api::cardano::staking::Responses
+) -> HttpGatewayResponse {
+    match stake_info {
+        crate::api::cardano::staking::Responses::Ok(full_stake_info) => {
+            let json_body = serde_json::to_string(&full_stake_info)
+                .unwrap_or_else(|_| "{\"error\":\"Serialization failed\"}".to_string());
+
+            HttpGatewayResponse::Http(HttpResponse {
+                code: 200,
+                headers: vec![(
+                    "content-type".to_string(),
+                    vec!["application/json".to_string()],
+                )],
+                body: Bstr::from(json_body),
+            })
+        },
+        crate::api::cardano::staking::Responses::NotFound => {
+            HttpGatewayResponse::Http(HttpResponse {
+                code: 404,
+                headers: vec![(
+                    "content-type".to_string(),
+                    vec!["application/json".to_string()],
+                )],
+                body: Bstr::from("{\"error\":\"Stake address not found\"}"),
+            })
+        },
+    }
+}
+
+/// Convert error response to HTTP response
+fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse {
+    match error {
+        ErrorResponses::NotFound => HttpGatewayResponse::Http(HttpResponse {
+            code: 404,
+            headers: vec![(
+                "content-type".to_string(),
+                vec!["application/json".to_string()],
+            )],
+            body: Bstr::from("{\"error\":\"Not found\"}"),
+        }),
+        ErrorResponses::ServerError(_) => HttpGatewayResponse::Http(HttpResponse {
+            code: 500,
+            headers: vec![(
+                "content-type".to_string(),
+                vec!["application/json".to_string()],
+            )],
+            body: Bstr::from("{\"error\":\"Internal server error\"}"),
+        }),
+        ErrorResponses::ServiceUnavailable(_, _) => HttpGatewayResponse::Http(HttpResponse {
+            code: 503,
+            headers: vec![(
+                "content-type".to_string(),
+                vec!["application/json".to_string()],
+            )],
+            body: Bstr::from("{\"error\":\"Service unavailable\"}"),
+        }),
+        _ => HttpGatewayResponse::Http(HttpResponse {
+            code: 500,
+            headers: vec![(
+                "content-type".to_string(),
+                vec!["application/json".to_string()],
+            )],
+            body: Bstr::from("{\"error\":\"Unknown error\"}"),
+        }),
+    }
+}
+
 impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
     /// Routes HTTP requests through configurable proxy logic.
     ///
@@ -129,9 +210,11 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
         method: String,
     ) -> Option<HttpGatewayResponse> {
         log_info(&format!("Processing HTTP request: {} {}", method, path));
-
-        let response = match path.to_lowercase().as_str() {
-            STAKE_ROUTE => {
+        let route_regex = stake_route_regex();
+        let response = if let Some(captures) = route_regex.captures(&path.to_lowercase()) {
+            if let Some(stake_address_match) = captures.get(1) {
+                let stake_address = stake_address_match.as_str();
+                let stake_address = Cip19StakeAddress::try_from(stake_address).ok()?;
                 log_info(&format!(
                     "Processing STAKE_ROUTE: {} {} {:?} {:?}",
                     method, path, body, headers
@@ -140,25 +223,30 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                     .inspect_err(|err| {
                         log_err(&format!("request parse failed: {err}",));
                     })
-                    .unwrap();
+                    .ok()?;
+                log_err("before request");
                 let response = Api.staked_ada_get(
-                    Cip19StakeAddress::try_from("asd").unwrap(),
+                    stake_address,
                     request.network,
                     request.asat,
                     common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
                 );
+
                 match response {
-                    common::responses::WithErrorResponses::With(_v) => {
-                        log_info(&format!("processed STAKE_ROUTE"))
+                    WithErrorResponses::With(stake_info) => {
+                        log_info("processed STAKE_ROUTE successfully");
+                        convert_to_http_response(stake_info)
                     },
-                    common::responses::WithErrorResponses::Error(_error_responses) => {
-                        log_info(&format!("processed with err STAKE_ROUTE"))
+                    WithErrorResponses::Error(error_response) => {
+                        log_info("processed STAKE_ROUTE with error");
+                        convert_error_to_http_response(error_response)
                     },
                 }
-
-                todo!("transform response")
-            },
-            _ => create_not_found_response(&method, &path),
+            } else {
+                create_not_found_response(&method, &path)
+            }
+        } else {
+            create_not_found_response(&method, &path)
         };
 
         log_info(&format!(

@@ -31,7 +31,7 @@ struct Session;
 
 /// Endpoint responses.
 // #[derive(ApiResponse)]
-pub(crate) enum Responses {
+pub enum Responses {
     /// ## Ok
     ///
     /// The amount of ADA staked by the queried stake address, as at the indicated slot.
@@ -146,12 +146,12 @@ fn calculate_assets_state(
         .collect();
 
     // Sets TXOs as spent in the database in the background.
-    tokio::spawn(async move {
-        // if let Err(err) = todo!() {
-        //     // UpdateTxoSpentQuery::execute(&session, params).await {
-        //     tracing::error!("Failed to update TXO spent info, err: {err}");
-        // }
-    });
+    // tokio::spawn(async move {
+    //     // if let Err(err) = todo!() {
+    //     //     // UpdateTxoSpentQuery::execute(&session, params).await {
+    //     //     tracing::error!("Failed to update TXO spent info, err: {err}");
+    //     // }
+    // });
 
     Ok(TxoAssetsState { txos, txo_assets })
 }

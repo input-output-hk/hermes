@@ -2,8 +2,10 @@
 
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 /// Value of a Cardano Native Asset (may not be zero)
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) struct AssetValue(i128);
 
 impl Display for AssetValue {
