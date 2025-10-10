@@ -18,44 +18,58 @@ use crate::{
         cat_id::select_rbac_registration_chain_from_cat_id,
         stake_addr::select_rbac_registration_chain_from_stake_addr,
     },
-    rbac::build_rbac_chain::build_registration_chain,
+    rbac::{build_rbac_chain::build_registration_chain, rbac_chain_metadata::RbacChainMetadata},
+    service::common::types::cardano::cip19_stake_address::Cip19StakeAddress,
 };
 
 /// Get the RBAC chain by Catalyst ID.
 pub(crate) fn get_rbac_chain_from_cat_id(
     persistent: &Sqlite,
     volatile: &Sqlite,
-    cat_id: &str,
+    cat_id: &CatalystId,
     network: CardanoNetwork,
     network_resource: &Network,
-) -> anyhow::Result<Option<RegistrationChain>> {
-    let chain_info = select_rbac_registration_chain_from_cat_id(persistent, volatile, cat_id)?;
+) -> anyhow::Result<Option<(RegistrationChain, RbacChainMetadata)>> {
+    let (reg_locations, metadata) =
+        select_rbac_registration_chain_from_cat_id(persistent, volatile, &cat_id.to_string())?;
 
-    let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
-    Ok(reg_chain)
+    let reg_chain = build_registration_chain(network, network_resource, reg_locations)?;
+    if reg_chain.is_none() {
+        return Ok(None);
+    }
+    Ok(reg_chain.map(|chain| (chain, metadata)))
 }
 
 /// Get the RBAC chain by Stake address.
 pub(crate) fn get_rbac_chain_from_stake_address(
     persistent: &Sqlite,
     volatile: &Sqlite,
-    stake_address: StakeAddress,
+    stake_address: Cip19StakeAddress,
     network: CardanoNetwork,
     network_resource: &Network,
-) -> anyhow::Result<Option<RegistrationChain>> {
-    let chain_info =
+) -> anyhow::Result<Option<(RegistrationChain, RbacChainMetadata)>> {
+    let stake_address: StakeAddress = stake_address.try_into()?;
+
+    let (reg_locations, metadata) =
         select_rbac_registration_chain_from_stake_addr(persistent, volatile, stake_address)?;
-    let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
-    Ok(reg_chain)
+    let reg_chain = build_registration_chain(network, network_resource, reg_locations)?;
+    if reg_chain.is_none() {
+        return Ok(None);
+    }
+    Ok(reg_chain.map(|chain| (chain, metadata)))
 }
 
+// TODO: These is part of the v2 api so dead_code is okay
 /// Active stake addresses type.
+#[allow(dead_code)]
 type Active = HashSet<StakeAddress>;
 
 /// Inactive stake addresses type.
+#[allow(dead_code)]
 type Inactive = HashSet<StakeAddress>;
 
 /// Get the active and inactive stake addresses given Catalyst ID.
+#[allow(dead_code)]
 pub(crate) fn get_active_inactive_stake_address(
     stake_addresses: HashSet<StakeAddress>,
     cat_id: &CatalystId,
@@ -68,9 +82,9 @@ pub(crate) fn get_active_inactive_stake_address(
     let mut active_stake_addresses = Active::new();
     let mut inactive_stake_addresses = Inactive::new();
     for s in stake_addresses {
-        let chain_info =
+        let (reg_locations, _) =
             select_rbac_registration_chain_from_stake_addr(persistent, volatile, s.clone())?;
-        let reg_chain = build_registration_chain(network, network_resource, chain_info)?;
+        let reg_chain = build_registration_chain(network, network_resource, reg_locations)?;
         // There should be a chain associated with the stake address, since the stake address
         // is extracted from the valid registration chain.
         if let Some(r) = reg_chain {

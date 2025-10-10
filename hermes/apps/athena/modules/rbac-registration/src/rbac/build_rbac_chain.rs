@@ -6,16 +6,7 @@ use shared::{
     utils::{cardano::block::build_block, log::log_error},
 };
 
-/// Information needed to build the RBAC chain.
-/// Only need the `slot_no` and `txn_idx` to construct a block and
-/// extract the RBAC information.
-#[derive(Debug, Clone)]
-pub(crate) struct RbacChainInfo {
-    /// The slot number of the block that contains the registration.
-    pub(crate) slot_no: u64,
-    /// The transaction index that contains the registration.
-    pub(crate) txn_idx: u16,
-}
+use crate::rbac::registration_location::RegistrationLocation;
 
 /// Build the RBAC registration chain.
 ///
@@ -23,7 +14,7 @@ pub(crate) struct RbacChainInfo {
 ///
 /// * `network` - The network to build the registration chain.
 /// * `network_resource` - The network resource used for getting block data.
-/// * `rbac_chain_info` - The registration chain information.
+/// * `registration_location` - The registration chain information.
 ///
 /// # Return
 ///
@@ -33,17 +24,17 @@ pub(crate) struct RbacChainInfo {
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,
     network_resource: &Network,
-    rbac_chain_info: Vec<RbacChainInfo>,
+    registration_location: Vec<RegistrationLocation>,
 ) -> anyhow::Result<Option<RegistrationChain>> {
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = rbac_chain_info.first().ok_or_else(|| {
+    let first_info = registration_location.first().ok_or_else(|| {
         let error = "Registration chain info is empty";
         log_error(
             file!(),
             FUNCTION_NAME,
-            "rbac_chain_info.first",
+            "registration_location.first",
             &error,
             None,
         );
@@ -71,7 +62,7 @@ pub(crate) fn build_registration_chain(
     })?;
 
     // Append children
-    for info in rbac_chain_info.iter().skip(1) {
+    for info in registration_location.iter().skip(1) {
         let reg = get_registration(
             file!(),
             network,
