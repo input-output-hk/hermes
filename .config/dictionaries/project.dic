@@ -5,6 +5,7 @@ asyncio
 auditability
 autocheckpoint
 backpressure
+bech
 bkioshn
 blockfetch
 blosc
@@ -74,6 +75,7 @@ mapref
 mdlint
 metno
 mgrybyk
+minicbor
 miniprotocol
 mithril
 mkcron
@@ -146,6 +148,7 @@ unfinalized
 unlinkat
 usvg
 utimensat
+uuidv
 wasi
 wasip
 wasmprinter

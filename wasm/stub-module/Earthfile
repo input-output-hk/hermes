@@ -4,6 +4,4 @@ IMPORT ../wasi AS wasi
 
 # build - generate a wasm component from a C stub file
 build:
-    # includes all possible imports and exports
-    LET wit_root=..+wasi-src/wasi/wit/hermes.wit
-    DO wasi+BUILD_C_COMPONENT --c_files=stub-module.c --wit_root=$wit_root --out=stub.wasm
+    DO wasi+BUILD_C_COMPONENT --c_files=stub-module.c --out=stub.wasm

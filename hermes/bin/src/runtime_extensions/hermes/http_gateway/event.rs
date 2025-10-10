@@ -14,7 +14,7 @@ use url::Url;
 use crate::{
     event::HermesEventPayload,
     runtime_extensions::bindings::{
-        exports::hermes::http_gateway::event::HttpGatewayResponse, unchecked_exports,
+        hermes::http_gateway::api::HttpGatewayResponse, unchecked_exports,
     },
 };
 

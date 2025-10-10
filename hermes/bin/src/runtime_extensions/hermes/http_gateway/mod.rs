@@ -4,6 +4,7 @@ use gateway_task::spawn;
 
 mod event;
 mod gateway_task;
+mod host;
 /// Gateway routing logic
 mod routing;
 

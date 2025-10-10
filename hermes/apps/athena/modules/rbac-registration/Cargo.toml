@@ -7,12 +7,20 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.43.0"
+shared = { version = "0.1.0", path = "../../shared", features = ["cardano-blockchain-types"] }
 anyhow = "1.0.98"
 serde_json = "1.0.142"
-strum = "0.27.2"
-strum_macros = "0.27.2"
+serde = "1.0.226"
+bech32 = "0.11.0"
+x509-cert = "0.2.5"
+hex = "0.4.3"
+minicbor = "0.25.1" 
+ed25519-dalek = "2.1.1"
+chrono = "0.4.38"
+regex = "1.11.1"
+uuid = { version = "1.12.1", features = ["v4", "v7", "serde"] }
 
 cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
 rbac-registration = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.10" }
 catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
+c509-certificate = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "c509-certificate-v0.0.3" }
