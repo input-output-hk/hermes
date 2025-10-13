@@ -33,7 +33,7 @@ use regex::Regex;
 use shared::bindings::hermes::logging::api::{log, Level};
 
 use crate::{
-    api::cardano::staking::{Api, GetStakedAdaRequest},
+    api::cardano::staking::{staked_ada_get, Api, GetStakedAdaRequest},
     common::{
         auth::none::NoAuthorization,
         responses::{ErrorResponses, WithErrorResponses},
@@ -209,7 +209,6 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
         path: String,
         method: String,
     ) -> Option<HttpGatewayResponse> {
-        log_info(&format!("Processing HTTP request: {} {}", method, path));
         let route_regex = stake_route_regex();
         let response = if let Some(captures) = route_regex.captures(&path.to_lowercase()) {
             if let Some(stake_address_match) = captures.get(1) {
@@ -224,8 +223,8 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                         log_err(&format!("request parse failed: {err}",));
                     })
                     .ok()?;
-                log_err("before request");
-                let response = Api.staked_ada_get(
+
+                let response = staked_ada_get(
                     stake_address,
                     request.network,
                     request.asat,

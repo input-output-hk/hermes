@@ -1,5 +1,6 @@
 //! Define `Unauthorized` response type.
 
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::common;
@@ -9,6 +10,7 @@ use crate::common;
 // Keep this message consistent with the response comment.
 /// The client has not sent valid authentication credentials for the requested
 /// resource.
+#[derive(ToSchema)]
 pub(crate) struct Unauthorized {
     /// Unique ID of this Server Error so that it can be located easily for debugging.
     id: common::types::generic::error_uuid::ErrorUuid,

@@ -3009,6 +3009,8 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+ "url",
+ "uuid",
 ]
 
 [[package]]

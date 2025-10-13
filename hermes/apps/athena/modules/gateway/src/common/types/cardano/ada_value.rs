@@ -5,10 +5,22 @@ use std::fmt::Display;
 use anyhow::bail;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// ADA coins value on the blockchain.
 #[derive(
-    Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord, Default, Serialize, Deserialize,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Clone,
+    Copy,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    ToSchema,
 )]
 pub(crate) struct AdaValue(u64);
 

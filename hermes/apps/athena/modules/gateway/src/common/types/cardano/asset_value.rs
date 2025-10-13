@@ -3,9 +3,10 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// Value of a Cardano Native Asset (may not be zero)
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, ToSchema)]
 pub(crate) struct AssetValue(i128);
 
 impl Display for AssetValue {

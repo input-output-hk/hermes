@@ -1,5 +1,6 @@
 //! Define `Forbidden` response type.
 
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{common, common::types::array_types::impl_array_types};
@@ -8,6 +9,7 @@ use crate::{common, common::types::array_types::impl_array_types};
 // #[oai(example)]
 /// The client has not sent valid authentication credentials for the requested
 /// resource.
+#[derive(ToSchema)]
 pub(crate) struct Forbidden {
     /// Unique ID of this Server Error so that it can be located easily for debugging.
     id: common::types::generic::error_uuid::ErrorUuid,

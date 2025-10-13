@@ -38,7 +38,7 @@ macro_rules! impl_string_types {
 
     ($(#[$docs:meta])* $ty:ident, $type_name:literal, $format:expr, $validator:expr) => {
         $(#[$docs])*
-        #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
         pub(crate) struct $ty(String);
 
         impl std::ops::Deref for $ty {

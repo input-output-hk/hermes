@@ -1,12 +1,13 @@
 //! Define `Precondition Failed` response type.
 
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::{common, common::types::array_types::impl_array_types};
 
 /// The client has not sent valid data in its request, headers, parameters or body.
 // #[derive(Object, Debug, Clone)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ToSchema)]
 // #[oai(example)]
 pub(crate) struct PreconditionFailed {
     /// Details of each error in the content that was detected.
@@ -33,7 +34,7 @@ impl PreconditionFailed {
 // List of Content Error Details
 impl_array_types!(ContentErrorDetailList, ContentErrorDetail);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub(crate) struct ContentErrorDetail {
     /// The location of the error
     // #[oai(skip_serializing_if_is_none)]

@@ -16,11 +16,12 @@ pub(crate) mod code_500_internal_server_error;
 pub(crate) mod code_503_service_unavailable;
 
 use code_500_internal_server_error::InternalServerError;
+use utoipa::ToSchema;
 
 use super::types::headers::retry_after::{RetryAfterHeader, RetryAfterOption};
 
 /// Default error responses
-// #[derive(ApiResponse)]
+#[derive(ToSchema)]
 pub(crate) enum ErrorResponses {
     /// ## Not Found
     ///
@@ -134,6 +135,7 @@ impl ErrorResponses {
 }
 
 /// Combine provided responses type with the default responses under one type.
+#[derive(ToSchema)]
 pub(crate) enum WithErrorResponses<T> {
     /// Provided responses
     With(T),

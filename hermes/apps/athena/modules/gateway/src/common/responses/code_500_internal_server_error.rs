@@ -1,16 +1,16 @@
 //! Define `ServerError` type.
 
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// While using macro-vis lib, you will get the `uncommon_codepoints` warning, so you will
 /// probably want to place this in your crate root
 use crate::{common, settings::Settings};
 
-// #[derive(Object)]
-// #[oai(example, skip_serializing_if_is_none)]
 /// An internal server error occurred.
 ///
 /// *The contents of this response should be reported to the projects issue tracker.*
+#[derive(ToSchema)]
 pub(crate) struct InternalServerError {
     /// Unique ID of this Server Error so that it can be located easily for debugging.
     id: common::types::generic::error_uuid::ErrorUuid,

@@ -1,19 +1,17 @@
 //! Defines API schemas of Cardano network types.
 
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// Cardano network type.
 // #[derive(Clone, Enum, Debug)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub(crate) enum Network {
     /// Cardano mainnet.
-    // #[oai(rename = "mainnet")]
     Mainnet,
     /// Cardano preprod.
-    // #[oai(rename = "preprod")]
     Preprod,
     /// Cardano preview.
-    // #[oai(rename = "preview")]
     Preview,
 }
 

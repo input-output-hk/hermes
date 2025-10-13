@@ -2,6 +2,7 @@
 
 use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::common::types::{
     array_types::impl_array_types,
@@ -13,7 +14,7 @@ use crate::common::types::{
 
 /// User's staked txo asset info.
 // #[derive(Object, Debug, Clone)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 // #[oai(example)]
 pub(crate) struct StakedTxoAssetInfo {
     /// Asset policy hash (28 bytes).
@@ -37,7 +38,7 @@ impl_array_types!(
 );
 
 /// User's cardano stake info.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub(crate) struct StakeInfo {
     /// Total stake amount.
     pub(crate) ada_amount: AdaValue,
@@ -50,15 +51,15 @@ pub(crate) struct StakeInfo {
 }
 
 /// Volatile stake information.
-#[derive(From, Into, Serialize, Deserialize)]
+#[derive(From, Into, Serialize, Deserialize, ToSchema)]
 pub(crate) struct VolatileStakeInfo(StakeInfo);
 
 /// Persistent stake information.
-#[derive(From, Into, Serialize, Deserialize)]
+#[derive(From, Into, Serialize, Deserialize, ToSchema)]
 pub(crate) struct PersistentStakeInfo(StakeInfo);
 
 /// Full user's cardano stake info.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub(crate) struct FullStakeInfo {
     /// Volatile stake information.
     pub(crate) volatile: VolatileStakeInfo,
