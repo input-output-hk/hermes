@@ -71,13 +71,11 @@ pub struct SubscriptionManager {
 }
 
 impl SubscriptionManager {
-
-
     /// Check if the manager has no subscriptions
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.subscriptions_by_id.is_empty()
     }
-
 
     pub fn new() -> Self {
         Self::default()
