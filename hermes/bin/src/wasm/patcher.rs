@@ -354,6 +354,8 @@ mod tests {
 
     use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
 
+    const LINEAR_MEMORY_PAGE_SIZE_BYTES: i32 = 65536;
+
     const COMPONENT_SINGLE_CORE_MODULE: &str =
         "tests/test_wasm_files/component_single_core_module.wasm";
     const COMPONENT_MULTIPLE_CORE_MODULES: &str =
@@ -715,7 +717,6 @@ mod tests {
 
         // Step 3: Call the injected function
         let get_memory_size_func = format!("{MAGIC}get-memory-size");
-
         let get_memory_size = instance
             .get_func(&mut store, get_memory_size_func)
             .expect("should get func")
@@ -732,6 +733,94 @@ mod tests {
         let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
 
         assert!(source_wat.contains(&expected_memory_entry));
+    }
+
+    #[test]
+    fn injected_get_memory_raw_bytes_works() {
+        struct MyCtx {
+            table: ResourceTable,
+            wasi: WasiCtx,
+        }
+
+        impl WasiView for MyCtx {
+            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
+                wasmtime_wasi::WasiCtxView {
+                    ctx: &mut self.wasi,
+                    table: &mut self.table,
+                }
+            }
+        }
+
+        // Step 1: Patch the WASM file
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result).expect("should encode");
+
+        // Step 2: Instantiate the patched WASM
+        let engine = Engine::default();
+        let component =
+            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
+        let mut linker = Linker::new(&engine);
+        add_to_linker_sync(&mut linker).expect("should add to linker");
+        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+        let ctx = MyCtx {
+            table: ResourceTable::new(),
+            wasi,
+        };
+        let mut store = Store::new(&engine, ctx);
+        let instance = linker
+            .instantiate(&mut store, &component)
+            .expect("should instantiate");
+
+        // Step 3: Call the init function which will put some bytes into the linear memory.
+        let init = instance
+            .get_func(&mut store, "init")
+            .expect("should get func")
+            .typed::<(), (bool,)>(&store)
+            .expect("should be a typed func");
+        let init_result = init.call(&mut store, ()).expect("should call").0;
+        init.post_return(&mut store).expect("should post return");
+        assert!(init_result);
+
+        // Step 4: Retrieve the linear memory size
+        let get_memory_size_func = format!("{MAGIC}get-memory-size");
+        let get_memory_size = instance
+            .get_func(&mut store, get_memory_size_func)
+            .expect("should get func")
+            .typed::<(), (i32,)>(&store)
+            .expect("should be a typed func");
+        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
+        get_memory_size
+            .post_return(&mut store)
+            .expect("should post return");
+        let memory_size_in_bytes = memory_size_in_pages * LINEAR_MEMORY_PAGE_SIZE_BYTES;
+
+        // Step 5: Read the entire memory content
+        let mut linear_memory = vec![];
+        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
+        let get_memory_raw_bytes = instance
+            .get_func(&mut store, get_memory_raw_bytes_func)
+            .expect("should get func")
+            .typed::<(i32,), (i64,)>(&store)
+            .expect("should be a typed func");
+        for offset in (0..memory_size_in_bytes).step_by(8) {
+            let raw_bytes = get_memory_raw_bytes
+                .call(&mut store, (offset,))
+                .expect("should call")
+                .0;
+            get_memory_raw_bytes
+                .post_return(&mut store)
+                .expect("should post return");
+            linear_memory.extend(raw_bytes.to_le_bytes());
+        }
+
+        // Step 6: Check if there is a contiguous 1024-byte long sequence of 0xAA bytes
+        // The test component puts such a sequence at the 0x100004 offset, but we should
+        // not rely on this particular memory location, so we search in the entire memory.
+        assert!(linear_memory
+            .windows(1024)
+            .any(|window| window == [0xAAu8; 1024]));
     }
 
     #[test]
