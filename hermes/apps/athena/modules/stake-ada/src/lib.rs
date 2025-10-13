@@ -17,7 +17,7 @@ shared::bindings_generate!({
             // export hermes:cardano/event-on-block;
         }
     ",
-    share: ["hermes:cardano", "hermes:logging"],
+    share: ["hermes:cardano", "hermes:sqlite", "hermes:logging"],
 });
 
 #[allow(unused)]
