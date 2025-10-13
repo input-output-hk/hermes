@@ -35,7 +35,7 @@ pub(crate) fn build_registration_chain(
             file!(),
             FUNCTION_NAME,
             "registration_location.first",
-            &error,
+            error,
             None,
         );
         anyhow::anyhow!(error)
@@ -55,7 +55,7 @@ pub(crate) fn build_registration_chain(
             file!(),
             FUNCTION_NAME,
             "RegistrationChain::new",
-            &error,
+            error,
             None,
         );
         anyhow::anyhow!(error)
@@ -101,14 +101,14 @@ fn get_registration(
         .ok_or_else(|| {
             let err = format!("Failed to get block resource at slot {slot_no}");
             log_error(file!(), func_name, "network.get_block", &err, None);
-            return anyhow::anyhow!(err);
+            anyhow::anyhow!(err)
         })?;
 
     // Create a multi-era block
     let block = build_block(file!(), func_name, network, &block_resource).ok_or_else(|| {
         let err = format!("Failed to build block at slot {slot_no}");
         log_error(file!(), func_name, "build_block", &err, None);
-        return anyhow::anyhow!(err);
+        anyhow::anyhow!(err)
     })?;
 
     match Cip509::new(&block, txn_idx.into(), &[]) {

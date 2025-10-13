@@ -19,13 +19,15 @@ impl TryFrom<&str> for CatIdOrStake {
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value.parse::<CatalystId>() {
             Ok(cat_id) => Ok(Self::CatId(cat_id)),
-            Err(_) => match Cip19StakeAddress::try_from(value) {
-                Ok(stake_addr) => Ok(Self::Address(stake_addr)),
-                Err(_) => {
-                    anyhow::bail!(
-                        "Not a valid \"Catalyst Id or Stake Address\" parameter given {value}."
-                    )
-                },
+            Err(_) => {
+                match Cip19StakeAddress::try_from(value) {
+                    Ok(stake_addr) => Ok(Self::Address(stake_addr)),
+                    Err(_) => {
+                        anyhow::bail!(
+                            "Not a valid \"Catalyst Id or Stake Address\" parameter given {value}."
+                        )
+                    },
+                }
             },
         }
     }

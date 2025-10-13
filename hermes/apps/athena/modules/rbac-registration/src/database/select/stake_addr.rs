@@ -79,11 +79,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
 
     // Convert the given stake address to Vec<u8> which will be use in the query
-    let stake: Vec<u8> = stake_addr.try_into().map_err(|e| {
-        let error = format!("Failed to convert stake address StakeAddress: {e:?}");
-        log_error(file!(), FUNCTION_NAME, "stake_addr.try_into", &error, None);
-        anyhow::anyhow!(error)
-    })?;
+    let stake: Vec<u8> = stake_addr.into();
 
     // List of transaction IDs that contain the given stake address, newest first
     let mut txn_ids =
@@ -240,11 +236,15 @@ fn get_txn_ids_from_stake_addr(
     result
 }
 
+/// Registration transaction information.
+/// Previous transaction ID, slot number, catalyst ID, transaction index.
+type RegistrationTxnInfo = (Option<Vec<u8>>, u64, Option<String>, u16);
+
 // Get registration info by transaction id.
 fn get_registration_info_from_txn_id(
     stmt: &Statement,
     txn_id: &[u8],
-) -> anyhow::Result<Option<(Option<Vec<u8>>, u64, Option<String>, u16)>> {
+) -> anyhow::Result<Option<RegistrationTxnInfo>> {
     const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
 
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;

@@ -81,7 +81,7 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
         let network = cardano::api::CardanoNetwork::Preprod;
         let lookup = parse_query_param(&path, "lookup");
         let result = endpoint_v1(lookup, network);
-        let code = u16::from(result.status_code());
+        let code = result.status_code();
         // FIXME remove this
         log_info(
             file!(),

@@ -105,14 +105,14 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     // --- Find children ---
     let p_stmt = DatabaseStatement::prepare_statement(
         persistent,
-        &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
+        &QueryBuilder::select_child_reg_from_parent(RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
 
     let v_stmt = DatabaseStatement::prepare_statement(
         volatile,
-        &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
+        &QueryBuilder::select_child_reg_from_parent(RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
@@ -212,13 +212,13 @@ fn extract_child(
     const FUNCTION_NAME: &str = "extract_child";
 
     // Reset first to ensure the statement is in a clean state
-    DatabaseStatement::reset_statement(&stmt, FUNCTION_NAME)?;
+    DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.clone() => "txn_id")?;
     let result = match stmt.step() {
         Ok(StepResult::Row) => {
             let next_txn_id = stmt.column(0)?;
-            let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
-            let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
+            let slot_no = column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?;
+            let txn_idx = column_as::<u16>(stmt, 2, FUNCTION_NAME, "txn_idx")?;
             Some((next_txn_id, slot_no, txn_idx))
         },
         Ok(StepResult::Done) => None,

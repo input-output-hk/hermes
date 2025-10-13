@@ -72,8 +72,8 @@ pub fn endpoint_v1(
 
             let chain_info = ChainInfo {
                 chain: reg_chain,
-                last_persistent_txn: metadata.last_persistent_txn.map(Into::into),
-                last_volatile_txn: metadata.last_volatile_txn.map(Into::into),
+                last_persistent_txn: metadata.last_persistent_txn,
+                last_volatile_txn: metadata.last_volatile_txn,
                 last_persistent_slot: metadata.last_persistent_slot,
                 network: network.into(),
             };
@@ -102,8 +102,8 @@ pub fn endpoint_v1(
 
             let chain_info = ChainInfo {
                 chain: reg_chain,
-                last_persistent_txn: metadata.last_persistent_txn.map(Into::into),
-                last_volatile_txn: metadata.last_volatile_txn.map(Into::into),
+                last_persistent_txn: metadata.last_persistent_txn,
+                last_volatile_txn: metadata.last_volatile_txn,
                 last_persistent_slot: metadata.last_persistent_slot,
                 network: network.into(),
             };
