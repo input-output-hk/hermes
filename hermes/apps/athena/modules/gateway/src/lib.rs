@@ -33,7 +33,7 @@ use regex::Regex;
 use shared::bindings::hermes::logging::api::{log, Level};
 
 use crate::{
-    api::cardano::staking::{staked_ada_get, Api, GetStakedAdaRequest},
+    api::cardano::staking::{staked_ada_get, GetStakedAdaRequest},
     common::{
         auth::none::NoAuthorization,
         responses::{ErrorResponses, WithErrorResponses},
