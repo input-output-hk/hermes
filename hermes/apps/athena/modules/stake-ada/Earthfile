@@ -1,0 +1,26 @@
+VERSION 0.8
+
+IMPORT ../../../../ AS hermes
+IMPORT ../../../../../wasm/wasi AS wasi
+    
+build-staked-ada:
+    WORKDIR ../..
+    DO wasi+BUILD_RUST_COMPONENT \
+        --src="shared modules/staked-ada" \
+        --wasi-src-dir=../../../../../wasm/wasi \
+        --out=staked_ada.wasm
+
+local-build-staked-ada:
+    FROM scratch
+    COPY +build-staked-ada/staked_ada.wasm .
+    SAVE ARTIFACT staked_ada.wasm AS LOCAL lib/staked_ada.wasm
+
+
+package-staked-ada-module:
+    FROM hermes+build
+    
+    COPY lib/ .
+    COPY +build-rbac-registration/rbac_registration.wasm .
+
+    RUN ./target/release/hermes module package manifest_module.json
+    SAVE ARTIFACT staked_ada.hmod
