@@ -39,6 +39,9 @@ pub(crate) struct Application {
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Arc<Module>>,
 
+    /// human modules
+    human_modules: HashMap<String, ModuleId>,
+
     /// Application's `Vfs` instance
     vfs: Arc<Vfs>,
 }
@@ -50,6 +53,7 @@ impl Application {
         app_name: ApplicationName,
         vfs: Vfs,
         modules: Vec<Module>,
+        human_modules: HashMap<String, ModuleId>,
     ) -> Self {
         let indexed_modules = modules
             .into_iter()
@@ -59,6 +63,7 @@ impl Application {
             name: app_name,
             indexed_modules,
             vfs: Arc::new(vfs),
+            human_modules,
         }
     }
 
@@ -70,6 +75,11 @@ impl Application {
     /// Get vfs
     pub(crate) fn vfs(&self) -> &Vfs {
         self.vfs.as_ref()
+    }
+
+    /// Get vfs
+    pub(crate) fn get_human(&self) -> HashMap<std::string::String, ModuleId> {
+        self.human_modules.clone()
     }
 
     /// Dispatch event for all available modules.

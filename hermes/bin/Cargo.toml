@@ -99,6 +99,7 @@ paste = "1.0.15"
 traitreg = "0.3.0"
 orx-concurrent-vec = "3.7.0"
 keyed-lock = "0.2.3"
+tempfile = "3.23.0"
 
 [build-dependencies]
 build-info-build = "0.0.41"

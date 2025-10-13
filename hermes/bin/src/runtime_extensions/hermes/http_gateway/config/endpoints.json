@@ -1,0 +1,20 @@
+{
+  "subscriptions": [
+    {
+      "subscription_id": "health",
+      "module_id": "health",
+      "methods": ["GET"],
+      "path_regex": "^/health$",
+      "content_types": [],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "api",
+      "module_id": "main",
+      "methods": ["GET", "POST"],
+      "path_regex": "^/api/.*",
+      "content_types": ["application/json"],
+      "json_schema": null
+    }
+  ]
+}
