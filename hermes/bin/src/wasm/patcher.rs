@@ -50,6 +50,11 @@ const COMPONENT_INJECTIONS: &str = r#"
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
     (func (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_1})))
     (export "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
+
+    (type (;{COMPONENT_TYPE_ID_2};) (func (param "val" s32) (result s64)))
+    (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
+    (func (type {COMPONENT_TYPE_ID_2}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_2})))
+    (export "{MAGIC}get-memory-raw-bytes" (func {COMPONENT_FUNC_ID_2}))
     "#;
 
 /// Holds the extracted core module and component part of a WASM.
@@ -180,26 +185,32 @@ impl Patcher {
 
         let next_component_type_index = Self::get_next_component_type_index(&component_part)?;
         let component_type_1_index = next_component_type_index.to_string();
+        let component_type_2_index = (next_component_type_index + 1).to_string();
 
         let next_component_core_func_index =
             Self::get_next_component_core_func_index(&component_part)?;
         let component_core_func_1_index = next_component_core_func_index.to_string();
+        let component_core_func_2_index = (next_component_core_func_index + 1).to_string();
 
         let next_component_func_index = Self::get_next_component_func_index(&component_part)?;
         let component_func_1_index = (next_component_func_index * 2).to_string(); // *2 because "export" shares the same index space with "func"
+        let component_func_2_index = ((next_component_func_index + 1) * 2).to_string(); // *2 because "export" shares the same index space with "func"
 
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
             .replace("{COMPONENT_TYPE_ID_1}", &component_type_1_index)
             .replace("{COMPONENT_CORE_FUNC_ID_1}", &component_core_func_1_index)
-            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index);
+            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index)
+            .replace("{COMPONENT_TYPE_ID_2}", &component_type_2_index)
+            .replace("{COMPONENT_CORE_FUNC_ID_2}", &component_core_func_2_index)
+            .replace("{COMPONENT_FUNC_ID_2}", &component_func_2_index);
 
         core_module.push_str(&core_type_injection);
         core_module.push_str(&core_func_injection);
         core_module.push_str(&core_export_injection);
         component_part.push_str(&component_injections);
 
-        Ok(format!(
+        let patched_wat = format!(
             "
             (component 
                 {core_module}
@@ -207,7 +218,8 @@ impl Patcher {
             
             {component_part}
             )"
-        ))
+        );
+        Ok(patched_wat)
     }
 
     /// Counts the occurrences of a specific element in the given WAT.
