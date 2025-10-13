@@ -4,14 +4,14 @@ IMPORT ../../../../ AS hermes
 IMPORT ../../../../../wasm/wasi AS wasi
 IMPORT ../.. AS athena
 
-build-gateway:
-    DO athena+BUILD_ATHENA_COMPONENT --out=gateway.wasm
+build-http-gateway:
+    DO athena+BUILD_ATHENA_COMPONENT --out=http_gateway.wasm
 
 
 
-# HTTP Proxy WASM Module Build
+# HTTP Gateway WASM Module Build
 # =============================
-# Compiles the HTTP proxy Rust code into a WebAssembly module using the wasm32-wasip2 target.
+# Compiles the HTTP gateway Rust code into a WebAssembly module using the wasm32-wasip2 target.
 # This creates a sandboxed, portable component that can run in the Hermes runtime.
 #
 # Build Pipeline:
@@ -23,11 +23,11 @@ build-gateway:
 #
 # Compilation Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)
 # Optimization: Release mode with size optimizations (opt-level = "z", lto = true)
-# Output: gateway.wasm - Executable WebAssembly module
+# Output: http_gateway.wasm - Executable WebAssembly module
 # Duration: ~3-5 minutes (Rust compilation to WASM)
-local-build-gateway:
+local-build-http-gateway:
     FROM alpine
-    COPY +build-gateway/gateway.wasm .
+    COPY +build-http-gateway/http_gateway.wasm .
 
     # Copy module configuration and metadata files
     COPY lib/config.schema.json .
@@ -42,7 +42,7 @@ local-build-gateway:
     RUN mkdir -p /staging/
 
     # Copy WASM module and JSON config files to root of staging
-    RUN cp gateway.wasm /staging/
+    RUN cp http_gateway.wasm /staging/
     RUN cp *.json /staging/ || true
 
     # Export build artifacts from staging directory
