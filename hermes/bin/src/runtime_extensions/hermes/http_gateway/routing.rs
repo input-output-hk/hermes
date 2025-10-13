@@ -178,15 +178,24 @@ async fn route_to_hermes(
         // API endpoints need WebAssembly module processing
         // These requests go through the event queue to WASM components
         RouteType::WebAssembly(path, module_id) => {
-            // Static files are served directly from the virtual file system
             handle_webasm_request(req, path, module_id, app_name).await
+            // Static files are served directly from the virtual file system
         },
         RouteType::StaticFile(path) => serve_static_web_content(&path, &app_name),
     }
 }
 
+/// Route classification for incoming HTTP requests
+///
+/// This enum categorizes requests into two main types that require different handling:
+/// - API requests that need WebAssembly module processing
+/// - Static file requests that serve assets directly from the filesystem
 enum RouteType {
+    /// API endpoints that should be processed by WebAssembly modules
+    /// Contains the full path including query parameters for forwarding
     WebAssembly(String, Option<String>),
+    /// Static file requests that serve assets (HTML, CSS, JS, images, etc.)
+    /// Contains the normalized file path for filesystem lookup
     StaticFile(String),
 }
 
