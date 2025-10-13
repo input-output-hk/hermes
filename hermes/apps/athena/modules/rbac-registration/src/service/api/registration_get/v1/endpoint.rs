@@ -13,7 +13,7 @@ use crate::{
 // FIXME: revisit
 /// Get RBAC registration V1 endpoint.
 pub fn endpoint_v1(
-    lookup: Option<CatIdOrStake>,
+    lookup: Option<String>,
     network: cardano::api::CardanoNetwork,
 ) -> ResponsesV1 {
     let persistent = match open_db_connection(false) {
@@ -33,8 +33,27 @@ pub fn endpoint_v1(
         Err(e) => return ResponsesV1::ServiceUnavailable(e.to_string()),
     };
 
-    match lookup {
-        Some(CatIdOrStake::CatId(cat_id)) => {
+    let parsed_lookup = match lookup {
+        Some(lookup_str) => {
+            match CatIdOrStake::try_from(lookup_str.as_str()) {
+                Ok(cat_id_or_stake) => cat_id_or_stake,
+                Err(e) => {
+                    return ResponsesV1::PreconditionFailed(format!(
+                        "failed to parse parameter `lookup`: {e}",
+                    ));
+                },
+            }
+        },
+        None => {
+            // TODO - Need to be handled with auth token
+            return ResponsesV1::UnprocessableContent(
+                "Either lookup parameter or token must be provided".to_string(),
+            );
+        },
+    };
+
+    match parsed_lookup {
+        CatIdOrStake::CatId(cat_id) => {
             let (reg_chain, metadata) = match get_rbac_chain_from_cat_id(
                 &persistent,
                 &volatile,
@@ -64,7 +83,7 @@ pub fn endpoint_v1(
                 Err(e) => ResponsesV1::InternalServerError(e.to_string()),
             }
         },
-        Some(CatIdOrStake::Address(stake_address)) => {
+        CatIdOrStake::Address(stake_address) => {
             let (reg_chain, metadata) = match get_rbac_chain_from_stake_address(
                 &persistent,
                 &volatile,
@@ -94,7 +113,5 @@ pub fn endpoint_v1(
                 Err(e) => ResponsesV1::InternalServerError(e.to_string()),
             }
         },
-        // TODO - Need to be handle with auth token
-        None => ResponsesV1::UnprocessableContent("Lookup parameter is required".to_string()),
     }
 }

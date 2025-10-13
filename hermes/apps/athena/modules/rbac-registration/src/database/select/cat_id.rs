@@ -64,8 +64,9 @@ use crate::{
 ///
 /// # Returns
 ///
-/// * `Ok(Vec<RegistrationLocation>, RbacChainMetadata))` – The registration chain related data associated with the given catalyst
-///   ID. If the vector is empty, no chain is found.
+/// * `Ok(Vec<RegistrationLocation>, RbacChainMetadata))` – The registration chain related
+///   data associated with the given catalyst ID. If the vector is empty, no chain is
+///   found.
 /// * `Err(anyhow::Error)` – If any error occurs.
 pub(crate) fn select_rbac_registration_chain_from_cat_id(
     persistent: &Sqlite,

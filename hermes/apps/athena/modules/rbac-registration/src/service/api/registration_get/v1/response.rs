@@ -9,7 +9,9 @@ pub enum ResponsesV1 {
     Ok(RbacRegistrationChain),
     /// No valid registration.
     NotFound,
-    /// Response for unprocessable content.
+    /// Precondition Failed - when lookup parameter is invalid (can't be parsed).
+    PreconditionFailed(String),
+    /// Response for unprocessable content - missing param or auth token.
     UnprocessableContent(String),
     /// Response for internal server error.
     InternalServerError(String),
@@ -22,7 +24,8 @@ impl ResponsesV1 {
     pub fn status_code(&self) -> u16 {
         match self {
             ResponsesV1::Ok(_) => 200,
-            ResponsesV1::NotFound => 400,
+            ResponsesV1::NotFound => 404,
+            ResponsesV1::PreconditionFailed(_) => 412,
             ResponsesV1::UnprocessableContent(_) => 422,
             ResponsesV1::InternalServerError(_) => 500,
             ResponsesV1::ServiceUnavailable(_) => 503,
@@ -34,6 +37,9 @@ impl ResponsesV1 {
         match self {
             ResponsesV1::Ok(data) => serde_json::to_string(data),
             ResponsesV1::NotFound => Ok("Not Found".to_string()),
+            ResponsesV1::PreconditionFailed(msg) => {
+                serde_json::to_string(&serde_json::json!({"Precondition Failed": msg}))
+            },
             ResponsesV1::UnprocessableContent(msg) => {
                 serde_json::to_string(&serde_json::json!({"Unprocessable Content": msg}))
             },
