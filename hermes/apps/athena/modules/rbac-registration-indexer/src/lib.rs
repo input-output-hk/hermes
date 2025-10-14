@@ -75,7 +75,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             return;
         };
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -224,7 +224,7 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         let Ok(sqlite) = open_db_connection(false) else {
             return;
         };
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -279,12 +279,16 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         const FUNCTION_NAME: &str = "init";
 
         let Ok(sqlite) = open_db_connection(false) else {
+            log_error(file!(), FUNCTION_NAME, "open_db_connection", "Failed to open persistent database connection", None);
             return false;
         };
+
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
+            log_error(file!(), FUNCTION_NAME, "open_db_connection", "Failed to open in-memory database connection", None);
             return false;
         };
+
         create_rbac_persistent_tables(&sqlite);
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);

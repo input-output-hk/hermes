@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Configuration for an HTTP endpoint subscription with routing and validation rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EndpointSubscription {
     /// Unique identifier for this subscription
@@ -39,7 +40,7 @@ impl EndpointSubscription {
     ) -> Result<Self, String> {
         // Compile regex for validation
         let compiled_regex = Regex::new(&path_regex)
-            .map_err(|e| format!("Invalid regex pattern '{}': {}", path_regex, e))?;
+            .map_err(|e| format!("Invalid regex pattern '{path_regex}': {e}"))?;
 
         // Calculate specificity score using existing function
         let specificity_score = regex_specificity_score(&path_regex);
@@ -66,7 +67,7 @@ pub struct SubscriptionManager {
     subscriptions_by_id: HashMap<String, EndpointSubscription>,
     /// Cached sorted scores for efficient iteration (highest first)
     sorted_scores: Vec<i32>,
-    /// Flag to indicate if sorted_scores needs refresh
+    /// Flag to indicate if `sorted_scores` needs refresh
     scores_dirty: bool,
 }
 
@@ -77,6 +78,7 @@ impl SubscriptionManager {
         self.subscriptions_by_id.is_empty()
     }
 
+    /// Create a new empty subscription manager
     pub fn new() -> Self {
         Self::default()
     }
@@ -90,7 +92,7 @@ impl SubscriptionManager {
         if subscription.compiled_regex.is_none() {
             subscription.compiled_regex = Some(
                 Regex::new(&subscription.path_regex)
-                    .map_err(|e| format!("Invalid regex pattern: {}", e))?,
+                    .map_err(|e| format!("Invalid regex pattern: {e}"))?,
             );
         }
 
@@ -103,7 +105,7 @@ impl SubscriptionManager {
         // Add to score-based lookup
         self.subscriptions_by_score
             .entry(score)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(subscription.clone());
 
         // Add to ID-based lookup
@@ -128,7 +130,12 @@ impl SubscriptionManager {
         for &score in &self.sorted_scores {
             if let Some(subscriptions) = self.subscriptions_by_score.get(&score) {
                 for subscription in subscriptions {
-                    if self.matches_subscription(subscription, method, path, content_type) {
+                    if SubscriptionManager::matches_subscription(
+                        subscription,
+                        method,
+                        path,
+                        content_type,
+                    ) {
                         return Some(subscription);
                     }
                 }
@@ -140,7 +147,6 @@ impl SubscriptionManager {
 
     /// Check if a subscription matches the request criteria
     fn matches_subscription(
-        &self,
         subscription: &EndpointSubscription,
         method: &str,
         path: &str,
@@ -190,7 +196,7 @@ static SUBSCRIPTION_MANAGER: once_cell::sync::Lazy<Arc<RwLock<SubscriptionManage
     once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(SubscriptionManager::new())));
 
 /// Get a reference to the global subscription manager
-pub async fn get_subscription_manager() -> Arc<RwLock<SubscriptionManager>> {
+pub fn get_subscription_manager() -> Arc<RwLock<SubscriptionManager>> {
     Arc::clone(&SUBSCRIPTION_MANAGER)
 }
 
@@ -198,7 +204,7 @@ pub async fn get_subscription_manager() -> Arc<RwLock<SubscriptionManager>> {
 pub async fn register_global_endpoint_subscription(
     subscription: EndpointSubscription
 ) -> Result<(), String> {
-    let manager = get_subscription_manager().await;
+    let manager = get_subscription_manager();
     let mut manager_lock = manager.write().await;
     manager_lock.register_endpoint_subscription(subscription)
 }
@@ -209,7 +215,7 @@ pub async fn find_global_endpoint_subscription(
     path: &str,
     content_type: Option<&str>,
 ) -> Option<EndpointSubscription> {
-    let manager = get_subscription_manager().await;
+    let manager = get_subscription_manager();
     let mut manager_lock = manager.write().await;
     manager_lock
         .find_endpoint_subscription(method, path, content_type)

@@ -15,12 +15,19 @@ mod subscription;
 static STATE: once_cell::sync::Lazy<()> = once_cell::sync::Lazy::new(|| {
     spawn();
 
-    // Load endpoint configurations after gateway starts
-    tokio::task::spawn(async {
-        if let Err(e) = load_endpoints_from_config().await {
-            error!("Failed to load endpoint configurations: {}", e);
-        }
-    });
+    // Only spawn the async task if we're in a Tokio runtime context
+    // This prevents panics when called from benchmarks or other non-async contexts
+    if tokio::runtime::Handle::try_current().is_ok() {
+        tokio::task::spawn(async {
+            if let Err(e) = load_endpoints_from_config().await {
+                error!("Failed to load endpoint configurations: {}", e);
+            }
+        });
+    } else {
+        // In benchmark or non-async context, we can't load endpoints
+        // This is acceptable for benchmarking purposes
+        info!("Not in Tokio runtime context, skipping endpoint configuration loading");
+    }
 });
 
 /// New context
@@ -29,6 +36,7 @@ pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {
     let () = *STATE;
 }
 
+/// Load endpoint configurations from available config files
 async fn load_endpoints_from_config() -> Result<(), String> {
     // Try multiple config locations
     let config_paths = [
@@ -50,28 +58,35 @@ async fn load_endpoints_from_config() -> Result<(), String> {
 }
 
 async fn load_endpoints_from_file(config_path: &str) -> Result<(), String> {
-    use subscription::{register_global_endpoint_subscription, EndpointSubscription};
-
-    let config_content = std::fs::read_to_string(config_path)
-        .map_err(|e| format!("Failed to read config: {}", e))?;
-
     #[derive(serde::Deserialize)]
     struct EndpointConfig {
+        /// List of endpoint subscription configurations
         subscriptions: Vec<EndpointSubscriptionConfig>,
     }
 
     #[derive(serde::Deserialize)]
     struct EndpointSubscriptionConfig {
+        /// Unique identifier for the subscription
         subscription_id: String,
+        /// Module that will handle this endpoint
         module_id: String,
+        /// HTTP methods this endpoint accepts (GET, POST, etc.)
         methods: Vec<String>,
+        /// Regular expression pattern to match request paths
         path_regex: String,
+        /// Content types this endpoint accepts
         content_types: Vec<String>,
+        /// Optional JSON schema for request validation
         json_schema: Option<String>,
     }
 
+    use subscription::{register_global_endpoint_subscription, EndpointSubscription};
+
+    let config_content =
+        std::fs::read_to_string(config_path).map_err(|e| format!("Failed to read config: {e}"))?;
+
     let config: EndpointConfig = serde_json::from_str(&config_content)
-        .map_err(|e| format!("Failed to parse config: {}", e))?;
+        .map_err(|e| format!("Failed to parse config: {e}"))?;
 
     info!(
         "Loaded {} endpoint subscriptions",
@@ -103,7 +118,7 @@ mod tests {
     use tokio::test;
 
     async fn clear_global_subscriptions() {
-        let manager = get_subscription_manager().await;
+        let manager = get_subscription_manager();
         let mut manager_lock = manager.write().await;
         *manager_lock = subscription::SubscriptionManager::new();
     }
@@ -134,7 +149,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify endpoint was registered
-        let manager = get_subscription_manager().await;
+        let manager = get_subscription_manager();
         let mut manager_lock = manager.write().await;
         let found =
             manager_lock.find_endpoint_subscription("POST", "/api/test", Some("application/json"));
@@ -150,7 +165,7 @@ mod tests {
         assert!(result.is_ok()); // Should succeed even with no config
 
         // Verify no endpoints were loaded
-        let manager = get_subscription_manager().await;
+        let manager = get_subscription_manager();
         let manager_lock = manager.read().await;
         assert!(manager_lock.is_empty());
     }

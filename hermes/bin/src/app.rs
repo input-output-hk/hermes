@@ -9,6 +9,9 @@ use crate::{
     wasm::module::{Module, ModuleId},
 };
 
+use tracing::info;
+
+
 /// Hermes App Name type
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -94,6 +97,10 @@ impl Application {
 
     /// Initialize every module.
     pub(crate) fn init(&self) -> anyhow::Result<()> {
+        info!("Human modules ({} entries):", self.human_modules.len());
+        for (name, module_id) in &self.human_modules {
+            info!("  {} -> {}", name, module_id);
+        }
         for module in self.indexed_modules.values() {
             if let Err(e) = module.init(self.vfs.clone()) {
                 anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)

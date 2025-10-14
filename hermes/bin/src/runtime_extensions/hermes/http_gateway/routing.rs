@@ -41,7 +41,7 @@ const VALID_PATH: &str = r"^(/.*|/)$";
 /// Attempts to wait for a value on this receiver,
 /// returning an error if the corresponding channel has hung up,
 /// or if it waits more than timeout of arbitrary 1 second
-const EVENT_TIMEOUT: u64 = 1;
+const EVENT_TIMEOUT: u64 = 30;
 
 /// hostname (node name)
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -285,12 +285,13 @@ async fn handle_webasm_request(
         lambda_send,
         &lambda_recv_answer,
         module_id,
-        app_name,
+        &app_name,
     )
 }
 
 /// Compose http event and send to global queue, await queue response and relay back to
 /// waiting receiver channel for HTTP response
+#[allow(clippy::too_many_arguments)]
 fn compose_http_event<B>(
     method: String,
     headers: HeadersKV,
@@ -299,7 +300,7 @@ fn compose_http_event<B>(
     sender: Sender<HTTPEventMsg>,
     receiver: &Receiver<HTTPEventMsg>,
     module_id: Option<String>,
-    app_name: ApplicationName,
+    app_name: &ApplicationName,
 ) -> anyhow::Result<Response<B>>
 where
     B: Body + From<String>,
@@ -312,21 +313,18 @@ where
         sender,
     };
 
-    let app = reactor::get_app(&app_name)?;
+    let app = reactor::get_app(app_name)?;
     //TargetModule::List(vec![ModuleId(target_module)]), // Fixed: Use List with ModuleId
 
     app.get_human();
 
-    let event = match module_id {
-        Some(target_module) => {
-            debug!("Routing HTTP request to specific module: {}", target_module);
-            // Use List variant with a single ModuleId
-            HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
-        },
-        None => {
-            debug!("Broadcasting HTTP request to all modules (no specific subscription)");
-            HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
-        },
+    let event = if let Some(target_module) = module_id {
+        debug!("Routing HTTP request to specific module: {}", target_module);
+        // Use List variant with a single ModuleId
+        HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
+    } else {
+        debug!("Broadcasting HTTP request to all modules (no specific subscription)");
+        HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
     };
 
     crate::event::queue::send(event)?;

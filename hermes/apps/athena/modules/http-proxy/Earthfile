@@ -39,7 +39,7 @@ local-build-http-proxy:
     RUN echo '{}' > config.json
 
     # Download web assets directly to root level
-    COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
+    #COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
 
     # Create staging directory structure
     RUN mkdir -p /staging/www
@@ -49,9 +49,9 @@ local-build-http-proxy:
     RUN cp *.json /staging/ || true
 
     # Copy web assets to www subdirectory
-    RUN cp -r assets /staging/www/ || true
-    RUN cp -r canvaskit /staging/www/ || true
-    RUN cp -r icons /staging/www/ || true
+    #RUN cp -r assets /staging/www/ || true
+    #RUN cp -r canvaskit /staging/www/ || true
+    #RUN cp -r icons /staging/www/ || true
 
     # Copy all regular files from current directory to staging/www, skip directories
     RUN find . -maxdepth 1 -type f -exec cp {} /staging/www/ \; 2>/dev/null || echo "⚠️  Some files may not have been copied"
