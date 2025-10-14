@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 shared = { version = "0.1.0", path = "../../shared", features = ["cardano-blockchain-types"] }
+anyhow = "1.0.98"

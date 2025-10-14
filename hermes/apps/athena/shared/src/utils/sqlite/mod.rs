@@ -4,6 +4,10 @@ pub mod operation;
 pub mod statement;
 pub mod value;
 
+use std::ops::Deref;
+
+use log::error;
+
 use crate::{
     bindings::hermes::sqlite::api::{open, Sqlite},
     utils::log::log_error,
@@ -39,6 +43,41 @@ pub fn close_db_connection(sqlite: Sqlite) {
             &format!("Failed to close database: {e}"),
             None,
         );
+    }
+}
+
+/// Sqlite connection. Closes on drop.
+pub struct Connection(Sqlite);
+
+impl Deref for Connection {
+    type Target = Sqlite;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Connection {
+    /// Open a writable sqlite connection.
+    pub fn open(in_memory: bool) -> anyhow::Result<Self> {
+        open(false, in_memory)
+            .map(Self)
+            .inspect_err(|error| error!(error:%, in_memory; "Failed to open database"))
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Close the connection explicitly.
+    pub fn close(&self) -> anyhow::Result<()> {
+        self.0
+            .close()
+            .inspect_err(|error| error!(error:%; "Failed to close database"))
+            .map_err(anyhow::Error::from)
+    }
+}
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        let _ = self.close();
     }
 }
 

@@ -13,69 +13,51 @@ use crate::database::{
 };
 
 /// Create a staked ada tables.
-pub(crate) fn create_staked_ada_persistent_tables(sqlite: &Sqlite) {
+pub(crate) fn create_staked_ada_persistent_tables(sqlite: &Sqlite) -> anyhow::Result<()> {
     const FUNCTION_NAME: &str = "create_staked_ada_persistent_tables";
-    if DatabaseStatement::execute_statement(
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_stake_registration_table(
             STAKE_REGISTRATION_TABLE_PERSISTENT_TABLE_NAME,
         ),
         Operation::Create,
         FUNCTION_NAME,
-    )
-    .is_err()
-    {
-        return;
-    }
-    if DatabaseStatement::execute_statement(
+    )?;
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_txi_by_txn_id_table(TXI_BY_TXN_ID_PERSISTENT_TABLE_NAME),
         Operation::Create,
         FUNCTION_NAME,
-    )
-    .is_err()
-    {
-        return;
-    }
-    let _ = DatabaseStatement::execute_statement(
+    )?;
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_txi_by_txn_id_table(TXO_BY_STAKE_ADDRESS_PERSISTENT_TABLE_NAME),
         Operation::Create,
         FUNCTION_NAME,
     )
-    .is_err();
 }
 
 /// Create a staked ada tables.
-pub(crate) fn create_staked_ada_volatile_tables(sqlite: &Sqlite) {
+pub(crate) fn create_staked_ada_volatile_tables(sqlite: &Sqlite) -> anyhow::Result<()> {
     const FUNCTION_NAME: &str = "create_staked_ada_persistent_tables";
-    if DatabaseStatement::execute_statement(
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_stake_registration_table(
             STAKE_REGISTRATION_TABLE_VOLATILE_TABLE_NAME,
         ),
         Operation::Create,
         FUNCTION_NAME,
-    )
-    .is_err()
-    {
-        return;
-    }
-    if DatabaseStatement::execute_statement(
+    )?;
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_txi_by_txn_id_table(TXI_BY_TXN_ID_VOLATILE_TABLE_NAME),
         Operation::Create,
         FUNCTION_NAME,
-    )
-    .is_err()
-    {
-        return;
-    }
-    let _ = DatabaseStatement::execute_statement(
+    )?;
+    DatabaseStatement::execute_statement(
         sqlite,
         &QueryBuilder::create_txi_by_txn_id_table(TXO_BY_STAKE_ADDRESS_VOLATILE_TABLE_NAME),
         Operation::Create,
         FUNCTION_NAME,
     )
-    .is_err();
 }
