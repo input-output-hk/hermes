@@ -311,23 +311,18 @@ impl Patcher {
         )
     }
 
-    /// Extracts the core module and component part from the WAT.
-    #[allow(clippy::arithmetic_side_effects)]
-    fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
-        let module_start = self
-            .wat
-            .find("(core module")
-            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
-        let mut module_end = module_start;
-
+    fn parse_until_section_end(
+        start: usize,
+        wat: &str,
+    ) -> Result<usize, anyhow::Error> {
+        let mut end = start;
         let mut count = 1;
-        for ch in self
-            .wat
-            .get((module_start + 1)..)
+        for ch in wat
+            .get((start + 1)..)
             .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
             .chars()
         {
-            module_end += 1;
+            end += 1;
             if ch == '(' {
                 count += 1;
             } else if ch == ')' {
@@ -337,6 +332,17 @@ impl Patcher {
                 }
             }
         }
+        Ok(end)
+    }
+
+    /// Extracts the core module and component part from the WAT.
+    #[allow(clippy::arithmetic_side_effects)]
+    fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
+        let module_start = self
+            .wat
+            .find("(core module")
+            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
+        let mut module_end = Self::parse_until_section_end(module_start, &self.wat)?;
 
         let core_module = &self
             .wat
