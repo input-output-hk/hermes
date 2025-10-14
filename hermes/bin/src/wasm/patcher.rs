@@ -812,15 +812,22 @@ mod tests {
             get_memory_raw_bytes
                 .post_return(&mut store)
                 .expect("should post return");
+            // In WASM all values are read and written in little endian byte order
+            // See: https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#memory-instructions
             linear_memory.extend(raw_bytes.to_le_bytes());
         }
 
-        // Step 6: Check if there is a contiguous 1024-byte long sequence of 0xAA bytes
-        // The test component puts such a sequence at the 0x100004 offset, but we should
-        // not rely on this particular memory location, so we search in the entire memory.
+        // Step 6: Check if the expected pattern is present in the linear memory.
+        // The test component fills 1kb of memory with the pattern 0xAA, 0xBB, 0xCC, 0xDD, 0xAA,
+        // 0xBB, 0xCC, 0xDD, ... This patterns starts at the 0x100004 offset, but since
+        // this location is not fixed across compilations, we just check if the pattern is
+        // present anywhere in the memory.
+        let expected_pattern: Vec<u8> = std::iter::repeat_n([0xAA, 0xBB, 0xCC, 0xDD], 1024 / 4)
+            .flatten()
+            .collect();
         assert!(linear_memory
             .windows(1024)
-            .any(|window| window == [0xAAu8; 1024]));
+            .any(|window| window == expected_pattern));
     }
 
     #[test]
