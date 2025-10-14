@@ -274,7 +274,22 @@ impl Patcher {
 
     /// Gets the next available component type index.
     fn get_next_component_type_index<S: AsRef<str>>(component: S) -> Result<u32, anyhow::Error> {
-        Self::get_item_count("type (;", component.as_ref())
+        let maybe_inner_component_start = component.as_ref().find("(component");
+        match maybe_inner_component_start {
+            Some(inner_component_start) => {
+                let inner_component_end =
+                    Self::parse_until_section_end(inner_component_start, &component)?;
+
+                let inner_component = component
+                    .as_ref()
+                    .get((inner_component_start + 1)..inner_component_end)
+                    .ok_or_else(|| anyhow::anyhow!("malformed wat"))?;
+
+                let inner_type_count = Self::get_item_count("type (;", inner_component)?;
+                Ok(Self::get_item_count("type (;", component)? - inner_type_count)
+            },
+            None => Ok(Self::get_item_count("type (;", component)?),
+        }
     }
 
     /// Gets the next available core type index.
@@ -311,13 +326,14 @@ impl Patcher {
         )
     }
 
-    fn parse_until_section_end(
+    fn parse_until_section_end<S: AsRef<str>>(
         start: usize,
-        wat: &str,
+        wat: S,
     ) -> Result<usize, anyhow::Error> {
         let mut end = start;
         let mut count = 1;
         for ch in wat
+            .as_ref()
             .get((start + 1)..)
             .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
             .chars()
@@ -947,6 +963,59 @@ mod tests {
             .post_return(&mut store)
             .expect("should post return");
         assert_ne!(raw_bytes_post_offset, bytes);
+    }
+
+    #[test]
+    fn component_part_with_nested_component_is_properly_patched() {
+        const COMPONENT_WITH_INNER_COMPONENT_PART: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (component (;0;)
+                (type (;0;) (func (result bool)))
+                (import "import-func-init" (func (;0;) (type 0)))
+                (type (;1;) (func (result bool)))
+                (export (;1;) "init" (func 0) (func (type 1)))
+            )
+            (instance (;0;) (instantiate 0
+                (with "import-func-init" (func 0))
+                )
+            )
+            (export (;1;) "hermes:init/event" (instance 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
+        const COMPONENT_WITHOUT_INNER_COMPONENT_PART: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (instance (;0;) (instantiate 0
+                (with "import-func-init" (func 0))
+                )
+            )
+            (export (;1;) "hermes:init/event" (instance 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITH_INNER_COMPONENT_PART)
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 1);
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITHOUT_INNER_COMPONENT_PART)
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 1);
     }
 
     #[test]
