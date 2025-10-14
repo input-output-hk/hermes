@@ -25,6 +25,7 @@ const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)";
 const CORE_INJECTED_TYPES: &str = r"
     (type (;{CORE_TYPE_ID_1};) (func (result i32)))
     (type (;{CORE_TYPE_ID_2};) (func (param i32) (result i64)))
+    (type (;{CORE_TYPE_ID_3};) (func (param i32 i64)))
     ";
 
 /// A template for the injected functions in the core module.
@@ -36,12 +37,18 @@ const CORE_INJECTED_FUNCTIONS: &str = r"
         local.get 0
         i64.load
     )
+    (func ${MAGIC}set-memory-raw-bytes (type {CORE_TYPE_ID_3}) (param i32 i64)
+      local.get 0
+      local.get 1
+      i64.store
+    )
     ";
 
 /// A template for the injected exports in the core module.
 const CORE_INJECTED_EXPORTS: &str = r#"
     (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
     (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
+    (export "{MAGIC}set-memory-raw-bytes" (func ${MAGIC}set-memory-raw-bytes))
     "#;
 
 /// A template for the injected types, functions and exports in the component part.
@@ -55,6 +62,11 @@ const COMPONENT_INJECTIONS: &str = r#"
     (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
     (func (type {COMPONENT_TYPE_ID_2}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_2})))
     (export "{MAGIC}get-memory-raw-bytes" (func {COMPONENT_FUNC_ID_2}))
+
+    (type (;{COMPONENT_TYPE_ID_3};) (func (param "val" u32) (param "val2" u64)))
+    (alias core export 0 "{MAGIC}set-memory-raw-bytes" (core func))
+    (func (type {COMPONENT_TYPE_ID_3}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_3})))
+    (export "{MAGIC}set-memory-raw-bytes" (func {COMPONENT_FUNC_ID_3}))
     "#;
 
 /// Holds the extracted core module and component part of a WASM.
@@ -169,15 +181,18 @@ impl Patcher {
 
         let core_type_1_index = next_core_type_index.to_string();
         let core_type_2_index = (next_core_type_index + 1).to_string();
+        let core_type_3_index = (next_core_type_index + 2).to_string();
 
         let core_type_injection = CORE_INJECTED_TYPES
             .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
-            .replace("{CORE_TYPE_ID_2}", &core_type_2_index);
+            .replace("{CORE_TYPE_ID_2}", &core_type_2_index)
+            .replace("{CORE_TYPE_ID_3}", &core_type_3_index);
 
         let core_func_injection = CORE_INJECTED_FUNCTIONS
             .replace("{MAGIC}", MAGIC)
             .replace("{CORE_TYPE_ID_1}", &core_type_1_index)
-            .replace("{CORE_TYPE_ID_2}", &core_type_2_index);
+            .replace("{CORE_TYPE_ID_2}", &core_type_2_index)
+            .replace("{CORE_TYPE_ID_3}", &core_type_3_index);
 
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
 
@@ -186,15 +201,19 @@ impl Patcher {
         let next_component_type_index = Self::get_next_component_type_index(&component_part)?;
         let component_type_1_index = next_component_type_index.to_string();
         let component_type_2_index = (next_component_type_index + 1).to_string();
+        let component_type_3_index = (next_component_type_index + 2).to_string();
 
         let next_component_core_func_index =
             Self::get_next_component_core_func_index(&component_part)?;
         let component_core_func_1_index = next_component_core_func_index.to_string();
         let component_core_func_2_index = (next_component_core_func_index + 1).to_string();
+        let component_core_func_3_index = (next_component_core_func_index + 2).to_string();
 
         let next_component_func_index = Self::get_next_component_func_index(&component_part)?;
-        let component_func_1_index = (next_component_func_index * 2).to_string(); // *2 because "export" shares the same index space with "func"
-        let component_func_2_index = ((next_component_func_index + 1) * 2).to_string(); // *2 because "export" shares the same index space with "func"
+        // *2 because "export" shares the same index space with "func"
+        let component_func_1_index = (next_component_func_index * 2).to_string();
+        let component_func_2_index = ((next_component_func_index + 1) * 2).to_string();
+        let component_func_3_index = ((next_component_func_index + 2) * 2).to_string();
 
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
@@ -203,7 +222,10 @@ impl Patcher {
             .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index)
             .replace("{COMPONENT_TYPE_ID_2}", &component_type_2_index)
             .replace("{COMPONENT_CORE_FUNC_ID_2}", &component_core_func_2_index)
-            .replace("{COMPONENT_FUNC_ID_2}", &component_func_2_index);
+            .replace("{COMPONENT_FUNC_ID_2}", &component_func_2_index)
+            .replace("{COMPONENT_TYPE_ID_3}", &component_type_3_index)
+            .replace("{COMPONENT_CORE_FUNC_ID_3}", &component_core_func_3_index)
+            .replace("{COMPONENT_FUNC_ID_3}", &component_func_3_index);
 
         core_module.push_str(&core_type_injection);
         core_module.push_str(&core_func_injection);
