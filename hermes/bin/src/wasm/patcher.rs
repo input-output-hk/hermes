@@ -63,7 +63,7 @@ const COMPONENT_INJECTIONS: &str = r#"
     (func (type {COMPONENT_TYPE_ID_2}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_2})))
     (export "{MAGIC}get-memory-raw-bytes" (func {COMPONENT_FUNC_ID_2}))
 
-    (type (;{COMPONENT_TYPE_ID_3};) (func (param "val" u32) (param "val2" u64)))
+    (type (;{COMPONENT_TYPE_ID_3};) (func (param "val" u32) (param "val2" s64)))
     (alias core export 0 "{MAGIC}set-memory-raw-bytes" (core func))
     (func (type {COMPONENT_TYPE_ID_3}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_3})))
     (export "{MAGIC}set-memory-raw-bytes" (func {COMPONENT_FUNC_ID_3}))
@@ -850,6 +850,97 @@ mod tests {
         assert!(linear_memory
             .windows(1024)
             .any(|window| window == expected_pattern));
+    }
+
+    #[test]
+    fn injected_set_memory_raw_bytes_works() {
+        const OFFSET: u32 = 0xF000;
+
+        struct MyCtx {
+            table: ResourceTable,
+            wasi: WasiCtx,
+        }
+
+        impl WasiView for MyCtx {
+            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
+                wasmtime_wasi::WasiCtxView {
+                    ctx: &mut self.wasi,
+                    table: &mut self.table,
+                }
+            }
+        }
+
+        // Step 1: Patch the WASM file
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result).expect("should encode");
+
+        // Step 2: Instantiate the patched WASM
+        let engine = Engine::default();
+        let component =
+            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
+        let mut linker = Linker::new(&engine);
+        add_to_linker_sync(&mut linker).expect("should add to linker");
+        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+        let ctx = MyCtx {
+            table: ResourceTable::new(),
+            wasi,
+        };
+        let mut store = Store::new(&engine, ctx);
+        let instance = linker
+            .instantiate(&mut store, &component)
+            .expect("should instantiate");
+
+        // Step 3: Set bytes at a specific offset
+        let bytes: i64 = 0x1122_3344_5566_7788;
+        let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
+        let set_memory_raw_bytes = instance
+            .get_func(&mut store, set_memory_raw_bytes_func)
+            .expect("should get func")
+            .typed::<(u32, i64), ()>(&store)
+            .expect("should be a typed func");
+        set_memory_raw_bytes
+            .call(&mut store, (OFFSET, bytes))
+            .expect("should call");
+        set_memory_raw_bytes
+            .post_return(&mut store)
+            .expect("should post return");
+
+        // Step 4: Retrieve bytes before-, on- and after-offset.
+        // Check that only the bytes at the offset match.
+        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
+        let get_memory_raw_bytes = instance
+            .get_func(&mut store, get_memory_raw_bytes_func)
+            .expect("should get func")
+            .typed::<(u32,), (i64,)>(&store)
+            .expect("should be a typed func");
+        let raw_bytes_pre_offset = get_memory_raw_bytes
+            .call(&mut store, (OFFSET - 8,))
+            .expect("should call")
+            .0;
+        get_memory_raw_bytes
+            .post_return(&mut store)
+            .expect("should post return");
+        assert_ne!(raw_bytes_pre_offset, bytes);
+
+        let raw_bytes_on_offset = get_memory_raw_bytes
+            .call(&mut store, (OFFSET,))
+            .expect("should call")
+            .0;
+        get_memory_raw_bytes
+            .post_return(&mut store)
+            .expect("should post return");
+        assert_eq!(raw_bytes_on_offset, bytes);
+
+        let raw_bytes_post_offset = get_memory_raw_bytes
+            .call(&mut store, (OFFSET + 8,))
+            .expect("should call")
+            .0;
+        get_memory_raw_bytes
+            .post_return(&mut store)
+            .expect("should post return");
+        assert_ne!(raw_bytes_post_offset, bytes);
     }
 
     #[test]
