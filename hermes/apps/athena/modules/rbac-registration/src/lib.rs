@@ -43,26 +43,12 @@ struct RbacRegistrationComponent;
 
 impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
-        log_info(
-            file!(),
-            FUNCTION_NAME,
-            "attempting to initialize",
-            "Initializing RBAC Registration Module",
-            None,
-        );
         const FUNCTION_NAME: &str = "init";
 
         let Ok(persistent) = open_db_connection(false) else {
             return false;
         };
 
-        log_info(
-            file!(),
-            FUNCTION_NAME,
-            "db connection opened",
-            "db conn",
-            None,
-        );
         // For volatile table
         // TODO - Change this to in-memory once it is supported
         // <https://github.com/input-output-hk/hermes/issues/553>
