@@ -6,7 +6,6 @@ use shared::{
     utils::{cardano::block::build_block, log::log_error},
 };
 
-use crate::log_info;
 /// Information needed to build the RBAC chain.
 /// Only need the `slot_no` and `txn_idx` to construct a block and
 /// extract the RBAC information.
@@ -39,18 +38,17 @@ pub(crate) fn build_registration_chain(
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = &rbac_chain_info[0];
-
-    log_info(
-        file!(),
-        FUNCTION_NAME,
-        "Processing root registration",
-        &format!(
-            "Root registration at slot: {}, txn_idx: {}",
-            first_info.slot_no, first_info.txn_idx
-        ),
-        None,
-    );
+    let first_info = rbac_chain_info.first().ok_or_else(|| {
+        let error = "Registration chain info is empty";
+        log_error(
+            file!(),
+            FUNCTION_NAME,
+            "rbac_chain_info.first",
+            &error,
+            None,
+        );
+        anyhow::anyhow!(error)
+    })?;
 
     // Root registration use to initialize chain
     let root_reg = get_registration(
@@ -60,7 +58,6 @@ pub(crate) fn build_registration_chain(
         first_info.slot_no,
         first_info.txn_idx,
     )?;
-
     let mut reg_chain = RegistrationChain::new(root_reg).ok_or_else(|| {
         let error = "Failed to initialize registration chain";
         log_error(
@@ -74,28 +71,14 @@ pub(crate) fn build_registration_chain(
     })?;
 
     // Append children
-    for (idx, info) in rbac_chain_info.iter().skip(1).enumerate() {
-        log_info(
-            file!(),
-            FUNCTION_NAME,
-            "Processing child registration",
-            &format!(
-                "Child #{} at slot: {}, txn_idx: {}",
-                idx + 1,
-                info.slot_no,
-                info.txn_idx
-            ),
-            None,
-        );
-
+    for info in rbac_chain_info.iter().skip(1) {
         let reg = get_registration(
-            FUNCTION_NAME,
+            file!(),
             network,
             network_resource,
             info.slot_no,
             info.txn_idx,
         )?;
-
         reg_chain = reg_chain.update(reg).ok_or_else(|| {
             let error = format!(
                 "Failed to update registration chain at slot {}",
@@ -110,7 +93,7 @@ pub(crate) fn build_registration_chain(
             );
             anyhow::anyhow!(error)
         })?;
-
+    }
     Ok(Some(reg_chain))
 }
 
@@ -146,4 +129,4 @@ fn get_registration(
             anyhow::bail!(err)
         },
     }
-}}
+}
