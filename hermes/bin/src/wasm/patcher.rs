@@ -46,12 +46,12 @@ const CORE_INJECTED_EXPORTS: &str = r#"
 
 /// A template for the injected types, functions and exports in the component part.
 const COMPONENT_INJECTIONS: &str = r#"
-    (type (;{COMPONENT_TYPE_ID_1};) (func (result s32)))
+    (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
     (func (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_1})))
     (export "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
 
-    (type (;{COMPONENT_TYPE_ID_2};) (func (param "val" s32) (result s64)))
+    (type (;{COMPONENT_TYPE_ID_2};) (func (param "val" u32) (result s64)))
     (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
     (func (type {COMPONENT_TYPE_ID_2}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_2})))
     (export "{MAGIC}get-memory-raw-bytes" (func {COMPONENT_FUNC_ID_2}))
@@ -354,7 +354,7 @@ mod tests {
 
     use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
 
-    const LINEAR_MEMORY_PAGE_SIZE_BYTES: i32 = 65536;
+    const LINEAR_MEMORY_PAGE_SIZE_BYTES: u32 = 65536;
 
     const COMPONENT_SINGLE_CORE_MODULE: &str =
         "tests/test_wasm_files/component_single_core_module.wasm";
@@ -720,7 +720,7 @@ mod tests {
         let get_memory_size = instance
             .get_func(&mut store, get_memory_size_func)
             .expect("should get func")
-            .typed::<(), (i32,)>(&store)
+            .typed::<(), (u32,)>(&store)
             .expect("should be a typed func");
         let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
         get_memory_size
@@ -788,7 +788,7 @@ mod tests {
         let get_memory_size = instance
             .get_func(&mut store, get_memory_size_func)
             .expect("should get func")
-            .typed::<(), (i32,)>(&store)
+            .typed::<(), (u32,)>(&store)
             .expect("should be a typed func");
         let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
         get_memory_size
@@ -802,9 +802,9 @@ mod tests {
         let get_memory_raw_bytes = instance
             .get_func(&mut store, get_memory_raw_bytes_func)
             .expect("should get func")
-            .typed::<(i32,), (i64,)>(&store)
+            .typed::<(u32,), (i64,)>(&store)
             .expect("should be a typed func");
-        for offset in (0..memory_size_in_bytes).step_by(8) {
+        for offset in (0u32..memory_size_in_bytes).step_by(8) {
             let raw_bytes = get_memory_raw_bytes
                 .call(&mut store, (offset,))
                 .expect("should call")
