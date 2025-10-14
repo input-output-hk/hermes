@@ -19,7 +19,7 @@ const CORE_FUNC_REGEX: &str = r"\(func\s+\$[^\s()]+[^)]*\(;";
 const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
 /// Regex to detect the function definitions in the component part.
-const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)";
+const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\) \(canon";
 
 /// A template for the injected types in the core module.
 const CORE_INJECTED_TYPES: &str = r"
