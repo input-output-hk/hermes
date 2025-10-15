@@ -213,6 +213,8 @@ async fn determine_route(
         .path_and_query()
         .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str);
 
+    info!("Incoming request: {}", path);
+
     // Check if this is an API endpoint that needs WebAssembly processing
     // API routes are identified by the /api prefix (exact match or with additional path)
     let method = req.method().as_str();
@@ -224,7 +226,7 @@ async fn determine_route(
     if let Some(subscription) =
         find_global_endpoint_subscription(method, uri.path(), content_type).await
     {
-        debug!(
+        info!(
             "Found subscription for {} {}: module {}",
             method,
             uri.path(),
@@ -314,18 +316,39 @@ where
     };
 
     let app = reactor::get_app(app_name)?;
-    //TargetModule::List(vec![ModuleId(target_module)]), // Fixed: Use List with ModuleId
+    let modules = app.get_human(); // HashMap<String, ModuleId>
+    info!(
+        "Available modules: {:?}",
+        modules.keys().collect::<Vec<_>>()
+    );
+    info!("Target module: {:?}", module_id);
 
-    app.get_human();
+    let target_module = if let Some(target_module_str) = module_id {
+        info!(
+            "Routing HTTP request to specific module: {}",
+            target_module_str
+        );
 
-    let event = if let Some(target_module) = module_id {
-        debug!("Routing HTTP request to specific module: {}", target_module);
-        // Use List variant with a single ModuleId
-        HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
+        // Look up the ModuleId by the string key
+        if let Some(found_module_id) = modules.get(&target_module_str) {
+            // Use specific module - clone the ModuleId from the HashMap value
+            info!("lookup module {:?}", found_module_id.0);
+            TargetModule::List(vec![found_module_id.clone()])
+        } else {
+            // Module not found, log warning and broadcast to all
+            info!(
+                "Module '{}' not found in available modules: {:?}",
+                target_module_str,
+                modules.keys().collect::<Vec<_>>()
+            );
+            TargetModule::All
+        }
     } else {
-        debug!("Broadcasting HTTP request to all modules (no specific subscription)");
-        HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All)
+        info!("Broadcasting HTTP request to all modules (no specific subscription)");
+        TargetModule::All
     };
+
+    let event = HermesEvent::new(on_http_event, TargetApp::All, target_module);
 
     crate::event::queue::send(event)?;
 

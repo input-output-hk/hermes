@@ -1,1 +1,13 @@
-{}
+{
+  "endpoints": {
+    "subscriptions": [
+      {
+        "subscription_id": "rbac_registration_api",
+        "methods": ["GET", "POST"],
+        "path_regex": "^/api/rer$",
+        "content_types": ["application/json"],
+        "json_schema": null
+      }
+    ]
+  }
+}

@@ -10,10 +10,10 @@
     },
     {
       "subscription_id": "api",
-      "module_id": "main",
+      "module_id": "rbac_registration",
       "methods": ["GET", "POST"],
       "path_regex": "^/api/.*",
-      "content_types": ["application/json"],
+      "content_types": [],
       "json_schema": null
     }
   ]
