@@ -40,7 +40,18 @@ pub fn build(
     component: &str,
     temp_dir: &TempDir,
 ) -> anyhow::Result<()> {
-    let component_path = format!("tests/integration/components/{component}");
+    let path = Path::new("tests/integration/components");
+    build_at_path(path, component, temp_dir)
+}
+
+pub fn build_at_path(
+    path: &Path,
+    component: &str,
+    temp_dir: &TempDir,
+) -> anyhow::Result<()> {
+    let component_path = path.join(component);
+
+    std::fs::read_dir(&component_path)?;
     let output = Command::new("cargo")
         .arg("build")
         .arg("--release")
@@ -58,10 +69,16 @@ pub fn build(
         );
     }
 
-    let wasm_binary_path =
-        format!("{component_path}/target/wasm32-wasip2/release/{component}.wasm");
+    let wasm_binary_path = format!(
+        "{}/target/wasm32-wasip2/release/{}.wasm",
+        component_path.display(),
+        component.replace('-', "_"),
+    );
 
-    let destination_path = temp_dir.as_ref().join(format!("{component}.wasm"));
+    let destination_path = temp_dir
+        .as_ref()
+        .join(format!("{}.wasm", component.replace('-', "_")));
+
     std::fs::copy(wasm_binary_path, destination_path)?;
 
     copy_settings_file(component, temp_dir)
