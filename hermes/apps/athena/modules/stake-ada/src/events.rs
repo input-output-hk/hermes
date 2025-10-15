@@ -59,6 +59,7 @@ pub fn on_cardano_block(
         .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
         .query_one_as::<(Option<u64>,)>(&[])?;
 
+    // Temporary trace instead of logic.
     trace!(
         target: "staked_ada::on_cardano_block",
         count_stake_registration,
@@ -90,6 +91,7 @@ pub fn on_cardano_immutable_roll_forward(
         .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
         .query_one_as::<(Option<u64>,)>(&[])?;
 
+    // Temporary trace instead of logic.
     trace!(
         target: "staked_ada::on_cardano_immutable_roll_forward",
         count_stake_registration,
