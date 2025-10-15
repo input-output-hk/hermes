@@ -30,7 +30,7 @@ fn build_athena() -> anyhow::Result<String> {
     for component in &components {
         println!("building {component} component");
         utils::component::build_at_path(athena_modules_path, component, &temp_dir)
-            .map_err(|err| anyhow::anyhow!("ailed to build {component} component: {err}"))?;
+            .map_err(|err| anyhow::anyhow!("failed to build {component} component: {err}"))?;
     }
 
     let components = components
