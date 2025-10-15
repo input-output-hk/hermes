@@ -72,12 +72,12 @@ pub fn build_at_path(
     let wasm_binary_path = format!(
         "{}/target/wasm32-wasip2/release/{}.wasm",
         component_path.display(),
-        component.replace("-", "_"),
+        component.replace('-', "_"),
     );
 
     let destination_path = temp_dir
         .as_ref()
-        .join(format!("{}.wasm", component.replace("-", "_")));
+        .join(format!("{}.wasm", component.replace('-', "_")));
 
     std::fs::copy(wasm_binary_path, destination_path)?;
 

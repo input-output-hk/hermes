@@ -27,22 +27,22 @@ fn build_athena() -> anyhow::Result<String> {
         })
         .collect::<Vec<_>>();
 
-    for component in components.iter() {
+    for component in &components {
         println!("building {component} component");
         utils::component::build_at_path(athena_modules_path, component, &temp_dir)
-            .expect("failed to build component");
+            .map_err(|err| anyhow::anyhow!("ailed to build {component} component: {err}"))?;
     }
 
     let components = components
         .into_iter()
-        .map(|component| component.replace("-", "_"))
+        .map(|component| component.replace('-', "_"))
         .collect::<Vec<_>>();
 
-    for component in components.iter() {
+    for component in &components {
         let module = format!("{component}_module");
         println!("packaging {module} module for component {component}");
-        utils::packaging::package_module(&temp_dir, &component, &module)
-            .expect(&format!("failed to package module: {module}"));
+        utils::packaging::package_module(&temp_dir, component, &module)
+            .map_err(|err| anyhow::anyhow!("failed to package {module} module: {err}"))?;
     }
     let modules = components
         .into_iter()
@@ -51,7 +51,7 @@ fn build_athena() -> anyhow::Result<String> {
 
     println!("packaging Athena app");
     let app_file_name = utils::packaging::package_app_with_modules(&temp_dir, Some(modules))
-        .expect("failed to package athena");
+        .map_err(|err| anyhow::anyhow!("failed to package athena app: {err}"))?;
 
     Ok(app_file_name)
 }
