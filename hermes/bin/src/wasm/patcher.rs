@@ -277,22 +277,14 @@ impl Patcher {
 
     /// Gets the next available component type index.
     fn get_next_component_type_index<S: AsRef<str>>(component: S) -> Result<u32, anyhow::Error> {
-        let maybe_inner_component_start = component.as_ref().find("(component");
-        match maybe_inner_component_start {
-            Some(inner_component_start) => {
-                let inner_component_end =
-                    Self::parse_until_section_end(inner_component_start, &component)?;
+        let mut processed = component.as_ref().to_string();
 
-                let inner_component = component
-                    .as_ref()
-                    .get((inner_component_start + 1)..inner_component_end)
-                    .ok_or_else(|| anyhow::anyhow!("malformed wat"))?;
-
-                let inner_type_count = Self::get_item_count("type (;", inner_component)?;
-                Ok(Self::get_item_count("type (;", component)? - inner_type_count)
-            },
-            None => Ok(Self::get_item_count("type (;", component)?),
+        while let Some(inner_component_start) = processed.find("(component") {
+            let inner_component_end =
+                Self::parse_until_section_end(inner_component_start, &processed)? + 1;
+            processed.replace_range(inner_component_start..inner_component_end, "---");
         }
+        Ok(Self::get_item_count("type (;", processed)?)
     }
 
     /// Gets the next available core type index.
@@ -1112,6 +1104,61 @@ mod tests {
             )
         "#;
 
+        const COMPONENT_WITH_TWO_INNER_COMPONENT_PARTS: &str = r#"
+            (alias export 0 "cron-event-tag" (type (;1;)))
+            (alias export 0 "cron-tagged" (type (;2;)))
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;3;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 3) (canon lift (core func 0)))
+            (component (;0;)
+              (type (;0;) (func (result bool)))
+              (import "import-func-init" (func (;0;) (type 0)))
+              (type (;1;) (func (result bool)))
+              (export (;1;) "init" (func 0) (func (type 1)))
+            )
+            (instance (;1;) (instantiate 0
+                (with "import-func-init" (func 0))
+              )
+            )
+            (export (;2;) "hermes:init/event" (instance 1))
+            (type (;4;) (func (param "event" 2) (param "last" bool) (result bool)))
+            (alias core export 0 "hermes:cron/event#on-cron" (core func (;2;)))
+            (func (;1;) (type 4) (canon lift (core func 2) (memory 0) (realloc 1) string-encoding=utf8))
+            (alias export 0 "cron-event-tag" (type (;5;)))
+            (alias export 0 "cron-sched" (type (;6;)))
+            (alias export 0 "cron-tagged" (type (;7;)))
+            (component (;1;)
+              (type (;0;) string)
+              (import "import-type-cron-event-tag" (type (;1;) (eq 0)))
+              (type (;2;) string)
+              (import "import-type-cron-sched" (type (;3;) (eq 2)))
+              (type (;4;) (record (field "when" 3) (field "tag" 1)))
+              (import "import-type-cron-tagged" (type (;5;) (eq 4)))
+              (import "import-type-cron-tagged0" (type (;6;) (eq 5)))
+              (type (;7;) (func (param "event" 6) (param "last" bool) (result bool)))
+              (import "import-func-on-cron" (func (;0;) (type 7)))
+              (export (;8;) "cron-event-tag" (type 1))
+              (export (;9;) "cron-tagged" (type 5))
+              (type (;10;) (func (param "event" 9) (param "last" bool) (result bool)))
+              (export (;1;) "on-cron" (func 0) (func (type 10)))
+            )
+            (instance (;3;) (instantiate 1
+                (with "import-func-on-cron" (func 1))
+                (with "import-type-cron-event-tag" (type 5))
+                (with "import-type-cron-sched" (type 6))
+                (with "import-type-cron-tagged" (type 7))
+                (with "import-type-cron-tagged0" (type 2))
+              )
+            )
+            (export (;4;) "hermes:cron/event" (instance 3))
+            (@producers
+              (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
         const COMPONENT_WITHOUT_INNER_COMPONENT_PART: &str = r#"
             (core instance (;0;) (instantiate 0))
             (alias core export 0 "memory" (core memory (;0;)))
@@ -1133,6 +1180,11 @@ mod tests {
             Patcher::get_next_component_type_index(COMPONENT_WITH_INNER_COMPONENT_PART)
                 .expect("should get index");
         assert_eq!(next_component_type_index, 1);
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITH_TWO_INNER_COMPONENT_PARTS)
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 7);
 
         let next_component_type_index =
             Patcher::get_next_component_type_index(COMPONENT_WITHOUT_INNER_COMPONENT_PART)
