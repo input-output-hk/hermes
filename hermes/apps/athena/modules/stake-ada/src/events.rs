@@ -75,7 +75,7 @@ pub fn on_cardano_immutable_roll_forward(
 
     let (count,) = sqlite_in_mem
         .prepare("SELECT COUNT(*) FROM stake_registration")?
-        .query_one_as::<(u64)>(&[])?;
+        .query_one_as::<(u64,)>(&[])?;
 
     info!(
         count, event = "on_cardano_immutable_roll_forward";
