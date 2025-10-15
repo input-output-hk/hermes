@@ -11,17 +11,15 @@ use shared::{
     },
 };
 
-use crate::database::create::{
-    create_staked_ada_persistent_tables, create_staked_ada_volatile_tables,
-};
+use crate::database::create_tables;
 
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {
-    let sqlite = utils::sqlite::Connection::open(false)?;
-    let sqlite_in_mem = utils::sqlite::Connection::open(true)?;
+    let mut conn = utils::sqlite::Connection::open(false)?;
+    let mut conn_volatile = utils::sqlite::Connection::open(true)?;
 
-    create_staked_ada_persistent_tables(&sqlite)?;
-    create_staked_ada_volatile_tables(&sqlite_in_mem)?;
+    create_tables(&mut conn)?;
+    create_tables(&mut conn_volatile)?;
 
     let subscribe_from = cardano::api::SyncSlot::Genesis;
     let network = cardano::api::CardanoNetwork::Preprod;
@@ -43,9 +41,26 @@ pub fn on_cardano_block(
     block: &Block,
 ) -> anyhow::Result<()> {
     let _block = block.to_catalyst_type(subscription_id.get_network());
-    let _sqlite = utils::sqlite::Connection::open(false)?;
+    let sqlite = utils::sqlite::Connection::open(false)?;
     let _sqlite_in_mem = utils::sqlite::Connection::open(true)?;
 
+    let (count,) = sqlite
+        .prepare("SELECT COUNT(*) FROM stake_registration")?
+        .query_one_as::<(u64,)>(&[])?;
+
+    info!(count, event = "on_cardano_block"; "Total rows in stake_registration persistent table");
+
+    let (count,) = sqlite
+        .prepare("SELECT COUNT(*) FROM txi_by_txn_id")?
+        .query_one_as::<(u64,)>(&[])?;
+
+    info!(count, event = "on_cardano_block"; "Total rows in txi_by_txn_id persistent table");
+
+    let (count,) = sqlite
+        .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
+        .query_one_as::<(u64,)>(&[])?;
+
+    info!(count, event = "on_cardano_block"; "Total rows in txo_by_stake_address persistent table");
     Ok(())
 }
 
@@ -56,7 +71,33 @@ pub fn on_cardano_immutable_roll_forward(
 ) -> anyhow::Result<()> {
     let _block = block.to_catalyst_type(subscription_id.get_network());
     let _sqlite = utils::sqlite::Connection::open(false)?;
-    let _sqlite_in_mem = utils::sqlite::Connection::open(true)?;
+    let sqlite_in_mem = utils::sqlite::Connection::open(true)?;
 
+    let (count,) = sqlite_in_mem
+        .prepare("SELECT COUNT(*) FROM stake_registration")?
+        .query_one_as::<(u64)>(&[])?;
+
+    info!(
+        count, event = "on_cardano_immutable_roll_forward";
+        "Total rows in stake_registration persistent table"
+    );
+
+    let (count,) = sqlite_in_mem
+        .prepare("SELECT COUNT(*) FROM txi_by_txn_id")?
+        .query_one_as::<(u64,)>(&[])?;
+
+    info!(
+        count, event = "on_cardano_immutable_roll_forward";
+        "Total rows in txi_by_txn_id persistent table"
+    );
+
+    let (count,) = sqlite_in_mem
+        .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
+        .query_one_as::<(u64,)>(&[])?;
+
+    info!(
+        count, event = "on_cardano_immutable_roll_forward";
+        "Total rows in txo_by_stake_address persistent table"
+    );
     Ok(())
 }
