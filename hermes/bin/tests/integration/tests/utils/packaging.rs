@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-
 use temp_dir::TempDir;
 use uuid::Uuid;
 
@@ -30,6 +30,40 @@ fn copy_support_files(
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ModuleEntry {
+    package: String,
+    name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AppManifest {
+    #[serde(rename = "$schema")]
+    schema: String,
+    icon: String,
+    metadata: String,
+    pub(crate) modules: Vec<ModuleEntry>,
+}
+
+fn replace_app_manifest_with_modules(
+    temp_dir: &TempDir,
+    modules: &[String],
+) -> anyhow::Result<()> {
+    let file_path = temp_dir.as_ref().join("manifest_app.json");
+    let manifest_content = std::fs::read_to_string(file_path.clone())?;
+    let mut app_manifest: AppManifest = serde_json::from_str(&manifest_content)?;
+    let new_modules: Vec<ModuleEntry> = modules
+        .iter()
+        .map(|module| ModuleEntry {
+            package: format!("{module}.hmod"),
+            name: module.to_string(),
+        })
+        .collect();
+    app_manifest.modules = new_modules;
+    let updated_content = serde_json::to_string_pretty(&app_manifest)?;
+    Ok(std::fs::write(file_path, updated_content)?)
+}
+
 pub fn package(
     temp_dir: &TempDir,
     component_name: &str,
@@ -39,7 +73,7 @@ pub fn package(
     package_app(temp_dir)
 }
 
-fn package_module(
+pub fn package_module(
     temp_dir: &TempDir,
     component_name: &str,
     module_name: &str,
@@ -65,9 +99,20 @@ fn package_module(
     Ok(())
 }
 
-fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
+pub fn package_app(temp_dir: &TempDir) -> anyhow::Result<String> {
+    package_app_with_modules(temp_dir, None)
+}
+
+pub fn package_app_with_modules(
+    temp_dir: &TempDir,
+    modules: Option<Vec<String>>,
+) -> anyhow::Result<String> {
     let manifest_path = temp_dir.as_ref().join("manifest_app.json");
     let app_filename = format!("{}.happ", Uuid::new_v4());
+
+    if let Some(modules) = modules {
+        replace_app_manifest_with_modules(temp_dir, &modules)?;
+    }
 
     let output = Command::new(utils::HERMES_BINARY_PATH)
         .arg("app")
