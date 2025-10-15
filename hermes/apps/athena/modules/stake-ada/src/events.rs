@@ -47,24 +47,24 @@ pub fn on_cardano_block(
     let conn = utils::sqlite::Connection::open(false)?;
     let _conn_volatile = utils::sqlite::Connection::open(true)?;
 
-    let (count_stake_registration,) = conn
-        .prepare("SELECT COUNT(*) FROM stake_registration")?
+    let (exists_stake_registration,) = conn
+        .prepare("SELECT EXISTS(SELECT 1 FROM stake_registration)")?
         .query_one_as::<(Option<u64>,)>(&[])?;
 
-    let (count_txi_by_txn_id,) = conn
-        .prepare("SELECT COUNT(*) FROM txi_by_txn_id")?
+    let (exists_txi_by_txn_id,) = conn
+        .prepare("SELECT EXISTS(SELECT 1 FROM  txi_by_txn_id)")?
         .query_one_as::<(Option<u64>,)>(&[])?;
 
-    let (count_txo_by_stake_address,) = conn
-        .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
+    let (exists_txo_by_stake_address,) = conn
+        .prepare("SELECT EXISTS(SELECT 1 FROM txo_by_stake_address)")?
         .query_one_as::<(Option<u64>,)>(&[])?;
 
     // Temporary trace instead of logic.
     trace!(
         target: "staked_ada::on_cardano_block",
-        count_stake_registration,
-        count_txi_by_txn_id,
-        count_txo_by_stake_address;
+        exists_stake_registration,
+        exists_txi_by_txn_id,
+        exists_txo_by_stake_address;
         "Handled event"
     );
     Ok(())

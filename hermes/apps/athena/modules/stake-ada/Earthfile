@@ -1,8 +1,8 @@
 VERSION 0.8
 
 IMPORT ../../../../ AS hermes
-IMPORT ../../../../../wasm/wasi AS wasi
-    
+IMPORT ../.. AS athena
+
 build-staked-ada:
     DO athena+BUILD_ATHENA_COMPONENT --out=staked_ada.wasm
 
@@ -13,7 +13,7 @@ local-build-staked-ada:
 
 package-staked-ada-module:
     FROM hermes+build
-    
+
     COPY lib/ .
     COPY +build-rbac-registration/rbac_registration.wasm .
 
