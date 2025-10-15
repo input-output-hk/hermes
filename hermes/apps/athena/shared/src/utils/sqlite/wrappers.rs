@@ -2,9 +2,9 @@
 
 use std::{array, borrow::Borrow, marker::PhantomData, ops::Deref};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 
-use crate::{bindings::hermes::sqlite::api, utils::log::error};
+use crate::bindings::hermes::sqlite::api;
 
 /// Sqlite connection.
 /// Closes on drop.
@@ -12,38 +12,34 @@ pub struct Connection(api::Sqlite);
 
 impl Connection {
     /// Open a writable sqlite connection.
-    pub fn open(in_memory: bool) -> Result<Self, api::Errno> {
+    pub fn open(in_memory: bool) -> anyhow::Result<Self> {
         api::open(false, in_memory)
             .map(Self)
-            .inspect_err(|error| error!(error:%, in_memory; "Failed to open database"))
+            .context("Opening connection")
     }
 
     /// Close the connection explicitly.
-    pub fn close(&self) -> Result<(), api::Errno> {
-        self.0
-            .close()
-            .inspect_err(|error| error!(error:%; "Failed to close database"))
+    pub fn close(&self) -> anyhow::Result<()> {
+        self.0.close().context("Closing connection")
     }
 
     /// Prepare sqlite statement.
     pub fn prepare<'a>(
         &'a self,
         sql: &str,
-    ) -> Result<Statement<'a>, api::Errno> {
+    ) -> anyhow::Result<Statement<'a>> {
         self.0
             .prepare(sql)
-            .inspect_err(|error| error!(error:%; "Failed to prepare statement"))
             .map(|inner| Statement(Some(inner), PhantomData))
+            .context("Preparing statement")
     }
 
     /// Executes sqlite query without preparation.
     pub fn execute(
         &self,
         sql: &str,
-    ) -> Result<(), api::Errno> {
-        self.0
-            .execute(sql)
-            .inspect_err(|error| error!(error:%; "Failed to execute query"))
+    ) -> anyhow::Result<()> {
+        self.0.execute(sql).context("Executing raw sql")
     }
 
     /// Begin a new sqlite transaction.
@@ -51,26 +47,17 @@ impl Connection {
     /// # Note
     ///
     /// Nested transactions are not supported.
-    pub fn begin(&mut self) -> Result<Transaction<'_>, api::Errno> {
-        self.begin_().map(move |()| Transaction(self))
+    pub fn begin(&mut self) -> anyhow::Result<Transaction<'_>> {
+        self.0.execute("BEGIN").context("Beginning transaction")?;
+        Ok(Transaction(self))
     }
 
-    fn begin_(&self) -> Result<(), api::Errno> {
-        self.0
-            .execute("BEGIN")
-            .inspect_err(|error| error!(error:%; "Failed to begin transaction"))
+    fn rollback(&self) -> anyhow::Result<()> {
+        self.0.execute("ROLLBACK").context("Transaction rollback")
     }
 
-    fn rollback(&self) -> Result<(), api::Errno> {
-        self.0
-            .execute("ROLLBACK")
-            .inspect_err(|error| error!(error:%; "Failed to rollback transaction"))
-    }
-
-    fn commit(&self) -> Result<(), api::Errno> {
-        self.0
-            .execute("COMMIT")
-            .inspect_err(|error| error!(error:%; "Failed to commit transaction"))
+    fn commit(&self) -> anyhow::Result<()> {
+        self.0.execute("COMMIT").context("Committing transaction")
     }
 }
 
@@ -87,12 +74,12 @@ pub struct Transaction<'conn>(&'conn mut Connection);
 
 impl<'conn> Transaction<'conn> {
     /// Explicitly consume and rollback transaction.
-    pub fn rollback(self) -> Result<(), api::Errno> {
+    pub fn rollback(self) -> anyhow::Result<()> {
         self.0.rollback()
     }
 
     /// Consumes and commits sqlite transaction.
-    pub fn commit(self) -> Result<(), api::Errno> {
+    pub fn commit(self) -> anyhow::Result<()> {
         self.0.commit()
     }
 }
@@ -107,6 +94,7 @@ impl<'conn> Deref for Transaction<'conn> {
 
 impl<'conn> Drop for Transaction<'conn> {
     fn drop(&mut self) {
+        // not tracing the rollback, as it
         let _ = self.0.rollback();
     }
 }
@@ -115,11 +103,11 @@ impl<'conn> Drop for Transaction<'conn> {
 pub struct Statement<'conn>(Option<api::Statement>, PhantomData<&'conn ()>);
 
 impl Statement<'_> {
-    fn finalize(&mut self) -> Result<(), api::Errno> {
+    fn finalize(&mut self) -> anyhow::Result<()> {
         self.0
             .take()
             .map_or(Ok(()), api::Statement::finalize)
-            .inspect_err(|error| error!(error:%; "Failed to finalize statement"))
+            .context("Finalizing statement")
     }
 
     /// Binds provided parameters and executes the statement.
@@ -129,19 +117,23 @@ impl Statement<'_> {
         &mut self,
         params: &[&api::Value],
     ) -> anyhow::Result<Rows<'_>> {
-        let stmt = self
-            .0
+        self.0
             .as_mut()
-            .ok_or_else(|| anyhow!("Querying finalized statement"))?;
-        params
-            .into_iter()
-            .zip(1u32..)
-            .try_for_each(|(p, i)| stmt.bind(i, p.borrow()))
-            .inspect_err(|error| error!(error:%; "Failed to bind params"))?;
-        Ok(Rows {
-            stmt: Some(stmt),
-            current: None,
-        })
+            .ok_or_else(|| anyhow!("Stepped into finalized statement"))
+            .and_then(|stmt| {
+                params
+                    .into_iter()
+                    .zip(1u32..)
+                    .try_for_each(|(p, i)| stmt.bind(i, p.borrow()))
+                    .context("Binding query parameters")
+                    .map(|()| {
+                        Rows {
+                            stmt: Some(stmt),
+                            current: None,
+                        }
+                    })
+            })
+            .context("Executing prepared query")
     }
 
     /// Binds provided parameters and executes the statement.
@@ -156,7 +148,7 @@ impl Statement<'_> {
         F: FnOnce(&Row<'_>) -> anyhow::Result<T>,
     {
         self.query(params)?.next().transpose().map_or_else(
-            || Err(anyhow!("No rows returned")),
+            || Err(anyhow!("Expected at least one row")),
             |res| res.map_err(anyhow::Error::from).and_then(map_f),
         )
     }
@@ -188,15 +180,15 @@ pub struct Rows<'stmt> {
 }
 
 impl<'stmt> Rows<'stmt> {
-    fn reset(&mut self) -> Result<(), api::Errno> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.stmt
             .take()
             .map_or(Ok(()), api::Statement::reset)
-            .inspect_err(|error| error!(error:%; "Failed to reset statement"))
+            .context("Resetting statement")
     }
 
     /// Get the next row if there are any left.
-    pub fn next(&mut self) -> Result<Option<&Row<'stmt>>, api::Errno> {
+    pub fn next(&mut self) -> anyhow::Result<Option<&Row<'stmt>>> {
         if let Some(stmt) = self.stmt {
             match stmt.step() {
                 Ok(api::StepResult::Row) => {
@@ -211,20 +203,21 @@ impl<'stmt> Rows<'stmt> {
                 Err(e) => {
                     let _ = self.reset(); // prevents infinite loop on error
                     self.current = None;
-                    Err(e)
+                    Err(anyhow::Error::from(e))
                 },
             }
         } else {
             self.current = None;
             Ok(self.current.as_ref())
         }
+        .context("Statement step")
     }
 
     /// Map rows by closure.
     pub fn map<T, F>(
         mut self,
         mut f: F,
-    ) -> impl Iterator<Item = Result<T, api::Errno>> + use<'stmt, T, F>
+    ) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T, F>
     where
         F: FnMut(&Row<'stmt>) -> T,
     {
@@ -237,19 +230,16 @@ impl<'stmt> Rows<'stmt> {
         mut f: F,
     ) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T, F>
     where
-        F: FnMut(Result<&Row<'stmt>, api::Errno>) -> anyhow::Result<T>,
+        F: FnMut(anyhow::Result<&Row<'stmt>>) -> anyhow::Result<T>,
     {
         std::iter::from_fn(move || self.next().transpose().map(|res| f(res)))
     }
 
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
-    pub fn and_then_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
+    pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
     where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
-        self.and_then(|row| {
-            row.map_err(anyhow::Error::from)
-                .and_then(|row| row.try_into())
-        })
+        self.and_then(|row| row.and_then(|row| row.try_into()))
     }
 }
 
@@ -267,8 +257,8 @@ impl Row<'_> {
     pub fn get(
         &self,
         column: u32,
-    ) -> Result<api::Value, api::Errno> {
-        self.0.column(column)
+    ) -> anyhow::Result<api::Value> {
+        self.0.column(column).context("Decoding column")
     }
 
     /// Like [`Self::get`], but additionally converts the value.
@@ -280,12 +270,11 @@ impl Row<'_> {
         anyhow::Error: From<T::Error>,
     {
         self.get(column)
-            .map_err(Into::into)
-            .and_then(|v| v.try_into().map_err(Into::into))
+            .and_then(|v| v.try_into().map_err(anyhow::Error::from))
     }
 
     /// Gets values of each column with `0..N` indices.
-    pub fn values_n<const N: usize>(&self) -> Result<[api::Value; N], api::Errno> {
+    pub fn values_n<const N: usize>(&self) -> anyhow::Result<[api::Value; N]> {
         let mut ret = array::from_fn::<_, N, _>(|_| api::Value::Null);
         for i in 0..N as u32 {
             ret[i as usize] = self.get(i)?;
@@ -313,9 +302,9 @@ impl Row<'_> {
 }
 
 impl<'stmt, const N: usize> TryFrom<&'stmt Row<'stmt>> for [api::Value; N] {
-    type Error = api::Errno;
+    type Error = anyhow::Error;
 
-    fn try_from(value: &'stmt Row<'stmt>) -> Result<Self, Self::Error> {
+    fn try_from(value: &'stmt Row<'stmt>) -> anyhow::Result<Self> {
         value.values_n()
     }
 }

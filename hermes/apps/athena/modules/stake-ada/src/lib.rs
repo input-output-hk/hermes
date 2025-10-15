@@ -28,19 +28,21 @@ mod events;
 
 use shared::{
     bindings::hermes::cardano::api::{Block, SubscriptionId},
-    utils::log,
+    utils::log::{self, error},
 };
 
 struct Component;
 
-// - "get_txo"
-// - "get_txo_assets"
-// - "update_tx_spent_assets"
-
 impl exports::hermes::init::event::Guest for Component {
     fn init() -> bool {
-        log::init(log::LevelFilter::Debug);
-        events::init().is_ok()
+        log::init(log::LevelFilter::Trace);
+        match events::init() {
+            Ok(()) => true,
+            Err(error) => {
+                error!(target: "staked_ada::init", error:?; "Not handled");
+                false
+            },
+        }
     }
 }
 
@@ -49,8 +51,10 @@ impl exports::hermes::cardano::event_on_block::Guest for Component {
         subscription_id: &SubscriptionId,
         block: &Block,
     ) {
-        log::init(log::LevelFilter::Debug);
-        let _ = events::on_cardano_block(subscription_id, block);
+        log::init(log::LevelFilter::Trace);
+        if let Err(error) = events::on_cardano_block(subscription_id, block) {
+            error!(target: "staked_ada::on_cardano_block", error:?; "Not handled");
+        }
     }
 }
 
@@ -59,7 +63,9 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for Compon
         subscription_id: &SubscriptionId,
         block: &Block,
     ) {
-        log::init(log::LevelFilter::Debug);
-        let _ = events::on_cardano_immutable_roll_forward(subscription_id, block);
+        log::init(log::LevelFilter::Trace);
+        if let Err(error) = events::on_cardano_immutable_roll_forward(subscription_id, block) {
+            error!(target: "staked_ada::on_cardano_immutable_roll_forward", error:?; "Not handled");
+        }
     }
 }
