@@ -8,6 +8,7 @@ pub mod value;
 
 pub use wrappers::{Connection, Row, Rows, Statement};
 
+pub use crate::bindings::hermes::sqlite::api::Value;
 use crate::{
     bindings::hermes::sqlite::api::{open, Sqlite},
     utils::log::log_error,

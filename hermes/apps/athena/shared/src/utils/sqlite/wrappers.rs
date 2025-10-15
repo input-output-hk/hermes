@@ -1,6 +1,6 @@
 //! Wrapped sqlite internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
 
-use std::{array, borrow::Borrow, marker::PhantomData, ops::Deref};
+use std::{array, marker::PhantomData, ops::Deref};
 
 use anyhow::{anyhow, Context as _};
 
@@ -94,7 +94,6 @@ impl<'conn> Deref for Transaction<'conn> {
 
 impl<'conn> Drop for Transaction<'conn> {
     fn drop(&mut self) {
-        // not tracing the rollback, as it
         let _ = self.0.rollback();
     }
 }
@@ -124,13 +123,11 @@ impl Statement<'_> {
                 params
                     .into_iter()
                     .zip(1u32..)
-                    .try_for_each(|(p, i)| stmt.bind(i, p.borrow()))
+                    .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
-                    .map(|()| {
-                        Rows {
-                            stmt: Some(stmt),
-                            current: None,
-                        }
+                    .map(|()| Rows {
+                        stmt: Some(stmt),
+                        current: None,
                     })
             })
             .context("Executing prepared query")
@@ -147,10 +144,9 @@ impl Statement<'_> {
     where
         F: FnOnce(&Row<'_>) -> anyhow::Result<T>,
     {
-        self.query(params)?.next().transpose().map_or_else(
-            || Err(anyhow!("Expected at least one row")),
-            |res| res.map_err(anyhow::Error::from).and_then(map_f),
-        )
+        self.query(params)?
+            .step()?
+            .map_or_else(|| Err(anyhow!("Expected at least one row")), map_f)
     }
 
     /// Same as [`Self::query_one`], but maps using [`TryFrom`].
@@ -187,8 +183,8 @@ impl<'stmt> Rows<'stmt> {
             .context("Resetting statement")
     }
 
-    /// Get the next row if there are any left.
-    pub fn next(&mut self) -> anyhow::Result<Option<&Row<'stmt>>> {
+    /// Get the next row if there are any left in output.
+    pub fn step(&mut self) -> anyhow::Result<Option<&Row<'stmt>>> {
         if let Some(stmt) = self.stmt {
             match stmt.step() {
                 Ok(api::StepResult::Row) => {
@@ -221,7 +217,7 @@ impl<'stmt> Rows<'stmt> {
     where
         F: FnMut(&Row<'stmt>) -> T,
     {
-        std::iter::from_fn(move || self.next().transpose().map(|res| res.map(&mut f)))
+        std::iter::from_fn(move || self.step().transpose().map(|res| res.map(&mut f)))
     }
 
     /// Map step results by closure.
@@ -232,13 +228,15 @@ impl<'stmt> Rows<'stmt> {
     where
         F: FnMut(anyhow::Result<&Row<'stmt>>) -> anyhow::Result<T>,
     {
-        std::iter::from_fn(move || self.next().transpose().map(|res| f(res)))
+        std::iter::from_fn(move || self.step().transpose().map(&mut f))
     }
 
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
     pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         self.and_then(|row| row.and_then(|row| row.try_into()))
     }
 }
@@ -296,7 +294,9 @@ impl Row<'_> {
     /// # }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         T::try_from(self)
     }
 }
@@ -325,13 +325,13 @@ macro_rules! impl_tuple_try_from_row {
         {
             type Error = anyhow::Error;
 
-            #[allow(unused_mut, unused_variables)]
+            #[allow(unused_mut, unused_assignments, unused_variables)]
             fn try_from(row: &'stmt Row<'stmt>) -> anyhow::Result<Self> {
                 let mut idx = 0;
                 $(
-                    idx += 1;
                     #[expect(non_snake_case)]
                     let $field = row.get_as::<$field>(idx)?;
+                    idx += 1;
                 )*
                 Ok(($($field,)*))
             }

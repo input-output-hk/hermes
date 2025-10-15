@@ -6,8 +6,8 @@ use shared::{
         api::{Block, SubscriptionId},
     },
     utils::{
-        self,
         log::{error, info, trace},
+        sqlite,
     },
 };
 
@@ -15,11 +15,21 @@ use crate::database::create_tables;
 
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {
-    let mut conn = utils::sqlite::Connection::open(false)?;
+    info!(
+        target: "staked_ada::init",
+        "💫 Initializing Sqlite..."
+    );
 
-    let mut _conn_volatile = utils::sqlite::Connection::open(true)?;
+    let mut conn = sqlite::Connection::open(false)?;
+
+    let mut _conn_volatile = sqlite::Connection::open(true)?;
 
     create_tables(&mut conn)?;
+
+    info!(
+        target: "staked_ada::init",
+        "💫 Sqlite initialized. Setting up Cardano subscription..."
+    );
 
     let subscribe_from = cardano::api::SyncSlot::Genesis;
     let network = cardano::api::CardanoNetwork::Preprod;
@@ -32,7 +42,9 @@ pub fn init() -> anyhow::Result<()> {
 
     info!(
         target: "staked_ada::init",
-        "💫 Network {network:?}, with subscription id: {subscription_id_resource}"
+        network:?,
+        subscription_id_resource:?;
+        "💫 Cardano subscription set up."
     );
 
     Ok(())
@@ -44,27 +56,17 @@ pub fn on_cardano_block(
     block: &Block,
 ) -> anyhow::Result<()> {
     let _block = block.to_catalyst_type(subscription_id.get_network());
-    let conn = utils::sqlite::Connection::open(false)?;
-    let _conn_volatile = utils::sqlite::Connection::open(true)?;
+    let conn = sqlite::Connection::open(false)?;
+    let _conn_volatile = sqlite::Connection::open(true)?;
 
-    let (exists_stake_registration,) = conn
-        .prepare("SELECT EXISTS(SELECT 1 FROM stake_registration)")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
+    // Simple mock, propagating slot_no.
+    let (slot_no,) = conn
+        .prepare("SELECT ?")?
+        .query_one_as::<(u64,)>(&[&block.get_slot().try_into()?])?;
 
-    let (exists_txi_by_txn_id,) = conn
-        .prepare("SELECT EXISTS(SELECT 1 FROM  txi_by_txn_id)")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
-
-    let (exists_txo_by_stake_address,) = conn
-        .prepare("SELECT EXISTS(SELECT 1 FROM txo_by_stake_address)")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
-
-    // Temporary trace instead of logic.
     trace!(
         target: "staked_ada::on_cardano_block",
-        exists_stake_registration,
-        exists_txi_by_txn_id,
-        exists_txo_by_stake_address;
+        slot_no;
         "Handled event"
     );
     Ok(())
@@ -76,27 +78,17 @@ pub fn on_cardano_immutable_roll_forward(
     block: &Block,
 ) -> anyhow::Result<()> {
     let _block = block.to_catalyst_type(subscription_id.get_network());
-    let conn = utils::sqlite::Connection::open(false)?;
-    let _conn_volatile = utils::sqlite::Connection::open(true)?;
+    let conn = sqlite::Connection::open(false)?;
+    let _conn_volatile = sqlite::Connection::open(true)?;
 
-    let (count_stake_registration,) = conn
-        .prepare("SELECT COUNT(*) FROM stake_registration")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
+    // Simple mock, propagating slot_no.
+    let (slot_no,) = conn
+        .prepare("SELECT ?")?
+        .query_one_as::<(u64,)>(&[&block.get_slot().try_into()?])?;
 
-    let (count_txi_by_txn_id,) = conn
-        .prepare("SELECT COUNT(*) FROM txi_by_txn_id")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
-
-    let (count_txo_by_stake_address,) = conn
-        .prepare("SELECT COUNT(*) FROM txo_by_stake_address")?
-        .query_one_as::<(Option<u64>,)>(&[])?;
-
-    // Temporary trace instead of logic.
     trace!(
         target: "staked_ada::on_cardano_immutable_roll_forward",
-        count_stake_registration,
-        count_txi_by_txn_id,
-        count_txo_by_stake_address;
+        slot_no;
         "Handled event"
     );
     Ok(())
