@@ -76,6 +76,8 @@ struct WasmInternals {
     core_module: String,
     /// The component part of the WASM.
     component_part: String,
+    /// The part of component specified before the core module.
+    pre_core_component_part: String,
 }
 
 /// Represents a single match of a WAT element.
@@ -175,6 +177,7 @@ impl Patcher {
         let WasmInternals {
             mut core_module,
             mut component_part,
+            mut pre_core_component_part,
         } = self.core_and_component()?;
 
         let next_core_type_index = Self::get_next_core_type_index(&core_module)?;
@@ -354,11 +357,29 @@ impl Patcher {
     /// Extracts the core module and component part from the WAT.
     #[allow(clippy::arithmetic_side_effects)]
     fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
+        const COMPONENT_ITEM: &str = "(component";
         let module_start = self
             .wat
             .find("(core module")
             .ok_or_else(|| anyhow::anyhow!("no core module"))?;
         let mut module_end = Self::parse_until_section_end(module_start, &self.wat)?;
+
+        let pre_component_str = self
+            .wat
+            .get(0..module_start)
+            .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
+            .trim();
+        let pre_core_component_part = if pre_component_str == "(component" {
+            ""
+        } else {
+            let component_start = self
+                .wat
+                .find(COMPONENT_ITEM)
+                .ok_or_else(|| anyhow::anyhow!("no component start"))?;
+            self.wat
+                .get((component_start + COMPONENT_ITEM.len())..module_start)
+                .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
+        };
 
         let core_module = &self
             .wat
@@ -384,6 +405,7 @@ impl Patcher {
                 .get(..component_last_parenthesis)
                 .ok_or_else(|| anyhow::anyhow!("malformed component part"))?
                 .to_string(),
+            pre_core_component_part: pre_core_component_part.to_string(),
         })
     }
 }
@@ -407,6 +429,39 @@ mod tests {
 
     const MAKESHIFT_CORRECT_WAT: &str = r#"
         (component
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        )
+    "#;
+
+    const MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT: &str = r#"
+        (component
+            (type (;0;)
+              (instance
+                (type (;0;) string)
+                (export (;1;) "cron-event-tag" (type (eq 0)))
+                (type (;2;) string)
+                (export (;3;) "cron-sched" (type (eq 2)))
+                (type (;4;) (record (field "when" 3) (field "tag" 1)))
+                (export (;5;) "cron-tagged" (type (eq 4)))
+              )
+            )
+            (import "hermes:cron/api" (instance (;0;) (type 0)))
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -457,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_wasm_internals() {
+    fn extracts_wasm_internals_no_precore() {
         const EXPECTED_CORE: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
@@ -480,10 +535,13 @@ mod tests {
             )
             "#;
 
+        const EXPECTED_PRE_COMPONENT: &str = "";
+
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
         let WasmInternals {
             core_module,
             component_part,
+            pre_core_component_part,
         } = patcher.core_and_component().expect("should extract parts");
 
         assert_eq!(
@@ -493,6 +551,70 @@ mod tests {
         assert_eq!(
             strip_whitespaces(&component_part),
             strip_whitespaces(EXPECTED_COMPONENT)
+        );
+        assert_eq!(
+            strip_whitespaces(&pre_core_component_part),
+            strip_whitespaces(EXPECTED_PRE_COMPONENT)
+        );
+    }
+
+    #[test]
+    fn extracts_wasm_internals_with_precore() {
+        const EXPECTED_CORE: &str = r"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            ";
+
+        const EXPECTED_COMPONENT: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+
+        const EXPECTED_PRE_COMPONENT: &str = r#"
+            (type (;0;)
+              (instance
+                (type (;0;) string)
+                (export (;1;) "cron-event-tag" (type (eq 0)))
+                (type (;2;) string)
+                (export (;3;) "cron-sched" (type (eq 2)))
+                (type (;4;) (record (field "when" 3) (field "tag" 1)))
+                (export (;5;) "cron-tagged" (type (eq 4)))
+              )
+            )
+            (import "hermes:cron/api" (instance (;0;) (type 0)))
+        "#;
+
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
+            .expect("should create patcher");
+        let WasmInternals {
+            core_module,
+            component_part,
+            pre_core_component_part,
+        } = patcher.core_and_component().expect("should extract parts");
+
+        assert_eq!(
+            strip_whitespaces(&core_module),
+            strip_whitespaces(EXPECTED_CORE)
+        );
+        assert_eq!(
+            strip_whitespaces(&component_part),
+            strip_whitespaces(EXPECTED_COMPONENT)
+        );
+        assert_eq!(
+            strip_whitespaces(&pre_core_component_part),
+            strip_whitespaces(EXPECTED_PRE_COMPONENT)
         );
     }
 
