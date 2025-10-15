@@ -10,7 +10,6 @@ use crate::{
     },
 };
 
-// FIXME: revisit
 /// Get RBAC registration V1 endpoint.
 pub fn endpoint_v1(
     lookup: Option<String>,

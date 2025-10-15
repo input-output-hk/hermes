@@ -3,10 +3,7 @@
 use rbac_registration::{cardano::cip509::Cip509, registration::cardano::RegistrationChain};
 use shared::{
     bindings::hermes::cardano::api::{CardanoNetwork, Network},
-    utils::{
-        cardano::block::build_block,
-        log::{log_error, log_info},
-    },
+    utils::{cardano::block::build_block, log::log_error},
 };
 
 use crate::rbac::registration_location::RegistrationLocation;
@@ -72,8 +69,8 @@ pub(crate) fn build_registration_chain(
             if !reg.report().is_problematic() {
                 reg_chain = updated;
             // Broken registration in the chain doesn't break the early created chain,
-            // there is no need to continue the chain since the data after a broken registration
-            // should be ignored
+            // there is no need to continue the chain since the data after a broken
+            // registration should be ignored
             } else {
                 return Ok(Some(reg_chain));
             }
