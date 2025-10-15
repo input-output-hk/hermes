@@ -46,10 +46,15 @@ const CORE_INJECTED_EXPORTS: &str = r#"
 
 /// A template for the injected types, functions and exports in the component part.
 const COMPONENT_INJECTIONS: &str = r#"
-    (type (;{COMPONENT_TYPE_ID_1};) (func (result s32)))
+    (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
     (func (type {COMPONENT_TYPE_ID_1}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_1})))
     (export "{MAGIC}get-memory-size" (func {COMPONENT_FUNC_ID_1}))
+
+    (type (;{COMPONENT_TYPE_ID_2};) (func (param "val" u32) (result s64)))
+    (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
+    (func (type {COMPONENT_TYPE_ID_2}) (canon lift (core func {COMPONENT_CORE_FUNC_ID_2})))
+    (export "{MAGIC}get-memory-raw-bytes" (func {COMPONENT_FUNC_ID_2}))
     "#;
 
 /// Holds the extracted core module and component part of a WASM.
@@ -180,26 +185,32 @@ impl Patcher {
 
         let next_component_type_index = Self::get_next_component_type_index(&component_part)?;
         let component_type_1_index = next_component_type_index.to_string();
+        let component_type_2_index = (next_component_type_index + 1).to_string();
 
         let next_component_core_func_index =
             Self::get_next_component_core_func_index(&component_part)?;
         let component_core_func_1_index = next_component_core_func_index.to_string();
+        let component_core_func_2_index = (next_component_core_func_index + 1).to_string();
 
         let next_component_func_index = Self::get_next_component_func_index(&component_part)?;
         let component_func_1_index = (next_component_func_index * 2).to_string(); // *2 because "export" shares the same index space with "func"
+        let component_func_2_index = ((next_component_func_index + 1) * 2).to_string(); // *2 because "export" shares the same index space with "func"
 
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
             .replace("{COMPONENT_TYPE_ID_1}", &component_type_1_index)
             .replace("{COMPONENT_CORE_FUNC_ID_1}", &component_core_func_1_index)
-            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index);
+            .replace("{COMPONENT_FUNC_ID_1}", &component_func_1_index)
+            .replace("{COMPONENT_TYPE_ID_2}", &component_type_2_index)
+            .replace("{COMPONENT_CORE_FUNC_ID_2}", &component_core_func_2_index)
+            .replace("{COMPONENT_FUNC_ID_2}", &component_func_2_index);
 
         core_module.push_str(&core_type_injection);
         core_module.push_str(&core_func_injection);
         core_module.push_str(&core_export_injection);
         component_part.push_str(&component_injections);
 
-        Ok(format!(
+        let patched_wat = format!(
             "
             (component 
                 {core_module}
@@ -207,7 +218,8 @@ impl Patcher {
             
             {component_part}
             )"
-        ))
+        );
+        Ok(patched_wat)
     }
 
     /// Counts the occurrences of a specific element in the given WAT.
@@ -341,6 +353,8 @@ mod tests {
     use wasmtime_wasi::{p2::add_to_linker_sync, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
     use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
+
+    const LINEAR_MEMORY_PAGE_SIZE_BYTES: u32 = 65536;
 
     const COMPONENT_SINGLE_CORE_MODULE: &str =
         "tests/test_wasm_files/component_single_core_module.wasm";
@@ -703,11 +717,10 @@ mod tests {
 
         // Step 3: Call the injected function
         let get_memory_size_func = format!("{MAGIC}get-memory-size");
-
         let get_memory_size = instance
             .get_func(&mut store, get_memory_size_func)
             .expect("should get func")
-            .typed::<(), (i32,)>(&store)
+            .typed::<(), (u32,)>(&store)
             .expect("should be a typed func");
         let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
         get_memory_size
@@ -720,6 +733,101 @@ mod tests {
         let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
 
         assert!(source_wat.contains(&expected_memory_entry));
+    }
+
+    #[test]
+    fn injected_get_memory_raw_bytes_works() {
+        struct MyCtx {
+            table: ResourceTable,
+            wasi: WasiCtx,
+        }
+
+        impl WasiView for MyCtx {
+            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
+                wasmtime_wasi::WasiCtxView {
+                    ctx: &mut self.wasi,
+                    table: &mut self.table,
+                }
+            }
+        }
+
+        // Step 1: Patch the WASM file
+        let patcher =
+            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result).expect("should encode");
+
+        // Step 2: Instantiate the patched WASM
+        let engine = Engine::default();
+        let component =
+            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
+        let mut linker = Linker::new(&engine);
+        add_to_linker_sync(&mut linker).expect("should add to linker");
+        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+        let ctx = MyCtx {
+            table: ResourceTable::new(),
+            wasi,
+        };
+        let mut store = Store::new(&engine, ctx);
+        let instance = linker
+            .instantiate(&mut store, &component)
+            .expect("should instantiate");
+
+        // Step 3: Call the init function which will put some bytes into the linear memory.
+        let init = instance
+            .get_func(&mut store, "init")
+            .expect("should get func")
+            .typed::<(), (bool,)>(&store)
+            .expect("should be a typed func");
+        let init_result = init.call(&mut store, ()).expect("should call").0;
+        init.post_return(&mut store).expect("should post return");
+        assert!(init_result);
+
+        // Step 4: Retrieve the linear memory size
+        let get_memory_size_func = format!("{MAGIC}get-memory-size");
+        let get_memory_size = instance
+            .get_func(&mut store, get_memory_size_func)
+            .expect("should get func")
+            .typed::<(), (u32,)>(&store)
+            .expect("should be a typed func");
+        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
+        get_memory_size
+            .post_return(&mut store)
+            .expect("should post return");
+        let memory_size_in_bytes = memory_size_in_pages * LINEAR_MEMORY_PAGE_SIZE_BYTES;
+
+        // Step 5: Read the entire memory content
+        let mut linear_memory = vec![];
+        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
+        let get_memory_raw_bytes = instance
+            .get_func(&mut store, get_memory_raw_bytes_func)
+            .expect("should get func")
+            .typed::<(u32,), (i64,)>(&store)
+            .expect("should be a typed func");
+        for offset in (0u32..memory_size_in_bytes).step_by(8) {
+            let raw_bytes = get_memory_raw_bytes
+                .call(&mut store, (offset,))
+                .expect("should call")
+                .0;
+            get_memory_raw_bytes
+                .post_return(&mut store)
+                .expect("should post return");
+            // In WASM all values are read and written in little endian byte order
+            // See: https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#memory-instructions
+            linear_memory.extend(raw_bytes.to_le_bytes());
+        }
+
+        // Step 6: Check if the expected pattern is present in the linear memory.
+        // The test component fills 1kb of memory with the pattern 0xAA, 0xBB, 0xCC, 0xDD, 0xAA,
+        // 0xBB, 0xCC, 0xDD, ... This patterns starts at the 0x100004 offset, but since
+        // this location is not fixed across compilations, we just check if the pattern is
+        // present anywhere in the memory.
+        let expected_pattern: Vec<u8> = std::iter::repeat_n([0xAA, 0xBB, 0xCC, 0xDD], 1024 / 4)
+            .flatten()
+            .collect();
+        assert!(linear_memory
+            .windows(1024)
+            .any(|window| window == expected_pattern));
     }
 
     #[test]
