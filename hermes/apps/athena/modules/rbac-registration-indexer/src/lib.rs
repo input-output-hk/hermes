@@ -75,7 +75,9 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             return;
         };
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -224,7 +226,10 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         let Ok(sqlite) = open_db_connection(false) else {
             return;
         };
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -282,7 +287,9 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
             return false;
         };
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return false;
         };
         create_rbac_persistent_tables(&sqlite);
