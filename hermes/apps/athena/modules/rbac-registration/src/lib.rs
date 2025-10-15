@@ -82,18 +82,12 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
         let lookup = parse_query_param(&path, "lookup");
         let result = endpoint_v1(lookup, network);
         let code = result.status_code();
-        // FIXME remove this
-        log_info(
-            file!(),
-            "reply",
-            "",
-            &format!("🍊: endpoint_v1 status code: {code}"),
-            None,
-        );
 
         Some(HttpGatewayResponse::Http(HttpResponse {
             code,
-            headers: vec![("content-type".to_string(), vec!["text/plain".to_string()])],
+            headers: vec![("content-type".to_string(), vec![
+                "application/json".to_string()
+            ])],
             body: Bstr::from(match result.to_json() {
                 Ok(json) => json,
                 Err(e) => format!("{{\"error\": \"Failed to serialize response: {}\"}}", e),

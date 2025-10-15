@@ -3,7 +3,7 @@
 use crate::service::api::registration_get::v1::registration_chain::RbacRegistrationChain;
 
 /// Response enum for RBAC registration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum ResponsesV1 {
     /// Success returns a list of RBAC registration chain.
     Ok(RbacRegistrationChain),
@@ -36,7 +36,9 @@ impl ResponsesV1 {
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         match self {
             ResponsesV1::Ok(data) => serde_json::to_string(data),
-            ResponsesV1::NotFound => Ok("Not Found".to_string()),
+            ResponsesV1::NotFound => {
+                serde_json::to_string(&serde_json::json!({"error": "Not Found"}))
+            },
             ResponsesV1::PreconditionFailed(msg) => {
                 serde_json::to_string(&serde_json::json!({"Precondition Failed": msg}))
             },
