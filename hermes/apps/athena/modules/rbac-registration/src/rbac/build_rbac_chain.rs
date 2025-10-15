@@ -3,7 +3,10 @@
 use rbac_registration::{cardano::cip509::Cip509, registration::cardano::RegistrationChain};
 use shared::{
     bindings::hermes::cardano::api::{CardanoNetwork, Network},
-    utils::{cardano::block::build_block, log::log_error},
+    utils::{
+        cardano::block::build_block,
+        log::{log_error, log_info},
+    },
 };
 
 use crate::rbac::registration_location::RegistrationLocation;
@@ -29,17 +32,10 @@ pub(crate) fn build_registration_chain(
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = registration_location.first().ok_or_else(|| {
-        let error = "Registration chain info is empty";
-        log_error(
-            file!(),
-            FUNCTION_NAME,
-            "registration_location.first",
-            error,
-            None,
-        );
-        anyhow::anyhow!(error)
-    })?;
+    let first_info = match registration_location.first() {
+        Some(info) => info,
+        None => return Ok(None),
+    };
 
     // Root registration use to initialize chain
     let root_reg = get_registration(
@@ -70,20 +66,18 @@ pub(crate) fn build_registration_chain(
             info.slot_no,
             info.txn_idx,
         )?;
-        reg_chain = reg_chain.update(reg).ok_or_else(|| {
-            let error = format!(
-                "Failed to update registration chain at slot {}",
-                info.slot_no
-            );
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "RegistrationChain::update",
-                &error,
-                None,
-            );
-            anyhow::anyhow!(error)
-        })?;
+        if let Some(updated) = reg_chain.update(reg.clone()) {
+            // If the registration being update is not problematic
+            // It can be added to the registration chain
+            if !reg.report().is_problematic() {
+                reg_chain = updated;
+            // Broken registration in the chain doesn't break the early created chain,
+            // there is no need to continue the chain since the data after a broken registration
+            // should be ignored
+            } else {
+                return Ok(Some(reg_chain));
+            }
+        }
     }
     Ok(Some(reg_chain))
 }
