@@ -15,7 +15,7 @@ package-staked-ada-module:
     FROM hermes+build
 
     COPY lib/ .
-    COPY +build-rbac-registration/rbac_registration.wasm .
+    COPY +build-staked-ada/staked_ada.wasm .
 
     RUN ./target/release/hermes module package manifest_module.json
     SAVE ARTIFACT staked_ada.hmod
