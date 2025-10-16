@@ -8,7 +8,7 @@ use libsqlite3_sys::{
     sqlite3, sqlite3_close, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
     sqlite3_stmt, SQLITE_OK,
 };
-use stringzilla::StringZilla;
+use stringzilla::stringzilla::StringZillableBinary;
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, ErrorInfo};
 

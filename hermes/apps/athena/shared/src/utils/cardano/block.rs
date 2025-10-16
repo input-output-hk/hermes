@@ -1,5 +1,6 @@
 //! Cardano block
 
+use anyhow::anyhow;
 use cardano_blockchain_types::MultiEraBlock;
 use serde_json::json;
 
@@ -77,4 +78,14 @@ pub fn build_block(
     .ok()?;
 
     Some(block)
+}
+
+impl Block {
+    /// Convert to [`MultiEraBlock`] from [`cardano_blockchain_types`].
+    pub fn to_catalyst_type(
+        &self,
+        network: CardanoNetwork,
+    ) -> anyhow::Result<MultiEraBlock> {
+        build_block("", "", network, self).ok_or_else(|| anyhow!("Failed to decode the block"))
+    }
 }
