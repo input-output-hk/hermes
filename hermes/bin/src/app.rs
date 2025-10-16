@@ -9,8 +9,6 @@ use crate::{
     wasm::module::{Module, ModuleId},
 };
 
-use tracing::info;
-
 /// Hermes App Name type
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -41,8 +39,9 @@ pub(crate) struct Application {
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Arc<Module>>,
 
-    /// human modules
-    human_modules: HashMap<String, ModuleId>,
+    /// Maps module names (e.g. "user_auth") to their unique ULID identifiers.
+    /// Enables fast lookup of modules by human-readable name
+    module_registry: HashMap<String, ModuleId>,
 
     /// Application's `Vfs` instance
     vfs: Arc<Vfs>,
@@ -55,7 +54,7 @@ impl Application {
         app_name: ApplicationName,
         vfs: Vfs,
         modules: Vec<Module>,
-        human_modules: HashMap<String, ModuleId>,
+        module_registry: HashMap<String, ModuleId>,
     ) -> Self {
         let indexed_modules = modules
             .into_iter()
@@ -65,7 +64,7 @@ impl Application {
             name: app_name,
             indexed_modules,
             vfs: Arc::new(vfs),
-            human_modules,
+            module_registry,
         }
     }
 
@@ -79,9 +78,9 @@ impl Application {
         self.vfs.as_ref()
     }
 
-    /// Get vfs
-    pub(crate) fn get_human(&self) -> HashMap<std::string::String, ModuleId> {
-        self.human_modules.clone()
+    /// Returns a copy of the module registry mapping names to IDs
+    pub(crate) fn get_module_registry(&self) -> HashMap<std::string::String, ModuleId> {
+        self.module_registry.clone()
     }
 
     /// Dispatch event for all available modules.
@@ -96,11 +95,6 @@ impl Application {
 
     /// Initialize every module.
     pub(crate) fn init(&self) -> anyhow::Result<()> {
-        info!("Human modules ({} entries):", self.human_modules.len());
-
-        for (name, module_id) in &self.human_modules {
-            info!("  {} -> {}", name, module_id);
-        }
         for module in self.indexed_modules.values() {
             if let Err(e) = module.init(self.vfs.clone()) {
                 anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)

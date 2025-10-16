@@ -316,7 +316,7 @@ where
     };
 
     let app = reactor::get_app(app_name)?;
-    let modules = app.get_human(); // HashMap<String, ModuleId>
+    let modules = app.get_module_registry(); // HashMap<String, ModuleId>
     info!(
         "Available modules: {:?}",
         modules.keys().collect::<Vec<_>>()

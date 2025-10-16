@@ -279,13 +279,11 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         const FUNCTION_NAME: &str = "init";
 
         let Ok(sqlite) = open_db_connection(false) else {
-            log_error(file!(), FUNCTION_NAME, "open_db_connection", "Failed to open persistent database connection", None);
             return false;
         };
 
         // Volatile table will be stored in memory
         let Ok(sqlite_in_mem) = open_db_connection(false) else {
-            log_error(file!(), FUNCTION_NAME, "open_db_connection", "Failed to open in-memory database connection", None);
             return false;
         };
 

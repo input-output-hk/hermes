@@ -25,14 +25,14 @@ pub(crate) fn build_app<P: AsRef<std::path::Path>>(
     let vfs = bootstrapper.bootstrap()?;
 
     let mut modules = Vec::new();
-    let mut human_modules = HashMap::new();
+    let mut module_registry = HashMap::new();
     for module_info in package.get_modules()? {
         let module = module_info.get_component(&application_name)?;
-        human_modules.insert(module_info.get_name(), module.id().clone());
+        module_registry.insert(module_info.get_name(), module.id().clone());
 
         modules.push(module);
     }
-    let app = Application::new(application_name, vfs, modules, human_modules);
+    let app = Application::new(application_name, vfs, modules, module_registry);
 
     Ok(app)
 }
