@@ -30,6 +30,7 @@ use crate::{
 /// 1. Start from the newest registration.
 /// - The rule is the newest `stake_address` that is in a valid chain, will take over the
 ///   `stake_address` in the older chain.
+///
 /// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid
 /// chain2 with slot 20 has `stake_address_A`. Now `stake_address_A` belong to chain2.
 /// because it is the latest one.
@@ -50,13 +51,13 @@ use crate::{
 ///   in an earlier root (slot_no less than current slot, or same slot with smaller
 ///   `txn_idx`).
 ///
-///      SELECT txn_id FROM rbac_registration
-///      WHERE prv_txn_id IS NULL
-///      AND problem_report IS NULL
-///      AND catalyst_id = ?
-///      AND (
-///          slot_no < ? OR (slot_no = ? AND txn_idx < ?)
-///      )  
+///   SELECT txn_id FROM rbac_registration
+///   WHERE prv_txn_id IS NULL
+///   AND problem_report IS NULL
+///   AND catalyst_id = ?
+///   AND (
+///   slot_no < ? OR (slot_no = ? AND txn_idx < ?)
+///   )  
 ///
 /// - If no earlier root exists -> valid, the given `stake_address` belongs this chain.
 /// - Otherwise -> invalid, continue with next `txn_id`.
@@ -69,8 +70,7 @@ use crate::{
 /// - Otherwise -> continue with next `txn_id`.
 ///
 /// 3. If no valid root/chain is found after checking all candidates, then `stake_address`
-///    does not belong to any valid registration
-/// and will return an empty vector.
+///    does not belong to any valid registration and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
     volatile: &Sqlite,

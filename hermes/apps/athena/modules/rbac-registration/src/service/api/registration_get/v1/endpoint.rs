@@ -65,7 +65,7 @@ pub fn endpoint_v1(
                     return ResponsesV1::NotFound;
                 },
                 Err(e) => {
-                    return ResponsesV1::UnprocessableContent(e.to_string());
+                    return ResponsesV1::InternalServerError(e.to_string());
                 },
             };
 
@@ -95,7 +95,7 @@ pub fn endpoint_v1(
                     return ResponsesV1::NotFound;
                 },
                 Err(e) => {
-                    return ResponsesV1::UnprocessableContent(e.to_string());
+                    return ResponsesV1::InternalServerError(e.to_string());
                 },
             };
 
