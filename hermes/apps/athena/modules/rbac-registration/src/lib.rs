@@ -1,3 +1,5 @@
+//! RBAC Registration Module
+
 shared::bindings_generate!({
     world: "hermes:app/hermes",
     path: "../../../../../wasm/wasi/wit",
@@ -6,13 +8,11 @@ shared::bindings_generate!({
 
         world hermes {
             include wasi:cli/imports@0.2.6;
-            import hermes:logging/api;
-            import hermes:http-gateway/api;
             import hermes:cardano/api;
-            import hermes:sqlite/api;
+            import hermes:logging/api;
             import hermes:init/api;
+            import hermes:sqlite/api;
 
-            export hermes:http-gateway/event;
             export hermes:init/event;
         }
     ",
@@ -20,14 +20,13 @@ shared::bindings_generate!({
 });
 
 use cardano_blockchain_types::{pallas_primitives::Hash, Network, StakeAddress};
-use shared::utils::{
-    cardano,
-    log::{log_error, log_info},
-    sqlite::{close_db_connection, open_db_connection},
+use shared::{
+    bindings::hermes::{cardano, sqlite::api::Sqlite},
+    utils::{
+        log::{log_error, log_info},
+        sqlite::{close_db_connection, open_db_connection},
+    },
 };
-
-// Add these imports to resolve the cardano::api namespace
-use shared::bindings::hermes::cardano::api::{CardanoNetwork, Network as CardanoApiNetwork};
 
 use crate::rbac::get_rbac::{
     get_active_inactive_stake_address, get_rbac_chain_from_cat_id,
@@ -35,12 +34,6 @@ use crate::rbac::get_rbac::{
 };
 
 export!(RbacRegistrationComponent);
-
-// Import the event module as suggested by the compiler
-
-use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
-
-use shared::bindings::hermes::sqlite::api::Sqlite;
 
 mod database;
 mod rbac;
@@ -54,7 +47,6 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         let Ok(persistent) = open_db_connection(false) else {
             return false;
         };
-
         // For volatile table
         // TODO - Change this to in-memory once it is supported
         // <https://github.com/input-output-hk/hermes/issues/553>
@@ -62,10 +54,10 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
             return false;
         };
 
-        // Create a network instance - use the imported types directly
-        let network = CardanoNetwork::Preprod;
+        // Create a network instance
+        let network = cardano::api::CardanoNetwork::Preprod;
 
-        let network_resource = match CardanoApiNetwork::new(network) {
+        let network_resource = match cardano::api::Network::new(network) {
             Ok(nr) => nr,
             Err(e) => {
                 log_error(
@@ -82,7 +74,7 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         // ----- Get registration chain -----
         // Once the data is indexed, we can get the registration chain from catalyst ID or stake
         // address.
-        //get_rbac_data(&persistent, &volatile, network, &network_resource);
+        get_rbac_data(&persistent, &volatile, network, &network_resource);
         close_db_connection(persistent);
         close_db_connection(volatile);
         true
@@ -92,8 +84,8 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
 fn get_rbac_data(
     persistent: &Sqlite,
     volatile: &Sqlite,
-    network: CardanoNetwork,
-    network_resource: &CardanoApiNetwork,
+    network: cardano::api::CardanoNetwork,
+    network_resource: &cardano::api::Network,
 ) {
     const FUNCTION_NAME: &str = "get_rbac_data";
     // Testing get rbac data from catalyst id
@@ -172,26 +164,4 @@ fn get_rbac_data(
         ),
         None,
     );
-}
-
-// Use the event module directly as suggested by the compiler
-impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
-    fn reply(
-        _body: Vec<u8>,
-        _headers: Headers,
-        _path: String,
-        _method: String,
-    ) -> Option<HttpGatewayResponse> {
-        // Return a simple response for now
-        Some(HttpGatewayResponse::Http(HttpResponse {
-            code: 200,
-            headers: vec![(
-                "content-type".to_string(),
-                vec!["application/json".to_string()],
-            )],
-            body: Bstr::from(
-                r#"{"message": "RBAC registration endpoint", "status": "not_implemented"}"#,
-            ),
-        }))
-    }
 }
