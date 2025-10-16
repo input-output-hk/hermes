@@ -350,25 +350,29 @@ fn resolve_target_module(
     let app = reactor::get_app(app_name)?;
     let modules = app.get_module_registry();
 
-    let target_module = if let Some(target_module_str) = module_id {
-        info!(
-            "Routing HTTP request to specific module: {}",
-            target_module_str
-        );
-
-        if let Some(found_module_id) = modules.get(&target_module_str) {
-            TargetModule::List(vec![found_module_id.clone()])
-        } else {
-            info!(
-                "Module '{}' not found in available modules: {:?}, broadcasting to all",
-                target_module_str,
-                modules.keys().collect::<Vec<_>>()
-            );
+    let target_module = match module_id {
+        None => {
+            info!("Broadcasting HTTP request to all modules (no specific subscription)");
             TargetModule::All
-        }
-    } else {
-        info!("Broadcasting HTTP request to all modules (no specific subscription)");
-        TargetModule::All
+        },
+        Some(target_module_str) => {
+            info!(
+                "Routing HTTP request to specific module: {}",
+                target_module_str
+            );
+
+            match modules.get(&target_module_str) {
+                Some(found_module_id) => TargetModule::List(vec![found_module_id.clone()]),
+                None => {
+                    info!(
+                        "Module '{}' not found in available modules: {:?}, broadcasting to all",
+                        target_module_str,
+                        modules.keys().collect::<Vec<_>>()
+                    );
+                    TargetModule::All
+                },
+            }
+        },
     };
 
     Ok(target_module)
