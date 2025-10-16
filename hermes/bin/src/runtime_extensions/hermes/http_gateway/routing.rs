@@ -318,7 +318,7 @@ fn compose_http_event<B>(
     app_name: &ApplicationName,
 ) -> anyhow::Result<Response<B>>
 where
-    B: Body + From<String>,
+    B: Body + From<Vec<u8>> + From<String>,
 {
     let http_event = create_http_event(params);
     let target_module = resolve_target_module(module_id, app_name)?;
