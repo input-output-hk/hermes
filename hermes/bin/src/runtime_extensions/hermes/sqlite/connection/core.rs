@@ -2,11 +2,16 @@
 
 //! Core functionality implementation for `SQLite` connection object.
 
-use std::ptr::null_mut;
+use std::{
+    path::{Path, PathBuf},
+    ptr::null_mut,
+};
 
+use derive_more::Debug;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
-    sqlite3_stmt, SQLITE_OK,
+    sqlite3, sqlite3_close, sqlite3_db_filename, sqlite3_db_name, sqlite3_errcode, sqlite3_errmsg,
+    sqlite3_exec, sqlite3_filename_database, sqlite3_filename_journal, sqlite3_filename_wal,
+    sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK,
 };
 use stringzilla::stringzilla::StringZillableBinary;
 
@@ -29,6 +34,15 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     }
 }
 
+/// Same as [`close`] but additionally removes all sqlite files with
+/// [`DbPaths::remove_all`].
+pub(crate) fn close_and_remove_all(db_ptr: *mut sqlite3) -> anyhow::Result<()> {
+    let paths = DbPaths::main(db_ptr)?;
+    close(db_ptr)?;
+    paths.remove_all()?;
+    Ok(())
+}
+
 /// Retrieves runtime status information about a single database connection.
 pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
     let (error_code, error_msg) = unsafe { (sqlite3_errcode(db_ptr), sqlite3_errmsg(db_ptr)) };
@@ -44,11 +58,9 @@ pub(crate) fn errcode(db_ptr: *mut sqlite3) -> Option<ErrorInfo> {
             .ok()
     };
 
-    message.map(|message| {
-        ErrorInfo {
-            code: error_code,
-            message,
-        }
+    message.map(|message| ErrorInfo {
+        code: error_code,
+        message,
     })
 }
 
@@ -105,6 +117,76 @@ pub(crate) fn execute(
         Ok(())
     } else {
         Err(Errno::Sqlite(rc))
+    }
+}
+
+/// Files associated with a database.
+#[derive(Debug)]
+pub(crate) struct DbPaths {
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    database: PathBuf,
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    journal: PathBuf,
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    wal: PathBuf,
+}
+
+impl DbPaths {
+    /// Returns **main** db paths associated with the connection.
+    /// The paths are owned by Rust and do not depend sqlite connection after being
+    /// obtained.
+    ///
+    /// See <https://www2.sqlite.org/c3ref/db_name.html> and <https://www2.sqlite.org/c3ref/db_filename.html>.
+    pub(crate) fn main(db_ptr: *mut sqlite3) -> Result<DbPaths, Errno> {
+        unsafe fn c_str_as_nonempty_path<'a>(
+            ptr: *const std::ffi::c_char
+        ) -> Result<&'a Path, Errno> {
+            if ptr.is_null() {
+                return Err(Errno::ReturnedNullPointer);
+            }
+            let c_str = unsafe { std::ffi::CStr::from_ptr(ptr) };
+            // Most major platforms support Unicode (see crate-level comment at <https://docs.rs/camino/latest/camino>).
+            // If this platform doesn't, an error is safely returned.
+            if let Ok(utf8) = c_str.to_str() {
+                if utf8.is_empty() {
+                    Err(Errno::ConvertingCString)
+                } else {
+                    Ok(Path::new(utf8))
+                }
+            } else {
+                Err(Errno::ConvertingCString)
+            }
+        }
+        unsafe {
+            let db_name_ptr = sqlite3_db_name(db_ptr, 0);
+            c_str_as_nonempty_path(db_name_ptr)?;
+            let db_filename_ptr = sqlite3_db_filename(db_ptr, db_name_ptr);
+            c_str_as_nonempty_path(db_filename_ptr)?;
+
+            Ok(dbg!(DbPaths {
+                database: c_str_as_nonempty_path(sqlite3_filename_database(db_filename_ptr))?
+                    .to_path_buf(),
+                journal: c_str_as_nonempty_path(sqlite3_filename_journal(db_filename_ptr))?
+                    .to_path_buf(),
+                wal: c_str_as_nonempty_path(sqlite3_filename_wal(db_filename_ptr))?.to_path_buf(),
+            }))
+        }
+    }
+
+    /// Removes existing persistent files.
+    pub(crate) fn remove_all(&self) -> std::io::Result<()> {
+        tracing::debug!(
+            database = self.database.as_os_str().to_str(),
+            journal = self.journal.as_os_str().to_str(),
+            wal = self.wal.as_os_str().to_str(), 
+            "Removing sqlite files"
+        );
+        for path in [&self.database, &self.journal, &self.wal] {
+            if std::fs::exists(path)? {
+                std::fs::remove_file(path)?
+            }
+        }
+        Ok(())
     }
 }
 

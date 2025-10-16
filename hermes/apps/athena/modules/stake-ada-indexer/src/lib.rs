@@ -13,9 +13,12 @@ shared::bindings_generate!({
             import hermes:init/api;
             import hermes:sqlite/api;
             
+            export hermes:http-gateway/event;
+            import hermes:http-gateway/api;
+            
             export hermes:init/event;
-            export hermes:cardano/event-on-block;
-            export hermes:cardano/event-on-immutable-roll-forward;
+            // export hermes:cardano/event-on-block;
+            // export hermes:cardano/event-on-immutable-roll-forward;
         }
     ",
     share: ["hermes:cardano", "hermes:sqlite", "hermes:logging"],
@@ -30,6 +33,9 @@ use shared::{
     bindings::hermes::cardano::api::{Block, SubscriptionId},
     utils::log::{self, error},
 };
+
+use exports::hermes::http_gateway::event::*;
+use hermes::http_gateway::api::HttpResponse;
 
 struct Component;
 
@@ -46,26 +52,43 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
-impl exports::hermes::cardano::event_on_block::Guest for Component {
-    fn on_cardano_block(
-        subscription_id: &SubscriptionId,
-        block: &Block,
-    ) {
-        log::init(log::LevelFilter::Trace);
-        if let Err(error) = events::on_cardano_block(subscription_id, block) {
-            error!(target: "staked_ada_indexer::on_cardano_block", error:?; "Not handled");
-        }
+
+impl exports::hermes::http_gateway::event::Guest for Component {
+    fn reply(
+        _body: Vec<u8>,
+        _headers: Headers,
+        _path: String,
+        _method: String,
+    ) -> Option<HttpGatewayResponse> {
+        shared::bindings::hermes::init::api::done(0);
+        Some(HttpGatewayResponse::Http(HttpResponse {
+        code: 200,
+        headers: vec![],
+        body: Bstr::from(""),
+    }))
     }
 }
 
-impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for Component {
-    fn on_cardano_immutable_roll_forward(
-        subscription_id: &SubscriptionId,
-        block: &Block,
-    ) {
-        log::init(log::LevelFilter::Trace);
-        if let Err(error) = events::on_cardano_immutable_roll_forward(subscription_id, block) {
-            error!(target: "staked_ada_indexer::on_cardano_immutable_roll_forward", error:?; "Not handled");
-        }
-    }
-}
+// impl exports::hermes::cardano::event_on_block::Guest for Component {
+//     fn on_cardano_block(
+//         subscription_id: &SubscriptionId,
+//         block: &Block,
+//     ) {
+//         log::init(log::LevelFilter::Trace);
+//         if let Err(error) = events::on_cardano_block(subscription_id, block) {
+//             error!(target: "staked_ada_indexer::on_cardano_block", error:?; "Not handled");
+//         }
+//     }
+// }
+
+// impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for Component {
+//     fn on_cardano_immutable_roll_forward(
+//         subscription_id: &SubscriptionId,
+//         block: &Block,
+//     ) {
+//         log::init(log::LevelFilter::Trace);
+//         if let Err(error) = events::on_cardano_immutable_roll_forward(subscription_id, block) {
+//             error!(target: "staked_ada_indexer::on_cardano_immutable_roll_forward", error:?; "Not handled");
+//         }
+//     }
+// }

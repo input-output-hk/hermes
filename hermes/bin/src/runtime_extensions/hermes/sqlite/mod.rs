@@ -1,12 +1,15 @@
 //! `SQLite` runtime extension implementation.
 
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::{
     app::ApplicationName,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        hermes::sqlite::state::resource_manager::init_app_state,
+        hermes::sqlite::{
+            connection::core::close_and_remove_all, kernel::open_with_persistent_memory,
+            state::resource_manager::init_app_state,
+        },
         init::{
             errors::RteInitResult, trait_app::RteInitApp, trait_event::RteInitEvent,
             trait_module::RteInitModule, trait_runtime::RteInitRuntime,
@@ -29,7 +32,22 @@ struct RteSqlite;
 impl RteInitRuntime for RteSqlite {}
 
 #[traitreg::register(default)]
-impl RteInitApp for RteSqlite {}
+impl RteInitApp for RteSqlite {
+    fn fini(
+        self: Box<Self>,
+        name: &ApplicationName,
+    ) -> RteInitResult {
+        debug!(%name, "Hermes Sqlite RTE");
+        // TODO(?): Fix SQLite in memory <https://github.com/input-output-hk/hermes/issues/553>.
+        // TODO(@no30bit): improve error handling.
+        let _result = open_with_persistent_memory(false, true, name.clone())
+            .map_err(anyhow::Error::from)
+            .and_then(close_and_remove_all)
+            .inspect_err(|error| error!(%name, %error, "Hermes Sqlite RTE"));
+
+        Ok(())
+    }
+}
 
 #[traitreg::register(default)]
 impl RteInitModule for RteSqlite {

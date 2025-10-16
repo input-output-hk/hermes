@@ -270,3 +270,17 @@ pub fn delete_statement_resource(
         }
     })
 }
+
+/// If an application with provided name exists,
+/// its in-memory database would be cleaned up on connection resource drop.
+///
+/// Unless this function is called, in-memory content persists
+/// and would show up when the next in-memory connection opens.
+pub fn set_connections_memory_cleanup_on_drop(application_name: &ApplicationName) {
+    try_get_app_state_with(application_name, |app_state| {
+        match app_state {
+            Some(app_state) => app_state.connections.set_cleanup_on_drop(),
+            None => (),
+        }
+    })
+}

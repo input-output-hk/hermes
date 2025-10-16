@@ -13,11 +13,7 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{Application, ApplicationName},
-    event::queue::Exit,
-    ipfs, pool, reactor,
-    vfs::VfsBootstrapper,
-    wasm::module::Module,
+    app::{Application, ApplicationName}, event::queue::Exit, ipfs, pool, reactor, runtime_extensions::init::trait_app::{RteApp, RteInitApp}, vfs::VfsBootstrapper, wasm::module::Module
 };
 
 /// Hermes application playground
@@ -76,6 +72,7 @@ impl Playground {
 
         // Wait for scheduled tasks to be finished.
         pool::terminate();
+        reactor::drop_all_apps()?;
         Ok(exit)
     }
 }
@@ -119,6 +116,7 @@ fn create_one_module_app(
     let vfs_name = [name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
     let app = Application::new(ApplicationName::new(name), vfs, vec![module]);
+    RteApp::new().init(app.name())?;
 
     Ok(app)
 }

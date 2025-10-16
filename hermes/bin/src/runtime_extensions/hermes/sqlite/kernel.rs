@@ -197,6 +197,28 @@ pub(super) fn open(
     Ok(db_ptr)
 }
 
+/// Same as [`open`], but even for in-memory connection, open on disk in a separate file.
+pub(super) fn open_with_persistent_memory(
+    readonly: bool,
+    memory: bool,
+    app_name: ApplicationName,
+) -> Result<*mut sqlite3, Errno> {
+    // Internally `kernel::open` derives db path from `ApplicationName`, treating it as no
+    // more than a string. So, it is okay to substitute it at `kernel::open` level to
+    // create another file. Once the pointer is obtained, however, it must be bound to the
+    // resource under the original `app_name`.
+    let db_name = if memory {
+        ApplicationName(format!("memory.{app_name}"))
+    } else {
+        app_name
+    };
+
+    // TODO(?): Fix SQLite in memory <https://github.com/input-output-hk/hermes/issues/553>.
+    let memory = false;
+
+    open(readonly, memory, db_name)
+}
+
 #[cfg(all(test, debug_assertions))]
 mod tests {
     use std::{

@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     event::HermesEventPayload,
     pool,
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
     vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
@@ -104,6 +105,19 @@ impl Application {
             .ok_or(anyhow::anyhow!("Module {module_id} not found"))?;
         module_dispatch_event(module.clone(), self.vfs.clone(), event);
         Ok(())
+    }
+}
+
+impl Drop for Application {
+    fn drop(&mut self) {
+        // Advise Runtime Extensions that application is fully stopped and its resources can be
+        // freed.
+        if let Err(err) = RteApp::new().fini(&self.name) {
+            //TODO(SJ): Maybe need better error handling...
+            tracing::error!("application finalization failed: {err}");
+        } else {
+            tracing::info!("application finalization was successful");
+        }
     }
 }
 
