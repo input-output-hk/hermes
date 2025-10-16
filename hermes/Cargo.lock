@@ -1589,9 +1589,9 @@ dependencies = [
 
 [[package]]
 name = "coset"
-version = "0.3.8"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4c8cc80f631f8307b887faca24dcc3abc427cd0367f6eb6188f6e8f5b7ad8fb"
+checksum = "2aeb90e56027edc2a7d7f71cbc500e742e2520bede7a3f8a3bfb1dac7aed623e"
 dependencies = [
  "ciborium",
  "ciborium-io",
@@ -7922,9 +7922,9 @@ dependencies = [
 
 [[package]]
 name = "stringzilla"
-version = "3.12.6"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f562e07d42f213af747a28b1845d155c651c1c1b4072192b030239965de9a3f"
+checksum = "23af542a949c000705b3f135574f32b268682eb07a2aa2bdd547e249ab6ea4cf"
 dependencies = [
  "cc",
 ]
