@@ -79,30 +79,30 @@ use tokio::sync::RwLock;
 pub struct EndpointSubscription {
     /// Unique identifier for this subscription (used in logs and debugging)
     pub subscription_id: String,
-    
+
     /// WASM module that will handle requests matching this subscription
     pub module_id: String,
-    
+
     /// HTTP methods this subscription accepts (empty vec = accept all methods)
-    /// Common values: ["GET"], ["POST"], ["GET", "POST", "PUT", "DELETE"]
+    /// Common values: `["GET"]`, `["POST"]`, `["GET", "POST", "PUT", "DELETE"]`
     pub methods: Vec<String>,
-    
+
     /// Regular expression pattern to match request paths
     /// Examples: "^/api/users$", "^/api/v1/registration(/.*)?$"
     pub path_regex: String,
-    
+
     /// Compiled regex for efficient runtime matching (not serialized)
     #[serde(skip)]
     pub compiled_regex: Option<Regex>,
-    
+
     /// Content types this subscription accepts (empty vec = accept all types)
-    /// Examples: ["application/json"], ["text/html", "application/json"]
+    /// Examples: `["application/json"]`, `["text/html", "application/json"]`
     pub content_types: Vec<String>,
-    
+
     /// Optional path to JSON Schema file for request body validation
-    /// Only used when content_types includes "application/json"
+    /// Only used when `content_types` includes "application/json"
     pub json_schema: Option<String>,
-    
+
     /// Calculated specificity score for priority ordering (higher = more specific)
     /// This is computed automatically during subscription creation
     pub specificity_score: i32,
@@ -151,7 +151,8 @@ impl EndpointSubscription {
             .map_err(|e| format!("Invalid regex pattern '{path_regex}': {e}"))?;
 
         // Calculate specificity score for priority ordering
-        let specificity_score = Self::calculate_specificity(&path_regex, &methods, &json_schema);
+        let specificity_score =
+            Self::calculate_specificity(&path_regex, &methods, json_schema.as_ref());
 
         Ok(Self {
             subscription_id,
@@ -180,29 +181,29 @@ impl EndpointSubscription {
     fn calculate_specificity(
         path_regex: &str,
         methods: &[String],
-        json_schema: &Option<String>,
+        json_schema: Option<&String>,
     ) -> i32 {
         let mut score = regex_specificity_score(path_regex);
-        
+
         // Bonus for having specific HTTP methods (not catch-all)
         if !methods.is_empty() {
-            score += 5;
+            score = score.saturating_add(5);
         }
-        
+
         // Bonus for having JSON schema validation
         if json_schema.is_some() {
-            score += 3;
+            score = score.saturating_add(3);
         }
-        
+
         score
     }
-    
+
     /// Checks if this subscription matches the given request parameters
     ///
     /// A subscription matches if:
     /// 1. HTTP method is accepted (or methods list is empty)
     /// 2. Path matches the regex pattern
-    /// 3. Content type is accepted (or content_types list is empty)
+    /// 3. Content type is accepted (or `content_types` list is empty)
     pub fn matches(
         &self,
         method: &str,
@@ -213,30 +214,41 @@ impl EndpointSubscription {
             && self.matches_path(path)
             && self.matches_content_type(content_type)
     }
-    
+
     /// Checks if the HTTP method is accepted by this subscription
-    fn matches_method(&self, method: &str) -> bool {
+    fn matches_method(
+        &self,
+        method: &str,
+    ) -> bool {
         // Empty methods list means "accept all methods"
         self.methods.is_empty() || self.methods.contains(&method.to_uppercase())
     }
-    
+
     /// Checks if the path matches this subscription's regex pattern
-    fn matches_path(&self, path: &str) -> bool {
+    fn matches_path(
+        &self,
+        path: &str,
+    ) -> bool {
         self.compiled_regex
             .as_ref()
-            .map_or(false, |regex| regex.is_match(path))
+            .is_some_and(|regex| regex.is_match(path))
     }
-    
+
     /// Checks if the content type is accepted by this subscription
-    fn matches_content_type(&self, content_type: Option<&str>) -> bool {
+    fn matches_content_type(
+        &self,
+        content_type: Option<&str>,
+    ) -> bool {
         // Empty content_types list means "accept all content types"
         if self.content_types.is_empty() {
             return true;
         }
-        
+
         // Check if provided content type matches any accepted type
         if let Some(ct) = content_type {
-            self.content_types.iter().any(|accepted| ct.contains(accepted))
+            self.content_types
+                .iter()
+                .any(|accepted| ct.contains(accepted))
         } else {
             // No content type provided - only match if we accept all types
             false
@@ -250,7 +262,7 @@ impl EndpointSubscription {
 
 /// Manages endpoint subscriptions with optimized best-match routing
 ///
-/// The SubscriptionManager stores and indexes endpoint subscriptions for efficient
+/// The `SubscriptionManager` stores and indexes endpoint subscriptions for efficient
 /// request routing. It uses a two-tier optimization strategy:
 ///
 /// 1. **Score-based Organization**: Groups subscriptions by specificity score
@@ -276,16 +288,16 @@ pub struct SubscriptionManager {
     /// Subscriptions grouped by their specificity scores
     /// Higher scores are checked first during matching
     subscriptions_by_score: HashMap<i32, Vec<EndpointSubscription>>,
-    
+
     /// Fast lookup table for finding subscriptions by ID
     /// Used for debugging, logging, and administrative operations
     subscriptions_by_id: HashMap<String, EndpointSubscription>,
-    
+
     /// Pre-sorted list of specificity scores in descending order
     /// Cached for performance - rebuilt when subscriptions change
     sorted_scores: Vec<i32>,
-    
-    /// Indicates whether sorted_scores cache needs to be rebuilt
+
+    /// Indicates whether `sorted_scores` cache needs to be rebuilt
     scores_dirty: bool,
 }
 
@@ -322,51 +334,54 @@ impl SubscriptionManager {
         mut subscription: EndpointSubscription,
     ) -> Result<(), String> {
         // Ensure the regex is compiled for runtime matching
-        self.ensure_regex_compiled(&mut subscription)?;
-        
+        Self::ensure_regex_compiled(&mut subscription)?;
+
         // Recalculate specificity to ensure consistency with current algorithm
-        self.update_specificity_score(&mut subscription);
-        
+        Self::update_specificity_score(&mut subscription);
+
         // Add to both indexes
         self.add_to_indexes(subscription);
-        
+
         Ok(())
     }
-    
+
     /// Ensures the subscription has a compiled regex pattern
-    fn ensure_regex_compiled(&self, subscription: &mut EndpointSubscription) -> Result<(), String> {
+    fn ensure_regex_compiled(subscription: &mut EndpointSubscription) -> Result<(), String> {
         if subscription.compiled_regex.is_none() {
             subscription.compiled_regex = Some(
                 Regex::new(&subscription.path_regex)
-                    .map_err(|e| format!("Invalid regex pattern: {e}"))?
+                    .map_err(|e| format!("Invalid regex pattern: {e}"))?,
             );
         }
         Ok(())
     }
-    
+
     /// Updates the specificity score to ensure consistency
-    fn update_specificity_score(&self, subscription: &mut EndpointSubscription) {
+    fn update_specificity_score(subscription: &mut EndpointSubscription) {
         subscription.specificity_score = EndpointSubscription::calculate_specificity(
             &subscription.path_regex,
             &subscription.methods,
-            &subscription.json_schema,
+            subscription.json_schema.as_ref(),
         );
     }
-    
+
     /// Adds the subscription to both internal indexes
-    fn add_to_indexes(&mut self, subscription: EndpointSubscription) {
+    fn add_to_indexes(
+        &mut self,
+        subscription: EndpointSubscription,
+    ) {
         let score = subscription.specificity_score;
         let id = subscription.subscription_id.clone();
-        
+
         // Add to score-based index for efficient matching
         self.subscriptions_by_score
             .entry(score)
             .or_default()
             .push(subscription.clone());
-            
+
         // Add to ID-based index for administrative operations
         self.subscriptions_by_id.insert(id, subscription);
-        
+
         // Mark score cache as needing rebuild
         self.scores_dirty = true;
     }
@@ -397,16 +412,16 @@ impl SubscriptionManager {
         content_type: Option<&str>,
     ) -> Option<&EndpointSubscription> {
         self.ensure_scores_sorted();
-        
+
         let mut best_candidate = BestMatchCandidate::none();
-        
+
         // Check subscriptions in decreasing specificity order
         for &current_score in &self.sorted_scores {
             // Early exit: if we have a match and current score can't beat it, stop
             if best_candidate.can_stop_searching(current_score) {
                 break;
             }
-            
+
             // Check all subscriptions with this specificity score
             if let Some(subscriptions) = self.subscriptions_by_score.get(&current_score) {
                 for subscription in subscriptions {
@@ -415,24 +430,24 @@ impl SubscriptionManager {
                         if Self::is_perfect_match(subscription) {
                             return Some(subscription);
                         }
-                        
+
                         // Track the best match found so far
                         best_candidate.update_if_better(subscription, current_score);
                     }
                 }
             }
         }
-        
+
         best_candidate.get_subscription()
     }
-    
+
     /// Ensures the score cache is up to date
     fn ensure_scores_sorted(&mut self) {
         if self.scores_dirty {
             self.rebuild_score_cache();
         }
     }
-    
+
     /// Rebuilds the sorted scores cache
     fn rebuild_score_cache(&mut self) {
         self.sorted_scores = self.subscriptions_by_score.keys().copied().collect();
@@ -457,23 +472,23 @@ impl SubscriptionManager {
     fn is_perfect_match(subscription: &EndpointSubscription) -> bool {
         const HIGH_SPECIFICITY_THRESHOLD: i32 = 15;
         const VERY_HIGH_SPECIFICITY_THRESHOLD: i32 = 25;
-        
+
         let score = subscription.specificity_score;
-        
+
         // Very high specificity is always considered perfect
         if score > VERY_HIGH_SPECIFICITY_THRESHOLD {
             return true;
         }
-        
+
         // High specificity with additional quality indicators
         if score > HIGH_SPECIFICITY_THRESHOLD {
             let has_specific_methods = !subscription.methods.is_empty();
             let has_validation = subscription.json_schema.is_some();
-            
+
             // Either specific methods or validation qualifies as perfect
             return has_specific_methods || has_validation;
         }
-        
+
         false
     }
 }
@@ -483,11 +498,13 @@ impl SubscriptionManager {
 //
 
 /// Tracks the best matching subscription candidate during search
-/// 
+///
 /// This helper struct encapsulates the logic for tracking the best match
 /// found so far and determining when we can stop searching early.
 struct BestMatchCandidate<'a> {
+    /// The best matching subscription found so far
     subscription: Option<&'a EndpointSubscription>,
+    /// The specificity score of the best match
     score: i32,
 }
 
@@ -499,23 +516,30 @@ impl<'a> BestMatchCandidate<'a> {
             score: i32::MIN,
         }
     }
-    
+
     /// Updates the candidate if the new subscription has a better score
-    fn update_if_better(&mut self, subscription: &'a EndpointSubscription, score: i32) {
+    fn update_if_better(
+        &mut self,
+        subscription: &'a EndpointSubscription,
+        score: i32,
+    ) {
         if score > self.score {
             self.subscription = Some(subscription);
             self.score = score;
         }
     }
-    
+
     /// Determines if we can stop searching based on the current score
-    /// 
+    ///
     /// We can stop if we have a match and the current score level can't beat it
     /// (since scores are processed in descending order)
-    fn can_stop_searching(&self, current_score: i32) -> bool {
+    fn can_stop_searching(
+        &self,
+        current_score: i32,
+    ) -> bool {
         self.subscription.is_some() && current_score < self.score
     }
-    
+
     /// Returns the best subscription found, if any
     fn get_subscription(self) -> Option<&'a EndpointSubscription> {
         self.subscription
@@ -527,17 +551,17 @@ impl<'a> BestMatchCandidate<'a> {
 //
 
 /// Global subscription manager instance (singleton)
-/// 
+///
 /// This is initialized lazily when first accessed and provides thread-safe
 /// access to the subscription management system.
 static SUBSCRIPTION_MANAGER: once_cell::sync::Lazy<Arc<RwLock<SubscriptionManager>>> =
     once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(SubscriptionManager::new())));
 
 /// Gets a reference to the global subscription manager
-/// 
+///
 /// This function provides access to the singleton subscription manager instance.
 /// The returned Arc can be cloned cheaply and shared across async tasks.
-/// 
+///
 /// ## Returns
 /// - `Arc<RwLock<SubscriptionManager>>`: Thread-safe reference to the global manager
 pub fn get_subscription_manager() -> Arc<RwLock<SubscriptionManager>> {
@@ -545,22 +569,22 @@ pub fn get_subscription_manager() -> Arc<RwLock<SubscriptionManager>> {
 }
 
 /// Registers a new endpoint subscription globally
-/// 
+///
 /// This is the primary function used during gateway initialization to register
 /// endpoint subscriptions loaded from configuration files.
-/// 
+///
 /// ## Parameters
 /// - `subscription`: The endpoint subscription to register
-/// 
+///
 /// ## Returns
 /// - `Ok(())`: Subscription registered successfully
 /// - `Err(String)`: Registration failed with error message
-/// 
+///
 /// ## Example
 /// ```ignore
 /// let subscription = EndpointSubscription::new(
 ///     "api_users".to_string(),
-///     "user_service".to_string(), 
+///     "user_service".to_string(),
 ///     vec!["GET".to_string(), "POST".to_string()],
 ///     "^/api/v1/users(/.*)?$".to_string(),
 ///     vec!["application/json".to_string()],
@@ -577,19 +601,19 @@ pub async fn register_global_endpoint_subscription(
 }
 
 /// Finds the best matching subscription for an incoming HTTP request
-/// 
+///
 /// This is the primary lookup function used during request routing to determine
 /// which WASM module should handle a specific HTTP request.
-/// 
+///
 /// ## Parameters
 /// - `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
 /// - `path`: Request URL path (e.g., "/api/v1/users/123")
 /// - `content_type`: Optional content type from request headers
-/// 
+///
 /// ## Returns
 /// - `Some(subscription)`: Best matching subscription (cloned for thread safety)
 /// - `None`: No subscription matches the request criteria
-/// 
+///
 /// ## Example
 /// ```ignore
 /// let subscription = find_global_endpoint_subscription(
@@ -597,7 +621,7 @@ pub async fn register_global_endpoint_subscription(
 ///     "/api/v1/users/create",
 ///     Some("application/json"),
 /// ).await;
-/// 
+///
 /// if let Some(sub) = subscription {
 ///     println!("Routing to module: {}", sub.module_id);
 /// }
@@ -644,32 +668,23 @@ mod tests {
     }
 
     /// Tests that subscription manager returns the highest scoring match
-    #[test] 
+    #[test]
     fn test_subscription_manager_priority_matching() {
         let mut manager = SubscriptionManager::new();
 
         // Register general subscription first (lower specificity)
-        let general_sub = create_test_subscription(
-            "general",
-            "/api/.*",
-            vec!["GET"],
-        );
+        let general_sub = create_test_subscription("general", "/api/.*", vec!["GET"]);
         manager.register_endpoint_subscription(general_sub).unwrap();
 
         // Register specific subscription second (higher specificity)
-        let specific_sub = create_test_subscription(
-            "specific", 
-            "^/api/users/[0-9]+$",
-            vec!["GET"],
-        );
-        manager.register_endpoint_subscription(specific_sub).unwrap();
+        let specific_sub = create_test_subscription("specific", "^/api/users/[0-9]+$", vec!["GET"]);
+        manager
+            .register_endpoint_subscription(specific_sub)
+            .unwrap();
 
         // Should match the more specific subscription regardless of registration order
-        let matched = manager.find_endpoint_subscription(
-            "GET",
-            "/api/users/123",
-            Some("application/json"),
-        );
+        let matched =
+            manager.find_endpoint_subscription("GET", "/api/users/123", Some("application/json"));
 
         assert_eq!(matched.unwrap().subscription_id, "specific");
     }
@@ -687,16 +702,15 @@ mod tests {
             "^/api/v1/users/create$".to_string(),
             vec!["application/json".to_string()],
             Some("user-schema.json".to_string()),
-        ).unwrap();
+        )
+        .unwrap();
 
         // Fallback match: lower specificity
-        let fallback_sub = create_test_subscription(
-            "fallback",
-            "^/api/.*$",
-            vec!["POST"],
-        );
+        let fallback_sub = create_test_subscription("fallback", "^/api/.*$", vec!["POST"]);
 
-        manager.register_endpoint_subscription(fallback_sub).unwrap();
+        manager
+            .register_endpoint_subscription(fallback_sub)
+            .unwrap();
         manager.register_endpoint_subscription(perfect_sub).unwrap();
 
         let matched = manager.find_endpoint_subscription(
@@ -720,17 +734,16 @@ mod tests {
             "^/api/v1/registration(/.*)?$".to_string(),
             vec![],
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        manager.register_endpoint_subscription(catch_all_sub).unwrap();
+        manager
+            .register_endpoint_subscription(catch_all_sub)
+            .unwrap();
 
         // Test multiple HTTP methods
         for method in ["GET", "POST", "PUT", "DELETE"] {
-            let matched = manager.find_endpoint_subscription(
-                method,
-                "/api/v1/registration",
-                None,
-            );
+            let matched = manager.find_endpoint_subscription(method, "/api/v1/registration", None);
             assert!(matched.is_some(), "Should accept method: {}", method);
             assert_eq!(matched.unwrap().subscription_id, "catch_all");
         }
@@ -748,9 +761,12 @@ mod tests {
             "^/api/upload$".to_string(),
             vec![], // Empty = accept all content types
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        manager.register_endpoint_subscription(flexible_sub).unwrap();
+        manager
+            .register_endpoint_subscription(flexible_sub)
+            .unwrap();
 
         // Test different content types
         let test_cases = [
@@ -761,12 +777,12 @@ mod tests {
         ];
 
         for content_type in test_cases {
-            let matched = manager.find_endpoint_subscription(
-                "POST",
-                "/api/upload",
-                content_type,
+            let matched = manager.find_endpoint_subscription("POST", "/api/upload", content_type);
+            assert!(
+                matched.is_some(),
+                "Should accept content type: {:?}",
+                content_type
             );
-            assert!(matched.is_some(), "Should accept content type: {:?}", content_type);
         }
     }
 
@@ -779,14 +795,14 @@ mod tests {
             "^/api/v1/users/[0-9]+/profile/settings$",
             vec![],
         );
-        
+
         // High specificity with methods
         let high_with_methods = create_test_subscription(
             "high_methods",
             "^/api/v1/users/create$",
             vec!["GET", "POST"],
         );
-        
+
         // High specificity with JSON schema
         let high_with_schema = EndpointSubscription::new(
             "high_schema".to_string(),
@@ -795,8 +811,9 @@ mod tests {
             "^/api/v1/data$".to_string(),
             vec!["application/json".to_string()],
             Some("schema.json".to_string()),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         // Low specificity (should not be perfect)
         let low_specificity = create_test_subscription(
             "low",
@@ -821,7 +838,8 @@ mod tests {
             "^/api/users/[0-9]+$".to_string(),
             vec!["application/json".to_string()],
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Test method matching
         assert!(subscription.matches("GET", "/api/users/123", Some("application/json")));
@@ -850,6 +868,7 @@ mod tests {
             path_regex.to_string(),
             vec!["application/json".to_string()],
             None,
-        ).unwrap()
+        )
+        .unwrap()
     }
 }

@@ -279,27 +279,40 @@ async fn handle_webasm_request(
     let (_parts, body) = req.into_parts();
     let body_bytes = body.collect().await?.to_bytes();
 
-    compose_http_event(
+    let request_params = HttpRequestParams {
         method,
         headers,
-        body_bytes,
+        body: body_bytes,
         path,
-        lambda_send,
-        &lambda_recv_answer,
-        module_id,
-        &app_name,
-    )
+        sender: lambda_send,
+    };
+
+    compose_http_event(request_params, &lambda_recv_answer, module_id, &app_name)
 }
 
-/// Compose http event and send to global queue, await queue response and relay back to
-/// waiting receiver channel for HTTP response
-#[allow(clippy::too_many_arguments)]
-fn compose_http_event<B>(
+/// HTTP request parameters for WebAssembly event processing
+struct HttpRequestParams {
+    /// HTTP method (GET, POST, etc.)
     method: String,
+    /// HTTP headers as key-value pairs
     headers: HeadersKV,
+    /// Request body content
     body: Bytes,
+    /// Request path with query parameters
     path: String,
+    /// Channel sender for HTTP event responses
     sender: Sender<HTTPEventMsg>,
+}
+
+/// Composes and processes HTTP events for WebAssembly modules
+///
+/// This function handles the complete lifecycle of HTTP request processing:
+/// 1. Creates an HTTP event from request parameters
+/// 2. Determines target module(s) for routing
+/// 3. Sends event to the global queue
+/// 4. Waits for and processes the response
+fn compose_http_event<B>(
+    params: HttpRequestParams,
     receiver: &Receiver<HTTPEventMsg>,
     module_id: Option<String>,
     app_name: &ApplicationName,
@@ -307,14 +320,33 @@ fn compose_http_event<B>(
 where
     B: Body + From<String>,
 {
-    let on_http_event = HTTPEvent {
-        headers,
-        method,
-        path,
-        body,
-        sender,
-    };
+    let http_event = create_http_event(params);
+    let target_module = resolve_target_module(module_id, app_name)?;
+    let hermes_event = HermesEvent::new(http_event, TargetApp::All, target_module);
 
+    send_event_and_await_response(hermes_event, receiver)
+}
+
+/// Creates an `HTTPEvent` from the provided request parameters
+fn create_http_event(params: HttpRequestParams) -> HTTPEvent {
+    HTTPEvent {
+        headers: params.headers,
+        method: params.method,
+        path: params.path,
+        body: params.body,
+        sender: params.sender,
+    }
+}
+
+/// Resolves the target module(s) for routing the HTTP request
+///
+/// Returns:
+/// - `TargetModule::List` with specific module if found
+/// - `TargetModule::All` if module not found or not specified
+fn resolve_target_module(
+    module_id: Option<String>,
+    app_name: &ApplicationName,
+) -> anyhow::Result<TargetModule> {
     let app = reactor::get_app(app_name)?;
     let modules = app.get_module_registry();
 
@@ -324,13 +356,11 @@ where
             target_module_str
         );
 
-        // Look up the ModuleId by the string key
         if let Some(found_module_id) = modules.get(&target_module_str) {
             TargetModule::List(vec![found_module_id.clone()])
         } else {
-            // Module not found, log warning and broadcast to all
             info!(
-                "Module '{}' not found in available modules: {:?}",
+                "Module '{}' not found in available modules: {:?}, broadcasting to all",
                 target_module_str,
                 modules.keys().collect::<Vec<_>>()
             );
@@ -341,17 +371,26 @@ where
         TargetModule::All
     };
 
-    let event = HermesEvent::new(on_http_event, TargetApp::All, target_module);
+    Ok(target_module)
+}
 
+/// Sends the event to the global queue and waits for a response
+fn send_event_and_await_response<B>(
+    event: HermesEvent,
+    receiver: &Receiver<HTTPEventMsg>,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<String>,
+{
     crate::event::queue::send(event)?;
 
     let timeout = Duration::from_secs(EVENT_TIMEOUT);
     match receiver.recv_timeout(timeout)? {
         HTTPEventMsg::HttpEventResponse(resp) => {
-            let body = serde_json::to_string(&resp)?.into();
-            Ok(Response::new(body))
+            let response_body = serde_json::to_string(&resp)?.into();
+            Ok(Response::new(response_body))
         },
-        HTTPEventMsg::HTTPEventReceiver => error_response("HTTP event message error"),
+        HTTPEventMsg::HTTPEventReceiver => error_response("Invalid HTTP event message received"),
     }
 }
 
