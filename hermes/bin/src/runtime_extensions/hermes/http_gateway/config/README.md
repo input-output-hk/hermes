@@ -4,7 +4,8 @@ This guide explains how to configure HTTP endpoint subscriptions for the Hermes 
 
 ## Overview
 
-The HTTP gateway uses endpoint subscriptions to intelligently route incoming HTTP requests to specific WebAssembly modules instead of broadcasting to all modules. This improves performance and allows for more granular request handling.
+The HTTP gateway uses endpoint subscriptions to intelligently route incoming HTTP requests to specific WebAssembly modules instead of broadcasting to all modules.
+This improves performance and allows for more granular request handling.
 
 ## Configuration Structure
 
@@ -175,16 +176,19 @@ Common content type configurations:
 The gateway uses a specificity scoring system to determine which subscription handles a request when multiple patterns match:
 
 ### High Priority (Score: 25+)
-- Very specific regex patterns with many literal characters
-- Anchored patterns with character classes: `^/api/users/[0-9]+/profile$`
 
-### Medium Priority (Score: 15-24)  
-- Moderately specific patterns with method/content-type restrictions
-- Patterns with some wildcards: `^/api/v1/users/.*$`
+* Very specific regex patterns with many literal characters
+* Anchored patterns with character classes: `^/api/users/[0-9]+/profile$`
+
+### Medium Priority (Score: 15-24)
+
+* Moderately specific patterns with method/content-type restrictions
+* Patterns with some wildcards: `^/api/v1/users/.*$`
 
 ### Low Priority (Score: <15)
-- General catch-all patterns: `^/api/.*$` or `.*`
-- No method or content-type restrictions
+
+* General catch-all patterns: `^/api/.*$` or `.*`
+* No method or content-type restrictions
 
 ### Priority Examples
 
@@ -279,7 +283,7 @@ The gateway uses a specificity scoring system to determine which subscription ha
 
 ### Testing Your Configuration
 
-1. **Regex testing**: Use tools like https://regex101.com/ to test your patterns
+1. **Regex testing**: Use tools like <https://regex101.com/> to test your patterns
 2. **Priority testing**: More specific patterns should have higher scores
 3. **Log monitoring**: Check gateway logs for subscription matching information
 
@@ -287,7 +291,7 @@ The gateway uses a specificity scoring system to determine which subscription ha
 
 The gateway logs subscription matching decisions:
 
-```
+```log
 [INFO] Routing HTTP request to specific module: user_service
 [INFO] Found subscription for POST /api/v1/users/create: module user_service  
 [INFO] Module 'nonexistent_module' not found in available modules: ["user_service", "auth_service"], broadcasting to all
