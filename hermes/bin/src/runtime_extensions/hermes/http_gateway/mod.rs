@@ -1,7 +1,6 @@
 //! HTTP Gateway
 
 use gateway_task::spawn;
-
 use serde::Deserialize;
 use subscription::{register_global_endpoint_subscription, EndpointSubscription};
 use tracing::{error, info};

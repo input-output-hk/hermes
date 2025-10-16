@@ -115,9 +115,7 @@ pub(crate) async fn router(
 
 /// HTTP error response generator
 pub(crate) fn error_response<B>(err: impl Into<String>) -> anyhow::Result<Response<B>>
-where
-    B: Body + From<String>,
-{
+where B: Body + From<String> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.into().into())
@@ -126,9 +124,7 @@ where
 
 /// HTTP not found response generator
 fn not_found<B>() -> anyhow::Result<Response<B>>
-where
-    B: Body + From<Vec<u8>>,
-{
+where B: Body + From<Vec<u8>> {
     let response = Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(b"Not Found".to_vec().into())?;
@@ -575,9 +571,7 @@ fn is_critical_asset(file_path: &str) -> bool {
 /// - **Requirement**: All cross-origin assets need `crossorigin` attribute or CORP
 ///   headers
 fn add_security_headers<B>(mut response: Response<B>) -> anyhow::Result<Response<B>>
-where
-    B: Body,
-{
+where B: Body {
     let headers = response.headers_mut();
 
     // Enable Cross-Origin Isolation for advanced web features
@@ -653,19 +647,21 @@ where
 {
     match file_path {
         "www/index.html" => not_found(),
-        _ => match app.vfs().read("www/index.html") {
-            Ok(index_contents) => {
-                let mut response = Response::new(index_contents.into());
-                response
-                    .headers_mut()
-                    .insert("Content-Type", CONTENT_TYPE_HTML.parse()?);
-                response
-                    .headers_mut()
-                    .insert("Cache-Control", NO_CACHE_DIRECTIVE.parse()?);
-                response = add_security_headers(response)?;
-                Ok(response)
-            },
-            Err(_) => not_found(),
+        _ => {
+            match app.vfs().read("www/index.html") {
+                Ok(index_contents) => {
+                    let mut response = Response::new(index_contents.into());
+                    response
+                        .headers_mut()
+                        .insert("Content-Type", CONTENT_TYPE_HTML.parse()?);
+                    response
+                        .headers_mut()
+                        .insert("Cache-Control", NO_CACHE_DIRECTIVE.parse()?);
+                    response = add_security_headers(response)?;
+                    Ok(response)
+                },
+                Err(_) => not_found(),
+            }
         },
     }
 }

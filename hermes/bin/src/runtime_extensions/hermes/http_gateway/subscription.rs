@@ -3,11 +3,13 @@
 //! Routes HTTP requests to specific WASM modules based on endpoint subscriptions.
 //! Uses regex pattern matching with simple specificity-based priority.
 
-use crate::runtime_extensions::utils::regex_ranking::regex_specificity_score;
+use std::sync::Arc;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::sync::RwLock;
+
+use crate::runtime_extensions::utils::regex_ranking::regex_specificity_score;
 
 /// HTTP endpoint subscription defining which module handles specific request patterns
 #[derive(Debug, Clone, Serialize, Deserialize)]
