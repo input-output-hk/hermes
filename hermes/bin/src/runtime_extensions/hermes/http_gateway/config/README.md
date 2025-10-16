@@ -4,7 +4,8 @@ This guide explains how to configure HTTP endpoint subscriptions for the Hermes 
 
 ## Overview
 
-The HTTP gateway uses endpoint subscriptions to intelligently route incoming HTTP requests to specific WebAssembly modules instead of broadcasting to all modules.
+The HTTP gateway uses endpoint subscriptions to intelligently route incoming HTTP requests to specific WebAssembly
+modules instead of broadcasting to all modules.
 This improves performance and allows for more granular request handling.
 
 ## Configuration Structure
