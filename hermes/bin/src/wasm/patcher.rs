@@ -369,8 +369,8 @@ impl Patcher {
 #[cfg(test)]
 mod tests {
     use wasmtime::{
-        component::{bindgen, Linker},
-        Engine, Store,
+        component::{bindgen, Instance, Linker},
+        AsContextMut, Engine, Store,
     };
     use wasmtime_wasi::{p2::add_to_linker_sync, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
@@ -701,20 +701,6 @@ mod tests {
 
     #[test]
     fn injected_get_memory_size_works() {
-        struct MyCtx {
-            table: ResourceTable,
-            wasi: WasiCtx,
-        }
-
-        impl WasiView for MyCtx {
-            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
-                wasmtime_wasi::WasiCtxView {
-                    ctx: &mut self.wasi,
-                    table: &mut self.table,
-                }
-            }
-        }
-
         // Step 1: Patch the WASM file
         let patcher =
             Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
@@ -759,20 +745,6 @@ mod tests {
 
     #[test]
     fn injected_get_memory_raw_bytes_works() {
-        struct MyCtx {
-            table: ResourceTable,
-            wasi: WasiCtx,
-        }
-
-        impl WasiView for MyCtx {
-            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
-                wasmtime_wasi::WasiCtxView {
-                    ctx: &mut self.wasi,
-                    table: &mut self.table,
-                }
-            }
-        }
-
         // Step 1: Patch the WASM file
         let patcher =
             Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
@@ -852,23 +824,44 @@ mod tests {
             .any(|window| window == expected_pattern));
     }
 
+    struct MyCtx {
+        table: ResourceTable,
+        wasi: WasiCtx,
+    }
+
+    impl WasiView for MyCtx {
+        fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
+            wasmtime_wasi::WasiCtxView {
+                ctx: &mut self.wasi,
+                table: &mut self.table,
+            }
+        }
+    }
+
+    fn get_bytes_at_offset(
+        instance: &Instance,
+        mut store: impl AsContextMut,
+        offset: u32,
+    ) -> i64 {
+        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
+        let get_memory_raw_bytes = instance
+            .get_func(&mut store, get_memory_raw_bytes_func)
+            .expect("should get func")
+            .typed::<(u32,), (i64,)>(&store)
+            .expect("should be a typed func");
+        let raw_bytes = get_memory_raw_bytes
+            .call(&mut store, (offset,))
+            .expect("should call")
+            .0;
+        get_memory_raw_bytes
+            .post_return(store)
+            .expect("should post return");
+        raw_bytes
+    }
+
     #[test]
     fn injected_set_memory_raw_bytes_works() {
         const OFFSET: u32 = 0xF000;
-
-        struct MyCtx {
-            table: ResourceTable,
-            wasi: WasiCtx,
-        }
-
-        impl WasiView for MyCtx {
-            fn ctx(&mut self) -> wasmtime_wasi::WasiCtxView<'_> {
-                wasmtime_wasi::WasiCtxView {
-                    ctx: &mut self.wasi,
-                    table: &mut self.table,
-                }
-            }
-        }
 
         // Step 1: Patch the WASM file
         let patcher =
@@ -892,6 +885,10 @@ mod tests {
             .instantiate(&mut store, &component)
             .expect("should instantiate");
 
+        let old_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+        let old_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+        let old_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
+
         // Step 3: Set bytes at a specific offset
         let bytes: i64 = 0x1122_3344_5566_7788;
         let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
@@ -909,38 +906,14 @@ mod tests {
 
         // Step 4: Retrieve bytes before-, on- and after-offset.
         // Check that only the bytes at the offset match.
-        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
-        let get_memory_raw_bytes = instance
-            .get_func(&mut store, get_memory_raw_bytes_func)
-            .expect("should get func")
-            .typed::<(u32,), (i64,)>(&store)
-            .expect("should be a typed func");
-        let raw_bytes_pre_offset = get_memory_raw_bytes
-            .call(&mut store, (OFFSET - 8,))
-            .expect("should call")
-            .0;
-        get_memory_raw_bytes
-            .post_return(&mut store)
-            .expect("should post return");
-        assert_ne!(raw_bytes_pre_offset, bytes);
+        let new_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+        let new_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+        let new_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
 
-        let raw_bytes_on_offset = get_memory_raw_bytes
-            .call(&mut store, (OFFSET,))
-            .expect("should call")
-            .0;
-        get_memory_raw_bytes
-            .post_return(&mut store)
-            .expect("should post return");
-        assert_eq!(raw_bytes_on_offset, bytes);
-
-        let raw_bytes_post_offset = get_memory_raw_bytes
-            .call(&mut store, (OFFSET + 8,))
-            .expect("should call")
-            .0;
-        get_memory_raw_bytes
-            .post_return(&mut store)
-            .expect("should post return");
-        assert_ne!(raw_bytes_post_offset, bytes);
+        assert_eq!(old_bytes_pre_offset, new_bytes_pre_offset);
+        assert_eq!(old_bytes_post_offset, new_bytes_post_offset);
+        assert_ne!(old_bytes_at_offset, bytes);
+        assert_eq!(new_bytes_at_offset, bytes);
     }
 
     #[test]
