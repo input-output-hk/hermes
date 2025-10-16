@@ -121,65 +121,15 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    let result: anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> = (|| {
-        for cur_txn in txn_ids {
-            // Reset first to ensure the statement is in a clean state
-            DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&reg_v_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
-
-            let registration_info = get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn)
-                .or_else(|_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn))?;
-
-            let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
-                Some(info) => info,
-                None => {
-                    // This txn_id exists in stake address table but not in registration table
-                    // This SHOULD NOT happen
-                    // Skip to next transaction
-                    log(
-                        Level::Warn,
-                        None,
-                        Some(FUNCTION_NAME),
-                        None,
-                        None,
-                        None,
-                        "Registration info not found",
-                        None,
-                    );
-                    continue;
-                },
-            };
-            // This means the registration in this transaction id IS NOT a root.
-            // This check can be omitted, but is here just for readability.
-            // Search persistent first then volatile
-            if prv_txn_id.is_some() {
-                (cat_id, slot_no, txn_idx) =
-                    match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id)? {
-                        Some((cat_id, slot, idx)) => (cat_id, slot, idx),
-                        None => {
-                            // Broken chain, skip to next transaction
-                            continue;
-                        },
-                    }
-            }
-
-            if let Some(id) = cat_id {
-                // Perform a check on whether the cat id is already used by other valid chains.
-                if is_valid_root(
-                    &root_validate_p_stmt,
-                    &root_validate_v_stmt,
-                    &id,
-                    slot_no,
-                    txn_idx,
-                )? {
-                    return select_rbac_registration_chain_from_cat_id(persistent, volatile, &id);
-                }
-            }
-        }
-        Ok((vec![], RbacChainMetadata::default()))
-    })();
+    let result = process_stake_txn_ids(
+        txn_ids,
+        &reg_p_stmt,
+        &reg_v_stmt,
+        &root_validate_p_stmt,
+        &root_validate_v_stmt,
+        persistent,
+        volatile,
+    );
 
     // cleanup always runs here
     DatabaseStatement::finalize_statement(reg_p_stmt, FUNCTION_NAME)?;
@@ -188,6 +138,77 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
 
     result
+}
+
+/// Helper function to process find valid registration chain information.
+fn process_stake_txn_ids(
+    txn_ids: Vec<Vec<u8>>,
+    reg_p_stmt: &Statement,
+    reg_v_stmt: &Statement,
+    root_validate_p_stmt: &Statement,
+    root_validate_v_stmt: &Statement,
+    persistent: &Sqlite,
+    volatile: &Sqlite,
+) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
+    const FUNCTION_NAME: &str = "process_stake_txn_ids";
+
+    for cur_txn in txn_ids {
+        // Reset first to ensure the statement is in a clean state
+        DatabaseStatement::reset_statement(reg_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(reg_v_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(root_validate_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(root_validate_v_stmt, FUNCTION_NAME)?;
+
+        let registration_info = get_registration_info_from_txn_id(reg_p_stmt, &cur_txn)
+            .or_else(|_| get_registration_info_from_txn_id(reg_v_stmt, &cur_txn))?;
+
+        let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
+            Some(info) => info,
+            None => {
+                // This txn_id exists in stake address table but not in registration table
+                // This SHOULD NOT happen
+                // Skip to next transaction
+                log(
+                    Level::Warn,
+                    None,
+                    Some(FUNCTION_NAME),
+                    None,
+                    None,
+                    None,
+                    "Registration info not found",
+                    None,
+                );
+                continue;
+            },
+        };
+        // This means the registration in this transaction id IS NOT a root.
+        // This check can be omitted, but is here just for readability.
+        // Search persistent first then volatile
+        if prv_txn_id.is_some() {
+            (cat_id, slot_no, txn_idx) = match walk_chain_back(reg_p_stmt, reg_v_stmt, prv_txn_id)?
+            {
+                Some((cat_id, slot, idx)) => (cat_id, slot, idx),
+                None => {
+                    // Broken chain, skip to next transaction
+                    continue;
+                },
+            }
+        }
+
+        if let Some(id) = cat_id {
+            // Perform a check on whether the cat id is already used by other valid chains.
+            if is_valid_root(
+                root_validate_p_stmt,
+                root_validate_v_stmt,
+                &id,
+                slot_no,
+                txn_idx,
+            )? {
+                return select_rbac_registration_chain_from_cat_id(persistent, volatile, &id);
+            }
+        }
+    }
+    Ok((vec![], RbacChainMetadata::default()))
 }
 
 /// Get a list of transaction IDs that contain the given stake address.
