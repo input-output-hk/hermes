@@ -39,7 +39,7 @@ pub(crate) struct Application {
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Arc<Module>>,
 
-    /// Maps module names (e.g. "user_auth") to their unique ULID identifiers.
+    /// Maps module names (e.g. "`user_auth`") to their unique ULID
     /// Enables fast lookup of modules by human-readable name
     module_registry: HashMap<String, ModuleId>,
 
