@@ -744,7 +744,7 @@ mod tests {
         // Test multiple HTTP methods
         for method in ["GET", "POST", "PUT", "DELETE"] {
             let matched = manager.find_endpoint_subscription(method, "/api/v1/registration", None);
-            assert!(matched.is_some(), "Should accept method: {}", method);
+            assert!(matched.is_some(), "Should accept method: {method}");
             assert_eq!(matched.unwrap().subscription_id, "catch_all");
         }
     }
@@ -780,8 +780,7 @@ mod tests {
             let matched = manager.find_endpoint_subscription("POST", "/api/upload", content_type);
             assert!(
                 matched.is_some(),
-                "Should accept content type: {:?}",
-                content_type
+                "Should accept content type: {content_type:?}"
             );
         }
     }
@@ -864,7 +863,10 @@ mod tests {
         EndpointSubscription::new(
             id.to_string(),
             "test_module".to_string(),
-            methods.into_iter().map(|s| s.to_string()).collect(),
+            methods
+                .into_iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
             path_regex.to_string(),
             vec!["application/json".to_string()],
             None,

@@ -66,42 +66,38 @@ pub(crate) async fn load_embedded_endpoints() -> Result<(), String> {
     Ok(())
 }
 
-/// Flag to track if endpoints have been loaded
-static ENDPOINTS_LOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-///  State.
-static STATE: once_cell::sync::Lazy<()> = once_cell::sync::Lazy::new(|| {
-    spawn();
-});
+/// Ensure HTTP gateway is initialized only once
+static GATEWAY_INIT: std::sync::Once = std::sync::Once::new();
 
 /// New context
 pub(crate) fn new_context(_ctx: &crate::runtime_context::HermesRuntimeContext) {
-    // Load endpoints synchronously in a dedicated thread to avoid Tokio runtime issues
-    if !ENDPOINTS_LOADED.load(std::sync::atomic::Ordering::Relaxed) {
-        std::thread::spawn(|| {
-            // Create a dedicated runtime for endpoint loading
-            let rt = match tokio::runtime::Builder::new_current_thread()
-                .enable_time()
-                .build()
-            {
-                Ok(rt) => rt,
-                Err(e) => {
-                    error!("Failed to create runtime for endpoint loading: {:?}", e);
-                    return;
-                },
-            };
+    GATEWAY_INIT.call_once(|| {
+        // Load endpoints first
+        load_endpoints_sync();
 
-            rt.block_on(async {
-                if let Err(e) = load_embedded_endpoints().await {
-                    error!("Failed to load embedded endpoints: {}", e);
-                } else {
-                    info!("HTTP Gateway endpoints loaded successfully");
-                    ENDPOINTS_LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
-                }
-            });
-        });
-    }
+        // Then start the gateway
+        spawn();
+    });
+}
 
-    // Init state event - this triggers HTTP gateway spawn
-    let () = *STATE;
+/// Load endpoints synchronously to avoid race conditions
+fn load_endpoints_sync() {
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(e) => {
+            error!("Failed to create runtime for endpoint loading: {}", e);
+            return;
+        },
+    };
+
+    rt.block_on(async {
+        if let Err(e) = load_embedded_endpoints().await {
+            error!("Failed to load endpoints: {}", e);
+        } else {
+            info!("HTTP Gateway endpoints loaded successfully");
+        }
+    });
 }

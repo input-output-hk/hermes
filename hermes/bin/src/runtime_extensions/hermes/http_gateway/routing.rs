@@ -361,16 +361,15 @@ fn resolve_target_module(
                 target_module_str
             );
 
-            match modules.get(&target_module_str) {
-                Some(found_module_id) => TargetModule::List(vec![found_module_id.clone()]),
-                None => {
-                    info!(
-                        "Module '{}' not found in available modules: {:?}, broadcasting to all",
-                        target_module_str,
-                        modules.keys().collect::<Vec<_>>()
-                    );
-                    TargetModule::All
-                },
+            if let Some(found_module_id) = modules.get(&target_module_str) {
+                TargetModule::List(vec![found_module_id.clone()])
+            } else {
+                info!(
+                    "Module '{}' not found in available modules: {:?}, broadcasting to all",
+                    target_module_str,
+                    modules.keys().collect::<Vec<_>>()
+                );
+                TargetModule::All
             }
         },
     };
