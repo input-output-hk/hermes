@@ -1,24 +1,38 @@
-//! HTTP Proxy Module - Configurable Request Router
+//! HTTP Proxy Module - **TEMPORARY** External Bridge
 //!
-//! ## Vision
-//! This module is designed to be a fully configurable HTTP proxy system that can:
-//! - Route requests to different backends based on configurable rules
-//! - Support multiple routing strategies (path-based, header-based, etc.)
-//! - Handle load balancing and failover scenarios
-//! - Provide middleware capabilities for request/response transformation
-//! - Offer dynamic configuration updates without restarts
+//! ⚠️ **DEPRECATION NOTICE**: This module is a **temporary solution** that will be
+//! **deprecated** once native WASM implementations are completed.
 //!
-//! ## Current State
-//! At present, the module serves as a temporary bridge to external Cat Voices endpoints
-//! while native implementations are under development. The current focus is on:
-//! - Maintaining API compatibility during the transition period
-//! - Ensuring reliable request forwarding to external services
-//! - Providing seamless user experience while backend services migrate
+//! ## Purpose
+//! This module serves as a **temporary bridge** to external Cat Voices endpoints while
+//! native WASM modules are under development. It provides:
+//! - External redirects to `https://app.dev.projectcatalyst.io`
+//! - Temporary API compatibility during migration
+//! - Seamless user experience while native services are built
 //!
-//! ## Roadmap
-//! As native implementations are completed, this module will evolve into a sophisticated
-//! proxy system capable of routing between multiple backends, supporting A/B testing,
-//! gradual rollouts, and advanced traffic management scenarios.
+//! ## Migration Strategy
+//! The HTTP gateway's subscription system enables seamless migration:
+//!
+//! **Current (Temporary)**:
+//! ```
+//! /api/gateway/v1/config → http_proxy module → External redirect
+//! ```
+//!
+//! **Future (Native)**:
+//! ```
+//! /api/gateway/v1/config → frontend_config_native module → Direct implementation
+//! ```
+//!
+//! Only the `module_id` in `endpoints.json` needs updating - no gateway changes required.
+//!
+//! ## Deprecation Timeline
+//! This module will be removed once all the following native modules are implemented:
+//! - `frontend_config_native` (replaces `/api/gateway/v1/config/frontend`)
+//! - `cardano_assets_native` (replaces `/api/gateway/v1/cardano/assets/*`)
+//! - `rbac_native` (replaces `/api/gateway/v1/rbac/registration*`)
+//! - `document_service_native` (replaces `/api/gateway/v*/document*`)
+//! - `static_file_native` (replaces `/static/*` if needed)
+//!
 
 use std::sync::OnceLock;
 
@@ -56,34 +70,38 @@ enum RouteAction {
 /// Compiled patterns for efficient matching
 static ROUTE_MATCHER: OnceLock<(RegexSet, Vec<RouteAction>)> = OnceLock::new();
 
-/// External Cat Voices host for temporary external routing
-/// TODO: Make this configurable via environment variables or config file
+/// External Cat Voices host for **temporary** external routing
+/// ⚠️ TEMPORARY: This will be removed when native modules are ready
 const EXTERNAL_HOST: &str = "https://app.dev.projectcatalyst.io";
 
-/// Route patterns that should be forwarded to external Cat Voices system
-/// TODO: Convert to configurable rules engine supporting dynamic pattern updates
+/// Route patterns for **temporary** external forwarding to Cat Voices system
+/// ⚠️ DEPRECATED: These patterns will be replaced by native WASM modules:
+/// - `/api/gateway/v1/config/frontend` → `frontend_config_native` module
+/// - `/api/gateway/v1/cardano/assets/*` → `cardano_assets_native` module  
+/// - `/api/gateway/v1/rbac/registration*` → `rbac_native` module
+/// - `/api/gateway/v*/document*` → `document_service_native` module
 const EXTERNAL_ROUTE_PATTERNS: &[&str] = &[
     r"^/api/gateway/v1/config/frontend$",
     r"^/api/gateway/v1/cardano/assets/.+$",
     r"^/api/gateway/v1/rbac/registration.*$",
     r"^/api/gateway/v1/document.*$",
-    r"^/api/gateway/v2/document.*$", //  can handle subpaths and query parameters
+    r"^/api/gateway/v2/document.*$",
 ];
 
 /// Regex pattern for static content (handled natively)
-/// TODO: Make static content patterns configurable
+/// ⚠️ TEMPORARY: May be removed if static content remains in HTTP gateway
 const STATIC_PATTERN: &str = r"^/static/.+$";
 
-/// HTTP proxy component providing configurable request routing.
+/// **TEMPORARY** HTTP proxy component for external bridging.
 ///
-/// Currently serves as a temporary bridge to external Cat Voices endpoints
-/// while native implementations are developed. The long-term vision is to
-/// evolve this into a full-featured configurable proxy supporting:
-/// - Dynamic backend selection
-/// - Load balancing strategies
-/// - Circuit breakers and health checks
-/// - Request/response middleware chains
-/// - A/B testing and canary deployments
+/// ⚠️ **This component will be deprecated** once native WASM modules are completed.
+///
+/// Currently provides temporary bridging to external Cat Voices endpoints during
+/// the migration from external dependencies to native implementations. This allows
+/// the system to maintain functionality while native modules are developed.
+///
+/// **This is NOT intended to be a permanent proxy solution** - it's specifically
+/// designed as a migration bridge that will be removed.
 struct HttpProxyComponent;
 
 /// Initialize all route patterns as a single RegexSet
@@ -129,14 +147,14 @@ fn is_static_content(path: &str) -> bool {
 }
 
 /// Creates an external route redirect response
-/// Currently redirects to Cat Voices - will become configurable backend selection
+/// ⚠️ TEMPORARY: Redirects to Cat Voices - will be replaced by native modules
 fn create_external_redirect(path: &str) -> HttpGatewayResponse {
     log_debug(&format!("Routing externally to Cat Voices: {}", path));
     HttpGatewayResponse::InternalRedirect(format!("{}{}", EXTERNAL_HOST, path))
 }
 
 /// Creates a static content response (native handling)
-/// TODO: Integrate with configurable static content serving middleware
+/// ⚠️ TEMPORARY: May be removed if static content stays in HTTP gateway
 fn create_static_response(path: &str) -> HttpGatewayResponse {
     log_debug(&format!("Serving static content natively: {}", path));
     HttpGatewayResponse::Http(HttpResponse {
@@ -147,7 +165,7 @@ fn create_static_response(path: &str) -> HttpGatewayResponse {
 }
 
 /// Creates a 404 not found response
-/// TODO: Make error responses configurable (custom error pages, etc.)
+/// ⚠️ TEMPORARY: Simple 404 response - will be removed with this module
 fn create_not_found_response(
     method: &str,
     path: &str,
@@ -216,11 +234,15 @@ fn format_response_type(response: &HttpGatewayResponse) -> String {
 }
 
 impl exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
-    /// Routes HTTP requests through configurable proxy logic.
+    /// Routes HTTP requests through **temporary** proxy logic.
     ///
-    /// Current implementation provides temporary bridging to external Cat Voices
-    /// endpoints while native implementations are developed. Future versions will
-    /// support sophisticated routing rules, backend selection, and middleware chains.
+    /// ⚠️ **TEMPORARY IMPLEMENTATION**: This method provides bridging to external
+    /// Cat Voices endpoints during migration to native WASM modules. Once native
+    /// implementations are complete, this entire module will be deprecated and
+    /// removed.
+    ///
+    /// The routing behavior is intentionally simple since this is not a permanent
+    /// solution - it's designed to be replaced, not enhanced.
     fn reply(
         _body: Vec<u8>,
         _headers: Headers,
