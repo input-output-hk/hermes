@@ -74,7 +74,7 @@ use tokio::sync::RwLock;
 /// - More literal characters = higher score
 /// - Anchors (^, $) = bonus points
 /// - Wildcards (.*) = penalty
-/// - Specific methods/content-types = bonus points
+/// - Score based purely on regex pattern complexity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EndpointSubscription {
     /// Unique identifier for this subscription (used in logs and debugging)
@@ -100,7 +100,7 @@ pub struct EndpointSubscription {
     pub content_types: Vec<String>,
 
     /// Optional path to JSON Schema file for request body validation
-    /// Only used when `content_types` includes "application/json"
+    /// Only used when request validation is required for JSON content
     pub json_schema: Option<String>,
 
     /// Calculated specificity score for priority ordering (higher = more specific)
@@ -174,28 +174,16 @@ impl EndpointSubscription {
     /// Calculates the specificity score for priority ordering
     ///
     /// Higher scores indicate more specific patterns that should take precedence.
-    /// The score considers:
-    /// - Base regex specificity (literal chars, anchors, wildcards)
-    /// - Method specificity bonus
-    /// - JSON schema validation bonus
+    /// The score is based purely on regex pattern specificity:
+    /// - More literal characters = higher score
+    /// - Anchors (^, $) = bonus points
+    /// - Wildcards (.*) = penalty
     fn calculate_specificity(
         path_regex: &str,
-        methods: &[String],
-        json_schema: Option<&String>,
+        _methods: &[String],
+        _json_schema: Option<&String>,
     ) -> i32 {
-        let mut score = regex_specificity_score(path_regex);
-
-        // Bonus for having specific HTTP methods (not catch-all)
-        if !methods.is_empty() {
-            score = score.saturating_add(5);
-        }
-
-        // Bonus for having JSON schema validation
-        if json_schema.is_some() {
-            score = score.saturating_add(3);
-        }
-
-        score
+        regex_specificity_score(path_regex)
     }
 
     /// Checks if this subscription matches the given request parameters
@@ -462,34 +450,16 @@ impl SubscriptionManager {
     /// stop searching immediately, improving performance.
     ///
     /// ## Perfect Match Criteria
-    /// 1. **Very High Specificity**: Score > 25 (always perfect)
-    /// 2. **High Specificity + Quality**: Score > 15 AND has specific methods OR JSON schema
+    /// - **High Specificity**: Score > 20 (based on regex complexity)
     ///
     /// ## Examples
-    /// - `^/api/v1/users/[0-9]+$` with specific methods: Perfect (high specificity + specific)
-    /// - `^/api/.*$` with no methods: Not perfect (lower specificity, catch-all)
-    /// - `^/api/data$` with JSON schema: Perfect (moderate specificity + validation)
+    /// - `^/api/v1/users/[0-9]+$`: Perfect (high regex specificity)
+    /// - `^/api/.*$`: Not perfect (lower specificity, catch-all pattern)
+    /// - `^/api/v1/specific/endpoint$`: Perfect (many literal characters)
     fn is_perfect_match(subscription: &EndpointSubscription) -> bool {
-        const HIGH_SPECIFICITY_THRESHOLD: i32 = 15;
-        const VERY_HIGH_SPECIFICITY_THRESHOLD: i32 = 25;
+        const HIGH_SPECIFICITY_THRESHOLD: i32 = 20;
 
-        let score = subscription.specificity_score;
-
-        // Very high specificity is always considered perfect
-        if score > VERY_HIGH_SPECIFICITY_THRESHOLD {
-            return true;
-        }
-
-        // High specificity with additional quality indicators
-        if score > HIGH_SPECIFICITY_THRESHOLD {
-            let has_specific_methods = !subscription.methods.is_empty();
-            let has_validation = subscription.json_schema.is_some();
-
-            // Either specific methods or validation qualifies as perfect
-            return has_specific_methods || has_validation;
-        }
-
-        false
+        subscription.specificity_score > HIGH_SPECIFICITY_THRESHOLD
     }
 }
 
@@ -694,14 +664,14 @@ mod tests {
     fn test_perfect_match_optimization() {
         let mut manager = SubscriptionManager::new();
 
-        // Perfect match: high specificity + JSON schema
+        // Perfect match: high regex specificity
         let perfect_sub = EndpointSubscription::new(
             "perfect".to_string(),
             "perfect_module".to_string(),
             vec!["POST".to_string()],
-            "^/api/v1/users/create$".to_string(),
+            "^/api/v1/users/create/profile/settings$".to_string(), // Very specific path
             vec!["application/json".to_string()],
-            Some("user-schema.json".to_string()),
+            None,
         )
         .unwrap();
 
@@ -715,7 +685,7 @@ mod tests {
 
         let matched = manager.find_endpoint_subscription(
             "POST",
-            "/api/v1/users/create",
+            "/api/v1/users/create/profile/settings",
             Some("application/json"),
         );
 
@@ -788,43 +758,29 @@ mod tests {
     /// Tests the perfect match detection criteria
     #[test]
     fn test_is_perfect_match_criteria() {
-        // Very high specificity (should always be perfect)
-        let very_high_sub = create_test_subscription(
-            "very_high",
-            "^/api/v1/users/[0-9]+/profile/settings$",
+        // High specificity regex (should be perfect)
+        let high_specificity_sub = create_test_subscription(
+            "high_specificity",
+            "^/api/v1/users/[0-9]+/profile/settings/preferences$",
             vec![],
         );
 
-        // High specificity with methods
-        let high_with_methods = create_test_subscription(
-            "high_methods",
-            "^/api/v1/users/create$",
-            vec!["GET", "POST"],
-        );
+        // Low specificity regex (should not be perfect)
+        let low_specificity_sub =
+            create_test_subscription("low_specificity", "^/api/.*$", vec!["GET"]);
 
-        // High specificity with JSON schema
-        let high_with_schema = EndpointSubscription::new(
-            "high_schema".to_string(),
-            "module".to_string(),
-            vec![],
-            "^/api/v1/data$".to_string(),
-            vec!["application/json".to_string()],
-            Some("schema.json".to_string()),
-        )
-        .unwrap();
-
-        // Low specificity (should not be perfect)
-        let low_specificity = create_test_subscription(
-            "low",
+        // Very low specificity (should not be perfect)
+        let catch_all_sub = create_test_subscription(
+            "catch_all",
             ".*", // Very general pattern
             vec!["GET"],
         );
 
-        // Verify perfect match detection
-        assert!(SubscriptionManager::is_perfect_match(&very_high_sub));
-        assert!(SubscriptionManager::is_perfect_match(&high_with_methods));
-        assert!(SubscriptionManager::is_perfect_match(&high_with_schema));
-        assert!(!SubscriptionManager::is_perfect_match(&low_specificity));
+        // Verify perfect match detection based on regex complexity
+        assert!(SubscriptionManager::is_perfect_match(&high_specificity_sub));
+        // Low specificity patterns should not be considered perfect matches
+        assert!(!SubscriptionManager::is_perfect_match(&low_specificity_sub));
+        assert!(!SubscriptionManager::is_perfect_match(&catch_all_sub));
     }
 
     /// Tests individual matching functions

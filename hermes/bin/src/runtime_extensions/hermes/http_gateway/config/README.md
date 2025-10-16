@@ -19,7 +19,7 @@ The configuration file should contain an array of endpoint subscription objects:
       "methods": ["GET", "POST"],
       "path_regex": "^/api/users(/.*)?$",
       "content_types": ["application/json"],
-      "json_schema": "optional-schema-file.json"
+      "json_schema": null
     }
   ]
 }
@@ -49,11 +49,14 @@ The configuration file should contain an array of endpoint subscription objects:
 
 ```json
 {
-  "endpoint_subscriptions": [
+  "subscriptions": [
     {
       "subscription_id": "basic_api",
       "module_id": "api_handler",
-      "path_regex": "^/api/.*$"
+      "methods": [],
+      "path_regex": "^/api/.*$",
+      "content_types": [],
+      "json_schema": null
     }
   ]
 }
@@ -63,13 +66,14 @@ The configuration file should contain an array of endpoint subscription objects:
 
 ```json
 {
-  "endpoint_subscriptions": [
+  "subscriptions": [
     {
       "subscription_id": "user_crud",
       "module_id": "user_service",
       "methods": ["GET", "POST", "PUT", "DELETE"],
       "path_regex": "^/api/v1/users(/[0-9]+)?$",
-      "content_types": ["application/json"]
+      "content_types": ["application/json"],
+      "json_schema": null
     }
   ]
 }
@@ -79,7 +83,7 @@ The configuration file should contain an array of endpoint subscription objects:
 
 ```json
 {
-  "endpoint_subscriptions": [
+  "subscriptions": [
     {
       "subscription_id": "user_registration",
       "module_id": "auth_service",
@@ -100,7 +104,9 @@ The configuration file should contain an array of endpoint subscription objects:
       "subscription_id": "static_files",
       "module_id": "file_server",
       "methods": ["GET"],
-      "path_regex": "^/static/.*\\.(css|js|png|jpg|gif)$"
+      "path_regex": "^/static/.*\\.(css|js|png|jpg|gif)$",
+      "content_types": [],
+      "json_schema": null
     }
   ]
 }
@@ -184,26 +190,30 @@ The gateway uses a specificity scoring system to determine which subscription ha
 
 ```json
 {
-  "endpoint_subscriptions": [
+  "subscriptions": [
     {
       "subscription_id": "specific_user_profile",
       "module_id": "user_service", 
       "methods": ["GET", "PUT"],
       "path_regex": "^/api/v1/users/[0-9]+/profile$",
-      "content_types": ["application/json"]
-      // High priority - very specific
+      "content_types": ["application/json"],
+      "json_schema": null
     },
     {
       "subscription_id": "general_users",
       "module_id": "user_service",
-      "path_regex": "^/api/v1/users/.*$"
-      // Medium priority - somewhat specific
+      "methods": [],
+      "path_regex": "^/api/v1/users/.*$",
+      "content_types": [],
+      "json_schema": null
     },
     {
       "subscription_id": "api_catchall", 
       "module_id": "default_handler",
-      "path_regex": "^/api/.*$"
-      // Low priority - catch-all pattern
+      "methods": [],
+      "path_regex": "^/api/.*$",
+      "content_types": [],
+      "json_schema": null
     }
   ]
 }
@@ -213,7 +223,7 @@ The gateway uses a specificity scoring system to determine which subscription ha
 
 ```json
 {
-  "endpoint_subscriptions": [
+  "subscriptions": [
     {
       "subscription_id": "user_management_api",
       "module_id": "user_service",
@@ -227,25 +237,32 @@ The gateway uses a specificity scoring system to determine which subscription ha
       "module_id": "auth_service",
       "methods": ["POST"],
       "path_regex": "^/api/v1/(login|logout|register)$",
-      "content_types": ["application/json"]
+      "content_types": ["application/json"],
+      "json_schema": null
     },
     {
       "subscription_id": "file_uploads",
       "module_id": "file_service",
       "methods": ["POST", "PUT"],
       "path_regex": "^/api/v1/upload(/.*)?$",
-      "content_types": ["multipart/form-data"]
+      "content_types": ["multipart/form-data"],
+      "json_schema": null
     },
     {
       "subscription_id": "health_check",
       "module_id": "monitoring_service",
       "methods": ["GET"],
-      "path_regex": "^/(health|status)$"
+      "path_regex": "^/(health|status)$",
+      "content_types": [],
+      "json_schema": null
     },
     {
       "subscription_id": "default_api_handler",
       "module_id": "default_service",
-      "path_regex": "^/api/.*$"
+      "methods": [],
+      "path_regex": "^/api/.*$",
+      "content_types": [],
+      "json_schema": null
     }
   ]
 }
