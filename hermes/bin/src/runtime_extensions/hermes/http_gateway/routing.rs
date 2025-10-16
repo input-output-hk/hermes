@@ -213,8 +213,6 @@ async fn determine_route(
         .path_and_query()
         .map_or(uri.path(), hyper::http::uri::PathAndQuery::as_str);
 
-    info!("Incoming request: {}", path);
-
     // Check if this is an API endpoint that needs WebAssembly processing
     // API routes are identified by the /api prefix (exact match or with additional path)
     let method = req.method().as_str();
@@ -238,6 +236,8 @@ async fn determine_route(
         ));
     }
 
+    // Check if this is an API endpoint that needs WebAssembly processing
+    // API routes are identified by the /api prefix (exact match or with additional path)
     if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
         Ok(RouteType::WebAssembly(path.to_string(), None))
         // Check if this is a valid static file path
@@ -316,12 +316,7 @@ where
     };
 
     let app = reactor::get_app(app_name)?;
-    let modules = app.get_module_registry(); // HashMap<String, ModuleId>
-    info!(
-        "Available modules: {:?}",
-        modules.keys().collect::<Vec<_>>()
-    );
-    info!("Target module: {:?}", module_id);
+    let modules = app.get_module_registry();
 
     let target_module = if let Some(target_module_str) = module_id {
         info!(
@@ -331,8 +326,6 @@ where
 
         // Look up the ModuleId by the string key
         if let Some(found_module_id) = modules.get(&target_module_str) {
-            // Use specific module - clone the ModuleId from the HashMap value
-            info!("lookup module {:?}", found_module_id.0);
             TargetModule::List(vec![found_module_id.clone()])
         } else {
             // Module not found, log warning and broadcast to all
