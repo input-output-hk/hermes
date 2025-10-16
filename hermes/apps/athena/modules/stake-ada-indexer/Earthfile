@@ -1,0 +1,21 @@
+VERSION 0.8
+
+IMPORT ../../../../ AS hermes
+IMPORT ../.. AS athena
+
+build-staked-ada-indexer:
+    DO athena+BUILD_ATHENA_COMPONENT --out=staked_ada_indexer.wasm
+
+local-build-staked-ada-indexer:
+    FROM scratch
+    COPY +build-staked-ada-indexer/staked_ada_indexer.wasm .
+    SAVE ARTIFACT staked_ada_indexer.wasm AS LOCAL lib/staked_ada_indexer.wasm
+
+package-staked-ada-indexer-module:
+    FROM hermes+build
+
+    COPY lib/ .
+    COPY +build-staked-ada-indexer/staked_ada_indexer.wasm .
+
+    RUN ./target/release/hermes module package manifest_module.json
+    SAVE ARTIFACT staked_ada_indexer.hmod

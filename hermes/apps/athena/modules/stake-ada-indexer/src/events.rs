@@ -16,7 +16,7 @@ use crate::database::create_tables;
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {
     info!(
-        target: "staked_ada::init",
+        target: "staked_ada_indexer::init",
         "💫 Initializing Sqlite..."
     );
 
@@ -27,7 +27,7 @@ pub fn init() -> anyhow::Result<()> {
     create_tables(&mut conn)?;
 
     info!(
-        target: "staked_ada::init",
+        target: "staked_ada_indexer::init",
         "💫 Sqlite initialized. Setting up Cardano subscription..."
     );
 
@@ -41,7 +41,7 @@ pub fn init() -> anyhow::Result<()> {
         .inspect_err(|error| error!(error:%, subscribe_from:?; "Failed to subscribe block from"))?;
 
     info!(
-        target: "staked_ada::init",
+        target: "staked_ada_indexer::init",
         network:?,
         subscription_id_resource:?;
         "💫 Cardano subscription set up."
@@ -65,7 +65,7 @@ pub fn on_cardano_block(
         .query_one_as::<(u64,)>(&[&block.get_slot().try_into()?])?;
 
     trace!(
-        target: "staked_ada::on_cardano_block",
+        target: "staked_ada_indexer::on_cardano_block",
         slot_no;
         "Handled event"
     );
@@ -87,7 +87,7 @@ pub fn on_cardano_immutable_roll_forward(
         .query_one_as::<(u64,)>(&[&block.get_slot().try_into()?])?;
 
     trace!(
-        target: "staked_ada::on_cardano_immutable_roll_forward",
+        target: "staked_ada_indexer::on_cardano_immutable_roll_forward",
         slot_no;
         "Handled event"
     );

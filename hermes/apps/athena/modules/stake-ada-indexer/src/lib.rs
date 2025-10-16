@@ -39,7 +39,7 @@ impl exports::hermes::init::event::Guest for Component {
         match events::init() {
             Ok(()) => true,
             Err(error) => {
-                error!(target: "staked_ada::init", error:?; "Not handled");
+                error!(target: "staked_ada_indexer::init", error:?; "Not handled");
                 false
             },
         }
@@ -53,7 +53,7 @@ impl exports::hermes::cardano::event_on_block::Guest for Component {
     ) {
         log::init(log::LevelFilter::Trace);
         if let Err(error) = events::on_cardano_block(subscription_id, block) {
-            error!(target: "staked_ada::on_cardano_block", error:?; "Not handled");
+            error!(target: "staked_ada_indexer::on_cardano_block", error:?; "Not handled");
         }
     }
 }
@@ -65,7 +65,7 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest for Compon
     ) {
         log::init(log::LevelFilter::Trace);
         if let Err(error) = events::on_cardano_immutable_roll_forward(subscription_id, block) {
-            error!(target: "staked_ada::on_cardano_immutable_roll_forward", error:?; "Not handled");
+            error!(target: "staked_ada_indexer::on_cardano_immutable_roll_forward", error:?; "Not handled");
         }
     }
 }

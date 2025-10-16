@@ -2056,7 +2056,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "staked-ada"
+name = "staked-ada-indexer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
