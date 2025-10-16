@@ -383,15 +383,23 @@ fn send_event_and_await_response<B>(
     receiver: &Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<B>>
 where
-    B: Body + From<String>,
+    B: Body + From<Vec<u8>> + From<String>,
 {
     crate::event::queue::send(event)?;
 
     let timeout = Duration::from_secs(EVENT_TIMEOUT);
     match receiver.recv_timeout(timeout)? {
-        HTTPEventMsg::HttpEventResponse(resp) => {
-            let response_body = serde_json::to_string(&resp)?.into();
-            Ok(Response::new(response_body))
+        HTTPEventMsg::HttpEventResponse((status_code, headers, body)) => {
+            let mut response_builder = Response::builder().status(status_code);
+
+            // Add headers to response
+            for (key, values) in headers {
+                for value in values {
+                    response_builder = response_builder.header(&key, value);
+                }
+            }
+            let response = response_builder.body(body.into())?;
+            Ok(response)
         },
         HTTPEventMsg::HTTPEventReceiver => error_response("Invalid HTTP event message received"),
     }

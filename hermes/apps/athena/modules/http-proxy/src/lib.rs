@@ -38,6 +38,7 @@ use std::sync::OnceLock;
 
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 use regex::RegexSet;
+use shared::utils::log::{self, debug, info, warn};
 
 shared::bindings_generate!({
     world: "hermes:app/hermes",
@@ -51,14 +52,11 @@ shared::bindings_generate!({
             import hermes:http-gateway/api;
 
             export hermes:http-gateway/event;
-            
         }
     ",
     share: ["hermes:logging"],
 });
 export!(HttpProxyComponent);
-
-use shared::bindings::hermes::logging::api::{log, Level};
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]
@@ -122,7 +120,7 @@ fn init_route_matcher() -> &'static (RegexSet, Vec<RouteAction>) {
 
         // Compile all patterns together for performance
         let regex_set = RegexSet::new(&patterns).unwrap_or_else(|e| {
-            log_warn(&format!("Failed to compile patterns: {}", e));
+            warn!(error:err = e; "Failed to compile patterns");
             RegexSet::empty()
         });
 
@@ -149,14 +147,14 @@ fn is_static_content(path: &str) -> bool {
 /// Creates an external route redirect response
 /// ⚠️ TEMPORARY: Redirects to Cat Voices - will be replaced by native modules
 fn create_external_redirect(path: &str) -> HttpGatewayResponse {
-    log_debug(&format!("Routing externally to Cat Voices: {}", path));
+    debug!(path; "Routing externally to Cat Voices");
     HttpGatewayResponse::InternalRedirect(format!("{}{}", EXTERNAL_HOST, path))
 }
 
 /// Creates a static content response (native handling)
 /// ⚠️ TEMPORARY: May be removed if static content stays in HTTP gateway
 fn create_static_response(path: &str) -> HttpGatewayResponse {
-    log_debug(&format!("Serving static content natively: {}", path));
+    debug!(path; "Serving static content natively");
     HttpGatewayResponse::Http(HttpResponse {
         code: 200,
         headers: vec![("content-type".to_string(), vec!["text/plain".to_string()])],
@@ -170,57 +168,16 @@ fn create_not_found_response(
     method: &str,
     path: &str,
 ) -> HttpGatewayResponse {
-    log_warn(&format!(
-        "Route not found (no native implementation or external routing configured): {} {}",
-        method, path
-    ));
+    warn!(
+        method,
+        path;
+        "Route not found (no native implementation or external routing configured)",
+    );
     HttpGatewayResponse::Http(HttpResponse {
         code: 404,
         headers: vec![("content-type".to_string(), vec!["text/html".to_string()])],
         body: Bstr::from("<html><body><h1>404 - Page Not Found</h1></body></html>"),
     })
-}
-
-/// Logs an info message
-fn log_info(message: &str) {
-    log(
-        Level::Info,
-        Some("http-proxy"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
-}
-
-/// Logs a debug message
-fn log_debug(message: &str) {
-    log(
-        Level::Debug,
-        Some("http-proxy"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
-}
-
-/// Logs a warning message
-fn log_warn(message: &str) {
-    log(
-        Level::Warn,
-        Some("http-proxy"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
 }
 
 /// Formats the response type for logging
@@ -249,7 +206,9 @@ impl exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
         path: String,
         method: String,
     ) -> Option<HttpGatewayResponse> {
-        log_info(&format!("Processing HTTP request: {} {}", method, path));
+        log::init(log::LevelFilter::Trace);
+
+        info!("Processing HTTP request: {} {}", method, path);
 
         let response = if should_route_externally(&path) {
             create_external_redirect(&path)
@@ -259,12 +218,12 @@ impl exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
             create_not_found_response(&method, &path)
         };
 
-        log_info(&format!(
-            "Request completed: {} {} -> {}",
+        info!(
             method,
             path,
-            format_response_type(&response)
-        ));
+            response = format_response_type(&response);
+            "Request completed",
+        );
 
         Some(response)
     }
