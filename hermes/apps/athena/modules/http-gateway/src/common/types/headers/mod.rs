@@ -14,6 +14,4 @@
 //! These are produced as part of a response, and it's the responsibility of the responder
 //! to set them.
 
-pub(crate) mod access_control_allow_origin;
-pub(crate) mod ratelimit;
 pub(crate) mod retry_after;

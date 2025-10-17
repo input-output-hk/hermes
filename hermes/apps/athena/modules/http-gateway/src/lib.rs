@@ -5,7 +5,6 @@ mod api;
 mod common;
 mod rbac;
 mod settings;
-mod utilities;
 mod utils;
 
 use std::sync::OnceLock;

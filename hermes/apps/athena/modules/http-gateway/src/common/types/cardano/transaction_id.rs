@@ -2,7 +2,7 @@
 
 use cardano_blockchain_types::hashes::{TransactionId, BLAKE_2B256_SIZE};
 
-use crate::{common::types::string_types::impl_string_types, utilities::as_hex_string};
+use crate::{common::types::string_types::impl_string_types, utils::hex::as_hex_string};
 
 /// Length of the hash itself;
 const HASH_LENGTH: usize = BLAKE_2B256_SIZE;

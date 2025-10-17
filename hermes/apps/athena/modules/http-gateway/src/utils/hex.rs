@@ -1,13 +1,9 @@
-//! `API` Utility operations
+//! Hex helper functions
 
 use anyhow::{bail, Result};
-// use pallas::ledger::addresses::Network as PallasNetwork;
-// use poem_openapi::types::ToJSON;
-
-// use crate::common::objects::cardano::network::Network;
 
 /// Convert bytes to hex string with the `0x` prefix
-pub(crate) fn as_hex_string(bytes: &[u8]) -> String {
+pub(crate) fn as_hex_string<T: AsRef<[u8]>>(bytes: T) -> String {
     format!("0x{}", hex::encode(bytes))
 }
 

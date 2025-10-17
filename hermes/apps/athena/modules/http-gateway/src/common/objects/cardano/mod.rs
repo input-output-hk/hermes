@@ -4,7 +4,5 @@
 //! common. They should not be simple types. but actual objects.
 //! Simple types belong in `common/types`.
 
-pub(crate) mod hash;
 pub(crate) mod network;
-pub(crate) mod slot_info;
 pub(crate) mod stake_info;

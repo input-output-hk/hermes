@@ -7,7 +7,7 @@ use cardano_blockchain_types::hashes::BLAKE_2B224_SIZE;
 
 use crate::{
     common::types::string_types::impl_string_types,
-    utilities::{as_hex_string, from_hex_string},
+    utils::hex::{as_hex_string, from_hex_string},
 };
 
 /// Length of the hash itself;
