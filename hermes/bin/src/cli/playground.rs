@@ -119,12 +119,13 @@ fn create_one_module_app(
 ) -> anyhow::Result<Application> {
     let vfs_name = [name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
-    let module_registry = HashMap::from_iter([(name, module.id())]);
+    let module_registry = HashMap::from_iter([(name.to_string(), module.id().clone())]);
     let app = Application::new(
         ApplicationName::new(name),
         vfs,
         vec![module],
         module_registry,
+    );
 
     Ok(app)
 }
