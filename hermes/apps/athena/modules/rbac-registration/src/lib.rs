@@ -22,7 +22,7 @@ shared::bindings_generate!({
 
 use shared::{
     bindings::hermes::cardano,
-    utils::log::{log_error, log_info},
+    utils::log::{self, log_error, log_info},
 };
 
 use crate::{
@@ -40,6 +40,7 @@ struct RbacRegistrationComponent;
 
 impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
+        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "init";
 
         // Create a network instance
@@ -78,6 +79,8 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
         path: String,
         _method: String,
     ) -> Option<HttpGatewayResponse> {
+        log::init(log::LevelFilter::Info);
+
         let network = cardano::api::CardanoNetwork::Preprod;
         let lookup = parse_query_param(&path, "lookup");
         let result = endpoint_v1(lookup, network);
