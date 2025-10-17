@@ -2,13 +2,15 @@
 
 use std::{
     ffi::{c_int, c_void, CString},
+    path::{Path, PathBuf},
     time::Duration,
 };
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_busy_handler, sqlite3_exec, sqlite3_open_v2, sqlite3_soft_heap_limit64,
-    sqlite3_wal_autocheckpoint, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX,
-    SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
+    sqlite3, sqlite3_busy_handler, sqlite3_db_filename, sqlite3_db_name, sqlite3_exec,
+    sqlite3_filename_database, sqlite3_filename_journal, sqlite3_filename_wal, sqlite3_open_v2,
+    sqlite3_soft_heap_limit64, sqlite3_wal_autocheckpoint, SQLITE_OK, SQLITE_OPEN_CREATE,
+    SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
 };
 use rand::random;
 
@@ -219,6 +221,70 @@ pub(super) fn open_with_persistent_memory(
     open(readonly, memory, db_name)
 }
 
+/// Files associated with a database.
+#[derive(Debug)]
+pub(super) struct DbPaths {
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    pub database: PathBuf,
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    pub journal: PathBuf,
+    /// See <https://www2.sqlite.org/c3ref/filename_database.html>.
+    pub wal: PathBuf,
+}
+
+impl DbPaths {
+    /// Returns **main** db paths associated with the connection.
+    /// The paths are owned by Rust and do not depend sqlite connection after being
+    /// obtained.
+    ///
+    /// See <https://www2.sqlite.org/c3ref/db_name.html> and <https://www2.sqlite.org/c3ref/db_filename.html>.
+    pub(crate) fn main(db_ptr: *mut sqlite3) -> Result<DbPaths, Errno> {
+        unsafe fn c_str_as_nonempty_path<'a>(
+            ptr: *const std::ffi::c_char
+        ) -> Result<&'a Path, Errno> {
+            if ptr.is_null() {
+                return Err(Errno::ReturnedNullPointer);
+            }
+            let c_str = unsafe { std::ffi::CStr::from_ptr(ptr) };
+            // Most major platforms support Unicode (see crate-level comment at <https://docs.rs/camino/latest/camino>).
+            // If this platform doesn't, an error is safely returned.
+            if let Ok(utf8) = c_str.to_str() {
+                if utf8.is_empty() {
+                    Err(Errno::ConvertingCString)
+                } else {
+                    Ok(Path::new(utf8))
+                }
+            } else {
+                Err(Errno::ConvertingCString)
+            }
+        }
+        unsafe {
+            let db_name_ptr = sqlite3_db_name(db_ptr, 0);
+            c_str_as_nonempty_path(db_name_ptr)?;
+            let db_filename_ptr = sqlite3_db_filename(db_ptr, db_name_ptr);
+            c_str_as_nonempty_path(db_filename_ptr)?;
+
+            Ok(DbPaths {
+                database: c_str_as_nonempty_path(sqlite3_filename_database(db_filename_ptr))?
+                    .to_path_buf(),
+                journal: c_str_as_nonempty_path(sqlite3_filename_journal(db_filename_ptr))?
+                    .to_path_buf(),
+                wal: c_str_as_nonempty_path(sqlite3_filename_wal(db_filename_ptr))?.to_path_buf(),
+            })
+        }
+    }
+
+    /// Removes existing persistent files.
+    pub(crate) fn remove_all(&self) -> std::io::Result<()> {
+        for path in [&self.database, &self.journal, &self.wal] {
+            if std::fs::exists(path)? {
+                std::fs::remove_file(path)?
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(all(test, debug_assertions))]
 mod tests {
     use std::{
@@ -296,5 +362,29 @@ mod tests {
         let db_ptr = open(true, true, app_name).unwrap();
 
         core::close(db_ptr).unwrap();
+    }
+
+    #[test]
+    #[file_serial]
+    fn test_db_paths_remove_all() {
+        let app_name = ApplicationName(String::from(TMP_DIR));
+        let db_ptr = open(false, false, app_name).unwrap();
+        let paths = DbPaths::main(db_ptr).unwrap();
+
+        let database_created = fs::exists(&paths.database).unwrap();
+        let _journal_created = fs::exists(&paths.journal).unwrap();
+        let _wal_created = fs::exists(&paths.wal).unwrap();
+
+        core::close(db_ptr).unwrap();
+        paths.remove_all().unwrap();
+
+        let database_remained = fs::exists(&paths.database).unwrap();
+        let journal_remained = fs::exists(&paths.database).unwrap();
+        let wal_remained = fs::exists(&paths.database).unwrap();
+
+        assert!(database_created);
+        assert!(!database_remained);
+        assert!(!journal_remained);
+        assert!(!wal_remained);
     }
 }

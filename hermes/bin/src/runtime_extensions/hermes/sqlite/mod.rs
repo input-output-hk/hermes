@@ -1,18 +1,23 @@
 //! `SQLite` runtime extension implementation.
 
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{
     app::ApplicationName,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
+        bindings::hermes::sqlite::api::Errno,
         hermes::sqlite::{
             connection::core::close_and_remove_all, kernel::open_with_persistent_memory,
             state::resource_manager::init_app_state,
         },
         init::{
-            errors::RteInitResult, trait_app::RteInitApp, trait_event::RteInitEvent,
-            trait_module::RteInitModule, trait_runtime::RteInitRuntime,
+            errors::{RteInitResult, RuntimeExtensionErrors},
+            metadata::RteMetadata,
+            trait_app::RteInitApp,
+            trait_event::RteInitEvent,
+            trait_module::RteInitModule,
+            trait_runtime::RteInitRuntime,
         },
     },
     wasm::module::ModuleId,
@@ -37,15 +42,22 @@ impl RteInitApp for RteSqlite {
         self: Box<Self>,
         name: &ApplicationName,
     ) -> RteInitResult {
-        debug!(%name, "Hermes Sqlite RTE");
-        // TODO(?): Fix SQLite in memory <https://github.com/input-output-hk/hermes/issues/553>.
-        // TODO(@no30bit): improve error handling.
-        let _result = open_with_persistent_memory(false, true, name.clone())
-            .map_err(anyhow::Error::from)
-            .and_then(close_and_remove_all)
-            .inspect_err(|error| error!(%name, %error, "Hermes Sqlite RTE"));
+        debug!(%name,"Hermes Runtime Extensions Finalizing: App");
 
-        Ok(())
+        match open_with_persistent_memory(true, true, name.clone()) {
+            Ok(db_ptr) => close_and_remove_all(db_ptr),
+            // App didn't have any in-memory connections – ok.
+            // See <https://sqlite.org/rescode.html>.
+            Err(Errno::Sqlite(14)) => Ok(()),
+            Err(err) => Err(anyhow::Error::from(err)),
+        }
+        .map_err(|err| {
+            let errors = RuntimeExtensionErrors::new();
+            crate::add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
+                description: err.to_string()
+            });
+            errors
+        })
     }
 }
 

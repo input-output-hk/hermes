@@ -1,13 +1,8 @@
 //! Connection state management for SQLite database resources.
 
-use tracing::debug;
-
 use crate::runtime_extensions::{
     bindings::hermes::sqlite::api::{Errno, Sqlite},
-    hermes::sqlite::{
-        connection::core::{close, close_and_remove_all},
-        state::ObjectPointer,
-    },
+    hermes::sqlite::{connection::core::close, state::ObjectPointer},
 };
 
 /// Enumeration representing different types of database handles.
@@ -80,36 +75,15 @@ pub(crate) struct AppConnections {
     mem_rw: Option<ObjectPointer>,
     /// Memory-based read-only database connection pointer
     mem_ro: Option<ObjectPointer>,
-    /// Whether memory based connections need to have their files removed.
-    ///
-    /// Since they are internally stored on disk for the lifetime of the application,
-    /// this field needs to be set before an application stops.
-    cleanup_mem_on_drop: bool,
 }
 
 impl Drop for AppConnections {
     fn drop(&mut self) {
-        for db_ptr in dbg!([
-            self.disk_rw,
-            self.disk_ro,
-            self.mem_rw.take_if(|_| !self.cleanup_mem_on_drop),
-            self.mem_ro.take_if(|_| !self.cleanup_mem_on_drop),
-        ])
-        .iter()
-        .flatten()
+        for db_ptr in [self.disk_rw, self.disk_ro, self.mem_rw, self.mem_ro]
+            .iter()
+            .flatten()
         {
             let _ = close(*db_ptr as _);
-        }
-        match (self.mem_rw, self.mem_ro) {
-            (None, None) => (),
-            (None, Some(db_ptr)) | (Some(db_ptr), None) => {
-                let _result = close_and_remove_all(db_ptr as _).inspect_err(|error| debug!(?error));
-            },
-            (Some(db_ptr1), Some(db_ptr2)) => {
-                let _result = close(db_ptr1 as _);
-                let _result =
-                    close_and_remove_all(db_ptr2 as _).inspect_err(|error| debug!(?error));
-            },
         }
     }
 }
@@ -192,11 +166,5 @@ impl AppConnections {
     ) -> wasmtime::component::Resource<Sqlite> {
         *self.get_connection_slot_mut(db_handle) = Some(db_ptr);
         wasmtime::component::Resource::new_own(db_handle as _)
-    }
-
-    /// In-memory connections would be cleaned up on [`Self::drop`].
-    pub(crate) fn set_cleanup_on_drop(&mut self) {
-        dbg!();
-        self.cleanup_mem_on_drop = true;
     }
 }

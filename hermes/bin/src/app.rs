@@ -112,11 +112,10 @@ impl Drop for Application {
     fn drop(&mut self) {
         // Advise Runtime Extensions that application is fully stopped and its resources can be
         // freed.
-        if let Err(err) = RteApp::new().fini(&self.name) {
-            //TODO(SJ): Maybe need better error handling...
-            tracing::error!("application finalization failed: {err}");
+        if let Err(error) = RteApp::new().fini(&self.name) {
+            tracing::error!(name = %self.name, %error, "Application failed to finalize");
         } else {
-            tracing::info!("application finalization was successful");
+            tracing::info!(name = %self.name, "Application finalized successfully");
         }
     }
 }
