@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_wasm_internals_no_precore() {
+    fn extracts_wasm_internals_no_pre_core() {
         const EXPECTED_CORE: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
@@ -589,7 +589,7 @@ mod tests {
     }
 
     #[test]
-    fn types_from_precore_are_included_when_patching() {
+    fn types_from_pre_core_are_included_when_patching() {
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
             .expect("should create patcher");
         let WasmInternals {
@@ -608,7 +608,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_wasm_internals_with_precore() {
+    fn extracts_wasm_internals_with_pre_core() {
         const EXPECTED_CORE: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
