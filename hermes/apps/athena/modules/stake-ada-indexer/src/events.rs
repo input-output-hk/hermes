@@ -21,10 +21,10 @@ pub fn init() -> anyhow::Result<()> {
     );
 
     let mut conn = sqlite::Connection::open(false)?;
+
     let mut _conn_volatile = sqlite::Connection::open(true)?;
 
     create_tables(&mut conn)?;
-    // create_tables(&mut conn_volatile)?;
 
     info!(
         target: "staked_ada_indexer::init",
