@@ -281,6 +281,7 @@ impl Patcher {
     }
 
     /// Gets the next available component type index.
+    #[allow(clippy::arithmetic_side_effects)]
     fn get_next_component_type_index<S: AsRef<str>>(
         component: S,
         pre_core_component: S,
@@ -299,8 +300,10 @@ impl Patcher {
             processed_pre_component.replace_range(inner_instance_start..inner_instance_end, "---");
         }
 
-        Ok(Self::get_item_count("type (;", processed_component)?
-            + Self::get_item_count("type (;", processed_pre_component)?)
+        let component_type_count = Self::get_item_count("type (;", processed_component)?;
+        let pre_component_type_count = Self::get_item_count("type (;", processed_pre_component)?;
+
+        Ok(component_type_count + pre_component_type_count)
     }
 
     /// Gets the next available core type index.
@@ -320,7 +323,7 @@ impl Patcher {
     }
 
     /// Gets the next available component function index.
-    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
+    #[allow(clippy::expect_used, clippy::arithmetic_side_effects)] // regex is hardcoded and should be valid
     fn get_next_component_export_func_index<S: AsRef<str>>(
         component: S
     ) -> Result<u32, anyhow::Error> {
@@ -351,6 +354,8 @@ impl Patcher {
         )
     }
 
+    #[allow(clippy::arithmetic_side_effects)]
+    /// Looks for the end of the WAT section that starts at `start`.
     fn parse_until_section_end<S: AsRef<str>>(
         start: usize,
         wat: S,
@@ -591,12 +596,13 @@ mod tests {
             pre_core_component_part,
         } = patcher.core_and_component().expect("should extract parts");
 
-        println!("core_module: {core_module}");
-        println!("component_part: {component_part}");
-        println!("pre_core_component_part: {pre_core_component_part}");
+        let next_index =
+            Patcher::get_next_component_type_index(&component_part, &pre_core_component_part)
+                .expect("should get next index");
 
-        let patched_wat = patcher.patch().expect("should patch wat");
-        println!("patched_wat: {patched_wat}");
+        // There is 1 type in the component part and another one in the pre_component part that is
+        // included before the actual core module
+        assert_eq!(next_index, 2);
     }
 
     #[test]
@@ -1061,8 +1067,7 @@ mod tests {
 
         for file in files {
             // Step 1: Patch the WASM file
-            let patcher =
-                Patcher::from_file(file).expect("should create patcher");
+            let patcher = Patcher::from_file(file).expect("should create patcher");
             let result = patcher.patch().expect("should patch");
             let encoded = wat::parse_str(&result).expect("should encode");
 
@@ -1115,6 +1120,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn component_part_with_nested_component_is_properly_patched() {
         const COMPONENT_WITH_INNER_COMPONENT_PART: &str = r#"
             (core instance (;0;) (instantiate 0))
@@ -1234,8 +1240,8 @@ mod tests {
     }
 
     #[test]
-    fn patching_hermes_like_wat() {
-        let patcher = Patcher::from_str(HERMES_REAL_LIFE_MODULE).unwrap();
+    fn patching_real_life_hermes_module_works() {
+        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).unwrap();
 
         let WasmInternals {
             mut core_module,
@@ -1243,12 +1249,7 @@ mod tests {
             mut pre_core_component_part,
         } = patcher.core_and_component().unwrap();
 
-        std::fs::write("core.wat", core_module).unwrap();
-        std::fs::write("component.wat", component_part).unwrap();
-        std::fs::write("pre_core_component_part.wat", pre_core_component_part).unwrap();
-
         let patched_wat = patcher.patch().unwrap();
-        std::fs::write("patched.wat", &patched_wat).unwrap();
 
         let encoded = wat::parse_str(&patched_wat);
         match encoded {
