@@ -289,12 +289,14 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         let Ok(sqlite) = open_db_connection(false) else {
             return false;
         };
+
         // Volatile table will be stored in memory
         // TODO - Change this to in-memory once it is supported
         // <https://github.com/input-output-hk/hermes/issues/553>
         let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return false;
         };
+
         create_rbac_persistent_tables(&sqlite);
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
