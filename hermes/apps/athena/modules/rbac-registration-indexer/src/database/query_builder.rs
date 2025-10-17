@@ -50,7 +50,7 @@ impl QueryBuilder {
     pub(crate) fn insert_rbac_registration(table: &str) -> String {
         format!(
             r#"
-            INSERT INTO {table} (
+            INSERT OR REPLACE INTO {table} (
                 txn_id, slot_no, txn_idx, prv_txn_id, purpose, catalyst_id, problem_report
             )
             VALUES(?, ?, ?, ?, ?, ?, ?);
@@ -62,7 +62,7 @@ impl QueryBuilder {
     pub(crate) fn insert_rbac_stake_address(table: &str) -> String {
         format!(
             r#"
-            INSERT INTO {table} (
+            INSERT OR REPLACE INTO {table} (
                 stake_address, slot_no, txn_idx, catalyst_id, txn_id
             )
             VALUES(?, ?, ?, ?, ?);

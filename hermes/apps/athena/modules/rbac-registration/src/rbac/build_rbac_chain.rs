@@ -6,16 +6,7 @@ use shared::{
     utils::{cardano::block::build_block, log::log_error},
 };
 
-/// Information needed to build the RBAC chain.
-/// Only need the `slot_no` and `txn_idx` to construct a block and
-/// extract the RBAC information.
-#[derive(Debug, Clone)]
-pub(crate) struct RbacChainInfo {
-    /// The slot number of the block that contains the registration.
-    pub(crate) slot_no: u64,
-    /// The transaction index that contains the registration.
-    pub(crate) txn_idx: u16,
-}
+use crate::rbac::registration_location::RegistrationLocation;
 
 /// Build the RBAC registration chain.
 ///
@@ -23,7 +14,7 @@ pub(crate) struct RbacChainInfo {
 ///
 /// * `network` - The network to build the registration chain.
 /// * `network_resource` - The network resource used for getting block data.
-/// * `rbac_chain_info` - The registration chain information.
+/// * `registration_location` - The registration chain information.
 ///
 /// # Return
 ///
@@ -33,22 +24,15 @@ pub(crate) struct RbacChainInfo {
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,
     network_resource: &Network,
-    rbac_chain_info: Vec<RbacChainInfo>,
+    registration_location: Vec<RegistrationLocation>,
 ) -> anyhow::Result<Option<RegistrationChain>> {
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = rbac_chain_info.first().ok_or_else(|| {
-        let error = "Registration chain info is empty";
-        log_error(
-            file!(),
-            FUNCTION_NAME,
-            "rbac_chain_info.first",
-            &error,
-            None,
-        );
-        anyhow::anyhow!(error)
-    })?;
+    let first_info = match registration_location.first() {
+        Some(info) => info,
+        None => return Ok(None),
+    };
 
     // Root registration use to initialize chain
     let root_reg = get_registration(
@@ -64,14 +48,14 @@ pub(crate) fn build_registration_chain(
             file!(),
             FUNCTION_NAME,
             "RegistrationChain::new",
-            &error,
+            error,
             None,
         );
         anyhow::anyhow!(error)
     })?;
 
     // Append children
-    for info in rbac_chain_info.iter().skip(1) {
+    for info in registration_location.iter().skip(1) {
         let reg = get_registration(
             file!(),
             network,
@@ -79,20 +63,18 @@ pub(crate) fn build_registration_chain(
             info.slot_no,
             info.txn_idx,
         )?;
-        reg_chain = reg_chain.update(reg).ok_or_else(|| {
-            let error = format!(
-                "Failed to update registration chain at slot {}",
-                info.slot_no
-            );
-            log_error(
-                file!(),
-                FUNCTION_NAME,
-                "RegistrationChain::update",
-                &error,
-                None,
-            );
-            anyhow::anyhow!(error)
-        })?;
+        if let Some(updated) = reg_chain.update(reg.clone()) {
+            // If the registration being update is not problematic
+            // It can be added to the registration chain
+            if !reg.report().is_problematic() {
+                reg_chain = updated;
+            // Broken registration in the chain doesn't break the early created chain,
+            // there is no need to continue the chain since the data after a broken
+            // registration should be ignored
+            } else {
+                return Ok(Some(reg_chain));
+            }
+        }
     }
     Ok(Some(reg_chain))
 }
@@ -110,14 +92,14 @@ fn get_registration(
         .ok_or_else(|| {
             let err = format!("Failed to get block resource at slot {slot_no}");
             log_error(file!(), func_name, "network.get_block", &err, None);
-            return anyhow::anyhow!(err);
+            anyhow::anyhow!(err)
         })?;
 
     // Create a multi-era block
     let block = build_block(file!(), func_name, network, &block_resource).ok_or_else(|| {
         let err = format!("Failed to build block at slot {slot_no}");
         log_error(file!(), func_name, "build_block", &err, None);
-        return anyhow::anyhow!(err);
+        anyhow::anyhow!(err)
     })?;
 
     match Cip509::new(&block, txn_idx.into(), &[]) {

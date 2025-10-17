@@ -14,10 +14,10 @@ use shared::{
 
 use crate::{
     database::{
-        query_builder::QueryBuilder, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
+        query_builder::QueryBuilder, select::TableSource, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
         RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
     },
-    rbac::build_rbac_chain::RbacChainInfo,
+    rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };
 
 /// Registration chain from a catalyst ID.
@@ -64,47 +64,69 @@ use crate::{
 ///
 /// # Returns
 ///
-/// * `Ok(Vec<RbacChainInfo>)` – The registration chain associated with the given catalyst
-///   ID. If the vector is empty, no chain is found.
+/// * `Ok(Vec<RegistrationLocation>, RbacChainMetadata))` – The registration chain related
+///   data associated with the given catalyst ID. If the vector is empty, no chain is
+///   found.
 /// * `Err(anyhow::Error)` – If any error occurs.
 pub(crate) fn select_rbac_registration_chain_from_cat_id(
     persistent: &Sqlite,
     volatile: &Sqlite,
     cat_id: &str,
-) -> anyhow::Result<Vec<RbacChainInfo>> {
+) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_cat_id";
 
+    let mut metadata = RbacChainMetadata::default();
+
     // --- Find the root ---
-    let (mut txn_id, mut chain) =
+    let (mut txn_id, mut chain, root_source) =
         match extract_root(persistent, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(
             || extract_root(volatile, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?,
         ) {
             Some(val) => val,
-            None => return Ok(vec![]),
+            None => return Ok((vec![], metadata)),
         };
+
+    // Update tracking variable based on the root source
+    match root_source {
+        TableSource::Persistent => {
+            metadata.last_persistent_txn = Some(txn_id.clone().try_into()?);
+            // This should not fail
+            metadata.last_persistent_slot = chain
+                .first()
+                .ok_or_else(|| anyhow::anyhow!("Chain is empty when extracting slot_no"))?
+                .slot_no
+                .into();
+        },
+        TableSource::Volatile => {
+            metadata.last_volatile_txn = Some(txn_id.clone().try_into()?);
+        },
+    }
 
     // --- Find children ---
     let p_stmt = DatabaseStatement::prepare_statement(
         persistent,
-        &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
+        &QueryBuilder::select_child_reg_from_parent(RBAC_REGISTRATION_PERSISTENT_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
 
     let v_stmt = DatabaseStatement::prepare_statement(
         volatile,
-        &QueryBuilder::select_child_reg_from_parent(&RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
+        &QueryBuilder::select_child_reg_from_parent(RBAC_REGISTRATION_VOLATILE_TABLE_NAME),
         Operation::Select,
         FUNCTION_NAME,
     )?;
-    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
+    let result: anyhow::Result<Vec<RegistrationLocation>> = (|| {
         loop {
             // Persistent first
             if let Some((next_txn_id, slot_no, txn_idx)) =
                 extract_child(&p_stmt, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, &txn_id)?
             {
                 txn_id = next_txn_id;
-                chain.push(RbacChainInfo { slot_no, txn_idx });
+                chain.push(RegistrationLocation { slot_no, txn_idx });
+
+                metadata.last_persistent_txn = Some(txn_id.clone().try_into()?);
+                metadata.last_persistent_slot = slot_no.into();
                 continue;
             }
 
@@ -112,7 +134,9 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
             match extract_child(&v_stmt, RBAC_REGISTRATION_VOLATILE_TABLE_NAME, &txn_id)? {
                 Some((next_txn_id, slot_no, txn_idx)) => {
                     txn_id = next_txn_id;
-                    chain.push(RbacChainInfo { slot_no, txn_idx });
+                    chain.push(RegistrationLocation { slot_no, txn_idx });
+
+                    metadata.last_volatile_txn = Some(txn_id.clone().try_into()?);
                 },
                 None => break,
             }
@@ -123,7 +147,7 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     let _ = DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
     let _ = DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
 
-    result
+    result.map(|chain| (chain, metadata))
 }
 
 /// Extract the root registration.
@@ -131,7 +155,7 @@ fn extract_root(
     sqlite: &Sqlite,
     cat_id: &str,
     table: &str,
-) -> anyhow::Result<Option<(Value, Vec<RbacChainInfo>)>> {
+) -> anyhow::Result<Option<(Value, Vec<RegistrationLocation>, TableSource)>> {
     const FUNCTION_NAME: &str = "extract_root";
 
     let stmt = DatabaseStatement::prepare_statement(
@@ -149,10 +173,17 @@ fn extract_root(
                 let txn_id = stmt.column(0)?;
                 let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
                 let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
-                Ok(Some((txn_id.clone(), vec![RbacChainInfo {
-                    slot_no,
-                    txn_idx,
-                }])))
+                // Should be able to track which table the root came from
+                let source = if table == RBAC_REGISTRATION_PERSISTENT_TABLE_NAME {
+                    TableSource::Persistent
+                } else {
+                    TableSource::Volatile
+                };
+                Ok(Some((
+                    txn_id.clone(),
+                    vec![RegistrationLocation { slot_no, txn_idx }],
+                    source,
+                )))
             },
             Ok(StepResult::Done) => Ok(None),
             Err(e) => {
@@ -181,13 +212,13 @@ fn extract_child(
     const FUNCTION_NAME: &str = "extract_child";
 
     // Reset first to ensure the statement is in a clean state
-    DatabaseStatement::reset_statement(&stmt, FUNCTION_NAME)?;
+    DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.clone() => "txn_id")?;
     let result = match stmt.step() {
         Ok(StepResult::Row) => {
             let next_txn_id = stmt.column(0)?;
-            let slot_no = column_as::<u64>(&stmt, 1, FUNCTION_NAME, "slot_no")?;
-            let txn_idx = column_as::<u16>(&stmt, 2, FUNCTION_NAME, "txn_idx")?;
+            let slot_no = column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?;
+            let txn_idx = column_as::<u16>(stmt, 2, FUNCTION_NAME, "txn_idx")?;
             Some((next_txn_id, slot_no, txn_idx))
         },
         Ok(StepResult::Done) => None,

@@ -52,8 +52,7 @@ impl RbacRegistrationChain {
                 let uuid_str = uuid.to_string();
                 UUIDv4::try_from(uuid_str.as_str()).map_err(anyhow::Error::msg)
             })
-            .collect::<Result<Vec<_>, _>>()?
-            .into();
+            .collect::<Result<Vec<_>, _>>()?;
         let roles = role_data(info)?.into();
 
         Ok(Self {
