@@ -1,5 +1,8 @@
 //! Hermes SQLite value conversion.
 
+#[cfg(feature = "cardano-blockchain-types")]
+use cardano_blockchain_types;
+
 use crate::bindings::hermes::sqlite::api::Value;
 
 // ------ Rust types to SQLite value conversion ------
@@ -111,6 +114,21 @@ where T: TryFrom<Value, Error = anyhow::Error>
                 let t = T::try_from(other)?;
                 Ok(Some(t))
             },
+        }
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => {
+                let hash: cardano_blockchain_types::hashes::Blake2bHash<32> = b.try_into()?;
+                Ok(hash.into())
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Blob for TransactionId")),
         }
     }
 }

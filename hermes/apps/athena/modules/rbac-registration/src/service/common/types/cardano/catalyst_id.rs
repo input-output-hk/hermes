@@ -21,9 +21,9 @@ impl From<&str> for CatalystId {
     }
 }
 
-impl Into<String> for CatalystId {
-    fn into(self) -> String {
-        self.0
+impl From<CatalystId> for String {
+    fn from(val: CatalystId) -> Self {
+        val.0
     }
 }
 
