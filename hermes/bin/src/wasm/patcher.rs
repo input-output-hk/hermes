@@ -234,8 +234,6 @@ impl Patcher {
             .replace("{COMPONENT_CORE_FUNC_ID_3}", &component_core_func_3_index)
             .replace("{COMPONENT_FUNC_ID_3}", &component_func_3_index);
 
-        println!("Component injections: {component_injections}");
-
         core_module.push_str(&core_type_injection);
         core_module.push_str(&core_func_injection);
         core_module.push_str(&core_export_injection);
@@ -294,8 +292,6 @@ impl Patcher {
             processed_component.replace_range(inner_component_start..inner_component_end, "---");
         }
 
-        println!("processed_component: {processed_component}");
-
         let mut processed_pre_component = pre_core_component.as_ref().to_string();
         while let Some(inner_instance_start) = processed_pre_component.find("(instance") {
             let inner_instance_end =
@@ -343,17 +339,7 @@ impl Patcher {
             Regex::new(COMPONENT_FUNC_REGEX).expect("this should be a proper regex"),
             &processed_component,
         )?;
-        println!("export_count: {export_count}, func_count: {func_count}");
         Ok(export_count + func_count)
-    }
-
-    /// Gets the next available component function index.
-    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
-    fn get_next_something<S: AsRef<str>>(s: S) -> Result<u32, anyhow::Error> {
-        Self::get_item_count(
-            Regex::new(r"(?m)^\s*\(export\s*\(;").expect("this should be a proper regex"),
-            s.as_ref(),
-        )
     }
 
     /// Gets the next available core function index.
@@ -462,7 +448,7 @@ mod tests {
         "tests/test_wasm_files/component_single_core_module.wasm";
     const COMPONENT_MULTIPLE_CORE_MODULES: &str =
         "tests/test_wasm_files/component_multiple_core_modules.wasm";
-    const HERMES_LIKE_REAL_WAT: &str = "tests/test_wasm_files//hermes_like_real.wat";
+    const HERMES_REAL_LIFE_MODULE: &str = "tests/test_wasm_files/hermes_real_life_module.wasm";
 
     const MAKESHIFT_CORRECT_WAT: &str = r#"
         (component
@@ -900,9 +886,7 @@ mod tests {
         let encoded = wat::parse_str(&result);
         assert!(encoded.is_ok());
 
-        let hermes_like_real_wat =
-            std::fs::read_to_string(HERMES_LIKE_REAL_WAT).expect("should read the wat");
-        let patcher = Patcher::from_str(hermes_like_real_wat).expect("should create patcher");
+        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).expect("should create patcher");
         let result = patcher.patch().expect("should patch");
         let encoded = wat::parse_str(&result);
         assert!(encoded.is_ok());
@@ -910,140 +894,48 @@ mod tests {
 
     #[test]
     fn injected_get_memory_size_works() {
-        // Step 1: Patch the WASM file
-        let patcher =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
+        let files = [COMPONENT_SINGLE_CORE_MODULE, HERMES_REAL_LIFE_MODULE];
 
-        std::fs::write("foo_ok.wat", &result).expect("should write patched wat");
+        for file in files {
+            // Step 1: Patch the WASM file
+            let patcher = Patcher::from_file(file).expect("should create patcher");
+            let result = patcher.patch().expect("should patch");
+            let encoded = wat::parse_str(&result).expect("should encode");
 
-        let encoded = wat::parse_str(&result).expect("should encode");
+            // Step 2: Instantiate the patched WASM
+            let engine = Engine::default();
+            let component = wasmtime::component::Component::new(&engine, encoded)
+                .expect("should create component");
+            let mut linker = Linker::new(&engine);
+            add_to_linker_sync(&mut linker).expect("should add to linker");
+            let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+            let ctx = MyCtx {
+                table: ResourceTable::new(),
+                wasi,
+            };
+            let mut store = Store::new(&engine, ctx);
+            let instance = linker
+                .instantiate(&mut store, &component)
+                .expect("should instantiate");
 
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
+            // Step 3: Call the injected function
+            let get_memory_size_func = format!("{MAGIC}get-memory-size");
+            let get_memory_size = instance
+                .get_func(&mut store, get_memory_size_func)
+                .expect("should get func")
+                .typed::<(), (u32,)>(&store)
+                .expect("should be a typed func");
+            let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
+            get_memory_size
+                .post_return(&mut store)
+                .expect("should post return");
 
-        // Step 3: Call the injected function
-        let get_memory_size_func = format!("{MAGIC}get-memory-size");
-        let get_memory_size = instance
-            .get_func(&mut store, get_memory_size_func)
-            .expect("should get func")
-            .typed::<(), (u32,)>(&store)
-            .expect("should be a typed func");
-        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
-        get_memory_size
-            .post_return(&mut store)
-            .expect("should post return");
+            // Step 4: Check if the returned value matches the original WASM memory size
+            let source_wat = wasmprinter::print_file(file).expect("should read");
+            let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
 
-        // Step 4: Check if the returned value matches the original WASM memory size
-        let source_wat =
-            wasmprinter::print_file(COMPONENT_SINGLE_CORE_MODULE).expect("should read");
-        let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
-
-        assert!(source_wat.contains(&expected_memory_entry));
-    }
-
-    #[test]
-    fn foo2() {
-        let patcher1 =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let x = patcher1.patch().expect("should patch");
-
-        let hermes_like_real_wat =
-            std::fs::read_to_string(HERMES_LIKE_REAL_WAT).expect("should read the wat");
-        let patcher = Patcher::from_str(hermes_like_real_wat).expect("should create patcher");
-        let x = patcher.patch().expect("should patch");
-    }
-
-    #[test]
-    fn foo() {
-        let wat = std::fs::read_to_string("foo.wat").expect("should read the wat");
-        let encoded = wat::parse_str(&wat).expect("should encode");
-
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
-
-        let get_memory_size_func = format!("{MAGIC}get-memory-size");
-        let get_memory_size = instance
-            .get_func(&mut store, get_memory_size_func)
-            .expect("should get func")
-            .typed::<(), (u32,)>(&store)
-            .expect("should be a typed func");
-        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
-        get_memory_size
-            .post_return(&mut store)
-            .expect("should post return");
-
-        dbg!(&memory_size_in_pages);
-    }
-
-    #[test]
-    fn injected_get_memory_size_works_foo() {
-        // Step 1: Patch the WASM file
-        let hermes_like_real_wat =
-            std::fs::read_to_string(HERMES_LIKE_REAL_WAT).expect("should read the wat");
-        let patcher = Patcher::from_str(hermes_like_real_wat).expect("should create patcher");
-
-        let result = patcher.patch().expect("should patch");
-
-        std::fs::write("foo.wat", &result).expect("should write patched wat");
-
-        let encoded = wat::parse_str(&result).expect("should encode");
-
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
-
-        // Step 3: Call the injected function
-        let get_memory_size_func = format!("{MAGIC}get-memory-size");
-        let get_memory_size = instance
-            .get_func(&mut store, get_memory_size_func)
-            .expect("should get func")
-            .typed::<(), (u32,)>(&store)
-            .expect("should be a typed func");
-        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
-        get_memory_size
-            .post_return(&mut store)
-            .expect("should post return");
-
-        dbg!(&memory_size_in_pages);
+            assert!(source_wat.contains(&expected_memory_entry));
+        }
     }
 
     #[test]
@@ -1051,88 +943,6 @@ mod tests {
         // Step 1: Patch the WASM file
         let patcher =
             Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
-        let encoded = wat::parse_str(&result).expect("should encode");
-
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
-
-        // Step 3: Call the init function which will put some bytes into the linear memory.
-        let init = instance
-            .get_func(&mut store, "init")
-            .expect("should get func")
-            .typed::<(), (bool,)>(&store)
-            .expect("should be a typed func");
-        let init_result = init.call(&mut store, ()).expect("should call").0;
-        init.post_return(&mut store).expect("should post return");
-        assert!(init_result);
-
-        // Step 4: Retrieve the linear memory size
-        let get_memory_size_func = format!("{MAGIC}get-memory-size");
-        let get_memory_size = instance
-            .get_func(&mut store, get_memory_size_func)
-            .expect("should get func")
-            .typed::<(), (u32,)>(&store)
-            .expect("should be a typed func");
-        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
-        get_memory_size
-            .post_return(&mut store)
-            .expect("should post return");
-        let memory_size_in_bytes = memory_size_in_pages * LINEAR_MEMORY_PAGE_SIZE_BYTES;
-
-        // Step 5: Read the entire memory content
-        let mut linear_memory = vec![];
-        let get_memory_raw_bytes_func = format!("{MAGIC}get-memory-raw-bytes");
-        let get_memory_raw_bytes = instance
-            .get_func(&mut store, get_memory_raw_bytes_func)
-            .expect("should get func")
-            .typed::<(u32,), (i64,)>(&store)
-            .expect("should be a typed func");
-        for offset in (0u32..memory_size_in_bytes).step_by(8) {
-            let raw_bytes = get_memory_raw_bytes
-                .call(&mut store, (offset,))
-                .expect("should call")
-                .0;
-            get_memory_raw_bytes
-                .post_return(&mut store)
-                .expect("should post return");
-            // In WASM all values are read and written in little endian byte order
-            // See: https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#memory-instructions
-            linear_memory.extend(raw_bytes.to_le_bytes());
-        }
-
-        // Step 6: Check if the expected pattern is present in the linear memory.
-        // The test component fills 1kb of memory with the pattern 0xAA, 0xBB, 0xCC, 0xDD, 0xAA,
-        // 0xBB, 0xCC, 0xDD, ... This patterns starts at the 0x100004 offset, but since
-        // this location is not fixed across compilations, we just check if the pattern is
-        // present anywhere in the memory.
-        let expected_pattern: Vec<u8> = std::iter::repeat_n([0xAA, 0xBB, 0xCC, 0xDD], 1024 / 4)
-            .flatten()
-            .collect();
-        assert!(linear_memory
-            .windows(1024)
-            .any(|window| window == expected_pattern));
-    }
-
-    #[test]
-    fn injected_get_memory_raw_bytes_works_foo() {
-        // Step 1: Patch the WASM file
-        let hermes_like_real_wat =
-            std::fs::read_to_string(HERMES_LIKE_REAL_WAT).expect("should read the wat");
-        let patcher = Patcher::from_str(hermes_like_real_wat).expect("should create patcher");
         let result = patcher.patch().expect("should patch");
         let encoded = wat::parse_str(&result).expect("should encode");
 
@@ -1247,58 +1057,61 @@ mod tests {
     #[test]
     fn injected_set_memory_raw_bytes_works() {
         const OFFSET: u32 = 0xF000;
+        let files = [COMPONENT_SINGLE_CORE_MODULE, HERMES_REAL_LIFE_MODULE];
 
-        // Step 1: Patch the WASM file
-        let patcher =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
-        let encoded = wat::parse_str(&result).expect("should encode");
+        for file in files {
+            // Step 1: Patch the WASM file
+            let patcher =
+                Patcher::from_file(file).expect("should create patcher");
+            let result = patcher.patch().expect("should patch");
+            let encoded = wat::parse_str(&result).expect("should encode");
 
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
+            // Step 2: Instantiate the patched WASM
+            let engine = Engine::default();
+            let component = wasmtime::component::Component::new(&engine, encoded)
+                .expect("should create component");
+            let mut linker = Linker::new(&engine);
+            add_to_linker_sync(&mut linker).expect("should add to linker");
+            let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+            let ctx = MyCtx {
+                table: ResourceTable::new(),
+                wasi,
+            };
+            let mut store = Store::new(&engine, ctx);
+            let instance = linker
+                .instantiate(&mut store, &component)
+                .expect("should instantiate");
 
-        let old_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
-        let old_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
-        let old_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
+            let old_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+            let old_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+            let old_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
 
-        // Step 3: Set bytes at a specific offset
-        let bytes: i64 = 0x1122_3344_5566_7788;
-        let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
-        let set_memory_raw_bytes = instance
-            .get_func(&mut store, set_memory_raw_bytes_func)
-            .expect("should get func")
-            .typed::<(u32, i64), ()>(&store)
-            .expect("should be a typed func");
-        set_memory_raw_bytes
-            .call(&mut store, (OFFSET, bytes))
-            .expect("should call");
-        set_memory_raw_bytes
-            .post_return(&mut store)
-            .expect("should post return");
+            // Step 3: Set bytes at a specific offset
+            let bytes: i64 = 0x1122_3344_5566_7788;
+            let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
+            let set_memory_raw_bytes = instance
+                .get_func(&mut store, set_memory_raw_bytes_func)
+                .expect("should get func")
+                .typed::<(u32, i64), ()>(&store)
+                .expect("should be a typed func");
+            set_memory_raw_bytes
+                .call(&mut store, (OFFSET, bytes))
+                .expect("should call");
+            set_memory_raw_bytes
+                .post_return(&mut store)
+                .expect("should post return");
 
-        // Step 4: Retrieve bytes before-, on- and after-offset.
-        // Check that only the bytes at the offset match.
-        let new_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
-        let new_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
-        let new_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
+            // Step 4: Retrieve bytes before-, on- and after-offset.
+            // Check that only the bytes at the offset match.
+            let new_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+            let new_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+            let new_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
 
-        assert_eq!(old_bytes_pre_offset, new_bytes_pre_offset);
-        assert_eq!(old_bytes_post_offset, new_bytes_post_offset);
-        assert_ne!(old_bytes_at_offset, bytes);
-        assert_eq!(new_bytes_at_offset, bytes);
+            assert_eq!(old_bytes_pre_offset, new_bytes_pre_offset);
+            assert_eq!(old_bytes_post_offset, new_bytes_post_offset);
+            assert_ne!(old_bytes_at_offset, bytes);
+            assert_eq!(new_bytes_at_offset, bytes);
+        }
     }
 
     #[test]
@@ -1422,7 +1235,7 @@ mod tests {
 
     #[test]
     fn patching_hermes_like_wat() {
-        let patcher = Patcher::from_str(HERMES_LIKE_REAL_WAT).unwrap();
+        let patcher = Patcher::from_str(HERMES_REAL_LIFE_MODULE).unwrap();
 
         let WasmInternals {
             mut core_module,
