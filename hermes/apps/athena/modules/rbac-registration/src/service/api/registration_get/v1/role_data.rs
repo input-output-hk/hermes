@@ -72,9 +72,9 @@ impl RbacRoleData {
         }
 
         Ok(Self {
-            signing_keys: signing_keys.into(),
-            encryption_keys: encryption_keys.into(),
-            payment_addresses: payment_addresses.into(),
+            signing_keys,
+            encryption_keys,
+            payment_addresses,
             extended_data: extended_data.into(),
         })
     }

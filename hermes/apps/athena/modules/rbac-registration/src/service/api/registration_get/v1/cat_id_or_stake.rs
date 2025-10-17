@@ -23,7 +23,9 @@ impl TryFrom<&str> for CatIdOrStake {
                 match Cip19StakeAddress::try_from(value) {
                     Ok(stake_addr) => Ok(Self::Address(stake_addr)),
                     Err(_) => {
-                        anyhow::bail!("Not a valid \"Catalyst Id or Stake Address\" parameter.")
+                        anyhow::bail!(
+                            "Not a valid \"Catalyst Id or Stake Address\" parameter given {value}."
+                        )
                     },
                 }
             },
