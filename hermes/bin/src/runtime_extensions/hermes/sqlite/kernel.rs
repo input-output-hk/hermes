@@ -168,7 +168,9 @@ pub(super) fn open(
     }
 
     // config database size limitation
-    let rc = if memory {
+    let rc = if readonly {
+        SQLITE_OK
+    } else if memory {
         let size_limit = i64::from(config.max_db_size);
 
         unsafe { sqlite3_soft_heap_limit64(size_limit) };

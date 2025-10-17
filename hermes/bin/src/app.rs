@@ -87,7 +87,7 @@ impl Application {
     pub(crate) fn init(&self) -> anyhow::Result<()> {
         for module in self.indexed_modules.values() {
             if let Err(e) = module.init(self.vfs.clone()) {
-                anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)
+                anyhow::bail!("Failed to initialize module {}: {:#}", module.id(), e)
             }
         }
         Ok(())

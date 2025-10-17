@@ -72,7 +72,7 @@ impl ExitLock {
         // Default value doesn't matter as it's bound to be awaited to be changed.
         let payload = Mutex::new(None);
         let inner = Arc::new((condvar, payload));
-        let _ = ctrlc::set_handler({
+        let _unused = ctrlc::set_handler({
             let mut ctrlc_tx = Some(Self(inner.clone()));
             move || {
                 if let Some(tx) = ctrlc_tx.take() {
