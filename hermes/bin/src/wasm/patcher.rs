@@ -181,7 +181,7 @@ impl Patcher {
             mut core_module,
             mut component_part,
             mut pre_core_component_part,
-        } = self.core_and_component()?;
+        } = self.split_into_parts()?;
 
         let next_core_type_index = Self::get_next_core_type_index(&core_module)?;
 
@@ -219,6 +219,8 @@ impl Patcher {
         let next_component_func_index =
             Self::get_next_component_export_func_index(&component_part)?;
         let component_func_1_index = next_component_func_index.to_string();
+        // For each injected function we also add an 'export' which shares the same index space,
+        // hence we need to bump the index by 2.
         let component_func_2_index = (next_component_func_index + 2).to_string();
         let component_func_3_index = (next_component_func_index + 4).to_string();
 
@@ -383,7 +385,7 @@ impl Patcher {
 
     /// Extracts the core module and component part from the WAT.
     #[allow(clippy::arithmetic_side_effects)]
-    fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
+    fn split_into_parts(&self) -> Result<WasmInternals, anyhow::Error> {
         const COMPONENT_ITEM: &str = "(component";
         let module_start = self
             .wat
@@ -570,7 +572,7 @@ mod tests {
             core_module,
             component_part,
             pre_core_component_part,
-        } = patcher.core_and_component().expect("should extract parts");
+        } = patcher.split_into_parts().expect("should extract parts");
 
         assert_eq!(
             strip_whitespaces(&core_module),
@@ -594,7 +596,7 @@ mod tests {
             core_module,
             component_part,
             pre_core_component_part,
-        } = patcher.core_and_component().expect("should extract parts");
+        } = patcher.split_into_parts().expect("should extract parts");
 
         let next_index =
             Patcher::get_next_component_type_index(&component_part, &pre_core_component_part)
@@ -649,7 +651,7 @@ mod tests {
             core_module,
             component_part,
             pre_core_component_part,
-        } = patcher.core_and_component().expect("should extract parts");
+        } = patcher.split_into_parts().expect("should extract parts");
 
         assert_eq!(
             strip_whitespaces(&core_module),
@@ -1241,20 +1243,17 @@ mod tests {
 
     #[test]
     fn patching_real_life_hermes_module_works() {
-        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).unwrap();
+        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).expect("should create patcher");
 
         let WasmInternals {
             mut core_module,
             mut component_part,
             mut pre_core_component_part,
-        } = patcher.core_and_component().unwrap();
+        } = patcher.split_into_parts().expect("should split into parts");
 
-        let patched_wat = patcher.patch().unwrap();
+        let patched_wat = patcher.patch().expect("should patch");
 
         let encoded = wat::parse_str(&patched_wat);
-        match encoded {
-            Ok(_) => println!("Success!"),
-            Err(err) => println!("Err: {err}"),
-        }
+        assert!(encoded.is_ok());
     }
 }
