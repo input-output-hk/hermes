@@ -256,7 +256,7 @@ fn get_txo_assets(
 }
 
 /// Checks if the given TXOs were spent and mark then as such.
-/// Separating `base_txos` and `txos` because we dont want to make an update inside the db
+/// Separating `base_txos` and `txos` because we don't want to make an update inside the db
 /// for the `base_txos` data (it is covering the case when inside the persistent part we
 /// have a txo which is spent inside the volatile, so to not incorrectly mix up records
 /// from these two tables, inserting some rows from persistent to volatile section).
