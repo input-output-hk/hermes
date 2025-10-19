@@ -126,8 +126,9 @@ pub(crate) fn module_dispatch_event(
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
-    // TODO(@aido-mth): fix how init is processed. https://github.com/input-output-hk/hermes/issues/490
+    let span = tracing::trace_span!("task", module = %module.id(), event = event.event_name());
     pool::execute(move || {
+        let _entered = span.enter();
         if let Err(err) = module.execute_event(event.as_ref(), vfs) {
             tracing::error!("module event execution failed: {err}");
         }

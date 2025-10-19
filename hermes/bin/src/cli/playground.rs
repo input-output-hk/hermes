@@ -46,6 +46,8 @@ pub struct Playground {
 impl Playground {
     /// Run playground CLI command
     pub fn exec(self) -> anyhow::Result<Exit> {
+        let exit_lock = reactor::init()?;
+
         println!("{} Running a playground...", Emoji::new("✨", ""));
 
         let temp_dir = TempDir::new()?;
@@ -56,7 +58,6 @@ impl Playground {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        let exit_lock = reactor::init()?;
         pool::init()?;
         println!(
             "{} Loading {} application(s)...",
@@ -118,10 +119,13 @@ fn create_one_module_app(
     vfs_dir_path: &Path,
     module: Module,
 ) -> anyhow::Result<Application> {
+    let app_name = ApplicationName::new(name);
+    RteApp::new().init(&app_name)?;
+
     let vfs_name = [name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
-    let app = Application::new(ApplicationName::new(name), vfs, vec![module]);
-    RteApp::new().init(app.name())?;
+    let app = Application::new(app_name, vfs, vec![module]);
+
     Ok(app)
 }
 
