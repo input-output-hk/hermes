@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use cardano_blockchain_types::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
+use shared::bindings::hermes::sqlite::api::Sqlite;
 
 /// A `TransactionHash` wrapper that can be stored to and load from a database.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -144,4 +145,47 @@ impl From<DbTransactionId> for TransactionId {
     fn from(val: DbTransactionId) -> Self {
         val.0
     }
+}
+
+impl From<TransactionId> for DbTransactionId {
+    fn from(value: TransactionId) -> Self {
+        Self(value)
+    }
+}
+
+pub(crate) fn get_txi_by_txn_hashes(
+    _session: &Sqlite,
+    _txn_ids: &[TransactionId],
+) -> anyhow::Result<Vec<GetTxiByTxnHashesQuery>> {
+    todo!()
+}
+
+pub(crate) fn get_txo_by_stake_address(
+    _session: &Sqlite,
+    _stake_address: &StakeAddress,
+) -> anyhow::Result<Vec<GetTxoByStakeAddressQuery>> {
+    todo!()
+}
+
+/// Get native assets query.
+#[derive(Clone)]
+pub(crate) struct GetAssetsByStakeAddressQuery {
+    /// Key Data.
+    pub key: Arc<GetAssetsByStakeAddressQueryKey>,
+    /// Value Data.
+    pub value: Arc<GetAssetsByStakeAddressQueryValue>,
+}
+
+pub(crate) fn get_assets_by_stake_address(
+    _session: &Sqlite,
+    _stake_address: &StakeAddress,
+) -> anyhow::Result<Vec<GetAssetsByStakeAddressQuery>> {
+    todo!()
+}
+
+pub(crate) fn update_txo_spent(
+    _session: &Sqlite,
+    _params: Vec<UpdateTxoSpentQueryParams>,
+) -> anyhow::Result<()> {
+    todo!()
 }

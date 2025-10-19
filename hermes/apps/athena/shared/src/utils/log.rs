@@ -147,15 +147,3 @@ pub fn log_info(
 ) {
     log::info!(target: context, data; "{msg}");
 }
-
-// TODO: replace `log_warn` calls with `log::warn!` macro invocations.
-/// Info logging.
-pub fn log_warn(
-    _: &str,
-    _: &str,
-    context: &str,
-    msg: &str,
-    data: Option<&str>,
-) {
-    log::warn!(target: context, data; "{msg}");
-}

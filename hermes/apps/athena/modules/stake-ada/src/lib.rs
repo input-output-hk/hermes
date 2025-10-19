@@ -29,10 +29,7 @@ shared::bindings_generate!({
 export!(CatGatewayAPI);
 
 use regex::Regex;
-use shared::{
-    bindings::hermes::logging::api::{log, Level},
-    utils::log::{self, log_error, log_info, log_warn},
-};
+use shared::utils::log;
 
 use crate::{
     api::cardano::staking::{staked_ada_get, GetStakedAdaRequest},
@@ -69,15 +66,8 @@ fn create_not_found_response(
     path: &str,
 ) -> HttpGatewayResponse {
     const FUNCTION_NAME: &str = "create_not_found_response";
-    log_warn(
-        file!(),
-        FUNCTION_NAME,
-        "",
-        &format!(
-            "Route not found (no native implementation or external routing configured): {} {}",
-            method, path
-        ),
-        None,
+    log::warn!(
+        "Route not found (no native implementation or external routing configured): {method} {path}",
     );
     HttpGatewayResponse::Http(HttpResponse {
         code: 404,
@@ -180,30 +170,13 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
         const FUNCTION_NAME: &str = "reply";
         log::init(log::LevelFilter::Trace);
 
-        let route_regex = stake_route_regex();
-        let response = if let Some(captures) = route_regex.captures(&path.to_lowercase()) {
-            if let Some(stake_address_match) = captures.get(1) {
-                let stake_address = stake_address_match.as_str();
-                let stake_address = Cip19StakeAddress::try_from(stake_address).ok()?;
-                log_info(
-                    file!(),
-                    FUNCTION_NAME,
-                    "",
-                    &format!(
-                        "Processing STAKE_ROUTE: {} {} {:?} {:?}",
-                        method, path, body, headers
-                    ),
-                    None,
-                );
+        let validation_result = validate_stake_route(&path);
+        let response = match validation_result {
+            Ok(stake_address) => {
+                log::info!("Processing STAKE_ROUTE: {method} {path} {body:?} {headers:?}",);
                 let request: GetStakedAdaRequest = serde_json::from_slice(&body)
                     .inspect_err(|err| {
-                        log_error(
-                            file!(),
-                            FUNCTION_NAME,
-                            "",
-                            &format!("request parse failed: {err}",),
-                            None,
-                        );
+                        log::error!("request parse failed: {err}");
                     })
                     .ok()?;
 
@@ -216,46 +189,39 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
 
                 match response {
                     WithErrorResponses::With(stake_info) => {
-                        log_info(
-                            file!(),
-                            FUNCTION_NAME,
-                            "",
-                            "processed STAKE_ROUTE successfully",
-                            None,
-                        );
+                        log::info!("processed STAKE_ROUTE successfully");
                         convert_to_http_response(stake_info)
                     },
                     WithErrorResponses::Error(error_response) => {
-                        log_info(
-                            file!(),
-                            FUNCTION_NAME,
-                            "",
-                            "processed STAKE_ROUTE  with error",
-                            None,
-                        );
+                        log::info!("processed STAKE_ROUTE  with error");
                         convert_error_to_http_response(error_response)
                     },
                 }
-            } else {
+            },
+            Err(err) => {
+                log::error!("Path validation failed: {err}");
                 create_not_found_response(&method, &path)
-            }
-        } else {
-            create_not_found_response(&method, &path)
+            },
         };
 
-        log_info(
-            file!(),
-            FUNCTION_NAME,
-            "",
-            &format!(
-                "Request completed: {} {} -> {}",
-                method,
-                path,
-                format_response_type(&response)
-            ),
-            None,
+        log::info!(
+            "Request completed: {method} {path} -> {}",
+            format_response_type(&response)
         );
 
         Some(response)
     }
+}
+
+fn validate_stake_route(path: &str) -> anyhow::Result<Cip19StakeAddress> {
+    let route_regex = stake_route_regex();
+    if let Some(captures) = route_regex.captures(&path.to_lowercase()) {
+        if let Some(stake_address_match) = captures.get(1) {
+            let stake_address = stake_address_match.as_str();
+            let stake_address = Cip19StakeAddress::try_from(stake_address)?;
+            return Ok(stake_address);
+        }
+        anyhow::bail!("Stake address is missing or has invalid format");
+    }
+    anyhow::bail!("Invalid path provided: {path}");
 }

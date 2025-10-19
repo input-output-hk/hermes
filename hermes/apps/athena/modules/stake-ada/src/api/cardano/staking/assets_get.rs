@@ -6,11 +6,13 @@ use std::{
 };
 
 use cardano_blockchain_types::{hashes::TransactionId, Slot, StakeAddress, TxnIndex};
+use shared::{bindings::hermes::sqlite::api::Sqlite, utils::sqlite::open_db_connection};
 
 use crate::{
     api::cardano::staking::db_mocked::{
-        GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue, GetTxiByTxnHashesQuery,
-        GetTxoByStakeAddressQuery, UpdateTxoSpentQueryParams,
+        get_assets_by_stake_address, get_txi_by_txn_hashes, get_txo_by_stake_address,
+        update_txo_spent, GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue,
+        UpdateTxoSpentQueryParams,
     },
     common::{
         objects::cardano::{
@@ -26,11 +28,7 @@ use crate::{
     settings::Settings,
 };
 
-/// TODO: replace with real db session
-struct Session;
-
 /// Endpoint responses.
-// #[derive(ApiResponse)]
 pub enum Responses {
     /// ## Ok
     ///
@@ -88,20 +86,18 @@ fn build_full_stake_info_response(
             return Ok(None);
         }
     }
-    let persistent_session = Arc::new(Session);
-    // CassandraSession::get(true).ok_or(CassandraSessionError::FailedAcquiringSession)?;
-    let volatile_session = Arc::new(Session);
-    // CassandraSession::get(false).ok_or(CassandraSessionError::FailedAcquiringSession)?;
+    let persistent_session = open_db_connection(false)?;
+    let volatile_session = open_db_connection(false)?;
     let adjusted_slot_num = slot_num.unwrap_or(SlotNo::MAXIMUM);
 
     let persistent_txo_state = calculate_assets_state(
-        persistent_session,
+        &persistent_session,
         stake_address.clone(),
         TxoAssetsState::default(),
     )?;
 
     let volatile_txo_state = calculate_assets_state(
-        volatile_session,
+        &volatile_session,
         stake_address.clone(),
         persistent_txo_state.clone(),
     )?;
@@ -124,18 +120,18 @@ fn build_full_stake_info_response(
 /// This function also updates the spent column if it detects that a TXO was spent
 /// between lookups.
 fn calculate_assets_state(
-    session: Arc<Session>,
+    session: &Sqlite,
     stake_address: Cip19StakeAddress,
     mut txo_base_state: TxoAssetsState,
 ) -> anyhow::Result<TxoAssetsState> {
     let address: StakeAddress = stake_address.try_into()?;
 
     let (mut txos, txo_assets) = (
-        get_txo(&session, &address)?,
-        get_txo_assets(&session, &address)?,
+        get_txo(session, &address)?,
+        get_txo_assets(session, &address)?,
     );
 
-    let _params = update_spent(&session, &address, &mut txo_base_state.txos, &mut txos)?;
+    let params = update_spent(session, &address, &mut txo_base_state.txos, &mut txos)?;
 
     // Extend the base state with current session data (used to calculate volatile data)
     let txos = txo_base_state.txos.into_iter().chain(txos).collect();
@@ -145,13 +141,9 @@ fn calculate_assets_state(
         .chain(txo_assets)
         .collect();
 
-    // Sets TXOs as spent in the database in the background.
-    // tokio::spawn(async move {
-    //     // if let Err(err) = todo!() {
-    //     //     // UpdateTxoSpentQuery::execute(&session, params).await {
-    //     //     tracing::error!("Failed to update TXO spent info, err: {err}");
-    //     // }
-    // });
+    if let Err(err) = update_txo_spent(session, params) {
+        tracing::error!("Failed to update TXO spent info, err: {err}");
+    }
 
     Ok(TxoAssetsState { txos, txo_assets })
 }
@@ -161,15 +153,10 @@ type TxoMap = HashMap<(TransactionId, i16), TxoInfo>;
 
 /// Returns a map of TXO infos for the given stake address.
 fn get_txo(
-    _session: &Session,
-    _stake_address: &StakeAddress,
+    session: &Sqlite,
+    stake_address: &StakeAddress,
 ) -> anyhow::Result<TxoMap> {
-    let txos_stream: Arc<Vec<GetTxoByStakeAddressQuery>> = Arc::new(vec![]);
-    // GetTxoByStakeAddressQuery::execute(
-    //     session,
-    //     GetTxoByStakeAddressQueryParams::new(stake_address.clone()),
-    // )
-    // .await?;
+    let txos_stream = get_txo_by_stake_address(session, stake_address)?;
 
     let txo_map = txos_stream.iter().fold(HashMap::new(), |mut txo_map, row| {
         let query_value = row.value.read().unwrap_or_else(|err| {
@@ -216,26 +203,12 @@ impl TxoAssetsState {
     }
 }
 
-/// Get native assets query.
-#[derive(Clone)]
-pub(crate) struct GetAssetsByStakeAddressQuery {
-    /// Key Data.
-    pub key: Arc<GetAssetsByStakeAddressQueryKey>,
-    /// Value Data.
-    pub value: Arc<GetAssetsByStakeAddressQueryValue>,
-}
-
 /// Returns a map of txo asset infos for the given stake address.
 fn get_txo_assets(
-    _session: &Session,
-    _stake_address: &StakeAddress,
+    session: &Sqlite,
+    stake_address: &StakeAddress,
 ) -> anyhow::Result<TxoAssetsMap> {
-    let assets_txos_stream: Arc<Vec<GetAssetsByStakeAddressQuery>> = Arc::new(vec![]);
-    //  GetAssetsByStakeAddressQuery::execute(
-    //     session,
-    //     GetAssetsByStakeAddressParams::new(stake_address.clone()),
-    // )
-    // .await?;
+    let assets_txos_stream = get_assets_by_stake_address(session, stake_address)?;
 
     let tokens_map =
         assets_txos_stream
@@ -261,7 +234,7 @@ fn get_txo_assets(
 /// have a txo which is spent inside the volatile, so to not incorrectly mix up records
 /// from these two tables, inserting some rows from persistent to volatile section).
 fn update_spent(
-    _session: &Session,
+    session: &Sqlite,
     stake_address: &StakeAddress,
     base_txos: &mut TxoMap,
     txos: &mut TxoMap,
@@ -277,17 +250,10 @@ fn update_spent(
 
     let mut params = Vec::new();
 
-    for _chunk in txn_hashes.chunks(100) {
-        // : scylla::client::pager::TypedRowStream<GetTxiByTxnHashesQuery>
-        let txi_stream: Vec<anyhow::Result<GetTxiByTxnHashesQuery>> = vec![];
-        // GetTxiByTxnHashesQuery::execute(
-        //     session,
-        //     GetTxiByTxnHashesQueryParams::new(chunk.to_vec()),
-        // )
-        // .await?;
-        let mut txi_stream = txi_stream.into_iter();
+    for chunk in txn_hashes.chunks(100) {
+        let txi_stream = get_txi_by_txn_hashes(session, chunk)?;
 
-        while let Some(row) = txi_stream.next().transpose()? {
+        for row in txi_stream {
             let key = (row.txn_id.into(), row.txo.into());
             if let Some(txo_info) = txos.get_mut(&key) {
                 params.push(UpdateTxoSpentQueryParams {
