@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "cardano-blockchain-types"
 version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-blockchain-types%2Fv0.0.6#0e16500065715624c81cf3240b1e807c35265909"
+source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.6#0e16500065715624c81cf3240b1e807c35265909"
 dependencies = [
  "anyhow",
  "blake2b_simd",

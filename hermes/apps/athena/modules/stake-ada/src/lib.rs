@@ -29,7 +29,10 @@ shared::bindings_generate!({
 export!(CatGatewayAPI);
 
 use regex::Regex;
-use shared::bindings::hermes::logging::api::{log, Level};
+use shared::{
+    bindings::hermes::logging::api::{log, Level},
+    utils::log::{self, log_error, log_info, log_warn},
+};
 
 use crate::{
     api::cardano::staking::{staked_ada_get, GetStakedAdaRequest},
@@ -65,56 +68,22 @@ fn create_not_found_response(
     method: &str,
     path: &str,
 ) -> HttpGatewayResponse {
-    log_warn(&format!(
-        "Route not found (no native implementation or external routing configured): {} {}",
-        method, path
-    ));
+    const FUNCTION_NAME: &str = "create_not_found_response";
+    log_warn(
+        file!(),
+        FUNCTION_NAME,
+        "",
+        &format!(
+            "Route not found (no native implementation or external routing configured): {} {}",
+            method, path
+        ),
+        None,
+    );
     HttpGatewayResponse::Http(HttpResponse {
         code: 404,
         headers: vec![("content-type".to_string(), vec!["text/html".to_string()])],
         body: Bstr::from("<html><body><h1>404 - Page Not Found</h1></body></html>"),
     })
-}
-
-/// Logs an info message
-fn log_info(message: &str) {
-    log(
-        Level::Info,
-        Some("gateway"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
-}
-/// Logs an info message
-fn log_err(message: &str) {
-    log(
-        Level::Error,
-        Some("gateway"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
-}
-
-/// Logs a warning message
-fn log_warn(message: &str) {
-    log(
-        Level::Warn,
-        Some("gateway"),
-        None,
-        None,
-        None,
-        None,
-        message,
-        None,
-    );
 }
 
 /// Formats the response type for logging
@@ -208,18 +177,33 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
         path: String,
         method: String,
     ) -> Option<HttpGatewayResponse> {
+        const FUNCTION_NAME: &str = "reply";
+        log::init(log::LevelFilter::Trace);
+
         let route_regex = stake_route_regex();
         let response = if let Some(captures) = route_regex.captures(&path.to_lowercase()) {
             if let Some(stake_address_match) = captures.get(1) {
                 let stake_address = stake_address_match.as_str();
                 let stake_address = Cip19StakeAddress::try_from(stake_address).ok()?;
-                log_info(&format!(
-                    "Processing STAKE_ROUTE: {} {} {:?} {:?}",
-                    method, path, body, headers
-                ));
+                log_info(
+                    file!(),
+                    FUNCTION_NAME,
+                    "",
+                    &format!(
+                        "Processing STAKE_ROUTE: {} {} {:?} {:?}",
+                        method, path, body, headers
+                    ),
+                    None,
+                );
                 let request: GetStakedAdaRequest = serde_json::from_slice(&body)
                     .inspect_err(|err| {
-                        log_err(&format!("request parse failed: {err}",));
+                        log_error(
+                            file!(),
+                            FUNCTION_NAME,
+                            "",
+                            &format!("request parse failed: {err}",),
+                            None,
+                        );
                     })
                     .ok()?;
 
@@ -232,11 +216,23 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
 
                 match response {
                     WithErrorResponses::With(stake_info) => {
-                        log_info("processed STAKE_ROUTE successfully");
+                        log_info(
+                            file!(),
+                            FUNCTION_NAME,
+                            "",
+                            "processed STAKE_ROUTE successfully",
+                            None,
+                        );
                         convert_to_http_response(stake_info)
                     },
                     WithErrorResponses::Error(error_response) => {
-                        log_info("processed STAKE_ROUTE with error");
+                        log_info(
+                            file!(),
+                            FUNCTION_NAME,
+                            "",
+                            "processed STAKE_ROUTE  with error",
+                            None,
+                        );
                         convert_error_to_http_response(error_response)
                     },
                 }
@@ -247,12 +243,18 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
             create_not_found_response(&method, &path)
         };
 
-        log_info(&format!(
-            "Request completed: {} {} -> {}",
-            method,
-            path,
-            format_response_type(&response)
-        ));
+        log_info(
+            file!(),
+            FUNCTION_NAME,
+            "",
+            &format!(
+                "Request completed: {} {} -> {}",
+                method,
+                path,
+                format_response_type(&response)
+            ),
+            None,
+        );
 
         Some(response)
     }
