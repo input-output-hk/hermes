@@ -79,7 +79,7 @@ gen-bindings:
 build-all:
     # Build all WASM modules (currently just HTTP proxy, more coming soon)
     BUILD +build-http-proxy
-    BUILD +build-gateway
+    BUILD +build-stake-ada
 
     # Future: Additional module builds will be added here
     # BUILD +build-auth-module
@@ -130,6 +130,7 @@ modules-build-wasm32-wasip2:
     BUILD ./rbac-registration+build-rbac-registration
     BUILD ./rbac-registration-indexer+build-rbac-registration-indexer
     BUILD ./http-proxy+build-http-proxy
+    BUILD ./stake-ada+build-stake-ada
 
 # Run build modules wasm32-wasip2 for the specify architect
 # Comment this out if it take long time for CI to build.

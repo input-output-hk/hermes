@@ -9,7 +9,7 @@ use crate::common::{
 };
 
 mod assets_get;
-mod db_mocked;
+mod database;
 
 pub use assets_get::Responses;
 

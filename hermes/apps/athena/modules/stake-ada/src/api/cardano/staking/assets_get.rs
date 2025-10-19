@@ -9,10 +9,15 @@ use cardano_blockchain_types::{hashes::TransactionId, Slot, StakeAddress, TxnInd
 use shared::{bindings::hermes::sqlite::api::Sqlite, utils::sqlite::open_db_connection};
 
 use crate::{
-    api::cardano::staking::db_mocked::{
-        get_assets_by_stake_address, get_txi_by_txn_hashes, get_txo_by_stake_address,
-        update_txo_spent, GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue,
-        UpdateTxoSpentQueryParams,
+    api::cardano::staking::database::{
+        queries::{
+            get_assets_by_stake_address, get_txi_by_txn_hashes, get_txo_by_stake_address,
+            update_txo_spent,
+        },
+        types::{
+            GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue,
+            UpdateTxoSpentQueryParams,
+        },
     },
     common::{
         objects::cardano::{
