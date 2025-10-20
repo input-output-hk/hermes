@@ -217,7 +217,6 @@ pub(super) fn open_with_persistent_memory(
         app_name
     };
 
-    // TODO(?): Fix SQLite in memory <https://github.com/input-output-hk/hermes/issues/553>.
     let memory = false;
 
     open(readonly, memory, db_name)
