@@ -13,7 +13,7 @@ pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
             -- Primary Key Data
             stake_address    BLOB NOT NULL,         -- 29 Byte stake hash (CIP19).
             slot_no          INTEGER NOT NULL,      -- slot number when the key_was_registered/re-registered.
-            txn_idx          INTEGER NOT NULL,      -- Index of the TX which holds the registration data.
+            txn_index        INTEGER NOT NULL,    -- Index of the TX which holds the registration data.
         
             -- Non-Key Data
             stake_public_key BLOB,                  -- 32 Bytes Stake address - not present for scripts and may not be present for `register`.
@@ -47,14 +47,40 @@ pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
     // Transaction Outputs (ADA) per stake address.
     // ADA that isn't staked is not present in this table.
     tx.execute(r#"
-        CREATE TABLE IF NOT EXISTS txo_by_stake_address (
-            txn_id          BLOB NOT NULL,          -- 32 Bytes Transaction Hash that was spent.
+        CREATE TABLE IF NOT EXISTS txo_by_stake (
+            stake_address   BLOB NOT NULL,          -- 29 Byte stake hash (CIP19).
+            slot_no         INTEGER NOT NULL,       -- slot number when the spend occurred.
+            txn_index       INTEGER NOT NULL,       -- Which Transaction in the Slot is the TXO.
             txo             INTEGER NOT NULL,       -- Index of the TXO which was spent
 
-            -- Non key data, we can only spend a transaction hash/txo once, so this should be unique in any event.
-            slot_no         INTEGER NOT NULL,       -- slot number when the spend occurred.
+            
+            -- Data needed to correlate a spent TXO.
+            txn_id          BLOB NOT NULL,          -- 32 byte hash of this transaction.
 
-            PRIMARY KEY (txn_id, txo)
+            spent_slot      INTEGER,                -- Slot this TXO was spent in.
+                                                    -- This is ONLY calculated/stored 
+                                                    -- when first detected in a query lookup.
+                                                    -- It serves as an optimization on subsequent queries. 
+
+            PRIMARY KEY (stake_address, slot_no, txn_index, txo)
+        );
+    "#)?;
+
+    // Transaction Outputs (Native Assets) per stake address.
+    // Assets that aren't staked are not present in this table.
+    tx.execute(r#"
+        CREATE TABLE IF NOT EXISTS txo_assets_by_stake (
+            stake_address   BLOB NOT NULL,          -- 29 Byte stake hash (CIP19).
+            slot_no         INTEGER NOT NULL,       -- slot number when the spend occurred.
+            txn_index       INTEGER NOT NULL,       -- Which Transaction in the Slot is the TXO.
+            txo             INTEGER NOT NULL,       -- Index of the TXO which was spent
+            policy_id       BLOB NOT NULL,          -- asset policy hash (id) (28 byte binary hash)
+            asset_name      BLOB NOT NULL,          -- name of the asset policy (UTF8) (0 - 32 bytes)
+            
+                -- None Key Data of the asset.
+            value           INTEGER NOT NULL,       -- Value of the asset (i128)
+
+            PRIMARY KEY (stake_address, slot_no, txn_index, txo)
         );
     "#)?;
 
