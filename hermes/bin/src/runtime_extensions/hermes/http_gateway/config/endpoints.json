@@ -1,0 +1,50 @@
+{
+  "subscriptions": [
+    {
+      "subscription_id": "rbac_registration",
+      "module_id": "rbac_registration",
+      "methods": [
+        "GET"
+      ],
+      "path_regex": "^/api/v1/registration(/.*)?$",
+      "content_types": [],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "gateway_frontend_config",
+      "module_id": "http_proxy",
+      "methods": [
+        "GET"
+      ],
+      "path_regex": "^/api/gateway/v1/config/frontend$",
+      "content_types": [],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "gateway_document_v1",
+      "module_id": "http_proxy",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "path_regex": "^/api/gateway/v1/document.*$",
+      "content_types": [],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "gateway_document_v2",
+      "module_id": "http_proxy",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "path_regex": "^/api/gateway/v2/document.*$",
+      "content_types": [],
+      "json_schema": null
+    }
+  ]
+}

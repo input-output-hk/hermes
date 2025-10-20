@@ -14,8 +14,8 @@ impl From<ed25519_dalek::VerifyingKey> for Ed25519HexEncodedPublicKey {
     }
 }
 
-impl Into<String> for Ed25519HexEncodedPublicKey {
-    fn into(self) -> String {
-        self.0
+impl From<Ed25519HexEncodedPublicKey> for String {
+    fn from(val: Ed25519HexEncodedPublicKey) -> Self {
+        val.0
     }
 }

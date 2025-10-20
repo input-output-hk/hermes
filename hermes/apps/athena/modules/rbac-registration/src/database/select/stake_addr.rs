@@ -22,7 +22,7 @@ use crate::{
         RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
     },
-    rbac::build_rbac_chain::RbacChainInfo,
+    rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };
 
 /// Registration chain from a stake address:
@@ -30,6 +30,7 @@ use crate::{
 /// 1. Start from the newest registration.
 /// - The rule is the newest `stake_address` that is in a valid chain, will take over the
 ///   `stake_address` in the older chain.
+///
 /// For example, if `stake_address_A` is in a valid chain1 with slot = 10, another valid
 /// chain2 with slot 20 has `stake_address_A`. Now `stake_address_A` belong to chain2.
 /// because it is the latest one.
@@ -50,13 +51,13 @@ use crate::{
 ///   in an earlier root (slot_no less than current slot, or same slot with smaller
 ///   `txn_idx`).
 ///
-///      SELECT txn_id FROM rbac_registration
-///      WHERE prv_txn_id IS NULL
-///      AND problem_report IS NULL
-///      AND catalyst_id = ?
-///      AND (
-///          slot_no < ? OR (slot_no = ? AND txn_idx < ?)
-///      )  
+///   SELECT txn_id FROM rbac_registration
+///   WHERE prv_txn_id IS NULL
+///   AND problem_report IS NULL
+///   AND catalyst_id = ?
+///   AND (
+///   slot_no < ? OR (slot_no = ? AND txn_idx < ?)
+///   )  
 ///
 /// - If no earlier root exists -> valid, the given `stake_address` belongs this chain.
 /// - Otherwise -> invalid, continue with next `txn_id`.
@@ -69,21 +70,16 @@ use crate::{
 /// - Otherwise -> continue with next `txn_id`.
 ///
 /// 3. If no valid root/chain is found after checking all candidates, then `stake_address`
-///    does not belong to any valid registration
-/// and will return an empty vector.
+///    does not belong to any valid registration and will return an empty vector.
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
     volatile: &Sqlite,
     stake_addr: StakeAddress,
-) -> anyhow::Result<Vec<RbacChainInfo>> {
+) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
     const FUNCTION_NAME: &str = "select_rbac_registration_chain_from_stake_addr";
 
     // Convert the given stake address to Vec<u8> which will be use in the query
-    let stake: Vec<u8> = stake_addr.try_into().map_err(|e| {
-        let error = format!("Failed to convert stake address StakeAddress: {e:?}");
-        log_error(file!(), FUNCTION_NAME, "stake_addr.try_into", &error, None);
-        anyhow::anyhow!(error)
-    })?;
+    let stake: Vec<u8> = stake_addr.into();
 
     // List of transaction IDs that contain the given stake address, newest first
     let mut txn_ids =
@@ -125,65 +121,15 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
         FUNCTION_NAME,
     )?;
 
-    let result: anyhow::Result<Vec<RbacChainInfo>> = (|| {
-        for cur_txn in txn_ids {
-            // Reset first to ensure the statement is in a clean state
-            DatabaseStatement::reset_statement(&reg_p_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&reg_v_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&root_validate_p_stmt, FUNCTION_NAME)?;
-            DatabaseStatement::reset_statement(&root_validate_v_stmt, FUNCTION_NAME)?;
-
-            let registration_info = get_registration_info_from_txn_id(&reg_p_stmt, &cur_txn)
-                .or_else(|_| get_registration_info_from_txn_id(&reg_v_stmt, &cur_txn))?;
-
-            let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
-                Some(info) => info,
-                None => {
-                    // This txn_id exists in stake address table but not in registration table
-                    // This SHOULD NOT happen
-                    // Skip to next transaction
-                    log(
-                        Level::Warn,
-                        None,
-                        Some(FUNCTION_NAME),
-                        None,
-                        None,
-                        None,
-                        "Registration info not found",
-                        None,
-                    );
-                    continue;
-                },
-            };
-            // This means the registration in this transaction id IS NOT a root.
-            // This check can be omitted, but is here just for readability.
-            // Search persistent first then volatile
-            if prv_txn_id.is_some() {
-                (cat_id, slot_no, txn_idx) =
-                    match walk_chain_back(&reg_p_stmt, &reg_v_stmt, prv_txn_id)? {
-                        Some((cat_id, slot, idx)) => (cat_id, slot, idx),
-                        None => {
-                            // Broken chain, skip to next transaction
-                            continue;
-                        },
-                    }
-            }
-
-            if let Some(id) = cat_id {
-                // Perform a check on whether the cat id is already used by other valid chains.
-                if is_valid_root(
-                    &root_validate_p_stmt,
-                    &root_validate_v_stmt,
-                    &id,
-                    slot_no,
-                    txn_idx,
-                )? {
-                    return select_rbac_registration_chain_from_cat_id(persistent, volatile, &id);
-                }
-            }
-        }
-        Ok(vec![])
-    })();
+    let result = process_stake_txn_ids(
+        txn_ids,
+        &reg_p_stmt,
+        &reg_v_stmt,
+        &root_validate_p_stmt,
+        &root_validate_v_stmt,
+        persistent,
+        volatile,
+    );
 
     // cleanup always runs here
     DatabaseStatement::finalize_statement(reg_p_stmt, FUNCTION_NAME)?;
@@ -192,6 +138,77 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     DatabaseStatement::finalize_statement(root_validate_v_stmt, FUNCTION_NAME)?;
 
     result
+}
+
+/// Helper function to process find valid registration chain information.
+fn process_stake_txn_ids(
+    txn_ids: Vec<Vec<u8>>,
+    reg_p_stmt: &Statement,
+    reg_v_stmt: &Statement,
+    root_validate_p_stmt: &Statement,
+    root_validate_v_stmt: &Statement,
+    persistent: &Sqlite,
+    volatile: &Sqlite,
+) -> anyhow::Result<(Vec<RegistrationLocation>, RbacChainMetadata)> {
+    const FUNCTION_NAME: &str = "process_stake_txn_ids";
+
+    for cur_txn in txn_ids {
+        // Reset first to ensure the statement is in a clean state
+        DatabaseStatement::reset_statement(reg_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(reg_v_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(root_validate_p_stmt, FUNCTION_NAME)?;
+        DatabaseStatement::reset_statement(root_validate_v_stmt, FUNCTION_NAME)?;
+
+        let registration_info = get_registration_info_from_txn_id(reg_p_stmt, &cur_txn)
+            .or_else(|_| get_registration_info_from_txn_id(reg_v_stmt, &cur_txn))?;
+
+        let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
+            Some(info) => info,
+            None => {
+                // This txn_id exists in stake address table but not in registration table
+                // This SHOULD NOT happen
+                // Skip to next transaction
+                log(
+                    Level::Warn,
+                    None,
+                    Some(FUNCTION_NAME),
+                    None,
+                    None,
+                    None,
+                    "Registration info not found",
+                    None,
+                );
+                continue;
+            },
+        };
+        // This means the registration in this transaction id IS NOT a root.
+        // This check can be omitted, but is here just for readability.
+        // Search persistent first then volatile
+        if prv_txn_id.is_some() {
+            (cat_id, slot_no, txn_idx) = match walk_chain_back(reg_p_stmt, reg_v_stmt, prv_txn_id)?
+            {
+                Some((cat_id, slot, idx)) => (cat_id, slot, idx),
+                None => {
+                    // Broken chain, skip to next transaction
+                    continue;
+                },
+            }
+        }
+
+        if let Some(id) = cat_id {
+            // Perform a check on whether the cat id is already used by other valid chains.
+            if is_valid_root(
+                root_validate_p_stmt,
+                root_validate_v_stmt,
+                &id,
+                slot_no,
+                txn_idx,
+            )? {
+                return select_rbac_registration_chain_from_cat_id(persistent, volatile, &id);
+            }
+        }
+    }
+    Ok((vec![], RbacChainMetadata::default()))
 }
 
 /// Get a list of transaction IDs that contain the given stake address.
@@ -240,11 +257,15 @@ fn get_txn_ids_from_stake_addr(
     result
 }
 
+/// Registration transaction information.
+/// Previous transaction ID, slot number, catalyst ID, transaction index.
+type RegistrationTxnInfo = (Option<Vec<u8>>, u64, Option<String>, u16);
+
 // Get registration info by transaction id.
 fn get_registration_info_from_txn_id(
     stmt: &Statement,
     txn_id: &[u8],
-) -> anyhow::Result<Option<(Option<Vec<u8>>, u64, Option<String>, u16)>> {
+) -> anyhow::Result<Option<RegistrationTxnInfo>> {
     const FUNCTION_NAME: &str = "get_registration_info_from_txn_id";
 
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;

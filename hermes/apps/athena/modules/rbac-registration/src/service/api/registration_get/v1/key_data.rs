@@ -62,7 +62,7 @@ impl KeyData {
         };
 
         Ok(Self {
-            is_persistent: is_persistent.into(),
+            is_persistent,
             time: time.into(),
             key_type,
             key_value,

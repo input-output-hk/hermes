@@ -31,7 +31,7 @@ use shared::{
     bindings::hermes::{cardano, sqlite::api::Sqlite},
     utils::{
         cardano::block::build_block,
-        log::{log_error, log_info},
+        log::{self, log_error, log_info},
         problem_report::problem_report_to_json,
         sqlite::{close_db_connection, open_db_connection, statement::DatabaseStatement},
     },
@@ -61,6 +61,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
+        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "on_cardano_block";
 
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
@@ -75,7 +76,9 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             return;
         };
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -183,6 +186,7 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
+        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "on_cardano_immutable_roll_forward";
 
         let network_resource = match cardano::api::Network::new(subscription_id.get_network()) {
@@ -224,7 +228,10 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         let Ok(sqlite) = open_db_connection(false) else {
             return;
         };
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return;
         };
 
@@ -276,15 +283,20 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
 
 impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
+        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "init";
 
         let Ok(sqlite) = open_db_connection(false) else {
             return false;
         };
+
         // Volatile table will be stored in memory
-        let Ok(sqlite_in_mem) = open_db_connection(true) else {
+        // TODO - Change this to in-memory once it is supported
+        // <https://github.com/input-output-hk/hermes/issues/553>
+        let Ok(sqlite_in_mem) = open_db_connection(false) else {
             return false;
         };
+
         create_rbac_persistent_tables(&sqlite);
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);

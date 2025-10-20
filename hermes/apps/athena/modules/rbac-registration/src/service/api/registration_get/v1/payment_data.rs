@@ -30,7 +30,7 @@ impl PaymentData {
         let address = address.map(Cip19ShelleyAddress::try_from).transpose()?;
 
         Ok(Self {
-            is_persistent: is_persistent.into(),
+            is_persistent,
             time: time.into(),
             address,
         })

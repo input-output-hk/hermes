@@ -40,6 +40,10 @@ pub(crate) struct Application {
     /// WASM modules
     indexed_modules: HashMap<ModuleId, Arc<Module>>,
 
+    /// Maps module names (e.g. "`user_auth`") to their unique ULID
+    /// Enables fast lookup of modules by human-readable name
+    module_registry: HashMap<String, ModuleId>,
+
     /// Application's `Vfs` instance
     vfs: Arc<Vfs>,
 }
@@ -51,6 +55,7 @@ impl Application {
         app_name: ApplicationName,
         vfs: Vfs,
         modules: Vec<Module>,
+        module_registry: HashMap<String, ModuleId>,
     ) -> Self {
         let indexed_modules = modules
             .into_iter()
@@ -60,6 +65,7 @@ impl Application {
             name: app_name,
             indexed_modules,
             vfs: Arc::new(vfs),
+            module_registry,
         }
     }
 
@@ -71,6 +77,11 @@ impl Application {
     /// Get vfs
     pub(crate) fn vfs(&self) -> &Vfs {
         self.vfs.as_ref()
+    }
+
+    /// Returns a copy of the module registry mapping names to IDs
+    pub(crate) fn get_module_registry(&self) -> HashMap<std::string::String, ModuleId> {
+        self.module_registry.clone()
     }
 
     /// Dispatch event for all available modules.

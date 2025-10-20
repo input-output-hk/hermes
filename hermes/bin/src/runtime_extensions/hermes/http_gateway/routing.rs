@@ -27,6 +27,7 @@ use crate::{
     app::{Application, ApplicationName},
     event::{HermesEvent, TargetApp, TargetModule},
     reactor,
+    runtime_extensions::hermes::http_gateway::subscription::find_global_endpoint_subscription,
 };
 
 /// Everything that hits /api routes to Webasm Component Modules
@@ -40,7 +41,7 @@ const VALID_PATH: &str = r"^(/.*|/)$";
 /// Attempts to wait for a value on this receiver,
 /// returning an error if the corresponding channel has hung up,
 /// or if it waits more than timeout of arbitrary 1 second
-const EVENT_TIMEOUT: u64 = 1;
+const EVENT_TIMEOUT: u64 = 30;
 
 /// hostname (node name)
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -167,14 +168,15 @@ async fn route_to_hermes(
 
     // Analyze the request path and determine which type of handler should process it
     // This applies our routing rules to classify the request appropriately
-    let route_type = determine_route(&uri)?;
+    let route_type = determine_route(&uri, &req).await?;
 
-    // Delegate to the appropriate handler based on route classification
     match route_type {
         // API endpoints need WebAssembly module processing
         // These requests go through the event queue to WASM components
-        RouteType::WebAssembly(path) => handle_webasm_request(req, path).await,
-        // Static files are served directly from the virtual file system
+        RouteType::WebAssembly(path, module_id) => {
+            handle_webasm_request(req, path, module_id, app_name).await
+            // Static files are served directly from the virtual file system
+        },
         RouteType::StaticFile(path) => serve_static_web_content(&path, &app_name),
     }
 }
@@ -187,8 +189,7 @@ async fn route_to_hermes(
 enum RouteType {
     /// API endpoints that should be processed by WebAssembly modules
     /// Contains the full path including query parameters for forwarding
-    WebAssembly(String),
-
+    WebAssembly(String, Option<String>),
     /// Static file requests that serve assets (HTML, CSS, JS, images, etc.)
     /// Contains the normalized file path for filesystem lookup
     StaticFile(String),
@@ -198,7 +199,10 @@ enum RouteType {
 ///
 /// This function implements the core routing logic by examining the request path
 /// and applying routing rules to classify the request type.
-fn determine_route(uri: &hyper::Uri) -> anyhow::Result<RouteType> {
+async fn determine_route(
+    uri: &hyper::Uri,
+    req: &Request<Incoming>,
+) -> anyhow::Result<RouteType> {
     // Extract the full path including query parameters for accurate forwarding
     // This preserves important data like ?asat=SLOT:95022059 that WASM modules need
     let path = uri
@@ -207,16 +211,37 @@ fn determine_route(uri: &hyper::Uri) -> anyhow::Result<RouteType> {
 
     // Check if this is an API endpoint that needs WebAssembly processing
     // API routes are identified by the /api prefix (exact match or with additional path)
+    let method = req.method().as_str();
+    let content_type = req
+        .headers()
+        .get("content-type")
+        .and_then(|ct| ct.to_str().ok());
+
+    if let Some(subscription) =
+        find_global_endpoint_subscription(method, uri.path(), content_type).await
+    {
+        info!(
+            "Found subscription for {} {}: module {}",
+            method,
+            uri.path(),
+            subscription.module_id
+        );
+        return Ok(RouteType::WebAssembly(
+            path.to_string(),
+            Some(subscription.module_id),
+        ));
+    }
+
+    // Check if this is an API endpoint that needs WebAssembly processing
+    // API routes are identified by the /api prefix (exact match or with additional path)
     if uri.path() == WEBASM_ROUTE || uri.path().starts_with(&format!("{WEBASM_ROUTE}/")) {
-        Ok(RouteType::WebAssembly(path.to_string()))
-    }
-    // Check if this is a valid static file path
-    // Uses regex validation to ensure path safety and prevent directory traversal
-    else if is_valid_path(uri.path()).is_ok() {
+        Ok(RouteType::WebAssembly(path.to_string(), None))
+        // Check if this is a valid static file path
+        // Uses regex validation to ensure path safety and prevent directory traversal
+    } else if is_valid_path(uri.path()).is_ok() {
         Ok(RouteType::StaticFile(path.to_string()))
-    }
-    // Reject invalid or potentially dangerous paths
-    else {
+    } else {
+        // Reject invalid or potentially dangerous paths
         Err(anyhow!("Invalid route: {}", uri.path()))
     }
 }
@@ -231,11 +256,12 @@ fn determine_route(uri: &hyper::Uri) -> anyhow::Result<RouteType> {
 async fn handle_webasm_request(
     req: Request<Incoming>,
     path: String,
+    module_id: Option<String>,
+    app_name: ApplicationName,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let (lambda_send, lambda_recv_answer) = channel();
     let method = req.method().to_string();
 
-    // Convert headers to multi-value format
     let headers: HeadersKV = req
         .headers()
         .iter()
@@ -249,38 +275,112 @@ async fn handle_webasm_request(
     let (_parts, body) = req.into_parts();
     let body_bytes = body.collect().await?.to_bytes();
 
-    compose_http_event(
+    let request_params = HttpRequestParams {
         method,
         headers,
-        body_bytes,
+        body: body_bytes,
         path,
-        lambda_send,
-        &lambda_recv_answer,
-    )
+        sender: lambda_send,
+    };
+
+    compose_http_event(request_params, &lambda_recv_answer, module_id, &app_name)
 }
 
-/// Compose http event and send to global queue, await queue response and relay back to
-/// waiting receiver channel for HTTP response
-fn compose_http_event<B>(
+/// HTTP request parameters for WebAssembly event processing
+struct HttpRequestParams {
+    /// HTTP method (GET, POST, etc.)
     method: String,
+    /// HTTP headers as key-value pairs
     headers: HeadersKV,
+    /// Request body content
     body: Bytes,
+    /// Request path with query parameters
     path: String,
+    /// Channel sender for HTTP event responses
     sender: Sender<HTTPEventMsg>,
+}
+
+/// Composes and processes HTTP events for WebAssembly modules
+///
+/// This function handles the complete lifecycle of HTTP request processing:
+/// 1. Creates an HTTP event from request parameters
+/// 2. Determines target module(s) for routing
+/// 3. Sends event to the global queue
+/// 4. Waits for and processes the response
+fn compose_http_event<B>(
+    params: HttpRequestParams,
+    receiver: &Receiver<HTTPEventMsg>,
+    module_id: Option<String>,
+    app_name: &ApplicationName,
+) -> anyhow::Result<Response<B>>
+where
+    B: Body + From<Vec<u8>> + From<String>,
+{
+    let http_event = create_http_event(params);
+    let target_module = resolve_target_module(module_id, app_name)?;
+    let hermes_event = HermesEvent::new(http_event, TargetApp::All, target_module);
+
+    send_event_and_await_response(hermes_event, receiver)
+}
+
+/// Creates an `HTTPEvent` from the provided request parameters
+fn create_http_event(params: HttpRequestParams) -> HTTPEvent {
+    HTTPEvent {
+        headers: params.headers,
+        method: params.method,
+        path: params.path,
+        body: params.body,
+        sender: params.sender,
+    }
+}
+
+/// Resolves the target module(s) for routing the HTTP request
+///
+/// Returns:
+/// - `TargetModule::List` with specific module if found
+/// - `TargetModule::All` if module not found or not specified
+fn resolve_target_module(
+    module_id: Option<String>,
+    app_name: &ApplicationName,
+) -> anyhow::Result<TargetModule> {
+    let app = reactor::get_app(app_name)?;
+    let modules = app.get_module_registry();
+
+    let target_module = match module_id {
+        None => {
+            info!("Broadcasting HTTP request to all modules (no specific subscription)");
+            TargetModule::All
+        },
+        Some(target_module_str) => {
+            info!(
+                "Routing HTTP request to specific module: {}",
+                target_module_str
+            );
+
+            if let Some(found_module_id) = modules.get(&target_module_str) {
+                TargetModule::List(vec![found_module_id.clone()])
+            } else {
+                info!(
+                    "Module '{}' not found in available modules: {:?}, broadcasting to all",
+                    target_module_str,
+                    modules.keys().collect::<Vec<_>>()
+                );
+                TargetModule::All
+            }
+        },
+    };
+
+    Ok(target_module)
+}
+
+/// Sends the event to the global queue and waits for a response
+fn send_event_and_await_response<B>(
+    event: HermesEvent,
     receiver: &Receiver<HTTPEventMsg>,
 ) -> anyhow::Result<Response<B>>
 where
     B: Body + From<Vec<u8>> + From<String>,
 {
-    let on_http_event = HTTPEvent {
-        headers,
-        method,
-        path,
-        body,
-        sender,
-    };
-    let event = HermesEvent::new(on_http_event, TargetApp::All, TargetModule::All);
-
     crate::event::queue::send(event)?;
 
     let timeout = Duration::from_secs(EVENT_TIMEOUT);
@@ -297,7 +397,7 @@ where
             let response = response_builder.body(body.into())?;
             Ok(response)
         },
-        HTTPEventMsg::HTTPEventReceiver => error_response("HTTP event message error"),
+        HTTPEventMsg::HTTPEventReceiver => error_response("Invalid HTTP event message received"),
     }
 }
 
@@ -353,7 +453,6 @@ where
 
 /// Default file path for root requests - Flutter application entry point
 const DEFAULT_INDEX_PATH: &str = "www/index.html";
-
 /// Document root directory in the VFS where static web assets are stored
 const DOCUMENT_ROOT: &str = "www";
 
@@ -415,7 +514,6 @@ where
 
     if let Some(extension) = get_file_extension(file_path) {
         let content_type = get_flutter_content_type(extension);
-
         response
             .headers_mut()
             .insert("Content-Type", content_type.parse()?);
@@ -432,7 +530,6 @@ fn handle_missing_asset<B>(
 where
     B: Body + From<Vec<u8>>,
 {
-    // Critical assets should return 404
     if is_critical_asset(file_path) {
         error!("Critical asset missing: {}", file_path);
         return Ok(Response::builder()
@@ -584,7 +681,6 @@ mod tests {
         // (...)+|/: Explicitly allow just a single slash
         let regex = Regex::new(VALID_PATH).unwrap();
 
-        // valid
         let example_one = "/abc/def";
         let example_two = "/hello_1/world";
         let example_three = "/three/directories/abc";
@@ -599,7 +695,6 @@ mod tests {
             assert!(is_valid_path(valid).is_ok());
         }
 
-        // invalid
         let example_one = "/abc/def/";
         let example_two = "/abc//def";
         let example_three = "//";
