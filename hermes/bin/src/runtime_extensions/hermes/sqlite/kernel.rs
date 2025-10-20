@@ -275,8 +275,9 @@ impl DbPaths {
         }
     }
 
-    /// Removes all existing persistent files. 
-    /// Returns the first error encountered, even if some files where successfully removed.
+    /// Removes all existing persistent files.
+    /// Returns the first error encountered, even if some files where successfully
+    /// removed.
     pub(crate) fn remove_all(&self) -> std::io::Result<()> {
         [&self.database, &self.journal, &self.wal]
             .into_iter()
