@@ -276,14 +276,19 @@ impl DbPaths {
         }
     }
 
-    /// Removes existing persistent files.
+    /// Removes all existing persistent files. 
+    /// Returns the first error encountered, even if some files where successfully removed.
     pub(crate) fn remove_all(&self) -> std::io::Result<()> {
-        for path in [&self.database, &self.journal, &self.wal] {
-            if std::fs::exists(path)? {
-                std::fs::remove_file(path)?;
-            }
-        }
-        Ok(())
+        [&self.database, &self.journal, &self.wal]
+            .into_iter()
+            .map(|path| {
+                if std::fs::exists(path)? {
+                    std::fs::remove_file(path)
+                } else {
+                    Ok(())
+                }
+            })
+            .fold(Ok(()), std::io::Result::and)
     }
 }
 
