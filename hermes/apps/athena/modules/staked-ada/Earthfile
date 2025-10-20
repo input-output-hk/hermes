@@ -27,7 +27,7 @@ build-staked-ada:
 # Duration: ~3-5 minutes (Rust compilation to WASM)
 local-build-staked-ada:
     FROM alpine
-    COPY +build-staked-ada/stake_ada.wasm .
+    COPY +build-staked-ada/staked_ada.wasm .
 
     # Copy module configuration and metadata files
     COPY lib/config.schema.json .
@@ -42,7 +42,7 @@ local-build-staked-ada:
     RUN mkdir -p /staging/
 
     # Copy WASM module and JSON config files to root of staging
-    RUN cp stake_ada.wasm /staging/
+    RUN cp staked_ada.wasm /staging/
     RUN cp *.json /staging/ || true
 
     # Export build artifacts from staging directory
