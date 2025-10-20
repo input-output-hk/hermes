@@ -160,16 +160,22 @@ impl Module {
     ) -> anyhow::Result<()> {
         let runtime_ctx = self.new_context("init_function_call", vfs);
 
-        new_context(&runtime_ctx);
-
         let mut store = WasmStore::new(&self.engine, runtime_ctx);
         let instance = self.pre_instance.instantiate(&mut store)?;
 
         let init_result = match instance.lookup_hermes_init_event_init(&mut store) {
             Ok(func) => {
-                func.call(&mut store, ())
+                RteEvent::new().init(store.data())?;
+                new_context(store.data());
+
+                let init_result = func
+                    .call(&mut store, ())
                     .context("unable to call WASM component init function")?
-                    .0
+                    .0;
+                let _unused = func
+                    .post_return(&mut store)
+                    .inspect_err(|error| tracing::error!(%error, "Module initialized, but init() post-return failed"));
+                init_result
             },
             Err(unchecked_exports::Error::NotExported) => true,
             Err(err) => return Err(err.into()),
