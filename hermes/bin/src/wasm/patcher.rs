@@ -18,8 +18,11 @@ const CORE_FUNC_REGEX: &str = r"\(func\s+\$[^\s()]+[^)]*\(;";
 /// Regex to detect the aliases of core functions in the component part.
 const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
+/// Regex to detect the function export definitions in the component part.
+const COMPONENT_EXPORT_FUNC_REGEX: &str = r"\(export \(.*\(func";
+
 /// Regex to detect the function definitions in the component part.
-const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\)";
+const COMPONENT_FUNC_REGEX: &str = r"\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\) \(canon";
 
 /// A template for the injected types in the core module.
 const CORE_INJECTED_TYPES: &str = r"
@@ -76,6 +79,8 @@ struct WasmInternals {
     core_module: String,
     /// The component part of the WASM.
     component_part: String,
+    /// The part of component specified before the core module.
+    pre_core_component_part: String,
 }
 
 /// Represents a single match of a WAT element.
@@ -175,7 +180,8 @@ impl Patcher {
         let WasmInternals {
             mut core_module,
             mut component_part,
-        } = self.core_and_component()?;
+            mut pre_core_component_part,
+        } = self.split_into_parts()?;
 
         let next_core_type_index = Self::get_next_core_type_index(&core_module)?;
 
@@ -198,7 +204,8 @@ impl Patcher {
 
         let next_core_func_index = Self::get_next_core_func_index(&core_module);
 
-        let next_component_type_index = Self::get_next_component_type_index(&component_part)?;
+        let next_component_type_index =
+            Self::get_next_component_type_index(&component_part, &pre_core_component_part)?;
         let component_type_1_index = next_component_type_index.to_string();
         let component_type_2_index = (next_component_type_index + 1).to_string();
         let component_type_3_index = (next_component_type_index + 2).to_string();
@@ -209,11 +216,13 @@ impl Patcher {
         let component_core_func_2_index = (next_component_core_func_index + 1).to_string();
         let component_core_func_3_index = (next_component_core_func_index + 2).to_string();
 
-        let next_component_func_index = Self::get_next_component_func_index(&component_part)?;
-        // *2 because "export" shares the same index space with "func"
-        let component_func_1_index = (next_component_func_index * 2).to_string();
-        let component_func_2_index = ((next_component_func_index + 1) * 2).to_string();
-        let component_func_3_index = ((next_component_func_index + 2) * 2).to_string();
+        let next_component_func_index =
+            Self::get_next_component_export_func_index(&component_part)?;
+        let component_func_1_index = next_component_func_index.to_string();
+        // For each injected function we also add an 'export' which shares the same index space,
+        // hence we need to bump the index by 2.
+        let component_func_2_index = (next_component_func_index + 2).to_string();
+        let component_func_3_index = (next_component_func_index + 4).to_string();
 
         let component_injections = COMPONENT_INJECTIONS
             .replace("{MAGIC}", MAGIC)
@@ -235,6 +244,7 @@ impl Patcher {
         let patched_wat = format!(
             "
             (component 
+                {pre_core_component_part}
                 {core_module}
             )
             
@@ -273,8 +283,29 @@ impl Patcher {
     }
 
     /// Gets the next available component type index.
-    fn get_next_component_type_index<S: AsRef<str>>(component: S) -> Result<u32, anyhow::Error> {
-        Self::get_item_count("type (;", component.as_ref())
+    #[allow(clippy::arithmetic_side_effects)]
+    fn get_next_component_type_index<S: AsRef<str>>(
+        component: S,
+        pre_core_component: S,
+    ) -> Result<u32, anyhow::Error> {
+        let mut processed_component = component.as_ref().to_string();
+        while let Some(inner_component_start) = processed_component.find("(component") {
+            let inner_component_end =
+                Self::parse_until_section_end(inner_component_start, &processed_component)? + 1;
+            processed_component.replace_range(inner_component_start..inner_component_end, "---");
+        }
+
+        let mut processed_pre_component = pre_core_component.as_ref().to_string();
+        while let Some(inner_instance_start) = processed_pre_component.find("(instance") {
+            let inner_instance_end =
+                Self::parse_until_section_end(inner_instance_start, &processed_pre_component)? + 1;
+            processed_pre_component.replace_range(inner_instance_start..inner_instance_end, "---");
+        }
+
+        let component_type_count = Self::get_item_count("type (;", processed_component)?;
+        let pre_component_type_count = Self::get_item_count("type (;", processed_pre_component)?;
+
+        Ok(component_type_count + pre_component_type_count)
     }
 
     /// Gets the next available core type index.
@@ -294,12 +325,26 @@ impl Patcher {
     }
 
     /// Gets the next available component function index.
-    #[allow(clippy::expect_used)] // regex is hardcoded and should be valid
-    fn get_next_component_func_index<S: AsRef<str>>(core_module: S) -> Result<u32, anyhow::Error> {
-        Self::get_item_count(
+    #[allow(clippy::expect_used, clippy::arithmetic_side_effects)] // regex is hardcoded and should be valid
+    fn get_next_component_export_func_index<S: AsRef<str>>(
+        component: S
+    ) -> Result<u32, anyhow::Error> {
+        let mut processed_component = component.as_ref().to_string();
+        while let Some(inner_component_start) = processed_component.find("(component") {
+            let inner_component_end =
+                Self::parse_until_section_end(inner_component_start, &processed_component)? + 1;
+            processed_component.replace_range(inner_component_start..inner_component_end, "---");
+        }
+
+        let export_count = Self::get_item_count(
+            Regex::new(COMPONENT_EXPORT_FUNC_REGEX).expect("this should be a proper regex"),
+            &processed_component,
+        )?;
+        let func_count = Self::get_item_count(
             Regex::new(COMPONENT_FUNC_REGEX).expect("this should be a proper regex"),
-            core_module.as_ref(),
-        )
+            &processed_component,
+        )?;
+        Ok(export_count + func_count)
     }
 
     /// Gets the next available core function index.
@@ -311,23 +356,21 @@ impl Patcher {
         )
     }
 
-    /// Extracts the core module and component part from the WAT.
     #[allow(clippy::arithmetic_side_effects)]
-    fn core_and_component(&self) -> Result<WasmInternals, anyhow::Error> {
-        let module_start = self
-            .wat
-            .find("(core module")
-            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
-        let mut module_end = module_start;
-
+    /// Looks for the end of the WAT section that starts at `start`.
+    fn parse_until_section_end<S: AsRef<str>>(
+        start: usize,
+        wat: S,
+    ) -> Result<usize, anyhow::Error> {
+        let mut end = start;
         let mut count = 1;
-        for ch in self
-            .wat
-            .get((module_start + 1)..)
+        for ch in wat
+            .as_ref()
+            .get((start + 1)..)
             .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
             .chars()
         {
-            module_end += 1;
+            end += 1;
             if ch == '(' {
                 count += 1;
             } else if ch == ')' {
@@ -337,6 +380,35 @@ impl Patcher {
                 }
             }
         }
+        Ok(end)
+    }
+
+    /// Extracts the core module and component part from the WAT.
+    #[allow(clippy::arithmetic_side_effects)]
+    fn split_into_parts(&self) -> Result<WasmInternals, anyhow::Error> {
+        const COMPONENT_ITEM: &str = "(component";
+        let module_start = self
+            .wat
+            .find("(core module")
+            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
+        let mut module_end = Self::parse_until_section_end(module_start, &self.wat)?;
+
+        let pre_component_str = self
+            .wat
+            .get(0..module_start)
+            .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
+            .trim();
+        let pre_core_component_part = if pre_component_str == "(component" {
+            ""
+        } else {
+            let component_start = self
+                .wat
+                .find(COMPONENT_ITEM)
+                .ok_or_else(|| anyhow::anyhow!("no component start"))?;
+            self.wat
+                .get((component_start + COMPONENT_ITEM.len())..module_start)
+                .ok_or_else(|| anyhow::anyhow!("malformed wat"))?
+        };
 
         let core_module = &self
             .wat
@@ -362,6 +434,7 @@ impl Patcher {
                 .get(..component_last_parenthesis)
                 .ok_or_else(|| anyhow::anyhow!("malformed component part"))?
                 .to_string(),
+            pre_core_component_part: pre_core_component_part.to_string(),
         })
     }
 }
@@ -382,9 +455,43 @@ mod tests {
         "tests/test_wasm_files/component_single_core_module.wasm";
     const COMPONENT_MULTIPLE_CORE_MODULES: &str =
         "tests/test_wasm_files/component_multiple_core_modules.wasm";
+    const HERMES_REAL_LIFE_MODULE: &str = "tests/test_wasm_files/hermes_real_life_module.wasm";
 
     const MAKESHIFT_CORRECT_WAT: &str = r#"
         (component
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            )
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        )
+    "#;
+
+    const MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT: &str = r#"
+        (component
+            (type (;0;)
+              (instance
+                (type (;0;) string)
+                (export (;1;) "cron-event-tag" (type (eq 0)))
+                (type (;2;) string)
+                (export (;3;) "cron-sched" (type (eq 2)))
+                (type (;4;) (record (field "when" 3) (field "tag" 1)))
+                (export (;5;) "cron-tagged" (type (eq 4)))
+              )
+            )
+            (import "hermes:cron/api" (instance (;0;) (type 0)))
             (core module (;0;)
                 (type (;0;) (func))
                 (type (;1;) (func (result i32)))
@@ -435,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_wasm_internals() {
+    fn extracts_wasm_internals_no_pre_core() {
         const EXPECTED_CORE: &str = r"
             (core module (;0;)
                 (type (;0;) (func))
@@ -458,11 +565,14 @@ mod tests {
             )
             "#;
 
+        const EXPECTED_PRE_COMPONENT: &str = "";
+
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
         let WasmInternals {
             core_module,
             component_part,
-        } = patcher.core_and_component().expect("should extract parts");
+            pre_core_component_part,
+        } = patcher.split_into_parts().expect("should extract parts");
 
         assert_eq!(
             strip_whitespaces(&core_module),
@@ -471,6 +581,89 @@ mod tests {
         assert_eq!(
             strip_whitespaces(&component_part),
             strip_whitespaces(EXPECTED_COMPONENT)
+        );
+        assert_eq!(
+            strip_whitespaces(&pre_core_component_part),
+            strip_whitespaces(EXPECTED_PRE_COMPONENT)
+        );
+    }
+
+    #[test]
+    fn types_from_pre_core_are_included_when_patching() {
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
+            .expect("should create patcher");
+        let WasmInternals {
+            core_module,
+            component_part,
+            pre_core_component_part,
+        } = patcher.split_into_parts().expect("should extract parts");
+
+        let next_index =
+            Patcher::get_next_component_type_index(&component_part, &pre_core_component_part)
+                .expect("should get next index");
+
+        // There is 1 type in the component part and another one in the pre_component part that is
+        // included before the actual core module
+        assert_eq!(next_index, 2);
+    }
+
+    #[test]
+    fn extracts_wasm_internals_with_pre_core() {
+        const EXPECTED_CORE: &str = r"
+            (core module (;0;)
+                (type (;0;) (func))
+                (type (;1;) (func (result i32)))
+                (type (;2;) (func (param i32 i32) (result i32)))
+                (func $two (;1;) (type 1) (result i32)
+                    i32.const 2
+                )
+            ";
+
+        const EXPECTED_COMPONENT: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result u8)))
+            (alias core export 0 "two" (core func (;0;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (export (;1;) "two" (func 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+            "#;
+
+        const EXPECTED_PRE_COMPONENT: &str = r#"
+            (type (;0;)
+              (instance
+                (type (;0;) string)
+                (export (;1;) "cron-event-tag" (type (eq 0)))
+                (type (;2;) string)
+                (export (;3;) "cron-sched" (type (eq 2)))
+                (type (;4;) (record (field "when" 3) (field "tag" 1)))
+                (export (;5;) "cron-tagged" (type (eq 4)))
+              )
+            )
+            (import "hermes:cron/api" (instance (;0;) (type 0)))
+        "#;
+
+        let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
+            .expect("should create patcher");
+        let WasmInternals {
+            core_module,
+            component_part,
+            pre_core_component_part,
+        } = patcher.split_into_parts().expect("should extract parts");
+
+        assert_eq!(
+            strip_whitespaces(&core_module),
+            strip_whitespaces(EXPECTED_CORE)
+        );
+        assert_eq!(
+            strip_whitespaces(&component_part),
+            strip_whitespaces(EXPECTED_COMPONENT)
+        );
+        assert_eq!(
+            strip_whitespaces(&pre_core_component_part),
+            strip_whitespaces(EXPECTED_PRE_COMPONENT)
         );
     }
 
@@ -562,13 +755,16 @@ mod tests {
             )
             "#;
 
-        let index = Patcher::get_next_component_type_index(COMPONENT_1).expect("should get index");
+        let index =
+            Patcher::get_next_component_type_index(COMPONENT_1, "").expect("should get index");
         assert_eq!(index, 0);
 
-        let index = Patcher::get_next_component_type_index(COMPONENT_2).expect("should get index");
+        let index =
+            Patcher::get_next_component_type_index(COMPONENT_2, "").expect("should get index");
         assert_eq!(index, 2);
 
-        let index = Patcher::get_next_component_type_index(COMPONENT_3).expect("should get index");
+        let index =
+            Patcher::get_next_component_type_index(COMPONENT_3, "").expect("should get index");
         assert_eq!(index, 5);
     }
 
@@ -697,50 +893,57 @@ mod tests {
         let result = patcher.patch().expect("should patch");
         let encoded = wat::parse_str(&result);
         assert!(encoded.is_ok());
+
+        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).expect("should create patcher");
+        let result = patcher.patch().expect("should patch");
+        let encoded = wat::parse_str(&result);
+        assert!(encoded.is_ok());
     }
 
     #[test]
     fn injected_get_memory_size_works() {
-        // Step 1: Patch the WASM file
-        let patcher =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
-        let encoded = wat::parse_str(&result).expect("should encode");
+        let files = [COMPONENT_SINGLE_CORE_MODULE, HERMES_REAL_LIFE_MODULE];
 
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
+        for file in files {
+            // Step 1: Patch the WASM file
+            let patcher = Patcher::from_file(file).expect("should create patcher");
+            let result = patcher.patch().expect("should patch");
+            let encoded = wat::parse_str(&result).expect("should encode");
 
-        // Step 3: Call the injected function
-        let get_memory_size_func = format!("{MAGIC}get-memory-size");
-        let get_memory_size = instance
-            .get_func(&mut store, get_memory_size_func)
-            .expect("should get func")
-            .typed::<(), (u32,)>(&store)
-            .expect("should be a typed func");
-        let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
-        get_memory_size
-            .post_return(&mut store)
-            .expect("should post return");
+            // Step 2: Instantiate the patched WASM
+            let engine = Engine::default();
+            let component = wasmtime::component::Component::new(&engine, encoded)
+                .expect("should create component");
+            let mut linker = Linker::new(&engine);
+            add_to_linker_sync(&mut linker).expect("should add to linker");
+            let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+            let ctx = MyCtx {
+                table: ResourceTable::new(),
+                wasi,
+            };
+            let mut store = Store::new(&engine, ctx);
+            let instance = linker
+                .instantiate(&mut store, &component)
+                .expect("should instantiate");
 
-        // Step 4: Check if the returned value matches the original WASM memory size
-        let source_wat =
-            wasmprinter::print_file(COMPONENT_SINGLE_CORE_MODULE).expect("should read");
-        let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
+            // Step 3: Call the injected function
+            let get_memory_size_func = format!("{MAGIC}get-memory-size");
+            let get_memory_size = instance
+                .get_func(&mut store, get_memory_size_func)
+                .expect("should get func")
+                .typed::<(), (u32,)>(&store)
+                .expect("should be a typed func");
+            let memory_size_in_pages = get_memory_size.call(&mut store, ()).expect("should call").0;
+            get_memory_size
+                .post_return(&mut store)
+                .expect("should post return");
 
-        assert!(source_wat.contains(&expected_memory_entry));
+            // Step 4: Check if the returned value matches the original WASM memory size
+            let source_wat = wasmprinter::print_file(file).expect("should read");
+            let expected_memory_entry = format!("(memory (;0;) {memory_size_in_pages})");
+
+            assert!(source_wat.contains(&expected_memory_entry));
+        }
     }
 
     #[test]
@@ -862,63 +1065,195 @@ mod tests {
     #[test]
     fn injected_set_memory_raw_bytes_works() {
         const OFFSET: u32 = 0xF000;
+        let files = [COMPONENT_SINGLE_CORE_MODULE, HERMES_REAL_LIFE_MODULE];
 
-        // Step 1: Patch the WASM file
-        let patcher =
-            Patcher::from_file(COMPONENT_SINGLE_CORE_MODULE).expect("should create patcher");
-        let result = patcher.patch().expect("should patch");
-        let encoded = wat::parse_str(&result).expect("should encode");
+        for file in files {
+            // Step 1: Patch the WASM file
+            let patcher = Patcher::from_file(file).expect("should create patcher");
+            let result = patcher.patch().expect("should patch");
+            let encoded = wat::parse_str(&result).expect("should encode");
 
-        // Step 2: Instantiate the patched WASM
-        let engine = Engine::default();
-        let component =
-            wasmtime::component::Component::new(&engine, encoded).expect("should create component");
-        let mut linker = Linker::new(&engine);
-        add_to_linker_sync(&mut linker).expect("should add to linker");
-        let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
-        let ctx = MyCtx {
-            table: ResourceTable::new(),
-            wasi,
-        };
-        let mut store = Store::new(&engine, ctx);
-        let instance = linker
-            .instantiate(&mut store, &component)
-            .expect("should instantiate");
+            // Step 2: Instantiate the patched WASM
+            let engine = Engine::default();
+            let component = wasmtime::component::Component::new(&engine, encoded)
+                .expect("should create component");
+            let mut linker = Linker::new(&engine);
+            add_to_linker_sync(&mut linker).expect("should add to linker");
+            let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_env().build();
+            let ctx = MyCtx {
+                table: ResourceTable::new(),
+                wasi,
+            };
+            let mut store = Store::new(&engine, ctx);
+            let instance = linker
+                .instantiate(&mut store, &component)
+                .expect("should instantiate");
 
-        let old_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
-        let old_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
-        let old_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
+            let old_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+            let old_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+            let old_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
 
-        // Step 3: Set bytes at a specific offset
-        let bytes: i64 = 0x1122_3344_5566_7788;
-        let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
-        let set_memory_raw_bytes = instance
-            .get_func(&mut store, set_memory_raw_bytes_func)
-            .expect("should get func")
-            .typed::<(u32, i64), ()>(&store)
-            .expect("should be a typed func");
-        set_memory_raw_bytes
-            .call(&mut store, (OFFSET, bytes))
-            .expect("should call");
-        set_memory_raw_bytes
-            .post_return(&mut store)
-            .expect("should post return");
+            // Step 3: Set bytes at a specific offset
+            let bytes: i64 = 0x1122_3344_5566_7788;
+            let set_memory_raw_bytes_func = format!("{MAGIC}set-memory-raw-bytes");
+            let set_memory_raw_bytes = instance
+                .get_func(&mut store, set_memory_raw_bytes_func)
+                .expect("should get func")
+                .typed::<(u32, i64), ()>(&store)
+                .expect("should be a typed func");
+            set_memory_raw_bytes
+                .call(&mut store, (OFFSET, bytes))
+                .expect("should call");
+            set_memory_raw_bytes
+                .post_return(&mut store)
+                .expect("should post return");
 
-        // Step 4: Retrieve bytes before-, on- and after-offset.
-        // Check that only the bytes at the offset match.
-        let new_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
-        let new_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
-        let new_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
+            // Step 4: Retrieve bytes before-, on- and after-offset.
+            // Check that only the bytes at the offset match.
+            let new_bytes_pre_offset = get_bytes_at_offset(&instance, &mut store, OFFSET - 8);
+            let new_bytes_at_offset = get_bytes_at_offset(&instance, &mut store, OFFSET);
+            let new_bytes_post_offset = get_bytes_at_offset(&instance, &mut store, OFFSET + 8);
 
-        assert_eq!(old_bytes_pre_offset, new_bytes_pre_offset);
-        assert_eq!(old_bytes_post_offset, new_bytes_post_offset);
-        assert_ne!(old_bytes_at_offset, bytes);
-        assert_eq!(new_bytes_at_offset, bytes);
+            assert_eq!(old_bytes_pre_offset, new_bytes_pre_offset);
+            assert_eq!(old_bytes_post_offset, new_bytes_post_offset);
+            assert_ne!(old_bytes_at_offset, bytes);
+            assert_eq!(new_bytes_at_offset, bytes);
+        }
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn component_part_with_nested_component_is_properly_patched() {
+        const COMPONENT_WITH_INNER_COMPONENT_PART: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (component (;0;)
+                (type (;0;) (func (result bool)))
+                (import "import-func-init" (func (;0;) (type 0)))
+                (type (;1;) (func (result bool)))
+                (export (;1;) "init" (func 0) (func (type 1)))
+            )
+            (instance (;0;) (instantiate 0
+                (with "import-func-init" (func 0))
+                )
+            )
+            (export (;1;) "hermes:init/event" (instance 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
+        const COMPONENT_WITH_TWO_INNER_COMPONENT_PARTS: &str = r#"
+            (alias export 0 "cron-event-tag" (type (;1;)))
+            (alias export 0 "cron-tagged" (type (;2;)))
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;3;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 3) (canon lift (core func 0)))
+            (component (;0;)
+              (type (;0;) (func (result bool)))
+              (import "import-func-init" (func (;0;) (type 0)))
+              (type (;1;) (func (result bool)))
+              (export (;1;) "init" (func 0) (func (type 1)))
+            )
+            (instance (;1;) (instantiate 0
+                (with "import-func-init" (func 0))
+              )
+            )
+            (export (;2;) "hermes:init/event" (instance 1))
+            (type (;4;) (func (param "event" 2) (param "last" bool) (result bool)))
+            (alias core export 0 "hermes:cron/event#on-cron" (core func (;2;)))
+            (func (;1;) (type 4) (canon lift (core func 2) (memory 0) (realloc 1) string-encoding=utf8))
+            (alias export 0 "cron-event-tag" (type (;5;)))
+            (alias export 0 "cron-sched" (type (;6;)))
+            (alias export 0 "cron-tagged" (type (;7;)))
+            (component (;1;)
+              (type (;0;) string)
+              (import "import-type-cron-event-tag" (type (;1;) (eq 0)))
+              (type (;2;) string)
+              (import "import-type-cron-sched" (type (;3;) (eq 2)))
+              (type (;4;) (record (field "when" 3) (field "tag" 1)))
+              (import "import-type-cron-tagged" (type (;5;) (eq 4)))
+              (import "import-type-cron-tagged0" (type (;6;) (eq 5)))
+              (type (;7;) (func (param "event" 6) (param "last" bool) (result bool)))
+              (import "import-func-on-cron" (func (;0;) (type 7)))
+              (export (;8;) "cron-event-tag" (type 1))
+              (export (;9;) "cron-tagged" (type 5))
+              (type (;10;) (func (param "event" 9) (param "last" bool) (result bool)))
+              (export (;1;) "on-cron" (func 0) (func (type 10)))
+            )
+            (instance (;3;) (instantiate 1
+                (with "import-func-on-cron" (func 1))
+                (with "import-type-cron-event-tag" (type 5))
+                (with "import-type-cron-sched" (type 6))
+                (with "import-type-cron-tagged" (type 7))
+                (with "import-type-cron-tagged0" (type 2))
+              )
+            )
+            (export (;4;) "hermes:cron/event" (instance 3))
+            (@producers
+              (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
+        const COMPONENT_WITHOUT_INNER_COMPONENT_PART: &str = r#"
+            (core instance (;0;) (instantiate 0))
+            (alias core export 0 "memory" (core memory (;0;)))
+            (type (;0;) (func (result bool)))
+            (alias core export 0 "hermes:init/event#init" (core func (;0;)))
+            (alias core export 0 "cabi_realloc" (core func (;1;)))
+            (func (;0;) (type 0) (canon lift (core func 0)))
+            (instance (;0;) (instantiate 0
+                (with "import-func-init" (func 0))
+                )
+            )
+            (export (;1;) "hermes:init/event" (instance 0))
+            (@producers
+                (processed-by "wit-component" "0.229.0")
+            )
+        "#;
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITH_INNER_COMPONENT_PART, "")
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 1);
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITH_TWO_INNER_COMPONENT_PARTS, "")
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 7);
+
+        let next_component_type_index =
+            Patcher::get_next_component_type_index(COMPONENT_WITHOUT_INNER_COMPONENT_PART, "")
+                .expect("should get index");
+        assert_eq!(next_component_type_index, 1);
     }
 
     #[test]
     fn incorrect_wasm_returns_error() {
         let patcher = Patcher::from_file(COMPONENT_MULTIPLE_CORE_MODULES);
         assert!(patcher.is_err());
+    }
+
+    #[test]
+    fn patching_real_life_hermes_module_works() {
+        let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).expect("should create patcher");
+
+        let WasmInternals {
+            mut core_module,
+            mut component_part,
+            mut pre_core_component_part,
+        } = patcher.split_into_parts().expect("should split into parts");
+
+        let patched_wat = patcher.patch().expect("should patch");
+
+        let encoded = wat::parse_str(&patched_wat);
+        assert!(encoded.is_ok());
     }
 }
