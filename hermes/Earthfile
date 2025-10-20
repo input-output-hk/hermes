@@ -126,7 +126,7 @@ test-wasm-examples:
     RUN ./hermes playground ../wasm/app-components/next_century_rs.wasm --timeout-ms 10000; \
         test $? -eq 1
     RUN ./hermes playground ../wasm/app-components/sqlite_version_rs.wasm --timeout-ms 10000; \
-        test $? -eq 1
+        test $? -eq 0
     # Example of how to run the Cardano module test
     # Comment out because this is a long running test
     # RUN ./hermes playground ../wasm/app-components/cardano.rs.wasm --timeout-ms 10000;
