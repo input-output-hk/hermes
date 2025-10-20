@@ -98,6 +98,7 @@ Cargo.lock
 hermes/apps/athena/**/*.wasm
 *.happ
 **/target/**/*
+hermes_datastore.db.**
 
 # Various WASM artifacts for tests
 hermes/bin/tests/integration/**/*.wasm

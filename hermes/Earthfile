@@ -114,6 +114,7 @@ test-wasm-examples:
     COPY ../wasm/examples/c/next_century+build/next_century_c.wasm ../wasm/app-components/
     COPY ../wasm/examples/rust/cardano_age+build/cardano_age_rs.wasm ../wasm/app-components/
     COPY ../wasm/examples/rust/next_century+build/next_century_rs.wasm ../wasm/app-components/
+    COPY ../wasm/examples/rust/sqlite_version+build/sqlite_version_rs.wasm ../wasm/app-components/
     # COPY ../wasm/examples/rust/cardano+build/cardano_rs.wasm ../wasm/app-components/
 
     RUN ./hermes playground ../wasm/app-components/cardano_age_c.wasm --timeout-ms 10000; \
@@ -124,6 +125,8 @@ test-wasm-examples:
         test $? -eq 0
     RUN ./hermes playground ../wasm/app-components/next_century_rs.wasm --timeout-ms 10000; \
         test $? -eq 1
+    RUN ./hermes playground ../wasm/app-components/sqlite_version_rs.wasm --timeout-ms 10000; \
+        test $? -eq 0
     # Example of how to run the Cardano module test
     # Comment out because this is a long running test
     # RUN ./hermes playground ../wasm/app-components/cardano.rs.wasm --timeout-ms 10000;

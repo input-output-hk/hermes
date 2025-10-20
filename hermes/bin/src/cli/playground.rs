@@ -17,6 +17,7 @@ use crate::{
     app::{Application, ApplicationName},
     event::queue::Exit,
     ipfs, pool, reactor,
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -46,6 +47,8 @@ pub struct Playground {
 impl Playground {
     /// Run playground CLI command
     pub fn exec(self) -> anyhow::Result<Exit> {
+        let exit_lock = reactor::init()?;
+
         println!("{} Running a playground...", Emoji::new("✨", ""));
 
         let temp_dir = TempDir::new()?;
@@ -56,7 +59,6 @@ impl Playground {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        let exit_lock = reactor::init()?;
         pool::init()?;
         println!(
             "{} Loading {} application(s)...",
@@ -77,6 +79,7 @@ impl Playground {
 
         // Wait for scheduled tasks to be finished.
         pool::terminate();
+        reactor::drop_all_apps()?;
         Ok(exit)
     }
 }
@@ -117,6 +120,9 @@ fn create_one_module_app(
     vfs_dir_path: &Path,
     module: Module,
 ) -> anyhow::Result<Application> {
+    let app_name = ApplicationName::new(name);
+    RteApp::new().init(&app_name)?;
+
     let vfs_name = [name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
     let module_registry = HashMap::from_iter([(name.to_string(), module.id().clone())]);
