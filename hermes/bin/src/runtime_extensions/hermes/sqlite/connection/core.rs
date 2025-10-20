@@ -10,7 +10,10 @@ use libsqlite3_sys::{
 };
 use stringzilla::stringzilla::StringZillableBinary;
 
-use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, ErrorInfo};
+use crate::runtime_extensions::{
+    bindings::hermes::sqlite::api::{Errno, ErrorInfo},
+    hermes::sqlite::kernel,
+};
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
@@ -32,7 +35,7 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
 /// Same as [`close`] but additionally removes all sqlite files with
 /// [`kernel::DbPaths::remove_all`].
 pub(crate) fn close_and_remove_all(db_ptr: *mut sqlite3) -> anyhow::Result<()> {
-    let paths = super::super::kernel::DbPaths::main(db_ptr)?;
+    let paths = kernel::DbPaths::main(db_ptr)?;
     close(db_ptr)?;
     paths.remove_all()?;
     Ok(())
