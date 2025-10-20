@@ -236,7 +236,7 @@ pub(super) struct DbPaths {
 
 impl DbPaths {
     /// Returns **main** db paths associated with the connection.
-    /// The paths are owned by Rust and do not depend sqlite connection after being
+    /// The paths are owned by Rust and do not depend on sqlite connection after being
     /// obtained.
     ///
     /// See <https://www2.sqlite.org/c3ref/db_name.html> and <https://www2.sqlite.org/c3ref/db_filename.html>.
