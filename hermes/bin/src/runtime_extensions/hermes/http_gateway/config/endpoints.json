@@ -33,8 +33,8 @@
       "json_schema": null
     },
     {
-      "subscription_id": "stake_ada",
-      "module_id": "stake_ada",
+      "subscription_id": "staked_ada",
+      "module_id": "staked_ada",
       "methods": ["GET"],
       "path_regex": "^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$",
       "content_types": ["application/json"],
