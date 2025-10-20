@@ -280,7 +280,7 @@ impl DbPaths {
     pub(crate) fn remove_all(&self) -> std::io::Result<()> {
         for path in [&self.database, &self.journal, &self.wal] {
             if std::fs::exists(path)? {
-                std::fs::remove_file(path)?
+                std::fs::remove_file(path)?;
             }
         }
         Ok(())

@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     event::HermesEventPayload,
     pool,
-    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp as _},
     vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
@@ -126,9 +126,7 @@ pub(crate) fn module_dispatch_event(
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
-    let span = tracing::trace_span!("task", module = %module.id(), event = event.event_name());
     pool::execute(move || {
-        let _entered = span.enter();
         if let Err(err) = module.execute_event(event.as_ref(), vfs) {
             tracing::error!("module event execution failed: {err}");
         }

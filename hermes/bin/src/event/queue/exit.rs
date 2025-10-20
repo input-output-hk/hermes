@@ -76,7 +76,7 @@ impl ExitLock {
             let mut ctrlc_tx = Some(Self(inner.clone()));
             move || {
                 if let Some(tx) = ctrlc_tx.take() {
-                    tx.set(Exit::CtrlC)
+                    tx.set(Exit::CtrlC);
                 }
             }
         });
