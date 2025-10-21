@@ -48,6 +48,6 @@ Trade‑offs and risks
 
 ## References
 
-* Concepts: 08_concepts/ipfs.md, 08_concepts/catalyst_mvp.md
+* Concepts: [IPFS](../08_concepts/ipfs.md), [Catalyst MVP](../08_concepts/catalyst_mvp.md)
 
 ---

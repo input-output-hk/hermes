@@ -28,4 +28,4 @@ APIs
 References
 
 * `hermes/bin/src/vfs/*`, `hermes/bin/src/hdf5/*`
-* Packaging layout: `08_concepts/hermes_packaging_requirements/overview.md`
+* Packaging layout: [Packaging Requirements](./hermes_packaging_requirements/overview.md)

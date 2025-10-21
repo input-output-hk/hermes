@@ -39,6 +39,7 @@ Devnet
 dotstar
 earthfile
 Embedder
+EROFS
 errno
 fadvise
 fcntl

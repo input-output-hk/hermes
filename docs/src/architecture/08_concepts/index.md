@@ -9,15 +9,15 @@ icon: material/thought-bubble
 
 This section summarizes concepts that cut across many parts of the system:
 
-* Application packaging and signatures: See `hermes_packaging_requirements` and `hermes_signing_procedure`.
-* Runtime extensions and WIT interfaces: Host capabilities and how modules call into the engine.
-* HTTP gateway: Routing model, endpoint subscriptions, and static asset serving.
-* Event model and concurrency: Event queue, targeted dispatch, and dependency tracking.
-* Virtual filesystem (VFS): HDF5-backed structure and permission model.
-* IPFS/libp2p: Topic schema, DHT, message validation.
-* Catalyst (Athena) MVP: Pub/sub topics, receipts, and trust model applied to Hermes.
+* Application packaging and signatures: See [Packaging Requirements](./hermes_packaging_requirements/overview.md) and [Signing Procedure](./hermes_signing_procedure/index.md).
+* Runtime extensions and WIT interfaces: See [Runtime Extensions](./runtime_extensions.md).
+* HTTP gateway: See [HTTP Gateway](./http_gateway.md).
+* Event model and concurrency: See [Event Model](./event_model.md).
+* Virtual filesystem (VFS): See [VFS](./vfs.md).
+* IPFS/libp2p: See [IPFS](./ipfs.md).
+* Catalyst (Athena) MVP: See [Catalyst MVP](./catalyst_mvp.md).
 
 See also:
 
-* 05_building_block_view/hermes_engine.md for top-level components.
-* 04_solution_strategy.md for rationale and trade-offs.
+* [Hermes Engine](../05_building_block_view/hermes_engine.md) for top-level components.
+* [Solution Strategy](../04_solution_strategy.md) for rationale and trade-offs.

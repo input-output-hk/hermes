@@ -68,7 +68,7 @@ Trade‑offs and risks
 
 ## References
 
-* Packaging Requirements: 08_concepts/hermes_packaging_requirements/overview.md
-* VFS: 08_concepts/vfs.md
+* Packaging Requirements: [overview](../08_concepts/hermes_packaging_requirements/overview.md)
+* VFS: [VFS](../08_concepts/vfs.md)
 
 ---

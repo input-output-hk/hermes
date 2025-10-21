@@ -34,5 +34,5 @@ Context hooks
 
 See also
 
-* 05_building_block_view/hermes_engine.md
-* 08_concepts/event_model.md
+* [Hermes Engine](../05_building_block_view/hermes_engine.md)
+* [Event Model](./event_model.md)

@@ -46,6 +46,6 @@ Trade‑offs and risks
 
 ## References
 
-* Concepts: 08_concepts/hermes_signing_procedure/
+* Concepts: [Signing Procedure](../08_concepts/hermes_signing_procedure/index.md)
 
 ---
