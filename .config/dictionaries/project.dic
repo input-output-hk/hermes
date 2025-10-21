@@ -61,6 +61,7 @@ getfl
 gossipsub
 happ
 hmod
+hostnames
 httpmock
 idents
 ifmt
