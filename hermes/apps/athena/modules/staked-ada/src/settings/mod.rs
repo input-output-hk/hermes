@@ -1,11 +1,8 @@
 //! Command line and environment variable settings for the service
 use cardano_blockchain_types::Network;
-use dotenvy::dotenv;
 use std::sync::LazyLock;
 use tracing::error;
 use url::Url;
-
-use crate::settings::str_env_var::StringEnvVar;
 
 pub(crate) mod chain_follower;
 pub(crate) mod str_env_var;
@@ -22,13 +19,13 @@ const GITHUB_ISSUE_TEMPLATE_DEFAULT: &str = "bug_report.yml";
 /// All the `EnvVars` used by the service.
 struct EnvVars {
     /// The github repo owner
-    github_repo_owner: StringEnvVar,
+    github_repo_owner: &'static str,
 
     /// The github repo name
-    github_repo_name: StringEnvVar,
+    github_repo_name: &'static str,
 
     /// The github issue template to use
-    github_issue_template: StringEnvVar,
+    github_issue_template: &'static str,
 
     /// The Chain Follower configuration
     chain_follower: chain_follower::EnvVars,
@@ -43,15 +40,13 @@ struct EnvVars {
 /// Handle to the mithril sync thread. One for each Network ONLY.
 static ENV_VARS: LazyLock<EnvVars> = LazyLock::new(|| {
     // Support env vars in a `.env` file,  doesn't need to exist.
-    dotenv().ok();
 
+    // TODO: get vars from env correctly after filesystem implemented in host
     EnvVars {
-        github_repo_owner: StringEnvVar::new("GITHUB_REPO_OWNER", GITHUB_REPO_OWNER_DEFAULT.into()),
-        github_repo_name: StringEnvVar::new("GITHUB_REPO_NAME", GITHUB_REPO_NAME_DEFAULT.into()),
-        github_issue_template: StringEnvVar::new(
-            "GITHUB_ISSUE_TEMPLATE",
-            GITHUB_ISSUE_TEMPLATE_DEFAULT.into(),
-        ),
+        github_repo_owner: option_env!("GITHUB_REPO_OWNER").unwrap_or(GITHUB_REPO_OWNER_DEFAULT),
+        github_repo_name: option_env!("GITHUB_REPO_NAME").unwrap_or(GITHUB_REPO_NAME_DEFAULT),
+        github_issue_template: option_env!("GITHUB_ISSUE_TEMPLATE")
+            .unwrap_or(GITHUB_ISSUE_TEMPLATE_DEFAULT),
         chain_follower: chain_follower::EnvVars::new(),
     }
 });
@@ -88,14 +83,13 @@ impl Settings {
     pub(crate) fn generate_github_issue_url(title: &str) -> Option<Url> {
         let path = format!(
             "https://github.com/{}/{}/issues/new",
-            ENV_VARS.github_repo_owner.as_str(),
-            ENV_VARS.github_repo_name.as_str()
+            ENV_VARS.github_repo_owner, ENV_VARS.github_repo_name
         );
 
         match Url::parse_with_params(
             &path,
             &[
-                ("template", ENV_VARS.github_issue_template.as_str()),
+                ("template", ENV_VARS.github_issue_template),
                 ("title", title),
             ],
         ) {

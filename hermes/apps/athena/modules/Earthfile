@@ -78,8 +78,8 @@ gen-bindings:
 # Output: All build artifacts ready for packaging and deployment
 build-all:
     # Build all WASM modules (currently just HTTP proxy, more coming soon)
-    BUILD +build-http-proxy
-    BUILD +build-stake-ada
+    BUILD ./http-proxy+build-http-proxy
+    BUILD ./staked-ada+build-staked-ada
 
     # Future: Additional module builds will be added here
     # BUILD +build-auth-module
