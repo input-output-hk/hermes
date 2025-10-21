@@ -44,6 +44,7 @@ impl RteInitApp for RteSqlite {
     ) -> RteInitResult {
         debug!(%name,"Hermes Runtime Extensions Finalizing: App");
 
+        // Cleaning up app-memory.
         match open_with_persistent_memory(true, true, name.clone()) {
             Ok(db_ptr) => close_and_remove_all(db_ptr),
             // App didn't have any in-memory connections – ok.

@@ -125,8 +125,6 @@ impl Module {
 
         let id = ModuleId(Ulid::generate());
 
-        RteModule::new().init(app_name, &id)?;
-
         Ok(Self {
             pre_instance,
             engine,
@@ -163,11 +161,11 @@ impl Module {
         let mut store = WasmStore::new(&self.engine, runtime_ctx);
         let instance = self.pre_instance.instantiate(&mut store)?;
 
+        RteModule::new().init(&self.app_name, &self.id)?;
+        new_context(store.data());
+
         let init_result = match instance.lookup_hermes_init_event_init(&mut store) {
             Ok(func) => {
-                RteEvent::new().init(store.data())?;
-                new_context(store.data());
-
                 let init_result = func
                     .call(&mut store, ())
                     .context("unable to call WASM component init function")?
