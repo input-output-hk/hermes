@@ -82,6 +82,15 @@ pub(crate) fn get_all_app_names() -> anyhow::Result<Vec<ApplicationName>> {
     Ok(reactor.apps.iter().map(|val| val.key().clone()).collect())
 }
 
+/// Drops and finalizes all applications in Hermes Reactor.
+pub(crate) fn drop_all_apps() -> anyhow::Result<()> {
+    let reactor = REACTOR_STATE.get().ok_or(anyhow::anyhow!(
+        "Reactor not been initialized. Call `HermesEventQueue::init` first."
+    ))?;
+    reactor.apps.clear();
+    Ok(())
+}
+
 #[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;

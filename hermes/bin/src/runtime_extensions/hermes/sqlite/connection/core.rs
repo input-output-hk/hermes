@@ -10,7 +10,10 @@ use libsqlite3_sys::{
 };
 use stringzilla::stringzilla::StringZillableBinary;
 
-use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, ErrorInfo};
+use crate::runtime_extensions::{
+    bindings::hermes::sqlite::api::{Errno, ErrorInfo},
+    hermes::sqlite::kernel,
+};
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
 /// Generally, `PRAGMA` is intended for internal use only.
@@ -27,6 +30,15 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
     } else {
         Err(Errno::Sqlite(rc))
     }
+}
+
+/// Same as [`close`] but additionally removes all sqlite files with
+/// [`kernel::DbPaths::remove_all`].
+pub(crate) fn close_and_remove_all(db_ptr: *mut sqlite3) -> anyhow::Result<()> {
+    let paths = kernel::DbPaths::main(db_ptr)?;
+    close(db_ptr)?;
+    paths.remove_all()?;
+    Ok(())
 }
 
 /// Retrieves runtime status information about a single database connection.
@@ -110,13 +122,15 @@ pub(crate) fn execute(
 
 #[cfg(all(test, debug_assertions))]
 mod tests {
+    use serial_test::file_serial;
+
     use super::*;
     use crate::{
         app::ApplicationName,
         runtime_extensions::{
             bindings::hermes::sqlite::api::Value,
             hermes::sqlite::{
-                kernel::open,
+                kernel::{self, open},
                 statement::core::{column, finalize, step},
             },
         },
@@ -254,6 +268,30 @@ mod tests {
     }
 
     #[test]
+    #[file_serial]
+    fn test_close_and_remove_all_simple() {
+        let app_name = TMP_DIR.to_owned();
+        let db_ptr = init_fs(app_name).unwrap();
+        let paths = kernel::DbPaths::main(db_ptr).unwrap();
+
+        let database_created = std::fs::exists(&paths.database).unwrap();
+        let _journal_created = std::fs::exists(&paths.journal).unwrap();
+        let _wal_created = std::fs::exists(&paths.wal).unwrap();
+
+        close_and_remove_all(db_ptr).unwrap();
+
+        let database_remained = std::fs::exists(&paths.database).unwrap();
+        let journal_remained = std::fs::exists(&paths.database).unwrap();
+        let wal_remained = std::fs::exists(&paths.database).unwrap();
+
+        assert!(database_created);
+        assert!(!database_remained);
+        assert!(!journal_remained);
+        assert!(!wal_remained);
+    }
+
+    #[test]
+    #[file_serial]
     fn test_multiple_threads_does_not_conflict() {
         fn task(app_name: String) {
             let db_ptr = init_fs(app_name).unwrap();

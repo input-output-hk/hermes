@@ -28,6 +28,9 @@ pub enum Exit {
     /// Timeout elapsed.
     #[error("Event queue closed: timeout")]
     Timeout,
+    /// Explicit exit via `ctrl-c`.
+    #[error("Event queue closed: ctrl-c")]
+    CtrlC,
 }
 
 #[cfg(not(debug_assertions))]
@@ -69,6 +72,14 @@ impl ExitLock {
         // Default value doesn't matter as it's bound to be awaited to be changed.
         let payload = Mutex::new(None);
         let inner = Arc::new((condvar, payload));
+        let _unused = ctrlc::set_handler({
+            let mut ctrlc_tx = Some(Self(inner.clone()));
+            move || {
+                if let Some(tx) = ctrlc_tx.take() {
+                    tx.set(Exit::CtrlC);
+                }
+            }
+        });
         (Self(inner.clone()), Self(inner))
     }
 

@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     event::HermesEventPayload,
     pool,
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp as _},
     vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
@@ -97,7 +98,7 @@ impl Application {
     pub(crate) fn init(&self) -> anyhow::Result<()> {
         for module in self.indexed_modules.values() {
             if let Err(e) = module.init(self.vfs.clone()) {
-                anyhow::bail!("Failed to initialize module {}: {}", module.id(), e)
+                anyhow::bail!("Failed to initialize module {}: {:#}", module.id(), e)
             }
         }
         Ok(())
@@ -118,13 +119,24 @@ impl Application {
     }
 }
 
+impl Drop for Application {
+    fn drop(&mut self) {
+        // Advise Runtime Extensions that application is fully stopped and its resources can be
+        // freed.
+        if let Err(error) = RteApp::new().fini(&self.name) {
+            tracing::error!(name = %self.name, %error, "Application failed to finalize");
+        } else {
+            tracing::info!(name = %self.name, "Application finalized successfully");
+        }
+    }
+}
+
 /// Dispatch event
 pub(crate) fn module_dispatch_event(
     module: Arc<Module>,
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
-    // TODO(@aido-mth): fix how init is processed. https://github.com/input-output-hk/hermes/issues/490
     pool::execute(move || {
         if let Err(err) = module.execute_event(event.as_ref(), vfs) {
             tracing::error!("module event execution failed: {err}");
