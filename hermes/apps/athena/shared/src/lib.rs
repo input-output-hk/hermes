@@ -48,4 +48,5 @@
 //! ```
 
 pub mod bindings;
+pub mod db;
 pub mod utils;
