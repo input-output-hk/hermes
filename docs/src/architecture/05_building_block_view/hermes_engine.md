@@ -21,7 +21,7 @@ It defines the following parts:
 * [*Hermes events*] (e.g., cron ticks, HTTP requests, IPFS messages, chain blocks).
 * HRE API - WIT-defined types and host functions callable from WASM modules.
   
-Specification of the [*Hermes events*] and *HRE api* defined in [WIT] files.
+Specification of the [*Hermes events*] and *HRE API* defined in [WIT] files.
 
 ## Hermes event
 
@@ -33,32 +33,34 @@ depending on whether that specific [*Hermes application*] has subscribed to such
 
 *Hermes events queue* - a queue-like data structure.
 [*Hermes events*] are added to the one end, one by one, by the [*HRE*].
-Applications then consume these events from the other end of the queue. The queue preserves the order of event execution per-source while allowing unrelated sources to proceed in parallel via a worker pool.
+Applications then consume these events from the other end of the queue.
+The queue preserves the order of event execution per-source while allowing unrelated sources
+to proceed in parallel via a worker pool.
 
 ## WASM execution model
 
-- Wasmtime Component Model with generated bindings from WIT definitions.
-- Imports are linked once into a `wasmtime::InstancePre` to minimize per-call overhead.
-- Every call runs with a fresh runtime context (app name, module ID, event name, execution counter, VFS handle).
-- Module state remains immutable across calls, avoiding cross-call side effects.
+* Wasmtime Component Model with generated bindings from WIT definitions.
+* Imports are linked once into a `wasmtime::InstancePre` to minimize per-call overhead.
+* Every call runs with a fresh runtime context (app name, module ID, event name, execution counter, VFS handle).
+* Module state remains immutable across calls, avoiding cross-call side effects.
 
 ## HTTP gateway
 
-- Resolves application by hostname and routes `GET/POST/...` requests based on configured endpoint subscriptions or `/api` path.
-- Serves static web content directly from the package VFS (e.g., HTML/CSS/JS).
-- Forwards API requests to modules via events; responses returned to the client.
+* Resolves application by hostname and routes `GET/POST/...` requests based on configured endpoint subscriptions or `/api` path.
+* Serves static web content directly from the package VFS (e.g., HTML/CSS/JS).
+* Forwards API requests to modules via events; responses returned to the client.
 
 ## IPFS/libp2p integration
 
-- Embedded node bootstrapped on engine start (configurable default bootstraps).
-- Pub/sub topics and DHT used for distributing structured, signed data and messages.
-- Per-application tracking of topic subscriptions and pinned files.
+* Embedded node bootstrapped on engine start (configurable default bootstraps).
+* Pub/sub topics and DHT used for distributing structured, signed data and messages.
+* Per-application tracking of topic subscriptions and pinned files.
 
 ## Hermes application
 
 *Hermes application* - a collection of WASM components, which are packed together and executes a specific business logic.
 It mainly serves as an event handler for the [*Hermes Events*].
-Each *Hermes application* can interact with the [*HRE*] through the defined *HRE api* based on corresponding
+Each *Hermes application* can interact with the [*HRE*] through the defined *HRE API* based on corresponding
 [WIT] definitions.
 
 [WIT]: https://component-model.bytecodealliance.org/design/wit.html
