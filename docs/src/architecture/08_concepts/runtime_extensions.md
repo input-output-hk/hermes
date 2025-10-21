@@ -35,4 +35,4 @@ Context hooks
 See also
 
 * [Hermes Engine](../05_building_block_view/hermes_engine.md)
-* [Event Model](./event_model.md)
+* [Event Model](./event_model.md#event-model-and-concurrency)

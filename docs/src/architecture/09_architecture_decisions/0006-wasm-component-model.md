@@ -53,7 +53,7 @@ Trade‑offs and risks
 
 ## References
 
-* Concepts: [Hermes Engine](../05_building_block_view/hermes_engine.md)
-* Runtime Extensions: [Runtime Extensions](../08_concepts/runtime_extensions.md)
+* Concepts: [Hermes Engine — WASM execution](../05_building_block_view/hermes_engine.md#wasm-execution-model)
+* Runtime Extensions: [Key characteristics](../08_concepts/runtime_extensions.md#key-characteristics)
 
 ---

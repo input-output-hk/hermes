@@ -68,7 +68,7 @@ Trade‑offs and risks
 
 ## References
 
-* Packaging Requirements: [overview](../08_concepts/hermes_packaging_requirements/overview.md)
-* VFS: [VFS](../08_concepts/vfs.md)
+* Packaging Requirements: [Filesystem hierarchy](../08_concepts/hermes_packaging_requirements/overview.md#the-full-application-filesystem-hierarchy)
+* VFS: [Structure](../08_concepts/vfs.md#structure-typical)
 
 ---
