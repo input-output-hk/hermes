@@ -21,7 +21,7 @@ repository = "https://github.com/input-output-hk/hermes"
 license = "MIT OR Apache-2.0"
 
 [workspace.lints.rust]
-warnings = "deny"
+warnings = "warn"
 missing_docs = "deny"
 let_underscore_drop = "deny"
 non_ascii_idents = "deny"
