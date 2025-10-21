@@ -1,6 +1,11 @@
 # secrets
 **/.secret
 
+context
+bindings.rs
+plot-git.py
+stub.wasm
+
 ### Linux ###
 *~
 
