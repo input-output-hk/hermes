@@ -1,5 +1,5 @@
 ---
-icon: material/http
+icon: material/gate
 ---
 
 # HTTP Gateway
