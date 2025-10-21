@@ -1,4 +1,4 @@
-title: Cross Cutting Concepts
+title: Cross-cutting Concepts
 arrange:
   # High-level concepts (local pages)
   - event_model.md
