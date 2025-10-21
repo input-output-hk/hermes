@@ -14,9 +14,13 @@ Applications are packaged as signed, immutable bundles and executed via a plugga
 runtime extensions that provide capabilities such as HTTP,
 storage, cryptography, IPFS/libp2p, and blockchain integration.
 
-MVP goals (Project Catalyst):
+Athena is the first backend voting application for Project Catalyst built on Hermes.
+It implements the Catalyst MVP backend using Hermes runtime extensions,
+IPFS/libp2p for data distribution, and signed package delivery.
 
-* Provide a performant, decentralized backend for Catalyst voting built on Hermes.
+MVP goals (Project Catalyst – Athena):
+
+* Provide a performant, decentralized backend for Catalyst voting (Athena) built on Hermes.
 * Support P2P pub/sub channels and DHT for distributing event metadata, voter lists, ballots, and receipts.
 * Enable easy app development using standard Web tooling (HTML/CSS/JS) and/or Flutter, with business logic in WASM components.
 * Keep complex concerns (crypto, distributed networking, data persistence)

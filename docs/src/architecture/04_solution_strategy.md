@@ -16,4 +16,4 @@ icon: material/strategy
 | Efficient WASM execution | Pre-linked `InstancePre` per module; immutable module state across calls via explicit runtime context | 05_building_block_view/hermes_engine.md |
 | Data access and isolation | VFS backed by HDF5 with permissioned directories (`srv`, `usr`, `tmp`, etc.) | 08_concepts/vfs.md |
 | Event routing and concurrency | Global MPSC event queue + thread pool with per-target dispatch; explicit app/module targeting | 08_concepts/event_model.md |
-| Catalyst MVP flows | Topic schema, receipt model, dependency tracking for event processing | 08_concepts/catalyst_mvp.md |
+| Catalyst (Athena) MVP flows | Topic schema, receipt model, dependency tracking for event processing | 08_concepts/catalyst_mvp.md |

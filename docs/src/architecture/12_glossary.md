@@ -18,4 +18,5 @@ icon: material/format-list-group-plus
 | Event Queue | Singleton MPSC queue for routing events to target applications/modules. |
 | IPFS/libp2p | Peer-to-peer system providing pub/sub, DHT, and content-addressed storage. |
 | COSE/CBOR | Standards used for signing and encoding application metadata and author payloads. |
-| Catalyst (Athena) | Project Catalyst voting platform leveraging Hermes for decentralized backend. |
+| Athena | First backend voting application for Project Catalyst, implemented as a Hermes application leveraging IPFS/pubsub, DHT, HTTP APIs, and signed packages. |
+| Project Catalyst | Innovation and voting platform; Athena is the Hermes-based backend MVP for decentralized voting. |
