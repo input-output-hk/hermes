@@ -11,7 +11,7 @@ use shared::{
     },
 };
 
-use crate::database::create_tables;
+use shared::database::staked_ada::*;
 
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {
