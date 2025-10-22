@@ -12,18 +12,19 @@ icon: material/file-document-outline
 
 ## Overview
 
-* Purpose: Efficiently synchronize a set of document CIDs across peers using IPFS pub/sub broadcast for announcements and manifest-based set reconciliation for divergence.
+**Purpose:** Efficiently synchronize a set of document CIDs across peers using
+  IPFS pub/sub broadcast for announcements and manifest-based set reconciliation for divergence.
 
-* Design: Append-only document set represented by a Sparse Merkle Tree (SMT) root.
+**Design:** Append-only document set represented by a Sparse Merkle Tree (SMT) root.
   Three required pub/sub topics per set: `<base>.new`, `<base>.syn`, `<base>.dif`.
   Two optional topics for proofs: `<base>.prv` (proof requests) and `<base>.prf` (proof replies).
-* Assumptions (PoC): Honest peers, no privacy, all messages publicly readable.
+
+**Assumptions (PoC):** Honest peers, no privacy, all messages publicly readable.
   All payloads CBOR-encoded in canonical form with strict framing.
 
 ## Scope and Goals
 
 * Ensure eventual consistency of document sets across honest peers.
-
 * Minimize pub/sub bandwidth via batched announcements and manifest-based diffs.
 * Idempotent processing of duplicates and replays.
 * Generic over `<base>` topic names; multiple sets may run in parallel.
@@ -31,24 +32,14 @@ icon: material/file-document-outline
 ## Non-Goals
 
 * Adversarial hardening (Sybil/DoS resistance, spam prevention).
-
 * Confidentiality or payload encryption.
 * Membership/admission control.
 
-## Terminology
-
-* CID: IPFS Content Identifier.
-
-* SMT: Sparse Merkle Tree (append-only presence set over CIDs).
-* Root: SMT root hash summarizing the entire set.
-* Manifest: IPFS object (by CID) describing a batch of CIDs or a diff.
-* UUIDv7: 128-bit, time-ordered unique identifier used as message/correlation id.
-
 ## Roles and Entities
 
-* Peer: A participant with an IPFS/libp2p node publishing and subscribing to the three topics for a given `<base>`.
+* **Peer:** A participant with an IPFS/libp2p node publishing and subscribing to the three topics for a given `<base>`.
 
-* Set: The document set scoped to `<base>`.
+* **Set:** The document set scoped to `<base>`.
 
 ## Protocol Versioning and Negotiation
 
@@ -59,29 +50,57 @@ icon: material/file-document-outline
 
 ## Transport Bindings
 
-* Pub/Sub: libp2p gossipsub (via IPFS pubsub).
-  All messages are broadcasts on:
-  * `<base>.new` (announcements of new CIDs and the sender’s resulting root),
-  * `<base>.syn` (solicitations for reconciliation),
-  * `<base>.dif` (reconciliation replies with pointers to diff manifests or small inline lists),
-  * `<base>.prv` OPTIONAL (requests for SMT inclusion proofs of specific CIDs),
-  * `<base>.prf` OPTIONAL (proof replies containing SMT proofs).
+**Pub/Sub:** libp2p gossipsub (via IPFS pubsub).
+All messages are broadcasts on the following ctopic designations:
 
-* No direct streams are required in this PoC; all reconciliation occurs on pub/sub.
+* `<base>.new` : announcements of new CIDs and the sender’s resulting root
+* `<base>.syn` : synchronization solicitations for reconciliation
+* `<base>.dif` : reconciliation replies with pointers to diff manifests or small inline lists
+* `<base>.prv` : *OPTIONAL* requests for SMT inclusion proofs of specific CIDs
+* `<base>.prf` : *OPTIONAL* proof replies containing SMT proofs
+
+No direct streams are required in this PoC; all reconciliation occurs on pub/sub.
+
+### Why multiple topics help the system scale
+
+* **Processing isolation:**
+  * `.new` is small and frequent (control-plane for appends),
+  * `.syn` is synchronization request control-only,
+  * `.dif` can be large or bursty, and
+  * `.prv/.prf` are occasional and ephemeral.
+  Separating channels prevents heavy `.dif` traffic from delaying `.new` processing and keeps control paths fast.
+* **Gossipsub performance:** IPFS/libp2p maintains meshes, validation, and scoring per-topic.
+  Splitting topics allows independent backpressure, scoring, and message ID de-dup caches,
+  improving fairness and convergence under load.
+* **Selective subscription:** Peers can opt out of proof traffic entirely,
+  or temporarily subscribe to `.prf` only when they request a proof,
+  reducing baseline bandwidth and CPU.
+* **Policy and rate limits:** Enforce “one message kind per topic” and apply separate quotas/priorities.
+  For example, prioritize `.new` over `.dif` so new content signals propagate quickly, while large diffs trickle.
+* **Observability:** Topic-level metrics and alarms make it easy to detect misconfiguration or abuse
+  (e.g., oversized `.dif` bursts) and to tune thresholds per traffic class.
+* **Future extensions:** Per-topic admission or encryption can be added without impacting unrelated flows.
 
 ## Topics and Namespacing
 
-* `<base>` is an opaque UTF-8 string under 120 characters, defined by higher-level context.
+`<base>` is an opaque UTF-8 string under 120 characters, defined by higher-level context.
 
-* Topic semantics are single-purpose: a topic MUST carry only its designated message type.
-  Peers MAY drop senders violating this.
-* Proof topics are OPTIONAL.
-  Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` and `<base>.prf`.
+Topic semantics are single-purpose: a topic MUST carry only its designated message type.
+Peers MAY drop senders violating this.
+
+*Proof topics are OPTIONAL.*
+Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` and `<base>.prf`.
+
+### Sync Topic Subscription
+
+* Peers SHOULD always subscribe to `<base>.new` and `<base>.syn`.
+* Peers SHOULD subscribe to `<base>.dif` only while reconciling (Diverged/Reconciling states) and
+  SHOULD unsubscribe when Stable to reduce baseline traffic.
 
 ## Message Model
 
 * Framing and Signature Envelope (matches the common envelope CDDL provided):
-  * Each message is a CBOR byte string (bstr) whose content is a canonical CBOR array:
+  * Each message is a CBOR byte string (bstr) whose content is a canonical CBOR array:<br>
     `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
   * Signature input: computed over the canonical CBOR encoding of the bstr wrapper and first four elements `[peer-pubkey, seq, ver, payload-body]`
   (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
@@ -136,11 +155,13 @@ bstr([
 
 * Semantics: Announce newly produced documents and the sender’s resulting set summary.
 
-* Payload-body (numeric keys):
-  * k-root (1): root32 — resulting SMT root after applying this announcement on the sender
-  * k-count (2): uint — resulting document count on the sender
-  * k-batch (3) OPTIONAL: array of cid1 — inline new CIDs if total payload ≤ 1 MiB
-  * k-manifest (4) OPTIONAL: cid1 — CID of an IPFS object listing new CIDs when inline exceeds the limit
+* Payload-body (numeric keys; shared with `.dif`):
+  * k-root (1): root32 — sender’s current root for this snapshot
+  * k-count (2): uint — sender’s current document count
+  * k-docs (3) OPTIONAL: array of cid1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
+  * k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
+  * k-in_reply_to (5) FORBIDDEN on `.new`
+  * k-ttl (6) OPTIONAL: uint — not typically used on `.new`
 * Processing:
   * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
   * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window, the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
@@ -155,17 +176,21 @@ root32 = bytes .size 32
 cid1 = bytes
 
 msg-new = payload-body
-; numeric keys
+; numeric keys (shared with .dif)
 k-root = 1
 k-count = 2
-k-batch = 3
+k-docs = 3
 k-manifest = 4
+k-in_reply_to = 5
+k-ttl = 6
 
 payload-body = {
   k-root => root32,
   k-count => uint,
-  ? k-batch => [* cid1],
-  ? k-manifest => cid1
+  ? k-docs => [* cid1],
+  ? k-manifest => cid1,
+  ? k-in_reply_to => #6.37(bytes .size 16),
+  ? k-ttl => uint
 }
 ```
 
@@ -217,15 +242,14 @@ Diagnostic example (payload-body decoded):
 
 ### .dif (topic `<base>.dif`)
 
-* Semantics: Reconciliation reply; carries a small inline list of missing CIDs or a pointer to a diff manifest built from the responder's snapshot.
+* Semantics: Reconciliation reply; same payload schema as `.new`, but used specifically to answer a `.syn` with a correlation id.
 
-* Payload-body (numeric keys):
+* Payload-body (numeric keys; shared with `.new`):
   * k-root (1): root32 — responder’s current root at reply time
   * k-count (2): uint — responder’s current count
-  * k-in_reply_to (3): uuid — UUIDv7 of the `.syn` being answered
-  * One or more of:
-    * k-missing (4) OPTIONAL: array of cid1 — only if total payload ≤ 1 MiB
-    * k-manifest (5) OPTIONAL: cid1 — CID of an IPFS object listing all CIDs the requester may be missing for the advertised snapshot
+  * k-docs (3) OPTIONAL: array of cid1 — inline CIDs the responder believes the requester may be missing (≤ 1 MiB total)
+  * k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
+  * k-in_reply_to (5): uuid — UUIDv7 of the `.syn` being answered
   * k-ttl (6) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
 * Processing:
   * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
@@ -240,17 +264,19 @@ cid1 = bytes
 uuid = #6.37(bytes .size 16)
 
 msg-dif = payload-body
-; numeric keys
+; numeric keys (shared with .new)
 k-root = 1
 k-count = 2
-k-in_reply_to = 3
-k-missing = 4
-k-manifest = 5
+k-docs = 3
+k-manifest = 4
+k-in_reply_to = 5
 k-ttl = 6
 
 payload-body = {
   k-root => root32,
   k-count => uint,
+  ? k-docs => [* cid1],
+  ? k-manifest => cid1,
   k-in_reply_to => uuid,
   ? k-missing => [* cid1],
   ? k-manifest => cid1,
@@ -261,7 +287,7 @@ payload-body = {
 Diagnostic example (payload-body decoded, inline missing list):
 
 ```cbor
-{ 1: h'bbbb...bbbb', 2: 105, 3: h'018f0f92c3f8a9b2c7d1112233445567', 4: [ h'03c6...cid1', h'04d7...cid1' ], 6: 3600 }
+{ 1: h'bbbb...bbbb', 2: 105, 5: h'018f0f92c3f8a9b2c7d1112233445567', 3: [ h'03c6...cid1', h'04d7...cid1' ], 6: 3600 }
 ```
 
 ### .prv (topic `<base>.prv`, OPTIONAL)
@@ -646,3 +672,11 @@ Diagnostic example (decoded):
 * Numeric defaults (`Tmin/Tmax`, size caps) may be tuned through experimentation.
 
 * Potential future direct-stream optimization for large diffs.
+
+## Glossary
+
+* **CID**: IPFS Content Identifier.
+* **SMT**: Sparse Merkle Tree (append-only presence set over CIDs).
+* **Root**: SMT root hash summarizing the entire set.
+* **Manifest**: IPFS object (by CID) describing a batch of CIDs or a diff.
+* **UUIDv7**: 128-bit, time-ordered unique identifier used as message/correlation id.
