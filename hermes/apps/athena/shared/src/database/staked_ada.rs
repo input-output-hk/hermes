@@ -1,4 +1,4 @@
-//! Create the database tables for RBAC registration.
+//! Staked ADA modules database.
 
 use cardano_blockchain_types::{
     hashes::TransactionId,
@@ -6,16 +6,16 @@ use cardano_blockchain_types::{
     pallas_primitives::{AssetName, BigInt, PolicyId},
 };
 use derive_more::From;
-use shared::{db, utils::sqlite};
+use crate::{database::sql, utils::sqlite};
 
 /// Sequentially creates all tables if they don't exist.
 pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
     let tx = conn.begin()?;
 
-    tx.execute(db::SCHEMA.stake_registration)?;
-    tx.execute(db::SCHEMA.txi_by_txn_id)?;
-    tx.execute(db::SCHEMA.txo_assets_by_stake)?;
-    tx.execute(db::SCHEMA.txo_by_stake)?;
+    tx.execute(sql::SCHEMA.stake_registration)?;
+    tx.execute(sql::SCHEMA.txi_by_txn_id)?;
+    tx.execute(sql::SCHEMA.txo_assets_by_stake)?;
+    tx.execute(sql::SCHEMA.txo_by_stake)?;
 
     tx.commit()
 }
@@ -45,7 +45,7 @@ pub fn get_txo_by_stake_address(
     conn: &mut sqlite::Connection,
     stake_address: StakeAddress,
 ) -> anyhow::Result<Vec<TxoByStakeAddressRowInner>> {
-    conn.prepare(db::QUERIES.get_txo_by_stake_address)?
+    conn.prepare(sql::QUERIES.get_txo_by_stake_address)?
         .query(&[&stake_address.into()])?
         .map_as::<TxoByStakeAddressRowInner>()
         .map(|res| res.map(TxoByStakeAddressRowInner::from))
@@ -77,7 +77,7 @@ pub fn get_assets_by_stake_address(
     conn: &mut sqlite::Connection,
     stake_address: StakeAddress,
 ) -> anyhow::Result<Vec<AssetsByStakeAddressRow>> {
-    conn.prepare(db::QUERIES.get_assets_by_stake_address)?
+    conn.prepare(sql::QUERIES.get_assets_by_stake_address)?
         .query(&[&stake_address.into()])?
         .map_as::<AssetsByStakeAddressRowInner>()
         .map(|res| res.map(AssetsByStakeAddressRow::from))
@@ -103,7 +103,7 @@ pub fn get_txi_by_txn_ids(
     conn: &mut sqlite::Connection,
     txn_ids: impl IntoIterator<Item = TransactionId>,
 ) -> anyhow::Result<Vec<TxiByTxnIdsRow>> {
-    let mut stmt = conn.prepare(db::QUERIES.get_txi_by_txn_ids)?;
+    let mut stmt = conn.prepare(sql::QUERIES.get_txi_by_txn_ids)?;
     txn_ids
         .into_iter()
         .map(|txn_id| {
@@ -125,7 +125,7 @@ pub fn delete_assets_since_slot(
     conn: &mut sqlite::Connection,
     inclusive_slot_no: u64,
 ) -> anyhow::Result<()> {
-    conn.prepare(db::QUERIES.delete_assets_since_slot)?
+    conn.prepare(sql::QUERIES.delete_assets_since_slot)?
         .execute(&[&inclusive_slot_no.try_into()?])
 }
 
@@ -134,7 +134,7 @@ pub fn delete_stake_registration_since_slot(
     conn: &mut sqlite::Connection,
     inclusive_slot_no: u64,
 ) -> anyhow::Result<()> {
-    conn.prepare(db::QUERIES.delete_stake_registration_since_slot)?
+    conn.prepare(sql::QUERIES.delete_stake_registration_since_slot)?
         .execute(&[&inclusive_slot_no.try_into()?])
 }
 
@@ -143,7 +143,7 @@ pub fn delete_txi_since_slot(
     conn: &mut sqlite::Connection,
     inclusive_slot_no: u64,
 ) -> anyhow::Result<()> {
-    conn.prepare(db::QUERIES.delete_txi_since_slot)?
+    conn.prepare(sql::QUERIES.delete_txi_since_slot)?
         .execute(&[&inclusive_slot_no.try_into()?])
 }
 
@@ -152,7 +152,7 @@ pub fn delete_txo_since_slot(
     conn: &mut sqlite::Connection,
     inclusive_slot_no: u64,
 ) -> anyhow::Result<()> {
-    conn.prepare(db::QUERIES.delete_txo_since_slot)?
+    conn.prepare(sql::QUERIES.delete_txo_since_slot)?
         .execute(&[&inclusive_slot_no.try_into()?])
 }
 
@@ -179,7 +179,7 @@ pub fn update_txo_spent(
     params: impl IntoIterator<Item = UpdateTxoSpentParams>,
 ) -> Result<usize, (usize, anyhow::Error)> {
     let mut stmt = conn
-        .prepare(db::QUERIES.update_txo_spent)
+        .prepare(sql::QUERIES.update_txo_spent)
         .map_err(|err| (0, err))?;
 
     params

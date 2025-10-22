@@ -1,12 +1,9 @@
 //! Wrapped sqlite internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
 
-use std::{
-    array,
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::{array, marker::PhantomData};
 
 use anyhow::{anyhow, Context as _};
+use derive_more::{Deref, DerefMut};
 
 use crate::bindings::hermes::sqlite::api;
 
@@ -74,6 +71,7 @@ impl Drop for Connection {
 /// Sqlite transaction.
 /// Implements [`Deref`] to [`Connection`].
 /// Automatically does rollback on drop.
+#[derive(Deref, DerefMut)]
 pub struct Transaction<'conn>(&'conn mut Connection);
 
 impl Transaction<'_> {
@@ -85,20 +83,6 @@ impl Transaction<'_> {
     /// Consumes and commits sqlite transaction.
     pub fn commit(self) -> anyhow::Result<()> {
         self.0.commit()
-    }
-}
-
-impl Deref for Transaction<'_> {
-    type Target = Connection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Transaction<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -169,6 +153,14 @@ impl Statement<'_> {
         T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
     {
         self.query_one(params, |row| row.try_into())
+    }
+
+    /// Binds provided parameters and executes the statement.
+    pub fn execute(
+        &mut self,
+        params: &[&api::Value],
+    ) -> anyhow::Result<()> {
+        self.query(params)?.step().map(drop)
     }
 }
 

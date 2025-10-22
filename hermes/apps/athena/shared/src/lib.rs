@@ -48,5 +48,5 @@
 //! ```
 
 pub mod bindings;
-pub mod db;
+pub mod database;
 pub mod utils;

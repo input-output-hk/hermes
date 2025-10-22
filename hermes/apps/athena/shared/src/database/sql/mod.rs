@@ -3,7 +3,7 @@
 /// Shortcut for including SQL in an organized way.
 macro_rules! include_sql {
     (#[dir = $dir:literal] pub const $const:ident: _ = $struct:ident {$($rel_stem:ident),* $(,)?};) => {
-        #[doc = concat!("Shared SQL included from shared \"", $dir, "\" directory")]
+        #[doc = concat!("Shared SQL included from shared \"sql/", $dir, "\" directory")]
         #[derive(Debug)]
         pub struct $struct {
             $(
@@ -34,6 +34,10 @@ include_sql! {
 include_sql! {
     #[dir = "queries"]
     pub const QUERIES: _ = Queries {
+        delete_assets_since_slot,
+        delete_stake_registration_since_slot,
+        delete_txi_since_slot,
+        delete_txo_since_slot,
         get_assets_by_stake_address,
         get_txi_by_txn_ids,
         get_txo_by_stake_address,

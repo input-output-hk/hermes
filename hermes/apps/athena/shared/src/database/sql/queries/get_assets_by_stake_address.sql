@@ -6,4 +6,4 @@ SELECT
     asset_name,
     value
 FROM txo_assets_by_stake
-WHERE stake_address = ?
+WHERE stake_address = ?;

@@ -2011,6 +2011,7 @@ dependencies = [
  "anyhow",
  "cardano-blockchain-types",
  "catalyst-types 0.0.7",
+ "derive_more",
  "log",
  "serde_json",
  "strum 0.27.2",
@@ -2081,7 +2082,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cardano-blockchain-types",
- "derive_more",
  "shared",
 ]
 

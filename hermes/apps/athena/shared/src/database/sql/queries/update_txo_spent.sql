@@ -3,4 +3,4 @@ UPDATE txo_by_stake
 WHERE stake_address = ?
     AND txn_index = ?
     AND txo = ?
-    AND slot_no = ?
+    AND slot_no = ?;

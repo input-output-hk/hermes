@@ -6,4 +6,4 @@ SELECT
     value,
     spent_slot
 FROM txo_by_stake
-WHERE stake_address = ?
+WHERE stake_address = ?;

@@ -9,5 +9,4 @@ crate-type = ["cdylib"]
 [dependencies]
 shared = { version = "0.1.0", path = "../../shared", features = ["cardano-blockchain-types"] }
 anyhow = "1.0.98"
-derive_more = { version = "2.0.1", features = ["from"] }
 cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
