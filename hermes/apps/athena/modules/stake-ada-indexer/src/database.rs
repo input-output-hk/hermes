@@ -1,16 +1,151 @@
 //! Create the database tables for RBAC registration.
 
+use cardano_blockchain_types::{
+    hashes::TransactionId,
+    pallas_addresses::StakeAddress,
+    pallas_primitives::{AssetName, BigInt, PolicyId},
+};
+use derive_more::From;
 use shared::{db, utils::sqlite};
 
-/// Sequentially creates all tables if they don't exist in a transaction.
+/// Sequentially creates all tables if they don't exist.
 pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
-    let tx = conn.begin()?;
+    conn.execute(db::SCHEMA.stake_registration)?;
+    conn.execute(db::SCHEMA.txi_by_txn_id)?;
+    conn.execute(db::SCHEMA.txo_assets_by_stake)?;
+    conn.execute(db::SCHEMA.txo_by_stake)
+}
 
-    tx.execute(db::SCHEMA.stake_registration)?;
-    tx.execute(db::SCHEMA.txi_by_txn_id)?;
-    tx.execute(db::SCHEMA.txo_assets_by_stake)?;
-    tx.execute(db::SCHEMA.txo_by_stake)?;
+/// [`TxoByStakeAddressRow`] represented by a tuple.
+type TxoByStakeAddressRowInner = (TransactionId, u16, u16, u64, BigInt, Option<u64>);
 
-    tx.commit()?;
-    Ok(())
+/// Get UTXO assets query data.
+#[derive(From)]
+pub struct TxoByStakeAddressRow {
+    /// TXO transaction hash.
+    pub txn_id: TransactionId,
+    /// TXO transaction index within the slot.
+    pub txn_index: u16,
+    /// TXO index.
+    pub txo: u16,
+    /// TXO transaction slot number.
+    pub slot_no: u64,
+    /// TXO value.
+    pub value: BigInt,
+    /// TXO spent slot.
+    pub spent_slot: Option<u64>,
+}
+
+/// Select each [`TxoByStakeAddressRow`].
+pub fn get_txo_by_stake_address(
+    conn: &mut sqlite::Connection,
+    stake_address: StakeAddress,
+) -> anyhow::Result<Vec<TxoByStakeAddressRowInner>> {
+    conn.prepare(db::QUERIES.get_txo_by_stake_address)?
+        .query(&[&stake_address.into()])?
+        .map_as::<TxoByStakeAddressRowInner>()
+        .map(|res| res.map(TxoByStakeAddressRowInner::from))
+        .collect()
+}
+
+/// [`AssetsByStakeAddressRow`] represented by a tuple.
+type AssetsByStakeAddressRowInner = (u16, u16, u64, PolicyId, AssetName, BigInt);
+
+/// UTXO assets query row.
+#[derive(From)]
+pub struct AssetsByStakeAddressRow {
+    /// TXO transaction index within the slot.
+    pub txn_index: u16,
+    /// TXO index.
+    pub txo: u16,
+    /// TXO transaction slot number.
+    pub slot_no: u64,
+    /// Asset policy hash (28 bytes).
+    pub policy_id: PolicyId,
+    /// Asset name (range of 0 - 32 bytes)
+    pub asset_name: AssetName,
+    /// Asset value.
+    pub value: BigInt,
+}
+
+/// Select each [`AssetsByStakeAddressRow`].
+pub fn get_assets_by_stake_address(
+    conn: &mut sqlite::Connection,
+    stake_address: StakeAddress,
+) -> anyhow::Result<Vec<AssetsByStakeAddressRow>> {
+    conn.prepare(db::QUERIES.get_assets_by_stake_address)?
+        .query(&[&stake_address.into()])?
+        .map_as::<AssetsByStakeAddressRowInner>()
+        .map(|res| res.map(AssetsByStakeAddressRow::from))
+        .collect()
+}
+
+/// [`TxiByTxnIdsRow`] represented by a tuple.
+type TxiByTxnIdsRowInner = (TransactionId, u16, u64);
+
+/// TXI query data.
+#[derive(From)]
+pub(crate) struct TxiByTxnIdsRow {
+    /// TXI transaction hash.
+    pub txn_id: TransactionId,
+    /// TXI original TXO index.
+    pub txo: u16,
+    /// TXI slot number.
+    pub slot_no: u64,
+}
+
+/// Select each [`TxiByTxnIdsRow`].
+pub fn get_txi_by_txn_ids(
+    conn: &mut sqlite::Connection,
+    txn_ids: impl IntoIterator<Item = TransactionId>,
+) -> anyhow::Result<Vec<TxiByTxnIdsRow>> {
+    let params: Vec<_> = txn_ids.into_iter().map(sqlite::Value::from).collect();
+    conn.prepare(db::QUERIES.get_txi_by_txn_ids)?
+        .query(&params.iter().collect::<Vec<_>>())?
+        .map_as::<TxiByTxnIdsRowInner>()
+        .map(|res| res.map(TxiByTxnIdsRow::from))
+        .collect()
+}
+
+/// TXO spent query params.
+#[derive(From)]
+pub(crate) struct UpdateTxoSpentParams {
+    /// TXO stake address.
+    pub stake_address: StakeAddress,
+    /// TXO transaction index within the slot.
+    pub txn_index: u16,
+    /// TXO index.
+    pub txo: u16,
+    /// TXO slot number.
+    pub slot_no: u64,
+    /// TXO spent slot number.
+    pub spent_slot: u64,
+}
+
+/// Updates by each [`UpdateTxoSpentParams`].
+/// When one of the updates fails, immediately returns.
+/// Additionally, returns the number of successful updates.
+pub fn update_txo_spent(
+    conn: &mut sqlite::Connection,
+    params: impl IntoIterator<Item = UpdateTxoSpentParams>,
+) -> Result<usize, (usize, anyhow::Error)> {
+    let mut stmt = conn
+        .prepare(db::QUERIES.update_txo_spent)
+        .map_err(|err| (0, err))?;
+
+    params
+        .into_iter()
+        .map(|p| {
+            Ok([
+                sqlite::Value::try_from(p.spent_slot)?,
+                p.txn_index.into(),
+                p.txo.into(),
+                sqlite::Value::try_from(p.slot_no)?,
+            ])
+        })
+        .map(|conversion_res| conversion_res.and_then(|p| stmt.query_one_as::<()>(&p.each_ref())))
+        .try_fold(0, |num_successful, res| {
+            res.map(|()| num_successful + 1)
+                .map_err(|err| (num_successful, err))
+        })
 }

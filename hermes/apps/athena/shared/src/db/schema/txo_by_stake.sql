@@ -4,8 +4,11 @@ CREATE TABLE IF NOT EXISTS txo_by_stake (
     stake_address   BLOB NOT NULL,          -- 29 Byte stake hash (CIP19).
     slot_no         INTEGER NOT NULL,       -- slot number when the spend occurred.
     txn_index       INTEGER NOT NULL,       -- Which Transaction in the Slot is the TXO.
-    txo             INTEGER NOT NULL,       -- Index of the TXO which was spent
+    txo             INTEGER NOT NULL,       -- offset in the txo list of the transaction the txo is in.
 
+    -- Transaction Output Data
+    address         TEXT NOT NULL,          -- TXO address (CIP19 Formatted Text).
+    value           BLOB NOT NULL,          -- Lovelace value of the TXO (u64).
     
     -- Data needed to correlate a spent TXO.
     txn_id          BLOB NOT NULL,          -- 32 byte hash of this transaction.
@@ -17,3 +20,5 @@ CREATE TABLE IF NOT EXISTS txo_by_stake (
 
     PRIMARY KEY (stake_address, slot_no, txn_index, txo)
 );
+
+CREATE INDEX IF NOT EXISTS ON txo_by_stake (stake_address);

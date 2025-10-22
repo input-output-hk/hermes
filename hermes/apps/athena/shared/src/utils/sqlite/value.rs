@@ -37,9 +37,32 @@ impl From<u16> for Value {
     }
 }
 
+#[cfg(feature = "cardano-blockchain-types")]
+impl From<cardano_blockchain_types::hashes::TransactionId> for Value {
+    fn from(v: cardano_blockchain_types::hashes::TransactionId) -> Self {
+        Value::Blob(v.into())
+    }
+}
+
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl From<cardano_blockchain_types::pallas_addresses::Address> for Value {
+    fn from(v: cardano_blockchain_types::pallas_addresses::Address) -> Self {
+        Value::Blob(v.to_vec())
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl From<cardano_blockchain_types::pallas_addresses::StakeAddress> for Value {
+    fn from(v: cardano_blockchain_types::pallas_addresses::StakeAddress) -> Self {
+        cardano_blockchain_types::pallas_addresses::Address::Stake(v).into()
+    }
+}
+
 // Generic option conversion
 impl<T> From<Option<T>> for Value
-where T: Into<Value>
+where
+    T: Into<Value>,
 {
     fn from(opt: Option<T>) -> Self {
         opt.map(|v| v.into()).unwrap_or(Value::Null)
@@ -47,6 +70,17 @@ where T: Into<Value>
 }
 
 // ------ SQLite value to Rust types conversion ------
+
+impl TryFrom<Value> for () {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Null => Ok(()),
+            _ => Err(anyhow::anyhow!("Value is not a null")),
+        }
+    }
+}
 
 impl TryFrom<Value> for String {
     type Error = anyhow::Error;
@@ -103,7 +137,8 @@ impl TryFrom<Value> for u16 {
 }
 
 impl<T> TryFrom<Value> for Option<T>
-where T: TryFrom<Value, Error = anyhow::Error>
+where
+    T: TryFrom<Value, Error = anyhow::Error>,
 {
     type Error = anyhow::Error;
 
@@ -129,6 +164,74 @@ impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
                 Ok(hash.into())
             },
             _ => Err(anyhow::anyhow!("Value is not a Blob for TransactionId")),
+        }
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::BigInt {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => {
+                cardano_blockchain_types::pallas_codec::minicbor::decode(&b).map_err(Into::into)
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Blob for BigInt")),
+        }
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::Address {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => cardano_blockchain_types::pallas_addresses::Address::from_bytes(&b)
+                .map_err(Into::into),
+            _ => Err(anyhow::anyhow!("Value is not a Blob for Address")),
+        }
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::StakeAddress {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        cardano_blockchain_types::pallas_addresses::Address::try_from(v).and_then(|v| {
+            if let cardano_blockchain_types::pallas_addresses::Address::Stake(addr) = v {
+                Ok(addr)
+            } else {
+                anyhow::bail!("Decoded as an Address, but not the StakeAddress")
+            }
+        })
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::PolicyId {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => {
+                cardano_blockchain_types::pallas_codec::minicbor::decode(&b).map_err(Into::into)
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Blob for PolicyId")),
+        }
+    }
+}
+
+#[cfg(feature = "cardano-blockchain-types")]
+impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::Bytes {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Blob(b) => Ok(b.into()),
+            _ => Err(anyhow::anyhow!("Value is not a Blob for Bytes")),
         }
     }
 }
