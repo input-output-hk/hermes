@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::common::{
+use shared::utils::common::{
     auth::none_or_rbac::NoneOrRBAC,
     objects::cardano::{network::Network, stake_info::FullStakeInfo},
     types::cardano::{self, cip19_stake_address::Cip19StakeAddress, slot_no::SlotNo},

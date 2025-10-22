@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "cardano-blockchain-types"
 version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.6#0e16500065715624c81cf3240b1e807c35265909"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-blockchain-types%2Fv0.0.6#0e16500065715624c81cf3240b1e807c35265909"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -2157,12 +2157,26 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
+ "bech32 0.11.0",
  "cardano-blockchain-types",
  "catalyst-types 0.0.7",
+ "chrono",
+ "derive_more",
+ "ed25519-dalek",
+ "hex",
+ "http",
  "log",
+ "num-bigint",
+ "rbac-registration 0.0.10",
+ "regex",
+ "serde",
  "serde_json",
  "strum 0.27.2",
  "strum_macros 0.27.2",
+ "url",
+ "utoipa",
+ "uuid",
  "wit-bindgen",
 ]
 
@@ -2234,26 +2248,14 @@ name = "staked-ada"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64",
- "bech32 0.11.0",
  "cardano-blockchain-types",
- "catalyst-types 0.0.7",
- "chrono",
- "derive_more",
- "ed25519-dalek",
- "hex",
- "http",
  "num-bigint",
- "rbac-registration 0.0.10",
  "regex",
  "serde",
  "serde_json",
  "shared",
- "strum 0.26.3",
  "tracing",
- "url",
  "utoipa",
- "uuid",
 ]
 
 [[package]]

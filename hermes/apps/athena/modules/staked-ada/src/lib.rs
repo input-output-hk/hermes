@@ -2,10 +2,6 @@
 //! Catalyst Gateway API
 
 mod api;
-mod common;
-mod rbac;
-mod settings;
-mod utils;
 
 use std::sync::OnceLock;
 
@@ -29,16 +25,16 @@ shared::bindings_generate!({
 export!(CatGatewayAPI);
 
 use regex::Regex;
-use shared::utils::log;
-
-use crate::{
-    api::cardano::staking::{staked_ada_get, GetStakedAdaRequest},
+use shared::utils::{
     common::{
         auth::none::NoAuthorization,
         responses::{ErrorResponses, WithErrorResponses},
         types::cardano::cip19_stake_address::Cip19StakeAddress,
     },
+    log,
 };
+
+use crate::api::cardano::staking::{staked_ada_get, GetStakedAdaRequest};
 
 const STAKE_ROUTE: &str = r"^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$";
 static STAKE_ROUTE_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -184,7 +180,7 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                     stake_address,
                     request.network,
                     request.asat,
-                    common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
+                    shared::utils::common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
                 );
 
                 match response {
