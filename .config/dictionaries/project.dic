@@ -19,6 +19,7 @@ cbor
 cdylib
 chaincode
 childs
+chksum
 chrono
 cids
 ciphertext
@@ -36,6 +37,7 @@ dashmap
 datelike
 dcbor
 Devnet
+DHKEM
 dotstar
 earthfile
 Embedder
@@ -63,7 +65,9 @@ gossipsub
 happ
 hmod
 hostnames
+hpke
 httpmock
+IBLT
 idents
 ifmt
 instanciate
@@ -77,14 +81,17 @@ linkat
 lintfix
 mapref
 mdlint
+Merkle
 metno
 mgrybyk
 minicbor
 miniprotocol
 mithril
+Mitzenmacher
 mkcron
 mkdelay
 mkdirat
+Namespacing
 nanos
 nextest
 nolfs
@@ -116,6 +123,8 @@ removedir
 renameat
 reqwest
 rfind
+Rmax
+Rmin
 rngs
 rollouts
 rustc
@@ -144,6 +153,7 @@ thollander
 threadsafe
 timelike
 tinygo
+Tmax
 toolsets
 traceback
 traitreg
@@ -162,6 +172,7 @@ wasmtime
 webasm
 webpki
 witx
+Wpin
 xprivate
 xprv
 xpub

@@ -81,23 +81,13 @@ icon: material/file-document-outline
 
 ## Message Model
 
-* Framing and Signature Envelope:
-  * Each published message item is a CBOR byte string (bstr), whose content is a canonical CBOR array of two elements: `[payload_bstr, signature_bstr]`.
-  * `payload_bstr` is a CBOR byte string containing the canonical CBOR-encoded payload map for that message type.
-  * `signature_bstr` contains the signature bytes.
-  * Signature input: from the first byte of the outer bstr content up to and including the end of `payload_bstr` (i.e., excludes the second array element entirely).
-    This permits strict framing while signing the full payload.
-  * Rationale: Wrapping the inner array as a bstr provides explicit length framing so receivers can bound input before decoding.
+* Framing and Signature Envelope (matches the common envelope CDDL provided):
+  * Each message is a CBOR byte string (bstr) whose content is a canonical CBOR array:
+    `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
+  * Signature input: computed over the canonical CBOR encoding of the first four elements `[peer-pubkey, seq, ver, payload-body]` (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
+  * Rationale: Outer bstr provides explicit length framing; canonical CBOR ensures deterministic signing.
 
-* Common payload fields use numeric map keys on the wire.
-  Names map to numbers as follows:
-  * 1: `ver` (uint) — protocol version (1)
-  * 2: `uuid` (bstr .size 16) — UUIDv7 for deduplication/correlation
-  * 3: `peer` (bstr) — sender peer-id bytes
-  * 4: `ts` (uint) — sender-local milliseconds since Unix epoch
-  * 5: `root` (bstr .size 32) — SMT root (BLAKE3-256; see SMT section)
-  * 6: `count` (uint) — total document count after applying the operation
-* Deduplication: Receivers MUST de-duplicate by `(peer, uuid)` and drop duplicates.
+* Deduplication: Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
 * Idempotence: Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
 
 CDDL — Common Types and Envelope
@@ -132,8 +122,11 @@ Diagnostic example (envelope framing only):
 
 ```cbor
 bstr([
-  h'a1...payload...',  ; payload_bstr (CBOR bstr of the payload map)
-  h'00...sig...'
+  h'aa..peer-pubkey..',   ; peer (ed25519 pubkey)
+  h'01..uuidv7..',        ; seq
+  1,                      ; ver = 1
+  { 1: h'root..', 2: 42 },; payload-body (example for .new)
+  h'..signature..'        ; peer-sig
 ])
 ```
 
@@ -143,75 +136,233 @@ bstr([
 
 * Semantics: Announce newly produced documents and the sender’s resulting set summary.
 
-* Payload (numeric keys; map inside `payload_bstr`):
-  * Common fields: 1..6
-  * 10: `batch` (array of `cid1`) OPTIONAL — inline new CIDs if total payload ≤ 1 MiB.
-  * 11: `manifest` (`cid1`) OPTIONAL — CID of an IPFS object listing new CIDs when inline exceeds the limit.
+* Payload-body (numeric keys):
+  * 1: `root` (root32) — resulting SMT root after applying this announcement on the sender
+  * 2: `count` (uint) — resulting document count on the sender
+  * 3: `batch` (array of `cid1`) OPTIONAL — inline new CIDs if total payload ≤ 1 MiB
+  * 4: `manifest` (`cid1`) OPTIONAL — CID of an IPFS object listing new CIDs when inline exceeds the limit
 * Processing:
   * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
   * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window, the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
   * Upon successful pin of all CIDs in the announcement, insert each CID into local SMT; compute local root.
-  * If local root ≠ sender `root`, mark divergence w.r.t. `peer` and enter reconciliation backoff (see State Machines) unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+  * If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines) unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+
+CDDL — `.new` payload-body
+
+```cddl
+; self-contained types
+root32 = bytes .size 32
+cid1 = bytes
+
+msg-new = payload-body
+payload-body = {
+  1 => root32,
+  2 => uint,
+  ? 3 => [* cid1],
+  ? 4 => cid1
+}
+```
+
+Diagnostic example (payload-body decoded):
+
+```cbor
+{ 1: h'012345...89ab', 2: 42, 3: [ h'01a4...cid1', h'02b5...cid1' ] }
+```
 
 ### .syn (topic `<base>.syn`)
 
 * Semantics: Solicitation for reconciliation; includes requester’s sketch.
 
-* Payload (numeric keys):
-  * Common fields: 1..6 refer to the requester’s current state.
-  * 9: `to` (peer-id) OPTIONAL — target peer-id.
-  * 12: `iblt` (map) — requester’s sketch and parameters (see IBLT section).
+* Payload-body (numeric keys):
+  * 1: `root` (root32) — requester’s current root
+  * 2: `count` (uint) — requester’s current count
+  * 3: `to` (peer-pubkey) OPTIONAL — suggested target peer to respond
+  * 4: `iblt` (iblt) — requester’s sketch and parameters (see IBLT section)
 * Processing:
   * Any peer MAY respond if it believes it can help reconcile; responders SHOULD use jitter (see Timers) and suppress if a suitable `.dif` appears.
   * Observers MAY use information to converge opportunistically, but `.syn` does not carry updates itself.
+
+CDDL — `.syn` payload-body
+
+```cddl
+; self-contained types
+root32 = bytes .size 32
+peer-pubkey = bytes .size 32
+
+; IBLT (numeric keys)
+iblt = {
+  1 => uint,              ; m
+  2 => uint,              ; k
+  3 => [* uint],          ; seeds (length k)
+  4 => [* iblt-cell]
+}
+iblt-cell = {
+  1 => int,               ; c
+  2 => uint,              ; key_xor (64-bit fits)
+  3 => uint               ; chksum_xor (32-bit fits)
+}
+
+msg-syn = payload-body
+payload-body = {
+  1 => root32,
+  2 => uint,
+  ? 3 => peer-pubkey,
+  4 => iblt
+}
+```
+
+Diagnostic example (payload-body decoded):
+
+```cbor
+{ 1: h'aaaa...aaaa', 2: 100, 3: h'cafebabe', 4: { 1: 128, 2: 3, 3: [123456,789012,345678], 4: [ {1:0,2:0,3:0} ] } }
+```
 
 ### .dif (topic `<base>.dif`)
 
 * Semantics: Reconciliation reply; may carry a responder sketch, small raw CID lists, or a pointer to a diff manifest.
 
-* Payload (numeric keys):
-  * Common fields: 1..6 refer to the responder’s current state.
-  * 7: `in_reply_to` (uuid) — UUIDv7 of the `.syn` being answered.
+* Payload-body (numeric keys):
+  * 1: `root` (root32) — responder’s current root
+  * 2: `count` (uint) — responder’s current count
+  * 3: `in_reply_to` (uuid) — UUIDv7 of the `.syn` being answered
   * One or more of:
-    * 12: `iblt` (map) OPTIONAL — responder sketch for bi-directional peeling.
-    * 13: `missing_for_requester` (array of `cid1`) OPTIONAL — only if total payload ≤ 1 MiB.
-    * 14: `diff_manifest` (`cid1`) OPTIONAL — CID of an IPFS object describing the diff (see Diff Manifest).
+    * 4: `iblt` (iblt) OPTIONAL — responder sketch for bi-directional peeling
+    * 5: `missing_for_requester` (array of `cid1`) OPTIONAL — only if total payload ≤ 1 MiB
+    * 6: `diff_manifest` (`cid1`) OPTIONAL — CID of an IPFS object describing the diff (see Diff Manifest)
 * Processing:
   * Requesters attempt to decode using provided sketches; if decoded, fetch+pin `missing_for_requester` (from inline list or manifest), update SMT, and check parity.
   * Observers MAY also use `.dif` to converge faster.
+
+CDDL — `.dif` payload-body
+
+```cddl
+; self-contained types
+root32 = bytes .size 32
+cid1 = bytes
+uuid = #6.37(bytes .size 16)
+
+; IBLT (numeric keys)
+iblt = { 1 => uint, 2 => uint, 3 => [* uint], 4 => [* iblt-cell] }
+iblt-cell = { 1 => int, 2 => uint, 3 => uint }
+
+msg-dif = payload-body
+payload-body = {
+  1 => root32,
+  2 => uint,
+  3 => uuid,
+  ? 4 => iblt,
+  ? 5 => [* cid1],
+  ? 6 => cid1
+}
+```
+
+Diagnostic example (payload-body decoded, inline missing list):
+
+```cbor
+{ 1: h'bbbb...bbbb', 2: 105, 3: h'018f0f92c3f8a9b2c7d1112233445567', 5: [ h'03c6...cid1', h'04d7...cid1' ] }
+```
 
 ### .prv (topic `<base>.prv`, OPTIONAL)
 
 * Semantics: Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
-* Payload (numeric keys):
-  * Common fields: 1..6 are the requester’s current state.
-  * 8: `cid` (`cid1`) — the document CID for which an inclusion proof is requested.
-  * 15: `provers` (array of peer-id) OPTIONAL: explicit peers asked to respond.
-    If omitted or empty, any peer MAY respond (subject to jitter).
-  * 16: `hpke_pkR` (bstr .size 32) — requester’s ephemeral X25519 public key.
+* Payload-body (numeric keys):
+  * 1: `root` (root32) — requester’s current root
+  * 2: `count` (uint) — requester’s current count
+  * 3: `cid` (`cid1`) — the document CID requested
+  * 4: `provers` (array of peer-pubkey) OPTIONAL — explicit peers asked to respond
+  * 5: `hpke_pkR` (bytes .size 32) — requester’s ephemeral X25519 public key.
     REQUIRED.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
   * If `provers` is absent, any peer MAY volunteer a proof after responder jitter; responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
   * `.prv` carries no updates by itself.
 
+CDDL — `.prv` payload-body
+
+```cddl
+; self-contained types
+root32 = bytes .size 32
+cid1 = bytes
+peer-pubkey = bytes .size 32
+
+msg-prv = payload-body
+payload-body = {
+  1 => root32,
+  2 => uint,
+  3 => cid1,
+  ? 4 => [* peer-pubkey],
+  5 => bytes .size 32
+}
+```
+
+Diagnostic example (payload-body decoded):
+
+```cbor
+{ 1: h'dddd...dddd', 2: 200, 3: h'05e8...cid1', 4: [ h'aa11bb22', h'cc33dd44' ], 5: h'5566...' }
+```
+
 ### .prf (topic `<base>.prf`, OPTIONAL)
 
 * Semantics: Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
 
-* Payload (numeric keys):
-  * Common fields: 1..6 refer to the responder’s current state at proof time.
-  * 7: `in_reply_to` (uuid) — UUIDv7 of the `.prv` being answered.
-  * 8: `cid` (`cid1`) — the requested document CID.
-  * 17: `hpke_enc` (bstr .size 32) — responder’s HPKE encapsulated ephemeral public key.
+* Payload-body (numeric keys):
+  * 1: `root` (root32) — responder’s current root at proof time
+  * 2: `count` (uint) — responder’s current count
+  * 3: `in_reply_to` (uuid) — UUIDv7 of the `.prv` being answered
+  * 4: `cid` (`cid1`) — the requested document CID
+  * 5: `hpke_enc` (bytes .size 32) — responder’s HPKE encapsulated ephemeral public key.
     REQUIRED.
-  * 18: `ct` (bstr) — HPKE ciphertext of the proof payload (see Encrypted Proofs).
+  * 6: `ct` (bytes) — HPKE ciphertext of the proof payload (see Encrypted Proofs).
     REQUIRED.
 * Processing:
   * Only the requester possessing the matching X25519 private key can decrypt `ct`.
   * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
   * Non-requesters cannot decrypt and SHOULD ignore the ciphertext.
+
+CDDL — `.prf` payload-body and encrypted plaintext
+
+```cddl
+; self-contained types
+root32 = bytes .size 32
+cid1 = bytes
+uuid = #6.37(bytes .size 16)
+
+msg-prf = payload-body
+payload-body = {
+  1 => root32,
+  2 => uint,
+  3 => uuid,
+  4 => cid1,
+  5 => bytes .size 32,  ; hpke-enc
+  6 => bytes            ; ct
+}
+
+; Encrypted plaintext structure inside ct
+smt-proof = {
+  1 => uint,
+  2 => bytes .size 32,
+  3 => [* bytes .size 32],
+  ? 4 => bytes .size 32,
+  ? 5 => uint
+}
+
+prf-plaintext = {
+  1 => bytes,          ; responder (peer-pubkey)
+  2 => uuid,           ; in_reply_to
+  3 => cid1,           ; cid
+  4 => root32,         ; root
+  5 => uint,           ; count
+  6 => bool,           ; present
+  7 => smt-proof
+}
+```
+
+Diagnostic example (payload-body decoded):
+
+```cbor
+{ 1: h'dddd...dddd', 2: 201, 3: h'018f0f92c3f8a9b2c7d1112233445570', 4: h'05e8...cid1', 5: h'1122...', 6: h'99aa...' }
+```
 
 ## Proof Topics Usage Model (Optional)
 
@@ -288,14 +439,14 @@ bstr([
 * Response flow:
   * Prover derives an HPKE context using `hpke_pkR`, generates `hpke_enc` (32-byte encapsulated pub), and encrypts the proof payload into `ct`.
 * Ciphertext AAD binding:
-  * The AEAD additional authenticated data MUST be the canonical CBOR encoding of the following map from the `.prf` outer payload: `{ver, peer, uuid, in_reply_to, cid, root, count}`.
-  * This prevents transplanting `ct` under a different envelope.
+  * The AEAD additional authenticated data MUST be the canonical CBOR encoding of the array `[peer-pubkey, seq, ver, in_reply_to, cid, root, count]`, where `peer-pubkey, seq, ver` are the first three fields from the envelope and `in_reply_to, cid, root, count` are from the payload-body.
+  * This prevents transplanting `ct` under a different envelope or payload context.
 * Encrypted plaintext format (canonical CBOR map with numeric keys; see `prf-plaintext` CDDL):
-  * 1: `responder` (peer-id) — MUST equal outer `peer` (3)
-  * 2: `in_reply_to` (uuid) — MUST match outer `in_reply_to` (7)
-  * 3: `cid` (cid1) — MUST match outer `cid` (8)
-  * 4: `root` (root32) — MUST match outer `root` (5)
-  * 5: `count` (uint) — MUST match outer `count` (6)
+  * 1: `responder` (peer-pubkey) — MUST equal the envelope `peer-pubkey`
+  * 2: `in_reply_to` (uuid) — MUST match the payload-body `in_reply_to`
+  * 3: `cid` (cid1) — MUST match the payload-body `cid`
+  * 4: `root` (root32) — MUST match the payload-body `root`
+  * 5: `count` (uint) — MUST match the payload-body `count`
   * 6: `present` (bool) — whether the CID is included
   * 7: `proof` (smt-proof) — inclusion/non-inclusion proof
 * Verification (requester):
@@ -308,9 +459,9 @@ bstr([
 
 * Proofs use numeric keys:
   * 1: `type` (uint) — 0 = inclusion, 1 = non-inclusion.
-  * 2: `k` (bstr .size 32) — `k = BLAKE3-256(CIDv1-bytes)`.
-  * 3: `siblings` (array of bstr .size 32) — ordered from leaf upward (LSB-first traversal).
-  * 4: `leaf` (bstr .size 32) OPTIONAL — `LeafHash`; MAY be omitted.
+* 2: `k` (bytes .size 32) — `k = BLAKE3-256(CIDv1-bytes)`.
+* 3: `siblings` (array of bytes .size 32) — ordered from leaf upward (LSB-first traversal).
+* 4: `leaf` (bytes .size 32) OPTIONAL — `LeafHash`; MAY be omitted.
   * 5: `depth` (uint) OPTIONAL — defaults to 256 if omitted.
 
 CDDL — SMT proofs
@@ -318,9 +469,9 @@ CDDL — SMT proofs
 ```
 smt-proof = {
   1 => uint,            ; 0 incl, 1 excl
-  2 => bstr .size 32,   ; k
-  3 => [* bstr .size 32],
-  ? 4 => bstr .size 32, ; leaf
+  2 => bytes .size 32,   ; k
+  3 => [* bytes .size 32],
+  ? 4 => bytes .size 32, ; leaf
   ? 5 => uint           ; depth
 }
 ```
@@ -370,7 +521,7 @@ iblt-cell = {
 * Numeric keys are used for fields:
   * 1: `ver` (uint)
   * 2: `in_reply_to` (uuid)
-  * 3: `responder` (peer-id)
+  * 3: `responder` (peer-pubkey)
   * 4: `root` (root32)
   * 5: `count` (uint)
   * 6: `missing_for_requester` (array of `cid1`)
@@ -385,7 +536,7 @@ CDDL — Diff manifest
 diff-manifest = {
   1 => ver,
   2 => uuid,
-  3 => peer-id,     ; responder
+  3 => peer-pubkey, ; responder
   4 => root32,
   5 => uint,        ; count
   6 => [* cid1],
@@ -461,154 +612,3 @@ Diagnostic example (decoded):
 * Numeric defaults (`Tmin/Tmax`, size caps) may be tuned through experimentation.
 
 * Potential future direct-stream optimization for large diffs.
-CDDL — `.new` payload
-
-```
-new-payload = common // {
-  ? 10 => [* cid1],   ; batch
-  ? 11 => cid1        ; manifest
-}
-```
-
-Diagnostic example (payload_bstr decoded):
-
-```
-{
-  1: 1,                                        ; ver
-  2: h'018f0f92c3f8a9b2c7d1112233445566',      ; uuid
-  3: h'aabbccdd',                              ; peer
-  4: 1710000000000,                            ; ts
-  5: h'0123456789ab...0123',                   ; root (BLAKE3-256)
-  6: 42,                                       ; count
-  10: [ h'01a4...cid1', h'02b5...cid1' ]       ; batch (CIDv1 binary)
-}
-```
-
-CDDL — `.syn` payload
-
-```
-syn-payload = common // {
-  ? 9  => peer-id,  ; to
-  12 => iblt        ; requester sketch
-}
-```
-
-Diagnostic example (payload_bstr decoded):
-
-```
-{
-  1: 1,
-  2: h'018f0f92c3f8a9b2c7d1112233445567',
-  3: h'deafbeef',
-  4: 1710000000100,
-  5: h'aaaa...aaaa',
-  6: 100,
-  9: h'cafebabe',
-  12: { 1: 128, 2: 3, 3: [123456, 789012, 345678], 4: [ {1:0,2:0,3:0} ] }
-}
-```
-
-CDDL — `.dif` payload
-
-```
-dif-payload = common // {
-  7  => uuid,
-  ? 12 => iblt,
-  ? 13 => [* cid1],
-  ? 14 => cid1
-}
-```
-
-Diagnostic example (payload_bstr decoded, inline missing list):
-
-```
-{
-  1: 1,
-  2: h'018f0f92c3f8a9b2c7d1112233445568',
-  3: h'00112233',
-  4: 1710000000200,
-  5: h'bbbb...bbbb',
-  6: 105,
-  7: h'018f0f92c3f8a9b2c7d1112233445567',
-  13: [ h'03c6...cid1', h'04d7...cid1' ]
-}
-```
-
-CDDL — `.prv` payload
-
-```
-prv-payload = common // {
-  8  => cid1,
-  ? 15 => [* peer-id],
-  16 => bstr .size 32   ; hpke_pkR
-}
-```
-
-Diagnostic example (payload_bstr decoded):
-
-```
-{
-  1: 1,
-  2: h'018f0f92c3f8a9b2c7d1112233445570',
-  3: h'99887766',
-  4: 1710000000400,
-  5: h'dddd...dddd',
-  6: 200,
-  8: h'05e8...cid1',
-  15: [ h'aa11bb22', h'cc33dd44' ],
-  16: h'5566...'
-}
-```
-
-CDDL — `.prf` payload and encrypted plaintext
-
-```
-prf-payload = common // {
-  7  => uuid,
-  8  => cid1,
-  17 => bstr .size 32,  ; hpke_enc
-  18 => bstr            ; ct
-}
-
-; Encrypted plaintext structure inside ct
-prf-plaintext = {
-  1 => peer-id,      ; responder (must equal outer 3)
-  2 => uuid,         ; in_reply_to (must equal outer 7)
-  3 => cid1,         ; cid (must equal outer 8)
-  4 => root32,       ; root (must equal outer 5)
-  5 => uint,         ; count (must equal outer 6)
-  6 => bool,         ; present
-  7 => smt-proof     ; proof (incl/excl)
-}
-```
-
-Diagnostic example (outer payload_bstr decoded):
-
-```
-{
-  1: 1,
-  2: h'018f0f92c3f8a9b2c7d1112233445571',
-  3: h'aa11bb22',
-  4: 1710000000500,
-  5: h'dddd...dddd',
-  6: 201,
-  7: h'018f0f92c3f8a9b2c7d1112233445570',
-  8: h'05e8...cid1',
-  17: h'1122...',
-  18: h'99aa...'
-}
-```
-
-Diagnostic example (decrypted prf-plaintext):
-
-```
-{
-  1: h'aa11bb22',                         ; responder
-  2: h'018f0f92c3f8a9b2c7d1112233445570', ; in_reply_to
-  3: h'05e8...cid1',                       ; cid
-  4: h'dddd...dddd',                       ; root
-  5: 201,                                   ; count
-  6: true,                                  ; present
-  7: { 1: 0, 2: h'1f2e...00', 3: [ h'ab..1', h'ab..2' ] } ; smt-proof
-}
-```
