@@ -3,6 +3,9 @@ name = "shared"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+cardano-blockchain-types = [] # does nothing, deprecated. TODO(@no30bit): remove in dependencies.
+
 [dependencies]
 wit-bindgen = "0.46.0"
 
@@ -13,5 +16,5 @@ strum_macros = "0.27.2"
 derive_more = { version = "2.0.1", features = ["from", "deref", "deref_mut"] }
 log = { version = "0.4.28", features = ["kv_serde"] }
 
-cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6", optional = true }
+cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
 catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }

@@ -34,13 +34,13 @@ include_sql! {
 include_sql! {
     #[dir = "queries"]
     pub const QUERIES: _ = Queries {
-        delete_assets_since_slot,
         delete_stake_registration_since_slot,
         delete_txi_since_slot,
+        delete_txo_assets_since_slot,
         delete_txo_since_slot,
-        get_assets_by_stake_address,
-        get_txi_by_txn_ids,
-        get_txo_by_stake_address,
+        select_txi_by_txn_ids,
+        select_txo_assets_by_stake_address,
+        select_txo_by_stake_address,
         update_txo_spent,
     };
 }

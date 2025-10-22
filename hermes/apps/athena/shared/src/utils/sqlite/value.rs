@@ -1,6 +1,5 @@
 //! Hermes SQLite value conversion.
 
-#[cfg(feature = "cardano-blockchain-types")]
 use cardano_blockchain_types;
 
 use crate::bindings::hermes::sqlite::api::Value;
@@ -37,7 +36,6 @@ impl From<u16> for Value {
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl From<cardano_blockchain_types::hashes::TransactionId> for Value {
     fn from(v: cardano_blockchain_types::hashes::TransactionId) -> Self {
         Value::Blob(v.into())
@@ -45,14 +43,12 @@ impl From<cardano_blockchain_types::hashes::TransactionId> for Value {
 }
 
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl From<cardano_blockchain_types::pallas_addresses::Address> for Value {
     fn from(v: cardano_blockchain_types::pallas_addresses::Address) -> Self {
         Value::Blob(v.to_vec())
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl From<cardano_blockchain_types::pallas_addresses::StakeAddress> for Value {
     fn from(v: cardano_blockchain_types::pallas_addresses::StakeAddress) -> Self {
         cardano_blockchain_types::pallas_addresses::Address::Stake(v).into()
@@ -153,7 +149,6 @@ where
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
     type Error = anyhow::Error;
 
@@ -168,7 +163,6 @@ impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::BigInt {
     type Error = anyhow::Error;
 
@@ -182,7 +176,6 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::BigInt {
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::Address {
     type Error = anyhow::Error;
 
@@ -195,7 +188,6 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::Address {
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::StakeAddress {
     type Error = anyhow::Error;
 
@@ -210,7 +202,6 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::StakeAddress
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::PolicyId {
     type Error = anyhow::Error;
 
@@ -224,7 +215,6 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::PolicyId {
     }
 }
 
-#[cfg(feature = "cardano-blockchain-types")]
 impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::Bytes {
     type Error = anyhow::Error;
 
