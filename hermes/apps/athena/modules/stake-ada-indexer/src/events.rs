@@ -24,7 +24,9 @@ pub fn init() -> anyhow::Result<()> {
 
     let mut _conn_volatile = sqlite::Connection::open(true)?;
 
-    create_tables(&mut conn)?;
+    let mut tx = conn.begin()?;
+    create_tables(&mut tx)?;
+    tx.commit()?;
 
     info!(
         target: "staked_ada_indexer::init",

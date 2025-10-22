@@ -1,6 +1,10 @@
 //! Wrapped sqlite internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
 
-use std::{array, marker::PhantomData, ops::Deref};
+use std::{
+    array,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 use anyhow::{anyhow, Context as _};
 
@@ -72,7 +76,7 @@ impl Drop for Connection {
 /// Automatically does rollback on drop.
 pub struct Transaction<'conn>(&'conn mut Connection);
 
-impl<'conn> Transaction<'conn> {
+impl Transaction<'_> {
     /// Explicitly consume and rollback transaction.
     pub fn rollback(self) -> anyhow::Result<()> {
         self.0.rollback()
@@ -84,7 +88,7 @@ impl<'conn> Transaction<'conn> {
     }
 }
 
-impl<'conn> Deref for Transaction<'conn> {
+impl Deref for Transaction<'_> {
     type Target = Connection;
 
     fn deref(&self) -> &Self::Target {
@@ -92,7 +96,13 @@ impl<'conn> Deref for Transaction<'conn> {
     }
 }
 
-impl<'conn> Drop for Transaction<'conn> {
+impl DerefMut for Transaction<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Drop for Transaction<'_> {
     fn drop(&mut self) {
         let _ = self.0.rollback();
     }
@@ -125,11 +135,9 @@ impl Statement<'_> {
                     .zip(1u32..)
                     .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
-                    .map(|()| {
-                        Rows {
-                            stmt: Some(stmt),
-                            current: None,
-                        }
+                    .map(|()| Rows {
+                        stmt: Some(stmt),
+                        current: None,
                     })
             })
             .context("Executing prepared query")
@@ -236,7 +244,9 @@ impl<'stmt> Rows<'stmt> {
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
     pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         self.and_then(|row| row.and_then(|row| row.try_into()))
     }
 }
@@ -294,7 +304,9 @@ impl Row<'_> {
     /// # }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         T::try_from(self)
     }
 }
