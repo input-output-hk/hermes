@@ -61,25 +61,31 @@ All messages are broadcasts on the following topic designations:
 
 No direct streams are required in this PoC; all reconciliation occurs on pub/sub.
 
-### Why multiple topics help the system scale
+### How multiple topics help the system scale
 
-* **Processing isolation:**
-  * `.new` is small and frequent (control-plane for appends),
-  * `.syn` is synchronization request control-only,
-  * `.dif` can be large or bursty, and
-  * `.prv/.prf` are occasional and ephemeral.
+**Processing isolation:**
+
+* `.new` is small and frequent (control-plane for appends),
+* `.syn` is synchronization request control-only,
+* `.dif` can be large or bursty, and
+* `.prv/.prf` are occasional and ephemeral.
   Separating channels prevents heavy `.dif` traffic from delaying `.new` processing and keeps control paths fast.
-* **Gossipsub performance:** IPFS/libp2p maintains meshes, validation, and scoring per-topic.
+
+**Gossipsub performance:** IPFS/libp2p maintains meshes, validation, and scoring per-topic.
   Splitting topics allows independent backpressure, scoring, and message ID de-dup caches,
   improving fairness and convergence under load.
-* **Selective subscription:** Peers can opt out of proof traffic entirely,
+
+**Selective subscription:** Peers can opt out of proof traffic entirely,
   or temporarily subscribe to `.prf` only when they request a proof,
   reducing baseline bandwidth and CPU.
-* **Policy and rate limits:** Enforce “one message kind per topic” and apply separate quotas/priorities.
+
+**Policy and rate limits:** Enforce “one message kind per topic” and apply separate quotas/priorities.
   For example, prioritize `.new` over `.dif` so new content signals propagate quickly, while large diffs trickle.
-* **Observability:** Topic-level metrics and alarms make it easy to detect misconfiguration or abuse
+
+**Observability:** Topic-level metrics and alarms make it easy to detect misconfiguration or abuse
   (e.g., oversized `.dif` bursts) and to tune thresholds per traffic class.
-* **Future extensions:** Per-topic admission or encryption can be added without impacting unrelated flows.
+
+**Future extensions:** Per-topic admission or encryption can be added without impacting unrelated flows.
 
 ## Topics and Namespacing
 
@@ -99,19 +105,21 @@ Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` 
 
 ## Message Model
 <!-- markdownlint-disable MD033 -->
-* Framing and Signature Envelope (matches the common envelope CDDL provided):
-  * Each message is a CBOR byte string (bstr) whose content is a CBOR array encoded deterministically:<br>
-    `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
-  * Signature input: computed over the deterministic CBOR encoding of the bstr wrapper and first four elements
-    `[peer-pubkey, seq, ver, payload-body]`
-    (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
-  * Rationale: Outer bstr provides explicit length framing; deterministic CBOR ensures unambiguous signing.
+Framing and Signature Envelope (matches the common envelope CDDL provided):
 
-* Deduplication: Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
-* Idempotence: Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
+* Each message is a CBOR byte string (bstr) whose content is a CBOR array encoded deterministically:<br>
+  `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
+* Signature input: computed over the deterministic CBOR encoding of the bstr wrapper and first four elements
+  `[peer-pubkey, seq, ver, payload-body]`
+  (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
 <!-- markdownlint-enable MD033 -->
 
-CDDL — Common Types and Envelope
+**Rationale:** Outer bstr provides explicit length framing; deterministic CBOR ensures unambiguous signing.
+
+**Deduplication:** Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
+**Idempotence:** Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
+
+### Common Message Envelope
 
 ```cddl
 ; Common Message Envelope
@@ -139,7 +147,7 @@ peer-sig = ed25519-sig
 payload-body = { * uint => any }
 ```
 
-Diagnostic example (envelope framing only):
+### Diagnostic example (envelope framing only)
 
 ```cbor
 bstr([
@@ -153,28 +161,36 @@ bstr([
 
 ## Message Types
 
-### .new (topic `<base>.new`)
+### `.new` (topic `<base>.new`)
 
-* Semantics: Announce newly produced documents and the sender’s resulting set summary.
+**Semantics:** Announce newly produced documents and the sender’s resulting set summary.
 
-* Payload-body (numeric keys; shared with `.dif`):
-  * k-root (1): root32 — sender’s current root for this snapshot
-  * k-count (2): uint — sender’s current document count
-  * k-docs (3) OPTIONAL: array of cid1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
-  * k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
-  * k-in_reply_to (5) FORBIDDEN on `.new`
-  * k-ttl (6) OPTIONAL: uint — not typically used on `.new`
-* Processing:
-  * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
-  * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window,
-    the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
-  * Upon successful pin of all CIDs in the announcement, insert each CID into local SMT; compute local root.
-  * If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines)
-    unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+Payload-body (numeric keys; shared with `.dif`):
 
-CDDL — `.new` payload-body
+* k-root (1): root32 — sender’s current root for this snapshot
+* k-count (2): uint — sender’s current document count
+* k-docs (3) OPTIONAL: array of cid1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
+* k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
+* k-in_reply_to (5) FORBIDDEN on `.new`
+* k-ttl (6) OPTIONAL: uint — not typically used on `.new`
+
+**Processing:**
+
+1. Fetch and pin all CIDs from `batch` or `manifest` before insertion.
+2. *Atomic pinning:* if any CID in the announcement cannot be fetched and pinned within the pinning retry window,
+   the peer MUST NOT keep any partial pins from this announcement;
+   it MUST release any partial pins and defer insertion.
+3. Upon successful pin of all CIDs in the announcement, insert each CID into local SMT; compute local root.
+4. If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines)
+   unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+
+#### `.new` payload-body
+
+This `payload-body` is contained within the Common Message Envelope.
 
 ```cddl
+payload-body = 
+
 ; self-contained types
 root32 = bytes .size 32
 cid1 = bytes
