@@ -17,15 +17,17 @@ Key characteristics
 
 Notable extensions (hermes/bin/src/runtime_extensions/hermes)
 
-* http_gateway: HTTP server, hostname routing, endpoint subscriptions, request classification, static file serving.
-* http_request: Module-side API to send HTTP requests via async gateway machinery.
-* kv_store: Simple key/value storage patterns.
-* sqlite: Embedded SQLite access via host functions.
-* ipfs: Publish/subscribe, DHT, file add/get/pin, and peer eviction using an embedded node.
-* cardano: Chain following and eventing helpers for Cardano integration.
-* crypto: Key management and cryptographic utilities (e.g., BIP39, BIP32-Ed25519).
-* cron: Scheduled events for modules.
-* logging: Structured logging APIs from modules.
+| Extension | Description |
+| --- | --- |
+| **http_gateway** | HTTP server, hostname routing, endpoint subscriptions, request classification, static file serving. |
+| **http_request** | Module-side API to send HTTP requests via async gateway machinery. |
+| **kv_store** | Simple key/value storage patterns. |
+| **sqlite** | Embedded SQLite access via host functions. |
+| **ipfs** | Publish/subscribe, DHT, file add/get/pin, and peer eviction using an embedded node. |
+| **cardano** | Chain following and eventing helpers for Cardano integration. |
+| **crypto** | Key management and cryptographic utilities (e.g., BIP39, BIP32-Ed25519). |
+| **cron** | Scheduled events for modules. |
+| **logging** | Structured logging APIs from modules. |
 
 Context hooks
 
