@@ -92,6 +92,8 @@ Mitzenmacher
 mkcron
 mkdelay
 mkdirat
+multihash
+multihashes
 Namespacing
 nanos
 nextest

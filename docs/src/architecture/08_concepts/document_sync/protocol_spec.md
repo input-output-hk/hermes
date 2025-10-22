@@ -171,13 +171,13 @@ Topic-specific rules (e.g., `.dif` requiring `k-in_reply_to`, `.new` forbidding 
 
 Payload-body Keys:
 
-* **root** *(1)*: root-hash — Blake 3 Hash of the Root of the Senders SMT.
+* **root** *(1)*: root-hash — BLAKE3-256 of the sender’s SMT root.
 * **count** *(2)*: uint — sender’s current document count
 * **docs** *(3)* *OPTIONAL*: array of cidv1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
-* **manifest** *(4)* *OPTIONAL*: cidv1 — manifest CID listing CIDs when message size would exceed 1MiB.
+* **manifest** *(4)* *OPTIONAL*: cidv1 — manifest CID listing CIDs when message size would exceed 1 MiB.
 * **ttl** *(5)* *OPTIONAL*: uint — seconds the manifest remains available.
   The responder will keep the manifest block available for this time.
-  Time starts at the time represented by the envelopes UUIDv7 (*seq*).
+  Time starts at the time represented by the envelope’s UUIDv7 (seq).
   *[default 3600 (1 Hour) if not present]*.
 * **in_reply_to** *(6)*: UUIDv7 of the `.syn` message which caused this message to be sent. (Not used in `.new`)
 
@@ -214,11 +214,13 @@ doc-dissemination-body = ({
 })
 
 ; self-contained types
-blake3-hash = bytes .size 32 ; A Blake3 Hash
-root-hash = blake3-hash ; Root hash of the Sparse Merkle Tree
-cidv1 = bytes .size 36  ; fixed CIDv1(sha2-256, 32-byte digest)
+blake3-256 = bytes .size 32 ; BLAKE3-256 output
+root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); only sha2-256 or ed25519 multihash permitted
 uuid = #6.37(bytes .size 16) ; UUIDv7
 ```
+
+Note: Only CIDv1 multihashes sha2-256 and ed25519 are permitted; implementations MUST reject other multihash functions.
 
 #### Diagnostic example (payload-body decoded)
 
