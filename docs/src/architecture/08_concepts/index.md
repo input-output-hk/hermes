@@ -18,6 +18,7 @@ This section summarizes concepts that cut across many parts of the system:
 * Virtual filesystem (VFS): See [VFS](./vfs.md).
 * IPFS/libp2p: See [IPFS](./ipfs.md).
 * Catalyst (Athena) MVP: See [Catalyst MVP](./catalyst_mvp.md).
+* Document synchronization protocol and API: See [Document Sync](./document_sync/index.md).
 
 See also:
 
