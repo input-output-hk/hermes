@@ -1,7 +1,7 @@
 //! SQLite Statement implementation.
 
 use crate::{
-    bindings::hermes::sqlite::api::{Sqlite, Statement, Value},
+    bindings::hermes::sqlite::api::{Sqlite, Statement, StepResult, Value},
     sqlite_bind_parameters,
     utils::{log::log_error, sqlite::operation::Operation},
 };
@@ -145,6 +145,39 @@ impl DatabaseStatement {
         Self::bind_step_reset_statement(stmt, |stmt| bind(stmt, slot_no, func_name), func_name)?;
         Ok(())
     }
+
+    /// Selects all rows returned by statement.
+    pub fn select_all<T>(
+        stmt: &Statement,
+        func_name: &str,
+    ) -> anyhow::Result<Vec<T>>
+    where
+        T: RowAs,
+    {
+        let mut rows = vec![];
+        loop {
+            match stmt.step() {
+                Ok(StepResult::Row) => {
+                    let row = T::try_from_stmt(stmt, "select_all")?;
+                    rows.push(row);
+                },
+                Ok(StepResult::Done) => break,
+                Err(error) => {
+                    Self::reset_statement(stmt, "select_all")?;
+                    log_error(
+                        file!(),
+                        func_name,
+                        "select_all",
+                        &format!("Failed to make step: {}", error),
+                        None,
+                    );
+                    anyhow::bail!(error);
+                },
+            }
+        }
+
+        Ok(rows)
+    }
 }
 
 /// Convert a SQLite column value to a Rust type.
@@ -174,3 +207,55 @@ where
         e
     })
 }
+
+/// Trait for parsing SQLite row into type
+///
+/// Note: Already implemented for tuples of
+/// size up to 12 (but each item has to implement `TryFrom<Value, Error = anyhow::Error>`)
+pub trait RowAs: Sized {
+    /// Attempts to construct the type from the given statement,
+    /// starting at the specified column index.
+    fn try_from_stmt(
+        stmt: &Statement,
+        func_name: &str,
+    ) -> anyhow::Result<Self>;
+}
+
+macro_rules! impl_row_as_for_tuple {
+    // Takes both the type $T and the static index token $idx
+    ( $( $T:ident $idx:tt ),+ ) => {
+        impl<$($T),+> RowAs for ($($T,)+)
+        where
+            $($T: TryFrom<Value, Error = anyhow::Error>,)+
+        {
+            fn try_from_stmt(
+                stmt: &Statement,
+                func_name: &str,
+            ) -> anyhow::Result<Self> {
+                Ok((
+                    $(
+                        column_as::<$T>(
+                            stmt,
+                            $idx,
+                            func_name,
+                            &format!("column_{}", $idx),
+                        )?,
+                    )+
+                ))
+            }
+        }
+    };
+}
+
+impl_row_as_for_tuple! { T1 0 }
+impl_row_as_for_tuple! { T1 0, T2 1 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6, T8 7 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6, T8 7, T9 8 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6, T8 7, T9 8, T10 9 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6, T8 7, T9 8, T10 9, T11 10 }
+impl_row_as_for_tuple! { T1 0, T2 1, T3 2, T4 3, T5 4, T6 5, T7 6, T8 7, T9 8, T10 9, T11 10, T12 11 }

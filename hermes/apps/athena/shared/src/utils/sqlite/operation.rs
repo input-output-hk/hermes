@@ -13,4 +13,6 @@ pub enum Operation {
     Select,
     /// Create operation.
     Create,
+    /// Update operation.
+    Update,
 }
