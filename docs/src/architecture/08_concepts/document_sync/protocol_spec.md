@@ -125,7 +125,7 @@ Framing and Signature Envelope (matches the common envelope CDDL provided):
 ; Common Message Envelope
 
 ; Envelope: outer bstr containing a signed CBOR payload
-envelope = bstr .cbor signed-payload
+envelope = bstr .size (82..1048576) .cbor signed-payload
 
 signed-payload = [ 
     peer: peer-pubkey,
@@ -160,6 +160,78 @@ bstr([
 ```
 
 ## Message Types
+
+### Document Dissemination (shared payload for `.new` and `.dif`)
+
+This generic message describes the common payload-body used by both `.new` and `.dif`.
+
+Topic-specific rules (e.g., `.dif` requiring `k-in_reply_to`, `.new` forbidding it) are defined in their respective sections below.
+
+**Semantics:** Announce documents and the sender’s resulting set summary.
+
+Payload-body Keys:
+
+* **root** *(1)*: root-hash — Blake 3 Hash of the Root of the Senders SMT.
+* **count** *(2)*: uint — sender’s current document count
+* **docs** *(3)* *OPTIONAL*: array of cidv1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
+* **manifest** *(4)* *OPTIONAL*: cidv1 — manifest CID listing CIDs when message size would exceed 1MiB.
+* **ttl** *(5)* *OPTIONAL*: uint — seconds the manifest remains available.
+  The responder will keep the manifest block available for this time.
+  Time starts at the time represented by the envelopes UUIDv7 (*seq*).
+  *[default 3600 (1 Hour) if not present]*.
+* **in_reply_to** *(6)*: UUIDv7 of the `.syn` message which caused this message to be sent. (Not used in `.new`)
+
+Either **docs** or **manifest** Must be present, and only one of them may be present.
+
+#### Document dissemination payload-body
+
+```cddl
+
+; Payload body fits within the Common Message Envelope
+payload-body = doc-dissemination-body
+
+; numeric keys (shared by .new and .dif)
+root = 1
+count = 2
+docs = 3
+manifest = 4
+ttl = 5
+in_reply_to = 6
+
+common-fields = (
+    root => root-hash,     ; Root of the senders SMT with these docs added.
+    count => uint,         ; Count of the number of docs in the senders Merkle Tree.
+    ? in_reply_to => uuid, ; Included if this is a reply to a `.syn` topic message.
+)
+
+doc-dissemination-body = ({
+    common-fields,        ; All fields common to doc lists or doc manifests
+    docs => [* cidv1]     ; List of CIDv1 Documents 
+} / {
+    common-fields,        ; All fields common to doc lists or doc manifests
+    manifest => cidv1,    ; CIDv1 of a Manifest of Documents 
+    ? ttl => uint           ; How long the Manifest can be expected to be pinned by the sender.
+})
+
+; self-contained types
+blake3-hash = bytes .size 32 ; A Blake3 Hash
+root-hash = blake3-hash ; Root hash of the Sparse Merkle Tree
+cidv1 = bytes .size 36  ; fixed CIDv1(sha2-256, 32-byte digest)
+uuid = #6.37(bytes .size 16) ; UUIDv7
+```
+
+#### Diagnostic example (payload-body decoded)
+
+```cbor
+{ 
+    1: h'aaaa...aaaa', 
+    2: 100, 
+    3: [ 
+        h'01..cid1', 
+        h'02..cid1' 
+    ] 
+}
+```
 
 ### `.new` (topic `<base>.new`)
 
