@@ -39,6 +39,7 @@ Devnet
 dotstar
 earthfile
 Embedder
+EROFS
 errno
 fadvise
 fcntl
@@ -52,6 +53,7 @@ fini
 fmtchk
 fmtfix
 fontawesome
+frontends
 fstat
 fstatat
 futimens
@@ -60,6 +62,7 @@ getfl
 gossipsub
 happ
 hmod
+hostnames
 httpmock
 idents
 ifmt
@@ -158,6 +161,7 @@ wasmprinter
 wasmtime
 webasm
 webpki
+witx
 xprivate
 xprv
 xpub

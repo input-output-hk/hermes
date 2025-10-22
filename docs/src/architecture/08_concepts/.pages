@@ -1,5 +1,13 @@
-title: Cross Cutting Concepts
+title: Cross-cutting Concepts
 arrange:
+  # High-level concepts (local pages)
+  - event_model.md
+  - runtime_extensions.md
+  - http_gateway.md
+  - vfs.md
+  - ipfs.md
+  - catalyst_mvp.md
+  # Detailed sub-sections
   - hermes_runtime_engine
   - hermes_packaging_requirements
   - cardano_chain_follower
