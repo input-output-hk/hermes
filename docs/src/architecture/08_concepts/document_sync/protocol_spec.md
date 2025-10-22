@@ -165,7 +165,7 @@ bstr([
 
 This generic message describes the common payload-body used by both `.new` and `.dif`.
 
-Topic-specific rules (e.g., `.dif` requiring `k-in_reply_to`, `.new` forbidding it) are defined in their respective sections below.
+Topic-specific rules (e.g., `.dif` requiring `in_reply_to`, `.new` forbidding it) are defined in their respective sections below.
 
 **Semantics:** Announce documents and the sender’s resulting set summary.
 
@@ -237,75 +237,40 @@ Note: Only CIDv1 multihashes sha2-256 and ed25519 are permitted; implementations
 
 ### `.new` (topic `<base>.new`)
 
-**Semantics:** Announce newly produced documents and the sender’s resulting set summary.
+**Semantics:** Announce newly produced documents and proactively disseminate documents the sender believes others may be missing.
 
-Payload-body (numeric keys; shared with `.dif`):
+**Payload-body:** Uses the shared Document Dissemination payload (see “Document Dissemination”).
 
-* k-root (1): root32 — sender’s current root for this snapshot
-* k-count (2): uint — sender’s current document count
-* k-docs (3) OPTIONAL: array of cid1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
-* k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
-* k-in_reply_to (5) FORBIDDEN on `.new`
-* k-ttl (6) OPTIONAL: uint — not typically used on `.new`
+**Topic rules:**
+
+* in_reply_to MUST NOT be present on `.new`.
+* docs or manifest MUST be present (exactly one of them).
+* ttl MAY be omitted on `.new`; if present, it is only advisory for manifests.
 
 **Processing:**
 
-1. Fetch and pin all CIDs from `batch` or `manifest` before insertion.
-2. *Atomic pinning:* if any CID in the announcement cannot be fetched and pinned within the pinning retry window,
-   the peer MUST NOT keep any partial pins from this announcement;
-   it MUST release any partial pins and defer insertion.
-3. Upon successful pin of all CIDs in the announcement, insert each CID into local SMT; compute local root.
-4. If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines)
+1. Fetch and pin all CIDs from docs or manifest before insertion.
+2. Atomic pinning: if any CID cannot be fetched and pinned within the pinning retry window,
+   release partial pins and defer insertion.
+3. Upon successful pin of all CIDs, insert each CID into the local SMT; compute local root.
+4. If local root ≠ sender root, mark divergence and enter reconciliation backoff (see State Machines),
    unless parity is achieved during backoff via subsequent `.new`/`.dif`.
-
-#### `.new` payload-body
-
-This `payload-body` is contained within the Common Message Envelope.
-
-```cddl
-payload-body = 
-
-; self-contained types
-root32 = bytes .size 32
-cid1 = bytes
-
-msg-new = payload-body
-; numeric keys (shared with .dif)
-k-root = 1
-k-count = 2
-k-docs = 3
-k-manifest = 4
-k-in_reply_to = 5
-k-ttl = 6
-
-payload-body = {
-  k-root => root32,
-  k-count => uint,
-  ? k-docs => [* cid1],
-  ? k-manifest => cid1,
-  ? k-in_reply_to => #6.37(bytes .size 16),
-  ? k-ttl => uint
-}
-```
-
-Diagnostic example (payload-body decoded):
-
-```cbor
-{ 1: h'012345...89ab', 2: 42, 3: [ h'01a4...cid1', h'02b5...cid1' ] }
-```
 
 ### .syn (topic `<base>.syn`)
 
-* Semantics: Solicitation for reconciliation; requests a diff from peers.
+**Semantics:** Solicitation for reconciliation; requests a diff from peers.
 
-* Payload-body (numeric keys):
-  * k-root (1): root32 — requester’s current root
-  * k-count (2): uint — requester’s current count
-  * k-to (3) OPTIONAL: peer-pubkey — suggested target peer to respond
-* Processing:
-  * Any peer MAY respond if it believes it can help reconcile;
+**Payload-body Keys:**
+
+* **root** (1): root32 — requester’s current root
+* **count** (2): uint — requester’s current count
+* **to** (3) OPTIONAL: peer-pubkey — suggested target peer to respond
+
+**Processing:**
+
+* Any peer MAY respond if it believes it can help reconcile;
   responders SHOULD use jitter (see Timers) and suppress if a suitable `.dif` appears.
-  * Observers MAY use information to converge opportunistically,
+* Observers MAY use information to converge opportunistically,
   but `.syn` does not carry updates itself.
 
 CDDL — `.syn` payload-body
@@ -317,14 +282,14 @@ peer-pubkey = bytes .size 32
 
 msg-syn = payload-body
 ; numeric keys
-k-root = 1
-k-count = 2
-k-to = 3
+root = 1
+count = 2
+to = 3
 
 payload-body = {
-  k-root => root32,
-  k-count => uint,
-  ? k-to => peer-pubkey
+  root => root32,
+  count => uint,
+  ? to => peer-pubkey
 }
 ```
 
@@ -336,65 +301,33 @@ Diagnostic example (payload-body decoded):
 
 ### .dif (topic `<base>.dif`)
 
-* Semantics: Reconciliation reply; same payload schema as `.new`, but used specifically to answer a `.syn` with a correlation id.
+**Semantics:** Reconciliation reply;
+carries the same Document Dissemination payload as `.new`, but is sent specifically in response to a `.syn`.
 
-* Payload-body (numeric keys; shared with `.new`):
-  * k-root (1): root32 — responder’s current root at reply time
-  * k-count (2): uint — responder’s current count
-  * k-docs (3) OPTIONAL: array of cid1 — inline CIDs the responder believes the requester may be missing (≤ 1 MiB total)
-  * k-manifest (4) OPTIONAL: cid1 — manifest CID listing CIDs when inline exceeds size limits
-  * k-in_reply_to (5): uuid — UUIDv7 of the `.syn` being answered
-  * k-ttl (6) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
-* Processing:
-  * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
-  * Observers MAY also use `.dif` to converge faster.
+**Payload-body:** Uses the shared Document Dissemination payload (see “Document Dissemination”).
 
-CDDL — `.dif` payload-body
+**Topic rules:**
 
-```cddl
-; self-contained types
-root32 = bytes .size 32
-cid1 = bytes
-uuid = #6.37(bytes .size 16)
+* in_reply_to MUST be present and MUST reference the `.syn` being answered (its envelope seq).
+* docs or manifest MUST be present (exactly one of them).
+* ttl SHOULD be present when manifest is used; responders MUST keep manifest blocks available for at least ttl seconds.
 
-msg-dif = payload-body
-; numeric keys (shared with .new)
-k-root = 1
-k-count = 2
-k-docs = 3
-k-manifest = 4
-k-in_reply_to = 5
-k-ttl = 6
+**Processing:**
 
-payload-body = {
-  k-root => root32,
-  k-count => uint,
-  ? k-docs => [* cid1],
-  ? k-manifest => cid1,
-  k-in_reply_to => uuid,
-  ? k-missing => [* cid1],
-  ? k-manifest => cid1,
-  ? k-ttl => uint
-}
-```
-
-Diagnostic example (payload-body decoded, inline missing list):
-
-```cbor
-{ 1: h'bbbb...bbbb', 2: 105, 5: h'018f0f92c3f8a9b2c7d1112233445567', 3: [ h'03c6...cid1', h'04d7...cid1' ], 6: 3600 }
-```
+* Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
+* Observers MAY also use `.dif` to converge faster.
 
 ### .prv (topic `<base>.prv`, OPTIONAL)
 
-* Semantics: Request SMT inclusion proof(s) for a specific CID from one or more peers.
+**Semantics:** Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
-* Payload-body (numeric keys):
-  * k-root (1): root32 — requester’s current root
-  * k-count (2): uint — requester’s current count
-  * k-cid (3): cid1 — the document CID requested
-  * k-provers (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
-  * k-hpke_pkR (5): bytes .size 32 — requester’s ephemeral X25519 public key.
-    REQUIRED.
+**Payload-body Keys:**
+
+* **root** (1): root32 — requester’s current root
+* **count** (2): uint — requester’s current count
+* **cid** (3): cid1 — the document CID requested
+* **provers** (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
+* **hpke_pkR** (5): bytes .size 32 — requester’s ephemeral X25519 public key (REQUIRED)
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
   * If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
@@ -411,18 +344,18 @@ peer-pubkey = bytes .size 32
 
 msg-prv = payload-body
 ; numeric keys
-k-root = 1
-k-count = 2
-k-cid = 3
-k-provers = 4
-k-hpke_pkR = 5
+root = 1
+count = 2
+cid = 3
+provers = 4
+hpke_pkR = 5
 
 payload-body = {
-  k-root => root32,
-  k-count => uint,
-  k-cid => cid1,
-  ? k-provers => [* peer-pubkey],
-  k-hpke_pkR => bytes .size 32
+  root => root32,
+  count => uint,
+  cid => cid1,
+  ? provers => [* peer-pubkey],
+  hpke_pkR => bytes .size 32
 }
 ```
 
@@ -434,17 +367,16 @@ Diagnostic example (payload-body decoded):
 
 ### .prf (topic `<base>.prf`, OPTIONAL)
 
-* Semantics: Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
+**Semantics:** Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
 
-* Payload-body (numeric keys):
-  * k-root (1): root32 — responder’s current root at proof time
-  * k-count (2): uint — responder’s current count
-  * k-in_reply_to (3): uuid — UUIDv7 of the `.prv` being answered
-  * k-cid (4): cid1 — the requested document CID
-  * k-hpke_enc (5): bytes .size 32 — responder’s HPKE encapsulated ephemeral public key.
-    REQUIRED.
-  * k-ct (6): bytes — HPKE ciphertext of the proof payload (see Encrypted Proofs).
-    REQUIRED.
+**Payload-body Keys:**
+
+* **root** (1): root32 — responder’s current root at proof time
+* **count** (2): uint — responder’s current count
+* **in_reply_to** (3): uuid — UUIDv7 of the `.prv` being answered
+* **cid** (4): cid1 — the requested document CID
+* **hpke_enc** (5): bytes .size 32 — responder’s HPKE encapsulated ephemeral public key (REQUIRED)
+* **ct** (6): bytes — HPKE ciphertext of the proof payload (REQUIRED)
 * Processing:
   * Only the requester possessing the matching X25519 private key can decrypt `ct`.
   * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
@@ -460,20 +392,20 @@ uuid = #6.37(bytes .size 16)
 
 msg-prf = payload-body
 ; numeric keys
-k-root = 1
-k-count = 2
-k-in_reply_to = 3
-k-cid = 4
-k-hpke_enc = 5
-k-ct = 6
+root = 1
+count = 2
+in_reply_to = 3
+cid = 4
+hpke_enc = 5
+ct = 6
 
 payload-body = {
-  k-root => root32,
-  k-count => uint,
-  k-in_reply_to => uuid,
-  k-cid => cid1,
-  k-hpke_enc => bytes .size 32,  ; hpke-enc
-  k-ct => bytes                  ; ct
+  root => root32,
+  count => uint,
+  in_reply_to => uuid,
+  cid => cid1,
+  hpke_enc => bytes .size 32,  ; hpke-enc
+  ct => bytes                  ; ct
 }
 
 ; Encrypted plaintext structure inside ct
@@ -609,10 +541,10 @@ Diagnostic example (payload-body decoded):
   * This prevents transplanting `ct` under a different envelope or payload context.
 * Encrypted plaintext fields (see `prf-plaintext` CDDL):
   * kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
-  * kt-in_reply_to (2): uuid — MUST match payload-body k-in_reply_to
-  * kt-cid (3): cid1 — MUST match payload-body k-cid
-  * kt-root (4): root32 — MUST match payload-body k-root
-  * kt-count (5): uint — MUST match payload-body k-count
+  * kt-in_reply_to (2): uuid — MUST match payload-body in_reply_to
+  * kt-cid (3): cid1 — MUST match payload-body cid
+  * kt-root (4): root32 — MUST match payload-body root
+  * kt-count (5): uint — MUST match payload-body count
   * kt-present (6): bool — whether the CID is included
   * kt-proof (7): smt-proof — inclusion/non-inclusion proof
 * Verification (requester):
