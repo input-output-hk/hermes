@@ -43,10 +43,3 @@ impl InternalServerError {
         self.id.clone().into()
     }
 }
-
-// impl Example for InternalServerError {
-//     /// Example for the Server Error Payload.
-//     fn example() -> Self {
-//         Self::new(None)
-//     }
-// }

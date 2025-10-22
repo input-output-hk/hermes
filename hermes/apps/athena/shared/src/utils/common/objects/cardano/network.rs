@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// Cardano network type.
-// #[derive(Clone, Enum, Debug)]
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub enum Network {
     /// Cardano mainnet.

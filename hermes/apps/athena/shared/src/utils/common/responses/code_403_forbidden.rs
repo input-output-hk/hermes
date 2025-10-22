@@ -5,8 +5,6 @@ use uuid::Uuid;
 
 use crate::utils::{common, common::types::array_types::impl_array_types};
 
-// #[derive(Object)]
-// #[oai(example)]
 /// The client has not sent valid authentication credentials for the requested
 /// resource.
 #[derive(ToSchema)]

@@ -27,10 +27,3 @@ impl TooManyRequests {
         }
     }
 }
-
-// impl Example for TooManyRequests {
-//     /// Example for the Too Many Requests Payload.
-//     fn example() -> Self {
-//         Self::new(None)
-//     }
-// }

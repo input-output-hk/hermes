@@ -26,14 +26,12 @@ pub enum ErrorResponses {
     /// ## Not Found
     ///
     /// The queried stake address was not found at the requested slot number.
-    // #[oai(status = 404)]
     NotFound,
 
     /// ## Bad Request
     ///
     /// The client has not sent valid request, could be an invalid HTTP in general or
     /// provided not correct headers, path or query arguments.
-    // #[oai(status = 400)]
     #[allow(dead_code)]
     BadRequest,
 
@@ -41,8 +39,6 @@ pub enum ErrorResponses {
     ///
     /// The client has not sent valid authentication credentials for the requested
     /// resource.
-    // #[oai(status = 401)]
-    // Unauthorized(Json<Unauthorized>),
     #[allow(dead_code)]
     Unauthorized(Unauthorized),
 
@@ -73,7 +69,6 @@ pub enum ErrorResponses {
     /// ## Request Header Fields Too Large
     ///
     /// The client sent a request with too large header fields.
-    // #[oai(status = 431)]
     #[allow(dead_code)]
     RequestHeaderFieldsTooLarge,
 
@@ -82,8 +77,6 @@ pub enum ErrorResponses {
     /// An internal server error occurred.
     ///
     /// *The contents of this response should be reported to the projects issue tracker.*
-    // #[oai(status = 500)]
-    // ServerError(Json<InternalServerError>),
     ServerError(InternalServerError),
 
     /// ## Service Unavailable
@@ -92,13 +85,7 @@ pub enum ErrorResponses {
     ///
     /// *This is returned when the service either has not started,
     /// or has become unavailable.*
-    // #[oai(status = 503)]
-    ServiceUnavailable(
-        // Json<ServiceUnavailable>,
-        ServiceUnavailable,
-        // #[oai(header = "Retry-After")]
-        Option<RetryAfterHeader>,
-    ),
+    ServiceUnavailable(ServiceUnavailable, Option<RetryAfterHeader>),
 }
 
 impl ErrorResponses {

@@ -6,9 +6,7 @@ use utoipa::ToSchema;
 use crate::utils::{common, common::types::array_types::impl_array_types};
 
 /// The client has not sent valid data in its request, headers, parameters or body.
-// #[derive(Object, Debug, Clone)]
 #[derive(Debug, Clone, ToSchema)]
-// #[oai(example)]
 pub struct PreconditionFailed {
     /// Details of each error in the content that was detected.
     ///

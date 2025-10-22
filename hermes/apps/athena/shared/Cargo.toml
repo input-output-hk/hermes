@@ -19,6 +19,7 @@ cat-gateway-types = [
     "base64",
     "bech32",
     "derive_more",
+    "cardano-blockchain-types"
 ]
 
 [dependencies]

@@ -1,7 +1,5 @@
 //! Either has No Authorization, or RBAC Token.
 
-// use headers::{authorization::Bearer, Authorization, HeaderMapExt};
-
 use super::{
     none::NoAuthorization,
     rbac::{scheme::CatalystRBACSecurityScheme, token::CatalystRBACTokenV1},

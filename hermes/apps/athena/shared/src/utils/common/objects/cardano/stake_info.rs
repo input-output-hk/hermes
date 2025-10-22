@@ -13,9 +13,7 @@ use crate::utils::common::types::{
 };
 
 /// User's staked txo asset info.
-// #[derive(Object, Debug, Clone)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-// #[oai(example)]
 pub struct StakedTxoAssetInfo {
     /// Asset policy hash (28 bytes).
     pub policy_hash: HexEncodedHash28,
