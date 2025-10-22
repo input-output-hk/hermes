@@ -85,7 +85,7 @@ type TxiByTxnIdsRowInner = (TransactionId, u16, u64);
 
 /// TXI query data.
 #[derive(From)]
-pub(crate) struct TxiByTxnIdsRow {
+pub struct TxiByTxnIdsRow {
     /// TXI transaction hash.
     pub txn_id: TransactionId,
     /// TXI original TXO index.
@@ -99,17 +99,26 @@ pub fn get_txi_by_txn_ids(
     conn: &mut sqlite::Connection,
     txn_ids: impl IntoIterator<Item = TransactionId>,
 ) -> anyhow::Result<Vec<TxiByTxnIdsRow>> {
-    let params: Vec<_> = txn_ids.into_iter().map(sqlite::Value::from).collect();
-    conn.prepare(db::QUERIES.get_txi_by_txn_ids)?
-        .query(&params.iter().collect::<Vec<_>>())?
-        .map_as::<TxiByTxnIdsRowInner>()
-        .map(|res| res.map(TxiByTxnIdsRow::from))
-        .collect()
+    let mut stmt = conn.prepare(db::QUERIES.get_txi_by_txn_ids)?;
+    txn_ids
+        .into_iter()
+        .map(|txn_id| {
+            stmt.query(&[&txn_id.into()])?
+                .map_as::<TxiByTxnIdsRowInner>()
+                .map(|res| res.map(TxiByTxnIdsRow::from))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .try_fold(vec![], |mut rows, res| {
+            res.map(|mut next_rows| {
+                rows.append(&mut next_rows);
+                rows
+            })
+        })
 }
 
 /// TXO spent query params.
 #[derive(From)]
-pub(crate) struct UpdateTxoSpentParams {
+pub struct UpdateTxoSpentParams {
     /// TXO stake address.
     pub stake_address: StakeAddress,
     /// TXO transaction index within the slot.

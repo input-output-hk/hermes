@@ -3,4 +3,4 @@ SELECT
     txo,
     slot_no
 FROM txn_txi_id
-WHERE txn_id IN ({})
+WHERE txn_id = ?

@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS txo_by_stake (
     txo             INTEGER NOT NULL,       -- offset in the txo list of the transaction the txo is in.
 
     -- Transaction Output Data
-    address         TEXT NOT NULL,          -- TXO address (CIP19 Formatted Text).
     value           BLOB NOT NULL,          -- Lovelace value of the TXO (u64).
     
     -- Data needed to correlate a spent TXO.
