@@ -12,7 +12,7 @@ icon: material/file-document-outline
 
 ## Overview
 
-* Purpose: Efficiently synchronize a set of document CIDs across peers using IPFS pub/sub broadcast for announcements and IBLT-based set reconciliation for divergence.
+* Purpose: Efficiently synchronize a set of document CIDs across peers using IPFS pub/sub broadcast for announcements and manifest-based set reconciliation for divergence.
 
 * Design: Append-only document set represented by a Sparse Merkle Tree (SMT) root.
   Three required pub/sub topics per set: `<base>.new`, `<base>.syn`, `<base>.dif`.
@@ -24,7 +24,7 @@ icon: material/file-document-outline
 
 * Ensure eventual consistency of document sets across honest peers.
 
-* Minimize pub/sub bandwidth via batched announcements and IBLT-based diffs.
+* Minimize pub/sub bandwidth via batched announcements and manifest-based diffs.
 * Idempotent processing of duplicates and replays.
 * Generic over `<base>` topic names; multiple sets may run in parallel.
 
@@ -41,7 +41,6 @@ icon: material/file-document-outline
 
 * SMT: Sparse Merkle Tree (append-only presence set over CIDs).
 * Root: SMT root hash summarizing the entire set.
-* IBLT: Invertible Bloom Lookup Table used for set reconciliation.
 * Manifest: IPFS object (by CID) describing a batch of CIDs or a diff.
 * UUIDv7: 128-bit, time-ordered unique identifier used as message/correlation id.
 
@@ -63,8 +62,8 @@ icon: material/file-document-outline
 * Pub/Sub: libp2p gossipsub (via IPFS pubsub).
   All messages are broadcasts on:
   * `<base>.new` (announcements of new CIDs and the sender’s resulting root),
-  * `<base>.syn` (solicitations for reconciliation, including the requester’s sketch),
-  * `<base>.dif` (reconciliation replies and/or pointers to diff manifests),
+  * `<base>.syn` (solicitations for reconciliation),
+  * `<base>.dif` (reconciliation replies with pointers to diff manifests or small inline lists),
   * `<base>.prv` OPTIONAL (requests for SMT inclusion proofs of specific CIDs),
   * `<base>.prf` OPTIONAL (proof replies containing SMT proofs).
 
@@ -84,7 +83,8 @@ icon: material/file-document-outline
 * Framing and Signature Envelope (matches the common envelope CDDL provided):
   * Each message is a CBOR byte string (bstr) whose content is a canonical CBOR array:
     `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
-  * Signature input: computed over the canonical CBOR encoding of the first four elements `[peer-pubkey, seq, ver, payload-body]` (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
+  * Signature input: computed over the canonical CBOR encoding of the bstr wrapper and first four elements `[peer-pubkey, seq, ver, payload-body]`
+  (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
   * Rationale: Outer bstr provides explicit length framing; canonical CBOR ensures deterministic signing.
 
 * Deduplication: Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
@@ -137,10 +137,10 @@ bstr([
 * Semantics: Announce newly produced documents and the sender’s resulting set summary.
 
 * Payload-body (numeric keys):
-  * 1: `root` (root32) — resulting SMT root after applying this announcement on the sender
-  * 2: `count` (uint) — resulting document count on the sender
-  * 3: `batch` (array of `cid1`) OPTIONAL — inline new CIDs if total payload ≤ 1 MiB
-  * 4: `manifest` (`cid1`) OPTIONAL — CID of an IPFS object listing new CIDs when inline exceeds the limit
+  * k-root (1): root32 — resulting SMT root after applying this announcement on the sender
+  * k-count (2): uint — resulting document count on the sender
+  * k-batch (3) OPTIONAL: array of cid1 — inline new CIDs if total payload ≤ 1 MiB
+  * k-manifest (4) OPTIONAL: cid1 — CID of an IPFS object listing new CIDs when inline exceeds the limit
 * Processing:
   * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
   * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window, the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
@@ -155,11 +155,17 @@ root32 = bytes .size 32
 cid1 = bytes
 
 msg-new = payload-body
+; numeric keys
+k-root = 1
+k-count = 2
+k-batch = 3
+k-manifest = 4
+
 payload-body = {
-  1 => root32,
-  2 => uint,
-  ? 3 => [* cid1],
-  ? 4 => cid1
+  k-root => root32,
+  k-count => uint,
+  ? k-batch => [* cid1],
+  ? k-manifest => cid1
 }
 ```
 
@@ -171,16 +177,17 @@ Diagnostic example (payload-body decoded):
 
 ### .syn (topic `<base>.syn`)
 
-* Semantics: Solicitation for reconciliation; includes requester’s sketch.
+* Semantics: Solicitation for reconciliation; requests a diff from peers.
 
 * Payload-body (numeric keys):
-  * 1: `root` (root32) — requester’s current root
-  * 2: `count` (uint) — requester’s current count
-  * 3: `to` (peer-pubkey) OPTIONAL — suggested target peer to respond
-  * 4: `iblt` (iblt) — requester’s sketch and parameters (see IBLT section)
+  * k-root (1): root32 — requester’s current root
+  * k-count (2): uint — requester’s current count
+  * k-to (3) OPTIONAL: peer-pubkey — suggested target peer to respond
 * Processing:
-  * Any peer MAY respond if it believes it can help reconcile; responders SHOULD use jitter (see Timers) and suppress if a suitable `.dif` appears.
-  * Observers MAY use information to converge opportunistically, but `.syn` does not carry updates itself.
+  * Any peer MAY respond if it believes it can help reconcile;
+  responders SHOULD use jitter (see Timers) and suppress if a suitable `.dif` appears.
+  * Observers MAY use information to converge opportunistically,
+  but `.syn` does not carry updates itself.
 
 CDDL — `.syn` payload-body
 
@@ -189,48 +196,39 @@ CDDL — `.syn` payload-body
 root32 = bytes .size 32
 peer-pubkey = bytes .size 32
 
-; IBLT (numeric keys)
-iblt = {
-  1 => uint,              ; m
-  2 => uint,              ; k
-  3 => [* uint],          ; seeds (length k)
-  4 => [* iblt-cell]
-}
-iblt-cell = {
-  1 => int,               ; c
-  2 => uint,              ; key_xor (64-bit fits)
-  3 => uint               ; chksum_xor (32-bit fits)
-}
-
 msg-syn = payload-body
+; numeric keys
+k-root = 1
+k-count = 2
+k-to = 3
+
 payload-body = {
-  1 => root32,
-  2 => uint,
-  ? 3 => peer-pubkey,
-  4 => iblt
+  k-root => root32,
+  k-count => uint,
+  ? k-to => peer-pubkey
 }
 ```
 
 Diagnostic example (payload-body decoded):
 
 ```cbor
-{ 1: h'aaaa...aaaa', 2: 100, 3: h'cafebabe', 4: { 1: 128, 2: 3, 3: [123456,789012,345678], 4: [ {1:0,2:0,3:0} ] } }
+{ 1: h'aaaa...aaaa', 2: 100, 3: h'cafebabe' }
 ```
 
 ### .dif (topic `<base>.dif`)
 
-* Semantics: Reconciliation reply; may carry a responder sketch, small raw CID lists, or a pointer to a diff manifest.
+* Semantics: Reconciliation reply; carries a small inline list of missing CIDs or a pointer to a diff manifest built from the responder's snapshot.
 
 * Payload-body (numeric keys):
-  * 1: `root` (root32) — responder’s current root
-  * 2: `count` (uint) — responder’s current count
-  * 3: `in_reply_to` (uuid) — UUIDv7 of the `.syn` being answered
+  * k-root (1): root32 — responder’s current root at reply time
+  * k-count (2): uint — responder’s current count
+  * k-in_reply_to (3): uuid — UUIDv7 of the `.syn` being answered
   * One or more of:
-    * 4: `iblt` (iblt) OPTIONAL — responder sketch for bi-directional peeling
-    * 5: `missing_for_requester` (array of `cid1`) OPTIONAL — only if total payload ≤ 1 MiB
-    * 6: `diff_manifest` (`cid1`) OPTIONAL — CID of an IPFS object describing the diff (see Diff Manifest)
+    * k-missing (4) OPTIONAL: array of cid1 — only if total payload ≤ 1 MiB
+    * k-manifest (5) OPTIONAL: cid1 — CID of an IPFS object listing all CIDs the requester may be missing for the advertised snapshot
+  * k-ttl (6) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
 * Processing:
-  * Requesters attempt to decode using provided sketches; if decoded, fetch+pin `missing_for_requester` (from inline list or manifest), update SMT, and check parity.
+  * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
   * Observers MAY also use `.dif` to converge faster.
 
 CDDL — `.dif` payload-body
@@ -241,25 +239,29 @@ root32 = bytes .size 32
 cid1 = bytes
 uuid = #6.37(bytes .size 16)
 
-; IBLT (numeric keys)
-iblt = { 1 => uint, 2 => uint, 3 => [* uint], 4 => [* iblt-cell] }
-iblt-cell = { 1 => int, 2 => uint, 3 => uint }
-
 msg-dif = payload-body
+; numeric keys
+k-root = 1
+k-count = 2
+k-in_reply_to = 3
+k-missing = 4
+k-manifest = 5
+k-ttl = 6
+
 payload-body = {
-  1 => root32,
-  2 => uint,
-  3 => uuid,
-  ? 4 => iblt,
-  ? 5 => [* cid1],
-  ? 6 => cid1
+  k-root => root32,
+  k-count => uint,
+  k-in_reply_to => uuid,
+  ? k-missing => [* cid1],
+  ? k-manifest => cid1,
+  ? k-ttl => uint
 }
 ```
 
 Diagnostic example (payload-body decoded, inline missing list):
 
 ```cbor
-{ 1: h'bbbb...bbbb', 2: 105, 3: h'018f0f92c3f8a9b2c7d1112233445567', 5: [ h'03c6...cid1', h'04d7...cid1' ] }
+{ 1: h'bbbb...bbbb', 2: 105, 3: h'018f0f92c3f8a9b2c7d1112233445567', 4: [ h'03c6...cid1', h'04d7...cid1' ], 6: 3600 }
 ```
 
 ### .prv (topic `<base>.prv`, OPTIONAL)
@@ -267,11 +269,11 @@ Diagnostic example (payload-body decoded, inline missing list):
 * Semantics: Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
 * Payload-body (numeric keys):
-  * 1: `root` (root32) — requester’s current root
-  * 2: `count` (uint) — requester’s current count
-  * 3: `cid` (`cid1`) — the document CID requested
-  * 4: `provers` (array of peer-pubkey) OPTIONAL — explicit peers asked to respond
-  * 5: `hpke_pkR` (bytes .size 32) — requester’s ephemeral X25519 public key.
+  * k-root (1): root32 — requester’s current root
+  * k-count (2): uint — requester’s current count
+  * k-cid (3): cid1 — the document CID requested
+  * k-provers (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
+  * k-hpke_pkR (5): bytes .size 32 — requester’s ephemeral X25519 public key.
     REQUIRED.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
@@ -287,12 +289,19 @@ cid1 = bytes
 peer-pubkey = bytes .size 32
 
 msg-prv = payload-body
+; numeric keys
+k-root = 1
+k-count = 2
+k-cid = 3
+k-provers = 4
+k-hpke_pkR = 5
+
 payload-body = {
-  1 => root32,
-  2 => uint,
-  3 => cid1,
-  ? 4 => [* peer-pubkey],
-  5 => bytes .size 32
+  k-root => root32,
+  k-count => uint,
+  k-cid => cid1,
+  ? k-provers => [* peer-pubkey],
+  k-hpke_pkR => bytes .size 32
 }
 ```
 
@@ -307,13 +316,13 @@ Diagnostic example (payload-body decoded):
 * Semantics: Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
 
 * Payload-body (numeric keys):
-  * 1: `root` (root32) — responder’s current root at proof time
-  * 2: `count` (uint) — responder’s current count
-  * 3: `in_reply_to` (uuid) — UUIDv7 of the `.prv` being answered
-  * 4: `cid` (`cid1`) — the requested document CID
-  * 5: `hpke_enc` (bytes .size 32) — responder’s HPKE encapsulated ephemeral public key.
+  * k-root (1): root32 — responder’s current root at proof time
+  * k-count (2): uint — responder’s current count
+  * k-in_reply_to (3): uuid — UUIDv7 of the `.prv` being answered
+  * k-cid (4): cid1 — the requested document CID
+  * k-hpke_enc (5): bytes .size 32 — responder’s HPKE encapsulated ephemeral public key.
     REQUIRED.
-  * 6: `ct` (bytes) — HPKE ciphertext of the proof payload (see Encrypted Proofs).
+  * k-ct (6): bytes — HPKE ciphertext of the proof payload (see Encrypted Proofs).
     REQUIRED.
 * Processing:
   * Only the requester possessing the matching X25519 private key can decrypt `ct`.
@@ -329,33 +338,57 @@ cid1 = bytes
 uuid = #6.37(bytes .size 16)
 
 msg-prf = payload-body
+; numeric keys
+k-root = 1
+k-count = 2
+k-in_reply_to = 3
+k-cid = 4
+k-hpke_enc = 5
+k-ct = 6
+
 payload-body = {
-  1 => root32,
-  2 => uint,
-  3 => uuid,
-  4 => cid1,
-  5 => bytes .size 32,  ; hpke-enc
-  6 => bytes            ; ct
+  k-root => root32,
+  k-count => uint,
+  k-in_reply_to => uuid,
+  k-cid => cid1,
+  k-hpke_enc => bytes .size 32,  ; hpke-enc
+  k-ct => bytes                  ; ct
 }
 
 ; Encrypted plaintext structure inside ct
 smt-proof = {
-  1 => uint,
-  2 => bytes .size 32,
-  3 => [* bytes .size 32],
-  ? 4 => bytes .size 32,
-  ? 5 => uint
+  kp-type => uint,             ; 0 incl, 1 excl
+  kp-k => bytes .size 32,
+  kp-siblings => [* bytes .size 32],
+  ? kp-leaf => bytes .size 32,
+  ? kp-depth => uint
 }
 
+; smt-proof key constants
+kp-type = 1
+kp-k = 2
+kp-siblings = 3
+kp-leaf = 4
+kp-depth = 5
+
 prf-plaintext = {
-  1 => bytes,          ; responder (peer-pubkey)
-  2 => uuid,           ; in_reply_to
-  3 => cid1,           ; cid
-  4 => root32,         ; root
-  5 => uint,           ; count
-  6 => bool,           ; present
-  7 => smt-proof
+  kt-responder => bytes,  ; responder (peer-pubkey)
+  kt-in_reply_to => uuid,
+  kt-cid => cid1,
+  kt-root => root32,
+  kt-count => uint,
+  kt-present => bool,
+  kt-proof => smt-proof
 }
+
+; prf-plaintext key constants
+kt-responder = 1
+kt-in_reply_to = 2
+kt-cid = 3
+kt-root = 4
+kt-count = 5
+kt-present = 6
+kt-proof = 7
 ```
 
 Diagnostic example (payload-body decoded):
@@ -398,7 +431,8 @@ Diagnostic example (payload-body decoded):
 
 * Responder jitter before publishing `.dif`: uniform random in `[Rmin, Rmax]` (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
-* IBLT multi-round: if peeling fails, responder or requester MAY escalate parameters and send an additional `.dif` with a larger sketch; cap rounds to a small number (e.g., 2–3).
+* Diff manifest TTL: responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
+  Include the intended `ttl` in `.dif` when possible.
 * Pinning retry window: implementations SHOULD configure a bounded retry window `Wpin` (e.g., tens of seconds) during which failed CID fetches from a single `.new` announcement are retried; if the window elapses without all CIDs pinned, release partial pins and schedule a later retry per node policy.
 * Proof reply jitter: responders to `.prv` SHOULD wait a uniform random delay in `[Rmin, Rmax]` (same range as `.dif`) while temporarily subscribed to `<base>.prf`, then publish their `.prf`.
 
@@ -441,14 +475,14 @@ Diagnostic example (payload-body decoded):
 * Ciphertext AAD binding:
   * The AEAD additional authenticated data MUST be the canonical CBOR encoding of the array `[peer-pubkey, seq, ver, in_reply_to, cid, root, count]`, where `peer-pubkey, seq, ver` are the first three fields from the envelope and `in_reply_to, cid, root, count` are from the payload-body.
   * This prevents transplanting `ct` under a different envelope or payload context.
-* Encrypted plaintext format (canonical CBOR map with numeric keys; see `prf-plaintext` CDDL):
-  * 1: `responder` (peer-pubkey) — MUST equal the envelope `peer-pubkey`
-  * 2: `in_reply_to` (uuid) — MUST match the payload-body `in_reply_to`
-  * 3: `cid` (cid1) — MUST match the payload-body `cid`
-  * 4: `root` (root32) — MUST match the payload-body `root`
-  * 5: `count` (uint) — MUST match the payload-body `count`
-  * 6: `present` (bool) — whether the CID is included
-  * 7: `proof` (smt-proof) — inclusion/non-inclusion proof
+* Encrypted plaintext fields (see `prf-plaintext` CDDL):
+  * kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
+  * kt-in_reply_to (2): uuid — MUST match payload-body k-in_reply_to
+  * kt-cid (3): cid1 — MUST match payload-body k-cid
+  * kt-root (4): root32 — MUST match payload-body k-root
+  * kt-count (5): uint — MUST match payload-body k-count
+  * kt-present (6): bool — whether the CID is included
+  * kt-proof (7): smt-proof — inclusion/non-inclusion proof
 * Verification (requester):
   1. Decapsulate with X25519 private key to obtain AEAD key/nonce, then decrypt `ct` using AAD as above.
   2. Check that `responder`, `in_reply_to`, `cid`, `root`, and `count` exactly match the outer payload fields.
@@ -457,23 +491,29 @@ Diagnostic example (payload-body decoded):
 
 ### SMT Proof Encoding
 
-* Proofs use numeric keys:
-  * 1: `type` (uint) — 0 = inclusion, 1 = non-inclusion.
-* 2: `k` (bytes .size 32) — `k = BLAKE3-256(CIDv1-bytes)`.
-* 3: `siblings` (array of bytes .size 32) — ordered from leaf upward (LSB-first traversal).
-* 4: `leaf` (bytes .size 32) OPTIONAL — `LeafHash`; MAY be omitted.
-  * 5: `depth` (uint) OPTIONAL — defaults to 256 if omitted.
+* Proofs use numeric keys with named constants (see CDDL):
+  * kp-type (1): uint — 0 = inclusion, 1 = non-inclusion
+  * kp-k (2): bytes .size 32 — k = BLAKE3-256(CIDv1-bytes)
+  * kp-siblings (3): array of bytes .size 32 — ordered from leaf upward (LSB-first)
+  * kp-leaf (4) OPTIONAL: bytes .size 32 — LeafHash; MAY be omitted
+  * kp-depth (5) OPTIONAL: uint — defaults to 256 if omitted
 
 CDDL — SMT proofs
 
 ```
 smt-proof = {
-  1 => uint,            ; 0 incl, 1 excl
-  2 => bytes .size 32,   ; k
-  3 => [* bytes .size 32],
-  ? 4 => bytes .size 32, ; leaf
-  ? 5 => uint           ; depth
+  kp-type => uint,            ; 0 incl, 1 excl
+  kp-k => bytes .size 32,     ; k
+  kp-siblings => [* bytes .size 32],
+  ? kp-leaf => bytes .size 32,
+  ? kp-depth => uint
 }
+
+kp-type = 1
+kp-k = 2
+kp-siblings = 3
+kp-leaf = 4
+kp-depth = 5
 ```
 
 * Verification procedure (inclusion):
@@ -483,67 +523,64 @@ smt-proof = {
 * Verification procedure (non-inclusion):
   * Either demonstrate a path leading to an `Empty` node at divergence depth or provide a neighbor leaf proof whose key differs at the first differing bit.
 
-## IBLT (Set Reconciliation)
+## Diff Reconciliation
 
-* Objective: Identify set difference between requester and responder.
-
-* Keys: `h = SHA-256(CIDv1-bytes)`; truncate to 64-bit key id for table operations; checksum = lower 32 bits of `SHA-256(0x03 || CIDv1-bytes)`.
-* Parameters:
-  * Hash count `k = 3`.
-  * Initial table size `m`: `m = max(64, 3 * max(16, |count_responder - count_requester| + 8))`.
-  * Escalation factor: multiply `m` by 1.6 per additional round, up to 2 rounds.
-  * Seeds: derive k independent 64-bit seeds from `uuid` (HKDF-SHA256 with info = "hermes-iblt").
-* Encoding (CBOR `iblt` map with numeric keys):
-  * 1: `m` (uint), 2: `k` (uint), 3: `seeds` (array of k uint), 4: `cells` (array of `iblt-cell`).
-  * `iblt-cell` = { 1: `c` (int), 2: `key_xor` (uint), 3: `chksum_xor` (uint) }.
-* Requester includes its IBLT in `.syn`.
-  Responder MAY include its own IBLT in `.dif` to enable bi-directional peeling.
-
-CDDL — IBLT types
-
-```
-iblt = {
-  1 => uint,              ; m
-  2 => uint,              ; k
-  3 => [* uint],          ; seeds (length k)
-  4 => [* iblt-cell]
-}
-iblt-cell = {
-  1 => int,               ; c
-  2 => uint,              ; key_xor (fits in 64 bits)
-  3 => uint               ; chksum_xor (fits in 32 bits)
-}
-```
+* Objective: Provide the requester with a complete list of CIDs it may be missing relative to the responder’s advertised snapshot, with minimal interaction.
+* Flow:
+  1. Requester publishes `.syn` with its current `root` and `count` (optionally targeting a specific peer via `to`).
+  2. Responder computes the set of CIDs the requester may be missing relative to its own snapshot (the responder’s current `root`/`count`).
+    Exact determination may rely on local indexes and heuristics; under honest assumptions, including all responder-held CIDs suffices for convergence.
+  3. If the list is small (≤ 1 MiB when encoded), responder MAY include it inline in `.dif` as `missing_for_requester`.
+  4. Otherwise, responder assembles a canonical CBOR diff manifest (see Diff Manifest) listing the CIDs, stores it in IPFS without pinning, and replies on `.dif` with the manifest CID and an intended availability `ttl` (default 3600 seconds).
+  5. Requester fetches the manifest, pins and inserts any CIDs it does not already have, and updates its SMT.
+    Further `.new` or `.dif` messages will drive it to parity.
+* Caching:
+  * For a given responder snapshot (`root`,`count`), the manifest CID is stable; responders SHOULD cache and reuse it across solicitations.
+* Availability:
+  * Responders SHOULD keep manifest blocks available for at least `TdiffTTL` seconds (default 3600).
+    Implementations MAY choose to pin temporarily or serve blocks opportunistically.
+* Rate limiting:
+  * Responders SHOULD apply jitter and MAY suppress replies if another adequate `.dif` is seen for the same `.syn` to limit redundant manifests.
 
 ## Diff Manifest (IPFS object)
 
 * Use when inline lists would exceed 1 MiB.
-* Numeric keys are used for fields:
-  * 1: `ver` (uint)
-  * 2: `in_reply_to` (uuid)
-  * 3: `responder` (peer-pubkey)
-  * 4: `root` (root32)
-  * 5: `count` (uint)
-  * 6: `missing_for_requester` (array of `cid1`)
-  * 7: `missing_for_responder` (array of `cid1`) OPTIONAL
-  * 8: `iblt_params` (map) OPTIONAL
-  * 9: `sig` (bstr) — signature by responder over the manifest body
+* Numeric keys are used for fields (named constants):
+  * k-ver (1): ver (uint)
+  * k-in_reply_to (2): uuid
+  * k-responder (3): peer-pubkey
+  * k-root (4): root32
+  * k-count (5): uint
+  * k-missing_req (6): array of cid1
+  * k-missing_resp (7) OPTIONAL: array of cid1
+  * k-ttl (8) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
+  * k-sig (9): bstr — signature by responder over the manifest body
 * The `.dif` payload carries the manifest CID.
 
 CDDL — Diff manifest
 
 ```
 diff-manifest = {
-  1 => ver,
-  2 => uuid,
-  3 => peer-pubkey, ; responder
-  4 => root32,
-  5 => uint,        ; count
-  6 => [* cid1],
-  ? 7 => [* cid1],
-  ? 8 => { ? 1 => uint, ? 2 => uint },  ; iblt_params (m,k) if recorded
-  9 => bstr
+  k-ver => ver,
+  k-in_reply_to => uuid,
+  k-responder => peer-pubkey,
+  k-root => root32,
+  k-count => uint,
+  k-missing_req => [* cid1],
+  ? k-missing_resp => [* cid1],
+  ? k-ttl => uint,
+  k-sig => bstr
 }
+
+k-ver = 1
+k-in_reply_to = 2
+k-responder = 3
+k-root = 4
+k-count = 5
+k-missing_req = 6
+k-missing_resp = 7
+k-ttl = 8
+k-sig = 9
 ```
 
 Diagnostic example (decoded):
@@ -556,7 +593,7 @@ Diagnostic example (decoded):
   4: h'cccc...cccc',
   5: 200,
   6: [ h'06f9...cid1', h'07aa...cid1' ],
-  8: { 1: 256, 2: 3 },
+  8: 3600,
   9: h'...sig...'
 }
 ```
@@ -567,7 +604,6 @@ Diagnostic example (decoded):
 
 * Oversized message: drop.
 * Fetch/pin failure: do not insert into SMT; release partial pins from the announcement; retain a pending queue and retry within the configured pinning window/policy.
-* IBLT peel failure: escalate once or twice; otherwise rely on manifest CID fallback.
 
 ## Security Considerations (PoC)
 
@@ -582,7 +618,7 @@ Diagnostic example (decoded):
 
 ## Observability and Metrics
 
-* Track: `.new` seen, pins queued/succeeded/failed, roots observed, divergence detected, `.syn` sent, `.dif` received, IBLT peel success/failure, bytes fetched, manifests used.
+* Track: `.new` seen, pins queued/succeeded/failed, roots observed, divergence detected, `.syn` sent, `.dif` received, diff manifests served/fetched, bytes fetched.
 * If proof topics enabled: `.prv` sent/received, `.prf` verified, proof cache hits.
 
 ## Interoperability
@@ -598,11 +634,9 @@ Diagnostic example (decoded):
 
 ## Conformance and Test Vectors
 
-* Provide fixtures for `.new`, `.syn`, `.dif`, a small SMT set, and IBLT peeling cases (TBD in repository).
+* Provide fixtures for `.new`, `.syn`, `.dif`, and a small SMT set (TBD in repository).
 
 ## References
-
-* IBLT: Goodrich & Mitzenmacher (2011), "Invertible Bloom Lookup Tables".
 
 * Sparse Merkle Trees: RFC 6962 (conceptual), Cosmos ICS23 (proof encoding inspiration).
 * BLAKE3: O'Connor et al., <https://github.com/BLAKE3-team/BLAKE3> (specification and reference implementations).
