@@ -76,7 +76,8 @@ icon: material/file-document-outline
 
 * Topic semantics are single-purpose: a topic MUST carry only its designated message type.
   Peers MAY drop senders violating this.
-* Proof topics are OPTIONAL. Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` and `<base>.prf`.
+* Proof topics are OPTIONAL.
+  Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` and `<base>.prf`.
 
 ## Message Model
 
@@ -88,15 +89,53 @@ icon: material/file-document-outline
     This permits strict framing while signing the full payload.
   * Rationale: Wrapping the inner array as a bstr provides explicit length framing so receivers can bound input before decoding.
 
-* Common payload fields (present in all message types unless noted):
-  * `ver` (uint): protocol version (1).
-  * `uuid` (bstr, 16 bytes): UUIDv7 for deduplication and correlation.
-  * `peer` (bstr): sender peer-id bytes.
-  * `ts` (uint): sender-local milliseconds since Unix epoch per UUIDv7 time or local clock.
-  * `root` (bstr): SMT root (32 bytes, BLAKE3-256; see SMT section).
-  * `count` (uint): total document count in the sender’s set after applying the operation described by the message.
+* Common payload fields use numeric map keys on the wire.
+  Names map to numbers as follows:
+  * 1: `ver` (uint) — protocol version (1)
+  * 2: `uuid` (bstr .size 16) — UUIDv7 for deduplication/correlation
+  * 3: `peer` (bstr) — sender peer-id bytes
+  * 4: `ts` (uint) — sender-local milliseconds since Unix epoch
+  * 5: `root` (bstr .size 32) — SMT root (BLAKE3-256; see SMT section)
+  * 6: `count` (uint) — total document count after applying the operation
 * Deduplication: Receivers MUST de-duplicate by `(peer, uuid)` and drop duplicates.
 * Idempotence: Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
+
+CDDL — Common Types and Envelope
+
+```cddl
+; Common Message Envelope
+
+; Envelope: outer bstr containing a signed CBOR payload
+envelope = bstr .cbor signed-payload
+
+signed-payload = [ 
+    peer: peer-pubkey,
+    seq: uuidv7,
+    ver: uint,
+    payload: payload-body, 
+    signature_bstr: peer-sig 
+]
+
+uuidv7 = uuid
+uuid = #6.37(bytes .size 16)
+
+ed25519-pubkey = bytes .size 32
+ed25519-sig = bytes .size 32
+
+peer-pubkey = ed25519-pubkey
+peer-sig = ed25519-sig
+
+payload-body = { * uint => any }
+```
+
+Diagnostic example (envelope framing only):
+
+```cbor
+bstr([
+  h'a1...payload...',  ; payload_bstr (CBOR bstr of the payload map)
+  h'00...sig...'
+])
+```
 
 ## Message Types
 
@@ -104,10 +143,10 @@ icon: material/file-document-outline
 
 * Semantics: Announce newly produced documents and the sender’s resulting set summary.
 
-* Payload (map inside `payload_bstr`):
-  * Common fields.
-  * `batch` (array of CID items) OPTIONAL: inline new CIDs if total payload ≤ 1 MiB.
-  * `manifest` (CID) OPTIONAL: CID of an IPFS object listing the new CIDs when the inline batch would exceed 1 MiB.
+* Payload (numeric keys; map inside `payload_bstr`):
+  * Common fields: 1..6
+  * 10: `batch` (array of `cid1`) OPTIONAL — inline new CIDs if total payload ≤ 1 MiB.
+  * 11: `manifest` (`cid1`) OPTIONAL — CID of an IPFS object listing new CIDs when inline exceeds the limit.
 * Processing:
   * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
   * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window, the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
@@ -118,11 +157,10 @@ icon: material/file-document-outline
 
 * Semantics: Solicitation for reconciliation; includes requester’s sketch.
 
-* Payload:
-  * Common fields, where `root` and `count` refer to the requester’s current state.
-  * `to` (bstr) OPTIONAL: target peer-id.
-    If present, responders other than `to` SHOULD suppress response unless no reply observed after jitter.
-  * `iblt` (map): requester’s sketch and parameters (see IBLT section).
+* Payload (numeric keys):
+  * Common fields: 1..6 refer to the requester’s current state.
+  * 9: `to` (peer-id) OPTIONAL — target peer-id.
+  * 12: `iblt` (map) — requester’s sketch and parameters (see IBLT section).
 * Processing:
   * Any peer MAY respond if it believes it can help reconcile; responders SHOULD use jitter (see Timers) and suppress if a suitable `.dif` appears.
   * Observers MAY use information to converge opportunistically, but `.syn` does not carry updates itself.
@@ -131,13 +169,13 @@ icon: material/file-document-outline
 
 * Semantics: Reconciliation reply; may carry a responder sketch, small raw CID lists, or a pointer to a diff manifest.
 
-* Payload:
-  * Common fields, where `root` and `count` refer to the responder’s current state.
-  * `in_reply_to` (bstr, 16): UUIDv7 of the `.syn` being answered.
+* Payload (numeric keys):
+  * Common fields: 1..6 refer to the responder’s current state.
+  * 7: `in_reply_to` (uuid) — UUIDv7 of the `.syn` being answered.
   * One or more of:
-    * `iblt` (map) OPTIONAL: responder sketch for bi-directional peeling.
-    * `missing_for_requester` (array of CIDs) OPTIONAL: only if total payload ≤ 1 MiB.
-    * `diff_manifest` (CID) OPTIONAL: CID of an IPFS object describing the diff (see Diff Manifest).
+    * 12: `iblt` (map) OPTIONAL — responder sketch for bi-directional peeling.
+    * 13: `missing_for_requester` (array of `cid1`) OPTIONAL — only if total payload ≤ 1 MiB.
+    * 14: `diff_manifest` (`cid1`) OPTIONAL — CID of an IPFS object describing the diff (see Diff Manifest).
 * Processing:
   * Requesters attempt to decode using provided sketches; if decoded, fetch+pin `missing_for_requester` (from inline list or manifest), update SMT, and check parity.
   * Observers MAY also use `.dif` to converge faster.
@@ -146,11 +184,13 @@ icon: material/file-document-outline
 
 * Semantics: Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
-* Payload:
-  * Common fields, where `root` and `count` are the requester’s current state.
-  * `cid` (CID): the document CID for which an inclusion proof is requested.
-  * `provers` (array of bstr peer-ids) OPTIONAL: explicit peers asked to respond. If omitted or empty, any peer MAY respond (subject to jitter).
-  * `hpke_pkR` (bstr, 32): requester’s ephemeral X25519 public key for encrypted proof replies. This field is REQUIRED.
+* Payload (numeric keys):
+  * Common fields: 1..6 are the requester’s current state.
+  * 8: `cid` (`cid1`) — the document CID for which an inclusion proof is requested.
+  * 15: `provers` (array of peer-id) OPTIONAL: explicit peers asked to respond.
+    If omitted or empty, any peer MAY respond (subject to jitter).
+  * 16: `hpke_pkR` (bstr .size 32) — requester’s ephemeral X25519 public key.
+    REQUIRED.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
   * If `provers` is absent, any peer MAY volunteer a proof after responder jitter; responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
@@ -160,12 +200,14 @@ icon: material/file-document-outline
 
 * Semantics: Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
 
-* Payload:
-  * Common fields, where `root` and `count` refer to the responder’s current state at proof time.
-  * `in_reply_to` (bstr, 16): UUIDv7 of the `.prv` being answered.
-  * `cid` (CID): the requested document CID.
-  * `hpke_enc` (bstr, 32): responder’s HPKE encapsulated ephemeral public key. This field is REQUIRED.
-  * `ct` (bstr): HPKE ciphertext of the proof payload (see Encrypted Proofs). This field is REQUIRED.
+* Payload (numeric keys):
+  * Common fields: 1..6 refer to the responder’s current state at proof time.
+  * 7: `in_reply_to` (uuid) — UUIDv7 of the `.prv` being answered.
+  * 8: `cid` (`cid1`) — the requested document CID.
+  * 17: `hpke_enc` (bstr .size 32) — responder’s HPKE encapsulated ephemeral public key.
+    REQUIRED.
+  * 18: `ct` (bstr) — HPKE ciphertext of the proof payload (see Encrypted Proofs).
+    REQUIRED.
 * Processing:
   * Only the requester possessing the matching X25519 private key can decrypt `ct`.
   * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
@@ -177,8 +219,11 @@ icon: material/file-document-outline
   * Proven storage peers: nodes that commit to answering proof requests.
   * Non-proven peers: nodes that generally do not need proofs but may occasionally request them.
 * Recommended subscription pattern:
-  * Proven storage peers SHOULD remain subscribed to `<base>.prv` only. Upon receiving a `.prv` they intend to answer, they SHOULD temporarily subscribe to `<base>.prf`, apply responder jitter, publish their `.prf`, and promptly unsubscribe. They DO NOT suppress due to other `.prf` replies; proofs are tied to the responder’s storage commitment.
-  * Non-proven peers SHOULD remain unsubscribed from proof topics under normal operation. When a proof is needed:
+  * Proven storage peers SHOULD remain subscribed to `<base>.prv` only.
+    Upon receiving a `.prv` they intend to answer, they SHOULD temporarily subscribe to `<base>.prf`, apply responder jitter, publish their `.prf`, and promptly unsubscribe.
+    They DO NOT suppress due to other `.prf` replies; proofs are tied to the responder’s storage commitment.
+  * Non-proven peers SHOULD remain unsubscribed from proof topics under normal operation.
+    When a proof is needed:
     1. Subscribe to `<base>.prv` and `<base>.prf`.
     2. Publish `.prv` specifying the `cid` (and optionally specific `provers`) and include `hpke_pkR` (ephemeral X25519 public key).
     3. Wait for `.prf` replies, decrypt, verify, and cache as needed.
@@ -213,7 +258,8 @@ icon: material/file-document-outline
 
 * For larger batches or diffs, use manifests referenced by CID.
 
-* Proof topics: `.prf` replies SHOULD respect the same ≤ 1 MiB bound. Large proofs (e.g., very deep sibling arrays) are unlikely due to SMT’s fixed size but MAY necessitate splitting across multiple `.prf` messages or providing a manifest CID if ever required.
+* Proof topics: `.prf` replies SHOULD respect the same ≤ 1 MiB bound.
+  Large proofs (e.g., very deep sibling arrays) are unlikely due to SMT’s fixed size but MAY necessitate splitting across multiple `.prf` messages or providing a manifest CID if ever required.
 
 ## SMT (Sparse Merkle Tree)
 
@@ -244,14 +290,14 @@ icon: material/file-document-outline
 * Ciphertext AAD binding:
   * The AEAD additional authenticated data MUST be the canonical CBOR encoding of the following map from the `.prf` outer payload: `{ver, peer, uuid, in_reply_to, cid, root, count}`.
   * This prevents transplanting `ct` under a different envelope.
-* Encrypted plaintext format (canonical CBOR map):
-  * `responder` (bstr): peer-id of the prover (MUST equal outer `peer`).
-  * `in_reply_to` (bstr,16): MUST match the outer `in_reply_to`.
-  * `cid` (CID): MUST match the outer `cid`.
-  * `root` (bstr): responder’s root at proof time (MUST match outer `root`).
-  * `count` (uint): responder’s count at proof time (MUST match outer `count`).
-  * `present` (bool): whether the CID is included.
-  * `proof` (map): SMT proof object (see SMT Proof Encoding). For non-inclusion, `type = "excl"`.
+* Encrypted plaintext format (canonical CBOR map with numeric keys; see `prf-plaintext` CDDL):
+  * 1: `responder` (peer-id) — MUST equal outer `peer` (3)
+  * 2: `in_reply_to` (uuid) — MUST match outer `in_reply_to` (7)
+  * 3: `cid` (cid1) — MUST match outer `cid` (8)
+  * 4: `root` (root32) — MUST match outer `root` (5)
+  * 5: `count` (uint) — MUST match outer `count` (6)
+  * 6: `present` (bool) — whether the CID is included
+  * 7: `proof` (smt-proof) — inclusion/non-inclusion proof
 * Verification (requester):
   1. Decapsulate with X25519 private key to obtain AEAD key/nonce, then decrypt `ct` using AAD as above.
   2. Check that `responder`, `in_reply_to`, `cid`, `root`, and `count` exactly match the outer payload fields.
@@ -260,12 +306,25 @@ icon: material/file-document-outline
 
 ### SMT Proof Encoding
 
-* Proofs are canonical CBOR maps with the following fields:
-  * `type` (tstr): "incl" for inclusion proofs; "excl" for non-inclusion proofs.
-* `k` (bstr, 32): the key `k = BLAKE3-256(CIDv1-bytes)`.
-  * `siblings` (array of bstr): ordered array of 32-byte sibling hashes from leaf level up to root (least-significant bit first traversal).
-  * `leaf` (bstr, 32) OPTIONAL: the computed `LeafHash` for inclusion proofs; MAY be omitted (verifier can recompute from `k`).
-  * `depth` (uint) OPTIONAL: total tree depth (defaults to 256 if omitted).
+* Proofs use numeric keys:
+  * 1: `type` (uint) — 0 = inclusion, 1 = non-inclusion.
+  * 2: `k` (bstr .size 32) — `k = BLAKE3-256(CIDv1-bytes)`.
+  * 3: `siblings` (array of bstr .size 32) — ordered from leaf upward (LSB-first traversal).
+  * 4: `leaf` (bstr .size 32) OPTIONAL — `LeafHash`; MAY be omitted.
+  * 5: `depth` (uint) OPTIONAL — defaults to 256 if omitted.
+
+CDDL — SMT proofs
+
+```
+smt-proof = {
+  1 => uint,            ; 0 incl, 1 excl
+  2 => bstr .size 32,   ; k
+  3 => [* bstr .size 32],
+  ? 4 => bstr .size 32, ; leaf
+  ? 5 => uint           ; depth
+}
+```
+
 * Verification procedure (inclusion):
   1. Compute `k` from the provided CID and compare to `proof.k`.
   2. Compute `LeafHash` using domain separation; iteratively hash with `siblings` per bit of `k` to reconstruct a candidate root.
@@ -283,168 +342,73 @@ icon: material/file-document-outline
   * Initial table size `m`: `m = max(64, 3 * max(16, |count_responder - count_requester| + 8))`.
   * Escalation factor: multiply `m` by 1.6 per additional round, up to 2 rounds.
   * Seeds: derive k independent 64-bit seeds from `uuid` (HKDF-SHA256 with info = "hermes-iblt").
-* Encoding (CBOR `iblt` map):
-  * `m` (uint), `k` (uint), `seeds` (array of k uint64), `cells` (array of cells), where each cell = `{c: int, key_xor: uint64, chksum_xor: uint32}`.
+* Encoding (CBOR `iblt` map with numeric keys):
+  * 1: `m` (uint), 2: `k` (uint), 3: `seeds` (array of k uint), 4: `cells` (array of `iblt-cell`).
+  * `iblt-cell` = { 1: `c` (int), 2: `key_xor` (uint), 3: `chksum_xor` (uint) }.
 * Requester includes its IBLT in `.syn`.
   Responder MAY include its own IBLT in `.dif` to enable bi-directional peeling.
 
-## Examples
+CDDL — IBLT types
 
-The following examples use CBOR diagnostic notation for readability; actual payloads must be canonical CBOR and wrapped per the envelope rules.
-
-### Example: `.new` with small inline batch
-
-Envelope (outer):
-
-  bstr(
-    [
-      payload_bstr,
-      signature_bstr
-    ]
-  )
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445566',
-    peer: h'aabbccdd',
-    ts: 1710000000000,
-    root: h'012345...89ab',
-    count: 42,
-    batch: [
-      cid("bafybeigdyrzt..."),
-      cid("bafybeia6om3z...")
-    ]
-  }
-
-signature_bstr: h'...'
-
-### Example: `.syn` with IBLT
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445567',
-    peer: h'deafbeef',
-    ts: 1710000000100,
-    root: h'aaaaaa...aaaa',
-    count: 100,
-    to: h'cafebabe',
-    iblt: {
-      m: 128,
-      k: 3,
-      seeds: [ 123456, 789012, 345678 ],
-      cells: [ {c:0, key_xor:0, chksum_xor:0}, {c:1, key_xor: 0x1122, chksum_xor: 0x3344} ]
-    }
-  }
-
-### Example: `.dif` with small inline missing list
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445568',
-    peer: h'00112233',
-    ts: 1710000000200,
-    root: h'bbbbbb...bbbb',
-    count: 105,
-    in_reply_to: h'018f0f92c3f8a9b2c7d1112233445567',
-    missing_for_requester: [
-      cid("bafybeif7w3u..."),
-      cid("bafybeih4k2j...")
-    ]
-  }
-
-### Example: `.dif` with diff manifest
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445569',
-    peer: h'44556677',
-    ts: 1710000000300,
-    root: h'cccccc...cccc',
-    count: 200,
-    in_reply_to: h'018f0f92c3f8a9b2c7d1112233445567',
-    diff_manifest: cid("bafybeigd3ffm...")
-  }
-
-Diff manifest (decoded map at `bafybeigd3ffm...`):
-
-  {
-    ver: 1,
-    in_reply_to: h'018f0f92c3f8a9b2c7d1112233445567',
-    responder: h'44556677',
-    root: h'cccccc...cccc',
-    count: 200,
-    missing_for_requester: [ cid("bafy...1"), cid("bafy...2") ],
-    iblt_params: { m: 256, k: 3 },
-    sig: h'...'
-  }
-
-### Example: `.prv` request
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445570',
-    peer: h'99887766',
-    ts: 1710000000400,
-    root: h'dddddd...dddd',
-    count: 200,
-    cid: cid("bafybeif7w3u..."),
-    provers: [ h'aa11bb22', h'cc33dd44' ],
-    hpke_pkR: h'5566...'
-  }
-
-### Example: `.prf` reply with encrypted inclusion proof
-
-payload_bstr (decoded map):
-
-  {
-    ver: 1,
-    uuid: h'018f0f92c3f8a9b2c7d1112233445571',
-    peer: h'aa11bb22',
-    ts: 1710000000500,
-    root: h'dddddd...dddd',
-    count: 201,
-    in_reply_to: h'018f0f92c3f8a9b2c7d1112233445570',
-    cid: cid("bafybeif7w3u..."),
-    hpke_enc: h'1122...',
-    ct: h'99aa...'
-  }
-
-Decrypted plaintext (decoded map):
-
-  {
-    responder: h'aa11bb22',
-    in_reply_to: h'018f0f92c3f8a9b2c7d1112233445570',
-    cid: cid("bafybeif7w3u..."),
-    root: h'dddddd...dddd',
-    count: 201,
-    present: true,
-    proof: {
-      type: "incl",
-      k: h'1f2e3d...00',
-      siblings: [ h'abc...1', h'abc...2', h'abc...3' ]
-    }
-  }
+```
+iblt = {
+  1 => uint,              ; m
+  2 => uint,              ; k
+  3 => [* uint],          ; seeds (length k)
+  4 => [* iblt-cell]
+}
+iblt-cell = {
+  1 => int,               ; c
+  2 => uint,              ; key_xor (fits in 64 bits)
+  3 => uint               ; chksum_xor (fits in 32 bits)
+}
+```
 
 ## Diff Manifest (IPFS object)
 
 * Use when inline lists would exceed 1 MiB.
-
-* Canonical CBOR map with fields:
-  * `ver` (1), `in_reply_to` (uuid), `responder` (peer-id), `root` (responder root), `count` (responder count),
-  * `missing_for_requester` (array of CIDs), OPTIONAL `missing_for_responder` (array of CIDs),
-  * `iblt_params` (map) OPTIONAL recording parameters used,
-  * `sig` (bstr) signature by responder over the manifest body.
+* Numeric keys are used for fields:
+  * 1: `ver` (uint)
+  * 2: `in_reply_to` (uuid)
+  * 3: `responder` (peer-id)
+  * 4: `root` (root32)
+  * 5: `count` (uint)
+  * 6: `missing_for_requester` (array of `cid1`)
+  * 7: `missing_for_responder` (array of `cid1`) OPTIONAL
+  * 8: `iblt_params` (map) OPTIONAL
+  * 9: `sig` (bstr) — signature by responder over the manifest body
 * The `.dif` payload carries the manifest CID.
+
+CDDL — Diff manifest
+
+```
+diff-manifest = {
+  1 => ver,
+  2 => uuid,
+  3 => peer-id,     ; responder
+  4 => root32,
+  5 => uint,        ; count
+  6 => [* cid1],
+  ? 7 => [* cid1],
+  ? 8 => { ? 1 => uint, ? 2 => uint },  ; iblt_params (m,k) if recorded
+  9 => bstr
+}
+```
+
+Diagnostic example (decoded):
+
+```
+{
+  1: 1,
+  2: h'018f0f92c3f8a9b2c7d1112233445567',
+  3: h'44556677',
+  4: h'cccc...cccc',
+  5: 200,
+  6: [ h'06f9...cid1', h'07aa...cid1' ],
+  8: { 1: 256, 2: 3 },
+  9: h'...sig...'
+}
+```
 
 ## Error Handling
 
@@ -490,10 +454,161 @@ Decrypted plaintext (decoded map):
 * IBLT: Goodrich & Mitzenmacher (2011), "Invertible Bloom Lookup Tables".
 
 * Sparse Merkle Trees: RFC 6962 (conceptual), Cosmos ICS23 (proof encoding inspiration).
-* BLAKE3: O'Connor et al., https://github.com/BLAKE3-team/BLAKE3 (specification and reference implementations).
+* BLAKE3: O'Connor et al., <https://github.com/BLAKE3-team/BLAKE3> (specification and reference implementations).
 
 ## Open Questions
 
 * Numeric defaults (`Tmin/Tmax`, size caps) may be tuned through experimentation.
 
 * Potential future direct-stream optimization for large diffs.
+CDDL — `.new` payload
+
+```
+new-payload = common // {
+  ? 10 => [* cid1],   ; batch
+  ? 11 => cid1        ; manifest
+}
+```
+
+Diagnostic example (payload_bstr decoded):
+
+```
+{
+  1: 1,                                        ; ver
+  2: h'018f0f92c3f8a9b2c7d1112233445566',      ; uuid
+  3: h'aabbccdd',                              ; peer
+  4: 1710000000000,                            ; ts
+  5: h'0123456789ab...0123',                   ; root (BLAKE3-256)
+  6: 42,                                       ; count
+  10: [ h'01a4...cid1', h'02b5...cid1' ]       ; batch (CIDv1 binary)
+}
+```
+
+CDDL — `.syn` payload
+
+```
+syn-payload = common // {
+  ? 9  => peer-id,  ; to
+  12 => iblt        ; requester sketch
+}
+```
+
+Diagnostic example (payload_bstr decoded):
+
+```
+{
+  1: 1,
+  2: h'018f0f92c3f8a9b2c7d1112233445567',
+  3: h'deafbeef',
+  4: 1710000000100,
+  5: h'aaaa...aaaa',
+  6: 100,
+  9: h'cafebabe',
+  12: { 1: 128, 2: 3, 3: [123456, 789012, 345678], 4: [ {1:0,2:0,3:0} ] }
+}
+```
+
+CDDL — `.dif` payload
+
+```
+dif-payload = common // {
+  7  => uuid,
+  ? 12 => iblt,
+  ? 13 => [* cid1],
+  ? 14 => cid1
+}
+```
+
+Diagnostic example (payload_bstr decoded, inline missing list):
+
+```
+{
+  1: 1,
+  2: h'018f0f92c3f8a9b2c7d1112233445568',
+  3: h'00112233',
+  4: 1710000000200,
+  5: h'bbbb...bbbb',
+  6: 105,
+  7: h'018f0f92c3f8a9b2c7d1112233445567',
+  13: [ h'03c6...cid1', h'04d7...cid1' ]
+}
+```
+
+CDDL — `.prv` payload
+
+```
+prv-payload = common // {
+  8  => cid1,
+  ? 15 => [* peer-id],
+  16 => bstr .size 32   ; hpke_pkR
+}
+```
+
+Diagnostic example (payload_bstr decoded):
+
+```
+{
+  1: 1,
+  2: h'018f0f92c3f8a9b2c7d1112233445570',
+  3: h'99887766',
+  4: 1710000000400,
+  5: h'dddd...dddd',
+  6: 200,
+  8: h'05e8...cid1',
+  15: [ h'aa11bb22', h'cc33dd44' ],
+  16: h'5566...'
+}
+```
+
+CDDL — `.prf` payload and encrypted plaintext
+
+```
+prf-payload = common // {
+  7  => uuid,
+  8  => cid1,
+  17 => bstr .size 32,  ; hpke_enc
+  18 => bstr            ; ct
+}
+
+; Encrypted plaintext structure inside ct
+prf-plaintext = {
+  1 => peer-id,      ; responder (must equal outer 3)
+  2 => uuid,         ; in_reply_to (must equal outer 7)
+  3 => cid1,         ; cid (must equal outer 8)
+  4 => root32,       ; root (must equal outer 5)
+  5 => uint,         ; count (must equal outer 6)
+  6 => bool,         ; present
+  7 => smt-proof     ; proof (incl/excl)
+}
+```
+
+Diagnostic example (outer payload_bstr decoded):
+
+```
+{
+  1: 1,
+  2: h'018f0f92c3f8a9b2c7d1112233445571',
+  3: h'aa11bb22',
+  4: 1710000000500,
+  5: h'dddd...dddd',
+  6: 201,
+  7: h'018f0f92c3f8a9b2c7d1112233445570',
+  8: h'05e8...cid1',
+  17: h'1122...',
+  18: h'99aa...'
+}
+```
+
+Diagnostic example (decrypted prf-plaintext):
+
+```
+{
+  1: h'aa11bb22',                         ; responder
+  2: h'018f0f92c3f8a9b2c7d1112233445570', ; in_reply_to
+  3: h'05e8...cid1',                       ; cid
+  4: h'dddd...dddd',                       ; root
+  5: 201,                                   ; count
+  6: true,                                  ; present
+  7: { 1: 0, 2: h'1f2e...00', 3: [ h'ab..1', h'ab..2' ] } ; smt-proof
+}
+```
