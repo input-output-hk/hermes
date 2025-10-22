@@ -15,6 +15,10 @@
 		{
 			"package": "modules/rbac-registration/lib/rbac_registration.hmod",
 			"name": "rbac_registration"
+		},
+		{
+			"package": "modules/auth/lib/auth.hmod",
+			"name": "auth"
 		}
 	],
 	"www": "modules/http-proxy/lib/www"

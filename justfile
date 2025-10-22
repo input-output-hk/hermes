@@ -103,6 +103,7 @@ get-local-athena:
     earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy
     earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
     earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
+    earthly ./hermes/apps/athena/modules/auth+local-build-auth
 
     echo "✅ WASM compilation complete"
 
@@ -114,6 +115,7 @@ get-local-athena:
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
     echo "✅ Module packaging complete (.hmod file created)"
 
     echo "📦 Packaging application bundle..."
