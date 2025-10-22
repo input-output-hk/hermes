@@ -20,7 +20,7 @@ icon: material/file-document-outline
   Two optional topics for proofs: `<base>.prv` (proof requests) and `<base>.prf` (proof replies).
 
 **Assumptions (PoC):** Honest peers, no privacy, all messages publicly readable.
-  All payloads CBOR-encoded in canonical form with strict framing.
+  All payloads use deterministic CBOR encoding with strict framing.
 
 ## Scope and Goals
 
@@ -51,7 +51,7 @@ icon: material/file-document-outline
 ## Transport Bindings
 
 **Pub/Sub:** libp2p gossipsub (via IPFS pubsub).
-All messages are broadcasts on the following ctopic designations:
+All messages are broadcasts on the following topic designations:
 
 * `<base>.new` : announcements of new CIDs and the sender’s resulting root
 * `<base>.syn` : synchronization solicitations for reconciliation
@@ -98,16 +98,18 @@ Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` 
   SHOULD unsubscribe when Stable to reduce baseline traffic.
 
 ## Message Model
-
+<!-- markdownlint-disable MD033 -->
 * Framing and Signature Envelope (matches the common envelope CDDL provided):
-  * Each message is a CBOR byte string (bstr) whose content is a canonical CBOR array:<br>
+  * Each message is a CBOR byte string (bstr) whose content is a CBOR array encoded deterministically:<br>
     `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
-  * Signature input: computed over the canonical CBOR encoding of the bstr wrapper and first four elements `[peer-pubkey, seq, ver, payload-body]`
-  (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
-  * Rationale: Outer bstr provides explicit length framing; canonical CBOR ensures deterministic signing.
+  * Signature input: computed over the deterministic CBOR encoding of the bstr wrapper and first four elements
+    `[peer-pubkey, seq, ver, payload-body]`
+    (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
+  * Rationale: Outer bstr provides explicit length framing; deterministic CBOR ensures unambiguous signing.
 
 * Deduplication: Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
 * Idempotence: Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
+<!-- markdownlint-enable MD033 -->
 
 CDDL — Common Types and Envelope
 
@@ -164,9 +166,11 @@ bstr([
   * k-ttl (6) OPTIONAL: uint — not typically used on `.new`
 * Processing:
   * Fetch and pin all CIDs from `batch` or `manifest` before insertion.
-  * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window, the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
+  * Atomic pinning: if any CID in the announcement cannot be fetched and pinned within the pinning retry window,
+    the peer MUST NOT keep any partial pins from this announcement; it MUST release any partial pins and defer insertion.
   * Upon successful pin of all CIDs in the announcement, insert each CID into local SMT; compute local root.
-  * If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines) unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+  * If local root ≠ sender `root`, mark divergence and enter reconciliation backoff (see State Machines)
+    unless parity is achieved during backoff via subsequent `.new`/`.dif`.
 
 CDDL — `.new` payload-body
 
@@ -303,7 +307,8 @@ Diagnostic example (payload-body decoded, inline missing list):
     REQUIRED.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
-  * If `provers` is absent, any peer MAY volunteer a proof after responder jitter; responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
+  * If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
+    responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
   * `.prv` carries no updates by itself.
 
 CDDL — `.prv` payload-body
@@ -430,7 +435,8 @@ Diagnostic example (payload-body decoded):
   * Non-proven peers: nodes that generally do not need proofs but may occasionally request them.
 * Recommended subscription pattern:
   * Proven storage peers SHOULD remain subscribed to `<base>.prv` only.
-    Upon receiving a `.prv` they intend to answer, they SHOULD temporarily subscribe to `<base>.prf`, apply responder jitter, publish their `.prf`, and promptly unsubscribe.
+    Upon receiving a `.prv` they intend to answer, they SHOULD temporarily subscribe to `<base>.prf`,
+    apply responder jitter, publish their `.prf`, and promptly unsubscribe.
     They DO NOT suppress due to other `.prf` replies; proofs are tied to the responder’s storage commitment.
   * Non-proven peers SHOULD remain unsubscribed from proof topics under normal operation.
     When a proof is needed:
@@ -438,7 +444,9 @@ Diagnostic example (payload-body decoded):
     2. Publish `.prv` specifying the `cid` (and optionally specific `provers`) and include `hpke_pkR` (ephemeral X25519 public key).
     3. Wait for `.prf` replies, decrypt, verify, and cache as needed.
     4. Unsubscribe from `<base>.prf` (and `<base>.prv` if no further requests).
-* Rationale: This pattern effectively narrows `.prf` delivery to the requester and the responding prover(s) currently subscribed, approximating point-to-point behavior over pub/sub and reducing background load for nodes that do not need proofs.
+* Rationale: This pattern effectively narrows `.prf` delivery to the requester and the responding
+  prover(s) currently subscribed, approximating point-to-point behavior over pub/sub and reducing
+  background load for nodes that do not need proofs.
 
 ## State Machines
 
@@ -459,8 +467,11 @@ Diagnostic example (payload-body decoded):
   Cancel if an adequate `.dif` appears.
 * Diff manifest TTL: responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
   Include the intended `ttl` in `.dif` when possible.
-* Pinning retry window: implementations SHOULD configure a bounded retry window `Wpin` (e.g., tens of seconds) during which failed CID fetches from a single `.new` announcement are retried; if the window elapses without all CIDs pinned, release partial pins and schedule a later retry per node policy.
-* Proof reply jitter: responders to `.prv` SHOULD wait a uniform random delay in `[Rmin, Rmax]` (same range as `.dif`) while temporarily subscribed to `<base>.prf`, then publish their `.prf`.
+* Pinning retry window: implementations SHOULD configure a bounded retry window `Wpin`
+  (e.g., tens of seconds) during which failed CID fetches from a single `.new` announcement are retried;
+  if the window elapses without all CIDs pinned, release partial pins and schedule a later retry per node policy.
+* Proof reply jitter: responders to `.prv` SHOULD wait a uniform random delay in `[Rmin, Rmax]`
+  (same range as `.dif`) while temporarily subscribed to `<base>.prf`, then publish their `.prf`.
 
 ## Transport and Size Limits
 
@@ -470,7 +481,8 @@ Diagnostic example (payload-body decoded):
 * For larger batches or diffs, use manifests referenced by CID.
 
 * Proof topics: `.prf` replies SHOULD respect the same ≤ 1 MiB bound.
-  Large proofs (e.g., very deep sibling arrays) are unlikely due to SMT’s fixed size but MAY necessitate splitting across multiple `.prf` messages or providing a manifest CID if ever required.
+  Large proofs (e.g., very deep sibling arrays) are unlikely due to SMT’s fixed size but MAY
+  necessitate splitting across multiple `.prf` messages or providing a manifest CID if ever required.
 
 ## SMT (Sparse Merkle Tree)
 
@@ -489,7 +501,7 @@ Diagnostic example (payload-body decoded):
   Exclusion proof: proof of `Empty` at divergence depth or neighbor leaf.
 
 ## Encrypted Proofs (Mandatory for `.prf`)
-
+<!-- markdownlint-disable MD033 -->
 * Algorithms (HPKE per RFC 9180 profile):
   * KEM: DHKEM(X25519, HKDF-SHA256)
   * KDF: HKDF-SHA256
@@ -497,9 +509,13 @@ Diagnostic example (payload-body decoded):
 * Request flow:
   * Requester generates an ephemeral X25519 key pair and publishes `.prv` including `hpke_pkR` (32-byte public key).
 * Response flow:
-  * Prover derives an HPKE context using `hpke_pkR`, generates `hpke_enc` (32-byte encapsulated pub), and encrypts the proof payload into `ct`.
+  * Prover derives an HPKE context using `hpke_pkR`, generates `hpke_enc` (32-byte encapsulated pub),
+    and encrypts the proof payload into `ct`.
 * Ciphertext AAD binding:
-  * The AEAD additional authenticated data MUST be the canonical CBOR encoding of the array `[peer-pubkey, seq, ver, in_reply_to, cid, root, count]`, where `peer-pubkey, seq, ver` are the first three fields from the envelope and `in_reply_to, cid, root, count` are from the payload-body.
+* The AEAD additional authenticated data MUST be the deterministic CBOR encoding of the array<br>
+  `[peer-pubkey, seq, ver, in_reply_to, cid, root, count]`, where:<br>
+  `peer-pubkey, seq, ver` are the first three fields from the envelope and<br>
+  `in_reply_to, cid, root, count` are from the payload-body.
   * This prevents transplanting `ct` under a different envelope or payload context.
 * Encrypted plaintext fields (see `prf-plaintext` CDDL):
   * kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
@@ -514,6 +530,7 @@ Diagnostic example (payload-body decoded):
   2. Check that `responder`, `in_reply_to`, `cid`, `root`, and `count` exactly match the outer payload fields.
   3. If `present = true`, verify the SMT inclusion proof against `root`; if `false`, verify the non-inclusion proof.
 * Non-requesters cannot decrypt and SHOULD ignore `.prf` ciphertext.
+<!-- markdownlint-enable MD033 -->
 
 ### SMT Proof Encoding
 
@@ -526,7 +543,7 @@ Diagnostic example (payload-body decoded):
 
 CDDL — SMT proofs
 
-```
+```cbor
 smt-proof = {
   kp-type => uint,            ; 0 incl, 1 excl
   kp-k => bytes .size 32,     ; k
@@ -547,26 +564,34 @@ kp-depth = 5
   2. Compute `LeafHash` using domain separation; iteratively hash with `siblings` per bit of `k` to reconstruct a candidate root.
   3. Accept if candidate root equals the responder’s `root` in the `.prf` payload.
 * Verification procedure (non-inclusion):
-  * Either demonstrate a path leading to an `Empty` node at divergence depth or provide a neighbor leaf proof whose key differs at the first differing bit.
+  * Either demonstrate a path leading to an `Empty` node at divergence depth or provide a neighbor leaf proof
+    whose key differs at the first differing bit.
 
 ## Diff Reconciliation
 
-* Objective: Provide the requester with a complete list of CIDs it may be missing relative to the responder’s advertised snapshot, with minimal interaction.
+* Objective: Provide the requester with a complete list of CIDs it may be missing relative to the responder’s advertised snapshot,
+  with minimal interaction.
 * Flow:
   1. Requester publishes `.syn` with its current `root` and `count` (optionally targeting a specific peer via `to`).
-  2. Responder computes the set of CIDs the requester may be missing relative to its own snapshot (the responder’s current `root`/`count`).
-    Exact determination may rely on local indexes and heuristics; under honest assumptions, including all responder-held CIDs suffices for convergence.
+  2. Responder computes the set of CIDs the requester may be missing relative to its own snapshot
+     (the responder’s current `root`/`count`).
+     Exact determination may rely on local indexes and heuristics; under honest assumptions,
+     including all responder-held CIDs suffices for convergence.
   3. If the list is small (≤ 1 MiB when encoded), responder MAY include it inline in `.dif` as `missing_for_requester`.
-  4. Otherwise, responder assembles a canonical CBOR diff manifest (see Diff Manifest) listing the CIDs, stores it in IPFS without pinning, and replies on `.dif` with the manifest CID and an intended availability `ttl` (default 3600 seconds).
+  4. Otherwise, responder assembles a diff manifest (see Diff Manifest) encoded with deterministic CBOR,
+     stores it in IPFS without pinning, and replies on `.dif` with the manifest CID and an
+     intended availability `ttl` (default 3600 seconds).
   5. Requester fetches the manifest, pins and inserts any CIDs it does not already have, and updates its SMT.
     Further `.new` or `.dif` messages will drive it to parity.
 * Caching:
-  * For a given responder snapshot (`root`,`count`), the manifest CID is stable; responders SHOULD cache and reuse it across solicitations.
+  * For a given responder snapshot (`root`,`count`), the manifest CID is stable;
+    responders SHOULD cache and reuse it across solicitations.
 * Availability:
   * Responders SHOULD keep manifest blocks available for at least `TdiffTTL` seconds (default 3600).
     Implementations MAY choose to pin temporarily or serve blocks opportunistically.
 * Rate limiting:
-  * Responders SHOULD apply jitter and MAY suppress replies if another adequate `.dif` is seen for the same `.syn` to limit redundant manifests.
+  * Responders SHOULD apply jitter and MAY suppress replies if another adequate
+    `.dif` is seen for the same `.syn` to limit redundant manifests.
 
 ## Diff Manifest (IPFS object)
 
@@ -585,7 +610,7 @@ kp-depth = 5
 
 CDDL — Diff manifest
 
-```
+```cbor
 diff-manifest = {
   k-ver => ver,
   k-in_reply_to => uuid,
@@ -611,7 +636,7 @@ k-sig = 9
 
 Diagnostic example (decoded):
 
-```
+```cbor
 {
   1: 1,
   2: h'018f0f92c3f8a9b2c7d1112233445567',
@@ -626,14 +651,16 @@ Diagnostic example (decoded):
 
 ## Error Handling
 
-* Invalid signature or non-canonical CBOR: drop.
+* Invalid signature or CBOR not using deterministic encoding: drop.
 
 * Oversized message: drop.
-* Fetch/pin failure: do not insert into SMT; release partial pins from the announcement; retain a pending queue and retry within the configured pinning window/policy.
+* Fetch/pin failure: do not insert into SMT; release partial pins from the announcement;
+  retain a pending queue and retry within the configured pinning window/policy.
 
 ## Security Considerations (PoC)
 
-* Honest participants assumed; messages are public and unauthenticated beyond per-peer signatures, except `.prf` proof content which is encrypted end-to-end using HPKE as specified.
+* Honest participants assumed; messages are public and unauthenticated beyond per-peer signatures,
+  except `.prf` proof content which is encrypted end-to-end using HPKE as specified.
 
 * Implementations SHOULD rate-limit `.syn` and `.dif` per peer and bound pin concurrency to avoid resource exhaustion.
 
@@ -644,13 +671,15 @@ Diagnostic example (decoded):
 
 ## Observability and Metrics
 
-* Track: `.new` seen, pins queued/succeeded/failed, roots observed, divergence detected, `.syn` sent, `.dif` received, diff manifests served/fetched, bytes fetched.
+* Track: `.new` seen, pins queued/succeeded/failed, roots observed,
+  divergence detected, `.syn` sent, `.dif` received,
+  diff manifests served/fetched, bytes fetched.
 * If proof topics enabled: `.prv` sent/received, `.prf` verified, proof cache hits.
 
 ## Interoperability
 
-* Canonical CBOR is required for all payloads and manifests.
-  CIDs MUST be CIDv1; CID arrays must contain canonical representations.
+* Deterministic CBOR encoding is required for all payloads and manifests.
+  CIDs MUST be CIDv1; CID arrays must contain their binary representations.
 * SMT hashing MUST be BLAKE3-256 exactly as specified; mixing hash functions will produce incompatible roots and proofs.
 
 ## Extensibility
@@ -666,6 +695,8 @@ Diagnostic example (decoded):
 
 * Sparse Merkle Trees: RFC 6962 (conceptual), Cosmos ICS23 (proof encoding inspiration).
 * BLAKE3: O'Connor et al., <https://github.com/BLAKE3-team/BLAKE3> (specification and reference implementations).
+* Deterministic CBOR: RFC 8949, Sections 4.2.1–4.2.3 (length-first core deterministic encoding).
+  Tags MUST appear only when specified by the CDDL; otherwise tags are omitted.
 
 ## Open Questions
 
