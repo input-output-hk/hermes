@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS txo_assets_by_stake (
     asset_name      BLOB NOT NULL,          -- name of the asset policy (UTF8) (0 - 32 bytes)
     
     -- None Key Data of the asset.
-    value           BLOB NOT NULL,          -- Value of the asset (i128). Hex formatted without prefix.
+    value           BLOB NOT NULL,          -- Value of the asset.
 
     PRIMARY KEY (stake_address, slot_no, txn_index, txo)
 );

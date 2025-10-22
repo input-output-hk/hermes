@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS txo_by_stake (
     txo             INTEGER NOT NULL,       -- offset in the txo list of the transaction the txo is in.
 
     -- Transaction Output Data
-    value           BLOB NOT NULL,          -- Lovelace value of the TXO (u64).
+    value           BLOB NOT NULL,          -- Lovelace value of the TXO.
     
     -- Data needed to correlate a spent TXO.
     txn_id          BLOB NOT NULL,          -- 32 byte hash of this transaction.
