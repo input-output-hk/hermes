@@ -5,10 +5,20 @@
 /// This API is ALWAYS available.
 
 
-/// Logging API Interface
+/// HTTP gateway event API Interface
 interface event {
     use hermes:binary/api.{bstr};
     use api.{headers, http-gateway-response};
 
     reply: func(body: bstr, headers: headers, path: string, method: string) -> option<http-gateway-response>;
+
+}
+
+/// Authentication event API Interface
+interface event-auth {
+    use api.{auth-request, http-response};
+    /// Validate authentication for an HTTP request.
+    /// If there authentication is required, this event is called before routing to target modules.
+    validate-auth: func(request: auth-request) -> option<http-response>;
+
 }
