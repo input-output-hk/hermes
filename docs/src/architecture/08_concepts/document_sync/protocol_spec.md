@@ -93,7 +93,7 @@ icon: material/file-document-outline
   * `uuid` (bstr, 16 bytes): UUIDv7 for deduplication and correlation.
   * `peer` (bstr): sender peer-id bytes.
   * `ts` (uint): sender-local milliseconds since Unix epoch per UUIDv7 time or local clock.
-  * `root` (bstr): SMT root (32 bytes for SHA-256; see SMT section).
+  * `root` (bstr): SMT root (32 bytes, BLAKE3-256; see SMT section).
   * `count` (uint): total document count in the sender’s set after applying the operation described by the message.
 * Deduplication: Receivers MUST de-duplicate by `(peer, uuid)` and drop duplicates.
 * Idempotence: Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
@@ -219,15 +219,15 @@ icon: material/file-document-outline
 
 * Purpose: Order-independent, append-only set with inclusion and non-inclusion proofs.
 
-* Keying: For each CID, compute key `k = SHA-256(CIDv1-bytes)`.
+* Keying: For each CID, compute key `k = BLAKE3-256(CIDv1-bytes)`.
   Implementations MUST convert CIDs to their binary CIDv1 representation before hashing.
 * Depth: 256 levels (one per bit of `k`).
-* Hash function: SHA-256.
+* Hash function: BLAKE3-256 (fixed 32-byte output).
 * Domain separation:
-  * `LeafHash = SHA-256(0x00 || k || 0x01)` (presence-only set; constant value 0x01).
-  * `NodeHash = SHA-256(0x01 || left || right)`.
-  * `Empty[d]` precomputed per depth: `Empty[256] = SHA-256(0x02)`, `Empty[d] = NodeHash(Empty[d+1], Empty[d+1])`.
-* Root: 32-byte `NodeHash` at depth 0.
+  * `LeafHash = BLAKE3-256(0x00 || k || 0x01)` (presence-only set; constant value 0x01).
+  * `NodeHash = BLAKE3-256(0x01 || left || right)`.
+  * `Empty[d]` precomputed per depth: `Empty[256] = BLAKE3-256(0x02)`, `Empty[d] = NodeHash(Empty[d+1], Empty[d+1])`.
+* Root: 32-byte `NodeHash` at depth 0 (BLAKE3-256 output).
 * Inclusion proof: path bits from `k` plus sibling hashes per level.
   Exclusion proof: proof of `Empty` at divergence depth or neighbor leaf.
 
@@ -262,7 +262,7 @@ icon: material/file-document-outline
 
 * Proofs are canonical CBOR maps with the following fields:
   * `type` (tstr): "incl" for inclusion proofs; "excl" for non-inclusion proofs.
-  * `k` (bstr, 32): the key `k = SHA-256(CIDv1-bytes)`.
+* `k` (bstr, 32): the key `k = BLAKE3-256(CIDv1-bytes)`.
   * `siblings` (array of bstr): ordered array of 32-byte sibling hashes from leaf level up to root (least-significant bit first traversal).
   * `leaf` (bstr, 32) OPTIONAL: the computed `LeafHash` for inclusion proofs; MAY be omitted (verifier can recompute from `k`).
   * `depth` (uint) OPTIONAL: total tree depth (defaults to 256 if omitted).
@@ -474,6 +474,7 @@ Decrypted plaintext (decoded map):
 
 * Canonical CBOR is required for all payloads and manifests.
   CIDs MUST be CIDv1; CID arrays must contain canonical representations.
+* SMT hashing MUST be BLAKE3-256 exactly as specified; mixing hash functions will produce incompatible roots and proofs.
 
 ## Extensibility
 
@@ -489,6 +490,7 @@ Decrypted plaintext (decoded map):
 * IBLT: Goodrich & Mitzenmacher (2011), "Invertible Bloom Lookup Tables".
 
 * Sparse Merkle Trees: RFC 6962 (conceptual), Cosmos ICS23 (proof encoding inspiration).
+* BLAKE3: O'Connor et al., https://github.com/BLAKE3-team/BLAKE3 (specification and reference implementations).
 
 ## Open Questions
 
