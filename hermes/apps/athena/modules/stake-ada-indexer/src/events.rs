@@ -5,13 +5,12 @@ use shared::{
         self,
         api::{Block, SubscriptionId},
     },
+    database::staked_ada::*,
     utils::{
         log::{error, info, trace},
         sqlite,
     },
 };
-
-use shared::database::staked_ada::*;
 
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {

@@ -115,13 +115,15 @@ impl Statement<'_> {
             .ok_or_else(|| anyhow!("Stepped into finalized statement"))
             .and_then(|stmt| {
                 params
-                    .into_iter()
+                    .iter()
                     .zip(1u32..)
                     .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
-                    .map(|()| Rows {
-                        stmt: Some(stmt),
-                        current: None,
+                    .map(|()| {
+                        Rows {
+                            stmt: Some(stmt),
+                            current: None,
+                        }
                     })
             })
             .context("Executing prepared query")
@@ -161,6 +163,23 @@ impl Statement<'_> {
         params: &[&api::Value],
     ) -> anyhow::Result<()> {
         self.query(params)?.step().map(drop)
+    }
+
+    /// For each provided array of parameters binds them and executes the statement.
+    ///
+    /// When one of the executions fails, immediately returns.
+    /// Always returns the number of successful executions.
+    pub fn execute_iter<const N: usize>(
+        &mut self,
+        params: impl IntoIterator<Item: TryInto<[api::Value; N], Error = anyhow::Error>>,
+    ) -> Result<usize, (usize, anyhow::Error)> {
+        params
+            .into_iter()
+            .map(|p| p.try_into().and_then(|p| self.execute(&p.each_ref())))
+            .try_fold(0, |num_successful, res| {
+                res.map(|()| num_successful + 1)
+                    .map_err(|err| (num_successful, err))
+            })
     }
 }
 
@@ -236,9 +255,7 @@ impl<'stmt> Rows<'stmt> {
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
     pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
-    where
-        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
-    {
+    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
         self.and_then(|row| row.and_then(|row| row.try_into()))
     }
 }
@@ -296,9 +313,7 @@ impl Row<'_> {
     /// # }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
-    where
-        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
-    {
+    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
         T::try_from(self)
     }
 }

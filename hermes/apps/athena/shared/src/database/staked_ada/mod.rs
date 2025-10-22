@@ -1,4 +1,4 @@
-//! Staked ADA modules database.
+//! Staked ADA modules database portion.
 
 mod delete;
 mod insert;
@@ -6,9 +6,8 @@ mod select;
 mod types;
 mod update;
 
-use crate::{database::sql, utils::sqlite};
-
 pub use self::{delete::*, insert::*, select::*, types::*, update::*};
+use crate::{database::sql, utils::sqlite};
 
 /// Sequentially creates all tables if they don't exist.
 pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {

@@ -21,6 +21,7 @@ macro_rules! include_sql {
     };
 }
 
+// SQL included from sql/schema directory.
 include_sql! {
     #[dir = "schema"]
     pub const SCHEMA: _ = Schema {
@@ -31,6 +32,7 @@ include_sql! {
     };
 }
 
+// SQL included from sql/queries directory.
 include_sql! {
     #[dir = "queries"]
     pub const QUERIES: _ = Queries {
@@ -38,9 +40,13 @@ include_sql! {
         delete_txi_since_slot,
         delete_txo_assets_since_slot,
         delete_txo_since_slot,
-        select_txi_by_txn_ids,
-        select_txo_assets_by_stake_address,
-        select_txo_by_stake_address,
+        insert_stake_registration,
+        insert_txi_by_txn_id,
+        insert_txo_assets_by_stake,
+        insert_txo_by_stake,
+        select_txi_by_txn_id,
+        select_txo_assets_by_stake,
+        select_txo_by_stake,
         update_txo_spent,
     };
 }
