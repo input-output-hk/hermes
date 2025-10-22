@@ -312,6 +312,19 @@ carries the same Document Dissemination payload as `.new`, but is sent specifica
 * docs or manifest MUST be present (exactly one of them).
 * ttl SHOULD be present when manifest is used; responders MUST keep manifest blocks available for at least ttl seconds.
 
+Prefix-depth selection for bucketization
+
+* To keep diff sizes predictable, responders partition candidate CIDs by the
+  first d bits of `BLAKE3-256(CIDv1-bytes)` (prefix buckets).
+* Depth d is chosen based on the responder’s document count `N` to target ≤ 64 items per bucket until a maximum depth is reached:
+  * Compute `d_req = ceil(log2(max(1, N / 64)))`.
+  * Set `d = min(15, max(1, d_req))`.
+    * Minimum depth 1 (root plus two buckets).
+    * Maximum depth 15 (root plus 32k buckets); beyond 15, buckets may exceed 64 items.
+* When a manifest is used, the chosen `d` MUST be recorded in the manifest as `prefix_depth`
+  so receivers can reason about bucket sizing and structure.
+* Bucketization only affects grouping/chunking for transfer; receivers still fetch/pin CIDs and update their SMT normally.
+
 **Processing:**
 
 * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
@@ -614,6 +627,8 @@ kp-depth = 5
 * Rate limiting:
   * Responders SHOULD apply jitter and MAY suppress replies if another adequate
     `.dif` is seen for the same `.syn` to limit redundant manifests.
+* Prefix depth:
+  * Responders SHOULD select and record prefix_depth per the .dif rules above to keep per-bucket sizes ≲ 64 while depth ≤ 15.
 
 ## Diff Manifest (IPFS object)
 
@@ -628,6 +643,7 @@ kp-depth = 5
   * k-missing_resp (7) OPTIONAL: array of cid1
   * k-ttl (8) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
   * k-sig (9): bstr — signature by responder over the manifest body
+  * k-prefix_depth (10) OPTIONAL: uint — prefix bucket depth d used for manifest bucketization
 * The `.dif` payload carries the manifest CID.
 
 CDDL — Diff manifest
@@ -642,7 +658,8 @@ diff-manifest = {
   k-missing_req => [* cid1],
   ? k-missing_resp => [* cid1],
   ? k-ttl => uint,
-  k-sig => bstr
+  k-sig => bstr,
+  ? k-prefix_depth => uint
 }
 
 k-ver = 1
@@ -654,6 +671,7 @@ k-missing_req = 6
 k-missing_resp = 7
 k-ttl = 8
 k-sig = 9
+k-prefix_depth = 10
 ```
 
 Diagnostic example (decoded):
