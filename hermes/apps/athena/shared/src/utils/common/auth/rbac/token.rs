@@ -84,7 +84,7 @@ impl CatalystRBACTokenV1 {
     /// - Signature.
     ///
     /// For example:
-    /// ```
+    /// ```text
     /// catid.:173710179@preprod.cardano/FftxFnOrj2qmTuB2oZG2v0YEWJfKvQ9Gg8AgNAhDsKE.<signature>
     /// ```
     pub(crate) fn parse(token: &str) -> Result<CatalystRBACTokenV1> {

@@ -66,24 +66,6 @@ impl StringEnvVar {
     ///
     /// If not defined, read from a .env file.
     /// If still not defined, use the default.
-    ///
-    /// # Arguments
-    ///
-    /// * `var_name`: &str - the name of the env var
-    /// * `default_value`: &str - the default value
-    ///
-    /// # Returns
-    ///
-    /// * Self - the value
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// #use cat_data_service::settings::StringEnvVar;
-    ///
-    /// let var = StringEnvVar::new("MY_VAR", "default");
-    /// assert_eq!(var.as_str(), "default");
-    /// ```
     pub(super) fn new(
         var_name: &str,
         param: StringEnvVarParams,

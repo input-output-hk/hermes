@@ -1,7 +1,8 @@
 //! Hermes bindings generated with [`::wit_bindgen`].
-//! They can be reused when using `share` keyword of [`bindings_generate`] macro.
+//! They can be reused when using `share` keyword of [`crate::bindings_generate`] macro.
 
-/// Re-exported [`::wit-bindgen`] crate, so that [`bindings_generate`] is self-reliant.
+/// Re-exported [`::wit-bindgen`] crate, so that [`crate::bindings_generate`] is
+/// self-reliant.
 #[doc(hidden)]
 pub use wit_bindgen;
 

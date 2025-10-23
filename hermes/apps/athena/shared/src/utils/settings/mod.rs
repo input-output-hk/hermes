@@ -62,24 +62,6 @@ impl Settings {
     }
 
     /// Generate a github issue url with a given title
-    ///
-    /// ## Arguments
-    ///
-    /// * `title`: &str - the title to give the issue
-    ///
-    /// ## Returns
-    ///
-    /// * String - the url
-    ///
-    /// ## Example
-    ///
-    /// ```rust,no_run
-    /// # use cat_data_service::settings::generate_github_issue_url;
-    /// assert_eq!(
-    ///     generate_github_issue_url("Hello, World! How are you?"),
-    ///     "https://github.com/input-output-hk/catalyst-voices/issues/new?template=bug_report.yml&title=Hello%2C%20World%21%20How%20are%20you%3F"
-    /// );
-    /// ```
     pub(crate) fn generate_github_issue_url(title: &str) -> Option<Url> {
         let path = format!(
             "https://github.com/{}/{}/issues/new",

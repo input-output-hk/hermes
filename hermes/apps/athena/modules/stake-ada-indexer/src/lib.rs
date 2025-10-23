@@ -23,7 +23,6 @@ shared::bindings_generate!({
 
 export!(Component);
 
-mod database;
 mod events;
 
 use shared::{
