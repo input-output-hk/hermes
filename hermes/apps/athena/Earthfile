@@ -15,7 +15,7 @@ workspace-src:
 
 # Athena modules builder.
 builder:
-    ARG wasi_src_dir=../../../../wasm/wasi/wit
+    ARG wasi_src_dir=../../../wasm/wasi/wit
 
     DO rust-ci+SETUP
 
