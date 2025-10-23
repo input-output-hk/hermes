@@ -5,7 +5,7 @@ use shared::{
         self,
         api::{Block, SubscriptionId},
     },
-    database::staked_ada::*,
+    database::staked_ada::create_tables,
     utils::{
         log::{error, info, trace},
         sqlite,

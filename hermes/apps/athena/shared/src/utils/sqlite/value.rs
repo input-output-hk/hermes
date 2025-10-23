@@ -54,15 +54,9 @@ impl From<cardano_blockchain_types::hashes::TransactionId> for Value {
     }
 }
 
-impl From<cardano_blockchain_types::pallas_addresses::Address> for Value {
-    fn from(v: cardano_blockchain_types::pallas_addresses::Address) -> Self {
-        Value::Blob(v.to_vec())
-    }
-}
-
-impl From<cardano_blockchain_types::pallas_addresses::StakeAddress> for Value {
-    fn from(v: cardano_blockchain_types::pallas_addresses::StakeAddress) -> Self {
-        cardano_blockchain_types::pallas_addresses::Address::Stake(v).into()
+impl From<cardano_blockchain_types::StakeAddress> for Value {
+    fn from(v: cardano_blockchain_types::StakeAddress) -> Self {
+        Value::Blob(v.into())
     }
 }
 
@@ -92,7 +86,8 @@ impl TryFrom<cardano_blockchain_types::pallas_primitives::PolicyId> for Value {
 
 // Generic option conversion
 impl<T> From<Option<T>> for Value
-where T: Into<Value>
+where
+    T: Into<Value>,
 {
     fn from(opt: Option<T>) -> Self {
         opt.map(|v| v.into()).unwrap_or(Value::Null)
@@ -167,7 +162,8 @@ impl TryFrom<Value> for u16 {
 }
 
 impl<T> TryFrom<Value> for Option<T>
-where T: TryFrom<Value, Error = anyhow::Error>
+where
+    T: TryFrom<Value, Error = anyhow::Error>,
 {
     type Error = anyhow::Error;
 
@@ -214,26 +210,23 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::Address {
 
     fn try_from(v: Value) -> Result<Self, Self::Error> {
         match v {
-            Value::Blob(b) => {
-                cardano_blockchain_types::pallas_addresses::Address::from_bytes(&b)
-                    .map_err(Into::into)
-            },
+            Value::Blob(b) => cardano_blockchain_types::pallas_addresses::Address::from_bytes(&b)
+                .map_err(Into::into),
             _ => Err(anyhow::anyhow!("Value is not a Blob for Address")),
         }
     }
 }
 
-impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::StakeAddress {
+impl TryFrom<Value> for cardano_blockchain_types::StakeAddress {
     type Error = anyhow::Error;
 
     fn try_from(v: Value) -> Result<Self, Self::Error> {
-        cardano_blockchain_types::pallas_addresses::Address::try_from(v).and_then(|v| {
-            if let cardano_blockchain_types::pallas_addresses::Address::Stake(addr) = v {
-                Ok(addr)
-            } else {
-                anyhow::bail!("Decoded as an Address, but not the StakeAddress")
-            }
-        })
+        match v {
+            Value::Blob(b) => {
+                cardano_blockchain_types::StakeAddress::try_from(b.as_slice()).map_err(Into::into)
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Blob for StakeAddress")),
+        }
     }
 }
 
