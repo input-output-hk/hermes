@@ -22,6 +22,18 @@ builder:
     COPY wasm+wasi-src/wasi $wasi_src_dir
     COPY --dir +workspace-src/* .
 
+# test-shared : runs native tests of the shared crate.
+test-shared:
+    FROM +builder
+
+    DO rust-ci+CARGO --args="-p shared test"
+
+# test-shared-wasm32 : runs wasm32 tests of the shared crate.
+test-shared-wasm32:
+    FROM +builder
+
+    DO rust-ci+CARGO --args="-p shared test --target=wasm32-wasip2"
+
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
 BUILD_ATHENA_COMPONENT:
     FUNCTION
