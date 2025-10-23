@@ -26,13 +26,15 @@ builder:
 check-shared:
     FROM +builder
 
-    DO rust-ci+CARGO --args="test -p shared"
+    WORKDIR shared
+    DO rust-ci+CARGO --args="test --all-features"
 
-# check-shared-wasm32 : runs wasm32 unit tests of the shared crate.
+# check-shared-wasm32 : checks wasm32 build target of the shared crate.
 check-shared-wasm32:
     FROM +builder
 
-    DO rust-ci+CARGO --args="test -p shared --target=wasm32-wasip2"
+    WORKDIR shared
+    DO rust-ci+CARGO --args="check --target=wasm32-wasip2 --all-features"
 
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
 BUILD_ATHENA_COMPONENT:
