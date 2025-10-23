@@ -26,11 +26,11 @@ IMPORT ../../../../wasm/wasi AS wasi
 get-local-hermes:
     # Use minimal Alpine Linux base image for lightweight container
     FROM scratch
-    
+
     # Copy the Hermes binary from the parent build context
     # The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built
     COPY ../../../../hermes+build/hermes ./hermes
-    
+
     # Export the binary to local filesystem for justfile usage
     # This makes it available at ./hermes in the calling directory
     SAVE ARTIFACT hermes AS LOCAL ./hermes
@@ -76,13 +76,16 @@ gen-bindings:
 #
 # Duration: ~3-7 minutes total (depending on cache state and number of modules)
 # Output: All build artifacts ready for packaging and deployment
-build-all:    
+build-all:
     # Build all WASM modules (currently just HTTP proxy, more coming soon)
-    BUILD +build-http-proxy
-    
+    BUILD ./rbac-registration+build-rbac-registration
+    BUILD ./rbac-registration-indexer+build-rbac-registration-indexer
+    BUILD ./http-proxy+build-http-proxy
+    BUILD ./staked-ada-indexer+build-staked-ada-indexer
+
     # Future: Additional module builds will be added here
     # BUILD +build-auth-module
-    # BUILD +build-database-module  
+    # BUILD +build-database-module
     # BUILD +build-cache-module
     # BUILD +build-notification-module
     # BUILD +build-analytics-module
@@ -115,20 +118,14 @@ build-all:
 save-local-hermes:
     # Use minimal Alpine Linux base image for lightweight container
     FROM scratch
-    
+
     # Copy the Hermes binary from the parent build context
     # The COPY instruction will automatically trigger the ../../../../hermes+build target if not already built
     COPY ../../../../hermes+build/hermes ./hermes
-    
+
     # Save the binary to local filesystem for development use
     # This makes it available at ./hermes in the calling directory
     SAVE ARTIFACT hermes AS LOCAL ./hermes
-
-# Build wasm32-wasip2 for each modules
-modules-build-wasm32-wasip2:
-    BUILD ./rbac-registration+build-rbac-registration
-    BUILD ./rbac-registration-indexer+build-rbac-registration-indexer
-    BUILD ./http-proxy+build-http-proxy
 
 # Run build modules wasm32-wasip2 for the specify architect
 # Comment this out if it take long time for CI to build.
