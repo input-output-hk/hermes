@@ -1,7 +1,7 @@
 use cardano_blockchain_types::{
     hashes::TransactionId,
-    StakeAddress,
     pallas_primitives::{AssetName, BigInt, PolicyId},
+    StakeAddress,
 };
 use derive_more::From;
 

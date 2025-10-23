@@ -1,6 +1,6 @@
 //! `SELECT` queries.
 
-use cardano_blockchain_types::{hashes::TransactionId, pallas_addresses::StakeAddress};
+use cardano_blockchain_types::{hashes::TransactionId, StakeAddress};
 
 use crate::{
     database::{
