@@ -9,6 +9,9 @@ autocheckpoint
 autonumber
 backpressure
 bech
+bignint
+bignums
+biguint
 bkioshn
 blockfetch
 blosc
@@ -193,6 +196,7 @@ txns
 txos
 unfinalized
 unlinkat
+unpadded
 unsub
 usvg
 utimensat
