@@ -126,18 +126,12 @@ fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse 
     match error {
         ErrorResponses::NotFound => HttpGatewayResponse::Http(HttpResponse {
             code: StatusCode::NOT_FOUND.as_u16(),
-            headers: vec![(
-                "content-type".to_string(),
-                vec![APPLICATION_JSON.to_string()],
-            )],
+            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
             body: Bstr::from(format!("{{\"error\":\"{}\"}}", messages::NOT_FOUND)),
         }),
         ErrorResponses::ServerError(_) => HttpGatewayResponse::Http(HttpResponse {
             code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            headers: vec![(
-                "content-type".to_string(),
-                vec![APPLICATION_JSON.to_string()],
-            )],
+            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
             body: Bstr::from(format!(
                 "{{\"error\":\"{}\"}}",
                 messages::INTERNAL_SERVER_ERROR
@@ -145,10 +139,7 @@ fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse 
         }),
         ErrorResponses::ServiceUnavailable(_, _) => HttpGatewayResponse::Http(HttpResponse {
             code: StatusCode::SERVICE_UNAVAILABLE.as_u16(),
-            headers: vec![(
-                "content-type".to_string(),
-                vec![APPLICATION_JSON.to_string()],
-            )],
+            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
             body: Bstr::from(format!(
                 "{{\"error\":\"{}\"}}",
                 messages::SERVICE_UNAVAILABLE
@@ -156,10 +147,7 @@ fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse 
         }),
         _ => HttpGatewayResponse::Http(HttpResponse {
             code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            headers: vec![(
-                "content-type".to_string(),
-                vec![APPLICATION_JSON.to_string()],
-            )],
+            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
             body: Bstr::from(format!("{{\"error\":\"{}\"}}", messages::UNKNOWN_ERROR)),
         }),
     }
