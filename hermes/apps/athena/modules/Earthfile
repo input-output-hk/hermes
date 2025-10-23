@@ -129,5 +129,5 @@ save-local-hermes:
 
 # Run build modules wasm32-wasip2 for the specify architect
 # Comment this out if it take long time for CI to build.
-build-all-host-modules-build-wasm32-wasip2:
-    BUILD --platform=linux/amd64 --platform=linux/arm64 +modules-build-wasm32-wasip2
+build-all-host-modules:
+    BUILD --platform=linux/amd64 --platform=linux/arm64 +build-all
