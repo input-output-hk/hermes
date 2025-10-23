@@ -24,7 +24,7 @@ All possible validations and initialization should be performed based on the pac
 
 ## Risks
 
-* Potential bad  user experience (UX) for each application run due to time consumption in validations and
+* Potentially worse user experience (UX) for each application run due to time consumption in validations and
   state preparation
 
 ## Alternatives
@@ -36,5 +36,5 @@ and will pick up already validated and initialized data to run application.
 
 ## Consequences
 
-* Adds better integrity and consistency over application's initial state/code among each application run.
+* Improves integrity and consistency of an application's initial state/code on each run.
 * Eliminates possibility to execute corrupted application.

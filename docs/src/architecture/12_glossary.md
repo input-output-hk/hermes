@@ -6,7 +6,17 @@ icon: material/format-list-group-plus
 
 <!-- See: https://docs.arc42.org/section-12/ -->
 
-| Term        | Definition        |
-|-------------|-------------------|
-| *~Term-1~* | *~definition-1~* |
-| *~Term-2~* | *~definition-2~* |
+| Term | Definition |
+|------|------------|
+| Hermes | Event-driven runtime that executes WASM components packaged as applications. |
+| WASM Component Model | Standard for composable WASM components with WIT-defined interfaces. |
+| WIT | WebAssembly Interface Types language used to describe host APIs and component interfaces. |
+| HDF5 | Hierarchical Data Format v5, used as the application/package container and VFS backing store. |
+| VFS | Virtual filesystem presented to applications, backed by HDF5 with permissioned directories. |
+| Runtime Extension (HRE) | Engine-provided host capability accessible to modules (HTTP, IPFS, sqlite, crypto, etc.). |
+| Reactor | Global orchestrator coordinating applications and event dispatch. |
+| Event Queue | Singleton MPSC queue for routing events to target applications/modules. |
+| IPFS/libp2p | Peer-to-peer system providing pub/sub, DHT, and content-addressed storage. |
+| COSE/CBOR | Standards used for signing and encoding application metadata and author payloads. |
+| Athena | First backend voting application for Project Catalyst, implemented as a Hermes application leveraging IPFS/pubsub, DHT, HTTP APIs, and signed packages. |
+| Project Catalyst | Innovation and voting platform; Athena is the Hermes-based backend MVP for decentralized voting. |

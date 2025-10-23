@@ -9,7 +9,7 @@
 ## Context
 
 Hermes should be a robust and reliable platform for Hermes applications to be run on.
-So it has to have a defined boundaries of which application would be executed and which not.
+So it has to have defined boundaries for which applications will be executed and which will not.
 
 **NOTE**
 There is an acknowledged need for version control of the APIs in a mature Hermes state,
@@ -18,14 +18,14 @@ and libraries have matured enough to make an informed choice.
 
 ## Assumptions
 
-* Hermes runtime extensions api could not be stable and evolve during the development process.
+* Hermes runtime extensions API may evolve during the development process.
 
 ## Decision
 
 As a part of the metadata of the Hermes application, provide a `api_version` field.
 During the application loading step it should be validated,
 against the current Hermes `api_version` on which this application going to be executed.
-Validation is a equality check.
+Validation is an equality check.
 
 ## Risks
 
