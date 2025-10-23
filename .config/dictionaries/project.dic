@@ -15,6 +15,7 @@ brotli
 cabi
 canvaskit
 cardano
+catid
 cbor
 cdylib
 chaincode
@@ -23,6 +24,7 @@ chrono
 cids
 ciphertext
 codegen
+codepoints
 COEP
 condvar
 coverallsapp
@@ -36,6 +38,8 @@ dashmap
 datelike
 dcbor
 Devnet
+dotenv
+dotenvy
 dotstar
 earthfile
 Embedder
@@ -86,6 +90,7 @@ mkcron
 mkdelay
 mkdirat
 nanos
+newtype
 nextest
 nolfs
 nomutex
@@ -149,10 +154,13 @@ traceback
 traitreg
 tweakable
 txns
+txos
 unfinalized
 unlinkat
 usvg
 utimensat
+utoipa
+utxo
 uuidv
 wasi
 wasip
