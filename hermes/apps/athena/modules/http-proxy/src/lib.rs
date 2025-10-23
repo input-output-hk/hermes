@@ -32,6 +32,7 @@
 //! - `rbac_native` (replaces `/api/gateway/v1/rbac/registration*`)
 //! - `document_service_native` (replaces `/api/gateway/v*/document*`)
 //! - `static_file_native` (replaces `/static/*` if needed)
+//!
 
 use std::sync::OnceLock;
 
@@ -74,7 +75,7 @@ const EXTERNAL_HOST: &str = "https://app.dev.projectcatalyst.io";
 /// Route patterns for **temporary** external forwarding to Cat Voices system
 /// ⚠️ DEPRECATED: These patterns will be replaced by native WASM modules:
 /// - `/api/gateway/v1/config/frontend` → `frontend_config_native` module
-/// - `/api/gateway/v1/cardano/assets/*` → `cardano_assets_native` module
+/// - `/api/gateway/v1/cardano/assets/*` → `cardano_assets_native` module  
 /// - `/api/gateway/v1/rbac/registration*` → `rbac_native` module
 /// - `/api/gateway/v*/document*` → `document_service_native` module
 const EXTERNAL_ROUTE_PATTERNS: &[&str] = &[
