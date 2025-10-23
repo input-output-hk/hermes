@@ -4,6 +4,7 @@ asat
 asyncio
 auditability
 autocheckpoint
+autonumber
 backpressure
 bech
 bkioshn
@@ -81,6 +82,7 @@ libsqlite
 libtest
 linkat
 lintfix
+ltbase
 mapref
 mdlint
 Merkle
@@ -165,6 +167,7 @@ tweakable
 txns
 unfinalized
 unlinkat
+unsub
 usvg
 utimensat
 uuidv

@@ -22,6 +22,40 @@ icon: material/file-document-outline
 **Assumptions (PoC):** Honest peers, no privacy, all messages publicly readable.
   All payloads use deterministic CBOR encoding with strict framing.
 
+### Diagram — High-level Sync Flow
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Peer A
+  participant PS as IPFS PubSub
+  participant B as Peer B
+
+  A-->>PS: subscribed to<br>`<base>.new` + `<base>.syn`
+  B-->>PS: subscribed to<br>`<base>.new` + `<base>.syn`
+
+  Note over A: Broadcast on<br><base>.new
+  A->>PS: .new [docs/manifest, root, count]
+  PS-->>B: .new
+  B->>B: fetch+pin, update SMT (root_B)
+  
+  alt roots differ
+    Note over B: Broadcast on<br>`<base>.syn`
+    B-->>PS: subscribe to `<base>.dif` during reconciling
+    B->>PS: `<base>.syn`<br>[peer A, root_B, count_B, prefixes]
+    PS-->>A: .syn
+    Note over PS: Broadcast on<br>`<base>.dif`
+    A-->>PS: subscribed to `<base>.dif` during reconciling
+    A->>PS: .dif [in_reply_to, (docs | manifest), root_A, count_A, ttl?]
+    A-->>PS: unsubscribe from `<base>.dif`
+    PS-->>B: .dif
+    B->>B: fetch+pin, update SMT → parity
+    B-->>PS: unsubscribe from `<base>.dif`
+  else already at parity
+    B->>B: no sync needed
+  end
+```
+
 ## Scope and Goals
 
 * Ensure eventual consistency of document sets across honest peers.
@@ -87,6 +121,31 @@ No direct streams are required in this PoC; all reconciliation occurs on pub/sub
 
 **Future extensions:** Per-topic admission or encryption can be added without impacting unrelated flows.
 
+Diagram — Topic Separation and QoS
+
+```mermaid
+flowchart LR
+  subgraph PubSub Topics
+    NEW["`&ltbase>.new<br>*small, frequent*`"]
+    SYN["`&ltbase>.syn<br>*control-only*`"]
+    DIF["`&ltbase>.dif<br>*large/bursty, ephemeral*`"]
+    PRV["`&ltbase>.prv<br>*optional*`"]
+    PRF["`&ltbase>.prf<br>*optional, ephemeral*`"]
+  end
+
+  NEW -- high priority --> MeshNew[per-topic mesh + scoring]
+  SYN -- high priority --> MeshSyn
+  DIF -.ephemeral+rate-limit .-> MeshDif
+  PRV -.opt-in.-> MeshPrv
+  PRF -.ephemeral.-> MeshPrf
+
+  MeshNew --> Peers
+  MeshSyn --> Peers
+  MeshDif --> Peers
+  MeshPrv --> Peers
+  MeshPrf --> Peers
+```
+
 ## Topics and Namespacing
 
 `<base>` is an opaque UTF-8 string under 120 characters, defined by higher-level context.
@@ -103,6 +162,27 @@ Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` 
 * Peers SHOULD subscribe to `<base>.dif` only while reconciling (Diverged/Reconciling states) and
   SHOULD unsubscribe when Stable to reduce baseline traffic.
 
+Diagram — Subscribe/Unsubscribe During Sync
+
+```mermaid
+sequenceDiagram
+  participant P as Peer
+  participant PS as PubSub
+  rect rgb(245,245,245)
+    Note over P: Stable
+    P->>PS: sub(<base>.new)
+    P-x PS: (no sub to .syn/.dif)
+  end
+  Note over P: Diverged detected
+  P->>PS: sub(<base>.syn)
+  P->>PS: sub(<base>.dif)
+  P->>PS: pub .syn
+  PS-->>P: .dif (responses)
+  Note over P: Parity achieved
+  P->>PS: unsub(<base>.dif)
+  P->>PS: keep(<base>.new) and (<base>.syn)
+```
+
 ## Message Model
 <!-- markdownlint-disable MD033 -->
 Framing and Signature Envelope (matches the common envelope CDDL provided):
@@ -118,6 +198,24 @@ Framing and Signature Envelope (matches the common envelope CDDL provided):
 
 **Deduplication:** Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
 **Idempotence:** Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
+
+Diagram — Envelope and Payload
+
+```mermaid
+classDiagram
+  class Envelope {
+    bstr (size 82..1MiB)
+    -- signed-payload --
+  }
+  class signed_payload {
+    peer : ed25519-pubkey (32)
+    seq  : uuidv7 (16)
+    ver  : uint
+    payload : payload-body (CBOR map)
+    signature : ed25519-sig (64)
+  }
+  Envelope --> signed_payload
+```
 
 ### Common Message Envelope
 
@@ -222,6 +320,19 @@ uuid = #6.37(bytes .size 16) ; UUIDv7
 
 Note: Only CIDv1 multihashes sha2-256 and ed25519 are permitted; implementations MUST reject other multihash functions.
 
+Diagram — Choosing docs vs.
+manifest
+
+```mermaid
+flowchart TD
+  A[Start] --> C{Estimated encoded size ≤ 1 MiB?}
+  C -- Yes --> D[Include docs inline]
+  C -- No --> M[Publish manifest (cidv1)]
+  M --> T[Set ttl (seconds)]
+  D --> E[Send payload]
+  T --> E
+```
+
 #### Diagnostic example (payload-body decoded)
 
 ```cbor
@@ -297,6 +408,21 @@ Diagnostic example (payload-body decoded):
 
 ```cbor
 { 1: h'aaaa...aaaa', 2: 100, 3: h'cafebabe' }
+```
+
+Diagram — Sync Handshake
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant R as Requester
+  participant S as Responder(s)
+  participant PS as PubSub
+  R->>PS: .syn [root_R, count_R]
+  PS-->>S: .syn
+  S->>PS: .dif [in_reply_to, docs/manifest, root_S, count_S, ttl?]
+  PS-->>R: .dif
+  R->>R: fetch+pin, update SMT → parity
 ```
 
 ### .dif (topic `<base>.dif`)
@@ -494,6 +620,18 @@ Diagnostic example (payload-body decoded):
 
 * Transitions may be triggered by `.new` or `.dif` arriving during backoff; if parity is reached, abort solicitation.
 
+Diagram — Peer Sync State Machine (per `<base>`)
+
+```mermaid
+stateDiagram-v2
+  [*] --> Stable
+  Stable --> Diverged: root mismatch observed
+  Diverged --> Reconciling: backoff timer expires
+  Reconciling --> Stable: parity achieved
+  Diverged --> Stable: passive convergence via .new/.dif
+  Reconciling --> Diverged: new mismatch observed
+```
+
 ## Timers and Retries
 
 * Backoff/jitter before sending `.syn`: uniform random in `[Tmin, Tmax]` (implementation-configurable; PoC suggestion: 200–800 ms).
@@ -535,6 +673,23 @@ Diagnostic example (payload-body decoded):
 * Inclusion proof: path bits from `k` plus sibling hashes per level.
   Exclusion proof: proof of `Empty` at divergence depth or neighbor leaf.
 
+Diagram — Simplified SMT Proof Path
+
+```mermaid
+graph TD
+  R[Root]
+  R --> A
+  R --> B
+  A --> A0
+  A --> A1
+  A1 --> L[Leaf(k)]
+  classDef sib fill:#FFF3E0,stroke:#FB8C00
+  classDef leaf fill:#E8F5E9,stroke:#2E7D32
+  S0[Sibling hash]:::sib --- A0
+  S1[Sibling hash]:::sib --- A1
+  class L leaf
+```
+
 ## Encrypted Proofs (Mandatory for `.prf`)
 <!-- markdownlint-disable MD033 -->
 * Algorithms (HPKE per RFC 9180 profile):
@@ -566,6 +721,24 @@ Diagnostic example (payload-body decoded):
   3. If `present = true`, verify the SMT inclusion proof against `root`; if `false`, verify the non-inclusion proof.
 * Non-requesters cannot decrypt and SHOULD ignore `.prf` ciphertext.
 <!-- markdownlint-enable MD033 -->
+
+Diagram — Encrypted Proof Exchange (.prv/.prf)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant R as Requester
+  participant V as Prover (Responder)
+  participant PS as PubSub
+  Note over R: generate X25519 ephemeral (hpke_pkR)
+  R->>PS: .prv [root_R, count_R, cid, hpke_pkR, provers?]
+  PS-->>V: .prv
+  Note over V: HPKE seal (hpke_enc, ct = Enc(proof))
+  V->>PS: .prf [root_V, count_V, in_reply_to, cid, hpke_enc, ct]
+  PS-->>R: .prf
+  R->>R: HPKE open(ct) → proof
+  R->>R: verify proof vs. root_V; record
+```
 
 ### SMT Proof Encoding
 
@@ -630,6 +803,17 @@ kp-depth = 5
 * Prefix depth:
   * Responders SHOULD select and record prefix_depth per the .dif rules above to keep per-bucket sizes ≲ 64 while depth ≤ 15.
 
+Diagram — Prefix Depth Selection
+
+```mermaid
+flowchart LR
+  N[N = responder count] --> X{N <= 64?}
+  X -- Yes --> D1[d = 1]
+  X -- No --> C1[compute d_req = ceil(log2(N/64))]
+  C1 --> CL[clamp d = min(15, max(1, d_req))]
+  CL --> OUT[d used for bucketization\nrecord in manifest as prefix_depth]
+```
+
 ## Diff Manifest (IPFS object)
 
 * Use when inline lists would exceed 1 MiB.
@@ -672,6 +856,24 @@ k-missing_resp = 7
 k-ttl = 8
 k-sig = 9
 k-prefix_depth = 10
+```
+
+Diagram — Diff Manifest Schema (fields)
+
+```mermaid
+classDiagram
+  class diff_manifest {
+    ver (1): uint
+    in_reply_to (2): uuid
+    responder (3): peer-pubkey
+    root (4): root32
+    count (5): uint
+    missing_req (6): [cid1]
+    missing_resp (7): [cid1] optional
+    ttl (8): uint optional
+    sig (9): bstr
+    prefix_depth (10): uint optional
+  }
 ```
 
 Diagnostic example (decoded):
