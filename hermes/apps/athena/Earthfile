@@ -21,6 +21,7 @@ builder:
 
     COPY wasm+wasi-src/wasi $wasi_src_dir
     COPY --dir +workspace-src/* .
+    RUN mkdir modules
 
 # check-shared : runs native unit tests of the shared crate.
 check-shared:
@@ -34,7 +35,7 @@ check-shared-wasm32:
     FROM +builder
 
     WORKDIR shared
-    DO rust-ci+CARGO --args="check --target=wasm32-wasip2 --all-features"
+    DO rust-ci+CARGO --args="check --all-features --target=wasm32-wasip2"
 
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
 BUILD_ATHENA_COMPONENT:
