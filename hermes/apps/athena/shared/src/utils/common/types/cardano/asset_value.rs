@@ -42,11 +42,9 @@ impl From<&num_bigint::BigInt> for AssetValue {
         let sign = value.sign();
         match TryInto::<i128>::try_into(value) {
             Ok(v) => Self(v),
-            Err(_) => {
-                match sign {
-                    num_bigint::Sign::Minus => Self(i128::MIN),
-                    _ => Self(i128::MAX),
-                }
+            Err(_) => match sign {
+                num_bigint::Sign::Minus => Self(i128::MIN),
+                _ => Self(i128::MAX),
             },
         }
     }
