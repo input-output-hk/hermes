@@ -4,7 +4,6 @@ VERSION 0.8
 # This generates Rust code from WIT files that define WebAssembly component interfaces
 IMPORT ../../../../wasm/wasi AS wasi
 
-
 save-local-hermes:
     # Use minimal Alpine Linux base image for lightweight container
     FROM scratch
@@ -16,8 +15,3 @@ save-local-hermes:
     # Save the binary to local filesystem for development use
     # This makes it available at ./hermes in the calling directory
     SAVE ARTIFACT hermes AS LOCAL ./hermes
-
-# Run build modules wasm32-wasip2 for the specify architect
-# Comment this out if it take long time for CI to build.
-build-all-host-modules:
-    BUILD --platform=linux/amd64 --platform=linux/arm64 +build-all
