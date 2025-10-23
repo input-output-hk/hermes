@@ -14,4 +14,5 @@ CREATE TABLE IF NOT EXISTS txo_assets_by_stake (
     PRIMARY KEY (stake_address, slot_no, txn_index, txo)
 );
 
-CREATE INDEX IF NOT EXISTS ON txo_assets_by_stake (stake_address);
+CREATE INDEX IF NOT EXISTS txo_assets_by_stake_stake_address_idx 
+    ON txo_assets_by_stake (stake_address);

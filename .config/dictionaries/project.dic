@@ -115,6 +115,7 @@ reqwest
 rfind
 rngs
 rollouts
+rusqlite
 rustc
 rustdoc
 rustdocflags

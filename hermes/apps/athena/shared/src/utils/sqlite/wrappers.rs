@@ -307,10 +307,10 @@ impl Row<'_> {
     ///
     /// ```
     /// # use shared::utils::sqlite::Row;
-    /// # fn example_fn(row: &Row) -> anyhow::Result<()> {
-    /// let (int, blob, opt_string) = row.values_as()?;
-    /// # Ok(())
-    /// # }
+    /// fn example_fn(row: &Row) -> anyhow::Result<(u16, Vec<u8>, Option<String>)> {
+    ///     let (int, blob, opt_string) = row.values_as()?;
+    ///     Ok((int, blob, opt_string))
+    /// }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
     where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {

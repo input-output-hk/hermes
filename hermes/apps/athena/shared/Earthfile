@@ -1,0 +1,17 @@
+VERSION 0.8
+
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.20 AS rust-ci
+
+# builder : Set up our target toolchains, and copy our files.
+builder-native:
+    DO rust-ci+SETUP
+    COPY --dir src .
+    COPY Cargo.toml .
+
+# check : Run check using the most efficient host tooling
+# CI Automated Entry point.
+check-native:
+    FROM +builder-native
+
+    DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
+

@@ -2,5 +2,5 @@ SELECT
     txn_id,
     txo,
     slot_no
-FROM txn_txi_id
+FROM txi_by_txn_id
 WHERE txn_id = ?;
