@@ -22,14 +22,14 @@ builder:
     COPY wasm+wasi-src/wasi $wasi_src_dir
     COPY --dir +workspace-src/* .
 
-# test-shared : runs native tests of the shared crate.
-test-shared:
+# check-shared : runs native unit tests of the shared crate.
+check-shared:
     FROM +builder
 
     DO rust-ci+CARGO --args="-p shared test"
 
-# test-shared-wasm32 : runs wasm32 tests of the shared crate.
-test-shared-wasm32:
+# check-shared-wasm32 : runs wasm32 unit tests of the shared crate.
+check-shared-wasm32:
     FROM +builder
 
     DO rust-ci+CARGO --args="-p shared test --target=wasm32-wasip2"
