@@ -398,6 +398,9 @@ impl Patcher {
             .chars()
         {
             end += 1;
+            // TODO[RC]: We need to be more cautious, since WAT supports both \" escapes in strings
+            // and ; arbitrary comments. See: https://webassembly.github.io/spec/core/text/values.html#strings
+            // Ultimately, this needs to be fixed by using a proper parser.
             if ch == '"' {
                 in_string = !in_string;
             }
