@@ -6,6 +6,9 @@ auditability
 autocheckpoint
 backpressure
 bech
+bignint
+bignums
+biguint
 bkioshn
 blockfetch
 blosc
@@ -158,6 +161,7 @@ txns
 txos
 unfinalized
 unlinkat
+unpadded
 usvg
 utimensat
 utoipa
