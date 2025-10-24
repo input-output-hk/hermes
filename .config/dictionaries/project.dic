@@ -95,6 +95,7 @@ Mitzenmacher
 mkcron
 mkdelay
 mkdirat
+multicodec
 multihash
 multihashes
 Namespacing
@@ -171,6 +172,7 @@ unsub
 usvg
 utimensat
 uuidv
+varint
 wasi
 wasip
 wasmparser

@@ -95,7 +95,7 @@ All messages are broadcasts on the following topic designations:
 
 No direct streams are required in this PoC; all reconciliation occurs on pub/sub.
 The broadcast nature of Pub/Sub is utilized to improve efficiency in the sync process by
-allowing all peers to observe the sync processes and pre-emptively update.
+allowing all peers to observe the sync processes and preemptively update.
 
 ### How multiple topics help the system scale
 
@@ -164,25 +164,28 @@ Topics that require verifiability SHOULD additionally subscribe to `<base>.prv` 
 * Peers SHOULD subscribe to `<base>.dif` only while reconciling (Diverged/Reconciling states) and
   SHOULD unsubscribe when Stable to reduce baseline traffic.
 
-Diagram — Subscribe/Unsubscribe During Sync
+#### Diagram — Subscribe/Unsubscribe During Sync
 
 ```mermaid
 sequenceDiagram
   participant P as Peer
   participant PS as PubSub
+  
   rect rgb(245,245,245)
     Note over P: Stable
-    P->>PS: sub(<base>.new)
-    P-x PS: (no sub to .syn/.dif)
+    P->>PS: sub(`<base>.new` + `<base>.syn`)
+    P-x PS: (no sub to `<base>.dif`)
   end
+
   Note over P: Diverged detected
-  P->>PS: sub(<base>.syn)
-  P->>PS: sub(<base>.dif)
-  P->>PS: pub .syn
+  P->>PS: sub(`<base>.dif`)
   PS-->>P: .dif (responses)
+  P->>PS: After Backoff Timeout:<br>pub `<base>.syn`
+  PS-->>P: .dif (responses)
+
   Note over P: Parity achieved
-  P->>PS: unsub(<base>.dif)
-  P->>PS: keep(<base>.new) and (<base>.syn)
+  P->>PS: unsub(`<base>.dif`)
+  P->>PS: keep(`<base>.new`) and (`<base>.syn`)
 ```
 
 ## Message Model
@@ -320,7 +323,8 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 uuid = #6.37(bytes .size 16) ; UUIDv7
 ```
 
-Note: Only CIDv1 with multihash sha2-256 is permitted for document CIDs in this PoC; implementations MUST reject other multihash functions.
+**Note:** *Only CIDv1 with multihash sha2-256 is permitted for document CIDs in this PoC;
+implementations MUST reject other multihash functions.*
 
 CIDv1 binary encoding (PoC focus)
 
