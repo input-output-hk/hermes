@@ -17,9 +17,19 @@ interface api {
         internal-redirect(string),
     }
 
-    /// Authentication request
+    variant auth-level {
+        /// Auth is required
+        required,
+        /// Auth is optional
+        optional,
+        /// Auth is not required
+        none,
+    }
+
     record auth-request {
-        /// Need only the header
+        /// HTTP request header
         headers: headers,
+        /// Auth level
+        auth-level: auth-level, 
     }
 }

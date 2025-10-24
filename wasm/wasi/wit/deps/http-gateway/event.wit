@@ -14,11 +14,12 @@ interface event {
 
 }
 
-/// Authentication event API Interface
+/// Auth event API Interface
 interface event-auth {
     use api.{auth-request, http-response};
-    /// Validate authentication for an HTTP request.
-    /// If there authentication is required, this event is called before routing to target modules.
+
+    /// Validate auth for an HTTP request.
+    /// This event is called before routing to target modules.
     validate-auth: func(request: auth-request) -> option<http-response>;
 
 }
