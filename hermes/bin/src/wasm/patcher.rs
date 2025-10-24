@@ -957,9 +957,6 @@ mod tests {
             // Step 1: Patch the WASM file
             let patcher = Patcher::from_file(file).expect("should create patcher");
             let result = patcher.patch().expect("should patch");
-
-            std::fs::write("big_patchet.wat", result.clone());
-
             let encoded = wat::parse_str(&result).expect("should encode");
 
             // Step 2: Instantiate the patched WASM
