@@ -25,10 +25,7 @@ mod token;
 mod utils;
 mod validation;
 
-use shared::{
-    bindings::hermes::cardano,
-    utils::log::{self, log_info},
-};
+use shared::{bindings::hermes::cardano, utils::log};
 
 use crate::{
     hermes::http_gateway::api::{AuthRequest, Bstr, HttpResponse},
@@ -79,6 +76,9 @@ impl AuthComponent {
 impl exports::hermes::http_gateway::event_auth::Guest for AuthComponent {
     fn validate_auth(request: AuthRequest) -> Option<HttpResponse> {
         log::init(log::LevelFilter::Info);
+
+        let network = cardano::api::CardanoNetwork::Preprod;
+        let token = extract_header!(request.headers, "Authorization", "Bearer");
 
         match request.auth_level {
             hermes::http_gateway::api::AuthLevel::Required => {

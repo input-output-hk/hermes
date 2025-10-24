@@ -256,7 +256,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use rand::rngs::OsRng;
     use rand::RngCore;
-    use std::time::Duration; // <-- added this
+    use std::time::Duration;
     use test_case::test_case;
 
     fn generate_signing_key() -> SigningKey {
