@@ -1,5 +1,7 @@
 //! Catalyst RBAC Token utility functions.
 
+// cSpell:ignoreRegExp cardano/Fftx
+
 use std::{
     fmt::{Display, Formatter},
     sync::LazyLock,
