@@ -19,8 +19,8 @@ const CORE_FUNC_REGEX: &str = r"\(func\s+\$[^\s()]+[^)]*\(;";
 const CORE_MODULE_MARKER: &str = "(core module (;";
 
 /// Regex to detect the aliases of core functions in the component part.
-/// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
-/// component structure.
+// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
+// component structure.
 const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
 /// Regex to detect the function export definitions in the component part.
@@ -60,8 +60,8 @@ const CORE_INJECTED_EXPORTS: &str = r#"
     "#;
 
 /// A template for the injected types, functions and exports in the component part.
-/// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
-/// component structure.
+// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
+// component structure.
 const COMPONENT_INJECTIONS: &str = r#"
     (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
