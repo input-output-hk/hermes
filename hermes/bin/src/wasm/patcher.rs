@@ -189,8 +189,8 @@ impl Patcher {
         } = self.split_into_parts()?;
 
         let module_0 = core_modules
-            .get(0)
-            .expect("should have first module")
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("should have at least one module"))?
             .to_owned();
 
         let module_0_last_parenthesis = module_0
@@ -259,6 +259,7 @@ impl Patcher {
         module_0.push_str(&core_export_injection);
         component_part.push_str(&component_injections);
 
+        #[allow(clippy::format_collect)]
         let other_modules = core_modules
             .iter()
             .skip(1)
@@ -439,8 +440,8 @@ impl Patcher {
                     .ok_or_else(|| anyhow::anyhow!("should have core module"))?
                     .to_string(),
             );
-            let core_module =
-                processed_component.replace_range(core_module_start..core_module_end, "---");
+
+            processed_component.replace_range(core_module_start..core_module_end, "---");
         }
 
         let module_start = self
@@ -628,10 +629,10 @@ mod tests {
             pre_core_component_part,
         } = patcher.split_into_parts().expect("should extract parts");
 
-        let module_0 = core_modules.get(0).expect("should have first module");
+        let module_0 = core_modules.first().expect("should have first module");
 
         assert_eq!(
-            strip_whitespaces(&module_0),
+            strip_whitespaces(module_0),
             strip_whitespaces(EXPECTED_CORE)
         );
         assert_eq!(
@@ -710,10 +711,10 @@ mod tests {
             pre_core_component_part,
         } = patcher.split_into_parts().expect("should extract parts");
 
-        let module_0 = core_modules.get(0).expect("should have first module");
+        let module_0 = core_modules.first().expect("should have first module");
 
         assert_eq!(
-            strip_whitespaces(&module_0),
+            strip_whitespaces(module_0),
             strip_whitespaces(EXPECTED_CORE)
         );
         assert_eq!(
