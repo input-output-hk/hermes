@@ -18,7 +18,6 @@ pub enum AuthLevel {
 
 If the rule for a specific path is not defined, the default level will be applied.
 
-
 ## Configuration File Format
 
 The `auth.json` file defines auth rules using the following structure:
