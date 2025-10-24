@@ -603,7 +603,7 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
-                )
+            )
             ";
 
         const EXPECTED_COMPONENT: &str = r#"
@@ -672,7 +672,7 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
-                )
+            )
             ";
 
         const EXPECTED_COMPONENT: &str = r#"
