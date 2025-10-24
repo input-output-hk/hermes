@@ -191,8 +191,7 @@ impl Patcher {
         let mut core_modules_iter = core_modules.into_iter();
         let module_0 = core_modules_iter
             .next()
-            .ok_or_else(|| anyhow::anyhow!("should have at least one module"))?
-            .clone();
+            .ok_or_else(|| anyhow::anyhow!("should have at least one module"))?;
 
         let module_0_last_parenthesis = module_0
             .rfind(')')
