@@ -49,7 +49,7 @@ sequenceDiagram
   alt roots differ
     Note over B: Broadcast on<br>`<base>.syn`
     B-->>PS: subscribe to `<base>.dif` during reconciling
-    B->>PS: `<base>.syn`<br>[peer A, root_B, count_B]
+    B->>PS: `<base>.syn`<br>[root=B, count=B,to=A,<br>?prefix=B,peer_root=A, peer_count=A]
     PS-->>A: .syn
     A-->>PS: subscribed to `<base>.dif` during reconciling
     rect rgb(245,245,245)
@@ -307,6 +307,7 @@ Topic-specific rules (e.g., `.dif` requiring `in_reply_to`, `.new` forbidding it
 **Semantics:** Announce documents and the sender’s resulting set summary.
 
 Payload-body Keys:
+<!--markdownlint-disable MD033-->
 
 | Index | Name | Type | Description |
 | --- | --- | --- | --- |
@@ -317,6 +318,7 @@ Payload-body Keys:
 | 5 | **ttl** | uint<br>*OPTIONAL* | seconds the manifest remains available.<br>The responder will keep the manifest block available for this time.<br>Time starts at the time represented by the envelope’s UUIDv7 (seq).<br>*[default 3600 (1 Hour) if not present]*. |
 | 6 | **in_reply_to** | UUIDv7 | `seq` of the `.syn` message which caused this message to be sent. (Not used in `.new`) |
 
+<!--markdownlint-enable MD033-->
 Either **docs** or **manifest** Must be present, and only one of them may be present.
 
 #### Document dissemination payload-body
@@ -449,14 +451,18 @@ When a manifest is used, this applies to the manifest CID itself and to every CI
 **Semantics:** Solicitation for reconciliation; requests a diff from peers.
 
 **Payload-body Keys:**
+<!--markdownlint-disable MD033-->
 
 | Index | Name | Type | Description |
 | --- | --- | --- | --- |
-| 1 | **root** | root-hash | BLAKE3-256 of the requesters’s SMT root |
-| 2 | **count** | uint | sender’s current document count |
-| 3 | **to**   | peer-pubkey | suggested target peer to respond |
-| 4 | **prefix**  | array of cidv1<br>*OPTIONAL* | Number of prefix document to validate against.<br>**MUST** be a power of two, with a max size of 16,384. |
+| 1 | **root** | root-hash | BLAKE3-256 of the requester’s SMT root |
+| 2 | **count** | uint | requester’s current document count |
+| 3 | **to**   | peer-pubkey | target peer to respond (required; hint only — other peers MAY reply) |
+| 4 | **prefix**  | array of prefix-hash<br>*OPTIONAL* | SMT node hashes at depth $D$, left-to-right across the tree.<br>Array length MUST be a power of two (2,4,8,…,16384). Include only when count > 64. |
+| 5 | **peer_root** | root-hash | last observed SMT root of the target peer (as believed by requester) |
+| 6 | **peer_count** | uint | last observed document count of the target peer (as believed by requester) |
 
+<!--markdownlint-enable MD033-->
 **Processing:**
 
 * Any peer MAY respond if it believes it can help reconcile;
@@ -467,13 +473,32 @@ When a manifest is used, this applies to the manifest CID itself and to every CI
 #### Determining the number of **prefix** entries in the message
 
 If there are ≤ 64 documents in the tree being solicited, then there are no **prefix** entries (the root suffices).
-If there are > 64, include a **prefix** array of length 2^D, where D ≥ 1.
+If there are > 64, include a **prefix** array of length $2^D$, where $D \ge 1$.
 
-Target bucket size is ~64 documents. When total docs N passes 64×2^D, increase depth to D+1 so the new average bucket size becomes ≈ N/2^(D+1) (~half the previous, trending back toward 64 as documents grow). This produces a stable oscillation between ~32 and ~64 per bucket and keeps reconciliation overhead predictable.
+Target bucket size is ~64 documents.
+When total docs $N$ passes $64\cdot 2^D$, increase depth to $D+1$ so the new average bucket size becomes $\approx N/2^{D+1}$
+(about half the previous, trending back toward 64 as documents grow).
+This produces a stable oscillation between ~32 and ~64 per bucket and keeps reconciliation overhead predictable.
 
 **Prefix Entries:**
 
-Prefix entries are the SMT node hashes at depth D across the tree from left to right (hence a power-of-two count). Each increment of D doubles the number of prefix hashes. For message-size constraints, D MUST NOT exceed 14 (max 16384 entries); deeper arrays risk exceeding the 1 MiB limit.
+Prefix entries are the SMT node hashes at depth D across the tree from left to right (hence a power-of-two count).
+Each increment of D doubles the number of prefix hashes.
+For message-size constraints, D MUST NOT exceed 14 (max 16384 entries); deeper arrays risk exceeding the 1 MiB limit.
+
+Note: Prefix hashes are computed over the requester’s own SMT at depth $D$;
+responders compare these against their corresponding nodes to locate mismatches.
+
+#### Prefix-depth selection for bucketization
+
+Depth $d$ is chosen based on the requester’s estimate of the responder’s document count $N$ (**peer_count**),
+targeting $\le 64$ items per bucket until a maximum depth is reached:
+
+1. Compute $d_{\mathrm{req}} = \left\lceil \log_2\!\left(\max(1, N / 64)\right) \right\rceil$.
+2. Set $d = \min\big(14,\; \max(1,\, d_{\mathrm{req}})\big)$.
+
+The **prefix** array then contains the $2^d$ SMT node hashes at depth $d$ (left→right).
+  Responders infer $d$ from the array length.
 
 #### CDDL — `.syn` payload-body
 
@@ -486,12 +511,16 @@ root = 1
 count = 2
 to = 3
 prefix = 4
+peer_root = 5
+peer_count = 6
 
 msg-syn = {
   root => root-hash,
   count => uint,
-  ? to => peer-pubkey,
-  ? prefix => prefix-array
+  to => peer-pubkey,
+  ? prefix => prefix-array,
+  peer_root => root-hash,
+  peer_count => uint
 }
 
 prefix-array =
@@ -537,7 +566,7 @@ sequenceDiagram
   participant D as DHT
   participant S as Responder(s)
   participant PS as PubSub
-  R->>PS: .syn [root_R, count_R]
+  R->>PS: .syn [to, root_R, count_R, peer_root, peer_count, prefix?]
   PS-->>S: .syn
   rect rgb(245,245,245)
     Note over S: Pre-publish check for .dif
@@ -552,10 +581,14 @@ sequenceDiagram
 
 ### .dif (topic `<base>.dif`)
 
-**Semantics:** Reconciliation reply;
-carries the same Document Dissemination payload as `.new`, but is sent specifically in response to a `.syn`.
+**Semantics:**
 
-**Payload-body:** Uses the shared Document Dissemination payload (see “Document Dissemination”).
+The Reconciliation reply.
+Carries the same Document Dissemination payload as `.new`, but is sent specifically in response to a `.syn`.
+
+**Payload-body:**
+
+Uses the shared Document Dissemination payload (see “Document Dissemination”).
 
 **Topic rules:**
 
@@ -563,22 +596,17 @@ carries the same Document Dissemination payload as `.new`, but is sent specifica
 * docs or manifest MUST be present (exactly one of them).
 * ttl SHOULD be present when manifest is used; responders MUST keep manifest blocks available for at least ttl seconds.
 
-Prefix-depth selection for bucketization
-
-* To keep diff sizes predictable, responders partition candidate CIDs by the
-  first d bits of `BLAKE3-256(CIDv1-bytes)` (prefix buckets).
-* Depth d is chosen based on the responder’s document count `N` to target ≤ 64 items per bucket until a maximum depth is reached:
-  * Compute `d_req = ceil(log2(max(1, N / 64)))`.
-  * Set `d = min(15, max(1, d_req))`.
-    * Minimum depth 1 (root plus two buckets).
-    * Maximum depth 15 (root plus 32k buckets); beyond 15, buckets may exceed 64 items.
-* When a manifest is used, the chosen `d` MUST be recorded in the manifest as `prefix_depth`
-  so receivers can reason about bucket sizing and structure.
-* Bucketization only affects grouping/chunking for transfer; receivers still fetch/pin CIDs and update their SMT normally.
+Responders infer the requested depth $d$ from the length of the `.syn` prefix array
+($2^d$) and reply with ALL documents that mismatch under that partitioning.
+On reception, the requesting peer will ignore any documents it already has and only apply missing documents.
+Sending all documents in a bucket ensures rapid convergence for all peers in the network.
 
 **Processing:**
 
-Publisher precondition (MUST): Prior to publishing a `.dif` with any `cidv1` (inline or via manifest), the responder MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the responder’s own.
+Prior to publishing a `.dif` with any `cidv1` (inline or via manifest),
+the responder MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then
+FindProviders(CID) and receiving at least one provider peer ID that is not the responder’s own.
+
 If not satisfied, retry with backoff before publishing.
 When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
 
@@ -587,7 +615,9 @@ When a manifest is used, this applies to the manifest CID itself and to every CI
 
 ### .prv (topic `<base>.prv`, OPTIONAL)
 
-**Semantics:** Request SMT inclusion proof(s) for a specific CID from one or more peers.
+**Semantics:**
+
+Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
 **Payload-body Keys:**
 
@@ -596,15 +626,19 @@ When a manifest is used, this applies to the manifest CID itself and to every CI
 * **cid** (3): cid1 — the document CID requested
 * **provers** (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
 * **hpke_pkR** (5): bytes .size 32 — requester’s ephemeral X25519 public key (REQUIRED)
-* Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff.
-  This avoids soliciting proofs for undiscoverable content.
-* Processing:
-  * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
-  * If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
-    responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
-  * `.prv` carries no updates by itself.
 
-CDDL — `.prv` payload-body
+Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure
+FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff.
+This avoids soliciting proofs for undiscoverable content.
+
+#### .prv Processing
+
+* If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
+* If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
+  responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
+* `.prv` carries no updates by itself.
+
+#### CDDL — `.prv` payload-body
 
 ```cddl
 ; self-contained types
@@ -933,7 +967,7 @@ kp-depth = 5
   * Responders SHOULD apply jitter and MAY suppress replies if another adequate
     `.dif` is seen for the same `.syn` to limit redundant manifests.
 * Prefix depth:
-  * Responders SHOULD select and record prefix_depth per the .dif rules above to keep per-bucket sizes ≲ 64 while depth ≤ 15.
+* Responders SHOULD select and record prefix_depth per the .syn rules above to keep per-bucket sizes ≲ 64 while depth ≤ 14.
 
 Diagram — Prefix Depth Selection
 
@@ -942,7 +976,7 @@ flowchart LR
   N[N = responder count] --> X{N <= 64?}
   X -- Yes --> D1[d = 1]
   X -- No --> C1[compute d_req = ceil(log2(N/64))]
-  C1 --> CL[clamp d = min(15, max(1, d_req))]
+  C1 --> CL[clamp d = min(14, max(1, d_req))]
   CL --> OUT[d used for bucketization\nrecord in manifest as prefix_depth]
 ```
 
