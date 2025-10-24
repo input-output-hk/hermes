@@ -340,8 +340,20 @@ References
 * Multicodec table: <https://github.com/multiformats/multicodec>
 * Multihash specification: <https://github.com/multiformats/multihash>
 
-Diagram — Choosing docs vs.
-manifest
+##### Diagram — Choosing docs vs manifest
+
+Pre-publication availability check **(MUST)**
+
+Before announcing or referencing a document CID on the network (i.e., publishing a payload on `.new`, `.dif`, or `.prv` that contains a `cidv1` either inline or via a manifest),
+the publishing peer MUST ensure the CID is discoverable via the DHT by:
+
+* Providing the CID (announce provider records) to the DHT, and
+* Successfully calling FindProviders(CID) and obtaining at least one provider peer ID that is NOT the publisher’s own peer ID.
+
+If this check fails, the publisher MUST retry Provide/FindProviders with backoff before sending the announcement.
+For manifests, this requirement applies to the manifest CID itself and to every CID listed within the manifest.
+
+Rationale: This ensures receiving peers can discover and fetch/pin the referenced content promptly after observing the announcement.
 
 ```mermaid
 flowchart TD
@@ -379,6 +391,8 @@ flowchart TD
 * ttl MAY be omitted on `.new`; if present, it is only advisory for manifests.
 
 **Processing:**
+
+Publisher precondition (MUST): Prior to publishing a `.new` with any `cidv1` (inline or via manifest), the publisher MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the publisher’s own. If not satisfied, retry with backoff before publishing. When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
 
 1. Fetch and pin all CIDs from docs or manifest before insertion.
 2. Atomic pinning: if any CID cannot be fetched and pinned within the pinning retry window,
@@ -473,6 +487,8 @@ Prefix-depth selection for bucketization
 
 **Processing:**
 
+Publisher precondition (MUST): Prior to publishing a `.dif` with any `cidv1` (inline or via manifest), the responder MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the responder’s own. If not satisfied, retry with backoff before publishing. When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
+
 * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
 * Observers MAY also use `.dif` to converge faster.
 
@@ -487,6 +503,7 @@ Prefix-depth selection for bucketization
 * **cid** (3): cid1 — the document CID requested
 * **provers** (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
 * **hpke_pkR** (5): bytes .size 32 — requester’s ephemeral X25519 public key (REQUIRED)
+* Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff. This avoids soliciting proofs for undiscoverable content.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
   * If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
