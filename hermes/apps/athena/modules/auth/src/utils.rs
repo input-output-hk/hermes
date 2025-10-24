@@ -57,7 +57,7 @@ mod tests {
     #[test_case(
         vec![
             ("content-type".to_string(), vec!["application/json".to_string()]),
-            ("authorization".to_string(), vec!["Basic dXNlcjpwYXNz".to_string()]),
+            ("authorization".to_string(), vec!["Basic dXYXNz".to_string()]),
         ],
         "authorization",
         "Bearer ",
