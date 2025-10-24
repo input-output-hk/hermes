@@ -466,26 +466,14 @@ When a manifest is used, this applies to the manifest CID itself and to every CI
 
 #### Determining the number of **prefix** entries in the message
 
-IF there are less than 64 documents in the tree being solicited, then there are not **prefix** entries, as the root suffices.
-At more than 64, there needs to be 2 or more entries.
+If there are ≤ 64 documents in the tree being solicited, then there are no **prefix** entries (the root suffices).
+If there are > 64, include a **prefix** array of length 2^D, where D ≥ 1.
 
-**Behavior:**
-
-* Suppose target max = 64 docs/bucket.
-* When total docs N passes 64×2^D, you increment depth to D+1.
-* New average bucket size = N/2^(D+1) =~ Half the previous load (=~32)
-* As more documents arrive, buckets fill back up toward 64 before the next depth increase.
-
-**Effect:**
-
-The system oscillates between ~32 → 64 documents per bucket—stable, bounded, and logarithmic in total size.
-That keeps both proof payloads and reconciliation overhead under control without complex tuning.
+Target bucket size is ~64 documents. When total docs N passes 64×2^D, increase depth to D+1 so the new average bucket size becomes ≈ N/2^(D+1) (~half the previous, trending back toward 64 as documents grow). This produces a stable oscillation between ~32 and ~64 per bucket and keeps reconciliation overhead predictable.
 
 **Prefix Entries:**
 
-Prefix Entries are the Hashes of the Sparse Merkle Tree at that depth across the tree from left to right.
-This is why the number of entries must be a power of 2.
-Each new depth doubles the number of hashes across the tree at that depth.
+Prefix entries are the SMT node hashes at depth D across the tree from left to right (hence a power-of-two count). Each increment of D doubles the number of prefix hashes. For message-size constraints, D MUST NOT exceed 14 (max 16384 entries); deeper arrays risk exceeding the 1 MiB limit.
 
 #### CDDL — `.syn` payload-body
 
@@ -493,7 +481,7 @@ Each new depth doubles the number of hashes across the tree at that depth.
 ; Payload body fits within the Common Message Envelope
 payload-body = msg-syn
 
-; numeric
+; numeric keys
 root = 1
 count = 2
 to = 3
@@ -502,31 +490,30 @@ prefix = 4
 msg-syn = {
   root => root-hash,
   count => uint,
-  to => peer-pubkey,
+  ? to => peer-pubkey,
   ? prefix => prefix-array
 }
 
-prefix-array = [
-  2* prefix-hash,
-  / 4* prefix-hash,
-  / 8* prefix-hash,
-  / 16* prefix-hash,
-  / 32* prefix-hash,
-  / 64* prefix-hash,
-  / 128* prefix-hash,
-  / 256* prefix-hash,
-  / 512* prefix-hash,
-  / 1024* prefix-hash,
-  / 2048* prefix-hash,
-  / 4096* prefix-hash,
-  / 8192* prefix-hash,
-  / 16384* prefix-hash
-]
+prefix-array =
+    [ 2*2 prefix-hash ]
+  / [ 4*4 prefix-hash ]
+  / [ 8*8 prefix-hash ]
+  / [ 16*16 prefix-hash ]
+  / [ 32*32 prefix-hash ]
+  / [ 64*64 prefix-hash ]
+  / [ 128*128 prefix-hash ]
+  / [ 256*256 prefix-hash ]
+  / [ 512*512 prefix-hash ]
+  / [ 1024*1024 prefix-hash ]
+  / [ 2048*2048 prefix-hash ]
+  / [ 4096*4096 prefix-hash ]
+  / [ 8192*8192 prefix-hash ]
+  / [ 16384*16384 prefix-hash ]
 
 ; self-contained types
 blake3-256 = bytes .size 32 ; BLAKE3-256 output
 root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
-prefix-hash = blake3-256      ; Prefix hash of the Sparse Merkle Tree
+prefix-hash = blake3-256    ; Node hash at depth D (prefix bucket) of the SMT
 ed25519-pubkey = bytes .size 32
 peer-pubkey = ed25519-pubkey
 ```
