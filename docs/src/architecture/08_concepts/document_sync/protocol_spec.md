@@ -94,6 +94,8 @@ All messages are broadcasts on the following topic designations:
 * `<base>.prf` : *OPTIONAL* proof replies containing SMT proofs
 
 No direct streams are required in this PoC; all reconciliation occurs on pub/sub.
+The broadcast nature of Pub/Sub is utilized to improve efficiency in the sync process by
+allowing all peers to observe the sync processes and pre-emptively update.
 
 ### How multiple topics help the system scale
 
@@ -314,11 +316,25 @@ doc-dissemination-body = ({
 ; self-contained types
 blake3-256 = bytes .size 32 ; BLAKE3-256 output
 root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); only sha2-256 or ed25519 multihash permitted
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 uuid = #6.37(bytes .size 16) ; UUIDv7
 ```
 
-Note: Only CIDv1 multihashes sha2-256 and ed25519 are permitted; implementations MUST reject other multihash functions.
+Note: Only CIDv1 with multihash sha2-256 is permitted for document CIDs in this PoC; implementations MUST reject other multihash functions.
+
+CIDv1 binary encoding (PoC focus)
+
+* Layout (packed bytes): `cidv1 = varint(1) || varint(multicodec) || multihash`.
+* Multihash for this PoC MUST be sha2-256 with a 32-byte digest:
+  * `multihash = varint(0x12) || varint(32) || digest[32]`.
+* Length varies slightly (36..40 bytes) due to varint encoding of the multicodec field.
+* We do not accept other multihash functions in this PoC.
+
+References
+
+* CIDv1 specification: <https://github.com/multiformats/cid>
+* Multicodec table: <https://github.com/multiformats/multicodec>
+* Multihash specification: <https://github.com/multiformats/multihash>
 
 Diagram — Choosing docs vs.
 manifest
@@ -661,8 +677,9 @@ stateDiagram-v2
 
 * Purpose: Order-independent, append-only set with inclusion and non-inclusion proofs.
 
-* Keying: For each CID, compute key `k = BLAKE3-256(CIDv1-bytes)`.
-  Implementations MUST convert CIDs to their binary CIDv1 representation before hashing.
+* Keying (PoC restriction): For each document CID, require CIDv1 with multihash function sha2-256 (32-byte digest).
+  Extract the multihash digest and use it directly as the SMT key `k` (no re-hashing).
+  Non-conforming CIDs MUST be rejected.
 * Depth: 256 levels (one per bit of `k`).
 * Hash function: BLAKE3-256 (fixed 32-byte output).
 * Domain separation:
@@ -744,7 +761,7 @@ sequenceDiagram
 
 * Proofs use numeric keys with named constants (see CDDL):
   * kp-type (1): uint — 0 = inclusion, 1 = non-inclusion
-  * kp-k (2): bytes .size 32 — k = BLAKE3-256(CIDv1-bytes)
+* kp-k (2): bytes .size 32 — k = sha2-256 multihash digest from the CIDv1 (32 bytes)
   * kp-siblings (3): array of bytes .size 32 — ordered from leaf upward (LSB-first)
   * kp-leaf (4) OPTIONAL: bytes .size 32 — LeafHash; MAY be omitted
   * kp-depth (5) OPTIONAL: uint — defaults to 256 if omitted
@@ -922,6 +939,8 @@ Diagnostic example (decoded):
 
 * Deterministic CBOR encoding is required for all payloads and manifests.
   CIDs MUST be CIDv1; CID arrays must contain their binary representations.
+* PoC CID restriction: Document CIDs MUST be CIDv1 with multihash sha2-256 (32-byte digest).
+  Other multihash functions are not accepted in this version.
 * SMT hashing MUST be BLAKE3-256 exactly as specified; mixing hash functions will produce incompatible roots and proofs.
 
 ## Extensibility
@@ -939,6 +958,8 @@ Diagnostic example (decoded):
 * BLAKE3: O'Connor et al., <https://github.com/BLAKE3-team/BLAKE3> (specification and reference implementations).
 * Deterministic CBOR: RFC 8949, Sections 4.2.1–4.2.3 (length-first core deterministic encoding).
   Tags MUST appear only when specified by the CDDL; otherwise tags are omitted.
+* CID/multihash: Document CIDs MUST be CIDv1 with multihash sha2-256 (32-byte digest) in this PoC.
+  See <https://github.com/multiformats/cid> and <https://github.com/multiformats/multihash>.
 
 ## Open Questions
 
