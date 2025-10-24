@@ -621,11 +621,11 @@ Request SMT inclusion proof(s) for a specific CID from one or more peers.
 
 **Payload-body Keys:**
 
-* **root** (1): root32 — requester’s current root
-* **count** (2): uint — requester’s current count
-* **cid** (3): cid1 — the document CID requested
-* **provers** (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
-* **hpke_pkR** (5): bytes .size 32 — requester’s ephemeral X25519 public key (REQUIRED)
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **cid** | cidv1 | the document CID requested |
+| 2 | **hpke_pkR** | bytes .size 32 | requester’s ephemeral X25519 public key (REQUIRED) |
+| 3 | **provers** | array of peer-pubkey | OPTIONAL — explicit peers asked to respond |
 
 Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure
 FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff.
@@ -633,40 +633,47 @@ This avoids soliciting proofs for undiscoverable content.
 
 #### .prv Processing
 
-* If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
-* If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
-  responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
+* If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore.
+* If `provers` is absent, ALL enrolled provers that are subscribed to `<base>.prv` SHOULD reply (after normal jitter).
+  Peers that are not provers (e.g., nodes that temporarily subscribe only to issue a request) MUST NOT reply.
+* Responders DO NOT suppress based on other `.prf` replies (multiple independent proofs are acceptable).
 * `.prv` carries no updates by itself.
 
 #### CDDL — `.prv` payload-body
 
 ```cddl
-; self-contained types
-root32 = bytes .size 32
-cid1 = bytes
-peer-pubkey = bytes .size 32
+; Payload body fits within the Common Message Envelope
+payload-body = msg-prv
 
-msg-prv = payload-body
 ; numeric keys
-root = 1
-count = 2
-cid = 3
-provers = 4
-hpke_pkR = 5
+cid = 1
+hpke_pkR = 2
+provers = 3
 
-payload-body = {
-  root => root32,
-  count => uint,
-  cid => cid1,
+msg-prv = {
+  cid => cidv1,
+  hpke_pkR => x25519-pubkey
   ? provers => [* peer-pubkey],
-  hpke_pkR => bytes .size 32
 }
+
+; self-contained types
+x25519-pubkey = bytes .size 32
+ed25519-pubkey = bytes .size 32
+peer-pubkey = ed25519-pubkey
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 ```
 
-Diagnostic example (payload-body decoded):
+#### Diagnostic example (payload-body decoded)
 
 ```cbor
-{ 1: h'dddd...dddd', 2: 200, 3: h'05e8...cid1', 4: [ h'aa11bb22', h'cc33dd44' ], 5: h'5566...' }
+{ 
+  1: h'05e8...cid1', 
+  2: h'5566...',
+  3: [ 
+    h'aa11bb22', 
+    h'cc33dd44' 
+  ]
+}
 ```
 
 ### .prf (topic `<base>.prf`, OPTIONAL)
@@ -675,12 +682,15 @@ Diagnostic example (payload-body decoded):
 
 **Payload-body Keys:**
 
-* **root** (1): root32 — responder’s current root at proof time
-* **count** (2): uint — responder’s current count
-* **in_reply_to** (3): uuid — UUIDv7 of the `.prv` being answered
-* **cid** (4): cid1 — the requested document CID
-* **hpke_enc** (5): bytes .size 32 — responder’s HPKE encapsulated ephemeral public key (REQUIRED)
-* **ct** (6): bytes — HPKE ciphertext of the proof payload (REQUIRED)
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **root** | root32 | responder’s current SMT root at proof time |
+| 2 | **count** | uint | responder’s current document count |
+| 3 | **in_reply_to** | uuid | UUIDv7 of the `.prv` being answered |
+| 4 | **cid** | cid1 | the requested document CID |
+| 5 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
+| 6 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
+
 * Processing:
   * Only the requester possessing the matching X25519 private key can decrypt `ct`.
   * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
@@ -897,7 +907,7 @@ sequenceDiagram
   participant V as Prover (Responder)
   participant PS as PubSub
   Note over R: generate X25519 ephemeral (hpke_pkR)
-  R->>PS: .prv [root_R, count_R, cid, hpke_pkR, provers?]
+  R->>PS: .prv [cid, hpke_pkR, provers?]
   PS-->>V: .prv
   Note over V: HPKE seal (hpke_enc, ct = Enc(proof))
   V->>PS: .prf [root_V, count_V, in_reply_to, cid, hpke_enc, ct]
