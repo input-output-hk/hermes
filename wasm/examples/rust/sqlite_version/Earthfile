@@ -1,0 +1,7 @@
+VERSION 0.8
+
+IMPORT ../../../wasi AS wasi
+
+# build - builds the "sqlite_version" example Rust wasm component
+build:
+    DO wasi+BUILD_RUST_COMPONENT --wasi-src-dir=../../../wasi --out=sqlite_version_rs.wasm

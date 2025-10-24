@@ -2,7 +2,6 @@
 //! This runs each wasm file as a separate anonymous application.
 
 use std::{
-    collections::HashMap,
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
@@ -17,6 +16,7 @@ use crate::{
     app::{Application, ApplicationName},
     event::queue::Exit,
     ipfs, pool, reactor,
+    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -35,8 +35,12 @@ use crate::{
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(clap::Args)]
 pub struct Playground {
-    /// Wasm components to load as apps in this example.
+    /// Wasm components to load as apps in this example
     components: Vec<PathBuf>,
+
+    /// Select the name for the app.
+    #[arg(long, default_value = "playground-app")]
+    app_name: String,
 
     /// Shutdown the playground after the timeout (milliseconds)
     #[arg(long)]
@@ -46,28 +50,27 @@ pub struct Playground {
 impl Playground {
     /// Run playground CLI command
     pub fn exec(self) -> anyhow::Result<Exit> {
+        let exit_lock = reactor::init()?;
+
         println!("{} Running a playground...", Emoji::new("✨", ""));
+
+        ensure!(
+            !self.components.is_empty(),
+            "At least one component is required to run"
+        );
 
         let temp_dir = TempDir::new()?;
 
-        let apps = collect_apps(&self.components, &temp_dir)?;
-        ensure!(!apps.is_empty(), "At least one app is required to run");
+        let app =
+            create_and_init_app_with_temp_dir_vfs(self.app_name, &self.components, &temp_dir)?;
 
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        let exit_lock = reactor::init()?;
         pool::init()?;
-        println!(
-            "{} Loading {} application(s)...",
-            Emoji::new("🛠️", ""),
-            apps.len(),
-        );
-        for app in apps {
-            // TODO[RC]: Prevent the app from receiving any events until it is fully initialized.
-            // TODO[RC]: Currently, when a module fails to initialize, the whole app fails to run.
-            reactor::load_app(app)?;
-        }
+        println!("{} Loading an application...", Emoji::new("🛠️", ""),);
+
+        reactor::load_app(app)?;
 
         let exit = if let Some(timeout_ms) = self.timeout_ms {
             exit_lock.wait_timeout(Duration::from_millis(timeout_ms))
@@ -77,6 +80,7 @@ impl Playground {
 
         // Wait for scheduled tasks to be finished.
         pool::terminate();
+        reactor::drop_all_apps()?;
         Ok(exit)
     }
 }
@@ -98,7 +102,7 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
     // Collect component files
     for file_path in components {
         let name = file_path
-            .file_name()
+            .file_stem()
             .and_then(OsStr::to_str)
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
@@ -111,21 +115,23 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
     Ok(modules)
 }
 
-/// Create one-module application with temp directory VFS.
-fn create_one_module_app(
-    name: &str,
+/// Create an application with provided VFS.
+fn create_app(
+    app_name: String,
     vfs_dir_path: &Path,
-    module: Module,
+    named_modules: Vec<(String, Module)>,
 ) -> anyhow::Result<Application> {
-    let vfs_name = [name, "_vfs"].concat();
+    let vfs_name = [&app_name, "_vfs"].concat();
     let vfs = VfsBootstrapper::new(vfs_dir_path, vfs_name).bootstrap()?;
-    let module_registry = HashMap::from_iter([(name.to_string(), module.id().clone())]);
-    let app = Application::new(
-        ApplicationName::new(name),
-        vfs,
-        vec![module],
-        module_registry,
-    );
+    let module_registry = named_modules
+        .iter()
+        .map(|(name, module)| (name.to_owned(), module.id().clone()))
+        .collect();
+    let modules = named_modules
+        .into_iter()
+        .map(|(_, module)| module)
+        .collect();
+    let app = Application::new(ApplicationName(app_name), vfs, modules, module_registry);
 
     Ok(app)
 }
@@ -141,18 +147,18 @@ fn create_temp_dir_child(
 }
 
 /// Collects `.wasm` files in the current directory or sub-directories of the current
-/// directory. Then creates one-module applications out of each of them.
-fn collect_apps(
+/// directory. Then creates an applications out of all of them.
+fn create_and_init_app_with_temp_dir_vfs(
+    app_name: String,
     components: &[PathBuf],
     temp_dir: &TempDir,
-) -> anyhow::Result<Vec<Application>> {
-    let modules = collect_modules(components)?;
-    let mut apps = Vec::with_capacity(modules.len());
-    for (module_name, module) in modules {
-        let vfs_dir_path =
-            create_temp_dir_child(temp_dir, Path::new("vfs").join(&module_name).as_path())?;
-        let app = create_one_module_app(&module_name, vfs_dir_path.as_path(), module)?;
-        apps.push(app);
-    }
-    Ok(apps)
+) -> anyhow::Result<Application> {
+    let named_modules = collect_modules(components)?;
+
+    let vfs_dir_path = create_temp_dir_child(temp_dir, Path::new("vfs"))?;
+    let app = create_app(app_name, &vfs_dir_path, named_modules)?;
+
+    RteApp::new().init(app.name())?;
+
+    Ok(app)
 }

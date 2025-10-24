@@ -1,0 +1,19 @@
+[package]
+name = "sqlite_version"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+# The name of the built .wasm file.
+# Keep it consistent with Earthly build output name.
+name = "sqlite_version_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.46.0"
+
+[profile.release]
+# Significantly reduces WASM size.
+lto = true
+# Further reduces WASM size.
+opt-level = "z"

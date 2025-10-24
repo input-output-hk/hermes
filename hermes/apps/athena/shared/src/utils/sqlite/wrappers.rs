@@ -1,8 +1,9 @@
 //! Wrapped sqlite internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
 
-use std::{array, marker::PhantomData, ops::Deref};
+use std::{array, marker::PhantomData};
 
 use anyhow::{anyhow, Context as _};
+use derive_more::{Deref, DerefMut};
 
 use crate::bindings::hermes::sqlite::api;
 
@@ -70,9 +71,10 @@ impl Drop for Connection {
 /// Sqlite transaction.
 /// Implements [`Deref`] to [`Connection`].
 /// Automatically does rollback on drop.
+#[derive(Deref, DerefMut)]
 pub struct Transaction<'conn>(&'conn mut Connection);
 
-impl<'conn> Transaction<'conn> {
+impl Transaction<'_> {
     /// Explicitly consume and rollback transaction.
     pub fn rollback(self) -> anyhow::Result<()> {
         self.0.rollback()
@@ -84,15 +86,7 @@ impl<'conn> Transaction<'conn> {
     }
 }
 
-impl<'conn> Deref for Transaction<'conn> {
-    type Target = Connection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'conn> Drop for Transaction<'conn> {
+impl Drop for Transaction<'_> {
     fn drop(&mut self) {
         let _ = self.0.rollback();
     }
@@ -121,7 +115,7 @@ impl Statement<'_> {
             .ok_or_else(|| anyhow!("Stepped into finalized statement"))
             .and_then(|stmt| {
                 params
-                    .into_iter()
+                    .iter()
                     .zip(1u32..)
                     .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
@@ -161,6 +155,31 @@ impl Statement<'_> {
         T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
     {
         self.query_one(params, |row| row.try_into())
+    }
+
+    /// Binds provided parameters and executes the statement.
+    pub fn execute(
+        &mut self,
+        params: &[&api::Value],
+    ) -> anyhow::Result<()> {
+        self.query(params)?.step().map(drop)
+    }
+
+    /// For each provided array of parameters binds them and executes the statement.
+    ///
+    /// When one of the executions fails, immediately returns.
+    /// Always returns the number of successful executions.
+    pub fn execute_iter<const N: usize>(
+        &mut self,
+        params: impl IntoIterator<Item: TryInto<[api::Value; N], Error = anyhow::Error>>,
+    ) -> Result<usize, (usize, anyhow::Error)> {
+        params
+            .into_iter()
+            .map(|p| p.try_into().and_then(|p| self.execute(&p.each_ref())))
+            .try_fold(0, |num_successful, res| {
+                res.map(|()| num_successful + 1)
+                    .map_err(|err| (num_successful, err))
+            })
     }
 }
 
@@ -288,10 +307,10 @@ impl Row<'_> {
     ///
     /// ```
     /// # use shared::utils::sqlite::Row;
-    /// # fn example_fn(row: &Row) -> anyhow::Result<()> {
-    /// let (int, blob, opt_string) = row.values_as()?;
-    /// # Ok(())
-    /// # }
+    /// fn example_fn(row: &Row) -> anyhow::Result<(u16, Vec<u8>, Option<String>)> {
+    ///     let (int, blob, opt_string) = row.values_as()?;
+    ///     Ok((int, blob, opt_string))
+    /// }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
     where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {

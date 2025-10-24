@@ -6,10 +6,18 @@ use crate::{
     app::ApplicationName,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        hermes::sqlite::state::resource_manager::init_app_state,
+        bindings::hermes::sqlite::api::Errno,
+        hermes::sqlite::{
+            connection::core::close_and_remove_all, kernel::open_with_persistent_memory,
+            state::resource_manager::init_app_state,
+        },
         init::{
-            errors::RteInitResult, trait_app::RteInitApp, trait_event::RteInitEvent,
-            trait_module::RteInitModule, trait_runtime::RteInitRuntime,
+            errors::{RteInitResult, RuntimeExtensionErrors},
+            metadata::RteMetadata,
+            trait_app::RteInitApp,
+            trait_event::RteInitEvent,
+            trait_module::RteInitModule,
+            trait_runtime::RteInitRuntime,
         },
     },
     wasm::module::ModuleId,
@@ -29,7 +37,30 @@ struct RteSqlite;
 impl RteInitRuntime for RteSqlite {}
 
 #[traitreg::register(default)]
-impl RteInitApp for RteSqlite {}
+impl RteInitApp for RteSqlite {
+    fn fini(
+        self: Box<Self>,
+        name: &ApplicationName,
+    ) -> RteInitResult {
+        debug!(%name,"Hermes Runtime Extensions Finalizing: App");
+
+        // Cleaning up app-memory.
+        match open_with_persistent_memory(true, true, name.clone()) {
+            Ok(db_ptr) => close_and_remove_all(db_ptr),
+            // App didn't have any in-memory connections – ok.
+            // See <https://sqlite.org/rescode.html>.
+            Err(Errno::Sqlite(14)) => Ok(()),
+            Err(err) => Err(anyhow::Error::from(err)),
+        }
+        .map_err(|err| {
+            let errors = RuntimeExtensionErrors::new();
+            crate::add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
+                description: err.to_string()
+            });
+            errors
+        })
+    }
+}
 
 #[traitreg::register(default)]
 impl RteInitModule for RteSqlite {

@@ -39,6 +39,8 @@ impl Run {
     #[allow(unreachable_code)]
     /// Run the hermes application
     pub(crate) fn exec(self) -> anyhow::Result<Exit> {
+        let exit_lock = reactor::init()?;
+
         for cert_path in self.certificates {
             let cert = Certificate::from_file(cert_path)?;
             certificate::storage::add_certificate(cert)?;
@@ -55,7 +57,6 @@ impl Run {
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
         let app = build_app(&package, hermes_home_dir)?;
 
-        let exit_lock = reactor::init()?;
         pool::init()?;
         println!(
             "{} Loading application {}...",

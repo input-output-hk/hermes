@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust, no_run, ignore-x86_64, ignore-aarch64
 //! shared::bindings_generate!({
 //!     world: "hermes:app/hermes",
 //!     path: "../../../../wasm/wasi/wit",
@@ -48,4 +48,5 @@
 //! ```
 
 pub mod bindings;
+pub mod database;
 pub mod utils;
