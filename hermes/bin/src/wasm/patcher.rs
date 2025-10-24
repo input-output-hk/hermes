@@ -188,10 +188,11 @@ impl Patcher {
             core_modules,
         } = self.split_into_parts()?;
 
-        let module_0 = core_modules
-            .first()
+        let mut core_modules_iter = core_modules.into_iter();
+        let module_0 = core_modules_iter
+            .next()
             .ok_or_else(|| anyhow::anyhow!("should have at least one module"))?
-            .to_owned();
+            .clone();
 
         let module_0_last_parenthesis = module_0
             .rfind(')')
@@ -260,9 +261,7 @@ impl Patcher {
         component_part.push_str(&component_injections);
 
         #[allow(clippy::format_collect)]
-        let other_modules = core_modules
-            .iter()
-            .skip(1)
+        let other_modules = core_modules_iter
             .map(|m| format!("    {m}\n"))
             .collect::<String>();
 
