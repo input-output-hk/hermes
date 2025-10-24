@@ -68,9 +68,11 @@ impl AuthResponse {
             AuthResponse::ServiceUnavailable(msg) => {
                 serde_json::to_string(&serde_json::json!({"Service Unavailable": msg.to_string()}))
             },
-            AuthResponse::InternalServerError(msg) => serde_json::to_string(
-                &serde_json::json!({"Internal Server Error": msg.to_string()}),
-            ),
+            AuthResponse::InternalServerError(msg) => {
+                serde_json::to_string(
+                    &serde_json::json!({"Internal Server Error": msg.to_string()}),
+                )
+            },
         }
     }
 }

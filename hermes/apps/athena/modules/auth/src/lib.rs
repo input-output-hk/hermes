@@ -40,21 +40,21 @@ struct AuthComponent;
 impl AuthComponent {
     /// Create an HTTP response from AuthResponse
     fn make_response(auth: &AuthResponse) -> HttpResponse {
-        let headers = vec![(
-            "content-type".to_string(),
-            vec!["application/json".to_string()],
-        )];
+        let headers = vec![("content-type".to_string(), vec![
+            "application/json".to_string()
+        ])];
         // Attempt to serialize, fallback to 500 if it fails
-        let (code, body) = match auth.to_json() {
-            Ok(body) => (auth.status_code(), body),
-            Err(e) => (
-                AuthResponse::InternalServerError(e.to_string()).status_code(),
-                serde_json::json!({
-                    "error": format!("Internal Server Error: Failed to serialize response: {e}")
-                })
-                .to_string(),
-            ),
-        };
+        let (code, body) =
+            match auth.to_json() {
+                Ok(body) => (auth.status_code(), body),
+                Err(e) => (
+                    AuthResponse::InternalServerError(e.to_string()).status_code(),
+                    serde_json::json!({
+                        "error": format!("Internal Server Error: Failed to serialize response: {e}")
+                    })
+                    .to_string(),
+                ),
+            };
         HttpResponse {
             code,
             headers,

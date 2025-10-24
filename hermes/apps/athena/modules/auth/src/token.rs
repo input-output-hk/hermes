@@ -1,7 +1,5 @@
 //! Catalyst RBAC Token utility functions.
 
-// cSpell:ignoreRegExp cardano/Fftx
-
 use std::{
     fmt::{Display, Formatter},
     sync::LazyLock,
@@ -54,6 +52,7 @@ impl CatalystRBACTokenV1 {
     const AUTH_TOKEN_PREFIX: &str = "catid.";
 
     /// Creates a new token instance.
+    #[allow(dead_code)]
     pub(crate) fn new(
         network: &str,
         subnet: Option<&str>,
@@ -89,6 +88,7 @@ impl CatalystRBACTokenV1 {
     ///
     /// For example:
     /// ```
+    // cspell:disable-next-line
     /// catid.:173710179@preprod.cardano/FftxFnOrj2qmTuB2oZG2v0YEWJfKvQ9Gg8AgNAhDsKE.<signature>
     /// ```
     pub(crate) fn parse(token: &str) -> anyhow::Result<CatalystRBACTokenV1> {
@@ -253,13 +253,14 @@ fn convert_network((network, subnet): &(String, Option<String>)) -> anyhow::Resu
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::Duration;
+
     use chrono::{Duration as ChronoDuration, Utc};
     use ed25519_dalek::SigningKey;
-    use rand::rngs::OsRng;
-    use rand::RngCore;
-    use std::time::Duration;
+    use rand::{rngs::OsRng, RngCore};
     use test_case::test_case;
+
+    use super::*;
 
     fn generate_signing_key() -> SigningKey {
         let mut rng = OsRng;

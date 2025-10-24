@@ -9,13 +9,12 @@ use shared::{
     utils::{log::warn, sqlite::open_db_connection},
 };
 
+use super::token::CatalystRBACTokenV1;
 use crate::{
     api_keys::check_api_key,
     hermes::http_gateway::api::Headers,
     response::{AuthResponse, AuthTokenAccessViolation, AuthTokenError},
 };
-
-use super::token::CatalystRBACTokenV1;
 
 /// Time in the past the Token can be valid for.
 const MAX_TOKEN_AGE: Duration = Duration::from_secs(60 * 60); // 1 hour.
@@ -64,7 +63,7 @@ pub fn checker_api_catalyst_auth(
 
     // Step 9: Verify the signature against the Role 0 pk.
 
-    if let Err(_) = token.verify(&latest_pk) {
+    if token.verify(&latest_pk).is_err() {
         warn!("Invalid signature for token: {token}");
         return AuthResponse::Forbidden(AuthTokenAccessViolation(vec![
             "INVALID SIGNATURE".to_string()
@@ -99,11 +98,15 @@ fn get_registration(
 
     match token.reg_chain(&persistent, &volatile, &network_resource) {
         Ok(Some(chain)) => Ok(chain),
-        Ok(None) => Err(AuthResponse::Unauthorized(
-            AuthTokenError::RegistrationNotFound,
-        )),
-        Err(e) => Err(AuthResponse::Unauthorized(AuthTokenError::BuildRegChain(
-            e.to_string(),
-        ))),
+        Ok(None) => {
+            Err(AuthResponse::Unauthorized(
+                AuthTokenError::RegistrationNotFound,
+            ))
+        },
+        Err(e) => {
+            Err(AuthResponse::Unauthorized(AuthTokenError::BuildRegChain(
+                e.to_string(),
+            )))
+        },
     }
 }

@@ -7,7 +7,6 @@
 use std::env;
 
 use anyhow::{bail, Result};
-use shared::utils::log::info;
 
 use crate::{extract_header, hermes::http_gateway::api::Headers};
 
