@@ -28,12 +28,19 @@ icon: material/file-document-outline
 sequenceDiagram
   autonumber
   participant A as Peer A
+  participant D as DHT
   participant PS as IPFS PubSub
   participant B as Peer B
 
   A-->>PS: subscribed to<br>`<base>.new` + `<base>.syn`
   B-->>PS: subscribed to<br>`<base>.new` + `<base>.syn`
 
+  rect rgb(245,245,245)
+    Note over A: Pre-publish check for .new
+    A->>D: Provide(docs/manifest CIDs)
+    A->>D: FindProviders(CID)
+    D-->>A: provider ≠ A (OK)
+  end
   Note over A: Broadcast on<br><base>.new
   A->>PS: .new [docs/manifest, root, count]
   PS-->>B: .new
@@ -42,10 +49,15 @@ sequenceDiagram
   alt roots differ
     Note over B: Broadcast on<br>`<base>.syn`
     B-->>PS: subscribe to `<base>.dif` during reconciling
-    B->>PS: `<base>.syn`<br>[peer A, root_B, count_B, prefixes]
+    B->>PS: `<base>.syn`<br>[peer A, root_B, count_B]
     PS-->>A: .syn
-    Note over PS: Broadcast on<br>`<base>.dif`
     A-->>PS: subscribed to `<base>.dif` during reconciling
+    rect rgb(245,245,245)
+      Note over A: Pre-publish check for .dif
+      A->>D: Provide(docs/manifest CIDs)
+      A->>D: FindProviders(CID)
+      D-->>A: provider ≠ A (OK)
+    end
     A->>PS: .dif [in_reply_to, (docs | manifest), root_A, count_A, ttl?]
     A-->>PS: unsubscribe from `<base>.dif`
     PS-->>B: .dif
@@ -123,7 +135,7 @@ allowing all peers to observe the sync processes and preemptively update.
 
 **Future extensions:** Per-topic admission or encryption can be added without impacting unrelated flows.
 
-Diagram — Topic Separation and QoS
+#### Diagram — Topic Separation and QoS
 
 ```mermaid
 flowchart LR
@@ -193,7 +205,7 @@ sequenceDiagram
 Framing and Signature Envelope (matches the common envelope CDDL provided):
 
 * Each message is a CBOR byte string (bstr) whose content is a CBOR array encoded deterministically:<br>
-  `signed-payload = [ peer: peer-pubkey, seq: uuidv7, ver: uint, payload: payload-body, signature_bstr: peer-sig ]`.
+  `signed-payload = [ peer, seq, ver, payload, signature_bstr]`.
 * Signature input: computed over the deterministic CBOR encoding of the bstr wrapper and first four elements
   `[peer-pubkey, seq, ver, payload-body]`
   (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
@@ -202,24 +214,46 @@ Framing and Signature Envelope (matches the common envelope CDDL provided):
 **Rationale:** Outer bstr provides explicit length framing; deterministic CBOR ensures unambiguous signing.
 
 **Deduplication:** Receivers MUST de-duplicate by `(peer-pubkey, seq)` and drop duplicates.
+
 **Idempotence:** Duplicated CIDs in `.new` are harmless; set inserts are idempotent.
 
-Diagram — Envelope and Payload
+### Envelope Field Definitions
+
+1. **peer** - The Ed25519 Public Key which matches the senders Peer ID in the IPFS Network.
+   The senders peer ID can be derived from this public key, and must be valid.
+2. **seq** - Message Sequence.
+   A UUIDv7 that defined both a unique Nonce, and a Timestamp.
+   Prevents and helps detect message duplication.
+3. **ver** - Numeric protocol version.
+   This protocol is Version 1, so this will be encoded as `1`.
+4. **payload** - The channel specific payload contained within the message.
+5. **signature** - The signature over all preceding bytes, from the bstr header to the end of the payload.
+   The signature is made using the senders private ED25519 key which matches their public key.
+   It is validated against the **peer** field at the start of the payload.
+
+### Diagram — Envelope and Payload
 
 ```mermaid
-classDiagram
-  class Envelope {
-    bstr (size 82..1MiB)
-    -- signed-payload --
+---
+config:
+  layout: elk
+---
+
+erDiagram
+  Envelope {
+    bstr(82-1MiB) SignedPayload
   }
-  class signed_payload {
-    peer : ed25519-pubkey (32)
-    seq  : uuidv7 (16)
-    ver  : uint
-    payload : payload-body (CBOR map)
-    signature : ed25519-sig (64)
+
+  SignedPayload {
+    ed25519-pubkey(32) peer
+    uuidv7(16) seq
+    uint ver
+    payload-body(map) payload
+    ed25519-sig(64) signature
   }
-  Envelope --> signed_payload
+
+  Envelope ||--|| SignedPayload : Contains
+
 ```
 
 ### Common Message Envelope
@@ -274,15 +308,14 @@ Topic-specific rules (e.g., `.dif` requiring `in_reply_to`, `.new` forbidding it
 
 Payload-body Keys:
 
-* **root** *(1)*: root-hash — BLAKE3-256 of the sender’s SMT root.
-* **count** *(2)*: uint — sender’s current document count
-* **docs** *(3)* *OPTIONAL*: array of cidv1 — inline CIDs the sender believes others may be missing (≤ 1 MiB total)
-* **manifest** *(4)* *OPTIONAL*: cidv1 — manifest CID listing CIDs when message size would exceed 1 MiB.
-* **ttl** *(5)* *OPTIONAL*: uint — seconds the manifest remains available.
-  The responder will keep the manifest block available for this time.
-  Time starts at the time represented by the envelope’s UUIDv7 (seq).
-  *[default 3600 (1 Hour) if not present]*.
-* **in_reply_to** *(6)*: UUIDv7 of the `.syn` message which caused this message to be sent. (Not used in `.new`)
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **root** | root-hash | BLAKE3-256 of the sender’s SMT root |
+| 2 | **count** | uint | sender’s current document count |
+| 3 | **docs**  | array of cidv1<br>*OPTIONAL* | inline CIDs the sender believes others may be missing (≤ 1 MiB total) |
+| 4 | **manifest** | cidv1<br>*OPTIONAL* | manifest CID listing CIDs when message size would exceed 1 MiB. |
+| 5 | **ttl** | uint<br>*OPTIONAL* | seconds the manifest remains available.<br>The responder will keep the manifest block available for this time.<br>Time starts at the time represented by the envelope’s UUIDv7 (seq).<br>*[default 3600 (1 Hour) if not present]*. |
+| 6 | **in_reply_to** | UUIDv7 | `seq` of the `.syn` message which caused this message to be sent. (Not used in `.new`) |
 
 Either **docs** or **manifest** Must be present, and only one of them may be present.
 
@@ -313,7 +346,7 @@ doc-dissemination-body = ({
 } / {
     common-fields,        ; All fields common to doc lists or doc manifests
     manifest => cidv1,    ; CIDv1 of a Manifest of Documents 
-    ? ttl => uint           ; How long the Manifest can be expected to be pinned by the sender.
+    ttl => uint           ; How long the Manifest can be expected to be pinned by the sender.
 })
 
 ; self-contained types
@@ -326,43 +359,50 @@ uuid = #6.37(bytes .size 16) ; UUIDv7
 **Note:** *Only CIDv1 with multihash sha2-256 is permitted for document CIDs in this PoC;
 implementations MUST reject other multihash functions.*
 
-CIDv1 binary encoding (PoC focus)
+##### CIDv1 binary encoding (PoC focus)
 
-* Layout (packed bytes): `cidv1 = varint(1) || varint(multicodec) || multihash`.
-* Multihash for this PoC MUST be sha2-256 with a 32-byte digest:
-  * `multihash = varint(0x12) || varint(32) || digest[32]`.
-* Length varies slightly (36..40 bytes) due to varint encoding of the multicodec field.
-* We do not accept other multihash functions in this PoC.
+Layout (packed bytes): `cidv1 = varint(1) || varint(multicodec) || multihash`.
 
-References
+Multihash for this PoC MUST be sha2-256 with a 32-byte digest:
+
+`multihash = varint(0x12) || varint(32) || digest[32]`.
+
+Length varies slightly (36..40 bytes) due to varint encoding of the multicodec field.
+
+Other multihash functions are Invalid.
+
+###### References
 
 * CIDv1 specification: <https://github.com/multiformats/cid>
 * Multicodec table: <https://github.com/multiformats/multicodec>
 * Multihash specification: <https://github.com/multiformats/multihash>
 
-##### Diagram — Choosing docs vs manifest
+##### Pre publication document availability check
 
-Pre-publication availability check **(MUST)**
-
-Before announcing or referencing a document CID on the network (i.e., publishing a payload on `.new`, `.dif`, or `.prv` that contains a `cidv1` either inline or via a manifest),
+Pre-publication availability check **(MUST)** be performed before announcing or referencing a document CID on the network
+(i.e., publishing a payload on `.new`, `.dif`, or `.prv` that contains a `cidv1` either inline or via a manifest),
 the publishing peer MUST ensure the CID is discoverable via the DHT by:
 
-* Providing the CID (announce provider records) to the DHT, and
-* Successfully calling FindProviders(CID) and obtaining at least one provider peer ID that is NOT the publisher’s own peer ID.
+1. Providing the CID (announce provider records) to the DHT, and
+2. Successfully calling FindProviders(CID) and obtaining at least one provider peer ID that is NOT the publisher’s own peer ID.
 
 If this check fails, the publisher MUST retry Provide/FindProviders with backoff before sending the announcement.
 For manifests, this requirement applies to the manifest CID itself and to every CID listed within the manifest.
 
 Rationale: This ensures receiving peers can discover and fetch/pin the referenced content promptly after observing the announcement.
 
+##### Diagram — Choosing docs vs manifest
+
 ```mermaid
 flowchart TD
   A[Start] --> C{Estimated encoded size ≤ 1 MiB?}
   C -- Yes --> D[Include docs inline]
-  C -- No --> M[Publish manifest (cidv1)]
-  M --> T[Set ttl (seconds)]
-  D --> E[Send payload]
-  T --> E
+  C -- No --> M["Publish manifest (cidv1)"]
+  M --> T["Set ttl (seconds)"]
+  D --> P1["Provide(CID); FindProviders(CID) != self"]
+  T --> P2["Provide(manifest CID & docs); FindProviders != self"]
+  P1 --> E[Send payload]
+  P2 --> E
 ```
 
 #### Diagnostic example (payload-body decoded)
@@ -386,20 +426,23 @@ flowchart TD
 
 **Topic rules:**
 
-* in_reply_to MUST NOT be present on `.new`.
-* docs or manifest MUST be present (exactly one of them).
-* ttl MAY be omitted on `.new`; if present, it is only advisory for manifests.
+* *in_reply_to* MUST NOT be present on `.new`.
+* **docs** or **manifest** MUST be present (exactly one of them).
+* **ttl** MUST only be present with a *manifest* as individual announced *docs* must always be pinned.
 
 **Processing:**
 
-Publisher precondition (MUST): Prior to publishing a `.new` with any `cidv1` (inline or via manifest), the publisher MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the publisher’s own. If not satisfied, retry with backoff before publishing. When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
-
-1. Fetch and pin all CIDs from docs or manifest before insertion.
-2. Atomic pinning: if any CID cannot be fetched and pinned within the pinning retry window,
+1. *Publisher precondition (MUST):* Prior to publishing a `.new` with any `cidv1` (inline or via manifest),
+the publisher MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then
+FindProviders(CID) and receiving at least one provider peer ID that is not the publisher’s own.
+If not satisfied, retry with backoff before publishing.
+When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
+2. *Document validation:* Fetch and pin all CIDs from docs or manifest before insertion.
+3. *Atomic pinning:* if any CID cannot be fetched and pinned within the pinning retry window,
    release partial pins and defer insertion.
-3. Upon successful pin of all CIDs, insert each CID into the local SMT; compute local root.
-4. If local root ≠ sender root, mark divergence and enter reconciliation backoff (see State Machines),
-   unless parity is achieved during backoff via subsequent `.new`/`.dif`.
+4. *Recompute SMT root:* Upon successful pin of all CIDs, insert each CID into the local SMT; compute local root.
+5. *Verify convergence:* If local root ≠ sender root, mark divergence and enter reconciliation backoff (see State Machines),
+   unless parity is achieved during backoff via subsequent `.new`/`.dif` reception.
 
 ### .syn (topic `<base>.syn`)
 
@@ -407,9 +450,12 @@ Publisher precondition (MUST): Prior to publishing a `.new` with any `cidv1` (in
 
 **Payload-body Keys:**
 
-* **root** (1): root32 — requester’s current root
-* **count** (2): uint — requester’s current count
-* **to** (3) OPTIONAL: peer-pubkey — suggested target peer to respond
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **root** | root-hash | BLAKE3-256 of the requesters’s SMT root |
+| 2 | **count** | uint | sender’s current document count |
+| 3 | **to**   | peer-pubkey | suggested target peer to respond |
+| 4 | **prefix**  | array of cidv1<br>*OPTIONAL* | Number of prefix document to validate against.<br>**MUST** be a power of two, with a max size of 16,384. |
 
 **Processing:**
 
@@ -418,30 +464,81 @@ Publisher precondition (MUST): Prior to publishing a `.new` with any `cidv1` (in
 * Observers MAY use information to converge opportunistically,
   but `.syn` does not carry updates itself.
 
-CDDL — `.syn` payload-body
+#### Determining the number of **prefix** entries in the message
+
+IF there are less than 64 documents in the tree being solicited, then there are not **prefix** entries, as the root suffices.
+At more than 64, there needs to be 2 or more entries.
+
+**Behavior:**
+
+* Suppose target max = 64 docs/bucket.
+* When total docs N passes 64×2^D, you increment depth to D+1.
+* New average bucket size = N/2^(D+1) =~ Half the previous load (=~32)
+* As more documents arrive, buckets fill back up toward 64 before the next depth increase.
+
+**Effect:**
+
+The system oscillates between ~32 → 64 documents per bucket—stable, bounded, and logarithmic in total size.
+That keeps both proof payloads and reconciliation overhead under control without complex tuning.
+
+**Prefix Entries:**
+
+Prefix Entries are the Hashes of the Sparse Merkle Tree at that depth across the tree from left to right.
+This is why the number of entries must be a power of 2.
+Each new depth doubles the number of hashes across the tree at that depth.
+
+#### CDDL — `.syn` payload-body
 
 ```cddl
-; self-contained types
-root32 = bytes .size 32
-peer-pubkey = bytes .size 32
+; Payload body fits within the Common Message Envelope
+payload-body = msg-syn
 
-msg-syn = payload-body
-; numeric keys
+; numeric
 root = 1
 count = 2
 to = 3
+prefix = 4
 
-payload-body = {
-  root => root32,
+msg-syn = {
+  root => root-hash,
   count => uint,
-  ? to => peer-pubkey
+  to => peer-pubkey,
+  ? prefix => prefix-array
 }
+
+prefix-array = [
+  2* prefix-hash,
+  / 4* prefix-hash,
+  / 8* prefix-hash,
+  / 16* prefix-hash,
+  / 32* prefix-hash,
+  / 64* prefix-hash,
+  / 128* prefix-hash,
+  / 256* prefix-hash,
+  / 512* prefix-hash,
+  / 1024* prefix-hash,
+  / 2048* prefix-hash,
+  / 4096* prefix-hash,
+  / 8192* prefix-hash,
+  / 16384* prefix-hash
+]
+
+; self-contained types
+blake3-256 = bytes .size 32 ; BLAKE3-256 output
+root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
+prefix-hash = blake3-256      ; Prefix hash of the Sparse Merkle Tree
+ed25519-pubkey = bytes .size 32
+peer-pubkey = ed25519-pubkey
 ```
 
 Diagnostic example (payload-body decoded):
 
 ```cbor
-{ 1: h'aaaa...aaaa', 2: 100, 3: h'cafebabe' }
+{ 
+  1: h'aaaa...aaaa', 
+  2: 100, 
+  3: h'cafebabe' 
+}
 ```
 
 Diagram — Sync Handshake
@@ -450,10 +547,17 @@ Diagram — Sync Handshake
 sequenceDiagram
   autonumber
   participant R as Requester
+  participant D as DHT
   participant S as Responder(s)
   participant PS as PubSub
   R->>PS: .syn [root_R, count_R]
   PS-->>S: .syn
+  rect rgb(245,245,245)
+    Note over S: Pre-publish check for .dif
+    S->>D: Provide(docs/manifest CIDs)
+    S->>D: FindProviders(CID)
+    D-->>S: provider ≠ S (OK)
+  end
   S->>PS: .dif [in_reply_to, docs/manifest, root_S, count_S, ttl?]
   PS-->>R: .dif
   R->>R: fetch+pin, update SMT → parity
@@ -487,7 +591,9 @@ Prefix-depth selection for bucketization
 
 **Processing:**
 
-Publisher precondition (MUST): Prior to publishing a `.dif` with any `cidv1` (inline or via manifest), the responder MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the responder’s own. If not satisfied, retry with backoff before publishing. When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
+Publisher precondition (MUST): Prior to publishing a `.dif` with any `cidv1` (inline or via manifest), the responder MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then FindProviders(CID) and receiving at least one provider peer ID that is not the responder’s own.
+If not satisfied, retry with backoff before publishing.
+When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
 
 * Requesters fetch+pin any CIDs listed inline or in the diff manifest, update SMT, and check parity.
 * Observers MAY also use `.dif` to converge faster.
@@ -503,7 +609,8 @@ Publisher precondition (MUST): Prior to publishing a `.dif` with any `cidv1` (in
 * **cid** (3): cid1 — the document CID requested
 * **provers** (4) OPTIONAL: array of peer-pubkey — explicit peers asked to respond
 * **hpke_pkR** (5): bytes .size 32 — requester’s ephemeral X25519 public key (REQUIRED)
-* Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff. This avoids soliciting proofs for undiscoverable content.
+* Precondition (MUST): Before publishing `.prv` that references `cid`, the requester MUST ensure FindProviders(cid) returns at least one provider peer ID that is not the requester’s own; otherwise retry with backoff.
+  This avoids soliciting proofs for undiscoverable content.
 * Processing:
   * If `provers` is present, only listed peers SHOULD answer; others SHOULD ignore to avoid unnecessary replies.
   * If `provers` is absent, any peer MAY volunteer a proof after responder jitter;
