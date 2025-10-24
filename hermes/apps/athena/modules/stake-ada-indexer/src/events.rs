@@ -5,13 +5,12 @@ use shared::{
         self,
         api::{Block, SubscriptionId},
     },
+    database::staked_ada::create_tables,
     utils::{
         log::{error, info, trace},
         sqlite,
     },
 };
-
-use crate::database::create_tables;
 
 /// Initializes sqlite tables and cardano block subscription.
 pub fn init() -> anyhow::Result<()> {
@@ -21,10 +20,10 @@ pub fn init() -> anyhow::Result<()> {
     );
 
     let mut conn = sqlite::Connection::open(false)?;
-
-    let mut _conn_volatile = sqlite::Connection::open(true)?;
+    let mut conn_volatile = sqlite::Connection::open(true)?;
 
     create_tables(&mut conn)?;
+    create_tables(&mut conn_volatile)?;
 
     info!(
         target: "staked_ada_indexer::init",

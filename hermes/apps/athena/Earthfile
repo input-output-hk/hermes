@@ -15,12 +15,25 @@ workspace-src:
 
 # Athena modules builder.
 builder:
-    ARG wasi_src_dir
+    ARG wasi_src_dir=../../../../wasm/wasi
 
     DO rust-ci+SETUP
 
     COPY wasm+wasi-src/wasi $wasi_src_dir
-    COPY --dir +workspace-src/* .
+
+# check-shared : runs native unit tests of the shared crate.
+check-shared:
+    FROM +builder
+
+    COPY +workspace-src/shared .
+    DO rust-ci+CARGO --args="test --all-features --release"
+
+# check-shared-wasm32 : checks wasm32 build target of the shared crate.
+check-shared-wasm32:
+    FROM +builder
+
+    COPY +workspace-src/shared .
+    DO rust-ci+CARGO --args="check --all-features  --release --target=wasm32-wasip2"
 
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
 BUILD_ATHENA_COMPONENT:
@@ -31,6 +44,7 @@ BUILD_ATHENA_COMPONENT:
 
     FROM +builder --wasi_src_dir=$wasi_src_dir
 
+    COPY --dir +workspace-src/* .
     COPY --keep-ts --dir src Cargo.toml modules/tmp
     WORKDIR modules/tmp
 

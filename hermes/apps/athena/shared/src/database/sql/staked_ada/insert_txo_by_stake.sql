@@ -1,0 +1,1 @@
+INSERT INTO txo_by_stake VALUES (?, ?, ?, ?, ?, ?, ?);
