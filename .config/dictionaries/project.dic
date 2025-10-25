@@ -122,6 +122,7 @@ renameat
 reqwest
 rfind
 rngs
+rsplit
 rollouts
 rusqlite
 rustc
