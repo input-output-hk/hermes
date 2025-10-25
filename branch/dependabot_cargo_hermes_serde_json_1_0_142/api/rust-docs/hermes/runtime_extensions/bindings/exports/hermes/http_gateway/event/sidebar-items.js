@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["HttpGatewayResponse"],"struct":["Guest","GuestIndices","HttpResponse"],"type":["Bstr","Header","Headers"]};

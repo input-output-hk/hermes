@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EMBEDDED_CONFIG"],"fn":["load_embedded_endpoints","load_endpoints_sync","new_context"],"mod":["event","gateway_task","host","routing","subscription"],"static":["GATEWAY_INIT"],"struct":["EndpointSubscriptionConfig"]};

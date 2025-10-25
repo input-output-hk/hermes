@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Resolves incoming HTTP request paths to actual file paths within the Virtual File System (VFS)"><title>resolve_static_file_path in hermes::runtime_extensions::hermes::http_gateway::routing - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="hermes" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0-nightly (12eb345e5 2025-09-07)" data-channel="nightly" data-search-js="search-d846cb6c.js" data-stringdex-js="stringdex-5af928a3.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">resolve_static_file_path</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../hermes/index.html">hermes</a><span class="version">0.0.5</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">resolve_<wbr>static_<wbr>file_<wbr>path</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#path-resolution-rules" title="Path Resolution Rules:">Path Resolution Rules:</a><ul><li><a href="#root-path-handling" title="Root Path Handling:">Root Path Handling:</a></li><li><a href="#static-file-path-translation" title="Static File Path Translation:">Static File Path Translation:</a></li></ul></li><li><a href="#vfs-structure-context" title="VFS Structure Context:">VFS Structure Context:</a></li><li><a href="#security-considerations" title="Security Considerations:">Security Considerations:</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In hermes::<wbr>runtime_<wbr>extensions::<wbr>hermes::<wbr>http_<wbr>gateway::<wbr>routing</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">hermes</a>::<wbr><a href="../../../index.html">runtime_extensions</a>::<wbr><a href="../../index.html">hermes</a>::<wbr><a href="../index.html">http_gateway</a>::<wbr><a href="index.html">routing</a></div><h1>Function <span class="fn">resolve_<wbr>static_<wbr>file_<wbr>path</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/hermes/runtime_extensions/hermes/http_gateway/routing.rs.html#397-404">Source</a> </span></div><pre class="rust item-decl"><code>fn resolve_static_file_path(path: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Resolves incoming HTTP request paths to actual file paths within the Virtual File
+System (VFS)</p>
+<p>This function performs path normalization and translation for serving static files in
+a Flutter web application. It implements the standard web server convention where the
+document root maps to a specific VFS directory.</p>
+<h3 id="path-resolution-rules"><a class="doc-anchor" href="#path-resolution-rules">§</a>Path Resolution Rules:</h3><h4 id="root-path-handling"><a class="doc-anchor" href="#root-path-handling">§</a>Root Path Handling:</h4>
+<ul>
+<li><strong>Input</strong>: <code>"/"</code> (root/index request)</li>
+<li><strong>Output</strong>: <code>"www/index.html"</code></li>
+<li><strong>Purpose</strong>: Serves the main Flutter application entry point</li>
+<li><strong>Example</strong>: <code>GET /</code> → serves <code>www/index.html</code> from VFS</li>
+</ul>
+<h4 id="static-file-path-translation"><a class="doc-anchor" href="#static-file-path-translation">§</a>Static File Path Translation:</h4>
+<ul>
+<li><strong>Input</strong>: <code>"/assets/app.js"</code> (any non-root path)</li>
+<li><strong>Process</strong>: Remove leading <code>/</code>, prepend <code>www/</code></li>
+<li><strong>Output</strong>: <code>"www/assets/app.js"</code></li>
+<li><strong>Purpose</strong>: Maps URL paths to VFS file locations</li>
+</ul>
+<h3 id="vfs-structure-context"><a class="doc-anchor" href="#vfs-structure-context">§</a>VFS Structure Context:</h3>
+<p>VFS Root
+|– www/                    &lt;- Document root directory
+|– index.html         &lt;- Main application entry point
+|– flutter.js         &lt;- Flutter framework loader
+|– <code>flutter_service_worker.js</code>  &lt;- Service worker
+|– assets/            &lt;- Static assets directory
+|– fonts/         &lt;- Font files
+|– images/        &lt;- Image assets
+|– packages/      &lt;- Dart package assets</p>
+<h3 id="security-considerations"><a class="doc-anchor" href="#security-considerations">§</a>Security Considerations:</h3>
+<ul>
+<li><strong>Path traversal protection</strong>: This function doesn’t validate against <code>../</code> attacks
+(assumes upstream validation by HTTP router/framework)</li>
+<li><strong>VFS isolation</strong>: All resolved paths are contained within the <code>www/</code> directory</li>
+<li><strong>No filesystem access</strong>: Works purely with VFS paths, not real filesystem paths</li>
+</ul>
+</div></details></section></div></main></body></html>

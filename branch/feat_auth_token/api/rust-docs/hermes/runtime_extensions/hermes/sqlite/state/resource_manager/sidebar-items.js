@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SQLITE_STATE"],"fn":["create_connection_resource","create_statement_resource","delete_statement_resource","get_app_state_with","get_connection_pointer","get_statement_pointer","init_app_state","try_get_app_state_with","try_get_connection_resource"]};

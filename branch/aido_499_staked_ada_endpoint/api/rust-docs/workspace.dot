@@ -1,0 +1,7 @@
+digraph {
+    0 [ label = "hermes" shape = box]
+    1 [ label = "http_request_rte_01" shape = box]
+    2 [ label = "failed_init" shape = box]
+    3 [ label = "sleep_component" shape = box]
+}
+
