@@ -2,7 +2,7 @@
 	"$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
 	"name": "Authentication and Authorization service",
 	"version": "V0.1.0",
-	"description": "Catalyst RBAC authentication and authorization service",
+	"description": "Catalyst authentication and authorization service",
 	"src": [
 		"https://github.com/input-output-hk/hermes",
 		"https://github.com/input-output-hk/catalyst-voices"

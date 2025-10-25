@@ -38,7 +38,7 @@ export!(AuthComponent);
 struct AuthComponent;
 
 impl AuthComponent {
-    /// Create an HTTP response from AuthResponse
+    /// Create HTTP response from `AuthResponse`
     fn make_response(auth: &AuthResponse) -> HttpResponse {
         let headers = vec![("content-type".to_string(), vec![
             "application/json".to_string()
