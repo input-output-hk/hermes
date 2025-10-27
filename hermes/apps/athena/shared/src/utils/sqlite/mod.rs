@@ -6,7 +6,7 @@ pub mod operation;
 pub mod statement;
 pub mod value;
 
-pub use wrappers::{Connection, Row, Rows, Statement};
+pub use wrappers::{Connection, Row, Rows, Statement, Transaction};
 
 pub use crate::bindings::hermes::sqlite::api::Value;
 use crate::{

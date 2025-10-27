@@ -18,6 +18,7 @@ bursty
 cabi
 canvaskit
 cardano
+catid
 cbor
 cdylib
 chaincode
@@ -29,6 +30,7 @@ cidv
 ciphertext
 ciphertexts
 codegen
+codepoints
 COEP
 condvar
 coverallsapp
@@ -44,6 +46,8 @@ dcbor
 Devnet
 DHKEM
 Diffie
+dotenv
+dotenvy
 dotstar
 earthfile
 Embedder
@@ -104,6 +108,7 @@ multihash
 multihashes
 Namespacing
 nanos
+newtype
 nextest
 nodesep
 nolfs
@@ -142,6 +147,7 @@ Rmax
 Rmin
 rngs
 rollouts
+rusqlite
 rustc
 rustdoc
 rustdocflags
@@ -175,11 +181,14 @@ traceback
 traitreg
 tweakable
 txns
+txos
 unfinalized
 unlinkat
 unsub
 usvg
 utimensat
+utoipa
+utxo
 uuidv
 varint
 wasi

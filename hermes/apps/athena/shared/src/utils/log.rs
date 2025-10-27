@@ -117,7 +117,7 @@ impl Log for LogImpl {
 
 /// Initialize [`log`] macros. This must be called at least once to enable logging.
 pub fn init(filter: LevelFilter) {
-    const ONCE: Once = Once::new();
+    static ONCE: Once = Once::new();
     ONCE.call_once(move || {
         let _ = log::set_logger(&LogImpl);
         log::set_max_level(filter);
