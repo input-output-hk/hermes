@@ -14,6 +14,7 @@ bmac
 bootstrapper
 brotli
 bucketization
+bursty
 cabi
 canvaskit
 cardano
@@ -26,6 +27,7 @@ chrono
 cids
 cidv
 ciphertext
+ciphertexts
 codegen
 COEP
 condvar
@@ -41,6 +43,7 @@ datelike
 dcbor
 Devnet
 DHKEM
+Diffie
 dotstar
 earthfile
 Embedder
@@ -130,6 +133,7 @@ rafal
 rankdir
 ranksep
 readlinkat
+reentrancy
 removedir
 renameat
 reqwest
@@ -164,6 +168,7 @@ thollander
 threadsafe
 timelike
 tinygo
+Tdiff
 Tmax
 toolsets
 traceback

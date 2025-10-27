@@ -431,7 +431,8 @@ flowchart TD
 
 * *in_reply_to* MUST NOT be present on `.new`.
 * **docs** or **manifest** MUST be present (exactly one of them).
-* **ttl** MUST be present when `manifest` is used and MUST NOT appear with inline `docs`. Individual announced `docs` are always pinned.
+* **ttl** MUST be present when `manifest` is used and MUST NOT appear with inline `docs`.
+  Individual announced `docs` are always pinned.
 
 **Processing:**
 
@@ -483,7 +484,8 @@ This produces a stable oscillation between ~32 and ~64 per bucket and keeps reco
 
 **Prefix Entries:**
 
-Prefix entries are the SMT node hashes (NodeHash(left,right) with BLAKE3-256) at depth D across the tree from left to right (hence a power-of-two count).
+Prefix entries are the SMT node hashes (NodeHash(left,right) with BLAKE3-256) at depth D across the tree from left to right
+(hence a power-of-two count).
 Each increment of D doubles the number of prefix hashes.
 For message-size constraints, D MUST NOT exceed 14 (max 16384 entries); deeper arrays risk exceeding the 1 MiB limit.
 
@@ -996,7 +998,8 @@ and encrypts the proof payload into `ct`.
   `[peer-pubkey, seq, ver, in_reply_to]`,<br> where `peer-pubkey, seq, ver` are from the envelope and
   `in_reply_to` is from the outer payload.<br><br>
   Rationale: Binding to the envelope identity and correlation ID prevents transplanting the ciphertext
-  to a different message. Root, count, and cid are protected inside the ciphertext (prf-plaintext)
+  to a different message.
+  Root, count, and cid are protected inside the ciphertext (prf-plaintext)
   and validated post-decryption.
 
 **Encrypted plaintext fields (see `prf-plaintext` CDDL):**
@@ -1155,7 +1158,8 @@ flowchart TD
 Use when inline lists would exceed 1 MiB.
 
 The diff manifest is simply an array of cidv1 values encoded with deterministic CBOR.
-Ordering: The array MUST be ordered by the documents’ appearance in the responder’s SMT leaves from left to right (in-order by path),
+Ordering: The array MUST be ordered by the documents’ appearance in the responder’s SMT leaves
+from left to right (in-order by path),
 ensuring a stable manifest CID for a given snapshot.
 It carries no metadata; its context and binding come from the `.dif` message that references it (which includes any `ttl`).
 
