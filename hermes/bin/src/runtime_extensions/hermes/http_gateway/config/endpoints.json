@@ -3,9 +3,7 @@
     {
       "subscription_id": "rbac_registration",
       "module_id": "rbac_registration",
-      "methods": [
-        "GET"
-      ],
+      "methods": ["GET"],
       "path_regex": "^/api/v1/registration(/.*)?$",
       "content_types": [],
       "json_schema": null
@@ -13,9 +11,7 @@
     {
       "subscription_id": "gateway_frontend_config",
       "module_id": "http_proxy",
-      "methods": [
-        "GET"
-      ],
+      "methods": ["GET"],
       "path_regex": "^/api/gateway/v1/config/frontend$",
       "content_types": [],
       "json_schema": null
@@ -23,12 +19,7 @@
     {
       "subscription_id": "gateway_document_v1",
       "module_id": "http_proxy",
-      "methods": [
-        "GET",
-        "POST",
-        "PUT",
-        "DELETE"
-      ],
+      "methods": ["GET", "POST", "PUT", "DELETE"],
       "path_regex": "^/api/gateway/v1/document.*$",
       "content_types": [],
       "json_schema": null
@@ -36,14 +27,17 @@
     {
       "subscription_id": "gateway_document_v2",
       "module_id": "http_proxy",
-      "methods": [
-        "GET",
-        "POST",
-        "PUT",
-        "DELETE"
-      ],
+      "methods": ["GET", "POST", "PUT", "DELETE"],
       "path_regex": "^/api/gateway/v2/document.*$",
       "content_types": [],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "staked_ada",
+      "module_id": "staked_ada",
+      "methods": ["GET"],
+      "path_regex": "^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$",
+      "content_types": ["application/json"],
       "json_schema": null
     }
   ]
