@@ -45,6 +45,7 @@
         "EAFNOSUPPORT",
         "EAGAIN",
         "EALREADY",
+        "Earthfile",
         "EBADF",
         "EBUSY",
         "ECONNABORTED",
