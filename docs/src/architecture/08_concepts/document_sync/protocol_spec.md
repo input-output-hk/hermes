@@ -206,9 +206,10 @@ Framing and Signature Envelope (matches the common envelope CDDL provided):
 
 * Each message is a CBOR byte string (bstr) whose content is a CBOR array encoded deterministically:<br>
   `signed-payload = [ peer, seq, ver, payload, signature_bstr]`.
-* Signature input: computed over the deterministic CBOR encoding of the bstr wrapper and first four elements
-  `[peer-pubkey, seq, ver, payload-body]`
-  (i.e., from the first byte of the envelope content up to the byte before `signature_bstr`).
+* Signature input: computed over the deterministic CBOR encoding of the array
+  `[peer, seq, ver, payload]` (the signed payload without the signature field).
+  The signed payload array is then wrapped in a bstr for framing, and `signature_bstr`
+  contains the Ed25519 signature over that array’s bytes.
 <!-- markdownlint-enable MD033 -->
 
 **Rationale:** Outer bstr provides explicit length framing; deterministic CBOR ensures unambiguous signing.
@@ -220,7 +221,7 @@ Framing and Signature Envelope (matches the common envelope CDDL provided):
 ### Envelope Field Definitions
 
 1. **peer** - The Ed25519 Public Key which matches the senders Peer ID in the IPFS Network.
-   The senders peer ID can be derived from this public key, and must be valid.
+  The sender’s peer ID can be derived from this public key, and MUST be valid.
 2. **seq** - Message Sequence.
    A UUIDv7 that defined both a unique Nonce, and a Timestamp.
    Prevents and helps detect message duplication.
@@ -276,7 +277,7 @@ uuidv7 = uuid
 uuid = #6.37(bytes .size 16)
 
 ed25519-pubkey = bytes .size 32
-ed25519-sig = bytes .size 32
+ed25519-sig = bytes .size 64
 
 peer-pubkey = ed25519-pubkey
 peer-sig = ed25519-sig
@@ -315,11 +316,11 @@ Payload-body Keys:
 | 2 | **count** | uint | sender’s current document count |
 | 3 | **docs**  | array of cidv1<br>*OPTIONAL* | inline CIDs the sender believes others may be missing (≤ 1 MiB total) |
 | 4 | **manifest** | cidv1<br>*OPTIONAL* | manifest CID listing CIDs when message size would exceed 1 MiB. |
-| 5 | **ttl** | uint<br>*OPTIONAL* | seconds the manifest remains available.<br>The responder will keep the manifest block available for this time.<br>Time starts at the time represented by the envelope’s UUIDv7 (seq).<br>*[default 3600 (1 Hour) if not present]*. |
+| 5 | **ttl** | uint<br>REQUIRED with manifest | seconds the manifest remains available.<br>The responder MUST keep the manifest block available for at least this time.<br>Present only when `manifest` is used; absent otherwise. |
 | 6 | **in_reply_to** | UUIDv7 | `seq` of the `.syn` message which caused this message to be sent. (Not used in `.new`) |
 
 <!--markdownlint-enable MD033-->
-Either **docs** or **manifest** Must be present, and only one of them may be present.
+Either **docs** or **manifest** MUST be present, and only one of them may be present.
 
 #### Document dissemination payload-body
 
@@ -414,8 +415,8 @@ flowchart TD
     1: h'aaaa...aaaa', 
     2: 100, 
     3: [ 
-        h'01..cid1', 
-        h'02..cid1' 
+        h'01..cidv1', 
+        h'02..cidv1' 
     ] 
 }
 ```
@@ -482,7 +483,7 @@ This produces a stable oscillation between ~32 and ~64 per bucket and keeps reco
 
 **Prefix Entries:**
 
-Prefix entries are the SMT node hashes at depth D across the tree from left to right (hence a power-of-two count).
+Prefix entries are the SMT node hashes (NodeHash(left,right) with BLAKE3-256) at depth D across the tree from left to right (hence a power-of-two count).
 Each increment of D doubles the number of prefix hashes.
 For message-size constraints, D MUST NOT exceed 14 (max 16384 entries); deeper arrays risk exceeding the 1 MiB limit.
 
@@ -503,6 +504,7 @@ Responders infer $d$ from the array length.
 #### Diagram — Sparse Merkle Tree Depth and Headers
 
 The `.syn` message includes a prefix array of node hashes at depth `d` (the “headers”) to partition the tree into `2^d` buckets.
+Each prefix entry is the SMT node hash `NodeHash(left, right)` at depth `d` (BLAKE3-256), ordered left-to-right across the tree.
 Responders compare these headers against their own nodes at the same depth to find mismatching buckets and
 then return all documents under those buckets via `.dif`.
 
@@ -779,12 +781,9 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 
 ```cbor
 { 
-  1: h'05e8...cid1', 
+  1: h'05e8...cidv1', 
   2: h'5566...',
-  3: [ 
-    h'aa11bb22', 
-    h'cc33dd44' 
-  ]
+  3: [ h'aa11bb22', h'cc33dd44' ]
 }
 ```
 
@@ -796,9 +795,9 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 
 | Index | Name | Type | Description |
 | --- | --- | --- | --- |
-| 0 | **in_reply_to** | uuid | UUIDv7 of the `.prv` being answered |
-| 1 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
-| 2 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
+| 1 | **in_reply_to** | uuid | UUIDv7 of the `.prv` being answered |
+| 2 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
+| 3 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
 
 **Processing:**
 
@@ -811,14 +810,14 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 ```cddl
 payload-body = msg-prf
 
-; numeric keys
-in_reply_to = 0
-hpke_enc = 1
-ct = 2
+; numeric keys (1-based)
+in_reply_to = 1
+hpke_enc = 2
+ct = 3
 
 msg-prf = {
   in_reply_to => uuid,         ; .prv being replied to
-  hpke_enc => x25519-pubkey,   ; public x25519 key required for requested to read `ct`
+  hpke_enc => x25519-pubkey,   ; public X25519 key required for requester to read `ct`
   ct => bytes                  ; HPKE ciphertext of prf-plaintext
 }
 
@@ -859,7 +858,11 @@ prf-plaintext = {
 Diagnostic example (payload-body decoded):
 
 ```cbor
-{ 1: h'dddd...dddd', 2: 201, 3: h'018f0f92c3f8a9b2c7d1112233445570', 4: h'05e8...cid1', 5: h'1122...', 6: h'99aa...' }
+{ 
+  1: h'018f0f92c3f8a9b2c7d1112233445570',  ; in_reply_to (uuidv7)
+  2: h'1122...33',                          ; hpke_enc (X25519 encapsulated pubkey)
+  3: h'99aa...ff'                           ; ct (ciphertext)
+}
 ```
 
 ## Proof Topics Usage Model (Optional)
@@ -920,8 +923,8 @@ stateDiagram-v2
 * **Responder jitter before publishing `.dif`:** uniform random in `[Rmin, Rmax]`
   (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
-* **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
-  Include the intended `ttl` in `.dif` when possible.
+* **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least the announced `ttl`.
+  The `ttl` field MUST be included in `.dif` when a `manifest` is used.
 * **Pinning retry window:** implementations SHOULD configure a bounded retry window `Wpin`
   (e.g., tens of seconds) during which failed CID fetches from a single `.new` announcement are retried;
   if the window elapses without all CIDs pinned, release partial pins and schedule a later retry per node policy.
@@ -992,7 +995,9 @@ and encrypts the proof payload into `ct`.
 * The AEAD additional authenticated data MUST be the deterministic CBOR encoding of the array<br>
   `[peer-pubkey, seq, ver, in_reply_to]`,<br> where `peer-pubkey, seq, ver` are from the envelope and
   `in_reply_to` is from the outer payload.<br><br>
-  This binds the ciphertext to the specific envelope instance and reply correlation without exposing proof contents.
+  Rationale: Binding to the envelope identity and correlation ID prevents transplanting the ciphertext
+  to a different message. Root, count, and cid are protected inside the ciphertext (prf-plaintext)
+  and validated post-decryption.
 
 **Encrypted plaintext fields (see `prf-plaintext` CDDL):**
 
@@ -1033,9 +1038,9 @@ sequenceDiagram
   Note over V: HPKE seal<br>(hpke_enc, ct = Enc(proof))
   V->>PS: .prf [in_reply_to, hpke_enc, ct]
   PS-->>R: .prf
-  R->>R: HPKE open(ct) → proof
+  R->>R: HPKE open(ct) → prf-plaintext
 
-  R->>R: verify proof vs.<br>root_v, record
+  R->>R: verify proof vs.<br>decrypted kt-root; record
 
 ```
 
@@ -1109,8 +1114,7 @@ blake3-256 = bytes .size 32 ; BLAKE3-256 output
 4. Otherwise, responder assembles a diff manifest (see Diff Manifest)
    encoded with deterministic CBOR,
    stores it in IPFS without pinning,
-   and replies on `.dif` with the manifest CID and an
-   intended availability `ttl` (default 3600 seconds).
+   and replies on `.dif` with the manifest CID and an intended availability `ttl`.
 5. Requester fetches the manifest,
    1. pins and inserts any CIDs it does not already have, and
    2. updates its SMT.
@@ -1133,7 +1137,7 @@ Responders SHOULD apply jitter and MAY suppress replies if another adequate
 
 **Prefix depth:**
 
-Responders SHOULD select and record prefix_depth per the .syn rules above to keep per-bucket sizes ≲ 64 while depth ≤ 14.
+Responders SHOULD select an appropriate depth per the .syn rules above to keep per-bucket sizes ≲ 64 while depth ≤ 14.
 
 ### Diagram — Prefix Depth Selection
 
@@ -1151,6 +1155,8 @@ flowchart TD
 Use when inline lists would exceed 1 MiB.
 
 The diff manifest is simply an array of cidv1 values encoded with deterministic CBOR.
+Ordering: The array MUST be ordered by the documents’ appearance in the responder’s SMT leaves from left to right (in-order by path),
+ensuring a stable manifest CID for a given snapshot.
 It carries no metadata; its context and binding come from the `.dif` message that references it (which includes any `ttl`).
 
 ### CDDL — Diff manifest
@@ -1164,9 +1170,9 @@ Example (decoded):
 
 ```cbor
 [
-  h'06f9...cid1',
-  h'07aa...cid1',
-  h'09bc...cid1'
+  h'06f9...cidv1',
+  h'07aa...cidv1',
+  h'09bc...cidv1'
 ]
 ```
 
