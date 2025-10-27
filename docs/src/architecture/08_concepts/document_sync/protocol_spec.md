@@ -498,7 +498,119 @@ targeting $\le 64$ items per bucket until a maximum depth is reached:
 2. Set $d = \min\big(14,\; \max(1,\, d_{\mathrm{req}})\big)$.
 
 The **prefix** array then contains the $2^d$ SMT node hashes at depth $d$ (left→right).
-  Responders infer $d$ from the array length.
+Responders infer $d$ from the array length.
+
+#### Diagram — Sparse Merkle Tree Depth and Headers
+
+The `.syn` message includes a prefix array of node hashes at depth `d` (the “headers”) to partition the tree into `2^d` buckets.
+Responders compare these headers against their own nodes at the same depth to find mismatching buckets and
+then return all documents under those buckets via `.dif`.
+
+```dot
+digraph SMT {
+  rankdir=TB;
+  splines=true;
+  nodesep=0.4;
+  ranksep=0.5;
+
+  node [shape=circle, fontsize=8, width=0.6, height=0.6, fixedsize=true];
+
+  // Depth 0 (root)
+  root [label="Root\n(depth 0)", shape=doublecircle, style=filled, fillcolor="#eef6ff"];
+
+  // Depth 1
+  d1L [label="d=1:L"]; 
+  d1R [label="d=1:R"];
+
+  // Depth 2 (headers at d=2)
+  // These are the prefix nodes included in .syn when d=2
+  node [shape=circle, style="filled,bold", fillcolor="#fff4ce", color="#e0a800", fontsize=8, width=0.6, height=0.6, fixedsize=true];
+  h0 [label="H0\n(depth 2)"]; 
+  h1 [label="H1\n(depth 2)"]; 
+  h2 [label="H2\n(depth 2)"]; 
+  h3 [label="H3\n(depth 2)"];
+
+  // Restore default style for leaves
+  node [shape=oval, style=solid, fillcolor=white, color=black, fontsize=8, width=0.7, height=0.45, fixedsize=true];
+
+  // Depth 256 (example leaves under each header)
+  l0 [label="doc A\n(depth 256)"];
+  l0r [label="(empty)\n(depth 256)", style=dashed];
+
+  l1l [label="(empty)\n(depth 256)", style=dashed];
+  l1 [label="doc B\n(depth 256)"];
+
+  l2 [label="doc C\n(depth 256)"]; 
+  l2r [label="(empty)\n(depth 256)", style=dashed];
+
+  l3 [label="(empty)\n(depth 256)", style=dashed];
+  l3r [label="(empty)\n(depth 256)", style=dashed];
+
+  l4 [label="doc D\n(depth 256)"]; 
+  l4r [label="doc E\n(depth 256)"]; 
+
+  l5 [label="(empty)\n(depth 256)", style=dashed];
+  l5r [label="(empty)\n(depth 256)", style=dashed];
+
+  l6r [label="doc E\n(depth 256)"];
+  l6 [label="doc F\n(depth 256)"]; 
+
+  l7 [label="doc G\n(depth 256)"];
+  l7r [label="doc H\n(depth 256)"];
+
+  // Edges
+  root -> d1L; root -> d1R;
+  d1L -> h0; d1L -> h1; d1R -> h2; d1R -> h3;
+
+  // Discontinuity: depth 3..255 omitted (ellipses per bucket)
+  node [shape=plaintext, fontsize=9];
+  e0 [label="…\n(depth 3..255)", color="#9ca3af"];
+  e1 [label="…\n(depth 3..255)", color="#9ca3af"];
+  e2 [label="…\n(depth 3..255)", color="#9ca3af"];
+  e3 [label="…\n(depth 3..255)", color="#9ca3af"];
+  e0r [label="…\n(depth 3..255)", color="#9ca3af"];
+  e1r [label="…\n(depth 3..255)", color="#9ca3af"];
+  e2r [label="…\n(depth 3..255)", color="#9ca3af"];
+  e3r [label="…\n(depth 3..255)", color="#9ca3af"];
+
+  // Connect headers to ellipses and to leaves
+  h0 -> e0 [style=dotted, color="#9ca3af"]; 
+  h0 -> e0r [style=dotted, color="#9ca3af"]; 
+  h1 -> e1 [style=dotted, color="#9ca3af"]; 
+  h1 -> e1r [style=dotted, color="#9ca3af"]; 
+  h2 -> e2 [style=dotted, color="#9ca3af"]; 
+  h2 -> e2r [style=dotted, color="#9ca3af"]; 
+  h3 -> e3 [style=dotted, color="#9ca3af"];
+  h3 -> e3r [style=dotted, color="#9ca3af"];
+
+  e0 -> l0 [style=dotted, color="#9ca3af"]; 
+  e0 -> l0r [style=dotted, color="#9ca3af"]; 
+  e0r -> l1l [style=dotted, color="#9ca3af"];
+  e0r -> l1 [style=dotted, color="#9ca3af"];
+
+  e1 -> l2 [style=dotted, color="#9ca3af"]; 
+  e1 -> l2r [style=dotted, color="#9ca3af"]; 
+  e1r -> l3 [style=dotted, color="#9ca3af"];
+  e1r -> l3r [style=dotted, color="#9ca3af"];
+
+  e2 -> l4 [style=dotted, color="#9ca3af"]; 
+  e2 -> l4r [style=dotted, color="#9ca3af"]; 
+  e2r -> l5 [style=dotted, color="#9ca3af"]; 
+  e2r -> l5r [style=dotted, color="#9ca3af"]; 
+
+  e3 -> l6r [style=dotted, color="#9ca3af"];
+  e3 -> l6 [style=dotted, color="#9ca3af"]; 
+  e3r -> l7 [style=dotted, color="#9ca3af"];
+  e3r -> l7r [style=dotted, color="#9ca3af"];
+
+  // Ranks to visualize depth layers
+  {rank=same; root}
+  {rank=same; d1L; d1R}
+  {rank=same; h0; h1; h2; h3}
+  {rank=same; e0; e1; e2; e3}
+  {rank=same; l0; l1; l2; l3; l4; l5; l6; l7}
+}
+```
 
 #### CDDL — `.syn` payload-body
 
@@ -592,9 +704,9 @@ Uses the shared Document Dissemination payload (see “Document Dissemination”
 
 **Topic rules:**
 
-* in_reply_to MUST be present and MUST reference the `.syn` being answered (its envelope seq).
-* docs or manifest MUST be present (exactly one of them).
-* ttl SHOULD be present when manifest is used; responders MUST keep manifest blocks available for at least ttl seconds.
+* **in_reply_to** MUST be present and MUST reference the `.syn` being answered (its envelope seq).
+* **docs** or **manifest** MUST be present (exactly one of them).
+* **ttl** MUST be present when **manifest** is used; responders MUST keep manifest blocks available for at least ttl seconds.
 
 Responders infer the requested depth $d$ from the length of the `.syn` prefix array
 ($2^d$) and reply with ALL documents that mismatch under that partitioning.
@@ -680,75 +792,48 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 
 **Semantics:** Reply to a `.prv` with an SMT inclusion proof for the requested `cid`.
 
-**Payload-body Keys:**
+**Payload-body Keys (outer, unencrypted):**
 
 | Index | Name | Type | Description |
 | --- | --- | --- | --- |
-| 1 | **root** | root32 | responder’s current SMT root at proof time |
-| 2 | **count** | uint | responder’s current document count |
-| 3 | **in_reply_to** | uuid | UUIDv7 of the `.prv` being answered |
-| 4 | **cid** | cid1 | the requested document CID |
-| 5 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
-| 6 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
+| 0 | **in_reply_to** | uuid | UUIDv7 of the `.prv` being answered |
+| 1 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
+| 2 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
 
-* Processing:
-  * Only the requester possessing the matching X25519 private key can decrypt `ct`.
-  * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
-  * Non-requesters cannot decrypt and SHOULD ignore the ciphertext.
+**Processing:**
+
+* Only the requester possessing the matching X25519 private key can decrypt `ct`.
+* After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
+* Non-requesters cannot decrypt and SHOULD ignore the ciphertext.
 
 CDDL — `.prf` payload-body and encrypted plaintext
 
 ```cddl
-; self-contained types
-root32 = bytes .size 32
-cid1 = bytes
-uuid = #6.37(bytes .size 16)
+payload-body = msg-prf
 
-msg-prf = payload-body
 ; numeric keys
-root = 1
-count = 2
-in_reply_to = 3
-cid = 4
-hpke_enc = 5
-ct = 6
+in_reply_to = 0
+hpke_enc = 1
+ct = 2
 
-payload-body = {
-  root => root32,
-  count => uint,
-  in_reply_to => uuid,
-  cid => cid1,
-  hpke_enc => bytes .size 32,  ; hpke-enc
-  ct => bytes                  ; ct
+msg-prf = {
+  in_reply_to => uuid,         ; .prv being replied to
+  hpke_enc => x25519-pubkey,   ; public x25519 key required for requested to read `ct`
+  ct => bytes                  ; HPKE ciphertext of prf-plaintext
 }
 
-; Encrypted plaintext structure inside ct
-smt-proof = {
-  kp-type => uint,             ; 0 incl, 1 excl
-  kp-k => bytes .size 32,
-  kp-siblings => [* bytes .size 32],
-  ? kp-leaf => bytes .size 32,
-  ? kp-depth => uint
-}
+; self-contained types
+blake3-256 = bytes .size 32 ; BLAKE3-256 output
+root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
+prefix-hash = blake3-256    ; Node hash at depth D (prefix bucket) of the SMT
+ed25519-pubkey = bytes .size 32
+peer-pubkey = ed25519-pubkey
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
+uuid = #6.37(bytes .size 16) ; UUIDv7
+x25519-pubkey = bytes .size 32
 
-; smt-proof key constants
-kp-type = 1
-kp-k = 2
-kp-siblings = 3
-kp-leaf = 4
-kp-depth = 5
-
-prf-plaintext = {
-  kt-responder => bytes,  ; responder (peer-pubkey)
-  kt-in_reply_to => uuid,
-  kt-cid => cid1,
-  kt-root => root32,
-  kt-count => uint,
-  kt-present => bool,
-  kt-proof => smt-proof
-}
-
-; prf-plaintext key constants
+; prf-plaintext (encrypted inside ct)
+; numeric keys for prf-plaintext
 kt-responder = 1
 kt-in_reply_to = 2
 kt-cid = 3
@@ -756,6 +841,19 @@ kt-root = 4
 kt-count = 5
 kt-present = 6
 kt-proof = 7
+
+prf-plaintext = {
+  kt-responder => peer-pubkey, ; MUST equal envelope peer
+  kt-in_reply_to => uuid,      ; MUST equal outer in_reply_to
+  kt-cid => cidv1,             ; MUST equal requested cid from .prv
+  kt-root => root-hash,
+  kt-count => uint,
+  kt-present => bool,
+  kt-proof => smt-proof
+}
+
+; smt-proof key constants (see SMT Proof Encoding)
+
 ```
 
 Diagnostic example (payload-body decoded):
@@ -766,36 +864,44 @@ Diagnostic example (payload-body decoded):
 
 ## Proof Topics Usage Model (Optional)
 
-* Roles:
-  * Proven storage peers: nodes that commit to answering proof requests.
-  * Non-proven peers: nodes that generally do not need proofs but may occasionally request them.
-* Recommended subscription pattern:
-  * Proven storage peers SHOULD remain subscribed to `<base>.prv` only.
-    Upon receiving a `.prv` they intend to answer, they SHOULD temporarily subscribe to `<base>.prf`,
-    apply responder jitter, publish their `.prf`, and promptly unsubscribe.
-    They DO NOT suppress due to other `.prf` replies; proofs are tied to the responder’s storage commitment.
-  * Non-proven peers SHOULD remain unsubscribed from proof topics under normal operation.
-    When a proof is needed:
+**Roles:**
+
+* Proven storage peers: nodes that commit to answering proof requests.
+* Non-proven peers: nodes that generally do not generate proofs but may occasionally request them.
+
+**Recommended subscription pattern:**
+
+* Proven storage peers SHOULD remain subscribed to `<base>.prv` only.
+  Upon receiving a `.prv` they intend to answer, they SHOULD:
+    1. temporarily subscribe to `<base>.prf`
+    2. apply responder jitter
+    3. publish their `.prf`, and
+    4. promptly unsubscribe.
+    5. They DO NOT suppress due to other `.prf` replies; proofs are tied to the responder’s storage commitment.
+* Non-proven peers SHOULD remain unsubscribed from proof topics under normal operation.  
+  When a proof is needed:
     1. Subscribe to `<base>.prv` and `<base>.prf`.
     2. Publish `.prv` specifying the `cid` (and optionally specific `provers`) and include `hpke_pkR` (ephemeral X25519 public key).
     3. Wait for `.prf` replies, decrypt, verify, and cache as needed.
     4. Unsubscribe from `<base>.prf` (and `<base>.prv` if no further requests).
-* Rationale: This pattern effectively narrows `.prf` delivery to the requester and the responding
+
+**Rationale:** This pattern effectively narrows `.prf` delivery to the requester and the responding
   prover(s) currently subscribed, approximating point-to-point behavior over pub/sub and reducing
   background load for nodes that do not need proofs.
 
 ## State Machines
 
-* Local peer maintains per-remote-peer sync state for each `<base>`:
-  * Stable: local root equals last known root for all known peers.
-  * Diverged: a mismatch exists (local root ≠ any seen remote root).
-    On entering Diverged, start backoff timer.
-  * Reconciling: after backoff expiry, publish `.syn`; await suitable `.dif` and apply.
-  * Parity achieved: upon local root matching the responder’s advertised root; return to Stable.
+**Local peer maintains per-remote-peer sync state for each `<base>`:**
 
-* Transitions may be triggered by `.new` or `.dif` arriving during backoff; if parity is reached, abort solicitation.
+* Stable: local root equals last known root for all known peers.
+* Diverged: a mismatch exists (local root ≠ any seen remote root).
+  On entering Diverged, start backoff timer.
+* Reconciling: after backoff expiry, publish `.syn`; await suitable `.dif` and apply.
+* Parity achieved: upon local root matching the responder’s advertised root; return to Stable.
 
-Diagram — Peer Sync State Machine (per `<base>`)
+**Transitions may be triggered by `.new` or `.dif` arriving during backoff; if parity is reached, abort solicitation.**
+
+### Diagram — Peer Sync State Machine (per `<base>`)
 
 ```mermaid
 stateDiagram-v2
@@ -809,130 +915,155 @@ stateDiagram-v2
 
 ## Timers and Retries
 
-* Backoff/jitter before sending `.syn`: uniform random in `[Tmin, Tmax]` (implementation-configurable; PoC suggestion: 200–800 ms).
-
-* Responder jitter before publishing `.dif`: uniform random in `[Rmin, Rmax]` (PoC suggestion: 50–250 ms).
+* **Backoff/jitter before sending `.syn`:** uniform random in `[Tmin, Tmax]` (implementation-configurable; PoC suggestion: 200–800 ms).
+* **Responder jitter before publishing `.dif`:** uniform random in `[Rmin, Rmax]` (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
-* Diff manifest TTL: responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
+* **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
   Include the intended `ttl` in `.dif` when possible.
-* Pinning retry window: implementations SHOULD configure a bounded retry window `Wpin`
+* **Pinning retry window:** implementations SHOULD configure a bounded retry window `Wpin`
   (e.g., tens of seconds) during which failed CID fetches from a single `.new` announcement are retried;
   if the window elapses without all CIDs pinned, release partial pins and schedule a later retry per node policy.
-* Proof reply jitter: responders to `.prv` SHOULD wait a uniform random delay in `[Rmin, Rmax]`
+* **Proof reply jitter:** responders to `.prv` SHOULD wait a uniform random delay in `[Rmin, Rmax]`
   (same range as `.dif`) while temporarily subscribed to `<base>.prf`, then publish their `.prf`.
 
 ## Transport and Size Limits
 
 * Pub/sub messages SHOULD be ≤ 1 MiB.
   Inline arrays of CIDs in `.new`/`.dif` MUST keep total message size ≤ 1 MiB.
-
 * For larger batches or diffs, use manifests referenced by CID.
-
 * Proof topics: `.prf` replies SHOULD respect the same ≤ 1 MiB bound.
   Large proofs (e.g., very deep sibling arrays) are unlikely due to SMT’s fixed size but MAY
   necessitate splitting across multiple `.prf` messages or providing a manifest CID if ever required.
 
 ## SMT (Sparse Merkle Tree)
 
-* Purpose: Order-independent, append-only set with inclusion and non-inclusion proofs.
+* **Purpose:** Order-independent, append-only set with inclusion and non-inclusion proofs.
+* **Keying (PoC restriction):** For each document CID, require CIDv1 with multihash function sha2-256 (32-byte digest).
+    * Extract the multihash digest and use it directly as the SMT key `k` (no re-hashing).
+    * Non-conforming CIDs MUST be rejected.
+* **Depth:** 256 levels (one per bit of `k`).
+* **Hash function:** BLAKE3-256 (fixed 32-byte output).
+* **Domain separation:**
+    * `LeafHash = BLAKE3-256(0x00 || k || 0x01)` (presence-only set; constant value 0x01).
+    * `NodeHash = BLAKE3-256(0x01 || left || right)`.
+    * `Empty[d]` precomputed per depth: `Empty[256] = BLAKE3-256(0x02)`, `Empty[d] = NodeHash(Empty[d+1], Empty[d+1])`.
+* **Root:** 32-byte `NodeHash` at depth 0 (BLAKE3-256 output).
+* **Inclusion proof:** path bits from `k` plus sibling hashes per level.
+* **Exclusion proof:** proof of `Empty` at divergence depth or neighbor leaf.
 
-* Keying (PoC restriction): For each document CID, require CIDv1 with multihash function sha2-256 (32-byte digest).
-  Extract the multihash digest and use it directly as the SMT key `k` (no re-hashing).
-  Non-conforming CIDs MUST be rejected.
-* Depth: 256 levels (one per bit of `k`).
-* Hash function: BLAKE3-256 (fixed 32-byte output).
-* Domain separation:
-  * `LeafHash = BLAKE3-256(0x00 || k || 0x01)` (presence-only set; constant value 0x01).
-  * `NodeHash = BLAKE3-256(0x01 || left || right)`.
-  * `Empty[d]` precomputed per depth: `Empty[256] = BLAKE3-256(0x02)`, `Empty[d] = NodeHash(Empty[d+1], Empty[d+1])`.
-* Root: 32-byte `NodeHash` at depth 0 (BLAKE3-256 output).
-* Inclusion proof: path bits from `k` plus sibling hashes per level.
-  Exclusion proof: proof of `Empty` at divergence depth or neighbor leaf.
-
-Diagram — Simplified SMT Proof Path
+### Diagram — Simplified SMT Proof Path
 
 ```mermaid
 graph TD
   R[Root]
   R --> A
   R --> B
+  S0[Sibling hash]:::sib --- A0
   A --> A0
   A --> A1
-  A1 --> L[Leaf(k)]
+  A1 --> L["Leaf(k)"]
   classDef sib fill:#FFF3E0,stroke:#FB8C00
   classDef leaf fill:#E8F5E9,stroke:#2E7D32
-  S0[Sibling hash]:::sib --- A0
   S1[Sibling hash]:::sib --- A1
   class L leaf
 ```
 
 ## Encrypted Proofs (Mandatory for `.prf`)
 <!-- markdownlint-disable MD033 -->
-* Algorithms (HPKE per RFC 9180 profile):
-  * KEM: DHKEM(X25519, HKDF-SHA256)
-  * KDF: HKDF-SHA256
-  * AEAD: ChaCha20-Poly1305
-* Request flow:
-  * Requester generates an ephemeral X25519 key pair and publishes `.prv` including `hpke_pkR` (32-byte public key).
-* Response flow:
-  * Prover derives an HPKE context using `hpke_pkR`, generates `hpke_enc` (32-byte encapsulated pub),
-    and encrypts the proof payload into `ct`.
-* Ciphertext AAD binding:
+**Algorithms (HPKE per RFC 9180 profile):**
+
+* KEM: DHKEM(X25519, HKDF-SHA256)
+* KDF: HKDF-SHA256
+* AEAD: ChaCha20-Poly1305
+  
+**Request flow:**
+
+Requester generates an ephemeral X25519 key pair and publishes `.prv` including `hpke_pkR` (32-byte public key).
+
+**Response flow:**
+
+Prover derives an HPKE context using `hpke_pkR`, generates `hpke_enc` (32-byte encapsulated pub),
+and encrypts the proof payload into `ct`.
+
+**Ciphertext AAD binding:**
+
 * The AEAD additional authenticated data MUST be the deterministic CBOR encoding of the array<br>
-  `[peer-pubkey, seq, ver, in_reply_to, cid, root, count]`, where:<br>
-  `peer-pubkey, seq, ver` are the first three fields from the envelope and<br>
-  `in_reply_to, cid, root, count` are from the payload-body.
-  * This prevents transplanting `ct` under a different envelope or payload context.
-* Encrypted plaintext fields (see `prf-plaintext` CDDL):
-  * kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
-  * kt-in_reply_to (2): uuid — MUST match payload-body in_reply_to
-  * kt-cid (3): cid1 — MUST match payload-body cid
-  * kt-root (4): root32 — MUST match payload-body root
-  * kt-count (5): uint — MUST match payload-body count
-  * kt-present (6): bool — whether the CID is included
-  * kt-proof (7): smt-proof — inclusion/non-inclusion proof
-* Verification (requester):
+  `[peer-pubkey, seq, ver, in_reply_to]`,<br> where `peer-pubkey, seq, ver` are from the envelope and
+  `in_reply_to` is from the outer payload.<br><br>
+  This binds the ciphertext to the specific envelope instance and reply correlation without exposing proof contents.
+
+**Encrypted plaintext fields (see `prf-plaintext` CDDL):**
+
+* kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
+* kt-in_reply_to (2): uuid — MUST equal the outer in_reply_to and match the referenced `.prv` seq
+* kt-cid (3): cidv1 — MUST equal the requested `cid` from the `.prv`
+* kt-root (4): root32 — SMT root the proof is about
+* kt-count (5): uint — document count at that root
+* kt-present (6): bool — whether the CID is included
+* kt-proof (7): smt-proof — inclusion/non-inclusion proof
+
+**Verification (requester):**
+
   1. Decapsulate with X25519 private key to obtain AEAD key/nonce, then decrypt `ct` using AAD as above.
-  2. Check that `responder`, `in_reply_to`, `cid`, `root`, and `count` exactly match the outer payload fields.
-  3. If `present = true`, verify the SMT inclusion proof against `root`; if `false`, verify the non-inclusion proof.
-* Non-requesters cannot decrypt and SHOULD ignore `.prf` ciphertext.
+  2. Check that `kt-responder` equals the envelope peer-pubkey and `kt-in_reply_to` equals the outer in_reply_to and the `.prv` seq.
+  3. Check that `kt-cid` equals the requested CID from the `.prv`.
+  4. If `kt-present = true`,
+     1. verify the SMT inclusion proof (`kt-proof`) against `kt-root`;
+  5. if `false`,
+     1. verify the non-inclusion proof.
+
+**Non-requesters cannot decrypt and SHOULD ignore `.prf` ciphertext.**
 <!-- markdownlint-enable MD033 -->
 
-Diagram — Encrypted Proof Exchange (.prv/.prf)
+### Diagram — Encrypted Proof Exchange (.prv/.prf)
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant R as Requester
-  participant V as Prover (Responder)
   participant PS as PubSub
-  Note over R: generate X25519 ephemeral (hpke_pkR)
+  participant V as Prover (Responder)
+
+  Note over R: generate X25519<br>ephemeral (hpke_pkR)
   R->>PS: .prv [cid, hpke_pkR, provers?]
+
   PS-->>V: .prv
-  Note over V: HPKE seal (hpke_enc, ct = Enc(proof))
-  V->>PS: .prf [root_V, count_V, in_reply_to, cid, hpke_enc, ct]
+  Note over V: HPKE seal<br>(hpke_enc, ct = Enc(proof))
+  V->>PS: .prf [in_reply_to, hpke_enc, ct]
   PS-->>R: .prf
   R->>R: HPKE open(ct) → proof
-  R->>R: verify proof vs. root_V; record
+
+  R->>R: verify proof vs.<br>root_v, record
+
 ```
 
 ### SMT Proof Encoding
 
-* Proofs use numeric keys with named constants (see CDDL):
-  * kp-type (1): uint — 0 = inclusion, 1 = non-inclusion
-* kp-k (2): bytes .size 32 — k = sha2-256 multihash digest from the CIDv1 (32 bytes)
-  * kp-siblings (3): array of bytes .size 32 — ordered from leaf upward (LSB-first)
-  * kp-leaf (4) OPTIONAL: bytes .size 32 — LeafHash; MAY be omitted
-  * kp-depth (5) OPTIONAL: uint — defaults to 256 if omitted
+**Proofs use numeric keys with named constants (see CDDL):**
 
-CDDL — SMT proofs
+<!-- markdownlint-disable MD033 -->
+* kp-type (1): uint — 0 = inclusion, 1 = non-inclusion
+* kp-k (2): cidv1 — the document CID (full cidv1).<br>
+  Verifier derives key k as the sha2-256 multihash digest embedded in this cidv1 (32 bytes).
+* kp-siblings (3): array of blake3-256 — ordered from leaf upward (LSB-first)
+* kp-leaf (4) OPTIONAL: blake3-256 — LeafHash; MAY be omitted
+* kp-depth (5) OPTIONAL: uint — defaults to 256 if omitted
+<!-- markdownlint-enable MD033 -->
+
+**Note:** kp-k carries the full cidv1 for clarity.
+
+The key `k` used in proof verification is its 32-byte sha2-256 multihash digest.
+Implementations MUST also ensure `kp-k` equals the cid carried in the corresponding
+`.prv` request; mismatch is invalid.
+
+### CDDL — SMT proofs
 
 ```cbor
 smt-proof = {
   kp-type => uint,            ; 0 incl, 1 excl
-  kp-k => bytes .size 32,     ; k
-  kp-siblings => [* bytes .size 32],
-  ? kp-leaf => bytes .size 32,
+  kp-k => cidv1,              ; document CID; k = sha2-256 digest from this cidv1
+  kp-siblings => [* blake3-256],
+  ? kp-leaf => blake3-256,
   ? kp-depth => uint
 }
 
@@ -941,72 +1072,97 @@ kp-k = 2
 kp-siblings = 3
 kp-leaf = 4
 kp-depth = 5
+
+; self-contained reference
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
+blake3-256 = bytes .size 32 ; BLAKE3-256 output
 ```
 
-* Verification procedure (inclusion):
-  1. Compute `k` from the provided CID and compare to `proof.k`.
-  2. Compute `LeafHash` using domain separation; iteratively hash with `siblings` per bit of `k` to reconstruct a candidate root.
-  3. Accept if candidate root equals the responder’s `root` in the `.prf` payload.
-* Verification procedure (non-inclusion):
-  * Either demonstrate a path leading to an `Empty` node at divergence depth or provide a neighbor leaf proof
-    whose key differs at the first differing bit.
+**Verification procedure (inclusion):**
+
+1. Check that `proof.k` (cidv1) equals the requested cid from `.prv` or equals the decrypted `kt-cid`; derive `k` as the sha2-256 multihash digest from this cidv1.
+2. Compute `LeafHash` using domain separation; iteratively hash with `siblings` per bit of `k` to reconstruct a candidate root.
+3. Accept if candidate root equals the decrypted `kt-root`.
+
+**Verification procedure (non-inclusion):**
+
+1. Either demonstrate a path leading to an `Empty` node at divergence depth or
+2. provide a neighbor leaf proof whose key differs at the first differing bit.
 
 ## Diff Reconciliation
 
-* Objective: Provide the requester with a complete list of CIDs it may be missing relative to the responder’s advertised snapshot,
+**Objective:** Provide the requester with a complete list of CIDs it may be missing relative to the responder’s advertised snapshot,
   with minimal interaction.
-* Flow:
-  1. Requester publishes `.syn` with its current `root` and `count` (optionally targeting a specific peer via `to`).
-  2. Responder computes the set of CIDs the requester may be missing relative to its own snapshot
-     (the responder’s current `root`/`count`).
-     Exact determination may rely on local indexes and heuristics; under honest assumptions,
-     including all responder-held CIDs suffices for convergence.
-  3. If the list is small (≤ 1 MiB when encoded), responder MAY include it inline in `.dif` as `missing_for_requester`.
-  4. Otherwise, responder assembles a diff manifest (see Diff Manifest) encoded with deterministic CBOR,
-     stores it in IPFS without pinning, and replies on `.dif` with the manifest CID and an
-     intended availability `ttl` (default 3600 seconds).
-  5. Requester fetches the manifest, pins and inserts any CIDs it does not already have, and updates its SMT.
-    Further `.new` or `.dif` messages will drive it to parity.
-* Caching:
-  * For a given responder snapshot (`root`,`count`), the manifest CID is stable;
-    responders SHOULD cache and reuse it across solicitations.
-* Availability:
-  * Responders SHOULD keep manifest blocks available for at least `TdiffTTL` seconds (default 3600).
-    Implementations MAY choose to pin temporarily or serve blocks opportunistically.
-* Rate limiting:
-  * Responders SHOULD apply jitter and MAY suppress replies if another adequate
-    `.dif` is seen for the same `.syn` to limit redundant manifests.
-* Prefix depth:
-* Responders SHOULD select and record prefix_depth per the .syn rules above to keep per-bucket sizes ≲ 64 while depth ≤ 14.
 
-Diagram — Prefix Depth Selection
+**Flow:**
+
+1. Requester publishes `.syn` with its current `root` and `count` (optionally targeting a specific peer via `to`).
+2. Responder computes the set of CIDs the requester may be missing relative to its
+   own snapshot (the responder’s current `root`/`count`).
+   Exact determination may rely on local indexes and heuristics; under honest assumptions,
+   including all responder-held CIDs suffices for convergence.
+3. If the list is small (≤ 1 MiB when encoded),
+   responder MAY include it inline in `.dif` as `missing_for_requester`.
+4. Otherwise, responder assembles a diff manifest (see Diff Manifest)
+   encoded with deterministic CBOR,
+   stores it in IPFS without pinning,
+   and replies on `.dif` with the manifest CID and an
+   intended availability `ttl` (default 3600 seconds).
+5. Requester fetches the manifest,
+   1. pins and inserts any CIDs it does not already have, and
+   2. updates its SMT.
+
+Further `.new` or `.dif` messages will drive it to parity.
+
+**Caching:**
+
+For a given responder snapshot (`root`,`count`), the manifest CID is stable;
+responders SHOULD cache and reuse it across solicitations.
+
+**Availability:**
+
+Responders SHOULD keep manifest blocks available for at least `TdiffTTL` seconds (default 3600).
+Implementations MAY choose to pin temporarily or serve blocks opportunistically.
+
+**Rate limiting:**
+Responders SHOULD apply jitter and MAY suppress replies if another adequate
+`.dif` is seen for the same `.syn` to limit redundant manifests.
+
+**Prefix depth:**
+
+Responders SHOULD select and record prefix_depth per the .syn rules above to keep per-bucket sizes ≲ 64 while depth ≤ 14.
+
+### Diagram — Prefix Depth Selection
 
 ```mermaid
-flowchart LR
+flowchart TD
   N[N = responder count] --> X{N <= 64?}
   X -- Yes --> D1[d = 1]
-  X -- No --> C1[compute d_req = ceil(log2(N/64))]
-  C1 --> CL[clamp d = min(14, max(1, d_req))]
-  CL --> OUT[d used for bucketization\nrecord in manifest as prefix_depth]
+  X -- No --> C1["compute d_req = ceil(log2(N/64))"]
+  C1 --> CL["clamp d = min(14, max(1, d_req))"]
+  CL --> OUT[d used for bucketization<br>record in manifest as prefix_depth]
 ```
 
 ## Diff Manifest (IPFS object)
 
-* Use when inline lists would exceed 1 MiB.
-* Numeric keys are used for fields (named constants):
-  * k-ver (1): ver (uint)
-  * k-in_reply_to (2): uuid
-  * k-responder (3): peer-pubkey
-  * k-root (4): root32
-  * k-count (5): uint
-  * k-missing_req (6): array of cid1
-  * k-missing_resp (7) OPTIONAL: array of cid1
-  * k-ttl (8) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
-  * k-sig (9): bstr — signature by responder over the manifest body
-  * k-prefix_depth (10) OPTIONAL: uint — prefix bucket depth d used for manifest bucketization
-* The `.dif` payload carries the manifest CID.
+Use when inline lists would exceed 1 MiB.
 
-CDDL — Diff manifest
+**Numeric keys are used for fields (named constants):**
+
+* k-ver (1): ver (uint)
+* k-in_reply_to (2): uuid
+* k-responder (3): peer-pubkey
+* k-root (4): root32
+* k-count (5): uint
+* k-missing_req (6): array of cid1
+* k-missing_resp (7) OPTIONAL: array of cid1
+* k-ttl (8) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
+* k-sig (9): bstr — signature by responder over the manifest body
+* k-prefix_depth (10) OPTIONAL: uint — prefix bucket depth d used for manifest bucketization
+
+The `.dif` payload carries the manifest CID.
+
+### CDDL — Diff manifest
 
 ```cbor
 diff-manifest = {
