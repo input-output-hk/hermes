@@ -58,7 +58,7 @@ sequenceDiagram
       A->>D: FindProviders(CID)
       D-->>A: provider ≠ A (OK)
     end
-    A->>PS: .dif [in_reply_to, (docs | manifest), root_A, count_A, ttl?]
+  A->>PS: .dif [in_reply_to, (docs | manifest), root_A, count_A, (+ ttl when manifest)]
     A-->>PS: unsubscribe from `<base>.dif`
     PS-->>B: .dif
     B->>B: fetch+pin, update SMT → parity
@@ -431,7 +431,7 @@ flowchart TD
 
 * *in_reply_to* MUST NOT be present on `.new`.
 * **docs** or **manifest** MUST be present (exactly one of them).
-* **ttl** MUST only be present with a *manifest* as individual announced *docs* must always be pinned.
+* **ttl** MUST be present when `manifest` is used and MUST NOT appear with inline `docs`. Individual announced `docs` are always pinned.
 
 **Processing:**
 
@@ -688,7 +688,7 @@ sequenceDiagram
     S->>D: FindProviders(CID)
     D-->>S: provider ≠ S (OK)
   end
-  S->>PS: .dif [in_reply_to, docs/manifest, root_S, count_S, ttl?]
+  S->>PS: .dif [in_reply_to, (docs | manifest), root_S, count_S, (+ ttl when manifest)]
   PS-->>R: .dif
   R->>R: fetch+pin, update SMT → parity
 ```
@@ -1205,7 +1205,7 @@ Example (decoded):
 
 * Deterministic CBOR encoding is required for all payloads and manifests.
 * CIDs MUST be CIDv1;
-* CID arrays must contain their binary representations.
+* CID arrays MUST contain their binary representations.
 * PoC CID restriction:
     * Document CIDs MUST be CIDv1 with multihash sha2-256 (32-byte digest).
     * Other multihash functions are not accepted in this version.
@@ -1234,7 +1234,28 @@ Example (decoded):
 ## Glossary
 
 * **CID**: IPFS Content Identifier.
+* **CIDv1**: Binary CID version 1; in this spec, multihash MUST be sha2-256 with 32-byte digest.
 * **SMT**: Sparse Merkle Tree (append-only presence set over CIDs).
 * **Root**: SMT root hash summarizing the entire set.
 * **Manifest**: IPFS object (by CID) describing a batch of CIDs or a diff.
 * **UUIDv7**: 128-bit, time-ordered unique identifier used as message/correlation id.
+* **IPFS**: InterPlanetary File System; content-addressed storage and DHT for block exchange.
+* **libp2p**: Modular networking stack used by IPFS (transport, pub/sub, etc.).
+* **DHT**: Distributed Hash Table; used for provider records and content discovery.
+* **Pub/Sub**: Publish/Subscribe messaging; here via libp2p gossipsub (IPFS pubsub).
+* **Gossipsub**: libp2p’s gossip-based pub/sub protocol with topic meshes and scoring.
+* **CBOR**: Concise Binary Object Representation; deterministic encoding required in this spec.
+* **CDDL**: Concise Data Definition Language; used to specify CBOR structures.
+* **HPKE**: Hybrid Public Key Encryption (RFC 9180); used to encrypt `.prf` proofs end-to-end.
+* **AEAD**: Authenticated Encryption with Associated Data; used within HPKE for proof ciphertexts.
+* **AAD**: Additional Authenticated Data; non-encrypted data bound into AEAD integrity checks.
+* **KEM**: Key Encapsulation Mechanism; HPKE’s public-key component (DHKEM(X25519, HKDF-SHA256)).
+* **KDF**: Key Derivation Function; HPKE uses HKDF-SHA256.
+* **Ed25519**: Edwards-curve digital signature algorithm; used for message signing (64-byte signatures).
+* **X25519**: Diffie–Hellman over Curve25519; used for HPKE key exchange.
+* **BLAKE3-256**: Hash function used for SMT NodeHash/LeafHash (32-byte output).
+* **sha2-256**: Multihash function used inside CIDv1 (32-byte digest) to derive SMT key `k`.
+* **ChaCha20-Poly1305**: AEAD cipher used by the HPKE profile in this spec.
+* **TTL**: Time To Live; duration responders keep diff manifests available when `manifest` is used.
+* **QoS**: Quality of Service; topic separation allows independent prioritization/backpressure per topic.
+* **PoC**: Proof of Concept; indicates provisional choices and scope limits for this draft.
