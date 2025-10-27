@@ -806,7 +806,7 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 * After decryption, verify bindings and the SMT proof; see Encrypted Proofs.
 * Non-requesters cannot decrypt and SHOULD ignore the ciphertext.
 
-CDDL — `.prf` payload-body and encrypted plaintext
+#### CDDL — `.prf` payload-body and encrypted plaintext
 
 ```cddl
 payload-body = msg-prf
@@ -915,8 +915,10 @@ stateDiagram-v2
 
 ## Timers and Retries
 
-* **Backoff/jitter before sending `.syn`:** uniform random in `[Tmin, Tmax]` (implementation-configurable; PoC suggestion: 200–800 ms).
-* **Responder jitter before publishing `.dif`:** uniform random in `[Rmin, Rmax]` (PoC suggestion: 50–250 ms).
+* **Backoff/jitter before sending `.syn`:** uniform random in `[Tmin, Tmax]`
+  (implementation-configurable; PoC suggestion: 200–800 ms).
+* **Responder jitter before publishing `.dif`:** uniform random in `[Rmin, Rmax]`
+  (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
 * **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least `TdiffTTL` seconds (default 3600).
   Include the intended `ttl` in `.dif` when possible.
@@ -1056,7 +1058,7 @@ The key `k` used in proof verification is its 32-byte sha2-256 multihash digest.
 Implementations MUST also ensure `kp-k` equals the cid carried in the corresponding
 `.prv` request; mismatch is invalid.
 
-### CDDL — SMT proofs
+#### CDDL — SMT proofs
 
 ```cbor
 smt-proof = {
@@ -1080,7 +1082,8 @@ blake3-256 = bytes .size 32 ; BLAKE3-256 output
 
 **Verification procedure (inclusion):**
 
-1. Check that `proof.k` (cidv1) equals the requested cid from `.prv` or equals the decrypted `kt-cid`; derive `k` as the sha2-256 multihash digest from this cidv1.
+1. Check that `proof.k` (cidv1) equals the requested cid from `.prv` or equals the decrypted `kt-cid`;
+   derive `k` as the sha2-256 multihash digest from this cidv1.
 2. Compute `LeafHash` using domain separation; iteratively hash with `siblings` per bit of `k` to reconstruct a candidate root.
 3. Accept if candidate root equals the decrypted `kt-root`.
 
@@ -1138,95 +1141,38 @@ Responders SHOULD select and record prefix_depth per the .syn rules above to kee
 flowchart TD
   N[N = responder count] --> X{N <= 64?}
   X -- Yes --> D1[d = 1]
-  X -- No --> C1["compute d_req = ceil(log2(N/64))"]
-  C1 --> CL["clamp d = min(14, max(1, d_req))"]
-  CL --> OUT[d used for bucketization<br>record in manifest as prefix_depth]
+  X -- No --> C1["compute d_req =<br>ceil(log2(N/64))"]
+  C1 --> CL["clamp d =<br>min(14, max(1, d_req))"]
+  CL --> OUT[d used for bucketization]
 ```
 
 ## Diff Manifest (IPFS object)
 
 Use when inline lists would exceed 1 MiB.
 
-**Numeric keys are used for fields (named constants):**
-
-* k-ver (1): ver (uint)
-* k-in_reply_to (2): uuid
-* k-responder (3): peer-pubkey
-* k-root (4): root32
-* k-count (5): uint
-* k-missing_req (6): array of cid1
-* k-missing_resp (7) OPTIONAL: array of cid1
-* k-ttl (8) OPTIONAL: uint — seconds the responder intends to keep manifest blocks available (default 3600)
-* k-sig (9): bstr — signature by responder over the manifest body
-* k-prefix_depth (10) OPTIONAL: uint — prefix bucket depth d used for manifest bucketization
-
-The `.dif` payload carries the manifest CID.
+The diff manifest is simply an array of cidv1 values encoded with deterministic CBOR.
+It carries no metadata; its context and binding come from the `.dif` message that references it (which includes any `ttl`).
 
 ### CDDL — Diff manifest
 
 ```cbor
-diff-manifest = {
-  k-ver => ver,
-  k-in_reply_to => uuid,
-  k-responder => peer-pubkey,
-  k-root => root32,
-  k-count => uint,
-  k-missing_req => [* cid1],
-  ? k-missing_resp => [* cid1],
-  ? k-ttl => uint,
-  k-sig => bstr,
-  ? k-prefix_depth => uint
-}
-
-k-ver = 1
-k-in_reply_to = 2
-k-responder = 3
-k-root = 4
-k-count = 5
-k-missing_req = 6
-k-missing_resp = 7
-k-ttl = 8
-k-sig = 9
-k-prefix_depth = 10
+diff-manifest = [* cidv1]
+cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 ```
 
-Diagram — Diff Manifest Schema (fields)
-
-```mermaid
-classDiagram
-  class diff_manifest {
-    ver (1): uint
-    in_reply_to (2): uuid
-    responder (3): peer-pubkey
-    root (4): root32
-    count (5): uint
-    missing_req (6): [cid1]
-    missing_resp (7): [cid1] optional
-    ttl (8): uint optional
-    sig (9): bstr
-    prefix_depth (10): uint optional
-  }
-```
-
-Diagnostic example (decoded):
+Example (decoded):
 
 ```cbor
-{
-  1: 1,
-  2: h'018f0f92c3f8a9b2c7d1112233445567',
-  3: h'44556677',
-  4: h'cccc...cccc',
-  5: 200,
-  6: [ h'06f9...cid1', h'07aa...cid1' ],
-  8: 3600,
-  9: h'...sig...'
-}
+[
+  h'06f9...cid1',
+  h'07aa...cid1',
+  h'09bc...cid1'
+]
 ```
 
 ## Error Handling
 
 * Invalid signature or CBOR not using deterministic encoding: drop.
-
 * Oversized message: drop.
 * Fetch/pin failure: do not insert into SMT; release partial pins from the announcement;
   retain a pending queue and retry within the configured pinning window/policy.
@@ -1235,7 +1181,6 @@ Diagnostic example (decoded):
 
 * Honest participants assumed; messages are public and unauthenticated beyond per-peer signatures,
   except `.prf` proof content which is encrypted end-to-end using HPKE as specified.
-
 * Implementations SHOULD rate-limit `.syn` and `.dif` per peer and bound pin concurrency to avoid resource exhaustion.
 
 ## Privacy Considerations (PoC)
@@ -1253,19 +1198,18 @@ Diagnostic example (decoded):
 ## Interoperability
 
 * Deterministic CBOR encoding is required for all payloads and manifests.
-  CIDs MUST be CIDv1; CID arrays must contain their binary representations.
-* PoC CID restriction: Document CIDs MUST be CIDv1 with multihash sha2-256 (32-byte digest).
-  Other multihash functions are not accepted in this version.
-* SMT hashing MUST be BLAKE3-256 exactly as specified; mixing hash functions will produce incompatible roots and proofs.
+* CIDs MUST be CIDv1;
+* CID arrays must contain their binary representations.
+* PoC CID restriction:
+    * Document CIDs MUST be CIDv1 with multihash sha2-256 (32-byte digest).
+    * Other multihash functions are not accepted in this version.
+* SMT hashing MUST be BLAKE3-256 exactly as specified;
+    * mixing hash functions will produce incompatible roots and proofs.
 
 ## Extensibility
 
 * New optional fields may be added to payload maps.
-  Unknown optional fields MUST be ignored.
-
-## Conformance and Test Vectors
-
-* Provide fixtures for `.new`, `.syn`, `.dif`, and a small SMT set (TBD in repository).
+* Unknown optional fields MUST be ignored.
 
 ## References
 
@@ -1279,7 +1223,6 @@ Diagnostic example (decoded):
 ## Open Questions
 
 * Numeric defaults (`Tmin/Tmax`, size caps) may be tuned through experimentation.
-
 * Potential future direct-stream optimization for large diffs.
 
 ## Glossary

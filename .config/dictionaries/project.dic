@@ -102,6 +102,7 @@ multihashes
 Namespacing
 nanos
 nextest
+nodesep
 nolfs
 nomutex
 nostack
@@ -126,6 +127,8 @@ pubkey
 pwrite
 qmark
 rafal
+rankdir
+ranksep
 readlinkat
 removedir
 renameat
