@@ -1,0 +1,38 @@
+//! Define `Service Unavailable` Response Body.
+
+use uuid::Uuid;
+
+use crate::utils::common;
+
+/// The service is not available, try again later.
+///
+/// *This is returned when the service either has not started,
+/// or has become unavailable.*
+pub struct ServiceUnavailable {
+    /// Unique ID of this Server Error so that it can be located easily for debugging.
+    id: common::types::generic::error_uuid::ErrorUuid,
+    /// Error message.
+    // Will not contain sensitive information, internal details or backtraces.
+    msg: common::types::generic::error_msg::ErrorMessage,
+}
+
+impl ServiceUnavailable {
+    /// Create a new Server Error Response Payload.
+    pub(crate) fn new(msg: Option<String>) -> Self {
+        let msg = msg.unwrap_or(
+            "Service Unavailable. Indicates that the server is not ready to handle the request."
+                .to_string(),
+        );
+        let id = Uuid::new_v4();
+
+        Self {
+            id: id.into(),
+            msg: msg.into(),
+        }
+    }
+
+    /// Get the id of this Server Error.
+    pub(crate) fn id(&self) -> Uuid {
+        self.id.clone().into()
+    }
+}

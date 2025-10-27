@@ -102,7 +102,7 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
     // Collect component files
     for file_path in components {
         let name = file_path
-            .file_name()
+            .file_stem()
             .and_then(OsStr::to_str)
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
