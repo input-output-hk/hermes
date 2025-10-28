@@ -11,7 +11,6 @@ shared = { version = "0.1.0", path = "../../shared", features = [
     "cardano-blockchain-types",
     "cat-gateway-types",
 ] }
-tracing = { version = "0.1.41", features = ["log"] }
 regex = "1.12.2"
 
 

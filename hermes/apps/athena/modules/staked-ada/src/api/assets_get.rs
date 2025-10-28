@@ -24,6 +24,7 @@ use shared::{
                 pallas_big_int_to_num_bigint,
             },
         },
+        log,
         settings::Settings,
         sqlite::Connection,
     },
@@ -119,7 +120,7 @@ fn calculate_assets_state(
     let mut tx = Connection::begin(session)?;
     if let Err((_, err)) = update_txo_spent(&mut tx, params) {
         tx.rollback()?;
-        tracing::error!("Failed to update TXO spent info, err: {err}");
+        log::error!("Failed to update TXO spent info, err: {err}");
     }
 
     Ok(TxoAssetsState { txos, txo_assets })

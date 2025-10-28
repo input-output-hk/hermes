@@ -83,6 +83,24 @@ fn create_not_found_response(
     })
 }
 
+/// Creates a 400 Bad Request response
+/// TODO: Make error responses configurable (custom error pages, etc.)
+fn create_bad_request_response(
+    method: &str,
+    path: &str,
+) -> HttpGatewayResponse {
+    const FUNCTION_NAME: &str = "create_bad_request_response";
+    log::warn!("Invalid route: {method} {path}",);
+    HttpGatewayResponse::Http(HttpResponse {
+        code: StatusCode::BAD_REQUEST.as_u16(),
+        headers: vec![(CONTENT_TYPE.to_string(), vec![TEXT_HTML.to_string()])],
+        body: Bstr::from(format!(
+            "<html><body><h1>{}</h1></body></html>",
+            messages::BAD_REQUEST
+        )),
+    })
+}
+
 /// Formats the response type for logging
 fn format_response_type(response: &HttpGatewayResponse) -> String {
     match response {
@@ -124,32 +142,22 @@ fn convert_to_http_response(stake_info: Responses) -> HttpGatewayResponse {
 /// Convert error response to HTTP response
 fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse {
     match error {
-        ErrorResponses::NotFound => HttpGatewayResponse::Http(HttpResponse {
-            code: StatusCode::NOT_FOUND.as_u16(),
-            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
-            body: Bstr::from(format!("{{\"error\":\"{}\"}}", messages::NOT_FOUND)),
-        }),
-        ErrorResponses::ServerError(_) => HttpGatewayResponse::Http(HttpResponse {
-            code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
-            body: Bstr::from(format!(
-                "{{\"error\":\"{}\"}}",
-                messages::INTERNAL_SERVER_ERROR
-            )),
-        }),
-        ErrorResponses::ServiceUnavailable(_, _) => HttpGatewayResponse::Http(HttpResponse {
-            code: StatusCode::SERVICE_UNAVAILABLE.as_u16(),
-            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
-            body: Bstr::from(format!(
-                "{{\"error\":\"{}\"}}",
-                messages::SERVICE_UNAVAILABLE
-            )),
-        }),
-        _ => HttpGatewayResponse::Http(HttpResponse {
-            code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            headers: vec![(CONTENT_TYPE.to_string(), vec![APPLICATION_JSON.to_string()])],
-            body: Bstr::from(format!("{{\"error\":\"{}\"}}", messages::UNKNOWN_ERROR)),
-        }),
+        ErrorResponses::NotFound => {
+            let error_body = format!("{{\"error\":\"{}\"}}", messages::NOT_FOUND);
+            create_json_response(StatusCode::NOT_FOUND, error_body)
+        },
+        ErrorResponses::ServerError(_) => {
+            let error_body = format!("{{\"error\":\"{}\"}}", messages::INTERNAL_SERVER_ERROR);
+            create_json_response(StatusCode::INTERNAL_SERVER_ERROR, error_body)
+        },
+        ErrorResponses::ServiceUnavailable(_, _) => {
+            let error_body = format!("{{\"error\":\"{}\"}}", messages::SERVICE_UNAVAILABLE);
+            create_json_response(StatusCode::SERVICE_UNAVAILABLE, error_body)
+        },
+        _ => {
+            let error_body = format!("{{\"error\":\"{}\"}}", messages::UNKNOWN_ERROR);
+            create_json_response(StatusCode::INTERNAL_SERVER_ERROR, error_body)
+        },
     }
 }
 
@@ -172,12 +180,18 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
         let response = match validation_result {
             Ok(stake_address) => {
                 log::info!("Processing STAKE_ROUTE: {method} {path} {body:?} {headers:?}",);
-                let request: GetStakedAdaRequest = match serde_json::from_slice(&body) {
-                    Ok(req) => req,
-                    Err(err) => {
-                        log::error!("request parse failed: {err}");
-                        return Some(create_not_found_response(&method, &path));
-                    },
+
+                // For GET requests, use default values if body is empty
+                let request: GetStakedAdaRequest = if body.is_empty() {
+                    GetStakedAdaRequest::default()
+                } else {
+                    match serde_json::from_slice(&body) {
+                        Ok(req) => req,
+                        Err(err) => {
+                            log::error!("request parse failed: {err}");
+                            return Some(create_not_found_response(&method, &path));
+                        },
+                    }
                 };
 
                 let response = staked_ada_get(
@@ -198,10 +212,8 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                     },
                 }
             },
-            Err(err) => {
-                log::error!("Path validation failed: {err}");
-                create_not_found_response(&method, &path)
-            },
+            Err(StakedAdaError::InvalidPath { .. }) => create_not_found_response(&method, &path),
+            _ => create_bad_request_response(&method, &path),
         };
 
         log::info!(
