@@ -1,4 +1,5 @@
 SELECT
+    stake_address,
     txn_id,
     txn_index,
     txo,
