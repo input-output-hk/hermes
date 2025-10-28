@@ -10,6 +10,7 @@ use shared::{
 };
 
 /// Mock stake address used for testing
+// cspell:ignore racwpyrnngpzvjfcf dacpvd djgfkd cfzwyau
 const MOCKED_STAKE_ADDRESS: &str = "stake1ux5wm486ud2racwpyrnngpzvjfcf839dacpvd60djgfkd0cfzwyau";
 
 /// Initializes sqlite tables and cardano block subscription.

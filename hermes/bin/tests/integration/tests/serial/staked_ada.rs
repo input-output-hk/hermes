@@ -134,7 +134,7 @@ fn extract_staked_data_from_json(data: &serde_json::Value) -> anyhow::Result<Sta
 #[test]
 #[serial]
 fn staked_ada_requests() -> anyhow::Result<()> {
-    let temp_dir = Arc::new(TempDir::new()?.dont_delete_on_drop());
+    let temp_dir = Arc::new(TempDir::new()?);
 
     let app_name = build_stake_ada_with_db_mock(&temp_dir).context("failed to build modules")?;
 
@@ -148,11 +148,13 @@ fn staked_ada_requests() -> anyhow::Result<()> {
     let url_builder = |stake_address: &str| {
         format!("http://localhost:5000/api/gateway/v1/cardano/assets/{stake_address}")
     };
+    // cspell:disable
     let url_with_mocked_address =
         url_builder("stake1ux5wm486ud2racwpyrnngpzvjfcf839dacpvd60djgfkd0cfzwyau");
     let url_with_unknown_address =
         url_builder("stake1u9658xgzll2su0mpfgjykz86zutmv7x737vcdgf3nsu03wqt63ggw");
     let url_with_invalid_address = url_builder("blah_blah");
+    // cspell:enable
 
     let client = reqwest::blocking::Client::new();
 
