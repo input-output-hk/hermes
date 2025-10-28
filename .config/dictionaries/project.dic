@@ -85,6 +85,7 @@ instanciate
 ipfs
 jsonschema
 justfile
+keepalives
 libp
 libsqlite
 libtest
@@ -180,6 +181,7 @@ timelike
 tinygo
 Tmax
 toolsets
+Tquiet
 traceback
 traitreg
 tweakable

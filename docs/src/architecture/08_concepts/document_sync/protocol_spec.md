@@ -431,22 +431,68 @@ flowchart TD
 
 * *in_reply_to* MUST NOT be present on `.new`.
 * **docs** or **manifest** MUST be present (exactly one of them).
+  For `.new` keepalive re‑announcements (see below),
+  **docs** MAY be an empty array to re‑advertise the sender’s current
+  `root` and `count` without pointing to any documents.
 * **ttl** MUST be present when `manifest` is used and MUST NOT appear with inline `docs`.
   Individual announced `docs` are always pinned.
 
 **Processing:**
 
 1. *Publisher precondition (MUST):* Prior to publishing a `.new` with any `cidv1` (inline or via manifest),
-the publisher MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then
-FindProviders(CID) and receiving at least one provider peer ID that is not the publisher’s own.
-If not satisfied, retry with backoff before publishing.
-When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
+   the publisher MUST ensure each CID is discoverable via the DHT by calling Provide(CID) and then
+   FindProviders(CID) and receiving at least one provider peer ID that is not the publisher’s own.
+   If not satisfied, retry with backoff before publishing.
+   When a manifest is used, this applies to the manifest CID itself and to every CID listed within the manifest.
 2. *Document validation:* Fetch and pin all CIDs from docs or manifest before insertion.
 3. *Atomic pinning:* if any CID cannot be fetched and pinned within the pinning retry window,
    release partial pins and defer insertion.
 4. *Recompute SMT root:* Upon successful pin of all CIDs, insert each CID into the local SMT; compute local root.
 5. *Verify convergence:* If local root ≠ sender root, mark divergence and enter reconciliation backoff (see State Machines),
    unless parity is achieved during backoff via subsequent `.new`/`.dif` reception.
+
+#### Quiet‑period re‑announce (keepalive on `.new`)
+
+To ensure peers can detect divergence even in prolonged steady state (no new documents),
+each peer maintains a per‑channel quiet‑period timer.
+
+If no `.new` messages are observed on `<base>.new` for the duration of this timer (with added jitter), the peer SHOULD publish a
+`.new` whose **docs** field is present but empty (i.e., `[]`).
+
+This keepalive:
+
+* re‑advertises the sender’s current `root` and `count` without referencing any CIDs,
+* requires no DHT pre‑publication checks or pinning (no CIDs are announced), and
+* enables other peers to observe root mismatches and enter reconciliation.
+
+Peers MUST apply jitter to avoid synchronized bursts and SHOULD
+rate‑limit keepalives (see Timers and Retries).
+
+##### Diagram — Quiet‑period `.new` keepalive triggers reconciliation (2 peers)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Peer A
+  participant PS as IPFS PubSub
+  participant B as Peer B
+
+  Note over A,B: No `.new` observed on <base>.new for Tquiet
+  par Independent quiet timers with jitter
+    A->>A: start Tquiet + jitter
+    B->>B: start Tquiet + jitter
+  end
+
+  Note over B: Timer fires first
+  B->>PS: .new [docs=[], root_B, count_B]
+  PS-->>A: .new
+  A->>A: root_A ≠ root_B → Diverged
+  A->>PS: after backoff: .syn [root_A, count_A, to=B, ...]
+  PS-->>B: .syn
+  B->>PS: .dif [in_reply_to, (docs|manifest), root_B, count_B]
+  PS-->>A: .dif
+  A->>A: fetch+pin, update SMT → Stable
+```
 
 ### .syn (topic `<base>.syn`)
 
@@ -925,6 +971,12 @@ stateDiagram-v2
 * **Responder jitter before publishing `.dif`:** uniform random in `[Rmin, Rmax]`
   (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
+* **Quiet‑period re‑announce on `.new`:** per‑channel quiet timer with jitter.
+  If no `.new` is observed on `<base>.new` within `Tquiet`, publish a `.new` keepalive with `docs=[]` (empty) carrying only `root` and `count`.
+    * Suggested PoC values: `Tquiet` uniformly random in [20 s, 60 s].
+      Implementations SHOULD reset the timer upon receiving any `.new` on the channel and SHOULD rate‑limit to avoid sending more than
+      one keepalive per `Tquiet` interval.
+    * Rationale: enables divergence detection and reconciliation liveness in steady state without new content.
 * **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least the announced `ttl`.
   The `ttl` field MUST be included in `.dif` when a `manifest` is used.
 * **Pinning retry window:** implementations SHOULD configure a bounded retry window `Wpin`
