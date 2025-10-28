@@ -15,6 +15,8 @@
         "bytecodealliance",
         "bytestream",
         "cabi",
+        "cardano",
+        "cbor",
         "Ciovec",
         "Clockid",
         "CLOCKID",
@@ -163,6 +165,7 @@
         "libfoo",
         "libwasm",
         "linkat",
+        "localtime",
         "lookupflags",
         "Lookupflags",
         "LOOKUPFLAGS",
@@ -275,12 +278,14 @@
         "Vecs",
         "vtables",
         "wasi",
+        "wasip",
         "wasmtime",
         "wasmtime's",
         "WILLNEED",
         "writev",
         "writting",
         "XDEV",
-        "zstack"
+        "zstack",
+        "zstd"
     ]
 }

@@ -51,6 +51,7 @@ dotenvy
 dotstar
 earthfile
 Embedder
+enumerants
 EROFS
 errno
 fadvise
@@ -126,6 +127,8 @@ pollables
 pollout
 pozhylenkov
 pread
+precheck
+prechecks
 preopened
 preopens
 preprod
@@ -166,6 +169,7 @@ subsec
 symlinkat
 syscall
 tailscale
+Tdiff
 testcov
 testdocs
 testunit
@@ -174,7 +178,6 @@ thollander
 threadsafe
 timelike
 tinygo
-Tdiff
 Tmax
 toolsets
 traceback
