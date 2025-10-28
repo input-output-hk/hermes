@@ -984,10 +984,11 @@ stateDiagram-v2
   (PoC suggestion: 50–250 ms).
   Cancel if an adequate `.dif` appears.
 * **Quiet‑period re‑announce on `.new`:** per‑channel quiet timer with jitter.
-  If no `.new` is observed on `<base>.new` within `Tquiet`, publish a `.new` keepalive with `docs=[]` (empty) carrying only `root` and `count`.
+  If no `.new` is observed on `<base>.new` within `Tquiet`, publish a `.new` keepalive with `docs=[]`
+  (empty) carrying only `root` and `count`.
     * Suggested PoC values: `Tquiet` uniformly random in [20 s, 60 s].
-      Implementations SHOULD reset the timer upon receiving any `.new` on the channel and SHOULD rate‑limit to avoid sending more than
-      one keepalive per `Tquiet` interval.
+      Implementations SHOULD reset the timer upon receiving any `.new` on the channel and SHOULD rate‑limit
+      to avoid sending more than one keepalive per `Tquiet` interval.
     * Rationale: enables divergence detection and reconciliation liveness in steady state without new content.
 * **Diff manifest TTL:** responders SHOULD keep diff manifest blocks available for at least the announced `ttl`.
   The `ttl` field MUST be included in `.dif` when a `manifest` is used.
