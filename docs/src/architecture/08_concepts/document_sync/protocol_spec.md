@@ -1023,6 +1023,25 @@ stateDiagram-v2
 * **Inclusion proof:** path bits from `k` plus sibling hashes per level.
 * **Exclusion proof:** proof of `Empty` at divergence depth or neighbor leaf.
 
+### Bit Ordering and Child Semantics
+
+To avoid ambiguity, the mapping from bits of the key `k` to child selection and proof ordering is fixed as follows:
+
+* Key `k` is the 256‑bit sha2‑256 multihash digest from the document’s CIDv1.
+* Define bit indices on `k` as: bit 0 = least‑significant bit (LSB), bit 255 = most‑significant bit (MSB).
+* Traversal from root to leaf at tree depth `d ∈ [0,255]` uses bit `(255 − d)` of `k`:
+    * bit value 0 → go to the left child
+    * bit value 1 → go to the right child
+* The leftmost leaf corresponds to the path where all 256 bits are 0; the rightmost leaf corresponds to all 1s.
+* Sibling array ordering in proofs is leaf‑up/LSB‑first:
+    * `siblings[0]` corresponds to bit 0,
+    * `siblings[1]` to bit 1, …, `siblings[255]` to bit 255.
+* Node hashing uses the fixed ordering `NodeHash(left, right) = BLAKE3-256(0x01 || left || right)`; callers MUST pass the left child as the first argument and right child as the second.
+
+Implication for `.syn` prefix buckets: when a requester includes `2^D` prefix node hashes at depth `D`,
+bucket indices 0..`2^D−1` correspond to the integer formed by the top `D` bits of `k` (MSB‑first).
+Thus, the leftmost bucket (index 0) covers keys whose top `D` bits are all 0; the rightmost bucket (index `2^D−1`) covers keys whose top `D` bits are all 1.
+
 ### Diagram — Simplified SMT Proof Path
 
 ```mermaid
