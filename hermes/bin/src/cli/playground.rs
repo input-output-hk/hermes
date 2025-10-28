@@ -95,7 +95,10 @@ fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
 
 /// Collects `.wasm` files in the current directory or sub-directories of the current
 /// directory. Return a [`String`] module name along with each compiled [`Module`].
-fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module)>> {
+fn collect_modules(
+    app_name: &str,
+    components: &[PathBuf],
+) -> anyhow::Result<Vec<(String, Module)>> {
     // All wasm components in a directory.
     let mut modules = Vec::new();
 
@@ -107,8 +110,7 @@ fn collect_modules(components: &[PathBuf]) -> anyhow::Result<Vec<(String, Module
             .ok_or_else(|| anyhow!("Provided path is invalid: {}", file_path.display()))?
             .to_string();
         let wasm_buf = fs::read(file_path)?;
-        let app_name = ApplicationName::new(&name);
-        let module = Module::from_bytes(&app_name, &wasm_buf)?;
+        let module = Module::from_bytes(&ApplicationName::new(app_name), &wasm_buf)?;
         modules.push((name, module));
     }
 
@@ -153,7 +155,7 @@ fn create_and_init_app_with_temp_dir_vfs(
     components: &[PathBuf],
     temp_dir: &TempDir,
 ) -> anyhow::Result<Application> {
-    let named_modules = collect_modules(components)?;
+    let named_modules = collect_modules(&app_name, components)?;
 
     let vfs_dir_path = create_temp_dir_child(temp_dir, Path::new("vfs"))?;
     let app = create_app(app_name, &vfs_dir_path, named_modules)?;
