@@ -1036,11 +1036,13 @@ To avoid ambiguity, the mapping from bits of the key `k` to child selection and 
 * Sibling array ordering in proofs is leaf‑up/LSB‑first:
     * `siblings[0]` corresponds to bit 0,
     * `siblings[1]` to bit 1, …, `siblings[255]` to bit 255.
-* Node hashing uses the fixed ordering `NodeHash(left, right) = BLAKE3-256(0x01 || left || right)`; callers MUST pass the left child as the first argument and right child as the second.
+* Node hashing uses the fixed ordering `NodeHash(left, right) = BLAKE3-256(0x01 || left || right)`;
+  callers MUST pass the left child as the first argument and right child as the second.
 
 Implication for `.syn` prefix buckets: when a requester includes `2^D` prefix node hashes at depth `D`,
 bucket indices 0..`2^D−1` correspond to the integer formed by the top `D` bits of `k` (MSB‑first).
-Thus, the leftmost bucket (index 0) covers keys whose top `D` bits are all 0; the rightmost bucket (index `2^D−1`) covers keys whose top `D` bits are all 1.
+Thus, the leftmost bucket (index 0) covers keys whose top `D` bits are all 0; the rightmost bucket
+(index `2^D−1`) covers keys whose top `D` bits are all 1.
 
 ### Diagram — Simplified SMT Proof Path
 
