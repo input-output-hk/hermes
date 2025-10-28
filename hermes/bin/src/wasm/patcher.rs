@@ -15,7 +15,12 @@ const MAGIC: &str = r"vmucqq2137emxpatzkmuyy1szcpx23lp-hermes-";
 /// Regex to detect the function definitions in the core module.
 const CORE_FUNC_REGEX: &str = r"\(func\s+\$[^\s()]+[^)]*\(;";
 
+/// A string that marks the beginning of a core module.
+const CORE_MODULE_MARKER: &str = "(core module (;";
+
 /// Regex to detect the aliases of core functions in the component part.
+// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
+// component structure.
 const COMPONENT_CORE_FUNC_REGEX: &str = r#"\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func"#;
 
 /// Regex to detect the function export definitions in the component part.
@@ -55,6 +60,8 @@ const CORE_INJECTED_EXPORTS: &str = r#"
     "#;
 
 /// A template for the injected types, functions and exports in the component part.
+// TODO[RC]: The core number here (0) should not be hardcoded, but aligned with the
+// component structure.
 const COMPONENT_INJECTIONS: &str = r#"
     (type (;{COMPONENT_TYPE_ID_1};) (func (result u32)))
     (alias core export 0 "{MAGIC}get-memory-size" (core func))
@@ -76,7 +83,7 @@ const COMPONENT_INJECTIONS: &str = r#"
 #[derive(Debug)]
 struct WasmInternals {
     /// The core module part of the WASM.
-    core_module: String,
+    core_modules: Vec<String>,
     /// The component part of the WASM.
     component_part: String,
     /// The part of component specified before the core module.
@@ -149,14 +156,12 @@ impl Patcher {
     /// Creates a new patcher from a file path.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, anyhow::Error> {
         let wat = wasmprinter::print_file(path)?;
-        Self::validate_core_module(&wat)?;
         Ok(Self { wat })
     }
 
     /// Creates a new patcher from a WAT string.
     pub fn from_str<S: AsRef<str>>(wat: S) -> Result<Self, anyhow::Error> {
         let _syntax_check = wat::parse_str(wat.as_ref())?;
-        Self::validate_core_module(&wat)?;
         Ok(Self {
             wat: wat.as_ref().to_string(),
         })
@@ -164,7 +169,7 @@ impl Patcher {
 
     /// Validates that the WAT contains exactly one core module.
     fn validate_core_module<S: AsRef<str>>(wat: S) -> Result<(), anyhow::Error> {
-        let core_module_count = Self::get_item_count("(core module (;", &wat)?;
+        let core_module_count = Self::get_item_count(CORE_MODULE_MARKER, &wat)?;
         if core_module_count != 1 {
             return Err(anyhow::anyhow!(
                 "expected exactly one core module, found {core_module_count}"
@@ -178,12 +183,25 @@ impl Patcher {
     #[allow(clippy::arithmetic_side_effects)]
     pub fn patch(&self) -> Result<String, anyhow::Error> {
         let WasmInternals {
-            mut core_module,
             mut component_part,
             mut pre_core_component_part,
+            core_modules,
         } = self.split_into_parts()?;
 
-        let next_core_type_index = Self::get_next_core_type_index(&core_module)?;
+        let mut core_modules_iter = core_modules.into_iter();
+        let module_0 = core_modules_iter
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("should have at least one module"))?;
+
+        let module_0_last_parenthesis = module_0
+            .rfind(')')
+            .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in core part"))?;
+        let mut module_0 = module_0
+            .get(..module_0_last_parenthesis)
+            .ok_or_else(|| anyhow::anyhow!("malformed module 0 part"))?
+            .to_string();
+
+        let next_core_type_index = Self::get_next_core_type_index(&module_0)?;
 
         let core_type_1_index = next_core_type_index.to_string();
         let core_type_2_index = (next_core_type_index + 1).to_string();
@@ -202,7 +220,7 @@ impl Patcher {
 
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
 
-        let next_core_func_index = Self::get_next_core_func_index(&core_module);
+        let next_core_func_index = Self::get_next_core_func_index(&module_0);
 
         let next_component_type_index =
             Self::get_next_component_type_index(&component_part, &pre_core_component_part)?;
@@ -236,17 +254,25 @@ impl Patcher {
             .replace("{COMPONENT_CORE_FUNC_ID_3}", &component_core_func_3_index)
             .replace("{COMPONENT_FUNC_ID_3}", &component_func_3_index);
 
-        core_module.push_str(&core_type_injection);
-        core_module.push_str(&core_func_injection);
-        core_module.push_str(&core_export_injection);
+        module_0.push_str(&core_type_injection);
+        module_0.push_str(&core_func_injection);
+        module_0.push_str(&core_export_injection);
         component_part.push_str(&component_injections);
+
+        #[allow(clippy::format_collect)]
+        let other_modules = core_modules_iter
+            .map(|m| format!("    {m}\n"))
+            .collect::<String>();
 
         let patched_wat = format!(
             "
             (component 
                 {pre_core_component_part}
-                {core_module}
+
+                {module_0}
             )
+
+                {other_modules}
             
             {component_part}
             )"
@@ -364,6 +390,7 @@ impl Patcher {
     ) -> Result<usize, anyhow::Error> {
         let mut end = start;
         let mut count = 1;
+        let mut in_string = false;
         for ch in wat
             .as_ref()
             .get((start + 1)..)
@@ -371,12 +398,20 @@ impl Patcher {
             .chars()
         {
             end += 1;
-            if ch == '(' {
-                count += 1;
-            } else if ch == ')' {
-                count -= 1;
-                if count == 0 {
-                    break;
+            // TODO[RC]: We need to be more cautious, since WAT supports both \" escapes in strings
+            // and ; arbitrary comments. See: https://webassembly.github.io/spec/core/text/values.html#strings
+            // Ultimately, this needs to be fixed by using a proper parser.
+            if ch == '"' {
+                in_string = !in_string;
+            }
+            if !in_string {
+                if ch == '(' {
+                    count += 1;
+                } else if ch == ')' {
+                    count -= 1;
+                    if count == 0 {
+                        break;
+                    }
                 }
             }
         }
@@ -387,6 +422,29 @@ impl Patcher {
     #[allow(clippy::arithmetic_side_effects)]
     fn split_into_parts(&self) -> Result<WasmInternals, anyhow::Error> {
         const COMPONENT_ITEM: &str = "(component";
+
+        let mut processed_component = self.wat.clone();
+        let last_core_start = processed_component
+            .rfind(CORE_MODULE_MARKER)
+            .ok_or_else(|| anyhow::anyhow!("no core module"))?;
+        let last_core_end =
+            Self::parse_until_section_end(last_core_start, &processed_component)? + 1;
+
+        let mut core_modules = Vec::new();
+        let mut processed_component = self.wat.clone();
+        while let Some(core_module_start) = processed_component.find(CORE_MODULE_MARKER) {
+            let core_module_end =
+                Self::parse_until_section_end(core_module_start, &processed_component)? + 1;
+            core_modules.push(
+                processed_component
+                    .get(core_module_start..core_module_end)
+                    .ok_or_else(|| anyhow::anyhow!("should have core module"))?
+                    .to_string(),
+            );
+
+            processed_component.replace_range(core_module_start..core_module_end, "---");
+        }
+
         let module_start = self
             .wat
             .find("(core module")
@@ -419,17 +477,14 @@ impl Patcher {
             .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in core part"))?;
         let component_part = &self
             .wat
-            .get((module_end + 1)..)
+            .get((last_core_end + 1)..)
             .ok_or_else(|| anyhow::anyhow!("malformed wat"))?;
         let component_last_parenthesis = component_part
             .rfind(')')
             .ok_or_else(|| anyhow::anyhow!("no closing parenthesis in component part"))?;
 
         Ok(WasmInternals {
-            core_module: core_module
-                .get(..core_last_parenthesis)
-                .ok_or_else(|| anyhow::anyhow!("malformed core module"))?
-                .to_string(),
+            core_modules,
             component_part: component_part
                 .get(..component_last_parenthesis)
                 .ok_or_else(|| anyhow::anyhow!("malformed component part"))?
@@ -551,6 +606,7 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
+            )
             ";
 
         const EXPECTED_COMPONENT: &str = r#"
@@ -569,13 +625,15 @@ mod tests {
 
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT).expect("should create patcher");
         let WasmInternals {
-            core_module,
+            core_modules,
             component_part,
             pre_core_component_part,
         } = patcher.split_into_parts().expect("should extract parts");
 
+        let module_0 = core_modules.first().expect("should have first module");
+
         assert_eq!(
-            strip_whitespaces(&core_module),
+            strip_whitespaces(module_0),
             strip_whitespaces(EXPECTED_CORE)
         );
         assert_eq!(
@@ -593,7 +651,7 @@ mod tests {
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
             .expect("should create patcher");
         let WasmInternals {
-            core_module,
+            core_modules,
             component_part,
             pre_core_component_part,
         } = patcher.split_into_parts().expect("should extract parts");
@@ -617,6 +675,7 @@ mod tests {
                 (func $two (;1;) (type 1) (result i32)
                     i32.const 2
                 )
+            )
             ";
 
         const EXPECTED_COMPONENT: &str = r#"
@@ -648,13 +707,15 @@ mod tests {
         let patcher = Patcher::from_str(MAKESHIFT_CORRECT_WAT_WITH_PRE_CORE_COMPONENT)
             .expect("should create patcher");
         let WasmInternals {
-            core_module,
+            core_modules,
             component_part,
             pre_core_component_part,
         } = patcher.split_into_parts().expect("should extract parts");
 
+        let module_0 = core_modules.first().expect("should have first module");
+
         assert_eq!(
-            strip_whitespaces(&core_module),
+            strip_whitespaces(module_0),
             strip_whitespaces(EXPECTED_CORE)
         );
         assert_eq!(
@@ -1236,19 +1297,13 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_wasm_returns_error() {
-        let patcher = Patcher::from_file(COMPONENT_MULTIPLE_CORE_MODULES);
-        assert!(patcher.is_err());
-    }
-
-    #[test]
     fn patching_real_life_hermes_module_works() {
         let patcher = Patcher::from_file(HERMES_REAL_LIFE_MODULE).expect("should create patcher");
 
         let WasmInternals {
-            mut core_module,
             mut component_part,
             mut pre_core_component_part,
+            ..
         } = patcher.split_into_parts().expect("should split into parts");
 
         let patched_wat = patcher.patch().expect("should patch");
