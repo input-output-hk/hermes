@@ -1,11 +1,11 @@
+use std::{path::Path, str::FromStr, sync::Arc, time::Duration};
+
 use anyhow::Context;
 use reqwest::{
     header::{HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, HOST},
     StatusCode,
 };
 use serial_test::serial;
-use std::{path::Path, time::Duration};
-use std::{str::FromStr, sync::Arc};
 use temp_dir::TempDir;
 
 use crate::utils;
@@ -138,18 +138,9 @@ fn staked_ada_requests() -> anyhow::Result<()> {
 
     let app_name = build_stake_ada_with_db_mock(&temp_dir).context("failed to build modules")?;
 
-    // TODO[RC]: Build hermes just once for all tests
+    // Build Hermes and spawn it as a child; it will be terminated on drop
     utils::hermes::build();
-    let handler = std::thread::spawn({
-        let temp_dir = temp_dir.clone();
-        let app_name = app_name.clone();
-        move || {
-            println!("Running application: {app_name}");
-            utils::hermes::run_app(&temp_dir, &app_name)?;
-            println!("Application run terminated");
-            Ok::<(), anyhow::Error>(())
-        }
-    });
+    let _hermes = utils::hermes::spawn_app(&temp_dir, &app_name)?;
 
     // Wait for app to initialize modules.
     std::thread::sleep(Duration::from_secs(10));
@@ -250,8 +241,7 @@ fn staked_ada_requests() -> anyhow::Result<()> {
         ensure_eq!(response_for_invalid_address.status(), StatusCode::NOT_FOUND);
     }
 
-    // Check if app is not terminated
-    anyhow::ensure!(!handler.is_finished());
+    // Hermes will be terminated when `_hermes` is dropped
 
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
