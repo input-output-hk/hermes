@@ -1,0 +1,26 @@
+{
+	"$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_metadata.schema.json",
+	"name": "Authentication and Authorization service",
+	"version": "V0.1.0",
+	"description": "Catalyst authentication and authorization service",
+	"src": [
+		"https://github.com/input-output-hk/hermes",
+		"https://github.com/input-output-hk/catalyst-voices"
+	],
+	"copyright": ["Copyright Ⓒ 2024, IOG Singapore."],
+	"license": [
+		{
+			"spdx": "Apache-2.0",
+			"file": "/srv/data/apache2.txt"
+		},
+		{
+			"spdx": "MIT",
+			"file": "/srv/data/mit.txt"
+		}
+	],
+	"developer": {
+		"name": "IOG Singapore",
+		"contact": "redirect-service@iohk.io",
+		"payment": "wallet address"
+	}
+}
