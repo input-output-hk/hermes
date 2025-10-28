@@ -18,10 +18,10 @@ pub(crate) mod string_types;
 
 /// Converts pallas_primitives::BigInt to a num_bigint::BigInt.
 ///
-/// This conversion correctly handles the CBOR standard encoding for Bignums (Tags 2 and 3).
-/// For BigUInt (Tag 2), the bytes directly represent the magnitude (n).
-/// For BigNInt (Tag 3), the bytes encode a value (n) from which the actual number is derived
-/// as: Actual Value = -1 - n.
+/// This conversion correctly handles the CBOR standard encoding for Bignums (Tags 2 and
+/// 3). For BigUInt (Tag 2), the bytes directly represent the magnitude (n).
+/// For BigNInt (Tag 3), the bytes encode a value (n) from which the actual number is
+/// derived as: Actual Value = -1 - n.
 ///
 /// Reference: https://datatracker.ietf.org/doc/html/rfc7049#page-16 (Section 2.4.2. Bignums)
 pub fn pallas_big_int_to_num_bigint(
