@@ -847,6 +847,18 @@ cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-b
 | 2 | **hpke_enc** | bytes .size 32 | responder’s HPKE encapsulated ephemeral public key (REQUIRED) |
 | 3 | **ct** | bytes | HPKE ciphertext of the proof payload (REQUIRED) |
 
+**Encrypted plaintext fields (see `prf-plaintext` CDDL):**
+
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **kt-responder** | peer-pubkey | MUST equal the envelope peer-pubkey |
+| 2 | **kt-in_reply_to** | uuid | MUST equal the outer in_reply_to and match the referenced `.prv` seq |
+| 3 | **kt-cid** | cidv1 | MUST equal the requested `cid` from the `.prv` |
+| 4 | **kt-root** | root-hash | SMT root the proof is about |
+| 5 | **kt-count** | uint | Document count at that root |
+| 6 | **kt-present** | bool | Whether the CID is included |
+| 7 | **kt-proof** | smt-proof | Inclusion/non-inclusion proof |
+
 **Processing:**
 
 * Only the requester possessing the matching X25519 private key can decrypt `ct`.
@@ -1054,25 +1066,14 @@ and encrypts the proof payload into `ct`.
   Root, count, and cid are protected inside the ciphertext (prf-plaintext)
   and validated post-decryption.
 
-**Encrypted plaintext fields (see `prf-plaintext` CDDL):**
-
-* kt-responder (1): peer-pubkey — MUST equal the envelope peer-pubkey
-* kt-in_reply_to (2): uuid — MUST equal the outer in_reply_to and match the referenced `.prv` seq
-* kt-cid (3): cidv1 — MUST equal the requested `cid` from the `.prv`
-* kt-root (4): root32 — SMT root the proof is about
-* kt-count (5): uint — document count at that root
-* kt-present (6): bool — whether the CID is included
-* kt-proof (7): smt-proof — inclusion/non-inclusion proof
-
 **Verification (requester):**
 
-  1. Decapsulate with X25519 private key to obtain AEAD key/nonce, then decrypt `ct` using AAD as above.
-  2. Check that `kt-responder` equals the envelope peer-pubkey and `kt-in_reply_to` equals the outer in_reply_to and the `.prv` seq.
-  3. Check that `kt-cid` equals the requested CID from the `.prv`.
-  4. If `kt-present = true`,
-     1. verify the SMT inclusion proof (`kt-proof`) against `kt-root`;
-  5. if `false`,
-     1. verify the non-inclusion proof.
+1. Decapsulate with X25519 private key to obtain AEAD key/nonce, then decrypt `ct` using AAD as above.
+2. Check that `kt-responder` equals the envelope peer-pubkey and `kt-in_reply_to` equals the outer in_reply_to and the `.prv` seq.
+3. Check that `kt-cid` equals the requested CID from the `.prv`.
+4. If `kt-present:
+    * `true`: verify the SMT inclusion proof (`kt-proof`) against `kt-root`
+    * `false`: verify the non-inclusion proof.
 
 **Non-requesters cannot decrypt and SHOULD ignore `.prf` ciphertext.**
 <!-- markdownlint-enable MD033 -->
@@ -1095,22 +1096,20 @@ sequenceDiagram
   PS-->>R: .prf
   R->>R: HPKE open(ct) → prf-plaintext
 
-  R->>R: verify proof vs.<br>decrypted kt-root; record
-
+  R->>R: verify proof vs.<br>decrypted kt-root<br>record
 ```
 
 ### SMT Proof Encoding
 
 **Proofs use numeric keys with named constants (see CDDL):**
 
-<!-- markdownlint-disable MD033 -->
-* kp-type (1): uint — 0 = inclusion, 1 = non-inclusion
-* kp-k (2): cidv1 — the document CID (full cidv1).<br>
-  Verifier derives key k as the sha2-256 multihash digest embedded in this cidv1 (32 bytes).
-* kp-siblings (3): array of blake3-256 — ordered from leaf upward (LSB-first)
-* kp-leaf (4) OPTIONAL: blake3-256 — LeafHash; MAY be omitted
-* kp-depth (5) OPTIONAL: uint — defaults to 256 if omitted
-<!-- markdownlint-enable MD033 -->
+| Index | Name | Type | Description |
+| --- | --- | --- | --- |
+| 1 | **kp-type** | uint | 0 = inclusion, 1 = non-inclusion |
+| 2 | **kp-k** | cidv1 | The document CID (full cidv1). Verifier derives key `k` as the sha2-256 multihash digest embedded in this cidv1 (32 bytes). |
+| 3 | **kp-siblings** | array of blake3-256 | Ordered from leaf upward (LSB-first) |
+| 4 | **kp-leaf** (OPTIONAL) | blake3-256 | LeafHash; MAY be omitted |
+| 5 | **kp-depth** (OPTIONAL) | uint | Defaults to 256 if omitted |
 
 **Note:** kp-k carries the full cidv1 for clarity.
 
@@ -1120,7 +1119,7 @@ Implementations MUST also ensure `kp-k` equals the cid carried in the correspond
 
 #### CDDL — SMT proofs
 
-```cbor
+```cddl
 smt-proof = {
   kp-type => uint,            ; 0 incl, 1 excl
   kp-k => cidv1,              ; document CID; k = sha2-256 digest from this cidv1
@@ -1217,7 +1216,7 @@ It carries no metadata; its context and binding come from the `.dif` message tha
 
 ### CDDL — Diff manifest
 
-```cbor
+```cddl
 diff-manifest = [* cidv1]
 cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 ```
