@@ -12,7 +12,7 @@ use crate::api::types::AllResponses;
 pub mod assets_get;
 pub mod types;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub(crate) struct GetStakedAdaRequest {
     // Cardano network type.
     // If omitted network type is identified from the stake address.

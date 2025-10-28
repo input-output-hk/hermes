@@ -29,9 +29,10 @@ pub fn build() {
 
 pub fn run_app(
     temp_dir: &TempDir,
-    app_file_name: &str,
+    app_name: &str,
 ) -> anyhow::Result<String> {
-    let app_path = temp_dir.as_ref().join(app_file_name);
+    let mut app_path = temp_dir.as_ref().join(app_name);
+    app_path.set_extension("happ");
 
     let log_file_path = temp_dir.as_ref().join(LOG_FILE_NAME);
     let log_file = File::create(&log_file_path)?;

@@ -16,4 +16,5 @@ pub mod messages {
     pub const UNKNOWN_ERROR: &str = "Unknown error";
     pub const SERIALIZATION_FAILED: &str = "Serialization failed";
     pub const PAGE_NOT_FOUND: &str = "404 - Page Not Found";
+    pub const BAD_REQUEST: &str = "400 - Bad Request";
 }
