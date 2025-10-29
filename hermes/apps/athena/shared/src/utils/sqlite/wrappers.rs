@@ -1,4 +1,4 @@
-//! Wrapped sqlite internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
+//! Wrapped `SQLite` internals. Inspired by <https://docs.rs/rusqlite/latest/rusqlite>.
 
 use std::{array, marker::PhantomData};
 
@@ -7,12 +7,16 @@ use derive_more::{Deref, DerefMut};
 
 use crate::bindings::hermes::sqlite::api;
 
-/// Sqlite connection.
+/// `SQLite` connection.
 /// Closes on drop.
 pub struct Connection(api::Sqlite);
 
 impl Connection {
-    /// Open a writable sqlite connection.
+    /// Open a writable `SQLite` connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying `SQLite` open call fails.
     pub fn open(in_memory: bool) -> anyhow::Result<Self> {
         api::open(false, in_memory)
             .map(Self)
@@ -20,11 +24,19 @@ impl Connection {
     }
 
     /// Close the connection explicitly.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying `SQLite` close call fails.
     pub fn close(&self) -> anyhow::Result<()> {
         self.0.close().context("Closing connection")
     }
 
-    /// Prepare sqlite statement.
+    /// Prepare `SQLite` statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if preparing the statement fails.
     pub fn prepare<'a>(
         &'a self,
         sql: &str,
@@ -35,7 +47,11 @@ impl Connection {
             .context("Preparing statement")
     }
 
-    /// Executes sqlite query without preparation.
+    /// Execute an `SQLite` query without preparation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if executing the `SQL` fails.
     pub fn execute(
         &self,
         sql: &str,
@@ -43,20 +59,34 @@ impl Connection {
         self.0.execute(sql).context("Executing raw sql")
     }
 
-    /// Begin a new sqlite transaction.
+    /// Begin a new `SQLite` transaction.
     ///
     /// # Note
     ///
     /// Nested transactions are not supported.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if beginning the transaction fails.
     pub fn begin(&mut self) -> anyhow::Result<Transaction<'_>> {
         self.0.execute("BEGIN").context("Beginning transaction")?;
         Ok(Transaction(self))
     }
 
+    /// Roll back the current transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if rolling back fails.
     fn rollback(&self) -> anyhow::Result<()> {
         self.0.execute("ROLLBACK").context("Transaction rollback")
     }
 
+    /// Commit the current transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if committing fails.
     fn commit(&self) -> anyhow::Result<()> {
         self.0.execute("COMMIT").context("Committing transaction")
     }
@@ -64,23 +94,31 @@ impl Connection {
 
 impl Drop for Connection {
     fn drop(&mut self) {
-        let _ = self.close();
+        drop(self.close());
     }
 }
 
-/// Sqlite transaction.
+/// `SQLite` transaction.
 /// Implements [`Deref`] to [`Connection`].
-/// Automatically does rollback on drop.
+/// Automatically rolls back on drop.
 #[derive(Deref, DerefMut)]
 pub struct Transaction<'conn>(&'conn mut Connection);
 
 impl Transaction<'_> {
-    /// Explicitly consume and rollback transaction.
+    /// Explicitly consume and roll back the transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if rolling back fails.
     pub fn rollback(self) -> anyhow::Result<()> {
         self.0.rollback()
     }
 
-    /// Consumes and commits sqlite transaction.
+    /// Consume and commit the `SQLite` transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if committing fails.
     pub fn commit(self) -> anyhow::Result<()> {
         self.0.commit()
     }
@@ -88,14 +126,19 @@ impl Transaction<'_> {
 
 impl Drop for Transaction<'_> {
     fn drop(&mut self) {
-        let _ = self.0.rollback();
+        drop(self.0.rollback());
     }
 }
 
-/// Sqlite statement. Automatically finalizes on [`Drop`].
+/// `SQLite` statement. Automatically finalizes on [`Drop`].
 pub struct Statement<'conn>(Option<api::Statement>, PhantomData<&'conn ()>);
 
 impl Statement<'_> {
+    /// Finalize the statement if it has not been finalized yet.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if finalizing the statement fails.
     fn finalize(&mut self) -> anyhow::Result<()> {
         self.0
             .take()
@@ -106,6 +149,10 @@ impl Statement<'_> {
     /// Binds provided parameters and executes the statement.
     ///
     /// Returns [`Rows`] that can be mapped and iterated on.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding parameters or executing the statement fails.
     pub fn query(
         &mut self,
         params: &[&api::Value],
@@ -119,11 +166,9 @@ impl Statement<'_> {
                     .zip(1u32..)
                     .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
-                    .map(|()| {
-                        Rows {
-                            stmt: Some(stmt),
-                            current: None,
-                        }
+                    .map(|()| Rows {
+                        stmt: Some(stmt),
+                        current: None,
                     })
             })
             .context("Executing prepared query")
@@ -132,6 +177,10 @@ impl Statement<'_> {
     /// Binds provided parameters and executes the statement.
     ///
     /// Maps the first row returned. The rest of the rows are ignored.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding, stepping, or mapping fails, or if no rows are returned.
     pub fn query_one<T, F>(
         &mut self,
         params: &[&api::Value],
@@ -147,6 +196,10 @@ impl Statement<'_> {
 
     /// Same as [`Self::query_one`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding, stepping, conversion, or mapping fails, or if no rows are returned.
     pub fn query_one_as<T>(
         &mut self,
         params: &[&api::Value],
@@ -158,6 +211,10 @@ impl Statement<'_> {
     }
 
     /// Binds provided parameters and executes the statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding or executing the statement fails.
     pub fn execute(
         &mut self,
         params: &[&api::Value],
@@ -165,10 +222,14 @@ impl Statement<'_> {
         self.query(params)?.step().map(drop)
     }
 
-    /// For each provided array of parameters binds them and executes the statement.
+    /// For each provided array of parameters, bind them and execute the statement.
     ///
     /// When one of the executions fails, immediately returns.
     /// Always returns the number of successful executions.
+    ///
+    /// # Errors
+    ///
+    /// Returns a tuple of number of successful executions and the first error encountered.
     pub fn execute_iter<const N: usize>(
         &mut self,
         params: impl IntoIterator<Item: TryInto<[api::Value; N], Error = anyhow::Error>>,
@@ -183,20 +244,27 @@ impl Statement<'_> {
     }
 }
 
-impl<'conn> Drop for Statement<'conn> {
+impl Drop for Statement<'_> {
     fn drop(&mut self) {
-        let _ = self.finalize();
+        drop(self.finalize());
     }
 }
 
 /// Query output.
 /// Automatically resets the statement on [`Drop`].
 pub struct Rows<'stmt> {
+    /// Underlying prepared statement reference.
     stmt: Option<&'stmt api::Statement>,
+    /// The current row, if any.
     current: Option<Row<'stmt>>,
 }
 
 impl<'stmt> Rows<'stmt> {
+    /// Reset the underlying statement if present.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if resetting the statement fails.
     fn reset(&mut self) -> anyhow::Result<()> {
         self.stmt
             .take()
@@ -204,7 +272,11 @@ impl<'stmt> Rows<'stmt> {
             .context("Resetting statement")
     }
 
-    /// Get the next row if there are any left in output.
+    /// Get the next row if there are any left in the output.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if stepping the statement fails.
     pub fn step(&mut self) -> anyhow::Result<Option<&Row<'stmt>>> {
         if let Some(stmt) = self.stmt {
             match stmt.step() {
@@ -218,7 +290,8 @@ impl<'stmt> Rows<'stmt> {
                     res.map(|()| self.current.as_ref())
                 },
                 Err(e) => {
-                    let _ = self.reset(); // prevents infinite loop on error
+                    // Ensure the statement is reset to prevent repeated errors on subsequent calls
+                    drop(self.reset());
                     self.current = None;
                     Err(anyhow::Error::from(e))
                 },
@@ -255,14 +328,16 @@ impl<'stmt> Rows<'stmt> {
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
     pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
-        self.and_then(|row| row.and_then(|row| row.try_into()))
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
+        self.and_then(|row| row.and_then(TryInto::try_into))
     }
 }
 
 impl Drop for Rows<'_> {
     fn drop(&mut self) {
-        let _ = self.reset();
+        drop(self.reset());
     }
 }
 
@@ -270,7 +345,11 @@ impl Drop for Rows<'_> {
 pub struct Row<'stmt>(&'stmt api::Statement);
 
 impl Row<'_> {
-    /// Gets column value.
+    /// Get a column value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the column cannot be decoded.
     pub fn get(
         &self,
         column: u32,
@@ -279,6 +358,10 @@ impl Row<'_> {
     }
 
     /// Like [`Self::get`], but additionally converts the value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if fetching or converting the value fails.
     pub fn get_as<T: TryFrom<api::Value>>(
         &self,
         column: u32,
@@ -290,11 +373,17 @@ impl Row<'_> {
             .and_then(|v| v.try_into().map_err(anyhow::Error::from))
     }
 
-    /// Gets values of each column with `0..N` indices.
+    /// Get values of each column with indices in `0..N`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` cannot extract a column value
+    /// or if the column index does not fit into `u32`.
     pub fn values_n<const N: usize>(&self) -> anyhow::Result<[api::Value; N]> {
         let mut ret = array::from_fn::<_, N, _>(|_| api::Value::Null);
-        for i in 0..N as u32 {
-            ret[i as usize] = self.get(i)?;
+        for (idx, slot) in ret.iter_mut().enumerate() {
+            let col = u32::try_from(idx).map_err(|_| anyhow!("column index overflow"))?;
+            *slot = self.get(col)?;
         }
         Ok(ret)
     }
@@ -302,6 +391,10 @@ impl Row<'_> {
     /// Gets and converts values according to [`TryFrom`] implementation.
     ///
     /// Automatically works for tuples of [`TryFrom`] from [`api::Value`] implementors.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the generic type fails to convert from `Row`.
     ///
     /// # Example
     ///
@@ -313,7 +406,9 @@ impl Row<'_> {
     /// }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         T::try_from(self)
     }
 }

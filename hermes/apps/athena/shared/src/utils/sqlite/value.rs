@@ -1,4 +1,4 @@
-//! Hermes SQLite value conversion.
+//! Hermes `SQLite` value conversion.
 
 use cardano_blockchain_types;
 use num_bigint::{BigInt, BigUint};
@@ -91,7 +91,7 @@ where
     T: Into<Value>,
 {
     fn from(opt: Option<T>) -> Self {
-        opt.map(|v| v.into()).unwrap_or(Value::Null)
+        opt.map_or(Value::Null, Into::into)
     }
 }
 

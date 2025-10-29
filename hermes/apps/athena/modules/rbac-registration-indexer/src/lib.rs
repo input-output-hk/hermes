@@ -1,4 +1,6 @@
+#![allow(missing_docs)]
 //! RBAC Registration Indexing Module
+
 shared::bindings_generate!({
     world: "hermes:app/hermes",
     path: "../../../../../wasm/wasi/wit",
@@ -54,15 +56,17 @@ use crate::database::{
     RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
 };
 
+/// RBAC registration component.
 struct RbacRegistrationComponent;
 
 impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationComponent {
+    #[allow(clippy::too_many_lines)]
     fn on_cardano_block(
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
-        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "on_cardano_block";
+        log::init(log::LevelFilter::Info);
 
         let registrations = get_rbac_registration(subscription_id.get_network(), block);
 
@@ -129,7 +133,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             let slot: u64 = reg.origin().point().slot_or_default().into();
             let txn_idx: u16 = reg.origin().txn_index().into();
             let purpose: Option<String> = reg.purpose().map(|p| p.to_string());
-            let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(|p| p.into());
+            let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(Into::into);
             let problem_report: Option<String> = problem_report_to_json(reg.report());
             // Can contain multiple stake addresses
             let stake_addresses = reg
@@ -169,10 +173,22 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         }
 
         // ------- Finalize and close DB Connection -------
-        let _ = DatabaseStatement::finalize_statement(rbac_persistent_stmt, FUNCTION_NAME);
-        let _ = DatabaseStatement::finalize_statement(rbac_stake_persistent_stmt, FUNCTION_NAME);
-        let _ = DatabaseStatement::finalize_statement(rbac_volatile_stmt, FUNCTION_NAME);
-        let _ = DatabaseStatement::finalize_statement(rbac_stake_volatile_stmt, FUNCTION_NAME);
+        drop(DatabaseStatement::finalize_statement(
+            rbac_persistent_stmt,
+            FUNCTION_NAME,
+        ));
+        drop(DatabaseStatement::finalize_statement(
+            rbac_stake_persistent_stmt,
+            FUNCTION_NAME,
+        ));
+        drop(DatabaseStatement::finalize_statement(
+            rbac_volatile_stmt,
+            FUNCTION_NAME,
+        ));
+        drop(DatabaseStatement::finalize_statement(
+            rbac_stake_volatile_stmt,
+            FUNCTION_NAME,
+        ));
         close_db_connection(sqlite);
         close_db_connection(sqlite_in_mem);
     }
@@ -186,8 +202,8 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         subscription_id: &exports::hermes::cardano::event_on_block::SubscriptionId,
         block: &exports::hermes::cardano::event_on_block::Block,
     ) {
-        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "on_cardano_immutable_roll_forward";
+        log::init(log::LevelFilter::Info);
 
         let network_resource = match cardano::api::Network::new(subscription_id.get_network()) {
             Ok(nr) => nr,
@@ -205,18 +221,15 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
                 return;
             },
         };
-        let (immutable, mutable) = match network_resource.get_tips() {
-            Some(tip) => tip,
-            None => {
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "network_resource.get_tips",
-                    &format!("Failed to get tips of {:?}", subscription_id.get_network()),
-                    None,
-                );
-                return;
-            },
+        let Some((immutable, mutable)) = network_resource.get_tips() else {
+            log_error(
+                file!(),
+                FUNCTION_NAME,
+                "network_resource.get_tips",
+                &format!("Failed to get tips of {:?}", subscription_id.get_network()),
+                None,
+            );
+            return;
         };
 
         // Only process immutable roll forward if when it reach tip.
@@ -274,8 +287,14 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         roll_forward_delete_from_volatile(&stake_addr_delete_stmt, block.get_slot());
 
         // Finalize and close DB Connection
-        let _ = DatabaseStatement::finalize_statement(rbac_delete_stmt, FUNCTION_NAME);
-        let _ = DatabaseStatement::finalize_statement(stake_addr_delete_stmt, FUNCTION_NAME);
+        drop(DatabaseStatement::finalize_statement(
+            rbac_delete_stmt,
+            FUNCTION_NAME,
+        ));
+        drop(DatabaseStatement::finalize_statement(
+            stake_addr_delete_stmt,
+            FUNCTION_NAME,
+        ));
         close_db_connection(sqlite);
         close_db_connection(sqlite_in_mem);
     }
@@ -283,8 +302,8 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
 
 impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
-        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "init";
+        log::init(log::LevelFilter::Info);
 
         let Ok(sqlite) = open_db_connection(false) else {
             return false;
@@ -303,7 +322,7 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
 
         // Instead of starting from genesis, start from a specific slot just before RBAC data
         // exist.
-        let slot = 80374283;
+        let slot = 80_374_283;
         let subscribe_from = cardano::api::SyncSlot::Specific(slot);
         let network = cardano::api::CardanoNetwork::Preprod;
 
@@ -353,12 +372,12 @@ fn handle_rollback(
     block: &cardano::api::Block,
 ) {
     let Ok(rollback_rbac_del_stmt) =
-        prepare_roll_back_delete_from_volatile(&sqlite, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)
+        prepare_roll_back_delete_from_volatile(sqlite, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)
     else {
         return;
     };
     let Ok(rollback_rbac_stake_addr_del_stmt) =
-        prepare_roll_back_delete_from_volatile(&sqlite, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME)
+        prepare_roll_back_delete_from_volatile(sqlite, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME)
     else {
         return;
     };
@@ -373,9 +392,8 @@ fn get_rbac_registration(
 ) -> Vec<Cip509> {
     const FUNCTION_NAME: &str = "get_rbac_registration";
 
-    let block = match build_block(file!(), FUNCTION_NAME, network, block_resource) {
-        Some(b) => b,
-        None => return vec![],
+    let Some(block) = build_block(file!(), FUNCTION_NAME, network, block_resource) else {
+        return vec![];
     };
     Cip509::from_block(&block, &[])
 }

@@ -32,11 +32,11 @@ pub(crate) fn insert_rbac_stake_address(
     data: RbacStakeDbData,
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_stake_address";
-    let _ = DatabaseStatement::bind_step_reset_statement(
+    drop(DatabaseStatement::bind_step_reset_statement(
         stmt,
         |stmt| bind_rbac_stake_address(stmt, data),
         FUNCTION_NAME,
-    );
+    ));
 }
 
 /// Bind data to `rbac_stake_address` table.

@@ -15,6 +15,7 @@ impl From<HashMap<u8, Vec<u8>>> for ExtendedData {
 }
 
 impl ExtendedData {
+    /// Checks if extended data is empty.
     pub(crate) fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

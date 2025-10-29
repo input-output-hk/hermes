@@ -1,7 +1,10 @@
 [package]
+edition.workspace = true
 name = "staked-ada-indexer"
 version = "0.1.0"
-edition = "2021"
+
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib"]

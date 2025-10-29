@@ -20,6 +20,7 @@ impl Display for AssetValue {
 
 impl AssetValue {
     /// Performs saturating addition.
+    #[must_use]
     pub fn saturating_add(
         &self,
         v: &Self,

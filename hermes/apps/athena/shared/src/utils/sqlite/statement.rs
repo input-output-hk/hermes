@@ -1,4 +1,4 @@
-//! SQLite Statement implementation.
+//! `SQLite` statement utilities.
 
 use crate::{
     bindings::hermes::sqlite::api::{Sqlite, Statement, Value},
@@ -6,11 +6,15 @@ use crate::{
     utils::{log::log_error, sqlite::operation::Operation},
 };
 
-/// Database statement.
+/// Database statement utilities.
 pub struct DatabaseStatement;
 
 impl DatabaseStatement {
     /// Execute a statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` returns one during execution.
     pub fn execute_statement(
         sqlite: &Sqlite,
         query: &str,
@@ -32,6 +36,10 @@ impl DatabaseStatement {
     }
 
     /// Prepare statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` returns one during statement preparation.
     pub fn prepare_statement(
         sqlite: &Sqlite,
         query: &str,
@@ -55,6 +63,10 @@ impl DatabaseStatement {
     }
 
     /// Reset a statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` returns one during reset.
     pub fn reset_statement(
         stmt: &Statement,
         func_name: &str,
@@ -74,6 +86,10 @@ impl DatabaseStatement {
     }
 
     /// Finalize a statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` returns one during finalize.
     pub fn finalize_statement(
         stmt: Statement,
         func_name: &str,
@@ -93,6 +109,10 @@ impl DatabaseStatement {
     }
 
     /// Bind -> step -> reset a prepared statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding, stepping, or reset fails.
     pub fn bind_step_reset_statement<F>(
         stmt: &Statement,
         bind_fn: F,
@@ -118,8 +138,13 @@ impl DatabaseStatement {
         Ok(())
     }
 
-    /// Bind slot to prepared statement.
-    /// This is commonly used to bind slot to a prepared statement.
+    /// Bind `slot_no` to a prepared statement.
+    /// This is commonly used to bind a slot to a prepared statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `SQLite` returns one during bind or if the slot
+    /// number cannot be converted.
     pub fn bind_slot(
         stmt: &Statement,
         slot_no: u64,
@@ -147,7 +172,12 @@ impl DatabaseStatement {
     }
 }
 
-/// Convert a SQLite column value to a Rust type.
+/// Convert an `SQLite` column value to a Rust type.
+///
+/// # Errors
+///
+/// Returns an error if `SQLite` returns one during the column call
+/// or if fetched value could not be casted to provided generic type.
 pub fn column_as<T>(
     stmt: &Statement,
     index: u32,

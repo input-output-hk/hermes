@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! RBAC Registration Module
 
 shared::bindings_generate!({
@@ -36,12 +37,13 @@ mod database;
 mod rbac;
 mod service;
 
+/// Rbac Registration Component
 struct RbacRegistrationComponent;
 
 impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
     fn init() -> bool {
-        log::init(log::LevelFilter::Info);
         const FUNCTION_NAME: &str = "init";
+        log::init(log::LevelFilter::Info);
 
         // Create a network instance
         let network = cardano::api::CardanoNetwork::Preprod;
@@ -88,12 +90,13 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
 
         Some(HttpGatewayResponse::Http(HttpResponse {
             code,
-            headers: vec![("content-type".to_string(), vec![
-                "application/json".to_string()
-            ])],
+            headers: vec![(
+                "content-type".to_string(),
+                vec!["application/json".to_string()],
+            )],
             body: Bstr::from(match result.to_json() {
                 Ok(json) => json,
-                Err(e) => format!("{{\"error\": \"Failed to serialize response: {}\"}}", e),
+                Err(e) => format!("{{\"error\": \"Failed to serialize response: {e}\"}}"),
             }),
         }))
     }
@@ -108,7 +111,7 @@ fn parse_query_param(
     path.split('?').nth(1)?.split('&').find_map(|pair| {
         let mut parts = pair.split('=');
         if parts.next()? == param_name {
-            parts.next().map(|v| v.to_string())
+            parts.next().map(std::string::ToString::to_string)
         } else {
             None
         }

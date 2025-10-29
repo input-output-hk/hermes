@@ -14,6 +14,12 @@ use crate::{
 };
 
 /// Select each matching [`TxoByStakeRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during
+/// data fetching, query preparation or
+/// in case of sqlite type could not be represented as `TxoByStakeRowTuple`.
 pub fn get_txo_by_stake_address(
     conn: &mut sqlite::Connection,
     stake_address: StakeAddress,
@@ -26,6 +32,12 @@ pub fn get_txo_by_stake_address(
 }
 
 /// Select each matching [`TxoAssetsByStakeRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during
+/// data fetching, query preparation or
+/// in case of sqlite type could not be represented as `TxoAssetsByStakeRowTuple`.
 pub fn get_txo_assets_by_stake_address(
     conn: &mut sqlite::Connection,
     stake_address: StakeAddress,
@@ -38,6 +50,12 @@ pub fn get_txo_assets_by_stake_address(
 }
 
 /// Select each matching [`TxiByTxnIdRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during
+/// data fetching, query preparation or
+/// in case of sqlite type could not be represented as `TxiByTxnIdsRowTuple`.
 pub fn get_txi_by_txn_ids(
     conn: &mut sqlite::Connection,
     txn_ids: impl IntoIterator<Item = TransactionId>,

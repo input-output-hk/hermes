@@ -1,3 +1,4 @@
+#![allow(clippy::arithmetic_side_effects)]
 //! Database utilities.
 
 mod wrappers;
@@ -14,7 +15,11 @@ use crate::{
     utils::log::log_error,
 };
 
-/// Open database connection.
+/// Open a database connection.
+///
+/// # Errors
+///
+/// Returns an error if the database connection could not be opened.
 pub fn open_db_connection(is_mem: bool) -> anyhow::Result<Sqlite> {
     const FUNCTION_NAME: &str = "open_db_connection";
     match open(false, is_mem) {
@@ -34,6 +39,7 @@ pub fn open_db_connection(is_mem: bool) -> anyhow::Result<Sqlite> {
 }
 
 /// Close database connection.
+#[allow(clippy::needless_pass_by_value)]
 pub fn close_db_connection(sqlite: Sqlite) {
     const FUNCTION_NAME: &str = "close_db_connection";
     if let Err(e) = sqlite.close() {
