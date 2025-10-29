@@ -117,9 +117,9 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "base64-url"
-version = "3.0.2"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5b428e9fb429c6fda7316e9b006f993e6b4c33005e4659339fb5214479dddec"
+checksum = "38e2b6c78c06f7288d5e3c3d683bde35a79531127c83b087e5d0d77c974b4b28"
 dependencies = [
  "base64",
 ]
@@ -251,12 +251,12 @@ dependencies = [
 
 [[package]]
 name = "cardano-blockchain-types"
-version = "0.0.7"
-source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.7#b4f06b88d25f6a955b3e38210de3e7bbd5654ac0"
+version = "0.0.8"
+source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.8#177938325720af5a6dceb8aa99017a42e0356dd6"
 dependencies = [
  "anyhow",
  "blake2b_simd",
- "catalyst-types 0.0.6",
+ "catalyst-types",
  "cbork-utils",
  "chrono",
  "dashmap",
@@ -276,7 +276,6 @@ dependencies = [
  "pallas-primitives",
  "pallas-traverse",
  "serde",
- "serde_json",
  "strum 0.26.3",
  "thiserror 2.0.17",
  "tracing",
@@ -284,29 +283,8 @@ dependencies = [
 
 [[package]]
 name = "catalyst-types"
-version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.6#600f8462cf5ba4d17bf5f91a4e14da911912f026"
-dependencies = [
- "base64-url",
- "chrono",
- "displaydoc",
- "ed25519-dalek",
- "fluent-uri",
- "fmmap",
- "minicbor 0.25.1",
- "num-traits",
- "orx-concurrent-vec",
- "serde",
- "strum 0.27.2",
- "thiserror 2.0.17",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "catalyst-types"
-version = "0.0.9"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.9#9224d59b418681b9fbe1eae43e1d548632b458ea"
+version = "0.0.10"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.10#b7a5b23a3f0412aead4e19b3d75a745469432493"
 dependencies = [
  "base64-url",
  "chrono",
@@ -1821,14 +1799,14 @@ checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 
 [[package]]
 name = "rbac-registration"
-version = "0.0.13"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.13#c0d45dd50b0b556f0551cdf0886e42a9ee62fe20"
+version = "0.0.14"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.14#177938325720af5a6dceb8aa99017a42e0356dd6"
 dependencies = [
  "anyhow",
  "brotli",
  "c509-certificate",
  "cardano-blockchain-types",
- "catalyst-types 0.0.9",
+ "catalyst-types",
  "cbork-utils",
  "der-parser",
  "ed25519-dalek",
@@ -1851,12 +1829,12 @@ dependencies = [
  "bech32 0.11.0",
  "c509-certificate",
  "cardano-blockchain-types",
- "catalyst-types 0.0.9",
+ "catalyst-types",
  "chrono",
  "ed25519-dalek",
  "hex",
  "minicbor 0.25.1",
- "rbac-registration 0.0.13",
+ "rbac-registration 0.0.14",
  "regex",
  "serde",
  "serde_json",
@@ -1871,8 +1849,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cardano-blockchain-types",
- "catalyst-types 0.0.9",
- "rbac-registration 0.0.13",
+ "catalyst-types",
+ "rbac-registration 0.0.14",
  "serde_json",
  "shared",
 ]
@@ -2141,7 +2119,7 @@ dependencies = [
  "base64",
  "bech32 0.11.0",
  "cardano-blockchain-types",
- "catalyst-types 0.0.9",
+ "catalyst-types",
  "chrono",
  "derive_more",
  "ed25519-dalek",
@@ -2149,7 +2127,7 @@ dependencies = [
  "http",
  "log",
  "num-bigint",
- "rbac-registration 0.0.13",
+ "rbac-registration 0.0.14",
  "regex",
  "rusqlite",
  "serde",

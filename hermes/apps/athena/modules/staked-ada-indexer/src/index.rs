@@ -32,7 +32,7 @@ impl Buffers {
         for (txn_index, txn) in block.enumerate_txs() {
             let txn_id = TransactionId::from(Blake2b256Hash::from(txn.hash()));
             self.index_txn_txo(
-                block.network(),
+                block.network().clone(),
                 &txn,
                 block.slot().into(),
                 txn_id,
@@ -55,7 +55,8 @@ impl Buffers {
         for (txo, txo_index) in txn.outputs().iter().zip(0u16..) {
             // This will only return None if the TXO is not to be indexed (Byron Addresses).
             // Skipping missing stake addresses: only indexing staked ADA and assets.
-            let Some((Some(stake_address), _)) = extract_stake_address(network, txo, slot_no)
+            let Some((Some(stake_address), _)) =
+                extract_stake_address(network.clone(), txo, slot_no)
             else {
                 continue;
             };
