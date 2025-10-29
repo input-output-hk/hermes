@@ -29,9 +29,10 @@ pub fn build() {
 
 pub fn run_app(
     temp_dir: &TempDir,
-    app_file_name: &str,
+    app_name: &str,
 ) -> anyhow::Result<String> {
-    let app_path = temp_dir.as_ref().join(app_file_name);
+    let mut app_path = temp_dir.as_ref().join(app_name);
+    app_path.set_extension("happ");
 
     let log_file_path = temp_dir.as_ref().join(LOG_FILE_NAME);
     let log_file = File::create(&log_file_path)?;
@@ -51,4 +52,56 @@ pub fn run_app(
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Spawn Hermes as a child process and return a guard that will
+/// terminate it on drop.
+pub fn spawn_app(
+    temp_dir: &TempDir,
+    app_name: &str,
+) -> anyhow::Result<HermesChild> {
+    let mut app_path = temp_dir.as_ref().join(app_name);
+    app_path.set_extension("happ");
+
+    let log_file_path = temp_dir.as_ref().join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path)?;
+
+    let child = Command::new(utils::HERMES_BINARY_PATH)
+        .arg("run")
+        .arg("--untrusted")
+        .arg(app_path)
+        .env("HERMES_LOG_LEVEL", "trace")
+        .stdout(Stdio::from(log_file.try_clone()?))
+        .stderr(Stdio::from(log_file))
+        .spawn()?;
+
+    Ok(HermesChild { child })
+}
+
+pub struct HermesChild {
+    child: std::process::Child,
+}
+
+impl HermesChild {
+    /// Try to determine if child is still running.
+    pub fn is_running(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+}
+
+impl Drop for HermesChild {
+    fn drop(&mut self) {
+        // If still running, try to kill and wait a bit
+        if self.is_running() {
+            self.child.kill().ok();
+            // Best-effort wait
+            for _ in 0..10 {
+                if let Ok(Some(_)) = self.child.try_wait() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            self.child.wait().ok();
+        }
+    }
 }

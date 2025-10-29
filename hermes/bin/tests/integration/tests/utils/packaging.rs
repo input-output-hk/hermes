@@ -111,7 +111,7 @@ pub fn package_app_with_modules(
     modules: Option<Vec<String>>,
 ) -> anyhow::Result<String> {
     let manifest_path = temp_dir.as_ref().join("manifest_app.json");
-    let app_filename = format!("{}.happ", Uuid::new_v4());
+    let app_name = Uuid::new_v4().to_string();
 
     if let Some(modules) = modules {
         replace_app_manifest_with_modules(temp_dir, &modules)?;
@@ -121,7 +121,7 @@ pub fn package_app_with_modules(
         .arg("app")
         .arg("package")
         .arg("--name")
-        .arg(app_filename.clone())
+        .arg(&app_name)
         .arg(manifest_path)
         .output()?;
 
@@ -132,5 +132,5 @@ pub fn package_app_with_modules(
         );
     }
 
-    Ok(app_filename)
+    Ok(app_name)
 }

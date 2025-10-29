@@ -82,11 +82,11 @@ impl TryFrom<TxoByStakeRow> for [sqlite::Value; 7] {
     fn try_from(v: TxoByStakeRow) -> Result<Self, Self::Error> {
         Ok([
             v.stake_address.into(),
-            v.txn_id.into(),
+            sqlite::Value::try_from(v.slot_no)?,
             v.txn_index.into(),
             v.txo.into(),
-            sqlite::Value::try_from(v.slot_no)?,
             sqlite::Value::try_from(v.value)?,
+            v.txn_id.into(),
             v.spent_slot
                 .map_or(Ok(sqlite::Value::Null), sqlite::Value::try_from)?,
         ])
@@ -122,9 +122,9 @@ impl TryFrom<TxoAssetsByStakeRow> for [sqlite::Value; 7] {
     fn try_from(v: TxoAssetsByStakeRow) -> Result<Self, Self::Error> {
         Ok([
             v.stake_address.into(),
+            sqlite::Value::try_from(v.slot_no)?,
             v.txn_index.into(),
             v.txo.into(),
-            sqlite::Value::try_from(v.slot_no)?,
             sqlite::Value::try_from(v.policy_id)?,
             v.asset_name.into(),
             sqlite::Value::try_from(v.value)?,

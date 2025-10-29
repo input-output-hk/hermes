@@ -1,0 +1,18 @@
+[package]
+name = "staked_ada_indexer_mock"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shared = { path = "../../../../../apps/athena/shared", features = ["cat-gateway-types"] }
+
+anyhow = "1.0.100"
+cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
+
+
+[lints]
+workspace = true
