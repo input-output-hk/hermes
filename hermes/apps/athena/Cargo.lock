@@ -298,15 +298,47 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "ouroboros",
- "pallas-addresses",
- "pallas-codec",
- "pallas-crypto",
- "pallas-hardano",
- "pallas-network",
- "pallas-primitives",
- "pallas-traverse",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-hardano 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
  "serde",
  "serde_json",
+ "strum 0.26.3",
+ "thiserror 2.0.16",
+ "tracing",
+]
+
+[[package]]
+name = "cardano-blockchain-types"
+version = "0.0.8"
+source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.8#177938325720af5a6dceb8aa99017a42e0356dd6"
+dependencies = [
+ "anyhow",
+ "blake2b_simd",
+ "catalyst-types 0.0.10",
+ "cbork-utils",
+ "chrono",
+ "dashmap",
+ "dirs",
+ "displaydoc",
+ "ed25519-dalek",
+ "hex",
+ "minicbor 0.25.1",
+ "num-bigint",
+ "num-traits",
+ "ouroboros",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-hardano 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "serde",
  "strum 0.26.3",
  "thiserror 2.0.16",
  "tracing",
@@ -335,8 +367,8 @@ dependencies = [
 
 [[package]]
 name = "catalyst-types"
-version = "0.0.7"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.7#760bbcce3e2007104cde8704c32f9fa9ea7c8f74"
+version = "0.0.10"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.10#b7a5b23a3f0412aead4e19b3d75a745469432493"
 dependencies = [
  "base64-url",
  "chrono",
@@ -1594,8 +1626,23 @@ dependencies = [
  "crc",
  "cryptoxide",
  "hex",
- "pallas-codec",
- "pallas-crypto",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pallas-addresses"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "base58",
+ "bech32 0.9.1",
+ "crc",
+ "cryptoxide",
+ "hex",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
  "thiserror 1.0.69",
 ]
 
@@ -1611,14 +1658,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallas-codec"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "hex",
+ "minicbor 0.26.5",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "pallas-crypto"
 version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9cfb41cb4f15f913fc17388cec4ccd87c3551ff0"
 dependencies = [
  "cryptoxide",
  "hex",
- "pallas-codec",
- "rand_core",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "rand_core 0.6.4",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pallas-crypto"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "cryptoxide",
+ "hex",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "rand_core 0.9.3",
  "serde",
  "thiserror 1.0.69",
 ]
@@ -1630,11 +1701,31 @@ source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat
 dependencies = [
  "binary-layout",
  "hex",
- "pallas-addresses",
- "pallas-codec",
- "pallas-crypto",
- "pallas-network",
- "pallas-traverse",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "tap",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "pallas-hardano"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "binary-layout",
+ "hex",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
  "serde",
  "serde_json",
  "serde_with",
@@ -1651,9 +1742,27 @@ dependencies = [
  "byteorder",
  "hex",
  "itertools",
- "pallas-codec",
- "pallas-crypto",
- "pallas-primitives",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "rand",
+ "socket2 0.5.10",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "pallas-network"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "byteorder",
+ "hex",
+ "itertools",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
  "rand",
  "socket2 0.5.10",
  "thiserror 1.0.69",
@@ -1667,8 +1776,20 @@ version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9cfb41cb4f15f913fc17388cec4ccd87c3551ff0"
 dependencies = [
  "hex",
- "pallas-codec",
- "pallas-crypto",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pallas-primitives"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "hex",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
  "serde",
  "serde_json",
 ]
@@ -1680,10 +1801,26 @@ source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat
 dependencies = [
  "hex",
  "itertools",
- "pallas-addresses",
- "pallas-codec",
- "pallas-crypto",
- "pallas-primitives",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
+ "paste",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pallas-traverse"
+version = "1.0.0-alpha.2"
+source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
+dependencies = [
+ "hex",
+ "itertools",
+ "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
  "paste",
  "serde",
  "thiserror 1.0.69",
@@ -1855,7 +1992,7 @@ checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
  "rand_chacha",
- "rand_core",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -1865,7 +2002,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -1878,15 +2015,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_core"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
+
+[[package]]
 name = "rbac-registration"
-version = "0.0.10"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.10#77cd6a83750e436283c45d887cdfef748074ee25"
+version = "0.0.14"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.14#177938325720af5a6dceb8aa99017a42e0356dd6"
 dependencies = [
  "anyhow",
  "brotli",
  "c509-certificate",
- "cardano-blockchain-types",
- "catalyst-types 0.0.7",
+ "cardano-blockchain-types 0.0.8",
+ "catalyst-types 0.0.10",
  "cbork-utils",
  "der-parser",
  "ed25519-dalek",
@@ -1908,13 +2051,13 @@ dependencies = [
  "anyhow",
  "bech32 0.11.0",
  "c509-certificate",
- "cardano-blockchain-types",
- "catalyst-types 0.0.7",
+ "cardano-blockchain-types 0.0.8",
+ "catalyst-types 0.0.10",
  "chrono",
  "ed25519-dalek",
  "hex",
  "minicbor 0.25.1",
- "rbac-registration 0.0.10",
+ "rbac-registration 0.0.14",
  "regex",
  "serde",
  "serde_json",
@@ -1928,9 +2071,9 @@ name = "rbac-registration-indexer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cardano-blockchain-types",
- "catalyst-types 0.0.7",
- "rbac-registration 0.0.10",
+ "cardano-blockchain-types 0.0.8",
+ "catalyst-types 0.0.10",
+ "rbac-registration 0.0.14",
  "serde_json",
  "shared",
 ]
@@ -2205,8 +2348,8 @@ dependencies = [
  "anyhow",
  "base64",
  "bech32 0.11.0",
- "cardano-blockchain-types",
- "catalyst-types 0.0.7",
+ "cardano-blockchain-types 0.0.8",
+ "catalyst-types 0.0.10",
  "chrono",
  "derive_more",
  "ed25519-dalek",
@@ -2214,7 +2357,7 @@ dependencies = [
  "http",
  "log",
  "num-bigint",
- "rbac-registration 0.0.10",
+ "rbac-registration 0.0.14",
  "regex",
  "rusqlite",
  "serde",
@@ -2239,7 +2382,7 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
- "rand_core",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -2295,7 +2438,7 @@ name = "staked-ada-indexer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cardano-blockchain-types",
+ "cardano-blockchain-types 0.0.6",
  "shared",
 ]
 
