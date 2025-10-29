@@ -24,18 +24,35 @@ shared::bindings_generate!({
 export!(Component);
 
 mod events;
+mod index;
 
 use shared::{
     bindings::hermes::cardano::api::{Block, SubscriptionId},
     utils::log::{self, error},
 };
 
+mod config {
+    use shared::bindings::hermes::cardano::api::SyncSlot;
+
+    /// Slot to subscribe from during initialization.
+    pub const SUBSCRIBE_FROM: SyncSlot = match option_env!("SUBSCRIBE_FROM") {
+        None => SyncSlot::Genesis,
+        Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
+        Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
+        Some(s) if matches!(s.as_bytes(), b"IMMUTATBLE_TIP") => SyncSlot::ImmutableTip,
+        Some(s) => match u64::from_str_radix(s, 10) {
+            Ok(i) => SyncSlot::Specific(i),
+            Err(_) => panic!("non integer specific sync slot"),
+        },
+    };
+}
+
 struct Component;
 
 impl exports::hermes::init::event::Guest for Component {
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
-        match events::init() {
+        match events::init(config::SUBSCRIBE_FROM) {
             Ok(()) => true,
             Err(error) => {
                 error!(target: "staked_ada_indexer::init", error:?; "Not handled");

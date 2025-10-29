@@ -1,9 +1,6 @@
-use cardano_blockchain_types::{
-    hashes::TransactionId,
-    pallas_primitives::{AssetName, BigInt, PolicyId},
-    StakeAddress,
-};
+use cardano_blockchain_types::{hashes::TransactionId, pallas_primitives::PolicyId, StakeAddress};
 use derive_more::From;
+use num_bigint::{BigInt, BigUint};
 
 use crate::utils::sqlite;
 
@@ -59,8 +56,8 @@ pub struct TxoByStakeRow {
     pub txo: u16,
     /// TXO transaction slot number.
     pub slot_no: u64,
-    /// TXO value.
-    pub value: BigInt,
+    /// TXO value (u64).
+    pub value: BigUint,
     /// TXO spent slot.
     pub spent_slot: Option<u64>,
 }
@@ -72,7 +69,7 @@ pub(super) type TxoByStakeRowTuple = (
     u16,
     u16,
     u64,
-    BigInt,
+    BigUint,
     Option<u64>,
 );
 
@@ -86,7 +83,7 @@ impl TryFrom<TxoByStakeRow> for [sqlite::Value; 7] {
             v.txn_index.into(),
             v.txo.into(),
             sqlite::Value::try_from(v.slot_no)?,
-            sqlite::Value::try_from(v.value)?,
+            v.value.into(),
             v.spent_slot
                 .map_or(Ok(sqlite::Value::Null), sqlite::Value::try_from)?,
         ])
@@ -107,14 +104,13 @@ pub struct TxoAssetsByStakeRow {
     /// Asset policy hash (28 bytes).
     pub policy_id: PolicyId,
     /// Asset name (range of 0 - 32 bytes)
-    pub asset_name: AssetName,
-    /// Asset value.
+    pub asset_name: Vec<u8>,
+    /// Asset value (i128).
     pub value: BigInt,
 }
 
 /// [`TxoAssetsByStakeRow`] represented by a tuple.
-pub(super) type TxoAssetsByStakeRowTuple =
-    (StakeAddress, u16, u16, u64, PolicyId, AssetName, BigInt);
+pub(super) type TxoAssetsByStakeRowTuple = (StakeAddress, u16, u16, u64, PolicyId, Vec<u8>, BigInt);
 
 impl TryFrom<TxoAssetsByStakeRow> for [sqlite::Value; 7] {
     type Error = anyhow::Error;
@@ -127,7 +123,7 @@ impl TryFrom<TxoAssetsByStakeRow> for [sqlite::Value; 7] {
             sqlite::Value::try_from(v.slot_no)?,
             sqlite::Value::try_from(v.policy_id)?,
             v.asset_name.into(),
-            sqlite::Value::try_from(v.value)?,
+            v.value.into(),
         ])
     }
 }
