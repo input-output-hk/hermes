@@ -11,6 +11,6 @@ shared = { version = "0.1.0", path = "../../shared", features = ["cardano-blockc
 anyhow = "1.0.100"
 serde_json = "1.0.145"
 
-cardano-blockchain-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.7" }
-rbac-registration = { version = "0.0.13", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.13" }
-catalyst-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.9" }
+cardano-blockchain-types = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.8" }
+rbac-registration = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.14" }
+catalyst-types = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.10" }

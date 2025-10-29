@@ -17,37 +17,44 @@ use shared::{
 use crate::index;
 
 /// Initializes sqlite tables and cardano block subscription.
-pub fn init(subscribe_from: SyncSlot) -> anyhow::Result<()> {
-    info!(
-        target: "staked_ada_indexer::init",
-        "💫 Initializing Sqlite..."
-    );
+pub fn init(
+    offline: bool,
+    subscribe_from: SyncSlot,
+    extra_sql: Option<&str>,
+) -> anyhow::Result<()> {
+    info!(target: "staked_ada_indexer::init", "💫 Initializing Sqlite...");
 
-    let mut conn = sqlite::Connection::open(false)?;
-    let mut conn_volatile = sqlite::Connection::open(true)?;
+    for in_mem in [false, true] {
+        let mut conn = sqlite::Connection::open(in_mem)?;
+        create_tables(&mut conn)?;
+        if let Some(extra_sql) = extra_sql {
+            conn.execute(extra_sql)
+                .inspect_err(|error| error!(error:%; "Failed to execute extra sql"))?;
+        }
+    }
 
-    create_tables(&mut conn)?;
-    create_tables(&mut conn_volatile)?;
+    info!(target: "staked_ada_indexer::init", "💫 Sqlite initialized.");
 
-    info!(
-        target: "staked_ada_indexer::init",
-        "💫 Sqlite initialized. Setting up Cardano subscription..."
-    );
+    if !offline {
+        info!(target: "staked_ada_indexer::init", "💫 Setting up Cardano subscription...");
 
-    let network = cardano::api::CardanoNetwork::Preprod;
+        let network = cardano::api::CardanoNetwork::Preprod;
 
-    let network_resource = cardano::api::Network::new(network)
-        .inspect_err(|error| error!(error:%, network:?; "Failed to create network resource"))?;
-    let subscription_id_resource = network_resource
-        .subscribe_block(subscribe_from)
-        .inspect_err(|error| error!(error:%, subscribe_from:?; "Failed to subscribe block from"))?;
+        let network_resource = cardano::api::Network::new(network)
+            .inspect_err(|error| error!(error:%, network:?; "Failed to create network resource"))?;
+        let subscription_id_resource = network_resource
+            .subscribe_block(subscribe_from)
+            .inspect_err(
+                |error| error!(error:%, subscribe_from:?; "Failed to subscribe block from"),
+            )?;
 
-    info!(
-        target: "staked_ada_indexer::init",
-        network:?,
-        subscription_id_resource:?;
-        "💫 Cardano subscription set up."
-    );
+        info!(
+            target: "staked_ada_indexer::init",
+            network:?,
+            subscription_id_resource:?;
+            "💫 Cardano subscription set up."
+        );
+    }
 
     Ok(())
 }
