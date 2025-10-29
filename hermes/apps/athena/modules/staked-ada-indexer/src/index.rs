@@ -4,13 +4,13 @@
 //! - <https://github.com/input-output-hk/catalyst-voices/blob/9bb741c2637bf8fe6814a1dd4e3fe986de536d67/catalyst-gateway/bin/src/db/index/block/txo/mod.rs>
 //! - <https://github.com/input-output-hk/catalyst-voices/blob/9bb741c2637bf8fe6814a1dd4e3fe986de536d67/catalyst-gateway/bin/src/db/index/block/txi.rs>
 
-use cardano_blockchain_types::{
-    hashes::{Blake2b256Hash, TransactionId},
-    pallas_addresses::{Address, ShelleyDelegationPart},
-    pallas_traverse::{MultiEraOutput, MultiEraTx},
-    MultiEraBlock, Network, StakeAddress,
-};
 use shared::{
+    cardano_blockchain_types::{
+        hashes::{Blake2b256Hash, TransactionId},
+        pallas_addresses::{Address, ShelleyDelegationPart},
+        pallas_traverse::{MultiEraOutput, MultiEraTx},
+        MultiEraBlock, Network, StakeAddress,
+    },
     database::staked_ada::{TxiByTxnIdRow, TxoAssetsByStakeRow, TxoByStakeRow},
     utils::log::{error, warn},
 };
