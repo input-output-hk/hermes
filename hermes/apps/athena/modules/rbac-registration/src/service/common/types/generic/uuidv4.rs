@@ -5,10 +5,11 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde::Serialize;
 
-/// UUIDv4
+/// `UUIDv4`
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UUIDv4(String);
 
+/// `UUIDv4` regex pattern.
 pub(crate) const PATTERN: &str =
     "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$";
 

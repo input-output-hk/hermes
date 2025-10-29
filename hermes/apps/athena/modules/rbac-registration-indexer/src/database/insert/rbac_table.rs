@@ -32,11 +32,11 @@ pub(crate) fn insert_rbac_registration(
     data: RbacDbData,
 ) {
     const FUNCTION_NAME: &str = "insert_rbac_registration";
-    let _ = DatabaseStatement::bind_step_reset_statement(
+    drop(DatabaseStatement::bind_step_reset_statement(
         stmt,
         |stmt| bind_rbac_registration(stmt, data),
         FUNCTION_NAME,
-    );
+    ));
 }
 
 /// Bind data to `rbac_registration` table.
