@@ -50,3 +50,6 @@
 pub mod bindings;
 pub mod database;
 pub mod utils;
+
+pub use cardano_blockchain_types;
+pub use catalyst_types;
