@@ -1,10 +1,6 @@
 //! `SQLite` queries types.
 
-use cardano_blockchain_types::{
-    hashes::TransactionId,
-    pallas_primitives::{AssetName, BigInt, PolicyId},
-    StakeAddress,
-};
+use cardano_blockchain_types::{hashes::TransactionId, pallas_primitives::PolicyId, StakeAddress};
 use derive_more::From;
 use num_bigint::{BigInt, BigUint};
 
