@@ -48,9 +48,13 @@ include_sql! {
 include_sql! {
     #[dir = "staked_ada"]
     pub const STAKED_ADA: _ = StakedAda {
+        delete_stake_registration_before_slot,
         delete_stake_registration_since_slot,
+        delete_txi_before_slot,
         delete_txi_since_slot,
+        delete_txo_assets_before_slot,
         delete_txo_assets_since_slot,
+        delete_txo_before_slot,
         delete_txo_since_slot,
         insert_stake_registration,
         insert_txi_by_txn_id,
