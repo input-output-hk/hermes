@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["new_context"],"mod":["connection","host","kernel","state","statement"],"static":["RteSqlite_RteInitApp__Register","RteSqlite_RteInitEvent__Register","RteSqlite_RteInitModule__Register","RteSqlite_RteInitRuntime__Register"],"struct":["RteSqlite"]};

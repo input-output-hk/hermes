@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["add_to_linker"],"trait":["Host","HostWithStore"],"type":["B128","B256","B512","Bstr"]};

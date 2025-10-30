@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["ANCHOR_WEIGHT","DOTSTAR_WEIGHT","DOT_WEIGHT","EXACT_QUANT_WEIGHT","LITERAL_WEIGHT","PLUS_WEIGHT","QMARK_WEIGHT","STAR_WEIGHT"],"fn":["regex_specificity_score","sort_regexes_by_specificity"],"static":["EXACT_QUANT"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["conversion","mul_add","regex_ranking"]};
