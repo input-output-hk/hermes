@@ -24,15 +24,20 @@ builder:
 # check-shared : runs native unit tests of the shared crate.
 check-shared:
     FROM +builder
-
-    COPY +workspace-src/shared .
+    COPY +workspace-src/shared ./shared
+    COPY +workspace-src/Cargo.toml .
+    # Remove members from Cargo.toml for this check
+    RUN sed -i '/members = .*modules\/\*/c\members = ["shared"]' Cargo.toml
     DO rust-ci+CARGO --args="test --all-features --release"
 
 # check-shared-wasm32 : checks wasm32 build target of the shared crate.
 check-shared-wasm32:
     FROM +builder
 
-    COPY +workspace-src/shared .
+    COPY +workspace-src/shared ./shared
+    COPY +workspace-src/Cargo.toml .
+    # Remove members from Cargo.toml for this check
+    RUN sed -i '/members = .*modules\/\*/c\members = ["shared"]' Cargo.toml
     DO rust-ci+CARGO --args="check --all-features  --release --target=wasm32-wasip2"
 
 # builds a wasm32-wasip2 Athena component and saves it as an artifact
