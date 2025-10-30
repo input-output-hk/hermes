@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["module_dispatch_event"],"struct":["Application","ApplicationName"]};

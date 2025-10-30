@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["auth_config","auth_event"]};

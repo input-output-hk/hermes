@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AUTH_CONFIG_FILE"],"enum":["AuthLevel"],"static":["AUTH_CONFIG"],"struct":["AuthConfig","AuthRule"]};

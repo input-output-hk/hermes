@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Command"],"fn":["spawn_subscribe","subscribe","sync_slot_to_point"],"struct":["Handle"],"type":["CommandReceiver","CommandSender"]};

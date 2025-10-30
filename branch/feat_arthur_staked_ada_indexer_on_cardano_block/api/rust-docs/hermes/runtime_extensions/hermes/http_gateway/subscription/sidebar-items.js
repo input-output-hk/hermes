@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["find_global_endpoint_subscription","get_subscription_manager","register_global_endpoint_subscription"],"static":["SUBSCRIPTION_MANAGER"],"struct":["EndpointSubscription","SubscriptionManager"]};

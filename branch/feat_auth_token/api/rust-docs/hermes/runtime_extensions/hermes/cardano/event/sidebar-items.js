@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_and_send_block_event","build_and_send_roll_forward_event"],"struct":["OnCardanoBlockEvent","OnCardanoImmutableRollForwardEvent"],"trait":["ComponentInstanceExt"]};

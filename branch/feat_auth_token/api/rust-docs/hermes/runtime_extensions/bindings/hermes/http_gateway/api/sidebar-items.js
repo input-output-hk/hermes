@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AuthLevel","HttpGatewayResponse"],"fn":["add_to_linker"],"struct":["AuthRequest","HttpResponse"],"trait":["Host","HostWithStore"],"type":["Bstr","Header","Headers"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["HttpGatewayResponse"],"fn":["add_to_linker"],"struct":["HttpResponse"],"trait":["Host","HostWithStore"],"type":["Bstr","Header","Headers"]};
