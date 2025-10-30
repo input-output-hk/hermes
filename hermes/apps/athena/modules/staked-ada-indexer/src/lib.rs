@@ -41,9 +41,11 @@ mod config {
         Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
         Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
         Some(s) if matches!(s.as_bytes(), b"IMMUTABLE_TIP") => SyncSlot::ImmutableTip,
-        Some(s) => match u64::from_str_radix(s, 10) {
-            Ok(i) => SyncSlot::Specific(i),
-            Err(_) => panic!("non integer specific sync slot"),
+        Some(s) => {
+            match u64::from_str_radix(s, 10) {
+                Ok(i) => SyncSlot::Specific(i),
+                Err(_) => panic!("non integer specific sync slot"),
+            }
         },
     };
 
@@ -56,7 +58,7 @@ mod config {
     };
 
     /// Extra sql to execute on initialization after tables are created.
-    pub const INIT_EXTRA_SQL: Option<&str> = option_env!("STAKED_ADA_INDEXER_INIT_EXTRA_SQL");
+    pub const INIT_SQL_QUERY: Option<&str> = option_env!("STAKED_ADA_INDEXER_INIT_SQL_QUERY");
 }
 
 struct Component;
@@ -64,11 +66,7 @@ struct Component;
 impl exports::hermes::init::event::Guest for Component {
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
-        match events::init(
-            config::OFFLINE,
-            config::SUBSCRIBE_FROM,
-            config::INIT_EXTRA_SQL,
-        ) {
+        match events::init() {
             Ok(()) => true,
             Err(error) => {
                 error!(target: "staked_ada_indexer::init", error:?; "Not handled");

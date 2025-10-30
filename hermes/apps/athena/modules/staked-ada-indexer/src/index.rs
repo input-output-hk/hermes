@@ -31,21 +31,21 @@ impl Buffers {
     ) {
         for (txn_index, txn) in block.enumerate_txs() {
             let txn_id = TransactionId::from(Blake2b256Hash::from(txn.hash()));
-            self.index_txn_txo(
-                block.network().clone(),
+            self.index_txo(
+                block.network(),
                 &txn,
                 block.slot().into(),
                 txn_id,
                 txn_index.into(),
             );
-            self.index_txn_txi(&txn, block.slot().into());
+            self.index_txi(&txn, block.slot().into());
         }
     }
 
     /// Index the transaction outputs.
-    pub fn index_txn_txo(
+    pub fn index_txo(
         &mut self,
-        network: Network,
+        network: &Network,
         txn: &MultiEraTx<'_>,
         slot_no: u64,
         txn_id: TransactionId,
@@ -55,8 +55,7 @@ impl Buffers {
         for (txo, txo_index) in txn.outputs().iter().zip(0u16..) {
             // This will only return None if the TXO is not to be indexed (Byron Addresses).
             // Skipping missing stake addresses: only indexing staked ADA and assets.
-            let Some((Some(stake_address), _)) =
-                extract_stake_address(network.clone(), txo, slot_no)
+            let Some((Some(stake_address), _)) = extract_stake_address(network, txo, slot_no)
             else {
                 continue;
             };
@@ -93,7 +92,7 @@ impl Buffers {
     }
 
     /// Index the transaction inputs.
-    pub fn index_txn_txi(
+    pub fn index_txi(
         &mut self,
         txn: &MultiEraTx<'_>,
         slot_no: u64,
@@ -119,7 +118,7 @@ impl Buffers {
 /// stake address, and still have a primary key on the table. Otherwise return the
 /// header and the stake key hash as a vec of 29 bytes.
 fn extract_stake_address(
-    network: Network,
+    network: &Network,
     txo: &MultiEraOutput<'_>,
     slot_no: u64,
 ) -> Option<(Option<StakeAddress>, String)> {
@@ -142,10 +141,10 @@ fn extract_stake_address(
 
                     let address = match address.delegation() {
                         ShelleyDelegationPart::Script(hash) => {
-                            Some(StakeAddress::new(network, true, (*hash).into()))
+                            Some(StakeAddress::new(network.clone(), true, (*hash).into()))
                         },
                         ShelleyDelegationPart::Key(hash) => {
-                            Some(StakeAddress::new(network, false, (*hash).into()))
+                            Some(StakeAddress::new(network.clone(), false, (*hash).into()))
                         },
                         ShelleyDelegationPart::Pointer(_pointer) => {
                             // These are not supported from Conway, so we don't support them

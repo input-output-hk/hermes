@@ -3,7 +3,7 @@
 use shared::{
     bindings::hermes::cardano::{
         self,
-        api::{Block, SubscriptionId, SyncSlot},
+        api::{Block, SubscriptionId},
     },
     database::staked_ada::{
         create_tables, insert_txi_by_txn_id, insert_txo_assets_by_stake, insert_txo_by_stake,
@@ -14,28 +14,26 @@ use shared::{
     },
 };
 
-use crate::index;
+use crate::{config, index};
 
 /// Initializes sqlite tables and cardano block subscription.
-pub fn init(
-    offline: bool,
-    subscribe_from: SyncSlot,
-    extra_sql: Option<&str>,
-) -> anyhow::Result<()> {
+pub fn init() -> anyhow::Result<()> {
     info!(target: "staked_ada_indexer::init", "💫 Initializing Sqlite...");
 
     for in_mem in [false, true] {
         let mut conn = sqlite::Connection::open(in_mem)?;
-        create_tables(&mut conn)?;
-        if let Some(extra_sql) = extra_sql {
-            conn.execute(extra_sql)
-                .inspect_err(|error| error!(error:%; "Failed to execute extra sql"))?;
+        let mut tx = conn.begin()?;
+        create_tables(&mut tx)?;
+        if let Some(q) = config::INIT_SQL_QUERY {
+            tx.execute(q)
+                .inspect_err(|error| error!(error:%; "Failed to execute init sql query"))?;
         }
+        tx.commit()?;
     }
 
     info!(target: "staked_ada_indexer::init", "💫 Sqlite initialized.");
 
-    if !offline {
+    if !config::OFFLINE {
         info!(target: "staked_ada_indexer::init", "💫 Setting up Cardano subscription...");
 
         let network = cardano::api::CardanoNetwork::Preprod;
@@ -43,10 +41,14 @@ pub fn init(
         let network_resource = cardano::api::Network::new(network)
             .inspect_err(|error| error!(error:%, network:?; "Failed to create network resource"))?;
         let subscription_id_resource = network_resource
-            .subscribe_block(subscribe_from)
-            .inspect_err(
-                |error| error!(error:%, subscribe_from:?; "Failed to subscribe block from"),
-            )?;
+            .subscribe_block(config::SUBSCRIBE_FROM)
+            .inspect_err(|error| {
+                error!(
+                    error:%,
+                    subscribe_from:? = config::SUBSCRIBE_FROM;
+                    "Failed to subscribe block from"
+                );
+            })?;
 
         info!(
             target: "staked_ada_indexer::init",
@@ -71,7 +73,7 @@ pub fn on_cardano_block(
         target: "staked_ada_indexer::on_cardano_block",
         slot_no = u64::from(block.slot()),
         is_immutable = block.is_immutable();
-        "Indexing block.."
+        "Indexing block..."
     );
 
     let mut buffers = index::Buffers::default();
@@ -80,7 +82,7 @@ pub fn on_cardano_block(
     trace!(
         target: "staked_ada_indexer::on_cardano_block",
         slot_no = u64::from(block.slot());
-        "Block is indexed. Inserting block data into database.."
+        "Block is indexed. Inserting block data into database..."
     );
 
     // Assume everything is broken if one of the inserts fails.
@@ -116,7 +118,7 @@ pub fn on_cardano_block(
     trace!(
         target: "staked_ada_indexer::on_cardano_block",
         slot_no = u64::from(block.slot());
-        "Block data is inserted. Handled event."
+        "Block data is inserted. Handled event"
     );
 
     Ok(())
