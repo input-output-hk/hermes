@@ -47,7 +47,7 @@ All protocol logic belongs in the Core module; Hermes‑specific concerns stay i
 ## WIT Interfaces
 
 The WIT surface for the extension lives under wasm/wasi/wit/deps/hermes-doc-sync and is rendered
-to [markdown](../../../api/wasi-hermes/hermes/doc-sync/).
+to [markdown](../../../../api/wasi-hermes/hermes/doc-sync/).
 
 Source WIT files (for orientation only):
 
