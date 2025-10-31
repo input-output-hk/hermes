@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["BUILD_INFO"]};

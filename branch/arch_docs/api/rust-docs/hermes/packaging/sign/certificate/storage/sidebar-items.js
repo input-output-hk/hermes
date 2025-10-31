@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["add_certificate","get_certificate"],"static":["STORAGE"],"struct":["CertificateStorage"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["HTTP","HTTPS"],"enum":["Command","Connection"],"fn":["executor","handle_command","init_rustls_connector","read_to_end_ignoring_unexpected_eof","send_http_request","spawn"],"static":["INIT_RUSTLS_CRYPTO"],"struct":["TokioTaskHandle"],"type":["CommandReceiver","CommandSender"]};

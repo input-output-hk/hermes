@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["collect_modules","create_and_init_app_with_temp_dir_vfs","create_app","create_temp_dir_child","init_ipfs"],"struct":["Playground"]};

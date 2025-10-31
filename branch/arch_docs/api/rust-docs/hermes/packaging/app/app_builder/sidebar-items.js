@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["build_app","mount_to_vfs"]};
