@@ -7,18 +7,18 @@ CREATE TABLE IF NOT EXISTS txo_by_stake (
     txo             INTEGER NOT NULL,       -- offset in the txo list of the transaction the txo is in.
 
     -- Transaction Output Data
-    value           BLOB NOT NULL,          -- Lovelace value of the TXO.
-    
+    value           TEXT NOT NULL,          -- Lovelace value of the TXO. Decimal encoded.
+
     -- Data needed to correlate a spent TXO.
     txn_id          BLOB NOT NULL,          -- 32 byte hash of this transaction.
 
     spent_slot      INTEGER,                -- Slot this TXO was spent in.
-                                            -- This is ONLY calculated/stored 
+                                            -- This is ONLY calculated/stored
                                             -- when first detected in a query lookup.
-                                            -- It serves as an optimization on subsequent queries. 
+                                            -- It serves as an optimization on subsequent queries.
 
     PRIMARY KEY (stake_address, slot_no, txn_index, txo)
 );
 
-CREATE INDEX IF NOT EXISTS txo_by_stake_stake_address_idx 
+CREATE INDEX IF NOT EXISTS txo_by_stake_stake_address_idx
     ON txo_by_stake (stake_address);
