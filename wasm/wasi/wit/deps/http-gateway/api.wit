@@ -6,7 +6,7 @@ interface api {
     type header = tuple<string, list<string>>;
     type headers = list<header>;
 
-    record http-response{
+    record http-response {
         code: u16,
         headers: headers,
         body: bstr
@@ -15,5 +15,21 @@ interface api {
     variant http-gateway-response {
         http(http-response),
         internal-redirect(string),
+    }
+
+    variant auth-level {
+        /// Auth is required
+        required,
+        /// Auth is optional
+        optional,
+        /// Auth is not required
+        none,
+    }
+
+    record auth-request {
+        /// HTTP request header
+        headers: headers,
+        /// Auth level
+        auth-level: auth-level, 
     }
 }

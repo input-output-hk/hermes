@@ -27,7 +27,11 @@ use crate::{
     app::{Application, ApplicationName},
     event::{HermesEvent, TargetApp, TargetModule},
     reactor,
-    runtime_extensions::hermes::http_gateway::subscription::find_global_endpoint_subscription,
+    runtime_extensions::hermes::http_gateway::{
+        auth::{auth_config::AUTH_CONFIG, auth_event},
+        subscription::find_global_endpoint_subscription,
+        utils::{build_http_response, extract_headers_kv},
+    },
 };
 
 /// Everything that hits /api routes to Webasm Component Modules
@@ -94,7 +98,7 @@ pub(crate) async fn router(
     {
         // If hostname is valid, route the request to the Hermes WASM runtime
         // The app_name determines which specific application will handle it
-        route_to_hermes(req, app_name.clone()).await?
+        route_to_hermes(req, app_name.clone(), config.is_auth_activate).await?
     } else {
         // If hostname is not in the valid list, reject with an error response
         // This prevents potential security issues from unauthorized hosts
@@ -162,6 +166,7 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
 async fn route_to_hermes(
     req: Request<Incoming>,
     app_name: ApplicationName,
+    is_auth_activate: bool,
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     // Extract the URI for route analysis - this contains path and query parameters
     let uri = req.uri().to_owned();
@@ -174,9 +179,18 @@ async fn route_to_hermes(
         // API endpoints need WebAssembly module processing
         // These requests go through the event queue to WASM components
         RouteType::WebAssembly(path, module_id) => {
+            if is_auth_activate {
+                let auth_response = handle_auth_for_request(&req, &app_name)?;
+
+                // If auth somehow failed, return the failure
+                // If not, move to wasm module routing
+                if auth_response.status() != StatusCode::OK {
+                    return Ok(auth_response);
+                }
+            }
             handle_webasm_request(req, path, module_id, app_name).await
-            // Static files are served directly from the virtual file system
         },
+        // Static files are served directly from the virtual file system
         RouteType::StaticFile(path) => serve_static_web_content(&path, &app_name),
     }
 }
@@ -261,16 +275,7 @@ async fn handle_webasm_request(
 ) -> anyhow::Result<Response<Full<Bytes>>> {
     let (lambda_send, lambda_recv_answer) = channel();
     let method = req.method().to_string();
-
-    let headers: HeadersKV = req
-        .headers()
-        .iter()
-        .map(|(name, value)| {
-            let key = name.to_string();
-            let values = vec![value.to_str().unwrap_or_default().to_string()];
-            (key, values)
-        })
-        .collect();
+    let headers = extract_headers_kv(req.headers());
 
     let (_parts, body) = req.into_parts();
     let body_bytes = body.collect().await?.to_bytes();
@@ -284,6 +289,34 @@ async fn handle_webasm_request(
     };
 
     compose_http_event(request_params, &lambda_recv_answer, module_id, &app_name)
+}
+
+/// Handle authentication/authorization part for the request.
+/// If auth is required, this function will send the request to auth module and wait for
+/// response. If it is success, the function will return HTTP response with a 200
+/// response. If it is not success, the function will return a corresponding error.
+fn handle_auth_for_request(
+    req: &Request<Incoming>,
+    app_name: &ApplicationName,
+) -> anyhow::Result<Response<Full<Bytes>>> {
+    let headers = extract_headers_kv(req.headers());
+    let method = req.method().as_str();
+    let path = req.uri().path();
+
+    let auth_level = AUTH_CONFIG.get_auth_level(method, path);
+
+    let (result_sender, result_receiver) = channel();
+    if let Err(e) =
+        auth_event::build_and_send_auth_event(app_name, headers, auth_level, result_sender)
+    {
+        return error_response(format!("Failed to send auth event {e}"));
+    }
+    // Wait for auth response
+    if let Ok(r) = result_receiver.recv_timeout(Duration::from_secs(EVENT_TIMEOUT)) {
+        build_http_response(r.code, r.headers, r.body)
+    } else {
+        error_response("Authentication timeout")
+    }
 }
 
 /// HTTP request parameters for WebAssembly event processing
@@ -386,16 +419,7 @@ where
     let timeout = Duration::from_secs(EVENT_TIMEOUT);
     match receiver.recv_timeout(timeout)? {
         HTTPEventMsg::HttpEventResponse((status_code, headers, body)) => {
-            let mut response_builder = Response::builder().status(status_code);
-
-            // Add headers to response
-            for (key, values) in headers {
-                for value in values {
-                    response_builder = response_builder.header(&key, value);
-                }
-            }
-            let response = response_builder.body(body.into())?;
-            Ok(response)
+            build_http_response(status_code, headers, body)
         },
         HTTPEventMsg::HTTPEventReceiver => error_response("Invalid HTTP event message received"),
     }
