@@ -1,0 +1,6 @@
+package hermes:doc-sync;
+
+world all {
+    import api;
+    export event;
+}

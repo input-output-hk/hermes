@@ -3,14 +3,14 @@
 <!-- markdownlint-disable MD029 -->
 
 * [Dashboard](#dashboard)
-  * [Requirements](#requirements)
-  * [Getting Started](#getting-started)
-    * [Bootstrapping](#bootstrapping)
-  * [Running Tests](#running-tests)
-  * [Working with Translations](#working-with-translations)
-    * [Adding Strings](#adding-strings)
-    * [Adding Supported Locales](#adding-supported-locales)
-    * [Adding Translations](#adding-translations)
+    * [Requirements](#requirements)
+    * [Getting Started](#getting-started)
+        * [Bootstrapping](#bootstrapping)
+    * [Running Tests](#running-tests)
+    * [Working with Translations](#working-with-translations)
+        * [Adding Strings](#adding-strings)
+        * [Adding Supported Locales](#adding-supported-locales)
+        * [Adding Translations](#adding-translations)
 
 ## Requirements
 
@@ -25,9 +25,9 @@
 * [Fvm](https://fvm.app/)
 * [Fastlane](https://fastlane.tools)
 * Flutter & Dart plugins:
-  * [Visual Studio Code](https://flutter.dev/docs/get-started/editor?tab=vscode)
-  * [Android Studio / IntelliJ](https://flutter.dev/docs/get-started/editor?tab=androidstudio)
-  * [Emacs](https://docs.flutter.dev/get-started/editor?tab=emacs)
+    * [Visual Studio Code](https://flutter.dev/docs/get-started/editor?tab=vscode)
+    * [Android Studio / IntelliJ](https://flutter.dev/docs/get-started/editor?tab=androidstudio)
+    * [Emacs](https://docs.flutter.dev/get-started/editor?tab=emacs)
 
 ❗️We recommend using **Visual Studio Code** as the **default editor** for this project.
 

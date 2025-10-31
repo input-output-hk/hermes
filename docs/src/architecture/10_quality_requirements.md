@@ -9,20 +9,20 @@ icon: material/quality-high
 ## Quality tree
 
 * Modularity and Extensibility
-  * Clear separation between engine, runtime extensions, and apps
-  * WIT-based interfaces and generated bindings
+    * Clear separation between engine, runtime extensions, and apps
+    * WIT-based interfaces and generated bindings
 * Security and Integrity
-  * Immutable, signed packages; constrained host APIs; certificate trust
-  * Topic/message signature validation for P2P
+    * Immutable, signed packages; constrained host APIs; certificate trust
+    * Topic/message signature validation for P2P
 * Performance and Scalability
-  * Pre-linked WASM instances; per-core worker pool; backpressure via queue
-  * Static file serving from VFS
+    * Pre-linked WASM instances; per-core worker pool; backpressure via queue
+    * Static file serving from VFS
 * Reliability and Availability
-  * Deterministic per-source ordering; isolation on failure; graceful shutdown
+    * Deterministic per-source ordering; isolation on failure; graceful shutdown
 * Observability
-  * Structured logging/tracing; build info emission; tunable verbosity
+    * Structured logging/tracing; build info emission; tunable verbosity
 * Developer Experience
-  * CLI tooling for build/sign/run; standard Web/Flutter frontends; sample modules
+    * CLI tooling for build/sign/run; standard Web/Flutter frontends; sample modules
 
 ## Quality scenarios
 
