@@ -6,6 +6,10 @@ use crate::{
 };
 
 /// Sequentially updates by [`UpdateTxoSpentParams`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during the execution or query preparation.
 pub fn update_txo_spent(
     conn: &mut sqlite::Connection,
     params: impl IntoIterator<Item = UpdateTxoSpentParams>,

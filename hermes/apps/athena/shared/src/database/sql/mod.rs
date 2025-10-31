@@ -70,7 +70,7 @@ mod tests {
 
     use super::*;
 
-    /// Prepares each query string as a SQLite statement.
+    /// Prepares each query string as a `SQLite` statement.
     /// An iterator is expected to be produced by `include_sql!` macro
     fn validate_raw_sql(
         conn: &Connection,

@@ -57,6 +57,7 @@ pub struct Settings();
 impl Settings {
     /// Chain Follower network (The Blockchain network we are configured to use).
     /// Note: Catalyst Gateway can ONLY follow one network at a time.
+    #[must_use]
     pub fn cardano_network() -> Network {
         ENV_VARS.chain_follower.chain.clone()
     }

@@ -82,6 +82,10 @@ pub fn build_block(
 
 impl Block {
     /// Convert to [`MultiEraBlock`] from [`cardano_blockchain_types`].
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if we failed with block decoding.
     pub fn to_catalyst_type(
         &self,
         network: CardanoNetwork,

@@ -29,7 +29,5 @@ pub(crate) fn roll_forward_delete_from_volatile(
 ) {
     const FUNCTION_NAME: &str = "roll_forward_delete_from_volatile";
 
-    if let Err(_) = DatabaseStatement::bind_slot(stmt, slot_no, FUNCTION_NAME) {
-        return;
-    }
+    if DatabaseStatement::bind_slot(stmt, slot_no, FUNCTION_NAME).is_err() {}
 }

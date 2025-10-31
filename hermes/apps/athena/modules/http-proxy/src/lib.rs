@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! HTTP Proxy Module - **TEMPORARY** External Bridge
 //!
 //! ⚠️ **DEPRECATION NOTICE**: This module is a **temporary solution** that will be
@@ -56,10 +57,12 @@ shared::bindings_generate!({
     ",
     share: ["hermes:logging"],
 });
+
 export!(HttpProxyComponent);
 
 /// What to do when a route pattern matches
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::missing_docs_in_private_items)]
 enum RouteAction {
     External, // Forward to Cat Voices
     Static,   // Serve natively
@@ -75,7 +78,7 @@ const EXTERNAL_HOST: &str = "https://app.dev.projectcatalyst.io";
 /// Route patterns for **temporary** external forwarding to Cat Voices system
 /// ⚠️ DEPRECATED: These patterns will be replaced by native WASM modules:
 /// - `/api/gateway/v1/config/frontend` → `frontend_config_native` module
-/// - `/api/gateway/v1/cardano/assets/*` → `cardano_assets_native` module  
+/// - `/api/gateway/v1/cardano/assets/*` → `cardano_assets_native` module
 /// - `/api/gateway/v1/rbac/registration*` → `rbac_native` module
 /// - `/api/gateway/v*/document*` → `document_service_native` module
 const EXTERNAL_ROUTE_PATTERNS: &[&str] = &[
@@ -102,7 +105,7 @@ const STATIC_PATTERN: &str = r"^/static/.+$";
 /// designed as a migration bridge that will be removed.
 struct HttpProxyComponent;
 
-/// Initialize all route patterns as a single RegexSet
+/// Initialize all route patterns as a single `RegexSet`
 fn init_route_matcher() -> &'static (RegexSet, Vec<RouteAction>) {
     ROUTE_MATCHER.get_or_init(|| {
         let mut patterns = Vec::new();
@@ -129,6 +132,7 @@ fn init_route_matcher() -> &'static (RegexSet, Vec<RouteAction>) {
 }
 
 /// Get the action for a given path
+#[allow(clippy::indexing_slicing)]
 fn get_route_action(path: &str) -> Option<RouteAction> {
     let (regex_set, actions) = init_route_matcher();
     regex_set.matches(path).iter().next().map(|i| actions[i])
@@ -148,7 +152,7 @@ fn is_static_content(path: &str) -> bool {
 /// ⚠️ TEMPORARY: Redirects to Cat Voices - will be replaced by native modules
 fn create_external_redirect(path: &str) -> HttpGatewayResponse {
     debug!(path; "Routing externally to Cat Voices");
-    HttpGatewayResponse::InternalRedirect(format!("{}{}", EXTERNAL_HOST, path))
+    HttpGatewayResponse::InternalRedirect(format!("{EXTERNAL_HOST}{path}"))
 }
 
 /// Creates a static content response (native handling)
@@ -158,7 +162,7 @@ fn create_static_response(path: &str) -> HttpGatewayResponse {
     HttpGatewayResponse::Http(HttpResponse {
         code: 200,
         headers: vec![("content-type".to_string(), vec!["text/plain".to_string()])],
-        body: Bstr::from(format!("Static file content for: {}", path)),
+        body: Bstr::from(format!("Static file content for: {path}")),
     })
 }
 
@@ -208,7 +212,7 @@ impl exports::hermes::http_gateway::event::Guest for HttpProxyComponent {
     ) -> Option<HttpGatewayResponse> {
         log::init(log::LevelFilter::Trace);
 
-        info!("Processing HTTP request: {} {}", method, path);
+        info!("Processing HTTP request: {method} {path}");
 
         let response = if should_route_externally(&path) {
             create_external_redirect(&path)

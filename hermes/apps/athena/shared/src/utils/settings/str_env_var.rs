@@ -78,7 +78,7 @@ impl StringEnvVar {
         match env::var(var_name) {
             Ok(value) => {
                 let value = Self { value, redacted };
-                info!("Env Var Defined; env={}, value={}", var_name, value);
+                info!("Env Var Defined; env={var_name}, value={value}");
                 value
             },
             Err(err) => {
@@ -89,22 +89,17 @@ impl StringEnvVar {
                 if err == VarError::NotPresent {
                     if let Some(choices) = choices {
                         info!(
-                            "Env Var Defaulted; env={}, default={:?}, choices={:?}",
-                            var_name, value, choices
+                            "Env Var Defaulted; env={var_name}, default={value:?}, choices={choices:?}"
                         );
                     } else {
-                        info!("Env Var Defaulted; env={}, default={}", var_name, value);
+                        info!("Env Var Defaulted; env={var_name}, default={value}");
                     }
                 } else if let Some(choices) = choices {
                     info!(
-                        "Env Var Error; env={}, default={}, choices={:?}, error={:?}",
-                        var_name, value, choices, err
+                        "Env Var Error; env={var_name}, default={value}, choices={choices:?}, error={err:?}"
                     );
                 } else {
-                    info!(
-                        "Env Var Error; env={}, default={}, error={:?}",
-                        var_name, value, err
-                    );
+                    info!("Env Var Error; env={var_name}, default={value}, error={err:?}");
                 }
 
                 value
@@ -141,8 +136,7 @@ impl StringEnvVar {
             Ok(var) => var,
             Err(error) => {
                 error!(
-                    "Invalid choice. Using Default.; error={}, default={}, choices={:?}, choice={}",
-                    error, default, choices, choice
+                    "Invalid choice. Using Default.; error={error}, default={default}, choices={choices:?}, choice={choice}"
                 );
                 default
             },

@@ -6,6 +6,7 @@ use serde_json::json;
 
 use crate::{bindings::hermes::cardano, utils::log::log_error};
 
+#[allow(clippy::panic)]
 impl From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
     fn from(network: cardano::api::CardanoNetwork) -> cardano_blockchain_types::Network {
         match network {

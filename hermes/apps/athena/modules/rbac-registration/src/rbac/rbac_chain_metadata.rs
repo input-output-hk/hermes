@@ -4,6 +4,7 @@ use cardano_blockchain_types::{hashes::TransactionId, Slot};
 
 /// RBAC chain metadata.
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_field_names)]
 pub(crate) struct RbacChainMetadata {
     /// Last persistent transaction.
     pub(crate) last_persistent_txn: Option<TransactionId>,

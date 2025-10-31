@@ -29,7 +29,5 @@ pub(crate) fn roll_back_delete_from_volatile(
     slot_no: u64,
 ) {
     const FUNCTION_NAME: &str = "roll_back_delete_from_volatile";
-    if let Err(_) = DatabaseStatement::bind_slot(stmt, slot_no, FUNCTION_NAME) {
-        return;
-    }
+    if DatabaseStatement::bind_slot(stmt, slot_no, FUNCTION_NAME).is_err() {}
 }

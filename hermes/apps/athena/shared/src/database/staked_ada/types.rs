@@ -1,3 +1,5 @@
+//! `SQLite` queries types.
+
 use cardano_blockchain_types::{hashes::TransactionId, pallas_primitives::PolicyId, StakeAddress};
 use derive_more::From;
 use num_bigint::{BigInt, BigUint};
@@ -6,6 +8,7 @@ use crate::utils::sqlite;
 
 /// Row from `stake_registration` table.
 #[derive(From)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct StakeRegistrationRow {
     /// 29 Byte stake hash (CIP19).
     pub stake_address: StakeAddress,
