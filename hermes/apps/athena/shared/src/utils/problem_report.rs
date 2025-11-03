@@ -3,6 +3,7 @@
 pub use catalyst_types::problem_report::ProblemReport;
 
 /// Converts problem report to JSON.
+#[must_use]
 pub fn problem_report_to_json(report: &ProblemReport) -> Option<String> {
     if !report.is_problematic() {
         return None;
