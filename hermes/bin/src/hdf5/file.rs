@@ -1,6 +1,6 @@
 //! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
-use super::{compression::enable_compression, Path};
+use super::Path;
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
 pub(crate) struct File {
@@ -45,10 +45,10 @@ impl File {
     ) -> anyhow::Result<Self> {
         let builder = group.new_dataset_builder();
         let shape = hdf5::SimpleExtents::resizable([0]);
-        let hdf5_ds = enable_compression(builder)
-            .empty::<u8>()
-            .shape(shape)
-            .create(file_name)?;
+        // COMPRESSION DISABLED: For faster development builds
+        // To re-enable compression, uncomment the line below and comment out the builder line:
+        // let hdf5_ds = enable_compression(builder)
+        let hdf5_ds = builder.empty::<u8>().shape(shape).create(file_name)?;
         Ok(Self { hdf5_ds, pos: 0 })
     }
 
@@ -162,12 +162,10 @@ impl std::io::Seek for File {
                 self.pos = n;
                 Ok(self.pos.try_into().map_err(map_to_io_error)?)
             },
-            None => {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Invalid seek to a negative or overflowing position",
-                ))
-            },
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid seek to a negative or overflowing position",
+            )),
         }
     }
 
