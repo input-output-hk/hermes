@@ -26,6 +26,8 @@ shared::bindings_generate!({
 });
 export!(CatGatewayAPI);
 
+use http::{header::CONTENT_TYPE, StatusCode};
+use mime::{APPLICATION_JSON, TEXT_HTML};
 use regex::Regex;
 use shared::utils::{
     common::{
@@ -36,11 +38,11 @@ use shared::utils::{
     log,
 };
 
-use crate::api::{staked_ada_get, types::Responses, GetStakedAdaRequest};
-use crate::config::messages;
-use crate::error::{Result, StakedAdaError};
-use http::{header::CONTENT_TYPE, StatusCode};
-use mime::{APPLICATION_JSON, TEXT_HTML};
+use crate::{
+    api::{staked_ada_get, types::Responses, GetStakedAdaRequest},
+    config::messages,
+    error::{Result, StakedAdaError},
+};
 
 static STAKE_ROUTE_REGEX: OnceLock<Regex> = OnceLock::new();
 
@@ -150,7 +152,7 @@ fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse 
             let error_body = format!("{{\"error\":\"{}\"}}", messages::INTERNAL_SERVER_ERROR);
             create_json_response(StatusCode::INTERNAL_SERVER_ERROR, error_body)
         },
-        ErrorResponses::ServiceUnavailable(_, _) => {
+        ErrorResponses::ServiceUnavailable(..) => {
             let error_body = format!("{{\"error\":\"{}\"}}", messages::SERVICE_UNAVAILABLE);
             create_json_response(StatusCode::SERVICE_UNAVAILABLE, error_body)
         },
