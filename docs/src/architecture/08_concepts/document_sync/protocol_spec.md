@@ -355,8 +355,21 @@ doc-dissemination-body = ({
 ; self-contained types
 blake3-256 = bytes .size 32 ; BLAKE3-256 output
 root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 uuid = #6.37(bytes .size 16) ; UUIDv7
+
+; IPLD content identifier.
+; Currently limited to SHA2-256 based CIDs.
+cidv1 = #6.42(bytes .abnfb ("cid" .det cbor-cid ))
+
+; CIDv1 ABNF Constrained for SHA2-256
+cbor-cid = '
+    cid = cidv1 codec-cbor sha2-256 digest-32 digest
+    cidv1 = %x00 %x01
+    codec-cbor = %x51
+    sha2-256 = %x12
+    digest-32 = %x20
+    digest = 32(%x00-FF)
+'
 ```
 
 **Note:** *Only CIDv1 with multihash sha2-256 is permitted for document CIDs in this PoC;
@@ -822,7 +835,20 @@ msg-prv = {
 x25519-pubkey = bytes .size 32
 ed25519-pubkey = bytes .size 32
 peer-pubkey = ed25519-pubkey
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
+
+; IPLD content identifier.
+; Currently limited to SHA2-256 based CIDs.
+cidv1 = #6.42(bytes .abnfb ("cid" .det cbor-cid ))
+
+; CIDv1 ABNF Constrained for SHA2-256
+cbor-cid = '
+    cid = cidv1 codec-cbor sha2-256 digest-32 digest
+    cidv1 = %x00 %x01
+    codec-cbor = %x51
+    sha2-256 = %x12
+    digest-32 = %x20
+    digest = 32(%x00-FF)
+'
 ```
 
 #### Diagnostic example (payload-body decoded)
@@ -887,9 +913,23 @@ root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
 prefix-hash = blake3-256    ; Node hash at depth D (prefix bucket) of the SMT
 ed25519-pubkey = bytes .size 32
 peer-pubkey = ed25519-pubkey
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
 uuid = #6.37(bytes .size 16) ; UUIDv7
 x25519-pubkey = bytes .size 32
+
+; IPLD content identifier.
+; Currently limited to SHA2-256 based CIDs.
+cidv1 = #6.42(bytes .abnfb ("cid" .det cbor-cid ))
+
+; CIDv1 ABNF Constrained for SHA2-256
+cbor-cid = '
+    cid = cidv1 codec-cbor sha2-256 digest-32 digest
+    cidv1 = %x00 %x01
+    codec-cbor = %x51
+    sha2-256 = %x12
+    digest-32 = %x20
+    digest = 32(%x00-FF)
+'
+
 
 ; prf-plaintext (encrypted inside ct)
 ; numeric keys for prf-plaintext
@@ -1156,9 +1196,22 @@ kp-siblings = 3
 kp-leaf = 4
 kp-depth = 5
 
-; self-contained reference
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
+; Blake3 - 256bit digest.
 blake3-256 = bytes .size 32 ; BLAKE3-256 output
+
+; IPLD content identifier.
+; Currently limited to SHA2-256 based CIDs.
+cidv1 = #6.42(bytes .abnfb ("cid" .det cbor-cid ))
+
+; CIDv1 ABNF Constrained for SHA2-256
+cbor-cid = '
+    cid = cidv1 codec-cbor sha2-256 digest-32 digest
+    cidv1 = %x00 %x01
+    codec-cbor = %x51
+    sha2-256 = %x12
+    digest-32 = %x20
+    digest = 32(%x00-FF)
+'
 ```
 
 **Verification procedure (inclusion):**
@@ -1297,6 +1350,7 @@ Example (decoded):
 ## References
 
 * Sparse Merkle Trees: RFC 6962 (conceptual), Cosmos ICS23 (proof encoding inspiration).
+* Rust Sparse merkle tree [implementation](https://crates.io/crates/sparse-merkle-tree)
 * BLAKE3: O'Connor et al., <https://github.com/BLAKE3-team/BLAKE3> (specification and reference implementations).
 * Deterministic CBOR: RFC 8949, Sections 4.2.1–4.2.3 (length-first core deterministic encoding).
   Tags MUST appear only when specified by the CDDL; otherwise tags are omitted.
