@@ -96,7 +96,7 @@ uuid = { version = "1.18.0", features = ["v4"] }
 reqwest = "0.12.24"
 url = "2.5.7"
 num-traits = "0.2.19"
-paste = "1.0.15"
+paste = { package = "pastey", version = "0.1.1" }
 traitreg = "0.4.0"
 orx-concurrent-vec = "3.7.0"
 keyed-lock = "0.2.3"
