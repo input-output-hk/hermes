@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Catalyst RBAC Token utility functions.
 
 // cspell: words rsplit Fftx

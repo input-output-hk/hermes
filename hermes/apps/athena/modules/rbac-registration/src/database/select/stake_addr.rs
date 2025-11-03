@@ -40,24 +40,25 @@ use crate::{
 ///      WHERE stake_address = ?
 ///      ORDER BY slot_no DESC, txn_idx DESC;
 ///
-/// Produces [txn_id_1, txn_id_2, …], newest to oldest.
+/// Produces `[txn_id_1, txn_id_2, …]`, newest to oldest.
 ///
 /// Then there will be 2 cases
 ///
 /// a. Root registration (`prv_txn_id` IS NULL):
-/// - A valid root must have a non-null catalyst_id, no problem_report, and no
+/// - A valid root must have a non-null `catalyst_id`, n`problem_report`rt, and no
 ///   `prv_txn_id`.
 /// - Then need to validate by checking whether this root (Catalyst ID) was already used
-///   in an earlier root (slot_no less than current slot, or same slot with smaller
+///   in an earlier root (`slot_no` less than current slot, or same slot with smaller
 ///   `txn_idx`).
-///
+///   ```
 ///   SELECT txn_id FROM rbac_registration
 ///   WHERE prv_txn_id IS NULL
 ///   AND problem_report IS NULL
 ///   AND catalyst_id = ?
 ///   AND (
 ///   slot_no < ? OR (slot_no = ? AND txn_idx < ?)
-///   )  
+///   )
+///   ```
 ///
 /// - If no earlier root exists -> valid, the given `stake_address` belongs this chain.
 /// - Otherwise -> invalid, continue with next `txn_id`.
@@ -66,11 +67,12 @@ use crate::{
 /// - Follow the chain backwards (`txn_id` -> `prv_txn_id` -> …) until reaching a root
 ///   (`prv_txn_id` IS NULL).
 /// - Validate that root using the same rule as (a).
-/// - If root is valid -> stake_address belongs to this chain.
+/// - If root is valid -> `stake_address` belongs to this chain.
 /// - Otherwise -> continue with next `txn_id`.
 ///
 /// 3. If no valid root/chain is found after checking all candidates, then `stake_address`
 ///    does not belong to any valid registration and will return an empty vector.
+#[allow(clippy::similar_names)]
 pub(crate) fn select_rbac_registration_chain_from_stake_addr(
     persistent: &Sqlite,
     volatile: &Sqlite,
@@ -141,6 +143,7 @@ pub(crate) fn select_rbac_registration_chain_from_stake_addr(
 }
 
 /// Helper function to process find valid registration chain information.
+#[allow(clippy::similar_names, clippy::manual_let_else)]
 fn process_stake_txn_ids(
     txn_ids: Vec<Vec<u8>>,
     reg_p_stmt: &Statement,
@@ -162,24 +165,21 @@ fn process_stake_txn_ids(
         let registration_info = get_registration_info_from_txn_id(reg_p_stmt, &cur_txn)
             .or_else(|_| get_registration_info_from_txn_id(reg_v_stmt, &cur_txn))?;
 
-        let (prv_txn_id, mut slot_no, mut cat_id, mut txn_idx) = match registration_info {
-            Some(info) => info,
-            None => {
-                // This txn_id exists in stake address table but not in registration table
-                // This SHOULD NOT happen
-                // Skip to next transaction
-                log(
-                    Level::Warn,
-                    None,
-                    Some(FUNCTION_NAME),
-                    None,
-                    None,
-                    None,
-                    "Registration info not found",
-                    None,
-                );
-                continue;
-            },
+        let Some((prv_txn_id, mut slot_no, mut cat_id, mut txn_idx)) = registration_info else {
+            // This txn_id exists in stake address table but not in registration table
+            // This SHOULD NOT happen
+            // Skip to next transaction
+            log(
+                Level::Warn,
+                None,
+                Some(FUNCTION_NAME),
+                None,
+                None,
+                None,
+                "Registration info not found",
+                None,
+            );
+            continue;
         };
         // This means the registration in this transaction id IS NOT a root.
         // This check can be omitted, but is here just for readability.
@@ -261,7 +261,7 @@ fn get_txn_ids_from_stake_addr(
 /// Previous transaction ID, slot number, catalyst ID, transaction index.
 type RegistrationTxnInfo = (Option<Vec<u8>>, u64, Option<String>, u16);
 
-// Get registration info by transaction id.
+/// Get registration info by transaction id.
 fn get_registration_info_from_txn_id(
     stmt: &Statement,
     txn_id: &[u8],
@@ -273,14 +273,12 @@ fn get_registration_info_from_txn_id(
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
-        Ok(StepResult::Row) => {
-            Ok(Some((
-                column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
-                column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
-                column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
-                column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
-            )))
-        },
+        Ok(StepResult::Row) => Ok(Some((
+            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
+        ))),
         Ok(StepResult::Done) => {
             return Ok(None);
         },
@@ -299,7 +297,8 @@ fn get_registration_info_from_txn_id(
     result
 }
 
-// Construct a registration chain by walking back a chain
+/// Construct a registration chain by walking back a chain
+#[allow(clippy::similar_names)]
 fn walk_chain_back(
     reg_p_stmt: &Statement,
     reg_v_stmt: &Statement,

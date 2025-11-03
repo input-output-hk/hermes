@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Hermes bindings generated with [`::wit_bindgen`].
 //! They can be reused when using `share` keyword of [`crate::bindings_generate`] macro.
 
