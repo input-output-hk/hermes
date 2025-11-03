@@ -19,9 +19,9 @@ permissions:
 jobs:
   ci:
     if: ${{ !github.event.pull_request.draft }}
-    uses: input-output-hk/catalyst-forge/.github/workflows/ci.yml@ci/v1.8.1
+    uses: input-output-hk/catalyst-forge/.github/workflows/ci.yml@ci/v1.9.0
     with:
-      forge_version: 0.19.1
+      forge_version: 0.20.0
 
   test_reporting:
     if: ${{ !github.event.pull_request.draft }}
