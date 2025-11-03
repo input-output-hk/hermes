@@ -1,3 +1,5 @@
+//! `INSERT` queries.
+
 use crate::{
     database::{
         sql,
@@ -7,6 +9,10 @@ use crate::{
 };
 
 /// Sequentially inserts [`StakeRegistrationRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during the execution or query preparation.
 pub fn insert_stake_registration(
     conn: &mut sqlite::Connection,
     values: impl IntoIterator<Item = StakeRegistrationRow>,
@@ -17,6 +23,10 @@ pub fn insert_stake_registration(
 }
 
 /// Sequentially inserts [`StakeRegistrationRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during the execution or query preparation.
 pub fn insert_txi_by_txn_id(
     conn: &mut sqlite::Connection,
     values: impl IntoIterator<Item = TxiByTxnIdRow>,
@@ -27,6 +37,10 @@ pub fn insert_txi_by_txn_id(
 }
 
 /// Sequentially inserts [`TxoAssetsByStakeRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during the execution or query preparation.
 pub fn insert_txo_assets_by_stake(
     conn: &mut sqlite::Connection,
     values: impl IntoIterator<Item = TxoAssetsByStakeRow>,
@@ -37,6 +51,10 @@ pub fn insert_txo_assets_by_stake(
 }
 
 /// Sequentially inserts [`TxoByStakeRow`].
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during the execution or query preparation.
 pub fn insert_txo_by_stake(
     conn: &mut sqlite::Connection,
     values: impl IntoIterator<Item = TxoByStakeRow>,
