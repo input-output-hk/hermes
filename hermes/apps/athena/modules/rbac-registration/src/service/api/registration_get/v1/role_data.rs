@@ -39,7 +39,7 @@ impl RbacRoleData {
         point_data: &[PointData<RoleData>],
         last_persistent_slot: Slot,
         chain: &RegistrationChain,
-        network: Network,
+        network: &Network,
     ) -> anyhow::Result<Self> {
         let mut signing_keys = Vec::new();
         let mut encryption_keys = Vec::new();

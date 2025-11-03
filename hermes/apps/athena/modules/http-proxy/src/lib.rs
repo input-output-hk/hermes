@@ -15,12 +15,12 @@
 //! The HTTP gateway's subscription system enables seamless migration:
 //!
 //! **Current (Temporary)**:
-//! ```
+//! ```text
 //! /api/gateway/v1/config → http_proxy module → External redirect
 //! ```
 //!
 //! **Future (Native)**:
-//! ```
+//! ```text
 //! /api/gateway/v1/config → frontend_config_native module → Direct implementation
 //! ```
 //!

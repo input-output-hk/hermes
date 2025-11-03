@@ -5,7 +5,7 @@ use std::sync::Once;
 use log::Log;
 pub use log::{debug, error, info, log_enabled, trace, warn, LevelFilter};
 
-/// Compatibility between [`hermes::logging`] and [`log`].
+/// Compatibility between [`crate::bindings::hermes::logging`] and [`log`].
 mod compat {
     use crate::bindings::hermes;
 
