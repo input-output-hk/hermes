@@ -15,13 +15,9 @@ use shared::{
                 stake_info::{FullStakeInfo, StakeInfo, StakedTxoAssetInfo},
             },
             responses::ErrorResponses,
-            types::{
-                cardano::{
-                    ada_value::AdaValue, asset_name::AssetName, asset_value::AssetValue,
-                    cip19_stake_address::Cip19StakeAddress, hash28::HexEncodedHash28,
-                    slot_no::SlotNo,
-                },
-                pallas_big_int_to_num_bigint,
+            types::cardano::{
+                ada_value::AdaValue, asset_name::AssetName, asset_value::AssetValue,
+                cip19_stake_address::Cip19StakeAddress, hash28::HexEncodedHash28, slot_no::SlotNo,
             },
         },
         log,
@@ -38,7 +34,7 @@ use crate::config::DB_BATCH_SIZE;
 
 /// # GET `/staked_ada`
 pub(crate) fn endpoint(
-    stake_address: Cip19StakeAddress,
+    stake_address: &Cip19StakeAddress,
     provided_network: Option<Network>,
     slot_num: Option<SlotNo>,
 ) -> AllResponses {
@@ -51,7 +47,7 @@ pub(crate) fn endpoint(
 
 /// Building a full stake info response from the provided arguments.
 fn build_full_stake_info_response(
-    stake_address: Cip19StakeAddress,
+    stake_address: &Cip19StakeAddress,
     provided_network: Option<Network>,
     slot_num: Option<SlotNo>,
 ) -> anyhow::Result<Option<FullStakeInfo>> {
@@ -137,7 +133,7 @@ fn get_txo(
         txo_map.insert(
             (row.txn_id, row.txo),
             TxoInfo {
-                value: pallas_big_int_to_num_bigint(&row.value),
+                value: row.value.clone().into(),
                 txn_index: row.txn_index.into(),
                 txo: row.txo,
                 slot_no: row.slot_no.into(),
@@ -168,7 +164,7 @@ fn get_txo_assets(
                 let value = GetAssetsByStakeAddressQueryValue {
                     policy_id: row.policy_id.to_vec(),
                     asset_name: row.asset_name.as_slice().to_vec(),
-                    value: pallas_big_int_to_num_bigint(&row.value),
+                    value: row.value.clone(),
                 };
                 match tokens_map.entry(key) {
                     std::collections::hash_map::Entry::Occupied(mut o) => {

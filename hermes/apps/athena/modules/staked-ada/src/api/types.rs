@@ -1,3 +1,5 @@
+//! Staked ada helper types.
+
 use std::collections::HashMap;
 
 use cardano_blockchain_types::{hashes::TransactionId, Slot, TxnIndex};

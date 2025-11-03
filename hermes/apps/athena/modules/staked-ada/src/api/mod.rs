@@ -12,19 +12,20 @@ pub mod assets_get;
 pub mod types;
 
 #[derive(Default, Serialize, Deserialize)]
+/// Staked ada request.
 pub(crate) struct GetStakedAdaRequest {
-    // Cardano network type.
-    // If omitted network type is identified from the stake address.
-    // If specified it must be correspondent to the network type encoded in the stake
-    // address.
-    // As `preprod` and `preview` network types in the stake address encoded as a
-    // `testnet`, to specify `preprod` or `preview` network type use this
-    // query parameter.
-    // network: Query<Option<Network>>,
+    /// Cardano network type.
+    /// If omitted network type is identified from the stake address.
+    /// If specified it must be correspondent to the network type encoded in the stake
+    /// address.
+    /// As `preprod` and `preview` network types in the stake address encoded as a
+    /// `testnet`, to specify `preprod` or `preview` network type use this
+    /// query parameter.
+    /// network: Query<Option<Network>>,
     pub(crate) network: Option<Network>,
-    // A time point at which the assets should be calculated.
-    // If omitted latest slot number is used.
-    // asat: Query<Option<cardano::query::AsAt>>,
+    /// A time point at which the assets should be calculated.
+    /// If omitted latest slot number is used.
+    /// asat: Query<Option<cardano::query::AsAt>>,
     pub(crate) asat: Option<cardano::as_at::AsAt>,
     // No Authorization required, but Token permitted.
     // pub(crate) auth: NoneOrRBAC,
@@ -51,7 +52,7 @@ pub fn staked_ada_get(
     // The stake address of the user.
     // Should be a valid Bech32 encoded address followed by the https://cips.cardano.org/cip/CIP-19/#stake-addresses.
     // stake_address: Path<Cip19StakeAddress>,
-    stake_address: Cip19StakeAddress,
+    stake_address: &Cip19StakeAddress,
     // Cardano network type.
     // If omitted network type is identified from the stake address.
     // If specified it must be correspondent to the network type encoded in the stake

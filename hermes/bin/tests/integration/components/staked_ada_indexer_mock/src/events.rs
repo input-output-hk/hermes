@@ -1,9 +1,6 @@
 //! Hermes RTE events inner implementations.
 
-use cardano_blockchain_types::{
-    hashes::{Blake2bHash, TransactionId},
-    pallas_primitives::BigInt,
-};
+use cardano_blockchain_types::hashes::{Blake2bHash, TransactionId};
 use shared::{
     database::staked_ada::{create_tables, insert_txo_by_stake, TxoByStakeRow},
     utils::{common::types::cardano::cip19_stake_address::Cip19StakeAddress, log::info, sqlite},
@@ -42,7 +39,6 @@ fn insert_test_data(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
     let cip19_stake = Cip19StakeAddress::try_from(MOCKED_STAKE_ADDRESS)?;
     let stake_address: cardano_blockchain_types::StakeAddress = cip19_stake.try_into()?;
     let txn_id: TransactionId = Blake2bHash::from([0u8; 32]).into();
-    let value = BigInt::Int(100_000_000i64.into());
 
     let txo_rows = vec![TxoByStakeRow {
         stake_address: stake_address.clone(),
@@ -50,7 +46,7 @@ fn insert_test_data(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
         txn_index: 0,
         txo: 0,
         slot_no: 12345,
-        value,
+        value: 100_000_000u64.into(),
         spent_slot: None,
     }];
 

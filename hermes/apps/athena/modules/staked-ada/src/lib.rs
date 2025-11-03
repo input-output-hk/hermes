@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, missing_docs)]
 //! Catalyst Gateway API
 
 mod api;
@@ -44,8 +44,11 @@ use crate::{
     error::{Result, StakedAdaError},
 };
 
+/// Staked ada route regex.
 static STAKE_ROUTE_REGEX: OnceLock<Regex> = OnceLock::new();
 
+/// Initializes staked ada route regex.
+#[allow(clippy::expect_used)]
 fn stake_route_regex() -> &'static Regex {
     STAKE_ROUTE_REGEX.get_or_init(|| {
         Regex::new(crate::config::STAKE_ROUTE_PATTERN)
@@ -142,7 +145,7 @@ fn convert_to_http_response(stake_info: Responses) -> HttpGatewayResponse {
 }
 
 /// Convert error response to HTTP response
-fn convert_error_to_http_response(error: ErrorResponses) -> HttpGatewayResponse {
+fn convert_error_to_http_response(error: &ErrorResponses) -> HttpGatewayResponse {
     match error {
         ErrorResponses::NotFound => {
             let error_body = format!("{{\"error\":\"{}\"}}", messages::NOT_FOUND);
@@ -197,7 +200,7 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                 };
 
                 let response = staked_ada_get(
-                    stake_address,
+                    &stake_address,
                     request.network,
                     request.asat,
                     shared::utils::common::auth::none_or_rbac::NoneOrRBAC::None(NoAuthorization),
@@ -210,7 +213,7 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
                     },
                     WithErrorResponses::Error(error_response) => {
                         log::info!("processed STAKE_ROUTE  with error");
-                        convert_error_to_http_response(error_response)
+                        convert_error_to_http_response(&error_response)
                     },
                 }
             },
@@ -227,6 +230,7 @@ impl exports::hermes::http_gateway::event::Guest for CatGatewayAPI {
     }
 }
 
+/// Validates staked ada route and extracts stake address from it.
 fn validate_stake_route(path: &str) -> Result<Cip19StakeAddress> {
     let route_regex = stake_route_regex();
     if let Some(captures) = route_regex.captures(&path.to_lowercase()) {

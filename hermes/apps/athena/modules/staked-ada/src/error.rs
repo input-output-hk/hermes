@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Errors that can occur in the staked-ada module.
 #[derive(Debug, Error)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum StakedAdaError {
     /// Invalid stake address format.
     #[error("Invalid stake address format: {address}")]

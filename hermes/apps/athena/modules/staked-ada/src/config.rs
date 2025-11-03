@@ -8,6 +8,7 @@ pub const STAKE_ROUTE_PATTERN: &str = r"^/api/gateway/v1/cardano/assets/(stake1[
 pub const DB_BATCH_SIZE: usize = 100;
 
 /// Error messages.
+#[allow(clippy::missing_docs_in_private_items)]
 pub mod messages {
     pub const STAKE_ADDRESS_NOT_FOUND: &str = "Stake address not found";
     pub const INTERNAL_SERVER_ERROR: &str = "Internal server error";
