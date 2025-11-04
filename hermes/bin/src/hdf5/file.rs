@@ -46,8 +46,11 @@ impl File {
         let builder = group.new_dataset_builder();
         let shape = hdf5::SimpleExtents::resizable([0]);
         // COMPRESSION DISABLED: For faster development builds
-        // To re-enable compression, uncomment the line below and comment out the builder line:
+        // To re-enable compression, uncomment the lines below and comment out the builder line:
         // let hdf5_ds = enable_compression(builder)
+        //     .empty::<u8>()
+        //     .shape(shape)
+        //     .create(file_name)?;
         let hdf5_ds = builder.empty::<u8>().shape(shape).create(file_name)?;
         Ok(Self { hdf5_ds, pos: 0 })
     }
