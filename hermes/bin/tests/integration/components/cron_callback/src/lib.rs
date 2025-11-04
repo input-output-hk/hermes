@@ -52,7 +52,7 @@ impl bindings::exports::hermes::cron::event::Guest for CronCallbackApp {
     ) -> bool {
         test_log(&format!("got cron event with tag={}", event.tag));
         assert!(last);
-        assert!(event.tag == CRON_TAG);
+        assert_eq!(event.tag, CRON_TAG);
         bindings::hermes::init::api::done(0);
         true
     }
