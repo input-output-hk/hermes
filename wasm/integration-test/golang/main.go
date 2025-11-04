@@ -5,6 +5,7 @@ import (
 	cardano_event_on_immutable_roll_forward "hermes-golang-app-test/binding/hermes/cardano/event-on-immutable-roll-forward"
 	cron "hermes-golang-app-test/binding/hermes/cron/event"
 	http_gateway "hermes-golang-app-test/binding/hermes/http-gateway/event"
+	auth "hermes-golang-app-test/binding/hermes/http-gateway/event-auth"
 	http_request "hermes-golang-app-test/binding/hermes/http-request/event"
 	init_event "hermes-golang-app-test/binding/hermes/init/event"
 	int_test "hermes-golang-app-test/binding/hermes/integration-test/event"
@@ -53,6 +54,9 @@ func (t TestModule) Reply(body http_gateway.Bstr, headers http_gateway.Headers, 
 
 func (t TestModule) OnHTTPResponse(requestID cm.Option[uint64], response cm.List[uint8]) {}
 
+func (t TestModule) ValidateAuth(request auth.AuthRequest) cm.Option[auth.HTTPResponse] {
+	return cm.None[auth.HTTPResponse]()
+}
 
 func init() {
 	module := TestModule{}
@@ -67,6 +71,7 @@ func init() {
 	kv.Exports.KvUpdate = module.KvUpdate
 	http_gateway.Exports.Reply = module.Reply
 	http_request.Exports.OnHTTPResponse = module.OnHTTPResponse
+	auth.Exports.ValidateAuth = module.ValidateAuth
 }
 
 func main() {}

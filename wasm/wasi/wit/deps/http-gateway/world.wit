@@ -2,6 +2,7 @@ package hermes:http-gateway;
 
 world all {
     import api;
-    
+
     export event;
+    export event-auth;
 }

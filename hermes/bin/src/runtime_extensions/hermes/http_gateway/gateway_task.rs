@@ -30,6 +30,8 @@ pub(crate) struct Config {
     pub(crate) valid_hosts: Vec<Hostname>,
     /// Local address for boot strap
     pub(crate) local_addr: SocketAddr,
+    /// Whether auth is activated
+    pub(crate) is_auth_activate: bool,
 }
 
 /// We will eventually use env vars when deployment pipeline is in place, hardcoded
@@ -43,6 +45,7 @@ impl Default for Config {
             ]
             .to_vec(),
             local_addr: SocketAddr::new([127, 0, 0, 1].into(), GATEWAY_PORT),
+            is_auth_activate: true,
         }
     }
 }
