@@ -18,7 +18,6 @@ mod bindings {
                 import hermes:cron/api;
                 import hermes:logging/api;
                 import hermes:init/api;
-                import hermes:localtime/api;
                 
                 export hermes:init/event;
                 export hermes:cron/event;
