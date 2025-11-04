@@ -1,0 +1,19 @@
+/// # IPFS API
+///
+/// Event triggered on receiving a message on a PubSub topic.
+///
+/// ## Permissions
+///
+/// This API is ALWAYS available.
+
+/// IPFS API Interface - Export ONLY
+interface event {
+    use api.{doc-data, channel-name };
+
+    /// Triggers when a message is received on a topic.
+    on-new-doc: func(channel: channel-name, doc: doc-data);
+}
+
+world ipfs-event {
+    export event;
+}

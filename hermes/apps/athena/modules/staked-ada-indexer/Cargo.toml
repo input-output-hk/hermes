@@ -1,7 +1,10 @@
 [package]
+edition.workspace = true
 name = "staked-ada-indexer"
 version = "0.1.0"
-edition = "2021"
+
+[lints]
+workspace = true
 
 [lib]
 crate-type = ["cdylib"]
@@ -9,4 +12,3 @@ crate-type = ["cdylib"]
 [dependencies]
 shared = { version = "0.1.0", path = "../../shared" }
 anyhow = "1.0.100"
-cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }

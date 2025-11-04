@@ -13,7 +13,7 @@ icon: material/format-list-group-plus
 | WIT | WebAssembly Interface Types language used to describe host APIs and component interfaces. |
 | HDF5 | Hierarchical Data Format v5, used as the application/package container and VFS backing store. |
 | VFS | Virtual filesystem presented to applications, backed by HDF5 with permissioned directories. |
-| Runtime Extension (HRE) | Engine-provided host capability accessible to modules (HTTP, IPFS, sqlite, crypto, etc.). |
+| Hermes Runtime Extension (HRE) | Engine-provided host capability accessible to modules (HTTP, IPFS, sqlite, crypto, etc.). |
 | Reactor | Global orchestrator coordinating applications and event dispatch. |
 | Event Queue | Singleton MPSC queue for routing events to target applications/modules. |
 | IPFS/libp2p | Peer-to-peer system providing pub/sub, DHT, and content-addressed storage. |

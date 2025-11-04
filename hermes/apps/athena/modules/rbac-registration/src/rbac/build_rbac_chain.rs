@@ -24,14 +24,13 @@ use crate::rbac::registration_location::RegistrationLocation;
 pub(crate) fn build_registration_chain(
     network: CardanoNetwork,
     network_resource: &Network,
-    registration_location: Vec<RegistrationLocation>,
+    registration_location: &[RegistrationLocation],
 ) -> anyhow::Result<Option<RegistrationChain>> {
     const FUNCTION_NAME: &str = "build_registration_chain";
 
     // The first registration (root)
-    let first_info = match registration_location.first() {
-        Some(info) => info,
-        None => return Ok(None),
+    let Some(first_info) = registration_location.first() else {
+        return Ok(None);
     };
 
     // Root registration use to initialize chain
@@ -66,14 +65,13 @@ pub(crate) fn build_registration_chain(
         if let Some(updated) = reg_chain.update(reg.clone()) {
             // If the registration being update is not problematic
             // It can be added to the registration chain
-            if !reg.report().is_problematic() {
-                reg_chain = updated;
+            if reg.report().is_problematic() {
+                return Ok(Some(reg_chain));
+            }
+            reg_chain = updated;
             // Broken registration in the chain doesn't break the early created chain,
             // there is no need to continue the chain since the data after a broken
             // registration should be ignored
-            } else {
-                return Ok(Some(reg_chain));
-            }
         }
     }
     Ok(Some(reg_chain))
@@ -102,13 +100,11 @@ fn get_registration(
         anyhow::anyhow!(err)
     })?;
 
-    match Cip509::new(&block, txn_idx.into(), &[]) {
-        Ok(Some(r)) => Ok(r),
-        // Expect a registration, so treat None as an error
-        Ok(None) | Err(_) => {
-            let err = format!("Failed to get registration at slot {slot_no}");
-            log_error(file!(), func_name, "Cip509::new", &err, None);
-            anyhow::bail!(err)
-        },
+    if let Ok(Some(r)) = Cip509::new(&block, txn_idx.into(), &[]) {
+        Ok(r)
+    } else {
+        let err = format!("Failed to get registration at slot {slot_no}");
+        log_error(file!(), func_name, "Cip509::new", &err, None);
+        anyhow::bail!(err)
     }
 }

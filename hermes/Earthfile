@@ -11,7 +11,7 @@ IMPORT ../wasm/stub-module AS stub-module
 # builder : Set up our target toolchains, and copy our files.
 builder:
     DO rust-ci+SETUP
-    COPY --dir .cargo .config bin schemas .
+    COPY --dir .cargo .config bin apps schemas .
     COPY Cargo.toml .
     COPY clippy.toml deny.toml rustfmt.toml .
 

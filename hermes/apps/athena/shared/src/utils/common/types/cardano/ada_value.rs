@@ -35,6 +35,7 @@ impl Display for AdaValue {
 
 impl AdaValue {
     /// Performs saturating addition.
+    #[must_use]
     pub fn saturating_add(
         self,
         v: Self,

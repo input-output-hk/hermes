@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Catalyst RBAC Token utility functions.
 
 // cspell: words rsplit Fftx
@@ -179,7 +180,7 @@ impl CatalystRBACTokenV1 {
     /// Returns a network.
     #[allow(dead_code)]
     pub(crate) fn network(&self) -> Network {
-        self.network
+        self.network.clone()
     }
 }
 
