@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Staked ADA Indexing Module
 
 shared::bindings_generate!({
@@ -12,7 +13,7 @@ shared::bindings_generate!({
             import hermes:logging/api;
             import hermes:init/api;
             import hermes:sqlite/api;
-            
+
             export hermes:init/event;
             export hermes:cardano/event-on-block;
             export hermes:cardano/event-on-immutable-roll-forward;
@@ -41,11 +42,9 @@ mod config {
         Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
         Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
         Some(s) if matches!(s.as_bytes(), b"IMMUTABLE_TIP") => SyncSlot::ImmutableTip,
-        Some(s) => {
-            match u64::from_str_radix(s, 10) {
-                Ok(i) => SyncSlot::Specific(i),
-                Err(_) => panic!("non integer specific sync slot"),
-            }
+        Some(s) => match u64::from_str_radix(s, 10) {
+            Ok(i) => SyncSlot::Specific(i),
+            Err(_) => panic!("non integer specific sync slot"),
         },
     };
 
@@ -61,6 +60,7 @@ mod config {
     pub const INIT_SQL_QUERY: Option<&str> = option_env!("STAKED_ADA_INDEXER_INIT_SQL_QUERY");
 }
 
+/// Staked ADA indexer component.
 struct Component;
 
 impl exports::hermes::init::event::Guest for Component {

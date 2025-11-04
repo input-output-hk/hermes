@@ -17,6 +17,7 @@ use shared::{
 
 /// Temporary buffers, holding entries to be inserted.
 #[derive(Default)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Buffers {
     pub txo_by_stake: Vec<TxoByStakeRow>,
     pub txo_assets_by_stake: Vec<TxoAssetsByStakeRow>,
