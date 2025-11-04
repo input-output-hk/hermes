@@ -1,6 +1,7 @@
-//! Hermes SQLite value conversion.
+//! Hermes `SQLite` value conversion.
 
 use cardano_blockchain_types;
+use num_bigint::{BigInt, BigUint};
 
 use crate::bindings::hermes::sqlite::api::Value;
 
@@ -60,15 +61,15 @@ impl From<cardano_blockchain_types::StakeAddress> for Value {
     }
 }
 
-impl TryFrom<cardano_blockchain_types::pallas_primitives::BigInt> for Value {
-    type Error = anyhow::Error;
+impl From<BigInt> for Value {
+    fn from(int: BigInt) -> Self {
+        Value::Text(int.to_string())
+    }
+}
 
-    fn try_from(
-        v: cardano_blockchain_types::pallas_primitives::BigInt
-    ) -> Result<Self, Self::Error> {
-        cardano_blockchain_types::pallas_codec::minicbor::to_vec(&v)
-            .map_err(Into::into)
-            .map(Value::Blob)
+impl From<BigUint> for Value {
+    fn from(int: BigUint) -> Self {
+        Value::Text(int.to_string())
     }
 }
 
@@ -90,7 +91,7 @@ where
     T: Into<Value>,
 {
     fn from(opt: Option<T>) -> Self {
-        opt.map(|v| v.into()).unwrap_or(Value::Null)
+        opt.map_or(Value::Null, Into::into)
     }
 }
 
@@ -178,6 +179,28 @@ where
     }
 }
 
+impl TryFrom<Value> for BigUint {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Text(s) => s.parse().map_err(Into::into),
+            _ => Err(anyhow::anyhow!("Value is not Text for BigUint")),
+        }
+    }
+}
+
+impl TryFrom<Value> for BigInt {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Text(s) => s.parse().map_err(Into::into),
+            _ => Err(anyhow::anyhow!("Value is not Text for BigInt")),
+        }
+    }
+}
+
 impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
     type Error = anyhow::Error;
 
@@ -188,19 +211,6 @@ impl TryFrom<Value> for cardano_blockchain_types::hashes::TransactionId {
                 Ok(hash.into())
             },
             _ => Err(anyhow::anyhow!("Value is not a Blob for TransactionId")),
-        }
-    }
-}
-
-impl TryFrom<Value> for cardano_blockchain_types::pallas_primitives::BigInt {
-    type Error = anyhow::Error;
-
-    fn try_from(v: Value) -> Result<Self, Self::Error> {
-        match v {
-            Value::Blob(b) => {
-                cardano_blockchain_types::pallas_codec::minicbor::decode(&b).map_err(Into::into)
-            },
-            _ => Err(anyhow::anyhow!("Value is not a Blob for BigInt")),
         }
     }
 }
@@ -222,9 +232,7 @@ impl TryFrom<Value> for cardano_blockchain_types::StakeAddress {
 
     fn try_from(v: Value) -> Result<Self, Self::Error> {
         match v {
-            Value::Blob(b) => {
-                cardano_blockchain_types::StakeAddress::try_from(b.as_slice()).map_err(Into::into)
-            },
+            Value::Blob(b) => cardano_blockchain_types::StakeAddress::try_from(b.as_slice()),
             _ => Err(anyhow::anyhow!("Value is not a Blob for StakeAddress")),
         }
     }

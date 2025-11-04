@@ -71,7 +71,7 @@ fn role_data(info: &ChainInfo) -> anyhow::Result<HashMap<RoleId, RbacRoleData>> 
         .role_data_history()
         .iter()
         .map(|(&role, data)| {
-            RbacRoleData::new(data, info.last_persistent_slot, &info.chain, info.network)
+            RbacRoleData::new(data, info.last_persistent_slot, &info.chain, &info.network)
                 .map(|rbac| (role, rbac))
         })
         .collect()

@@ -1,3 +1,7 @@
+---
+icon: material/certificate
+---
+
 # Hermes Signing Procedure
 
 In various parts of the Hermes system,

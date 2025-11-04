@@ -12,3 +12,4 @@ arrange:
   - hermes_packaging_requirements
   - cardano_chain_follower
   - hermes_signing_procedure
+  - document_sync

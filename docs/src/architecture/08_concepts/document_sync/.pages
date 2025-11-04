@@ -1,0 +1,6 @@
+title: Document Synchronization
+arrange:
+  - index.md
+  - protocol_spec.md
+  - runtime_extension_spec.md
+

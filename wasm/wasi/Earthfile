@@ -62,11 +62,20 @@ build:
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:crypto/all ../wasi/wit &&\
         mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/crypto.md
 
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:doc-sync/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/doc-sync.md
+
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:hash/all ../wasi/wit &&\
         mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/hash.md
 
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:http-request/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/http-request.md
+
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:init/all ../wasi/wit &&\
         mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/init.md
+
+    RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:ipfs/all ../wasi/wit &&\
+        mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/ipfs.md
 
     RUN wit-bindgen markdown --html-in-md --out-dir wasi-hermes-docs -w hermes:json/all ../wasi/wit &&\
         mv wasi-hermes-docs/all.md wasi-hermes-docs/hermes/json.md
