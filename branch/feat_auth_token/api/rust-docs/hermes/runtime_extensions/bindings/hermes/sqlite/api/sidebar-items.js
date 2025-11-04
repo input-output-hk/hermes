@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Errno","Sqlite","Statement","StepResult","Value"],"fn":["add_to_linker"],"struct":["ErrorInfo"],"trait":["Host","HostSqlite","HostSqliteWithStore","HostStatement","HostStatementWithStore","HostWithStore"]};

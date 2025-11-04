@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["event_execution_loop","init","send","shutdown","targeted_app_event_execution","targeted_module_event_execution"],"mod":["exit"],"static":["EVENT_QUEUE_INSTANCE"],"struct":["HermesEventQueue"]};

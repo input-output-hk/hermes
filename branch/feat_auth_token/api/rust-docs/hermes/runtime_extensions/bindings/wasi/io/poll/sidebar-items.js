@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Pollable"],"fn":["add_to_linker"],"trait":["Host","HostPollable","HostPollableWithStore","HostWithStore"]};

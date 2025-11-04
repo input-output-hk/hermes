@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["HTTPEventMsg"],"fn":["validate_host","validate_path","validate_redirect_location","validate_scheme"],"struct":["HTTPEvent","RedirectConfig"],"trait":["ComponentInstanceExt"],"type":["Body","Code","HeadersKV","Method","Path"]};
