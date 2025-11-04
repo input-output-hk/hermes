@@ -9,6 +9,8 @@ fn cron_works() {
     const COMPONENT: &str = "cron_callback";
     const MODULE: &str = "test_module";
 
+    let temp_dir = TempDir::new().unwrap();
+
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
     let app_file_name =
         utils::packaging::package(&temp_dir, COMPONENT, MODULE).expect("failed to package app");
