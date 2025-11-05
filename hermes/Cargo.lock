@@ -8674,18 +8674,18 @@ dependencies = [
 
 [[package]]
 name = "traitreg"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f25a50537e63ff121557d099d78dcec0d3a7a2c475021c665ae071c193156f23"
+checksum = "0ee5f6a15ac8ad481710cf3c1b1de4451f38f4f6a1f8dbc0249d9a02508db93b"
 dependencies = [
  "traitreg-macros",
 ]
 
 [[package]]
 name = "traitreg-macros"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "607fdec1dae670b007b9944977900fb98f44376e6464d3eca35f97c8e75a10fd"
+checksum = "e5714b78208e3da0c85d5683a933d843aa275c5fd301d7953b7ae523c7a4ea2a"
 dependencies = [
  "proc-macro2",
  "quote",
