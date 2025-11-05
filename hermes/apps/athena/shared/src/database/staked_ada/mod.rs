@@ -13,7 +13,8 @@ use crate::{database::sql, utils::sqlite};
 ///
 /// # Errors
 ///
-/// Returns an error if sqlite returns it during the execution or transaction operations failed.
+/// Returns an error if sqlite returns it during the execution or transaction operations
+/// failed.
 pub fn create_tables(conn: &mut sqlite::Connection) -> anyhow::Result<()> {
     conn.execute(sql::SCHEMA.stake_registration)?;
     conn.execute(sql::SCHEMA.txi_by_txn_id)?;

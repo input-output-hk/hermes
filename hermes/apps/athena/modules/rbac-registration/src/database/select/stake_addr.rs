@@ -49,16 +49,9 @@ use crate::{
 ///   `prv_txn_id`.
 /// - Then need to validate by checking whether this root (Catalyst ID) was already used
 ///   in an earlier root (`slot_no` less than current slot, or same slot with smaller
-///   `txn_idx`).
-///   ```
-///   SELECT txn_id FROM rbac_registration
-///   WHERE prv_txn_id IS NULL
-///   AND problem_report IS NULL
-///   AND catalyst_id = ?
-///   AND (
-///   slot_no < ? OR (slot_no = ? AND txn_idx < ?)
-///   )
-///   ```
+///   `txn_idx`). ``` SELECT txn_id FROM rbac_registration WHERE prv_txn_id IS NULL AND
+///   problem_report IS NULL AND catalyst_id = ? AND ( slot_no < ? OR (slot_no = ? AND
+///   txn_idx < ?) ) ```
 ///
 /// - If no earlier root exists -> valid, the given `stake_address` belongs this chain.
 /// - Otherwise -> invalid, continue with next `txn_id`.
@@ -273,12 +266,14 @@ fn get_registration_info_from_txn_id(
 
     let result = match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
-        Ok(StepResult::Row) => Ok(Some((
-            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
-            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
-            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
-            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
-        ))),
+        Ok(StepResult::Row) => {
+            Ok(Some((
+                column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+                column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+                column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+                column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
+            )))
+        },
         Ok(StepResult::Done) => {
             return Ok(None);
         },
