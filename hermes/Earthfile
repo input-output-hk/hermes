@@ -78,6 +78,28 @@ build:
     SAVE ARTIFACT target/release/hermes hermes
     SAVE ARTIFACT target/criterion
 
+# build-athena : Run Athena build using the most efficient host tooling
+# CI Automated Entry point.
+build-athena:
+    FROM +builder
+
+    COPY --dir .config apps/athena
+
+    WORKDIR apps/athena
+
+    DO rust-ci+EXECUTE \
+        --cmd="/scripts/std_build.py" \
+        --args1="--build_flags=\"--target wasm32-wasip2\"" \
+        --args2="--libs=http-proxy,rbac-registration,rbac-registration-indexer,staked-ada-indexer,shared" \
+        --output="release/athena" \
+        --docs="true"
+
+    DO rust-ci+COPY_OUTPUT --output="criterion/.*"
+
+    SAVE ARTIFACT target/doc doc
+    SAVE ARTIFACT target/release/athena athena
+    SAVE ARTIFACT target/criterion
+
 # test-wasm-integration : Run WASM integration tests on hermes engine.
 test-wasm-integration:
     FROM +build
