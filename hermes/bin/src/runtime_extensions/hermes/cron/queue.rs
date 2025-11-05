@@ -162,9 +162,16 @@ impl CronEventQueue {
                 *waiting_for <= trigger_time
             })
         {
-            handle
-                .join()
-                .map_err(|_| anyhow::anyhow!("Cron Queue Task Failed"))?;
+            // TODO[RC]: Joining here can cause a deadlock, because `update_waiting_task`
+            // below will eventually call the `fn trigger()` (the current function), resulting
+            // in a thread trying to join itself. This is just a temporary fix, we should redesign
+            // the `cron` extension to eliminate the root cause.
+
+            if handle.thread().id() != std::thread::current().id() {
+                handle
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("Cron Queue Task Failed"))?;
+            }
         }
         // Get the next timestamp in the queue, and the list of apps that should be triggered.
         while let Some((ts, app_names)) = self.next_in_queue() {
