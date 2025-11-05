@@ -1,7 +1,7 @@
 VERSION 0.8
 
 IMPORT ../../../wasm AS wasm
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.17 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.25 AS rust-ci
 
 # Make an artifact which consists of the common code shared by Athena modules.
 workspace-src:
