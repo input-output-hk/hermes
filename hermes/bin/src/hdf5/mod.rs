@@ -1,6 +1,8 @@
 //! Module provides different objects, abstractions for working with HDF5 packages.
 
+#[allow(dead_code)]
 mod compression;
+
 mod dir;
 mod file;
 mod path;

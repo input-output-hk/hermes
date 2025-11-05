@@ -5,6 +5,7 @@ use serde::Deserialize;
 use subscription::{register_global_endpoint_subscription, EndpointSubscription};
 use tracing::{error, info};
 
+mod auth;
 mod event;
 mod gateway_task;
 mod host;
@@ -12,6 +13,7 @@ mod host;
 mod routing;
 /// Subscription management for targeted routing
 mod subscription;
+mod utils;
 
 /// endpoint sub
 #[derive(Debug, Deserialize)]

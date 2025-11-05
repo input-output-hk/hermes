@@ -49,3 +49,8 @@ bool exports_hermes_integration_test_event_bench(uint32_t test, bool run, hermes
 void exports_hermes_http_request_event_on_http_response(uint64_t *maybe_request_id, hermes_list_u8_t *response) {
   
 }
+
+bool exports_hermes_http_gateway_event_auth_validate_auth(exports_hermes_http_gateway_event_auth_auth_request_t *auth_request, exports_hermes_http_gateway_event_auth_http_response_t *ret) {
+  return false;
+}
+
