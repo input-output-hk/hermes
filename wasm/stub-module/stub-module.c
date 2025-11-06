@@ -54,5 +54,5 @@ bool exports_hermes_http_gateway_event_auth_validate_auth(exports_hermes_http_ga
   return false;
 }
 
-void exports_hermes_doc_sync_event_on_new_doc(hermes_string_t *channel, hermes_list_u8_t *doc) {
+void exports_hermes_doc_sync_event_on_new_doc(exports_hermes_doc_sync_event_channel_n *channel, exports_hermes_doc_sync_event_doc_data_t *doc) {
 }
