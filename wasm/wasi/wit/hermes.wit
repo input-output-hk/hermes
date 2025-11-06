@@ -25,6 +25,7 @@ world imports {
     import hermes:cbor/api;
     import hermes:cron/api;
     import hermes:crypto/api;
+    import hermes:doc-sync/api;
     import hermes:hash/api;
     import hermes:init/api;
     import hermes:ipfs/api;
