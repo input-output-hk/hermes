@@ -10,6 +10,7 @@ world hermes {
   include hermes:cbor/all;
   include hermes:cron/all;
   include hermes:crypto/all;
+  include hermes:doc-sync/all;
   include hermes:hash/all;
   include hermes:init/all;
   include hermes:ipfs/all;
