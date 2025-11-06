@@ -4,6 +4,7 @@
 "hermes:cbor" = { path = "./wit/deps/hermes-cbor" }
 "hermes:cron" = { path = "./wit/deps/hermes-cron" }
 "hermes:crypto" = { path = "./wit/deps/hermes-crypto" }
+"hermes:doc-sync" = { path = "./wit/deps/hermes-doc-sync" }
 "hermes:hash" = { path = "./wit/deps/hermes-hash" }
 "hermes:init" = { path = "./wit/deps/hermes-init" }
 "hermes:ipfs" = { path = "./wit/deps/hermes-ipfs" }

@@ -7,6 +7,7 @@ pub(crate) mod cardano;
 pub(crate) mod cbor;
 pub(crate) mod cron;
 pub(crate) mod crypto;
+pub(crate) mod doc_sync;
 pub(crate) mod hash;
 pub(crate) mod http_gateway;
 pub(crate) mod http_request;
