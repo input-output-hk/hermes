@@ -2,8 +2,8 @@
 use std::str::FromStr;
 
 use hermes_ipfs::{
-    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile,
-    MessageId as PubsubMessageId, PeerId as TargetPeerId,
+    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId,
+    PeerId as TargetPeerId,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -112,10 +112,13 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Subscribe(topic, tx) => {
                 let stream = hermes_node
-                    .pubsub_subscribe(topic)
+                    .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                let handle = subscription_stream_task(stream, topic_stream_app_handler);
+                let handler = TopicStreamAppHandler::new(topic, topic_stream_app_handler);
+                let handle = hermes_ipfs::subscription_stream_task(stream, move |msg| {
+                    handler.handle(msg);
+                });
                 send_response(Ok(handle), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
@@ -129,14 +132,42 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
+struct TopicStreamAppHandler<T>
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
+{
+    topic: String,
+    callback: T,
+}
+
+impl<T> TopicStreamAppHandler<T>
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
+{
+    pub fn new(
+        topic: String,
+        callback: T,
+    ) -> Self {
+        Self { topic, callback }
+    }
+
+    /// Call this for each incoming message
+    pub fn handle(
+        &self,
+        msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    ) {
+        (self.callback)(msg, self.topic.clone())
+    }
+}
+
 /// Handler function for topic message streams.
-fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Message) {
+fn topic_stream_app_handler(
+    msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    msg_topic: String,
+) {
     if let Some(ipfs) = HERMES_IPFS.get() {
-        let msg_topic = msg.topic.into_string();
         let on_topic_event = OnTopicEvent {
             message: PubsubMessage {
                 topic: msg_topic.clone(),
-                message: msg.data,
+                message: msg.data.into(),
                 publisher: msg.source.map(|p| p.to_string()),
             },
         };
