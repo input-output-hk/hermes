@@ -59,7 +59,7 @@ func (t TestModule) ValidateAuth(request auth.AuthRequest) cm.Option[auth.HTTPRe
 	return cm.None[auth.HTTPResponse]()
 }
 
-func (t TestModule) OnNewDoc(channel string, doc cm.List[uint8]) {}
+func (t TestModule) OnNewDoc(channel doc_sync.ChannelName, doc doc_sync.DocData) {}
 
 
 func init() {
