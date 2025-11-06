@@ -4,6 +4,7 @@ import (
 	cardano_event_on_block "hermes-golang-app-test/binding/hermes/cardano/event-on-block"
 	cardano_event_on_immutable_roll_forward "hermes-golang-app-test/binding/hermes/cardano/event-on-immutable-roll-forward"
 	cron "hermes-golang-app-test/binding/hermes/cron/event"
+	doc_sync "hermes-golang-app-test/binding/hermes/doc-sync/event"
 	http_gateway "hermes-golang-app-test/binding/hermes/http-gateway/event"
 	auth "hermes-golang-app-test/binding/hermes/http-gateway/event-auth"
 	http_request "hermes-golang-app-test/binding/hermes/http-request/event"
@@ -58,6 +59,9 @@ func (t TestModule) ValidateAuth(request auth.AuthRequest) cm.Option[auth.HTTPRe
 	return cm.None[auth.HTTPResponse]()
 }
 
+func (t TestModule) OnNewDoc(channel string, doc cm.List[uint8]) {}
+
+
 func init() {
 	module := TestModule{}
 
@@ -72,6 +76,7 @@ func init() {
 	http_gateway.Exports.Reply = module.Reply
 	http_request.Exports.OnHTTPResponse = module.OnHTTPResponse
 	auth.Exports.ValidateAuth = module.ValidateAuth
+	doc_sync.Exports.OnNewDoc = module.OnNewDoc
 }
 
 func main() {}
