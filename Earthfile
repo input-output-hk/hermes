@@ -1,11 +1,11 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.5.27 AS mdlint-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.5.27 AS cspell-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/mdlint:v3.5.28 AS mdlint-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/cspell:v3.5.28 AS cspell-ci
 
 
 # cspell: words livedocs sitedocs
-    
+
 # check-markdown : markdown check using catalyst-ci.
 check-markdown:
     DO mdlint-ci+CHECK
