@@ -1,0 +1,13 @@
+{
+    "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+    "name": "doc_sync",
+    "metadata": "metadata.json",
+    "component": "doc_sync.wasm",
+    "config": {
+        "file": "config.json",
+        "schema": "config.schema.json"
+    },
+    "settings": {
+        "schema": "settings.schema.json"
+    }
+}
