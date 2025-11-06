@@ -26,11 +26,13 @@ use shared::{
     },
 };
 
-use crate::api::types::{
-    AllResponses, GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue, Responses,
-    TxoAssetsMap, TxoAssetsState, TxoInfo, TxoMap,
+use crate::{
+    api::types::{
+        AllResponses, GetAssetsByStakeAddressQueryKey, GetAssetsByStakeAddressQueryValue,
+        Responses, TxoAssetsMap, TxoAssetsState, TxoInfo, TxoMap,
+    },
+    config::DB_BATCH_SIZE,
 };
-use crate::config::DB_BATCH_SIZE;
 
 /// # GET `/staked_ada`
 pub(crate) fn endpoint(
@@ -130,16 +132,13 @@ fn get_txo(
     let txos_stream = get_txo_by_stake_address(session, stake_address)?;
 
     let txo_map = txos_stream.iter().fold(HashMap::new(), |mut txo_map, row| {
-        txo_map.insert(
-            (row.txn_id, row.txo),
-            TxoInfo {
-                value: row.value.clone().into(),
-                txn_index: row.txn_index.into(),
-                txo: row.txo,
-                slot_no: row.slot_no.into(),
-                spent_slot_no: row.spent_slot.map(Into::into),
-            },
-        );
+        txo_map.insert((row.txn_id, row.txo), TxoInfo {
+            value: row.value.clone().into(),
+            txn_index: row.txn_index.into(),
+            txo: row.txo,
+            slot_no: row.slot_no.into(),
+            spent_slot_no: row.spent_slot.map(Into::into),
+        });
         txo_map
     });
     Ok(txo_map)
@@ -180,9 +179,9 @@ fn get_txo_assets(
 }
 
 /// Checks if the given TXOs were spent and mark then as such.
-/// Separating `base_txos` and `txos` because we don't want to make an update inside the db
-/// for the `base_txos` data (it is covering the case when inside the persistent part we
-/// have a txo which is spent inside the volatile, so to not incorrectly mix up records
+/// Separating `base_txos` and `txos` because we don't want to make an update inside the
+/// db for the `base_txos` data (it is covering the case when inside the persistent part
+/// we have a txo which is spent inside the volatile, so to not incorrectly mix up records
 /// from these two tables, inserting some rows from persistent to volatile section).
 fn update_spent(
     session: &mut Connection,
@@ -286,10 +285,12 @@ fn build_stake_info(
         slot_number: last_slot_num,
         assets: assets
             .into_iter()
-            .map(|((policy_hash, asset_name), amount)| StakedTxoAssetInfo {
-                policy_hash,
-                asset_name,
-                amount,
+            .map(|((policy_hash, asset_name), amount)| {
+                StakedTxoAssetInfo {
+                    policy_hash,
+                    asset_name,
+                    amount,
+                }
             })
             .collect::<Vec<_>>()
             .into(),
