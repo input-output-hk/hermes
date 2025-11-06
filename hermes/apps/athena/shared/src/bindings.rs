@@ -90,4 +90,23 @@ macro_rules! bindings_generate {
             share: [$($share),*]
         });
     };
+     ({
+        world: $world:literal,
+        path: $path:literal,
+        inline: $inline:literal,
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
+        share: ["hermes:doc-sync" $(, $share:tt)* $(,)?] $(,)?
+    }) => {
+        $crate::bindings_generate!({
+            world: $world,
+            path: $path,
+            inline: $inline,
+            with: {
+                $($($with_wit: $with_path,)*)?
+                "hermes:binary/api": ::shared::bindings::hermes::binary::api,
+                "hermes:doc-sync/api": ::shared::bindings::hermes::doc_sync::api,
+            },
+            share: [$($share),*]
+        });
+    };
 }
