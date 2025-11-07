@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["new_context"],"mod":["app_config","bindings","hermes","init","resource_manager","utils","wasi"]};

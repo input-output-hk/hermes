@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["map_to_io_error"],"struct":["File"]};

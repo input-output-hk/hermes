@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["alt_localtime","get_localtime"]};

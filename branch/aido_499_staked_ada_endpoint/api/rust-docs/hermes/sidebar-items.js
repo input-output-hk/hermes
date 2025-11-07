@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["main"],"macro":["add_rte_error","run_init_fini"],"mod":["app","cli","errors","event","hdf5","ipfs","logger","packaging","pool","reactor","runtime_context","runtime_extensions","utils","vfs","wasm"]};

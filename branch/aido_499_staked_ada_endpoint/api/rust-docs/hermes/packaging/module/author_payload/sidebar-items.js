@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["SIGNATURE_PAYLOAD_SCHEMA"],"struct":["SignaturePayload","SignaturePayloadBuilder","SignaturePayloadConfig","SignaturePayloadSettings"]};

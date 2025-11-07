@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["app_not_found_err","connection_not_found_err"],"mod":["connection","manager","resource_manager","statement"],"type":["ObjectPointer"]};

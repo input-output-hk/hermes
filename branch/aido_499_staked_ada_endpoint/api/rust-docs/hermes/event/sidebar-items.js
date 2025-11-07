@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["TargetApp","TargetModule"],"mod":["queue"],"struct":["HermesEvent"],"trait":["HermesEventPayload"]};

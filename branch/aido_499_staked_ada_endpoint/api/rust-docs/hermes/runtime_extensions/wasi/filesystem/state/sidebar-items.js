@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Descriptor"],"fn":["get_state"],"static":["DESCRIPTORS_STATE"],"type":["Descriptors"]};

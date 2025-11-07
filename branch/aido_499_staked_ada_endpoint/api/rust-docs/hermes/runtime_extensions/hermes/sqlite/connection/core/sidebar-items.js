@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["close","close_and_remove_all","errcode","execute","prepare","validate_sql"]};
