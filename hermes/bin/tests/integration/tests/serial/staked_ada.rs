@@ -24,7 +24,6 @@ fn build_stake_ada_with_db_mock(temp_dir: &TempDir) -> anyhow::Result<String> {
     utils::component::build(MOCK_COMPONENT, temp_dir).context("failed to build component")?;
     let components = ["staked_ada_indexer_mock", "staked_ada"];
     for component in &components {
-        println!("packaging {component} module for component {component}");
         utils::packaging::package_module(temp_dir, component, component)
             .map_err(|err| anyhow::anyhow!("failed to package {component} module: {err}"))?;
     }
@@ -38,36 +37,6 @@ fn build_stake_ada_with_db_mock(temp_dir: &TempDir) -> anyhow::Result<String> {
         .map_err(|err| anyhow::anyhow!("failed to package athena app: {err}"))?;
 
     Ok(app_name)
-}
-
-macro_rules! ensure_eq {
-    ($left:expr, $right:expr) => {
-        match (&$left, &$right) {
-            (left_val, right_val) => {
-                if !(*left_val == *right_val) {
-                    anyhow::bail!(
-                        "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
-                        left_val,
-                        right_val
-                    )
-                }
-            }
-        }
-    };
-    ($left:expr, $right:expr, $($arg:tt)+) => {
-        match (&$left, &$right) {
-            (left_val, right_val) => {
-                if !(*left_val == *right_val) {
-                    anyhow::bail!(
-                        "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`: {}",
-                        left_val,
-                        right_val,
-                        format!($($arg)+)
-                    )
-                }
-            }
-        }
-    };
 }
 
 fn build_request_for_athena(
@@ -171,7 +140,7 @@ fn staked_ada_requests() -> anyhow::Result<()> {
             .execute(request_for_mocked_address)
             .context("failed to get response from Athena")?;
         let status = response_for_mocked_address.status();
-        ensure_eq!(status, StatusCode::OK, "Expected 200 OK but got {status:?}");
+        assert_eq!(status, StatusCode::OK, "Expected 200 OK but got {status:?}");
 
         let response_body = response_for_mocked_address
             .text()
@@ -189,25 +158,23 @@ fn staked_ada_requests() -> anyhow::Result<()> {
                 .context("volatile should exist")?,
         );
         let persistent_data = extract_staked_data_from_json(persistent_data)?;
-        ensure_eq!(
+        assert_eq!(
             persistent_data.ada_amount,
             &serde_json::Number::from_str("100000000")?
         );
-        ensure_eq!(
-            persistent_data.slot_number,
-            12345,
+        assert_eq!(
+            persistent_data.slot_number, 12345,
             "Expected slot number to be 12345"
         );
         anyhow::ensure!(persistent_data.assets.is_empty());
 
         let volatile_data = extract_staked_data_from_json(volatile_data)?;
-        ensure_eq!(
+        assert_eq!(
             volatile_data.ada_amount,
             &serde_json::Number::from_str("100000000")?
         );
-        ensure_eq!(
-            volatile_data.slot_number,
-            12345,
+        assert_eq!(
+            volatile_data.slot_number, 12345,
             "Expected slot number to be 12345"
         );
         anyhow::ensure!(volatile_data.assets.is_empty());
@@ -225,7 +192,7 @@ fn staked_ada_requests() -> anyhow::Result<()> {
         let response_unknown_address = client
             .execute(request_for_unknown_address)
             .context("failed to get response from Athena")?;
-        ensure_eq!(response_unknown_address.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response_unknown_address.status(), StatusCode::NOT_FOUND);
     }
 
     //
@@ -240,7 +207,7 @@ fn staked_ada_requests() -> anyhow::Result<()> {
         let response_for_invalid_address = client
             .execute(request_for_invalid_address)
             .context("failed to get response from Athena")?;
-        ensure_eq!(response_for_invalid_address.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response_for_invalid_address.status(), StatusCode::NOT_FOUND);
     }
 
     // Hermes will be terminated when `_hermes` is dropped

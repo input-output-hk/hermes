@@ -53,12 +53,12 @@ fn build_full_stake_info_response(
     provided_network: Option<Network>,
     slot_num: Option<SlotNo>,
 ) -> anyhow::Result<Option<FullStakeInfo>> {
-    if let Some(provided_network) = provided_network {
-        if cardano_blockchain_types::Network::from(provided_network) != Settings::cardano_network()
-        {
-            return Ok(None);
-        }
+    if provided_network
+        .is_some_and(|n| cardano_blockchain_types::Network::from(n) != Settings::cardano_network())
+    {
+        return Ok(None);
     }
+
     let mut persistent_session = Connection::open(false)?;
     let mut volatile_session = Connection::open(true)?;
     let adjusted_slot_num = slot_num.unwrap_or(SlotNo::MAXIMUM);
