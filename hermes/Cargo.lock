@@ -3289,8 +3289,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.5"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=main#fd315d7892a51de8de694436d1b13b62efa786ce"
+version = "0.0.6"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.6#8e1cb5a3910b514c47f37df0e9c98d3e98eee05b"
 dependencies = [
  "anyhow",
  "connexa",
