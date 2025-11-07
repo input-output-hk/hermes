@@ -33,7 +33,6 @@
 //! - `rbac_native` (replaces `/api/gateway/v1/rbac/registration*`)
 //! - `document_service_native` (replaces `/api/gateway/v*/document*`)
 //! - `static_file_native` (replaces `/static/*` if needed)
-//!
 
 use std::sync::OnceLock;
 

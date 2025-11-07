@@ -1,6 +1,6 @@
 [package]
 edition.workspace = true
-name = "http-proxy"
+name = "doc-sync"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
@@ -12,4 +12,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 shared = { version = "0.1.0", path = "../../shared" }
-regex = "1.10"

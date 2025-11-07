@@ -1,7 +1,8 @@
 //! Command line and environment variable settings for the service
+use std::sync::LazyLock;
+
 use cardano_blockchain_types::Network;
 use log::error;
-use std::sync::LazyLock;
 use url::Url;
 
 pub(crate) mod chain_follower;
@@ -69,13 +70,10 @@ impl Settings {
             ENV_VARS.github_repo_owner, ENV_VARS.github_repo_name
         );
 
-        match Url::parse_with_params(
-            &path,
-            &[
-                ("template", ENV_VARS.github_issue_template),
-                ("title", title),
-            ],
-        ) {
+        match Url::parse_with_params(&path, &[
+            ("template", ENV_VARS.github_issue_template),
+            ("title", title),
+        ]) {
             Ok(url) => Some(url),
             Err(e) => {
                 error!("Failed to generate github issue url {:?}", e.to_string());

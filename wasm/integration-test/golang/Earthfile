@@ -1,12 +1,12 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.5.26 AS go-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.5.28 AS go-ci
 
 IMPORT ../.. AS wasm
 
 # build - build a wasm component from Golang
 build:
-    FROM go-ci+go-wasm-builder 
+    FROM go-ci+go-wasm-builder
 
     WORKDIR /work
 
@@ -15,13 +15,13 @@ build:
     COPY main.go go.mod .
     RUN go mod tidy
 
-    # `wkg wit build` uses `wkg.toml` to help resolve import dependencies.  
+    # `wkg wit build` uses `wkg.toml` to help resolve import dependencies.
     # This generate hermes:wasi.wasm
     RUN wkg wit build -d ./wit
 
     # Generate go binding
     RUN wit-bindgen-go generate --world hermes --out binding ./hermes:wasi.wasm
-    
+
     # Generate WASM component targeting WASM preview 2
     RUN tinygo build --target=wasip2 -o golang.wasm --wit-package hermes:wasi.wasm --wit-world hermes main.go
-    SAVE ARTIFACT golang.wasm 
+    SAVE ARTIFACT golang.wasm
