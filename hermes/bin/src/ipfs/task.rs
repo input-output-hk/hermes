@@ -108,10 +108,18 @@ pub(crate) async fn ipfs_command_handler(
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                let handler = TopicStreamAppHandler::new(topic, topic_stream_app_handler);
-                let handle = hermes_ipfs::subscription_stream_task(stream, move |msg| {
-                    handler.handle(msg);
-                });
+                let message_handler = TopicMessageHandler::new(&topic, topic_message_handler);
+                let subscription_handler =
+                    TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
+                let handle = hermes_ipfs::subscription_stream_task(
+                    stream,
+                    move |msg| {
+                        message_handler.handle(msg);
+                    },
+                    move |msg| {
+                        subscription_handler.handle(msg);
+                    },
+                );
                 send_response(Ok(handle), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
@@ -125,21 +133,24 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
-struct TopicStreamAppHandler<T>
+struct TopicMessageHandler<T>
 where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     topic: String,
     callback: T,
 }
 
-impl<T> TopicStreamAppHandler<T>
+impl<T> TopicMessageHandler<T>
 where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     pub fn new(
-        topic: String,
+        topic: impl ToString,
         callback: T,
     ) -> Self {
-        Self { topic, callback }
+        Self {
+            topic: topic.to_string(),
+            callback,
+        }
     }
 
     pub fn handle(
@@ -150,20 +161,48 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 's
     }
 }
 
+struct TopicSubscriptionStatusHandler<T>
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
+{
+    topic: String,
+    callback: T,
+}
+
+impl<T> TopicSubscriptionStatusHandler<T>
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
+{
+    pub fn new(
+        topic: impl ToString,
+        callback: T,
+    ) -> Self {
+        Self {
+            topic: topic.to_string(),
+            callback,
+        }
+    }
+
+    pub fn handle(
+        &self,
+        subscription_event: hermes_ipfs::SubscriptionStatusEvent,
+    ) {
+        (self.callback)(subscription_event, self.topic.clone())
+    }
+}
+
 /// Handler function for topic message streams.
-fn topic_stream_app_handler(
-    msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
-    msg_topic: String,
+fn topic_message_handler(
+    message: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    topic: String,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let on_topic_event = OnTopicEvent {
             message: PubsubMessage {
-                topic: msg_topic.clone(),
-                message: msg.data.into(),
-                publisher: msg.source.map(|p| p.to_string()),
+                topic: topic.clone(),
+                message: message.data.into(),
+                publisher: message.source.map(|p| p.to_string()),
             },
         };
-        let app_names = ipfs.apps.subscribed_apps(&msg_topic);
+        let app_names = ipfs.apps.subscribed_apps(&topic);
         // Dispatch Hermes Event
         if let Err(err) = send(HermesEvent::new(
             on_topic_event.clone(),
@@ -179,6 +218,14 @@ fn topic_stream_app_handler(
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
     }
+}
+
+/// Handler for the subscription events for topic
+fn topic_subscription_handler(
+    subscription_event: hermes_ipfs::SubscriptionStatusEvent,
+    topic: String,
+) {
+    tracing::trace!(%subscription_event, %topic, "Subscription event");
 }
 
 /// Send the response of the IPFS command
