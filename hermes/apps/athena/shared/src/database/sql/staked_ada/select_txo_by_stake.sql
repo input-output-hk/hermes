@@ -1,10 +1,10 @@
 SELECT
     stake_address,
-    txn_id,
+    slot_no,
     txn_index,
     txo,
-    slot_no,
     value,
+    txn_id,
     spent_slot
 FROM txo_by_stake
 WHERE stake_address = ?;
