@@ -14,7 +14,6 @@ pub(crate) use api::{
 use dashmap::DashMap;
 use hermes_ipfs::{
     rust_ipfs::dummy, AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
-    MessageId as PubsubMessageId,
 };
 use once_cell::sync::OnceCell;
 use task::{ipfs_command_handler, IpfsCommand};
@@ -253,7 +252,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         topic: PubsubTopic,
         message: MessageData,
-    ) -> Result<PubsubMessageId, Errno> {
+    ) -> Result<(), Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()

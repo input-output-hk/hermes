@@ -1,10 +1,7 @@
 //! IPFS Task
 use std::str::FromStr;
 
-use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId,
-    PeerId as TargetPeerId,
-};
+use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -36,11 +33,7 @@ pub(crate) enum IpfsCommand {
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
     /// Publish to a topic
-    Publish(
-        PubsubTopic,
-        MessageData,
-        oneshot::Sender<Result<PubsubMessageId, Errno>>,
-    ),
+    Publish(PubsubTopic, MessageData, oneshot::Sender<Result<(), Errno>>),
     /// Subscribe to a topic
     Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
     /// Evict Peer from node
@@ -104,11 +97,11 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
-                let message_id = hermes_node
+                hermes_node
                     .pubsub_publish(topic, message)
                     .await
                     .map_err(|_| Errno::PubsubPublishError)?;
-                send_response(Ok(message_id), tx);
+                send_response(Ok(()), tx);
             },
             IpfsCommand::Subscribe(topic, tx) => {
                 let stream = hermes_node
@@ -149,7 +142,6 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 's
         Self { topic, callback }
     }
 
-    /// Call this for each incoming message
     pub fn handle(
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
