@@ -5,7 +5,8 @@ members = [
     "bin/tests/integration/components/http_request_rte_01",
     "bin/tests/integration/components/failed_init",
     "bin/tests/integration/components/sleep_component",
-    "bin/tests/integration/components/cron_callback"
+    "bin/tests/integration/components/cron_callback",
+    "bin/tests/integration/components/staked_ada_indexer_mock"
 ]
 default-members = [
     "bin",

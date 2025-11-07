@@ -10,6 +10,7 @@ autonumber
 backpressure
 bech
 Behaviour
+biguint
 bkioshn
 blockfetch
 blosc
@@ -127,6 +128,7 @@ oneshot
 openat
 outlen
 outparam
+pastey
 permissioned
 pollable
 pollables
