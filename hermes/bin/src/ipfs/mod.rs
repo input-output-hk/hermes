@@ -78,6 +78,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// State related to `ApplicationName`
     apps: AppIpfsState,
+    /// Phantom data.
     _phantom_data: PhantomData<N>,
 }
 

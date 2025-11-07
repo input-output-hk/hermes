@@ -133,18 +133,23 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
+/// A handler for messages from the IPFS pubsub topic
 struct TopicMessageHandler<T>
 where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
+    /// The topic.
     topic: String,
+
+    /// The handler implementation.
     callback: T,
 }
 
 impl<T> TopicMessageHandler<T>
 where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
+    /// Creates the new handler.
     pub fn new(
-        topic: impl ToString,
+        topic: &impl ToString,
         callback: T,
     ) -> Self {
         Self {
@@ -153,26 +158,32 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 's
         }
     }
 
+    /// Forwards the message to the handler.
     pub fn handle(
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone())
+        (self.callback)(msg, self.topic.clone());
     }
 }
 
+/// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
 struct TopicSubscriptionStatusHandler<T>
 where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
+    /// The topic.
     topic: String,
+
+    /// The handler implementation.
     callback: T,
 }
 
 impl<T> TopicSubscriptionStatusHandler<T>
 where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
+    /// Creates the new handler.
     pub fn new(
-        topic: impl ToString,
+        topic: &impl ToString,
         callback: T,
     ) -> Self {
         Self {
@@ -181,11 +192,12 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
         }
     }
 
+    /// Passes the subscription event to the handler.
     pub fn handle(
         &self,
         subscription_event: hermes_ipfs::SubscriptionStatusEvent,
     ) {
-        (self.callback)(subscription_event, self.topic.clone())
+        (self.callback)(subscription_event, self.topic.clone());
     }
 }
 
@@ -195,14 +207,14 @@ fn topic_message_handler(
     topic: String,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
+        let app_names = ipfs.apps.subscribed_apps(&topic);
         let on_topic_event = OnTopicEvent {
             message: PubsubMessage {
-                topic: topic.clone(),
+                topic,
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
             },
         };
-        let app_names = ipfs.apps.subscribed_apps(&topic);
         // Dispatch Hermes Event
         if let Err(err) = send(HermesEvent::new(
             on_topic_event.clone(),
@@ -221,6 +233,7 @@ fn topic_message_handler(
 }
 
 /// Handler for the subscription events for topic
+#[allow(clippy::needless_pass_by_value)] // The even will be eventually consumed in the handler
 fn topic_subscription_handler(
     subscription_event: hermes_ipfs::SubscriptionStatusEvent,
     topic: String,
