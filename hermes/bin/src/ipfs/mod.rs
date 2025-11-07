@@ -13,7 +13,7 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    rust_ipfs::dummy, AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
+    rust_ipfs::dummy, AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
 };
 use once_cell::sync::OnceCell;
 use task::{ipfs_command_handler, IpfsCommand};
@@ -58,7 +58,7 @@ pub fn bootstrap(
         std::fs::create_dir_all(&ipfs_data_path)?;
     }
     let ipfs_node = HermesIpfsNode::init(
-        IpfsBuilder::new()
+        HermesIpfsBuilder::new()
             .with_default()
             .set_default_listener()
             .set_disk_storage(ipfs_data_path.clone()),
@@ -86,7 +86,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(
-        builder: IpfsBuilder<N>,
+        builder: HermesIpfsBuilder<N>,
         default_bootstrap: bool,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
