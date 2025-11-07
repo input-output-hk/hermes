@@ -233,7 +233,7 @@ fn topic_message_handler(
 }
 
 /// Handler for the subscription events for topic
-#[allow(clippy::needless_pass_by_value)] // The even will be eventually consumed in the handler
+#[allow(clippy::needless_pass_by_value)] // The event will be eventually consumed in the handler
 fn topic_subscription_handler(
     subscription_event: hermes_ipfs::SubscriptionStatusEvent,
     topic: String,
