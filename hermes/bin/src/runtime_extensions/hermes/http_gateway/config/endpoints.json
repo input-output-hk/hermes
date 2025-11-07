@@ -36,7 +36,7 @@
       "subscription_id": "staked_ada",
       "module_id": "staked_ada",
       "methods": ["GET"],
-      "path_regex": "^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$",
+      "path_regex": "^/api/gateway/v1/cardano/assets/((stake1|stake_test1)[02-9ac-hj-np-z]{53})$",
       "content_types": ["application/json"],
       "json_schema": null
     }

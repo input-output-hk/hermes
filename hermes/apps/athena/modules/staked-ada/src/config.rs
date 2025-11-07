@@ -2,7 +2,8 @@
 
 /// Regex pattern for matching stake address routes.
 /// Matches paths like: /api/gateway/v1/cardano/assets/stake1...
-pub const STAKE_ROUTE_PATTERN: &str = r"^/api/gateway/v1/cardano/assets/(stake1[a-z0-9]{53})$";
+pub const STAKE_ROUTE_PATTERN: &str =
+    r"^/api/gateway/v1/cardano/assets/((stake1|stake_test1)[02-9ac-hj-np-z]{53})$";
 
 /// Batch size for database operations.
 pub const DB_BATCH_SIZE: usize = 100;
