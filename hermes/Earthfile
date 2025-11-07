@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.17 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.5.28 AS rust-ci
 
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
@@ -49,6 +49,19 @@ check:
 
     DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
 
+# check-athena : Run check using the most efficient host tooling
+# CI Automated Entry point.
+check-athena:
+    FROM +builder
+
+    COPY --dir .config apps/athena
+    COPY --dir .cargo apps/athena
+    COPY clippy.toml deny.toml rustfmt.toml apps/athena
+
+    WORKDIR apps/athena
+
+    DO rust-ci+EXECUTE --cmd="/scripts/std_checks.py"
+
 # all-hosts-check : Test which runs check with all supported host tooling.
 # Needs qemu or rosetta to run.
 # Only used to validate tooling is working across host toolsets.
@@ -76,6 +89,28 @@ build:
 
     SAVE ARTIFACT target/doc doc
     SAVE ARTIFACT target/release/hermes hermes
+    SAVE ARTIFACT target/criterion
+
+# build-athena : Run Athena modules build using the most efficient host tooling
+# CI Automated Entry point.
+build-athena:
+    FROM +builder
+
+    COPY --dir .config apps/athena
+
+    WORKDIR apps/athena
+
+    DO rust-ci+EXECUTE \
+        --cmd="/scripts/std_build.py" \
+        --args1="--build_flags=\"--target wasm32-wasip2\"" \
+        --args2="--libs=http-proxy,rbac-registration,rbac-registration-indexer,staked-ada-indexer,shared" \
+        --output="release/athena" \
+        --docs="true"
+
+    DO rust-ci+COPY_OUTPUT --output="criterion/.*"
+
+    SAVE ARTIFACT target/doc doc
+    SAVE ARTIFACT target/release/athena athena
     SAVE ARTIFACT target/criterion
 
 # test-wasm-integration : Run WASM integration tests on hermes engine.

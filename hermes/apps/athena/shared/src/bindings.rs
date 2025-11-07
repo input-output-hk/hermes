@@ -2,7 +2,7 @@
 //! Hermes bindings generated with [`::wit_bindgen`].
 //! They can be reused when using `share` keyword of [`crate::bindings_generate`] macro.
 
-/// Re-exported [`::wit-bindgen`] crate, so that [`crate::bindings_generate`] is
+/// Re-exported [`::wit_bindgen`] crate, so that [`crate::bindings_generate`] is
 /// self-reliant.
 #[doc(hidden)]
 pub use wit_bindgen;
@@ -86,6 +86,25 @@ macro_rules! bindings_generate {
             with: {
                 $($($with_wit: $with_path,)*)?
                 "hermes:sqlite/api": ::shared::bindings::hermes::sqlite::api,
+            },
+            share: [$($share),*]
+        });
+    };
+     ({
+        world: $world:literal,
+        path: $path:literal,
+        inline: $inline:literal,
+        $(with: {$($with_wit:literal: $with_path:path),* $(,)? },)?
+        share: ["hermes:doc-sync" $(, $share:tt)* $(,)?] $(,)?
+    }) => {
+        $crate::bindings_generate!({
+            world: $world,
+            path: $path,
+            inline: $inline,
+            with: {
+                $($($with_wit: $with_path,)*)?
+                "hermes:binary/api": ::shared::bindings::hermes::binary::api,
+                "hermes:doc-sync/api": ::shared::bindings::hermes::doc_sync::api,
             },
             share: [$($share),*]
         });
