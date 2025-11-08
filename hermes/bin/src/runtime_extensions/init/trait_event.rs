@@ -146,15 +146,13 @@ impl RteInitEvent for RteEvent {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = true,
             registry = RTE_INIT_EVENT_REGISTRY,
             rte_trait = RteInitEvent,
             span_label = "Runtime Extension Event Initialization Span",
             (ctx)
-        );
-
-        errors
+        )
     }
 
     fn fini(
@@ -176,15 +174,13 @@ impl RteInitEvent for RteEvent {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = false,
             registry = RTE_INIT_EVENT_REGISTRY,
             rte_trait = RteInitEvent,
             span_label = "Runtime Extension Event Finalization Span",
             (ctx)
-        );
-
-        errors
+        )
     }
 }
 
