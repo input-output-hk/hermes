@@ -3,7 +3,7 @@
 use cardano_blockchain_types::StakeAddress;
 use shared::{
     bindings::hermes::{
-        logging::api::{log, Level},
+        logging::api::{Level, log},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
     sqlite_bind_parameters,
@@ -11,16 +11,16 @@ use shared::{
         log::log_error,
         sqlite::{
             operation::Operation,
-            statement::{column_as, DatabaseStatement},
+            statement::{DatabaseStatement, column_as},
         },
     },
 };
 
 use crate::{
     database::{
-        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
         RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
     },
     rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };
@@ -266,12 +266,14 @@ fn get_registration_info_from_txn_id(
 
     match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
-        Ok(StepResult::Row) => Ok(Some((
-            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
-            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
-            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
-            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
-        ))),
+        Ok(StepResult::Row) => {
+            Ok(Some((
+                column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+                column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+                column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+                column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
+            )))
+        },
         Ok(StepResult::Done) => Ok(None),
         Err(e) => {
             let error = format!("Failed to step: {e}");

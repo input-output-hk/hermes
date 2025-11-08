@@ -5,8 +5,8 @@ use std::collections::{HashMap, HashSet};
 use cardano_blockchain_types::StakeAddress;
 use shared::{
     database::staked_ada::{
-        get_txi_by_txn_ids, get_txo_assets_by_stake_address, get_txo_by_stake_address,
-        update_txo_spent, UpdateTxoSpentParams,
+        UpdateTxoSpentParams, get_txi_by_txn_ids, get_txo_assets_by_stake_address,
+        get_txo_by_stake_address, update_txo_spent,
     },
     utils::{
         common::{
@@ -132,16 +132,13 @@ fn get_txo(
     let txos_stream = get_txo_by_stake_address(session, stake_address)?;
 
     let txo_map = txos_stream.iter().fold(HashMap::new(), |mut txo_map, row| {
-        txo_map.insert(
-            (row.txn_id, row.txo),
-            TxoInfo {
-                value: row.value.clone().into(),
-                txn_index: row.txn_index.into(),
-                txo: row.txo,
-                slot_no: row.slot_no.into(),
-                spent_slot_no: row.spent_slot.map(Into::into),
-            },
-        );
+        txo_map.insert((row.txn_id, row.txo), TxoInfo {
+            value: row.value.clone().into(),
+            txn_index: row.txn_index.into(),
+            txo: row.txo,
+            slot_no: row.slot_no.into(),
+            spent_slot_no: row.spent_slot.map(Into::into),
+        });
         txo_map
     });
     Ok(txo_map)
@@ -288,10 +285,12 @@ fn build_stake_info(
         slot_number: last_slot_num,
         assets: assets
             .into_iter()
-            .map(|((policy_hash, asset_name), amount)| StakedTxoAssetInfo {
-                policy_hash,
-                asset_name,
-                amount,
+            .map(|((policy_hash, asset_name), amount)| {
+                StakedTxoAssetInfo {
+                    policy_hash,
+                    asset_name,
+                    amount,
+                }
             })
             .collect::<Vec<_>>()
             .into(),
