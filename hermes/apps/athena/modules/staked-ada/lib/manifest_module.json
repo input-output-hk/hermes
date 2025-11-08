@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_module_manifest.schema.json",
+  "name": "staked_ada",
+  "metadata": "metadata.json",
+  "component": "staked_ada.wasm",
+  "config": {
+    "file": "config.json",
+    "schema": "config.schema.json"
+  },
+  "settings": {
+    "schema": "settings.schema.json"
+  }
+}

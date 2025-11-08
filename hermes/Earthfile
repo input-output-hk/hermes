@@ -103,7 +103,7 @@ build-athena:
     DO rust-ci+EXECUTE \
         --cmd="/scripts/std_build.py" \
         --args1="--build_flags=\"--target wasm32-wasip2\"" \
-        --args2="--libs=http-proxy,rbac-registration,rbac-registration-indexer,staked-ada-indexer,shared" \
+        --args2="--libs=http-proxy,rbac-registration,rbac-registration-indexer,staked-ada,staked-ada-indexer,shared" \
         --output="release/athena" \
         --docs="true"
 

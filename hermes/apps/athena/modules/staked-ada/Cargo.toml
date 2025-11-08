@@ -1,0 +1,29 @@
+[package]
+edition.workspace = true
+name = "staked-ada"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shared = { version = "0.1.0", path = "../../shared", features = [
+    "cardano-blockchain-types",
+    "cat-gateway-types",
+] }
+regex = "1.12.2"
+
+
+cardano-blockchain-types = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.8" }
+serde = "1.0.228"
+serde_json = { version = "1.0.145", features = ["arbitrary_precision"] }
+anyhow = "1.0.100"
+num-bigint = "0.4.6"
+utoipa = { version = "5.4.0", features = ["uuid", "url"] }
+thiserror = "2.0.17"
+http = "1.3.1"
+mime = "0.3.17"
