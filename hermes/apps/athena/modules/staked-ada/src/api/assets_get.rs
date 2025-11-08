@@ -132,13 +132,16 @@ fn get_txo(
     let txos_stream = get_txo_by_stake_address(session, stake_address)?;
 
     let txo_map = txos_stream.iter().fold(HashMap::new(), |mut txo_map, row| {
-        txo_map.insert((row.txn_id, row.txo), TxoInfo {
-            value: row.value.clone().into(),
-            txn_index: row.txn_index.into(),
-            txo: row.txo,
-            slot_no: row.slot_no.into(),
-            spent_slot_no: row.spent_slot.map(Into::into),
-        });
+        txo_map.insert(
+            (row.txn_id, row.txo),
+            TxoInfo {
+                value: row.value.clone().into(),
+                txn_index: row.txn_index.into(),
+                txo: row.txo,
+                slot_no: row.slot_no.into(),
+                spent_slot_no: row.spent_slot.map(Into::into),
+            },
+        );
         txo_map
     });
     Ok(txo_map)
@@ -241,10 +244,10 @@ fn build_stake_info(
             continue;
         }
         // Filter out spent TXOs.
-        if let Some(spent_slot) = txo_info.spent_slot_no {
-            if spent_slot <= slot_num {
-                continue;
-            }
+        if let Some(spent_slot) = txo_info.spent_slot_no
+            && spent_slot <= slot_num
+        {
+            continue;
         }
 
         let value = AdaValue::try_from(txo_info.value)
@@ -285,12 +288,10 @@ fn build_stake_info(
         slot_number: last_slot_num,
         assets: assets
             .into_iter()
-            .map(|((policy_hash, asset_name), amount)| {
-                StakedTxoAssetInfo {
-                    policy_hash,
-                    asset_name,
-                    amount,
-                }
+            .map(|((policy_hash, asset_name), amount)| StakedTxoAssetInfo {
+                policy_hash,
+                asset_name,
+                amount,
             })
             .collect::<Vec<_>>()
             .into(),

@@ -264,19 +264,15 @@ fn get_registration_info_from_txn_id(
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
 
-    let result = match stmt.step() {
+    match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
-        Ok(StepResult::Row) => {
-            Ok(Some((
-                column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
-                column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
-                column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
-                column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
-            )))
-        },
-        Ok(StepResult::Done) => {
-            return Ok(None);
-        },
+        Ok(StepResult::Row) => Ok(Some((
+            column_as::<Option<Vec<u8>>>(stmt, 0, FUNCTION_NAME, "prv_txn_id")?,
+            column_as::<u64>(stmt, 1, FUNCTION_NAME, "slot_no")?,
+            column_as::<Option<String>>(stmt, 2, FUNCTION_NAME, "catalyst_id")?,
+            column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
+        ))),
+        Ok(StepResult::Done) => Ok(None),
         Err(e) => {
             let error = format!("Failed to step: {e}");
             log_error(
@@ -288,8 +284,7 @@ fn get_registration_info_from_txn_id(
             );
             anyhow::bail!(error);
         },
-    };
-    result
+    }
 }
 
 /// Construct a registration chain by walking back a chain
