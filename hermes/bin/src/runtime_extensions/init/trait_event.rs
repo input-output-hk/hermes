@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use dashmap::DashSet;
 use keyed_lock::sync::KeyedLock;
-use tracing::{error, span, Level};
+use tracing::{Level, error, span};
 
 use crate::{
     run_init_fini,
@@ -197,13 +197,15 @@ mod tests {
     fn test_all_registered_apps_have_constructors() {
         for registered in RTE_INIT_EVENT_REGISTRY.iter() {
             // Check all registered App Initializers have constructors.
-            assert!(registered.instanciate().is_some(), "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
-                    registered.name(),
-                    registered.path(),
-                    registered.file(),
-                    registered.trait_name(),
-                    registered.module_path(),
-                );
+            assert!(
+                registered.instanciate().is_some(),
+                "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
+                registered.name(),
+                registered.path(),
+                registered.file(),
+                registered.trait_name(),
+                registered.module_path(),
+            );
         }
     }
 }

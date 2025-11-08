@@ -2,8 +2,8 @@
 use std::str::FromStr;
 
 use hermes_ipfs::{
-    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile,
-    MessageId as PubsubMessageId, PeerId as TargetPeerId,
+    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, MessageId as PubsubMessageId,
+    PeerId as TargetPeerId, subscription_stream_task,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -12,7 +12,7 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
-    event::{queue::send, HermesEvent},
+    event::{HermesEvent, queue::send},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, MessageData, PeerId, PubsubMessage, PubsubTopic,

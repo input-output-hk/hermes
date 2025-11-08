@@ -1,5 +1,5 @@
 //! Hermes IPFS State API
-use super::{is_valid_dht_content, is_valid_pubsub_content, HERMES_IPFS};
+use super::{HERMES_IPFS, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
@@ -134,7 +134,7 @@ pub(crate) fn hermes_ipfs_publish(
 ) -> Result<MessageId, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     ipfs.pubsub_publish(topic.to_string(), message)
-        .map(|m| m.0 .0)
+        .map(|m| m.0.0)
 }
 
 /// Evict Peer from node

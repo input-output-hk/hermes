@@ -38,7 +38,7 @@ impl bindings::exports::hermes::init::event::Guest for CronCallbackApp {
             CRON_TAG,
         );
 
-        test_log(&format!("cron event added with result={}", result));
+        test_log(&format!("cron event added with result={result}"));
         assert!(result);
 
         true

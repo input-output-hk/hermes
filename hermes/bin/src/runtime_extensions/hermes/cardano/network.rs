@@ -11,9 +11,9 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::cardano::api::{CardanoNetwork, SubscriptionId, SyncSlot},
         hermes::cardano::{
+            CardanoError, STATE, SubscriptionType,
             block::get_tips,
             event::{build_and_send_block_event, build_and_send_roll_forward_event},
-            CardanoError, SubscriptionType, STATE,
         },
     },
     wasm::module::ModuleId,

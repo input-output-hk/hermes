@@ -6,9 +6,9 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use ed25519_dalek::{
+    SigningKey, VerifyingKey,
     ed25519::signature::Signer,
     pkcs8::{DecodePrivateKey, DecodePublicKey},
-    SigningKey, VerifyingKey,
 };
 
 use super::super::FileError;

@@ -15,7 +15,7 @@ use hermes_ipfs::{
     MessageId as PubsubMessageId,
 };
 use once_cell::sync::OnceCell;
-use task::{ipfs_command_handler, IpfsCommand};
+use task::{IpfsCommand, ipfs_command_handler};
 use tokio::{
     runtime::Builder,
     sync::{mpsc, oneshot},

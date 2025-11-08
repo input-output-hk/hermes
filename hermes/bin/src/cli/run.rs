@@ -10,7 +10,7 @@ use crate::{
     event::queue::Exit,
     ipfs,
     packaging::{
-        app::{build_app, ApplicationPackage},
+        app::{ApplicationPackage, build_app},
         sign::certificate::{self, Certificate},
     },
     pool, reactor,

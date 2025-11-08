@@ -1,9 +1,9 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["shared", "modules/*"]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 
 [workspace.lints.rust]
 warnings = "deny"

@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "bin",
     "bin/tests/integration/components/http_request_rte_01",
@@ -12,7 +12,7 @@ default-members = [
 ]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 version = "0.0.1"
 authors = [
     "Steven Johnson <steven.johnson@iohk.io>"

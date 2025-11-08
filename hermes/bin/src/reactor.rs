@@ -1,6 +1,6 @@
 //! Hermes Reactor implementation.
 
-use dashmap::{mapref::one::Ref, DashMap};
+use dashmap::{DashMap, mapref::one::Ref};
 use once_cell::sync::OnceCell;
 
 use crate::{
