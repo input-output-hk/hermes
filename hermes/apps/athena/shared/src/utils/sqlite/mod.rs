@@ -11,7 +11,7 @@ pub use wrappers::{Connection, Row, Rows, Statement, Transaction};
 
 pub use crate::bindings::hermes::sqlite::api::Value;
 use crate::{
-    bindings::hermes::sqlite::api::{open, Sqlite},
+    bindings::hermes::sqlite::api::{Sqlite, open},
     utils::log::log_error,
 };
 
