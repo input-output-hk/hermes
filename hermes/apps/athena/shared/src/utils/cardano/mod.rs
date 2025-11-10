@@ -21,6 +21,7 @@ impl From<cardano::api::CardanoNetwork> for cardano_blockchain_types::Network {
     }
 }
 
+#[allow(clippy::panic)]
 impl From<cardano_blockchain_types::Network> for cardano::api::CardanoNetwork {
     fn from(network: cardano_blockchain_types::Network) -> cardano::api::CardanoNetwork {
         match network {
