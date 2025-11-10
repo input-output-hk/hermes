@@ -184,8 +184,8 @@ impl CatalystRBACTokenV1 {
 
     /// Returns a network.
     #[allow(dead_code)]
-    pub(crate) fn network(&self) -> Network {
-        self.network
+    pub(crate) fn network(&self) -> &Network {
+        &self.network
     }
 
     /// Returns a corresponded registration chain if any registrations present.
@@ -200,7 +200,7 @@ impl CatalystRBACTokenV1 {
                 persistent,
                 volatile,
                 &self.catalyst_id.as_short_id(),
-                self.network.into(),
+                self.network.clone().into(),
                 network_resource,
             )?
             else {

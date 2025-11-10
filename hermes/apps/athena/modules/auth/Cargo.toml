@@ -18,9 +18,9 @@ rand = "0.8.5"
 serde_json = "1.0.142"
 serde = "1.0.226"
 
-cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.6" }
-rbac-registration = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.10" }
-catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
+cardano-blockchain-types = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.8" }
+rbac-registration = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.14" }
+catalyst-types = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.10" }
 
 [dev-dependencies]
 test-case = "3.3.1"
