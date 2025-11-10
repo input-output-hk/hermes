@@ -23,6 +23,10 @@
     {
       "package": "modules/staked-ada/lib/staked_ada.hmod",
       "name": "staked_ada"
+    },
+    {
+      "package": "modules/doc-sync/lib/doc_sync.hmod",
+      "name": "doc_sync"
     }
   ],
   "www": "modules/http-proxy/lib/www"
