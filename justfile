@@ -99,10 +99,12 @@ get-local-athena:
 
     # Step 1: Build WASM module using Earthly (local development target)
     # This compiles Rust source to optimized WASM binary and saves locally
-    
+
     earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy
     earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
     earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
+    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
+    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
     earthly ./hermes/apps/athena/modules/auth+local-build-auth
 
     echo "✅ WASM compilation complete"
@@ -115,6 +117,8 @@ get-local-athena:
     target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
     target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
     echo "✅ Module packaging complete (.hmod file created)"
 
@@ -213,7 +217,7 @@ run-athena:
     echo ""
 
     # Execute the application with security sandboxing
-    # HERMES_LOG_LEVEL="debug" 
+    # HERMES_LOG_LEVEL="debug"
     target/release/hermes run --untrusted hermes/apps/athena/app.happ
 
 # Complete build and run workflow - recommended for most use cases

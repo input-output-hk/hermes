@@ -1,8 +1,8 @@
 SELECT
     stake_address,
+    slot_no,
     txn_index,
     txo,
-    slot_no,
     policy_id,
     asset_name,
     value

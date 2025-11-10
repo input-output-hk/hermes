@@ -9,6 +9,7 @@ autocheckpoint
 autonumber
 backpressure
 bech
+biguint
 bkioshn
 blockfetch
 blosc
@@ -126,6 +127,7 @@ oneshot
 openat
 outlen
 outparam
+pastey
 permissioned
 pollable
 pollables
