@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
-  "name": "athena",
+  "name": "app",
   "icon": "icon.svg",
   "metadata": "metadata.json",
   "modules": [
