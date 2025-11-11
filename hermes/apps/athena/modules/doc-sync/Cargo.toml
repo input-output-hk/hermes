@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 shared = { version = "0.1.0", path = "../../shared" }
-hermes-ipfs = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs", tag = "hermes-ipfs/v0.0.6" }
+hermes-ipfs = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "hermes-ipfs/v0.0.6" }
 tokio = { version = "1.46.0", features = ["rt", "macros"] }
 futures = "0.3.31"
 anyhow = "1.0.100"
