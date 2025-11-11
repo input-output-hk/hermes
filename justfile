@@ -9,7 +9,8 @@
 #   - Docker or Podman - Container runtime for Earthly
 #
 # Quick Start:
-#   just build-run-all    # Complete workflow: build → package → run
+#   just build-run-dev    # Development workflow (fast): build → package → run
+#   just build-run-all    # Production workflow (full assets): build → package → run
 #
 # Development Workflow:
 #   just clean-hfs        # Clean up previous state
