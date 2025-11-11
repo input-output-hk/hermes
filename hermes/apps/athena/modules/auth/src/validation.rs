@@ -24,7 +24,7 @@ const MAX_TOKEN_SKEW: Duration = Duration::from_secs(5 * 60); // 5 minutes
 
 /// [here]: https://github.com/input-output-hk/catalyst-voices/blob/main/docs/src/catalyst-standards/permissionless-auth/auth-header.md#backend-processing-of-the-token
 pub fn checker_api_catalyst_auth(
-    headers: Headers,
+    headers: &Headers,
     bearer_token: &str,
     network: cardano::api::CardanoNetwork,
 ) -> AuthResponse {

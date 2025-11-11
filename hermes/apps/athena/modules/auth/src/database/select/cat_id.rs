@@ -78,14 +78,13 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
     let mut metadata = RbacChainMetadata::default();
 
     // --- Find the root ---
-    let (mut txn_id, mut chain, root_source) =
-        match extract_root(persistent, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(
-            || extract_root(volatile, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?,
-        ) {
-            Some(val) => val,
-            None => return Ok((vec![], metadata)),
-        };
-
+    let Some((mut txn_id, mut chain, root_source)) =
+        extract_root(persistent, cat_id, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)?.or_else(|| {
+            extract_root(volatile, cat_id, RBAC_REGISTRATION_VOLATILE_TABLE_NAME).ok()?
+        })
+    else {
+        return Ok((vec![], metadata));
+    };
     // Update tracking variable based on the root source
     match root_source {
         TableSource::Persistent => {
@@ -144,8 +143,8 @@ pub(crate) fn select_rbac_registration_chain_from_cat_id(
         Ok(chain)
     })();
 
-    let _ = DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
-    let _ = DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
+    let _unused = DatabaseStatement::finalize_statement(p_stmt, FUNCTION_NAME);
+    let _unused = DatabaseStatement::finalize_statement(v_stmt, FUNCTION_NAME);
 
     result.map(|chain| (chain, metadata))
 }

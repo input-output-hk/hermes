@@ -14,7 +14,7 @@ use crate::{extract_header, hermes::http_gateway::api::Headers};
 pub(crate) const API_KEY_HEADER: &str = "X-API-Key";
 
 /// Check if the API Key is correctly set.
-pub(crate) fn check_api_key(headers: Headers) -> Result<()> {
+pub(crate) fn check_api_key(headers: &Headers) -> Result<()> {
     if let Some(key) = extract_header!(headers, API_KEY_HEADER) {
         if check_internal_api_key(&key) {
             return Ok(());

@@ -22,7 +22,7 @@ pub(crate) fn get_rbac_chain_from_cat_id(
 ) -> anyhow::Result<Option<(RegistrationChain, RbacChainMetadata)>> {
     let (reg_locations, metadata) =
         select_rbac_registration_chain_from_cat_id(persistent, volatile, &cat_id.to_string())?;
-    let reg_chain = build_registration_chain(network, network_resource, reg_locations)?;
+    let reg_chain = build_registration_chain(network, network_resource, &reg_locations)?;
     if reg_chain.is_none() {
         return Ok(None);
     }

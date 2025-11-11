@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! Auth Module
 
 shared::bindings_generate!({
@@ -28,13 +29,14 @@ mod validation;
 use shared::{bindings::hermes::cardano, utils::log};
 
 use crate::{
-    hermes::http_gateway::api::{AuthRequest, Bstr, HttpResponse},
+    hermes::http_gateway::api::{AuthRequest, Bstr, Headers, HttpResponse},
     response::{AuthResponse, AuthTokenError},
     validation::checker_api_catalyst_auth,
 };
 
 export!(AuthComponent);
 
+/// Auth component
 struct AuthComponent;
 
 impl AuthComponent {
@@ -65,7 +67,7 @@ impl AuthComponent {
     /// Validate a token and return HTTP response
     fn validate_token(
         token: &str,
-        headers: Vec<(String, Vec<String>)>,
+        headers: &Headers,
         network: cardano::api::CardanoNetwork,
     ) -> HttpResponse {
         let result = checker_api_catalyst_auth(headers, token, network);
@@ -83,7 +85,7 @@ impl exports::hermes::http_gateway::event_auth::Guest for AuthComponent {
         match request.auth_level {
             hermes::http_gateway::api::AuthLevel::Required => {
                 if let Some(t) = token {
-                    Some(Self::validate_token(&t, request.headers, network))
+                    Some(Self::validate_token(&t, &request.headers, network))
                 } else {
                     Some(Self::make_response(&AuthResponse::Unauthorized(
                         AuthTokenError::MissingToken,
@@ -93,7 +95,7 @@ impl exports::hermes::http_gateway::event_auth::Guest for AuthComponent {
             // If the auth is present, validate it, if not skip it
             hermes::http_gateway::api::AuthLevel::Optional => {
                 if let Some(t) = token {
-                    Some(Self::validate_token(&t, request.headers, network))
+                    Some(Self::validate_token(&t, &request.headers, network))
                 } else {
                     Some(Self::make_response(&AuthResponse::Ok))
                 }

@@ -1,5 +1,6 @@
-//! SQLite query builders
+//! `SQLite` query builders
 
+/// Query builder
 pub(crate) struct QueryBuilder;
 
 impl QueryBuilder {
@@ -8,7 +9,7 @@ impl QueryBuilder {
     /// is considered the canonical/valid registration if multiple exist.
     pub(crate) fn select_root_reg_by_cat_id(table: &str) -> String {
         format!(
-            r#"
+            r"
             SELECT txn_id, slot_no, txn_idx
             FROM {table}
                 WHERE prv_txn_id IS NULL
@@ -16,7 +17,7 @@ impl QueryBuilder {
                 AND catalyst_id = ?
                 ORDER BY slot_no ASC, txn_idx ASC
                 LIMIT 1;
-            "#
+            "
         )
     }
 
@@ -27,14 +28,14 @@ impl QueryBuilder {
     /// The child is linked to the parent by the `prv_txn_id` field.
     pub(crate) fn select_child_reg_from_parent(table: &str) -> String {
         format!(
-            r#"
+            r"
             SELECT txn_id, slot_no, txn_idx
             FROM {table}
                 WHERE prv_txn_id = ?
                 AND problem_report IS NULL
                 ORDER BY slot_no ASC, txn_idx ASC
                 LIMIT 1;
-            "#
+            "
         )
     }
 }

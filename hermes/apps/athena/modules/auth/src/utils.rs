@@ -23,11 +23,13 @@ macro_rules! extract_header {
 }
 
 #[cfg(test)]
+#[allow(clippy::needless_pass_by_value)]
 mod tests {
+    use shared::bindings::hermes::http_gateway::api::Headers;
     use test_case::test_case;
 
     #[test_case(
-        vec![
+        &vec![
             ("content-type".to_string(), vec!["application/json".to_string()]),
             ("authorization".to_string(), vec!["Bearer catid.123@test.com/signature".to_string()]),
         ],
@@ -36,7 +38,7 @@ mod tests {
         ; "extract header without prefix"
     )]
     fn test_extract_header_without_prefix(
-        headers: Vec<(String, Vec<String>)>,
+        headers: &Headers,
         header_name: &str,
         expected: Option<String>,
     ) {
@@ -45,7 +47,7 @@ mod tests {
     }
 
     #[test_case(
-        vec![
+        &vec![
             ("content-type".to_string(), vec!["application/json".to_string()]),
             ("authorization".to_string(), vec!["Bearer catid.123@test.com/signature".to_string()]),
         ],
@@ -55,7 +57,7 @@ mod tests {
         ; "extract header with Bearer prefix - should strip the prefix"
     )]
     #[test_case(
-        vec![
+        &vec![
             ("content-type".to_string(), vec!["application/json".to_string()]),
             ("authorization".to_string(), vec!["Basic dXYXNz".to_string()]),
         ],
@@ -65,21 +67,21 @@ mod tests {
         ; "extract header with Bearer prefix when header has Basic auth"
     )]
     #[test_case(
-        vec![("Authorization".to_string(), vec!["Bearer catid.123@test.com/signature".to_string()])],
+        &vec![("Authorization".to_string(), vec!["Bearer catid.123@test.com/signature".to_string()])],
         "authorization",
         "Bearer ",
         Some("catid.123@test.com/signature".to_string())
         ; "case insensitive header name matching"
     )]
     #[test_case(
-        vec![("content-type".to_string(), vec!["application/json".to_string()])],
+        &vec![("content-type".to_string(), vec!["application/json".to_string()])],
         "authorization",
         "Bearer ",
         None
         ; "extract non-existent header"
     )]
     #[test_case(
-        vec![("authorization".to_string(), vec![
+        &vec![("authorization".to_string(), vec![
             "Bearer catid.123@test.com/signature".to_string(),
             "Bearer catid.456@test.com/signature2".to_string(),
         ])],
@@ -89,7 +91,7 @@ mod tests {
         ; "extract header with multiple values - should return first match"
     )]
     fn test_extract_header_with_prefix(
-        headers: Vec<(String, Vec<String>)>,
+        headers: &Headers,
         header_name: &str,
         prefix: &str,
         expected: Option<String>,
