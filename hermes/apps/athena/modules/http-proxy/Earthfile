@@ -58,3 +58,47 @@ local-build-http-proxy:
     
     # Export build artifacts from staging directory
     SAVE ARTIFACT /staging AS LOCAL lib
+
+# Development build - faster version without heavy web assets
+# ============================================================
+# This target skips the large web assets (assets, canvaskit, icons) that take
+# a long time to download and compress. Use this for development iterations
+# where you don't need all the web assets.
+#
+# What's included:
+#   - WASM module (http_proxy.wasm)
+#   - JSON configuration files
+#   - Essential files only
+#
+# What's skipped:
+#   - Large web assets (assets/, canvaskit/, icons/)
+#   - Full catalyst_voices web build
+#
+local-build-http-proxy-dev:
+    FROM alpine
+    COPY +build-http-proxy/http_proxy.wasm .
+    
+    # Copy module configuration and metadata files
+    COPY lib/config.schema.json .
+    COPY lib/manifest_module.json .
+    COPY lib/metadata.json .
+    COPY lib/settings.schema.json .
+    
+    # Create the missing config.json file (empty JSON object)
+    RUN echo '{}' > config.json
+
+    # Create staging directory structure
+    RUN mkdir -p /staging/www
+
+    # Copy WASM module and JSON config files to root of staging
+    RUN cp http_proxy.wasm /staging/
+    RUN cp *.json /staging/ || true
+
+    # For dev: Create minimal placeholder assets instead of copying large ones
+    RUN mkdir -p /staging/www/assets /staging/www/canvaskit /staging/www/icons
+    RUN echo '{"dev": "placeholder"}' > /staging/www/assets/placeholder.json
+    RUN echo '{"dev": "placeholder"}' > /staging/www/canvaskit/placeholder.json
+    RUN echo '{"dev": "placeholder"}' > /staging/www/icons/placeholder.json
+    
+    # Export build artifacts from staging directory
+    SAVE ARTIFACT /staging AS LOCAL lib
