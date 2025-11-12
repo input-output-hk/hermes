@@ -2,7 +2,9 @@
 mod api;
 mod task;
 
-use std::{collections::HashSet, path::Path, str::FromStr};
+use std::{
+    collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
+};
 
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
@@ -11,8 +13,7 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, IpfsBuilder, IpfsPath as BaseIpfsPath,
-    MessageId as PubsubMessageId,
+    rust_ipfs::dummy, AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
 };
 use once_cell::sync::OnceCell;
 use task::{ipfs_command_handler, IpfsCommand};
@@ -40,7 +41,7 @@ use crate::{
 ///
 /// The IPFS Node is initialized in a separate thread and the sender channel is stored in
 /// the `HermesIpfsNode`.
-pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode> = OnceCell::new();
+pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = OnceCell::new();
 
 /// Bootstrap `HERMES_IPFS` node.
 ///
@@ -57,7 +58,7 @@ pub fn bootstrap(
         std::fs::create_dir_all(&ipfs_data_path)?;
     }
     let ipfs_node = HermesIpfsNode::init(
-        IpfsBuilder::new()
+        HermesIpfsBuilder::new()
             .with_default()
             .set_default_listener()
             .set_disk_storage(ipfs_data_path.clone()),
@@ -70,25 +71,33 @@ pub fn bootstrap(
 }
 
 /// Hermes IPFS Internal Node
-pub(crate) struct HermesIpfsNode {
+pub(crate) struct HermesIpfsNode<N>
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+{
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// State related to `ApplicationName`
     apps: AppIpfsState,
+    /// Phantom data.
+    _phantom_data: PhantomData<N>,
 }
 
-impl HermesIpfsNode {
+impl<N> HermesIpfsNode<N>
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+{
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(
-        builder: IpfsBuilder,
+        builder: HermesIpfsBuilder<N>,
         default_bootstrap: bool,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
+
+        // Build and start IPFS node, before moving into the thread
+        let node = runtime.block_on(async move { builder.start().await })?;
+
         let _handle = std::thread::spawn(move || {
-            // Build and start IPFS node
             let _unused = runtime.block_on(async move {
-                let node = builder.start().await?;
                 if default_bootstrap {
                     // Add default addresses for bootstrapping
                     let addresses = node.default_bootstrap().await?;
@@ -109,6 +118,7 @@ impl HermesIpfsNode {
         Ok(Self {
             sender: Some(sender),
             apps: AppIpfsState::new(),
+            _phantom_data: PhantomData,
         })
     }
 
@@ -243,7 +253,7 @@ impl HermesIpfsNode {
         &self,
         topic: PubsubTopic,
         message: MessageData,
-    ) -> Result<PubsubMessageId, Errno> {
+    ) -> Result<(), Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -285,15 +295,6 @@ impl HermesIpfsNode {
         cmd_rx
             .blocking_recv()
             .map_err(|_| Errno::PeerEvictionError)?
-    }
-}
-
-impl Default for HermesIpfsNode {
-    fn default() -> Self {
-        Self {
-            sender: None,
-            apps: AppIpfsState::new(),
-        }
     }
 }
 
