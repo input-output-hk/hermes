@@ -9,7 +9,6 @@ on:
       - ready_for_review
       - opened
 
-
 permissions:
   id-token: write
   contents: write
@@ -17,13 +16,38 @@ permissions:
   pull-requests: write
 
 jobs:
+  paths-filter:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      not-only-docs: ${{ steps.filter.outputs.not-only-docs }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - '.config/dictionaries/project.dic'
+            not-only-docs:
+              - '!((docs/**)|.config/dictionaries/project.dic)'
+
+  docs-only:
+    if: ${{ needs.paths-filter.outputs.docs == 'true' && needs.paths-filter.outputs.not-only-docs != 'true' }}
+    needs: [paths-filter]
+    uses: input-output-hk/catalyst-forge/.github/workflows/release.yml@ci/v1.10.0
+    with:
+      releases: '[{"project":"./docs","name":"docs"}]'
+      forge_version: 0.21.0
+
   ci:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: [paths-filter]
+    if: ${{ !github.event.pull_request.draft && needs.paths-filter.outputs.not-only-docs == 'true' }}
     uses: input-output-hk/catalyst-forge/.github/workflows/ci.yml@ci/v1.9.0
     with:
-      forge_version: 0.20.0
+      forge_version: 0.21.0
 
   test_reporting:
     if: ${{ !github.event.pull_request.draft }}
-    needs: ci
+    needs: [ci]
     uses: ./.github/workflows/generate-allure-report.yml
