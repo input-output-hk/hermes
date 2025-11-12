@@ -22,6 +22,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
       not-only-docs: ${{ steps.filter.outputs.not-only-docs }}
     steps:
+      - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
         id: filter
         with:
