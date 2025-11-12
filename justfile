@@ -88,7 +88,7 @@ get-local-hermes:
 #
 # Output Files:
 #   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
-#   - athena/app.happ (final application package)
+#   - athena/athena.happ (final application package)
 #
 # Duration: ~5-15 minutes (WASM compilation + large web asset download/compression)
 # Dependencies: WIT files, Rust source code, manifest files
@@ -133,8 +133,8 @@ get-local-athena:
     echo "✅ Application packaging complete (.happ file created)"
 
     echo "🎉 PRODUCTION build and packaging complete!"
-    echo "📦 Application package: hermes/apps/athena/app.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/app.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "📦 Application package: hermes/apps/athena/athena.happ"
+    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
     echo "🌐 Includes: Full web assets (assets/, canvaskit/, icons/)"
 
 
@@ -158,7 +158,7 @@ get-local-athena:
 #
 # Output Files:
 #   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
-#   - athena/app.happ (final application package)
+#   - athena/athena.happ (final application package)
 #
 # Duration: ~2-5 minutes (WASM compilation only, skips web assets)
 # Dependencies: WIT files, Rust source code, manifest files
@@ -204,8 +204,8 @@ get-local-athena-dev:
     echo "✅ Application packaging complete (.happ file created)"
 
     echo "🎉 DEVELOPMENT build and packaging complete!"
-    echo "📦 Application package: hermes/apps/athena/app.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/app.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "📦 Application package: hermes/apps/athena/athena.happ"
+    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
     echo "⚡ Development build: Uses placeholder web assets for faster iteration"
 
 # Clean up Hermes state files from user directory
@@ -240,7 +240,7 @@ clean-hfs:
 #
 # Runtime Configuration:
 #   - Security: --untrusted flag enables maximum sandboxing
-#   - Package: Uses hermes/apps/athena/app.happ (must be built first)
+#   - Package: Uses hermes/apps/athena/athena.happ (must be built first)
 #   - HTTP Server: Typically runs on localhost:5000 (configurable in manifest)
 #
 # Environment Variables (configurable security policies):
@@ -263,7 +263,7 @@ run-athena:
     set -euo pipefail
 
     echo "🚀 Running Athena application..."
-    echo "📦 Package: hermes/apps/athena/app.happ"
+    echo "📦 Package: hermes/apps/athena/athena.happ"
     echo "🔒 Security: Running with --untrusted flag (maximum isolation)"
 
     # Validate prerequisites
@@ -272,7 +272,7 @@ run-athena:
         exit 1
     fi
 
-    if [ ! -f "hermes/apps/athena/app.happ" ]; then
+    if [ ! -f "hermes/apps/athena/athena.happ" ]; then
         echo "❌ Error: Application package not found. Run 'just get-local-athena' first."
         exit 1
     fi
@@ -292,7 +292,7 @@ run-athena:
 
     # Execute the application with security sandboxing
     # HERMES_LOG_LEVEL="debug"
-    target/release/hermes run --untrusted hermes/apps/athena/app.happ
+    target/release/hermes run --untrusted hermes/apps/athena/athena.happ
 
 
 
@@ -391,8 +391,8 @@ status:
     echo ""
 
     echo "📦 Athena Application:"
-    if [ -f "athena/app.happ" ]; then
-        echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f "athena/athena.happ" ]; then
+        echo "   ✅ Package: $(ls -lh athena/athena.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi

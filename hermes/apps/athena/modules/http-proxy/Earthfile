@@ -9,6 +9,30 @@ build-http-proxy:
 
 
 
+# Common base for HTTP Proxy builds
+# ==================================
+# Sets up common files and directory structure used by both production and dev builds.
+# This eliminates duplication between local-build-http-proxy and local-build-http-proxy-dev.
+http-proxy-base:
+    FROM alpine
+    COPY +build-http-proxy/http_proxy.wasm .
+    
+    # Copy module configuration and metadata files
+    COPY lib/config.schema.json .
+    COPY lib/manifest_module.json .
+    COPY lib/metadata.json .
+    COPY lib/settings.schema.json .
+    
+    # Create the missing config.json file (empty JSON object)
+    RUN echo '{}' > config.json
+
+    # Create staging directory structure
+    RUN mkdir -p /staging/www
+
+    # Copy WASM module and JSON config files to root of staging
+    RUN cp http_proxy.wasm /staging/
+    RUN cp *.json /staging/ || true
+
 # HTTP Proxy WASM Module Build
 # =============================
 # Compiles the HTTP proxy Rust code into a WebAssembly module using the wasm32-wasip2 target.
@@ -26,27 +50,10 @@ build-http-proxy:
 # Output: http_proxy.wasm - Executable WebAssembly module
 # Duration: ~3-5 minutes (Rust compilation to WASM)
 local-build-http-proxy:
-    FROM alpine
-    COPY +build-http-proxy/http_proxy.wasm .
-    
-    # Copy module configuration and metadata files
-    COPY lib/config.schema.json .
-    COPY lib/manifest_module.json .
-    COPY lib/metadata.json .
-    COPY lib/settings.schema.json .
-    
-    # Create the missing config.json file (empty JSON object)
-    RUN echo '{}' > config.json
+    FROM +http-proxy-base
 
     # Download web assets directly to root level
     COPY github.com/input-output-hk/catalyst-voices/catalyst_voices+build-web/web .
-
-    # Create staging directory structure
-    RUN mkdir -p /staging/www
-
-    # Copy WASM module and JSON config files to root of staging
-    RUN cp http_proxy.wasm /staging/
-    RUN cp *.json /staging/ || true
 
     # Copy web assets to www subdirectory
     RUN cp -r assets /staging/www/ || true
@@ -75,24 +82,7 @@ local-build-http-proxy:
 #   - Full catalyst_voices web build
 #
 local-build-http-proxy-dev:
-    FROM alpine
-    COPY +build-http-proxy/http_proxy.wasm .
-    
-    # Copy module configuration and metadata files
-    COPY lib/config.schema.json .
-    COPY lib/manifest_module.json .
-    COPY lib/metadata.json .
-    COPY lib/settings.schema.json .
-    
-    # Create the missing config.json file (empty JSON object)
-    RUN echo '{}' > config.json
-
-    # Create staging directory structure
-    RUN mkdir -p /staging/www
-
-    # Copy WASM module and JSON config files to root of staging
-    RUN cp http_proxy.wasm /staging/
-    RUN cp *.json /staging/ || true
+    FROM +http-proxy-base
 
     # For dev: Create minimal placeholder assets instead of copying large ones
     RUN mkdir -p /staging/www/assets /staging/www/canvaskit /staging/www/icons
