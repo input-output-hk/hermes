@@ -167,17 +167,6 @@ impl Patcher {
         })
     }
 
-    /// Validates that the WAT contains exactly one core module.
-    fn validate_core_module<S: AsRef<str>>(wat: S) -> Result<(), anyhow::Error> {
-        let core_module_count = Self::get_item_count(CORE_MODULE_MARKER, &wat)?;
-        if core_module_count != 1 {
-            return Err(anyhow::anyhow!(
-                "expected exactly one core module, found {core_module_count}"
-            ));
-        }
-        Ok(())
-    }
-
     /// Patches the WAT by injecting functions to get memory size and read raw memory
     /// bytes.
     #[allow(clippy::arithmetic_side_effects)]
