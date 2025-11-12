@@ -68,145 +68,135 @@ get-local-hermes:
     echo "📦 Binary location: $(realpath target/release/hermes)"
     echo "📏 Binary size: $(ls -lh target/release/hermes | awk '{print $5}')"
 
-# Build and package the Athena HTTP proxy WASM component (PRODUCTION)
+# Internal: Shared build logic for Athena WASM components
+#
+# This function contains the common build pipeline used by both production and development builds.
+# It handles WASM compilation, module packaging, and application packaging.
+#
+# Parameters:
+#   mode: "prod" or "dev" - determines build variant and web assets handling
+#
+# The main difference between modes:
+#   - prod: Uses +local-build-http-proxy (includes full web assets)
+#   - dev: Uses +local-build-http-proxy-dev (uses placeholder web assets)
+_build-athena-common mode:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Set build-specific variables
+    if [ "{{mode}}" = "prod" ]; then
+        HTTP_PROXY_TARGET="local-build-http-proxy"
+        BUILD_TYPE="PRODUCTION"
+        ASSETS_DESC="includes all web assets"
+        SUCCESS_MSG="🎉 PRODUCTION build and packaging complete!"
+        ASSETS_STATUS="🌐 Includes: Full web assets (assets/, canvaskit/, icons/)"
+    else
+        HTTP_PROXY_TARGET="local-build-http-proxy-dev"
+        BUILD_TYPE="DEV MODE"
+        ASSETS_DESC="minimal web assets"
+        SUCCESS_MSG="🎉 DEVELOPMENT build and packaging complete!"
+        ASSETS_STATUS="⚡ Development build: Uses placeholder web assets for faster iteration"
+        echo "⚡ Development mode: Skipping large web assets for faster builds"
+    fi
+
+    echo "🔨 Building HTTP proxy WASM component ($BUILD_TYPE)..."
+    echo "📍 Module location: athena/modules"
+    echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
+
+    # Step 1: Build all WASM modules using Earthly
+    # The HTTP proxy module uses different targets for prod vs dev (web assets)
+    # Other modules use the same target regardless of mode
+    echo "🔧 Building WASM modules..."
+    earthly ./hermes/apps/athena/modules/http-proxy+$HTTP_PROXY_TARGET
+    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
+    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
+    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
+    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
+
+    echo "✅ WASM compilation complete ($BUILD_TYPE - $ASSETS_DESC)"
+
+    echo "📦 Packaging modules with Hermes CLI..."
+    echo "📄 Using manifests from hermes/apps/athena/modules/*/lib/manifest_module.json"
+
+    # Step 2: Package all WASM modules with their configurations into .hmod format
+    # The .hmod files contain the WASM binary, manifest, and metadata for each module
+    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
+    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
+    echo "✅ Module packaging complete (.hmod files created)"
+
+    echo "📦 Packaging application bundle..."
+    echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
+
+    # Step 3: Create final application package (.happ file)
+    # The .happ file bundles all modules and application-level configuration
+    target/release/hermes app package hermes/apps/athena/manifest_app.json
+    echo "✅ Application packaging complete (.happ file created)"
+
+    echo "$SUCCESS_MSG"
+    echo "📦 Application package: hermes/apps/athena/athena.happ"
+    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "$ASSETS_STATUS"
+
+# Build and package the Athena WASM components (PRODUCTION)
 #
 # This target performs the complete build pipeline for the Athena application:
 #   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
-#   2. Compiles HTTP proxy module to WASM using wasm32-wasip2 target
+#   2. Compiles all modules to WASM using wasm32-wasip2 target
 #   3. Downloads and packages ALL web assets (assets/, canvaskit/, icons/)
-#   4. Packages the WASM module with its manifest and configuration (.hmod file)
+#   4. Packages each WASM module with its manifest and configuration (.hmod files)
 #   5. Creates the final application package (.happ file)
 #
 # Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Module (.hmod) → Package Application (.happ)
+#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
 #
 # Components Built:
 #   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
+#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
+#   - Staked ADA Modules: staked-ada, staked-ada-indexer  
 #   - Full Web Assets: Large assets, canvaskit, icons (SLOW)
-#   - Module Package: Individual WASM component with manifest (.hmod format)
+#   - Module Packages: Individual WASM components with manifests (.hmod format)
 #   - Application Package: Complete application bundle ready for deployment (.happ format)
 #
 # Output Files:
-#   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
-#   - athena/athena.happ (final application package)
+#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
+#   - hermes/apps/athena/athena.happ (final application package)
 #
 # Duration: ~5-15 minutes (WASM compilation + large web asset download/compression)
 # Dependencies: WIT files, Rust source code, manifest files
 # Use Case: Production builds, CI/CD, final deployments
-get-local-athena:
-    #!/usr/bin/env bash
-    set -euo pipefail
+get-local-athena: (_build-athena-common "prod")
 
-    echo "🔨 Building HTTP proxy WASM component..."
-    echo "📍 Module location: athena/modules"
-    echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
-
-    # Step 1: Build WASM module using Earthly (local development target)
-    # This compiles Rust source to optimized WASM binary and saves locally
-
-    earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy
-    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
-    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
-    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
-    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
-
-    echo "✅ WASM compilation complete (PRODUCTION - includes all web assets)"
-
-    echo "📦 Packaging module with Hermes CLI..."
-    echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
-
-    # Step 2: Package the WASM module with its configuration into .hmod format
-    # The .hmod file contains the WASM binary, manifest, and metadata for the module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
-    echo "✅ Module packaging complete (.hmod file created)"
-
-    echo "📦 Packaging application bundle..."
-    echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
-
-    # Step 3: Create final application package (.happ file)
-    # The .happ file bundles all modules and application-level configuration
-    target/release/hermes app package hermes/apps/athena/manifest_app.json
-    echo "✅ Application packaging complete (.happ file created)"
-
-    echo "🎉 PRODUCTION build and packaging complete!"
-    echo "📦 Application package: hermes/apps/athena/athena.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
-    echo "🌐 Includes: Full web assets (assets/, canvaskit/, icons/)"
-
-
-# Build and package the Athena HTTP proxy WASM component (DEVELOPMENT)
+# Build and package the Athena WASM components (DEVELOPMENT)
 #
 # This target performs a faster build pipeline for development iteration:
 #   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
-#   2. Compiles HTTP proxy module to WASM using wasm32-wasip2 target  
+#   2. Compiles all modules to WASM using wasm32-wasip2 target  
 #   3. Skips large web assets (uses placeholders instead)
-#   4. Packages the WASM module with its manifest and configuration (.hmod file)
+#   4. Packages each WASM module with its manifest and configuration (.hmod files)
 #   5. Creates the final application package (.happ file)
 #
 # Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Module (.hmod) → Package Application (.happ)
+#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
 #
 # Components Built:
 #   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
+#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
+#   - Staked ADA Modules: staked-ada, staked-ada-indexer
 #   - Minimal Web Assets: Placeholder files only (FAST)
-#   - Module Package: Individual WASM component with manifest (.hmod format)
+#   - Module Packages: Individual WASM components with manifests (.hmod format)
 #   - Application Package: Application bundle for development (.happ format)
 #
 # Output Files:
-#   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
-#   - athena/athena.happ (final application package)
+#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
+#   - hermes/apps/athena/athena.happ (final application package)
 #
 # Duration: ~2-5 minutes (WASM compilation only, skips web assets)
 # Dependencies: WIT files, Rust source code, manifest files
 # Use Case: Development iteration, local testing, debugging
-get-local-athena-dev:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    echo "🔨 Building HTTP proxy WASM component (DEV MODE)..."
-    echo "📍 Module location: athena/modules"
-    echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
-    echo "⚡ Development mode: Skipping large web assets for faster builds"
-
-    # Step 1: Build WASM module using Earthly (development target - faster)
-    # This compiles Rust source to optimized WASM binary but skips heavy web assets
-
-    earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy-dev
-    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
-    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
-    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
-    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
-
-    echo "✅ WASM compilation complete (DEV - minimal web assets)"
-
-    echo "📦 Packaging module with Hermes CLI..."
-    echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
-
-    # Step 2: Package the WASM module with its configuration into .hmod format
-    # The .hmod file contains the WASM binary, manifest, and metadata for the module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
-    echo "✅ Module packaging complete (.hmod file created)"
-
-    echo "📦 Packaging application bundle..."
-    echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
-
-    # Step 3: Create final application package (.happ file)
-    # The .happ file bundles all modules and application-level configuration
-    target/release/hermes app package hermes/apps/athena/manifest_app.json
-    echo "✅ Application packaging complete (.happ file created)"
-
-    echo "🎉 DEVELOPMENT build and packaging complete!"
-    echo "📦 Application package: hermes/apps/athena/athena.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
-    echo "⚡ Development build: Uses placeholder web assets for faster iteration"
+get-local-athena-dev: (_build-athena-common "dev")
 
 # Clean up Hermes state files from user directory
 #
