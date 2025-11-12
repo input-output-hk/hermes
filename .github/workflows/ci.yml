@@ -43,7 +43,7 @@ jobs:
   ci:
     needs: [paths-filter]
     if: ${{ !github.event.pull_request.draft && needs.paths-filter.outputs.not-only-docs == 'true' }}
-    uses: input-output-hk/catalyst-forge/.github/workflows/ci.yml@ci/v1.9.0
+    uses: input-output-hk/catalyst-forge/.github/workflows/ci.yml@ci/v1.10.0
     with:
       forge_version: 0.21.0
 
