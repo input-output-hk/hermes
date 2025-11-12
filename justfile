@@ -110,7 +110,7 @@ _build-athena-common mode:
     echo "⚡ Starting 5 concurrent Earthly builds for faster compilation"
     
     # PARALLEL EXECUTION PATTERN:
-    # 1. Launch each build in a subshell with '&' to run in background
+    # 1. Launch each build in a sub shell with '&' to run in background
     # 2. Capture the Process ID (PID) with '$!' for each background job
     # 3. Use 'wait $PID' to synchronize and collect exit codes
     # 4. This allows all 5 modules to compile simultaneously instead of sequentially
