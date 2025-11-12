@@ -3,8 +3,7 @@ use super::{is_valid_dht_content, is_valid_pubsub_content, HERMES_IPFS};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, MessageId, PeerId,
-        PubsubTopic,
+        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
 };
 
@@ -131,10 +130,9 @@ pub(crate) fn hermes_ipfs_publish(
     _app_name: &ApplicationName,
     topic: &PubsubTopic,
     message: MessageData,
-) -> Result<MessageId, Errno> {
+) -> Result<(), Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     ipfs.pubsub_publish(topic.to_string(), message)
-        .map(|m| m.0 .0)
 }
 
 /// Evict Peer from node
