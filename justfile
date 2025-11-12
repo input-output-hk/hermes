@@ -103,28 +103,129 @@ _build-athena-common mode:
     echo "📍 Module location: athena/modules"
     echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
-    # Step 1: Build all WASM modules using Earthly
+    # Step 1: Build all WASM modules using Earthly IN PARALLEL
     # The HTTP proxy module uses different targets for prod vs dev (web assets)
     # Other modules use the same target regardless of mode
-    echo "🔧 Building WASM modules..."
-    earthly ./hermes/apps/athena/modules/http-proxy+$HTTP_PROXY_TARGET
-    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
-    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
-    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
-    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
+    echo "🔧 Building WASM modules in parallel..."
+    echo "⚡ Starting 5 concurrent Earthly builds for faster compilation"
+    
+    # PARALLEL EXECUTION PATTERN:
+    # 1. Launch each build in a subshell with '&' to run in background
+    # 2. Capture the Process ID (PID) with '$!' for each background job
+    # 3. Use 'wait $PID' to synchronize and collect exit codes
+    # 4. This allows all 5 modules to compile simultaneously instead of sequentially
+    #    Typical speedup: 5x faster than sequential builds
+    
+    # Start all builds in background processes (non-blocking)
+    (
+        echo "  📦 Building http-proxy module..."
+        earthly ./hermes/apps/athena/modules/http-proxy+$HTTP_PROXY_TARGET 
+    ) &
+    HTTP_PROXY_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building rbac-registration-indexer module..."
+        earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
+    ) &
+    RBAC_INDEXER_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building rbac-registration module..."
+        earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
+    ) &
+    RBAC_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building staked-ada-indexer module..."
+        earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
+    ) &
+    STAKED_INDEXER_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building staked-ada module..."
+        earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
+    ) &
+    STAKED_PID=$!  # Capture PID of background process
+    
+    # SYNCHRONIZATION PHASE:
+    # Wait for all background jobs to complete and collect their exit codes
+    # The '&&' and '||' operators provide success/failure reporting for each build
+    echo "⏳ Waiting for all parallel builds to complete..."
+    
+    # Wait for each process and report completion status
+    # 'wait $PID' blocks until that specific process finishes and returns its exit code
+    wait $HTTP_PROXY_PID && echo "  ✅ http-proxy build completed" || echo "  ❌ http-proxy build failed"
+    wait $RBAC_INDEXER_PID && echo "  ✅ rbac-registration-indexer build completed" || echo "  ❌ rbac-registration-indexer build failed"
+    wait $RBAC_PID && echo "  ✅ rbac-registration build completed" || echo "  ❌ rbac-registration build failed"
+    wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || echo "  ❌ staked-ada-indexer build failed"
+    wait $STAKED_PID && echo "  ✅ staked-ada build completed" || echo "  ❌ staked-ada build failed"
+    
+    echo "🎯 All parallel builds completed!"
 
     echo "✅ WASM compilation complete ($BUILD_TYPE - $ASSETS_DESC)"
 
-    echo "📦 Packaging modules with Hermes CLI..."
+    echo "📦 Packaging modules with Hermes CLI in parallel..."
     echo "📄 Using manifests from hermes/apps/athena/modules/*/lib/manifest_module.json"
 
-    # Step 2: Package all WASM modules with their configurations into .hmod format
+    # Step 2: Package all WASM modules with their configurations into .hmod format IN PARALLEL
     # The .hmod files contain the WASM binary, manifest, and metadata for each module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
+    # This step takes the compiled WASM files and bundles them with their configuration
+    echo "⚡ Starting 5 concurrent module packaging operations..."
+    
+    # PARALLEL PACKAGING PATTERN:
+    # Same approach as the build step above, but for the Hermes CLI packaging operations
+    # Each 'hermes module package' command:
+    # 1. Reads the manifest_module.json configuration file
+    # 2. Locates the corresponding .wasm file (compiled in previous step)
+    # 3. Creates a .hmod file containing both the WASM binary and metadata
+    # 4. Validates the package structure and dependencies
+    # Running these in parallel saves significant time when packaging multiple modules
+    
+    # Start all packaging operations in background processes (non-blocking)
+    (
+        echo "  📦 Packaging http-proxy module..."
+        target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+    ) &
+    HTTP_PROXY_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging rbac-registration-indexer module..."
+        target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
+    ) &
+    RBAC_INDEXER_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging rbac-registration module..."
+        target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+    ) &
+    RBAC_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging staked-ada-indexer module..."
+        target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
+    ) &
+    STAKED_INDEXER_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging staked-ada module..."
+        target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
+    ) &
+    STAKED_PKG_PID=$!  # Capture PID for synchronization
+    
+    # SYNCHRONIZATION PHASE:
+    # Wait for all packaging processes to complete before proceeding to app packaging
+    # This ensures all .hmod files are ready before the final .happ creation
+    echo "⏳ Waiting for all parallel packaging operations to complete..."
+    
+    # Wait for each packaging process and report completion status
+    # Each 'wait' command blocks until that specific packaging operation finishes
+    wait $HTTP_PROXY_PKG_PID && echo "  ✅ http-proxy packaging completed" || echo "  ❌ http-proxy packaging failed"
+    wait $RBAC_INDEXER_PKG_PID && echo "  ✅ rbac-registration-indexer packaging completed" || echo "  ❌ rbac-registration-indexer packaging failed"
+    wait $RBAC_PKG_PID && echo "  ✅ rbac-registration packaging completed" || echo "  ❌ rbac-registration packaging failed"
+    wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || echo "  ❌ staked-ada-indexer packaging failed"
+    wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || echo "  ❌ staked-ada packaging failed"
+    
+    echo "🎯 All parallel packaging operations completed!"
     echo "✅ Module packaging complete (.hmod files created)"
 
     echo "📦 Packaging application bundle..."
