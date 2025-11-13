@@ -1,6 +1,6 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.5.28 AS go-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/go: AS go-ci
 
 IMPORT ../.. AS wasm
 
