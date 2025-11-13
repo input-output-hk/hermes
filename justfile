@@ -258,9 +258,11 @@ run-athena:
 
 
 # Production build: full web assets, containerized (slow but complete)
+# Use for: final testing, deployments, CI/CD pipelines
 build-run-all: clean-hfs get-local-hermes get-local-athena clean-www run-athena
 
 # Development build: minimal assets, containerized (reliable, matches CI)
+# Use for: team consistency, when local builds fail, final testing before PRs
 build-run-dev: clean-hfs get-local-hermes get-local-athena-dev clean-www run-athena
 
 # Quick WASM rebuild with full assets (skips engine rebuild)
@@ -445,6 +447,7 @@ get-local-athena-fast:
     echo "⚡ Built with local Rust toolchain"
 
 # Fastest dev build using local Rust (recommended for daily dev)
+# Use for: daily development, rapid iteration, maximum productivity
 build-run-dev-fastest: clean-hfs get-local-hermes-fast get-local-athena-fast clean-www
     #!/usr/bin/env bash
     set -euo pipefail
