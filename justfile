@@ -1,50 +1,19 @@
 # Hermes Applications Build System
 #
-# This justfile provides a complete build and deployment workflow for Hermes WASM applications.
-# It uses Earthly for containerized builds to ensure consistent, reproducible compilation
-# across different development environments.
+# Two build approaches:
+# 🚀 LOCAL: build-run-dev-fastest (uses local Rust, fastest)
+# 🐳 CONTAINERIZED: build-run-dev (uses Earthly, matches CI)
 #
-# Prerequisites:
-#   - Earthly (https://earthly.dev/get-earthly) - Containerized build system
-#   - Docker or Podman - Container runtime for Earthly
-#
-# Quick Start:
-#   just build-run-dev    # Development workflow (fast): build → package → run
-#   just build-run-all    # Production workflow (full assets): build → package → run
-#
-# Development Workflow:
-#   just clean-hfs        # Clean up previous state
-#   just get-local-hermes # Build the core engine
-#   just get-local-athena     # Build & package WASM modules
-#   just run-athena       # Run the application
-#
-# File Formats:
-#   .happ - Hermes Application Package (complete application bundle)
-#   .hmod - Hermes Module Package (individual WASM component with manifest)
-#   .hfs  - Hermes File System state files (runtime cache and temporary data)
-#
-# Environment Variables:
-#   REDIRECT_ALLOWED_HOSTS - Comma-separated allowed redirect hosts (default: app.dev.projectcatalyst.io)
-#   REDIRECT_ALLOWED_PATH_PREFIXES - Allowed path prefixes for redirects (default: /api/gateway/v1/config/frontend)
+# Quick start:
+#   just check-local-build     # Verify local setup (run once) 
+#   just build-run-dev-fastest # Fastest dev workflow
+#   just build-run-dev         # Reliable dev workflow  
+#   just build-run-all         # Production build
 
 default:
     @just --list --unsorted
 
-# Build the Hermes binary in release mode using Earthly
-#
-# This target compiles the core Hermes WASM application engine located in the parent
-# directory (../). The engine provides the runtime environment for WASM modules and
-# handles HTTP routing, logging, security sandboxing, and module lifecycle management.
-#
-# Build Process:
-#   1. Uses Earthly for containerized compilation (no local Rust toolchain required)
-#   2. Compiles with release optimizations (--release flag)
-#   3. Outputs binary to ../target/release/hermes
-#   4. Makes binary executable and copies to working location
-#
-# Output: ../target/release/hermes (executable binary)
-# Duration: ~2-5 minutes (depending on system and cache state)
-# Dependencies: None (self-contained with Earthly)
+# Build Hermes binary using Earthly (containerized)
 get-local-hermes:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -68,17 +37,7 @@ get-local-hermes:
     echo "📦 Binary location: $(realpath target/release/hermes)"
     echo "📏 Binary size: $(ls -lh target/release/hermes | awk '{print $5}')"
 
-# Internal: Shared build logic for Athena WASM components
-#
-# This function contains the common build pipeline used by both production and development builds.
-# It handles WASM compilation, module packaging, and application packaging.
-#
-# Parameters:
-#   mode: "prod" or "dev" - determines build variant and web assets handling
-#
-# The main difference between modes:
-#   - prod: Uses +local-build-http-proxy (includes full web assets)
-#   - dev: Uses +local-build-http-proxy-dev (uses placeholder web assets)
+# Internal: Build all WASM modules (prod=full assets, dev=minimal assets)
 _build-athena-common mode:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -241,78 +200,13 @@ _build-athena-common mode:
     echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
     echo "$ASSETS_STATUS"
 
-# Build and package the Athena WASM components (PRODUCTION)
-#
-# This target performs the complete build pipeline for the Athena application:
-#   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
-#   2. Compiles all modules to WASM using wasm32-wasip2 target
-#   3. Downloads and packages ALL web assets (assets/, canvaskit/, icons/)
-#   4. Packages each WASM module with its manifest and configuration (.hmod files)
-#   5. Creates the final application package (.happ file)
-#
-# Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
-#
-# Components Built:
-#   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
-#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
-#   - Staked ADA Modules: staked-ada, staked-ada-indexer  
-#   - Full Web Assets: Large assets, canvaskit, icons (SLOW)
-#   - Module Packages: Individual WASM components with manifests (.hmod format)
-#   - Application Package: Complete application bundle ready for deployment (.happ format)
-#
-# Output Files:
-#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
-#   - hermes/apps/athena/athena.happ (final application package)
-#
-# Duration: ~5-15 minutes (WASM compilation + large web asset download/compression)
-# Dependencies: WIT files, Rust source code, manifest files
-# Use Case: Production builds, CI/CD, final deployments
+# Build WASM modules with full web assets (production)
 get-local-athena: (_build-athena-common "prod")
 
-# Build and package the Athena WASM components (DEVELOPMENT)
-#
-# This target performs a faster build pipeline for development iteration:
-#   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
-#   2. Compiles all modules to WASM using wasm32-wasip2 target  
-#   3. Skips large web assets (uses placeholders instead)
-#   4. Packages each WASM module with its manifest and configuration (.hmod files)
-#   5. Creates the final application package (.happ file)
-#
-# Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
-#
-# Components Built:
-#   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
-#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
-#   - Staked ADA Modules: staked-ada, staked-ada-indexer
-#   - Minimal Web Assets: Placeholder files only (FAST)
-#   - Module Packages: Individual WASM components with manifests (.hmod format)
-#   - Application Package: Application bundle for development (.happ format)
-#
-# Output Files:
-#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
-#   - hermes/apps/athena/athena.happ (final application package)
-#
-# Duration: ~2-5 minutes (WASM compilation only, skips web assets)
-# Dependencies: WIT files, Rust source code, manifest files
-# Use Case: Development iteration, local testing, debugging
+# Build WASM modules with minimal web assets (development)
 get-local-athena-dev: (_build-athena-common "dev")
 
-# Clean up Hermes state files from user directory
-#
-# Removes .hfs (Hermes File System) files from ~/.hermes/ directory.
-# These files contain cached application state, temporary data, and runtime artifacts
-# that may need to be cleared between development iterations.
-#
-# When to use:
-#   - Before clean builds to ensure fresh state
-#   - When debugging application state issues
-#   - After significant configuration changes
-#   - When switching between different application versions
-#
-# Files cleaned: ~/.hermes/*.hfs (Hermes state files)
-# Safe to run: Only removes application cache, not source code
+# Clean Hermes state files from ~/.hermes/
 clean-hfs:
     @echo "🧹 Cleaning Hermes state files..."
     @if [ -d ~/.hermes ]; then \
@@ -323,32 +217,8 @@ clean-hfs:
         echo "ℹ️  ~/.hermes/ directory does not exist (nothing to clean)"; \
     fi
 
-# Run the Athena application using the Hermes runtime
-#
-# Executes the packaged Athena application in the Hermes WASM runtime environment.
-# The application runs with security isolation (--untrusted flag) to demonstrate
-# secure execution of WebAssembly components.
-#
-# Runtime Configuration:
-#   - Security: --untrusted flag enables maximum sandboxing
-#   - Package: Uses hermes/apps/athena/athena.happ (must be built first)
-#   - HTTP Server: Typically runs on localhost:5000 (configurable in manifest)
-#
-# Environment Variables (configurable security policies):
-#   REDIRECT_ALLOWED_HOSTS: Comma-separated list of allowed redirect hosts
-#     Default: "app.dev.projectcatalyst.io"
-#     Example: "api.example.com,service.internal.com"
-#
-#   REDIRECT_ALLOWED_PATH_PREFIXES: Path prefixes allowed for redirects
-#     Default: "/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration"
-#     Example: "/api,/public,/webhooks"
-#
-# Prerequisites:
-#   - Hermes binary must exist (run `just get-local-hermes`)
-#   - Application package must exist (run `just get-local-athena`)
-#
-# Testing the Service:
-#   Once running, test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/gateway/v1/rbac/registration
+# Run the Athena application
+# Test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/gateway/v1/rbac/registration
 run-athena:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -387,83 +257,24 @@ run-athena:
 
 
 
-# Complete build and run workflow - PRODUCTION (recommended for deployments)
-#
-# This is the primary command for PRODUCTION builds and deployments. It performs
-# the complete workflow from clean state to running application:
-#
-# Workflow Steps:
-#   1. clean-hfs      - Clear previous application state
-#   2. get-local-hermes  - Compile the Hermes runtime engine
-#   3. get-local-athena   - Build and package WASM modules with FULL web assets
-#   4. run-athena     - Launch the application
-#
-# When to use:
-#   ✅ Production builds and deployments
-#   ✅ CI/CD pipelines
-#   ✅ Final testing with complete assets
-#   ✅ Release preparations
-#
-# Duration: ~8-20 minutes total (includes large web asset download/compression)
-#
-# Alternative for incremental development:
-#   Development builds: just build-run-dev (much faster)
-#   If only changing WASM module code: just get-local-athena-dev && just run-athena
-#   If only changing engine code: just get-local-hermes && just run-athena
-#
-# Environment Variables: Same as run-athena (see above)
-# Example with custom config: REDIRECT_ALLOWED_HOSTS=example.com just build-run-all
+# Production build: full web assets, containerized (slow but complete)
 build-run-all: clean-hfs get-local-hermes get-local-athena clean-www run-athena
 
-# Complete build and run workflow - DEVELOPMENT (containerized, reliable)
-#
-# This is the CONTAINERIZED development command using Earthly. It performs
-# the complete workflow from clean state to running application, but skips
-# the heavy web asset downloading/compression for much faster builds.
-#
-# Workflow Steps:
-#   1. clean-hfs         - Clear previous application state
-#   2. get-local-hermes  - Compile the Hermes runtime engine (in container)
-#   3. get-local-athena-dev - Build and package WASM modules (in container)
-#   4. run-athena        - Launch the application
-#
-# When to use (CONTAINERIZED approach):
-#   ✅ CI/CD consistency (matches containerized CI environment)
-#   ✅ Team consistency (identical builds regardless of local setup)
-#   ✅ Complex WIT bindings (when local builds fail)
-#   ✅ New developer onboarding (no local Rust setup required)
-#   ✅ Final testing before pull requests
-#   ✅ When local toolchain has issues
-#
-# Duration: ~5-10 minutes total (container overhead + compilation)
-#
-# Alternative commands:
-#   🚀 Fastest daily dev: just build-run-dev-fastest (local builds, 3-5x faster!)
-#   📦 Full production: just build-run-all (includes all web assets)
-#   ⚡ Quick WASM rebuild: just dev-athena (skips engine rebuild)
-#
-# Environment Variables: Same as run-athena (see above)
-# Example: REDIRECT_ALLOWED_HOSTS=example.com just build-run-dev
+# Development build: minimal assets, containerized (reliable, matches CI)
 build-run-dev: clean-hfs get-local-hermes get-local-athena-dev clean-www run-athena
 
-# Development helper: Quick rebuild of just the WASM components (PRODUCTION)
-#
-# Use this when you're iterating on the HTTP proxy module code and don't need
-# to rebuild the entire Hermes engine. Includes full web assets.
+# Quick WASM rebuild with full assets (skips engine rebuild)
 #
 # Workflow: Build WASM → Package → Run
 # Duration: ~5-10 minutes (skips Hermes engine compilation, includes web assets)
-# When to use: Iterating on ANY athena/modules/*/src/ changes for production testing
+# Quick WASM rebuild with full assets
 dev-athena: get-local-athena run-athena
 
-# Development helper: Quick rebuild of just the WASM components (DEVELOPMENT)
-#
-# Use this when you're iterating on the module code and don't need
-# to rebuild the entire Hermes engine. Skips heavy web assets for faster builds.
+# Quick WASM rebuild with minimal assets (skips engine rebuild)
 #
 # Workflow: Build WASM → Package → Run  
 # Duration: ~2-4 minutes (skips Hermes engine compilation and web assets)
-# When to use: Iterating on ANY athena/modules/*/src/ changes for development
+# Quick WASM rebuild with minimal assets (development)
 dev-athena-fast: get-local-athena-dev run-athena
 
 # Show current build status and file information
@@ -500,15 +311,16 @@ status:
 
     echo "🛡️  Current Security Config:"
     echo "   Allowed Hosts: ${REDIRECT_ALLOWED_HOSTS:-app.dev.projectcatalyst.io (default)}"
-    echo "   Allowed Paths: ${REDIRECT_ALLOWED_PATH_PREFIXES:-app.dev.projectcatalyst.io (default)}"
+    echo "   Allowed Paths: ${REDIRECT_ALLOWED_PATH_PREFIXES:-/api/gateway/v1/... (default)}"
     echo ""
 
     echo "💡 Quick Commands:"
-    echo "   just build-run-dev      # Development build (fast, minimal assets)"
-    echo "   just build-run-all      # Production build (slow, full assets)"
-    echo "   just dev-athena-fast    # Quick WASM rebuild (dev mode)"
-    echo "   just dev-athena         # Quick WASM rebuild (prod mode)"
-    echo "   just clean-hfs          # Clear application state"
+    echo "   just build-run-dev-fastest  # Fastest dev build (local builds)"
+    echo "   just build-run-dev          # Reliable dev build (containerized, matches CI)"
+    echo "   just build-run-all          # Production build (slow, full assets)"
+    echo "   just dev-athena-fast        # Quick WASM rebuild (dev mode)"
+    echo "   just dev-athena             # Quick WASM rebuild (prod mode)"
+    echo "   just clean-hfs              # Clear application state"
 
 # Fix and Check Markdown files
 check-markdown:
@@ -546,28 +358,10 @@ clean-www:
 # Enhanced cleanup that includes HFS files and www directory
 clean-all: clean-hfs clean-www
 
-# LOCAL DEV OPTIMIZATIONS - Eliminate containerized Rust builds
-# ============================================================
-# These commands use your LOCAL Rust toolchain instead of containers.
-# MUCH FASTER (3-5x speedup) but requires local Rust setup.
-#
-# Prerequisites:
-#   - Run `just check-local-build` first to verify setup
-#   - Requires: rustc, wasm32-wasip2 target
-#
-# When to use LOCAL builds:
-#   🚀 Daily development iteration (fastest possible)
-#   🚀 Rapid prototyping and testing
-#   🚀 Personal productivity optimization
-#   🚀 When you have proper local Rust setup
-#
-# When to use CONTAINERIZED builds instead:
-#   🐳 CI/CD consistency (use build-run-dev)
-#   🐳 Team consistency (use build-run-dev)
-#   🐳 Complex binding issues (use build-run-dev)
-#   🐳 Final testing before PRs (use build-run-dev)
+# LOCAL DEV BUILDS - Use local Rust instead of containers
+# Prerequisites: run `just check-local-build` first
 
-# Build Hermes binary locally (no container) - 3x faster!
+# Build Hermes locally
 get-local-hermes-fast:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -585,9 +379,9 @@ get-local-hermes-fast:
     chmod +x ../target/release/hermes
     
     echo "✅ Local Hermes build complete!"
-    echo "⚡ Speed improvement: ~3x faster than containerized build"
+    echo "⚡ Built with local Rust toolchain"
 
-# Build WASM modules locally (no container) - 2-4x faster!
+# Build WASM modules locally  
 get-local-athena-fast:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -648,23 +442,9 @@ get-local-athena-fast:
     done
     
     echo "✅ All WASM modules built locally!"
-    echo "⚡ Speed improvement: ~2-4x faster than containerized builds"
+    echo "⚡ Built with local Rust toolchain"
 
-# FASTEST dev workflow - local builds only (no containers!)
-# 
-# 🚀 RECOMMENDED FOR DAILY DEVELOPMENT 🚀
-# This is your fastest option - uses local Rust toolchain directly.
-# Perfect for rapid iteration and development cycles.
-#
-# Speed: ~3-5x faster than containerized builds
-# Requirements: Local Rust with wasm32-wasip2 target
-#
-# Use this when:
-#   ✅ You're actively developing and need fast feedback
-#   ✅ Your local Rust setup works (run `just check-local-build` first)
-#   ✅ You want maximum productivity
-#
-# Fallback to `just build-run-dev` if this fails
+# Fastest dev build using local Rust (recommended for daily dev)
 build-run-dev-fastest: clean-hfs get-local-hermes-fast get-local-athena-fast clean-www
     #!/usr/bin/env bash
     set -euo pipefail
@@ -687,18 +467,13 @@ build-run-dev-fastest: clean-hfs get-local-hermes-fast get-local-athena-fast cle
     ../../../target/release/hermes app package manifest_app.json
     
     echo "✅ Fastest build complete! 🚀"
-    echo "📊 Total speed improvement: ~3-5x faster than containerized Earthly build"
+    echo "📊 Built with local Rust toolchain"
     
     # Run
     cd ../../..
     just run-athena
 
-# Check if local build is possible (🚨 RUN THIS FIRST! 🚨)
-# 
-# Verifies that your local Rust setup can build WASM modules.
-# This will install missing components and test the build.
-#
-# Run this once before using the *-fastest commands.
+# Verify local Rust setup (run once before using *-fastest commands)
 check-local-build:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -732,7 +507,7 @@ check-local-build:
         echo "   just get-local-hermes-fast     # Just rebuild Hermes locally"
         echo "   just get-local-athena-fast     # Just rebuild WASM locally"
         echo ""
-        echo "⚡ Expected speedup: 3-5x faster than Earthly!"
+        echo "⚡ Local builds ready - much faster than containerized builds!"
     else
         echo "⚠️  Local WASM build may need WASI setup. Try the hybrid approach."
         echo "   You can still use: just build-run-dev (uses Earthly for WASM)"

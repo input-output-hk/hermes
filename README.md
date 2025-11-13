@@ -35,7 +35,7 @@ sandboxed execution of modular applications.
 
    ```bash
    just check-local-build      # Run once to verify setup
-   just build-run-dev-fastest  # 3-5x faster than containerized builds
+   just build-run-dev-fastest  # faster than containerized builds
    ```
 
    **🐳 Reliable (containerized, matches CI):**
@@ -54,7 +54,7 @@ sandboxed execution of modular applications.
 
 This project uses [Just](https://github.com/casey/just) for build automation with two approaches:
 
-**🚀 Local Builds (New!)** - Use your local Rust toolchain directly:
+**🚀 Local Builds** - Use your local Rust toolchain directly:
 - **3-5x faster** than containerized builds
 - Perfect for daily development iteration
 - Requires local Rust with `wasm32-wasip2` target
@@ -76,15 +76,15 @@ or `just --show <command>` to see detailed documentation for any specific comman
 
 ### Build & Run
 
-**🚀 Local Builds (fastest, 3-5x speedup):**
+**🚀 Local Builds (fastest):**
 * `just check-local-build` - Verify local Rust setup (run once)
-* `just build-run-dev-fastest` - **Fastest dev build** (~1-3 min, uses local Rust)
+* `just build-run-dev-fastest` - **Fastest dev build** (uses local Rust)
 * `just get-local-hermes-fast` - Build just Hermes locally
 * `just get-local-athena-fast` - Build just WASM modules locally
 
 **🐳 Containerized Builds (reliable, matches CI):**
-* `just build-run-dev` - **Development build** (~5-10 min, containerized)
-* `just build-run-all` - **Production build** (~8-20 min, includes all web assets)
+* `just build-run-dev` - **Development build** (containerized)
+* `just build-run-all` - **Production build** (includes all web assets)
 * `just dev-athena-fast` - Quick WASM rebuild for development iteration
 
 ### Utilities
