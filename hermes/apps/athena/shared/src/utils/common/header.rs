@@ -25,8 +25,9 @@ macro_rules! extract_header {
 #[cfg(test)]
 #[allow(clippy::needless_pass_by_value)]
 mod tests {
-    use shared::bindings::hermes::http_gateway::api::Headers;
     use test_case::test_case;
+
+    use crate::bindings::hermes::http_gateway::api::Headers;
 
     #[test_case(
         &vec![

@@ -23,10 +23,9 @@ mod database;
 mod rbac;
 mod response;
 mod token;
-mod utils;
 mod validation;
 
-use shared::{bindings::hermes::cardano, utils::log};
+use shared::{bindings::hermes::cardano, extract_header, utils::log};
 
 use crate::{
     hermes::http_gateway::api::{AuthRequest, Bstr, Headers, HttpResponse},

@@ -7,8 +7,9 @@
 use std::env;
 
 use anyhow::{bail, Result};
+use shared::extract_header;
 
-use crate::{extract_header, hermes::http_gateway::api::Headers};
+use crate::hermes::http_gateway::api::Headers;
 
 /// The header name that holds the API Key
 pub(crate) const API_KEY_HEADER: &str = "X-API-Key";
