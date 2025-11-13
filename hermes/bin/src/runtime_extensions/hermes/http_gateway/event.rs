@@ -6,7 +6,7 @@
 use std::{collections::HashSet, env, result::Result::Ok, sync::mpsc::Sender};
 
 use hyper::{self, body::Bytes};
-use reqwest::{blocking, Method as request};
+use reqwest::{Method as request, blocking};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use url::Url;
@@ -341,10 +341,9 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (name.to_string(), vec![value
-                    .to_str()
-                    .unwrap_or("")
-                    .to_string()])
+                (name.to_string(), vec![
+                    value.to_str().unwrap_or("").to_string(),
+                ])
             })
             .collect();
 

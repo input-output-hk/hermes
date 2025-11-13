@@ -1,7 +1,7 @@
 //! `wasm::Module` benchmark
 #![allow(missing_docs, clippy::missing_docs_in_private_items)]
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 fn module_benches(c: &mut Criterion) {
     let mut group = c.benchmark_group("WASM module execution");

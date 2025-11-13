@@ -1,12 +1,12 @@
 use std::sync::{Arc, LazyLock};
 
-use rustls::{pki_types::ServerName, ClientConfig, RootCertStore};
+use rustls::{ClientConfig, RootCertStore, pki_types::ServerName};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
     sync::oneshot,
 };
-use tokio_rustls::{client, TlsConnector};
+use tokio_rustls::{TlsConnector, client};
 use tracing::{error, trace};
 use webpki_roots::TLS_SERVER_ROOTS;
 

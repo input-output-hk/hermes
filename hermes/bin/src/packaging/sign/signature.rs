@@ -5,8 +5,8 @@
 use std::io::Read;
 
 use coset::{
-    iana, CborSerializable, CoseSign, CoseSignBuilder, CoseSignature, CoseSignatureBuilder, Header,
-    HeaderBuilder,
+    CborSerializable, CoseSign, CoseSignBuilder, CoseSignature, CoseSignatureBuilder, Header,
+    HeaderBuilder, iana,
 };
 
 use super::{
@@ -275,19 +275,21 @@ mod tests {
         let mut cose_sign_modified_alg = cose_sign.clone();
         cose_sign_modified_alg.protected.original_data = None;
         cose_sign_modified_alg.protected.header.alg = None;
-        assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_alg.clone().to_vec().unwrap()
-        )
-        .is_err());
+        assert!(
+            Signature::<serde_json::Value>::from_bytes(
+                &cose_sign_modified_alg.clone().to_vec().unwrap()
+            )
+            .is_err()
+        );
 
         cose_sign_modified_alg.protected.original_data = None;
         cose_sign_modified_alg.protected.header.alg = Some(
             coset::RegisteredLabelWithPrivate::Assigned(iana::Algorithm::ES256),
         );
-        assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_alg.to_vec().unwrap()
-        )
-        .is_err());
+        assert!(
+            Signature::<serde_json::Value>::from_bytes(&cose_sign_modified_alg.to_vec().unwrap())
+                .is_err()
+        );
 
         let mut cose_sign_modified_content_type = cose_sign.clone();
         cose_sign_modified_content_type.protected.original_data = None;
@@ -295,10 +297,12 @@ mod tests {
             .protected
             .header
             .content_type = None;
-        assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_content_type.clone().to_vec().unwrap()
-        )
-        .is_err());
+        assert!(
+            Signature::<serde_json::Value>::from_bytes(
+                &cose_sign_modified_content_type.clone().to_vec().unwrap()
+            )
+            .is_err()
+        );
 
         cose_sign_modified_content_type.protected.original_data = None;
         cose_sign_modified_content_type
@@ -307,10 +311,12 @@ mod tests {
             .content_type = Some(coset::RegisteredLabel::Assigned(
             iana::CoapContentFormat::Cbor,
         ));
-        assert!(Signature::<serde_json::Value>::from_bytes(
-            &cose_sign_modified_content_type.clone().to_vec().unwrap()
-        )
-        .is_err());
+        assert!(
+            Signature::<serde_json::Value>::from_bytes(
+                &cose_sign_modified_content_type.clone().to_vec().unwrap()
+            )
+            .is_err()
+        );
     }
 
     #[test]

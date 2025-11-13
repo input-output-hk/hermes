@@ -5,8 +5,8 @@
 use std::ptr::null_mut;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec, sqlite3_prepare_v3,
-    sqlite3_stmt, SQLITE_OK,
+    SQLITE_OK, sqlite3, sqlite3_close, sqlite3_errcode, sqlite3_errmsg, sqlite3_exec,
+    sqlite3_prepare_v3, sqlite3_stmt,
 };
 use stringzilla::stringzilla::StringZillableBinary;
 

@@ -1,8 +1,8 @@
 //! Permissions state management of the Hermes virtual file system.
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use dashmap::DashMap;

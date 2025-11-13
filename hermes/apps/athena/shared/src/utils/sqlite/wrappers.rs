@@ -2,7 +2,7 @@
 
 use std::{array, marker::PhantomData};
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use derive_more::{Deref, DerefMut};
 
 use crate::bindings::hermes::sqlite::api;
