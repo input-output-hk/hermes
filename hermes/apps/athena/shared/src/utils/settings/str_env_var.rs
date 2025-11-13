@@ -132,7 +132,7 @@ impl StringEnvVar {
             (default.to_string().as_str(), redacted, choices.as_str()).into(),
         );
 
-        let value = match T::from_str(choice.as_str()) {
+        match T::from_str(choice.as_str()) {
             Ok(var) => var,
             Err(error) => {
                 error!(
@@ -140,9 +140,7 @@ impl StringEnvVar {
                 );
                 default
             },
-        };
-
-        value
+        }
     }
 
     /// Get the read env var as a str.

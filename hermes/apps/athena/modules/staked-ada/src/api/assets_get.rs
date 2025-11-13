@@ -241,10 +241,10 @@ fn build_stake_info(
             continue;
         }
         // Filter out spent TXOs.
-        if let Some(spent_slot) = txo_info.spent_slot_no {
-            if spent_slot <= slot_num {
-                continue;
-            }
+        if let Some(spent_slot) = txo_info.spent_slot_no
+            && spent_slot <= slot_num
+        {
+            continue;
         }
 
         let value = AdaValue::try_from(txo_info.value)
