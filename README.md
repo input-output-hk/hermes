@@ -57,15 +57,18 @@ This project uses [Just](https://github.com/casey/just) with two build approache
 ### Build Commands
 
 **Main workflows:**
+
 * `just build-run-dev-fastest` - 🚀 **Daily development** (local builds, fastest)
 * `just build-run-dev` - 🐳 **Team consistency** (containerized, matches CI)  
 * `just build-run-all` - 📦 **Production** (full assets, deployments)
 
 **Quick rebuilds:**
+
 * `just dev-athena-fast` - WASM only (development)
 * `just dev-athena` - WASM only (production)
 
 **Setup:**
+
 * `just check-local-build` - Verify local Rust (run once)
 
 ### Other Commands
