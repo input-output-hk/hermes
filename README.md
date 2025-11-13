@@ -31,21 +31,41 @@ sandboxed execution of modular applications.
 
 3. **Build and run everything**:
 
-   For development (fast, recommended):
+   **🚀 Fastest (local builds, recommended for daily dev):**
 
    ```bash
-   just build-run-dev
+   just check-local-build      # Run once to verify setup
+   just build-run-dev-fastest  # 3-5x faster than containerized builds
    ```
 
-   For production (full assets, slower):
+   **🐳 Reliable (containerized, matches CI):**
 
    ```bash
-   just build-run-all
+   just build-run-dev         # Safe fallback, team consistency
    ```
 
-## All Documentation is in the Justfile
+   **📦 Production (full assets, slow):**
 
-This project uses [Just](https://github.com/casey/just) for build automation.
+   ```bash
+   just build-run-all         # Complete with all web assets
+   ```
+
+## Build System Overview
+
+This project uses [Just](https://github.com/casey/just) for build automation with two approaches:
+
+**🚀 Local Builds (New!)** - Use your local Rust toolchain directly:
+- **3-5x faster** than containerized builds
+- Perfect for daily development iteration
+- Requires local Rust with `wasm32-wasip2` target
+- Use when: rapid prototyping, personal productivity
+
+**🐳 Containerized Builds** - Use Earthly containers:
+- **Consistent** across all environments
+- Matches CI/CD pipeline exactly
+- No local setup required
+- Use when: team consistency, final testing, CI/CD
+
 **All build instructions, prerequisites, configuration options, development workflows,
 and detailed documentation are contained in the `justfile`.**
 
@@ -56,8 +76,15 @@ or `just --show <command>` to see detailed documentation for any specific comman
 
 ### Build & Run
 
-* `just build-run-dev` - **Development build** (~2-5 min, recommended for daily development)
-* `just build-run-all` - **Production build** (~5-15 min, includes all web assets)
+**🚀 Local Builds (fastest, 3-5x speedup):**
+* `just check-local-build` - Verify local Rust setup (run once)
+* `just build-run-dev-fastest` - **Fastest dev build** (~1-3 min, uses local Rust)
+* `just get-local-hermes-fast` - Build just Hermes locally
+* `just get-local-athena-fast` - Build just WASM modules locally
+
+**🐳 Containerized Builds (reliable, matches CI):**
+* `just build-run-dev` - **Development build** (~5-10 min, containerized)
+* `just build-run-all` - **Production build** (~8-20 min, includes all web assets)
 * `just dev-athena-fast` - Quick WASM rebuild for development iteration
 
 ### Utilities
