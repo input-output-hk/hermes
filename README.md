@@ -29,73 +29,52 @@ sandboxed execution of modular applications.
    just --list
    ```
 
-3. **Build and run everything**:
-
-   **🚀 Fastest (local builds, recommended for daily dev):**
+3. **Build and run:**
 
    ```bash
-   just check-local-build      # Run once to verify setup
-   just build-run-dev-fastest  # faster than containerized builds
+   # First time setup (run once)
+   just check-local-build
+   
+   # Choose your build approach:
+   just build-run-dev-fastest  # 🚀 Daily dev (local, fastest)
+   just build-run-dev          # 🐳 Team consistency (containerized)
+   just build-run-all          # 📦 Production (full assets)
    ```
 
-   **🐳 Reliable (containerized, matches CI):**
+## Build System
 
-   ```bash
-   just build-run-dev         # Safe fallback, team consistency
-   ```
+This project uses [Just](https://github.com/casey/just) with two build approaches:
 
-   **📦 Production (full assets, slow):**
+| Approach | When to Use | Requirements |
+|----------|-------------|-------------|
+| 🚀 **Local** | Daily development, rapid iteration | Local Rust + `wasm32-wasip2` |
+| 🐳 **Containerized** | Team consistency, CI/CD, final testing | Docker/Podman + Earthly |
 
-   ```bash
-   just build-run-all         # Complete with all web assets
-   ```
-
-## Build System Overview
-
-This project uses [Just](https://github.com/casey/just) for build automation with two approaches:
-
-**🚀 Local Builds** - Use your local Rust toolchain directly:
-- **3-5x faster** than containerized builds
-- Perfect for daily development iteration
-- Requires local Rust with `wasm32-wasip2` target
-- Use when: rapid prototyping, personal productivity
-
-**🐳 Containerized Builds** - Use Earthly containers:
-- **Consistent** across all environments
-- Matches CI/CD pipeline exactly
-- No local setup required
-- Use when: team consistency, final testing, CI/CD
-
-**All build instructions, prerequisites, configuration options, development workflows,
-and detailed documentation are contained in the `justfile`.**
-
-Run `just --list` to see all available commands with their descriptions,
-or `just --show <command>` to see detailed documentation for any specific command.
+**All detailed documentation is in the `justfile`.** Run `just --list` to see all commands.
 
 ## Key Commands
 
-### Build & Run
+### Build Commands
 
-**🚀 Local Builds (fastest):**
-* `just check-local-build` - Verify local Rust setup (run once)
-* `just build-run-dev-fastest` - **Fastest dev build** (uses local Rust)
-* `just get-local-hermes-fast` - Build just Hermes locally
-* `just get-local-athena-fast` - Build just WASM modules locally
+**Main workflows:**
+* `just build-run-dev-fastest` - 🚀 **Daily development** (local builds, fastest)
+* `just build-run-dev` - 🐳 **Team consistency** (containerized, matches CI)  
+* `just build-run-all` - 📦 **Production** (full assets, deployments)
 
-**🐳 Containerized Builds (reliable, matches CI):**
-* `just build-run-dev` - **Development build** (containerized)
-* `just build-run-all` - **Production build** (includes all web assets)
-* `just dev-athena-fast` - Quick WASM rebuild for development iteration
+**Quick rebuilds:**
+* `just dev-athena-fast` - WASM only (development)
+* `just dev-athena` - WASM only (production)
 
-### Utilities
+**Setup:**
+* `just check-local-build` - Verify local Rust (run once)
 
-* `just status` - Show current build status and configuration
-* `just clean-hfs` - Clean up previous application state
-* `just --help` - Just command help
+### Other Commands
 
-For everything else - architecture, prerequisites, configuration,
-troubleshooting, development workflows - see the justfile documentation
-via `just --list`.
+* `just status` - Show build status
+* `just clean-hfs` - Clean application state  
+* `just --list` - See all available commands
+
+For detailed help: `just --show <command>`
 
 ## Development
 
