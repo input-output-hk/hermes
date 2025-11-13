@@ -2,8 +2,8 @@ use std::{
     net::SocketAddr,
     result::Result::Ok,
     sync::{
-        mpsc::{channel, Receiver, Sender},
         LazyLock,
+        mpsc::{Receiver, Sender, channel},
     },
     time::Duration,
 };
@@ -11,9 +11,8 @@ use std::{
 use anyhow::anyhow;
 use http_body_util::{BodyExt, Full};
 use hyper::{
-    self,
+    self, HeaderMap, Request, Response, StatusCode,
     body::{Body, Bytes, Incoming},
-    HeaderMap, Request, Response, StatusCode,
 };
 use regex::Regex;
 #[allow(unused_imports, reason = "`debug` used only in debug builds.")]

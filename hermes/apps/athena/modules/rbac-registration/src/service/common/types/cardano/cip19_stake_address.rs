@@ -2,7 +2,7 @@
 //!
 //! More information can be found in [CIP-19](https://cips.cardano.org/cip/CIP-19)
 
-use cardano_blockchain_types::{pallas_addresses::Address, StakeAddress};
+use cardano_blockchain_types::{StakeAddress, pallas_addresses::Address};
 
 /// Length of the decoded address.
 const DECODED_ADDR_LEN: usize = 29;

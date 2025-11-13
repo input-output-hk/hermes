@@ -1,16 +1,16 @@
 //! Core functionality implementation for the `SQLite` open function.
 
 use std::{
-    ffi::{c_int, c_void, CString},
+    ffi::{CString, c_int, c_void},
     path::{Path, PathBuf},
     time::Duration,
 };
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_busy_handler, sqlite3_db_filename, sqlite3_db_name, sqlite3_exec,
-    sqlite3_filename_database, sqlite3_filename_journal, sqlite3_filename_wal, sqlite3_open_v2,
-    sqlite3_soft_heap_limit64, sqlite3_wal_autocheckpoint, SQLITE_OK, SQLITE_OPEN_CREATE,
-    SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
+    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
+    SQLITE_OPEN_READWRITE, sqlite3, sqlite3_busy_handler, sqlite3_db_filename, sqlite3_db_name,
+    sqlite3_exec, sqlite3_filename_database, sqlite3_filename_journal, sqlite3_filename_wal,
+    sqlite3_open_v2, sqlite3_soft_heap_limit64, sqlite3_wal_autocheckpoint,
 };
 use rand::random;
 

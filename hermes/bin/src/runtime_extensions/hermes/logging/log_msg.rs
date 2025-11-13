@@ -29,7 +29,7 @@ pub(crate) fn log_message(
 mod tests_log_msg {
     use super::*;
     use crate::{
-        logger::{init, LoggerConfig},
+        logger::{LoggerConfig, init},
         runtime_extensions::bindings::hermes::logging::api::Level,
     };
 

@@ -20,12 +20,12 @@ use std::{env, error::Error, ffi::OsStr, fs, path::Path, sync::Arc, time::Instan
 
 use hermes::{
     app::ApplicationName,
-    runtime_extensions::hermes::integration_test::event::{execute_event, EventType},
+    runtime_extensions::hermes::integration_test::event::{EventType, execute_event},
     wasm::module::Module,
 };
 use libtest_mimic::{Arguments, Failed, Measurement, Trial};
 use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
-use tracing_subscriber::{fmt::time, FmtSubscriber};
+use tracing_subscriber::{FmtSubscriber, fmt::time};
 
 /// Init the logger
 #[allow(dead_code)]

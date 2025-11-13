@@ -1,6 +1,6 @@
 //! Transaction ID.
 
-use cardano_blockchain_types::hashes::{TransactionId, BLAKE_2B256_SIZE};
+use cardano_blockchain_types::hashes::{BLAKE_2B256_SIZE, TransactionId};
 
 use crate::utils::{common::types::string_types::impl_string_types, hex::as_hex_string};
 

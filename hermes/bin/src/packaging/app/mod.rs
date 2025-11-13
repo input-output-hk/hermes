@@ -13,6 +13,7 @@ pub(crate) use manifest::{Manifest, ManifestModule};
 pub(crate) use module_info::AppModuleInfo;
 
 use super::{
+    FileError, MissingPackageFileError,
     hash::Blake2b256,
     metadata::{Metadata, MetadataSchema},
     module::{self, ModulePackage},
@@ -22,13 +23,12 @@ use super::{
         keys::PrivateKey,
         signature::{Signature, SignaturePayloadEncoding},
     },
-    FileError, MissingPackageFileError,
 };
 use crate::{
     errors::Errors,
     hdf5::{
-        resources::{BytesResource, ResourceTrait},
         Dir, File, Path,
+        resources::{BytesResource, ResourceTrait},
     },
 };
 

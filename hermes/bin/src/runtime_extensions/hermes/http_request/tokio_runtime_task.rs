@@ -1,12 +1,12 @@
 use std::sync::{Arc, LazyLock};
 
-use rustls::{pki_types::ServerName, ClientConfig, RootCertStore};
+use rustls::{ClientConfig, RootCertStore, pki_types::ServerName};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
     sync::oneshot,
 };
-use tokio_rustls::{client, TlsConnector};
+use tokio_rustls::{TlsConnector, client};
 use tracing::{error, trace};
 use webpki_roots::TLS_SERVER_ROOTS;
 
@@ -167,7 +167,7 @@ impl Connection {
     ) -> Result<Vec<u8>, ErrorCode> {
         let mut response = Vec::new();
         match self {
-            Connection::Http(ref mut tcp_stream) => {
+            Connection::Http(tcp_stream) => {
                 tcp_stream.write_all(body).await.map_err(|err| {
                     error!("failed to send HTTP request: {err}");
                     ErrorCode::HttpSendFailed

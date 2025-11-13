@@ -7,9 +7,9 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::sqlite::api::Sqlite,
         hermes::sqlite::state::{
+            ObjectPointer,
             connection::{AppConnections, DbHandle},
             statement::AppStatement,
-            ObjectPointer,
         },
     },
 };

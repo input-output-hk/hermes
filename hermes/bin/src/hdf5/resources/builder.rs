@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Deserializer};
 
-use super::{fs::FsResource, uri::Uri, ResourceTrait};
+use super::{ResourceTrait, fs::FsResource, uri::Uri};
 
 /// Resource builder definition with the `serde::Deserialize` implementation.
 #[cfg_attr(debug_assertions, derive(Debug))]

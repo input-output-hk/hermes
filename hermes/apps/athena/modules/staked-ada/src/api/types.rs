@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use cardano_blockchain_types::{hashes::TransactionId, Slot, TxnIndex};
+use cardano_blockchain_types::{Slot, TxnIndex, hashes::TransactionId};
 use shared::utils::common::{
     objects::cardano::stake_info::FullStakeInfo, responses::WithErrorResponses,
 };

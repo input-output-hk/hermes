@@ -2,7 +2,7 @@
 
 use std::io::{Seek, SeekFrom};
 
-use super::state::{get_state, Descriptor};
+use super::state::{Descriptor, get_state};
 use crate::{
     hdf5::Path,
     runtime_context::HermesRuntimeContext,

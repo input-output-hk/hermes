@@ -1,8 +1,8 @@
 //! An application's module info object
 
 use super::{
-    module::{Config, ConfigInfo, SignaturePayload},
     Metadata, ModulePackage, Signature,
+    module::{Config, ConfigInfo, SignaturePayload},
 };
 use crate::{
     app::ApplicationName,
@@ -121,7 +121,7 @@ mod tests {
     use super::{
         super::{
             super::sign::{certificate::Certificate, keys::PrivateKey},
-            module::tests::{check_module_package_integrity, ModulePackageContent},
+            module::tests::{ModulePackageContent, check_module_package_integrity},
         },
         *,
     };
