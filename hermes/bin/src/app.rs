@@ -1,6 +1,9 @@
 //! Hermes app implementation.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Once},
+};
 
 use crate::{
     event::HermesEventPayload,
@@ -9,6 +12,19 @@ use crate::{
     vfs::Vfs,
     wasm::module::{Module, ModuleId},
 };
+
+/// Controls [`is_parallel_event_execution`] value.
+static NO_PARALLEL_EVENT_EXECUTION: Once = Once::new();
+
+/// Disables parallel event execution.
+pub(crate) fn set_no_parallel_event_execution() {
+    NO_PARALLEL_EVENT_EXECUTION.call_once(|| ());
+}
+
+/// Returns whether events are executed in parallel.
+pub(crate) fn is_parallel_event_execution() -> bool {
+    NO_PARALLEL_EVENT_EXECUTION.is_completed()
+}
 
 /// Hermes App Name type
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -137,9 +153,14 @@ pub(crate) fn module_dispatch_event(
     vfs: Arc<Vfs>,
     event: Arc<dyn HermesEventPayload>,
 ) {
-    pool::execute(move || {
+    let f = move || {
         if let Err(err) = module.execute_event(event.as_ref(), vfs) {
             tracing::error!("module event execution failed: {err}");
         }
-    });
+    };
+    if is_parallel_event_execution() {
+        pool::execute(f);
+    } else {
+        f();
+    }
 }

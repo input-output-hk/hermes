@@ -6,6 +6,7 @@ use clap::Args;
 use console::Emoji;
 
 use crate::{
+    app::set_no_parallel_event_execution,
     cli::Cli,
     event::queue::Exit,
     ipfs,
@@ -33,6 +34,10 @@ pub(crate) struct Run {
     /// Shutdown an application after the timeout (milliseconds)
     #[arg(long)]
     timeout_ms: Option<u64>,
+
+    /// Disables parallel execution of event handlers
+    #[arg(long, default_value_t = false)]
+    no_parallel: bool,
 }
 
 impl Run {
@@ -57,7 +62,12 @@ impl Run {
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
         let app = build_app(&package, hermes_home_dir)?;
 
-        pool::init()?;
+        if self.no_parallel {
+            set_no_parallel_event_execution();
+        } else {
+            pool::init()?;
+        }
+
         println!(
             "{} Loading application {}...",
             Emoji::new("🛠️", ""),
@@ -73,8 +83,10 @@ impl Run {
             exit_lock.wait()
         };
 
-        // Wait for scheduled tasks to be finished.
-        pool::terminate();
+        if !self.no_parallel {
+            // Wait for scheduled tasks to be finished.
+            pool::terminate();
+        }
         Ok(exit)
     }
 }

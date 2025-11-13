@@ -13,7 +13,7 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{Application, ApplicationName},
+    app::{set_no_parallel_event_execution, Application, ApplicationName},
     event::queue::Exit,
     ipfs, pool, reactor,
     runtime_extensions::init::trait_app::{RteApp, RteInitApp},
@@ -45,6 +45,10 @@ pub struct Playground {
     /// Shutdown the playground after the timeout (milliseconds)
     #[arg(long)]
     timeout_ms: Option<u64>,
+
+    /// Disables parallel execution of event handlers
+    #[arg(long, default_value_t = false)]
+    no_parallel: bool,
 }
 
 impl Playground {
@@ -67,7 +71,12 @@ impl Playground {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        pool::init()?;
+        if self.no_parallel {
+            set_no_parallel_event_execution();
+        } else {
+            pool::init()?;
+        }
+
         println!("{} Loading an application...", Emoji::new("🛠️", ""),);
 
         reactor::load_app(app)?;
@@ -78,8 +87,10 @@ impl Playground {
             exit_lock.wait()
         };
 
-        // Wait for scheduled tasks to be finished.
-        pool::terminate();
+        if !self.no_parallel {
+            // Wait for scheduled tasks to be finished.
+            pool::terminate();
+        }
         reactor::drop_all_apps()?;
         Ok(exit)
     }
