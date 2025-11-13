@@ -3,7 +3,7 @@
 use cardano_blockchain_types::StakeAddress;
 use shared::{
     bindings::hermes::{
-        logging::api::{log, Level},
+        logging::api::{Level, log},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
     sqlite_bind_parameters,
@@ -11,16 +11,16 @@ use shared::{
         log::log_error,
         sqlite::{
             operation::Operation,
-            statement::{column_as, DatabaseStatement},
+            statement::{DatabaseStatement, column_as},
         },
     },
 };
 
 use crate::{
     database::{
-        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
         RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
     },
     rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };
