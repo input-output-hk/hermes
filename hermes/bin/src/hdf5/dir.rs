@@ -1,8 +1,8 @@
 //! A Hermes HDF5 directory abstraction over the HDF5 Group object.
 
 use super::{
-    resources::{Hdf5Resource, ResourceTrait},
     File, Path,
+    resources::{Hdf5Resource, ResourceTrait},
 };
 use crate::errors::Errors;
 
@@ -276,9 +276,10 @@ mod tests {
 
         assert!(dir.get_dir(&dir_1.into()).is_ok());
         assert!(dir.get_dir(&format!("{dir_1}/{dir_2}").into()).is_ok());
-        assert!(dir
-            .get_dir(&format!("{dir_1}/{dir_2}/{dir_3}").into())
-            .is_ok());
+        assert!(
+            dir.get_dir(&format!("{dir_1}/{dir_2}/{dir_3}").into())
+                .is_ok()
+        );
         assert!(dir.get_dir(&Path::from_str("not_created_dir")).is_err());
 
         assert!(dir.create_dir(dir_1.into()).is_err());
@@ -307,18 +308,20 @@ mod tests {
 
         assert!(dir1.get_dir(&mounted_dir_name.into()).is_ok());
         assert_eq!(dir1.get_dirs(&"".into()).unwrap().len(), 1);
-        assert!(dir1
-            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}").into())
-            .is_ok());
+        assert!(
+            dir1.get_dir(&format!("{mounted_dir_name}/{child_dir_name}").into())
+                .is_ok()
+        );
         assert_eq!(
             dir1.get_dirs(&format!("{mounted_dir_name}/{child_dir_name}").into())
                 .unwrap()
                 .len(),
             1
         );
-        assert!(dir1
-            .get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
-            .is_ok());
+        assert!(
+            dir1.get_dir(&format!("{mounted_dir_name}/{child_dir_name}/{child_dir_name}").into())
+                .is_ok()
+        );
     }
 
     #[test]
@@ -410,19 +413,23 @@ mod tests {
             .unwrap();
 
         assert!(dir.get_dir(&base_dir_name.into()).is_ok());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{file_1_name}").into())
-            .is_ok());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{file_2_name}").into())
-            .is_ok());
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{file_1_name}").into())
+                .is_ok()
+        );
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{file_2_name}").into())
+                .is_ok()
+        );
 
-        assert!(dir
-            .get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
-            .is_ok());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
-            .is_ok());
+        assert!(
+            dir.get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
+                .is_ok()
+        );
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
+                .is_ok()
+        );
 
         // Remove directory from package
         assert!(
@@ -431,18 +438,22 @@ mod tests {
         );
         assert!(dir.remove_dir(base_dir_name.into()).is_ok());
         assert!(dir.get_dir(&base_dir_name.into()).is_err());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{file_1_name}").into())
-            .is_err());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{file_2_name}").into())
-            .is_err());
-        assert!(dir
-            .get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
-            .is_err());
-        assert!(dir
-            .get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
-            .is_err());
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{file_1_name}").into())
+                .is_err()
+        );
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{file_2_name}").into())
+                .is_err()
+        );
+        assert!(
+            dir.get_dir(&format!("{base_dir_name}/{child_dir_name}").into())
+                .is_err()
+        );
+        assert!(
+            dir.get_file(format!("{base_dir_name}/{child_dir_name}/{file_3_name}").into())
+                .is_err()
+        );
     }
 
     #[test]

@@ -7,18 +7,18 @@
 use std::{
     io::Read,
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
 };
 
 use anyhow::Context as _;
 use rusty_ulid::Ulid;
 use wasmtime::{
+    Store as WasmStore,
     component::{
         self, Component as WasmModule, InstancePre as WasmInstancePre, Linker as WasmLinker,
     },
-    Store as WasmStore,
 };
 
 use crate::{
@@ -26,7 +26,7 @@ use crate::{
     event::HermesEventPayload,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        bindings::{self, unchecked_exports, LinkOptions},
+        bindings::{self, LinkOptions, unchecked_exports},
         hermes::init::ComponentInstanceExt as _,
         init::{
             trait_event::{RteEvent, RteInitEvent},

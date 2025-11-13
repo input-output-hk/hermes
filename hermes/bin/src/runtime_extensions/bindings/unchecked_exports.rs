@@ -2,8 +2,8 @@
 //! use.
 
 use wasmtime::{
-    component::{self, ComponentNamedList, TypedFunc},
     AsContextMut,
+    component::{self, ComponentNamedList, TypedFunc},
 };
 
 use crate::runtime_context::HermesRuntimeContext;

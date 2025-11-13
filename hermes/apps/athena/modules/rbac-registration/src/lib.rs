@@ -91,7 +91,7 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
         Some(HttpGatewayResponse::Http(HttpResponse {
             code,
             headers: vec![("content-type".to_string(), vec![
-                "application/json".to_string()
+                "application/json".to_string(),
             ])],
             body: Bstr::from(match result.to_json() {
                 Ok(json) => json,

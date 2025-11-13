@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use super::super::{schema_validation::SchemaValidator, FileError};
+use super::super::{FileError, schema_validation::SchemaValidator};
 use crate::hdf5::resources::ResourceBuilder;
 
 /// WASM module package manifest.json definition.

@@ -3,7 +3,7 @@
 //! More information can be found in [CIP-19](https://cips.cardano.org/cip/CIP-19)
 
 use anyhow::bail;
-use cardano_blockchain_types::{pallas_addresses::Address, StakeAddress};
+use cardano_blockchain_types::{StakeAddress, pallas_addresses::Address};
 
 use crate::utils::common::types::string_types::impl_string_types;
 

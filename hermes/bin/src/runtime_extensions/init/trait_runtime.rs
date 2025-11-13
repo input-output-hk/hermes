@@ -6,7 +6,7 @@
 
 use std::sync::{LazyLock, Mutex};
 
-use tracing::{error, span, Level};
+use tracing::{Level, error, span};
 
 use crate::{
     add_rte_error, run_init_fini,
@@ -105,7 +105,9 @@ impl RteInitRuntime for RteRuntime {
         match IS_RTE_RUNTIME_INITIALIZED.lock() {
             Ok(mut initialized) => {
                 if *initialized {
-                    error!("Multiple calls to RTE Node `init()`.  This does not cause problems, but don't do it.");
+                    error!(
+                        "Multiple calls to RTE Node `init()`.  This does not cause problems, but don't do it."
+                    );
                     return Ok(()); // Not an error which should stop us running.
                 }
 
@@ -142,14 +144,18 @@ impl RteInitRuntime for RteRuntime {
         match IS_RTE_RUNTIME_INITIALIZED.lock() {
             Ok(initialized) => {
                 if !*initialized {
-                    error!("RTE Node `fini()` called but runtimes are not initialized.  This does not cause problems by itself, but you probably did something very wrong.");
+                    error!(
+                        "RTE Node `fini()` called but runtimes are not initialized.  This does not cause problems by itself, but you probably did something very wrong."
+                    );
                     return Ok(()); // Not an error which stops us ending ok.
                 }
 
                 match IS_RTE_RUNTIME_FINALIZED.lock() {
                     Ok(mut finalized) => {
                         if *finalized {
-                            error!("`runtime_fini()` called multiple times.  This does not cause problems by itself, but you probably did something very wrong.");
+                            error!(
+                                "`runtime_fini()` called multiple times.  This does not cause problems by itself, but you probably did something very wrong."
+                            );
                             return Ok(()); // Not fatal, but still wrong.
                         }
 
@@ -206,13 +212,15 @@ mod tests {
     fn test_all_registered_apps_have_constructors() {
         for registered in RTE_INIT_RUNTIME_REGISTRY.iter() {
             // Check all registered App Initializers have constructors.
-            assert!(registered.instanciate().is_some(), "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
-                    registered.name(),
-                    registered.path(),
-                    registered.file(),
-                    registered.trait_name(),
-                    registered.module_path(),
-                );
+            assert!(
+                registered.instanciate().is_some(),
+                "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
+                registered.name(),
+                registered.path(),
+                registered.file(),
+                registered.trait_name(),
+                registered.module_path(),
+            );
         }
     }
 }

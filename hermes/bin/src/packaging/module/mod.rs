@@ -16,6 +16,7 @@ pub(crate) use manifest::{Manifest, ManifestConfig};
 pub(crate) use settings::SettingsSchema;
 
 use super::{
+    FileError, MissingPackageFileError,
     metadata::{Metadata, MetadataSchema},
     package::Package,
     sign::{
@@ -23,14 +24,13 @@ use super::{
         keys::PrivateKey,
         signature::{Signature, SignaturePayloadEncoding},
     },
-    FileError, MissingPackageFileError,
 };
 use crate::{
     app::ApplicationName,
     errors::Errors,
     hdf5::{
-        resources::{bytes::BytesResource, ResourceTrait},
         Dir, File, Path,
+        resources::{ResourceTrait, bytes::BytesResource},
     },
     wasm::module::Module,
 };

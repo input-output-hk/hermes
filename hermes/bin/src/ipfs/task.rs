@@ -9,7 +9,7 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
-    event::{queue::send, HermesEvent},
+    event::{HermesEvent, queue::send},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, MessageData, PeerId, PubsubMessage, PubsubTopic,

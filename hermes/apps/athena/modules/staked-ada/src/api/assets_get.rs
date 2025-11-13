@@ -5,8 +5,8 @@ use std::collections::{HashMap, HashSet};
 use cardano_blockchain_types::StakeAddress;
 use shared::{
     database::staked_ada::{
-        get_txi_by_txn_ids, get_txo_assets_by_stake_address, get_txo_by_stake_address,
-        update_txo_spent, UpdateTxoSpentParams,
+        UpdateTxoSpentParams, get_txi_by_txn_ids, get_txo_assets_by_stake_address,
+        get_txo_by_stake_address, update_txo_spent,
     },
     utils::{
         common::{
@@ -241,10 +241,10 @@ fn build_stake_info(
             continue;
         }
         // Filter out spent TXOs.
-        if let Some(spent_slot) = txo_info.spent_slot_no {
-            if spent_slot <= slot_num {
-                continue;
-            }
+        if let Some(spent_slot) = txo_info.spent_slot_no
+            && spent_slot <= slot_num
+        {
+            continue;
         }
 
         let value = AdaValue::try_from(txo_info.value)

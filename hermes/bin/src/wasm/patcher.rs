@@ -601,12 +601,12 @@ impl Patcher {
 #[cfg(test)]
 mod tests {
     use wasmtime::{
-        component::{bindgen, Instance, Linker},
         AsContextMut, Engine, Store,
+        component::{Instance, Linker, bindgen},
     };
-    use wasmtime_wasi::{p2::add_to_linker_sync, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+    use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView, p2::add_to_linker_sync};
 
-    use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
+    use crate::wasm::patcher::{MAGIC, Patcher, WasmInternals};
 
     const LINEAR_MEMORY_PAGE_SIZE_BYTES: u32 = 65536;
 
@@ -1187,9 +1187,11 @@ mod tests {
         let expected_pattern: Vec<u8> = std::iter::repeat_n([0xAA, 0xBB, 0xCC, 0xDD], 1024 / 4)
             .flatten()
             .collect();
-        assert!(linear_memory
-            .windows(1024)
-            .any(|window| window == expected_pattern));
+        assert!(
+            linear_memory
+                .windows(1024)
+                .any(|window| window == expected_pattern)
+        );
     }
 
     struct MyCtx {

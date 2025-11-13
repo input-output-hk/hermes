@@ -166,10 +166,10 @@ where WitType: 'static
     /// Application not found error message.
     fn app_not_found_err() -> wasmtime::Error {
         let msg = format!(
-        "Application not found for resource <{}, {}>, need to add application first by calling `add_app`",
-        type_name::<WitType>(),
-        type_name::<RustType>()
-    );
+            "Application not found for resource <{}, {}>, need to add application first by calling `add_app`",
+            type_name::<WitType>(),
+            type_name::<RustType>()
+        );
         wasmtime::Error::msg(msg)
     }
 }

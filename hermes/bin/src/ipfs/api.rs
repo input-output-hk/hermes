@@ -1,5 +1,5 @@
 //! Hermes IPFS State API
-use super::{is_valid_dht_content, is_valid_pubsub_content, HERMES_IPFS};
+use super::{HERMES_IPFS, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{

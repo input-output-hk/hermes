@@ -13,10 +13,10 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    rust_ipfs::dummy, AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath, rust_ipfs::dummy,
 };
 use once_cell::sync::OnceCell;
-use task::{ipfs_command_handler, IpfsCommand};
+use task::{IpfsCommand, ipfs_command_handler};
 use tokio::{
     runtime::Builder,
     sync::{mpsc, oneshot},
