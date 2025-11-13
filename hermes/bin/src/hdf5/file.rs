@@ -1,6 +1,7 @@
 //! A Hermes HDF5 file abstraction over the HDF5 dataset object.
 
 use super::Path;
+use crate::hdf5::compression::enable_compression;
 
 /// Hermes HDF5 file object, wrapper of `hdf5::Dataset`
 pub(crate) struct File {
@@ -45,13 +46,10 @@ impl File {
     ) -> anyhow::Result<Self> {
         let builder = group.new_dataset_builder();
         let shape = hdf5::SimpleExtents::resizable([0]);
-        // COMPRESSION DISABLED: For faster development builds
-        // To re-enable compression, uncomment the lines below and comment out the builder line:
-        // let hdf5_ds = enable_compression(builder)
-        //     .empty::<u8>()
-        //     .shape(shape)
-        //     .create(file_name)?;
-        let hdf5_ds = builder.empty::<u8>().shape(shape).create(file_name)?;
+        let hdf5_ds = enable_compression(builder)
+            .empty::<u8>()
+            .shape(shape)
+            .create(file_name)?;
         Ok(Self { hdf5_ds, pos: 0 })
     }
 
