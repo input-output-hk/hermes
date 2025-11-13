@@ -82,7 +82,7 @@ interface api {
     /// Evict peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
     /// Publish a message to a topic.
-    pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<message-id, errno>;
+    pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<_, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }

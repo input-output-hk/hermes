@@ -31,6 +31,14 @@ sandboxed execution of modular applications.
 
 3. **Build and run everything**:
 
+   For development (fast, recommended):
+
+   ```bash
+   just build-run-dev
+   ```
+
+   For production (full assets, slower):
+
    ```bash
    just build-run-all
    ```
@@ -46,8 +54,16 @@ or `just --show <command>` to see detailed documentation for any specific comman
 
 ## Key Commands
 
-* `just build-run-all` - Complete workflow (recommended for first-time users)
+### Build & Run
+
+* `just build-run-dev` - **Development build** (~2-5 min, recommended for daily development)
+* `just build-run-all` - **Production build** (~5-15 min, includes all web assets)
+* `just dev-athena-fast` - Quick WASM rebuild for development iteration
+
+### Utilities
+
 * `just status` - Show current build status and configuration
+* `just clean-hfs` - Clean up previous application state
 * `just --help` - Just command help
 
 For everything else - architecture, prerequisites, configuration,

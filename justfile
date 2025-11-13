@@ -9,7 +9,8 @@
 #   - Docker or Podman - Container runtime for Earthly
 #
 # Quick Start:
-#   just build-run-all    # Complete workflow: build → package → run
+#   just build-run-dev    # Development workflow (fast): build → package → run
+#   just build-run-all    # Production workflow (full assets): build → package → run
 #
 # Development Workflow:
 #   just clean-hfs        # Clean up previous state
@@ -67,60 +68,165 @@ get-local-hermes:
     echo "📦 Binary location: $(realpath target/release/hermes)"
     echo "📏 Binary size: $(ls -lh target/release/hermes | awk '{print $5}')"
 
-# Build and package the Athena HTTP proxy WASM component
+# Internal: Shared build logic for Athena WASM components
 #
-# This target performs the complete build pipeline for the Athena application:
-#   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
-#   2. Compiles HTTP proxy module to WASM using wasm32-wasip2 target
-#   3. Packages the WASM module with its manifest and configuration (.hmod file)
-#   4. Creates the final application package (.happ file)
+# This function contains the common build pipeline used by both production and development builds.
+# It handles WASM compilation, module packaging, and application packaging.
 #
-# Build Pipeline:
-#   Generate WIT Bindings → Compile to WASM → Package Module (.hmod) → Package Application (.happ)
+# Parameters:
+#   mode: "prod" or "dev" - determines build variant and web assets handling
 #
-# Components Built:
-#   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
-#   - Module Package: Individual WASM component with manifest (.hmod format)
-#   - Application Package: Complete application bundle ready for deployment (.happ format)
-#
-# Output Files:
-#   - athena/modules/http-proxy/lib/http_proxy.wasm (WASM binary)
-#   - athena/app.happ (final application package)
-#
-# Duration: ~3-7 minutes (WASM compilation + packaging)
-# Dependencies: WIT files, Rust source code, manifest files
-get-local-athena:
+# The main difference between modes:
+#   - prod: Uses +local-build-http-proxy (includes full web assets)
+#   - dev: Uses +local-build-http-proxy-dev (uses placeholder web assets)
+_build-athena-common mode:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "🔨 Building HTTP proxy WASM component..."
+    # Set build-specific variables
+    if [ "{{mode}}" = "prod" ]; then
+        HTTP_PROXY_TARGET="local-build-http-proxy"
+        BUILD_TYPE="PRODUCTION"
+        ASSETS_DESC="includes all web assets"
+        SUCCESS_MSG="🎉 PRODUCTION build and packaging complete!"
+        ASSETS_STATUS="🌐 Includes: Full web assets (assets/, canvaskit/, icons/)"
+    else
+        HTTP_PROXY_TARGET="local-build-http-proxy-dev"
+        BUILD_TYPE="DEV MODE"
+        ASSETS_DESC="minimal web assets"
+        SUCCESS_MSG="🎉 DEVELOPMENT build and packaging complete!"
+        ASSETS_STATUS="⚡ Development build: Uses placeholder web assets for faster iteration"
+        echo "⚡ Development mode: Skipping large web assets for faster builds"
+    fi
+
+    echo "🔨 Building HTTP proxy WASM component ($BUILD_TYPE)..."
     echo "📍 Module location: athena/modules"
     echo "🎯 Target: wasm32-wasip2 (WebAssembly System Interface Preview 2)"
 
-    # Step 1: Build WASM module using Earthly (local development target)
-    # This compiles Rust source to optimized WASM binary and saves locally
+    # Step 1: Build all WASM modules using Earthly IN PARALLEL
+    # The HTTP proxy module uses different targets for prod vs dev (web assets)
+    # Other modules use the same target regardless of mode
+    echo "🔧 Building WASM modules in parallel..."
+    echo "⚡ Starting 5 concurrent Earthly builds for faster compilation"
+    
+    # PARALLEL EXECUTION PATTERN:
+    # 1. Launch each build in a sub shell with '&' to run in background
+    # 2. Capture the Process ID (PID) with '$!' for each background job
+    # 3. Use 'wait $PID' to synchronize and collect exit codes
+    # 4. This allows all 5 modules to compile simultaneously instead of sequentially
+    #    Typical speedup: 5x faster than sequential builds
+    
+    # Start all builds in background processes (non-blocking)
+    (
+        echo "  📦 Building http-proxy module..."
+        earthly ./hermes/apps/athena/modules/http-proxy+$HTTP_PROXY_TARGET 
+    ) &
+    HTTP_PROXY_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building rbac-registration-indexer module..."
+        earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
+    ) &
+    RBAC_INDEXER_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building rbac-registration module..."
+        earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
+    ) &
+    RBAC_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building staked-ada-indexer module..."
+        earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
+    ) &
+    STAKED_INDEXER_PID=$!  # Capture PID of background process
+    
+    (
+        echo "  📦 Building staked-ada module..."
+        earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
+    ) &
+    STAKED_PID=$!  # Capture PID of background process
+    
+    # SYNCHRONIZATION PHASE:
+    # Wait for all background jobs to complete and collect their exit codes
+    # The '&&' and '||' operators provide success/failure reporting for each build
+    echo "⏳ Waiting for all parallel builds to complete..."
+    
+    # Wait for each process and report completion status
+    # 'wait $PID' blocks until that specific process finishes and returns its exit code
+    wait $HTTP_PROXY_PID && echo "  ✅ http-proxy build completed" || echo "  ❌ http-proxy build failed"
+    wait $RBAC_INDEXER_PID && echo "  ✅ rbac-registration-indexer build completed" || echo "  ❌ rbac-registration-indexer build failed"
+    wait $RBAC_PID && echo "  ✅ rbac-registration build completed" || echo "  ❌ rbac-registration build failed"
+    wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || echo "  ❌ staked-ada-indexer build failed"
+    wait $STAKED_PID && echo "  ✅ staked-ada build completed" || echo "  ❌ staked-ada build failed"
+    
+    echo "🎯 All parallel builds completed!"
 
-    earthly ./hermes/apps/athena/modules/http-proxy+local-build-http-proxy
-    earthly ./hermes/apps/athena/modules/rbac-registration-indexer+local-build-rbac-registration-indexer
-    earthly ./hermes/apps/athena/modules/rbac-registration+local-build-rbac-registration
-    earthly ./hermes/apps/athena/modules/staked-ada-indexer+local-build-staked-ada-indexer
-    earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
-    earthly ./hermes/apps/athena/modules/auth+local-build-auth
+    echo "✅ WASM compilation complete ($BUILD_TYPE - $ASSETS_DESC)"
 
-    echo "✅ WASM compilation complete"
+    echo "📦 Packaging modules with Hermes CLI in parallel..."
+    echo "📄 Using manifests from hermes/apps/athena/modules/*/lib/manifest_module.json"
 
-    echo "📦 Packaging module with Hermes CLI..."
-    echo "📄 Using manifest: hermes/apps/athena/modules/http-proxy/lib/manifest_module.json"
-
-    # Step 2: Package the WASM module with its configuration into .hmod format
-    # The .hmod file contains the WASM binary, manifest, and metadata for the module
-    target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
-    target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
-    echo "✅ Module packaging complete (.hmod file created)"
+    # Step 2: Package all WASM modules with their configurations into .hmod format IN PARALLEL
+    # The .hmod files contain the WASM binary, manifest, and metadata for each module
+    # This step takes the compiled WASM files and bundles them with their configuration
+    echo "⚡ Starting 5 concurrent module packaging operations..."
+    
+    # PARALLEL PACKAGING PATTERN:
+    # Same approach as the build step above, but for the Hermes CLI packaging operations
+    # Each 'hermes module package' command:
+    # 1. Reads the manifest_module.json configuration file
+    # 2. Locates the corresponding .wasm file (compiled in previous step)
+    # 3. Creates a .hmod file containing both the WASM binary and metadata
+    # 4. Validates the package structure and dependencies
+    # Running these in parallel saves significant time when packaging multiple modules
+    
+    # Start all packaging operations in background processes (non-blocking)
+    (
+        echo "  📦 Packaging http-proxy module..."
+        target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+    ) &
+    HTTP_PROXY_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging rbac-registration-indexer module..."
+        target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
+    ) &
+    RBAC_INDEXER_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging rbac-registration module..."
+        target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+    ) &
+    RBAC_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging staked-ada-indexer module..."
+        target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
+    ) &
+    STAKED_INDEXER_PKG_PID=$!  # Capture PID for synchronization
+    
+    (
+        echo "  📦 Packaging staked-ada module..."
+        target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
+    ) &
+    STAKED_PKG_PID=$!  # Capture PID for synchronization
+    
+    # SYNCHRONIZATION PHASE:
+    # Wait for all packaging processes to complete before proceeding to app packaging
+    # This ensures all .hmod files are ready before the final .happ creation
+    echo "⏳ Waiting for all parallel packaging operations to complete..."
+    
+    # Wait for each packaging process and report completion status
+    # Each 'wait' command blocks until that specific packaging operation finishes
+    wait $HTTP_PROXY_PKG_PID && echo "  ✅ http-proxy packaging completed" || echo "  ❌ http-proxy packaging failed"
+    wait $RBAC_INDEXER_PKG_PID && echo "  ✅ rbac-registration-indexer packaging completed" || echo "  ❌ rbac-registration-indexer packaging failed"
+    wait $RBAC_PKG_PID && echo "  ✅ rbac-registration packaging completed" || echo "  ❌ rbac-registration packaging failed"
+    wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || echo "  ❌ staked-ada-indexer packaging failed"
+    wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || echo "  ❌ staked-ada packaging failed"
+    
+    echo "🎯 All parallel packaging operations completed!"
+    echo "✅ Module packaging complete (.hmod files created)"
 
     echo "📦 Packaging application bundle..."
     echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
@@ -130,9 +236,68 @@ get-local-athena:
     target/release/hermes app package hermes/apps/athena/manifest_app.json
     echo "✅ Application packaging complete (.happ file created)"
 
-    echo "🎉 Build and packaging complete!"
-    echo "📦 Application package: hermes/apps/athena/app.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/app.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "$SUCCESS_MSG"
+    echo "📦 Application package: hermes/apps/athena/athena.happ"
+    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "$ASSETS_STATUS"
+
+# Build and package the Athena WASM components (PRODUCTION)
+#
+# This target performs the complete build pipeline for the Athena application:
+#   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
+#   2. Compiles all modules to WASM using wasm32-wasip2 target
+#   3. Downloads and packages ALL web assets (assets/, canvaskit/, icons/)
+#   4. Packages each WASM module with its manifest and configuration (.hmod files)
+#   5. Creates the final application package (.happ file)
+#
+# Build Pipeline:
+#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
+#
+# Components Built:
+#   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
+#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
+#   - Staked ADA Modules: staked-ada, staked-ada-indexer  
+#   - Full Web Assets: Large assets, canvaskit, icons (SLOW)
+#   - Module Packages: Individual WASM components with manifests (.hmod format)
+#   - Application Package: Complete application bundle ready for deployment (.happ format)
+#
+# Output Files:
+#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
+#   - hermes/apps/athena/athena.happ (final application package)
+#
+# Duration: ~5-15 minutes (WASM compilation + large web asset download/compression)
+# Dependencies: WIT files, Rust source code, manifest files
+# Use Case: Production builds, CI/CD, final deployments
+get-local-athena: (_build-athena-common "prod")
+
+# Build and package the Athena WASM components (DEVELOPMENT)
+#
+# This target performs a faster build pipeline for development iteration:
+#   1. Generates Rust bindings from WebAssembly Interface Types (WIT)
+#   2. Compiles all modules to WASM using wasm32-wasip2 target  
+#   3. Skips large web assets (uses placeholders instead)
+#   4. Packages each WASM module with its manifest and configuration (.hmod files)
+#   5. Creates the final application package (.happ file)
+#
+# Build Pipeline:
+#   Generate WIT Bindings → Compile to WASM → Package Modules (.hmod) → Package Application (.happ)
+#
+# Components Built:
+#   - HTTP Proxy Module: athena/modules/http-proxy/ (Rust → WASM)
+#   - RBAC Registration Modules: rbac-registration, rbac-registration-indexer
+#   - Staked ADA Modules: staked-ada, staked-ada-indexer
+#   - Minimal Web Assets: Placeholder files only (FAST)
+#   - Module Packages: Individual WASM components with manifests (.hmod format)
+#   - Application Package: Application bundle for development (.happ format)
+#
+# Output Files:
+#   - hermes/apps/athena/modules/*/lib/*.wasm (WASM binaries)
+#   - hermes/apps/athena/athena.happ (final application package)
+#
+# Duration: ~2-5 minutes (WASM compilation only, skips web assets)
+# Dependencies: WIT files, Rust source code, manifest files
+# Use Case: Development iteration, local testing, debugging
+get-local-athena-dev: (_build-athena-common "dev")
 
 # Clean up Hermes state files from user directory
 #
@@ -166,7 +331,7 @@ clean-hfs:
 #
 # Runtime Configuration:
 #   - Security: --untrusted flag enables maximum sandboxing
-#   - Package: Uses hermes/apps/athena/app.happ (must be built first)
+#   - Package: Uses hermes/apps/athena/athena.happ (must be built first)
 #   - HTTP Server: Typically runs on localhost:5000 (configurable in manifest)
 #
 # Environment Variables (configurable security policies):
@@ -189,7 +354,7 @@ run-athena:
     set -euo pipefail
 
     echo "🚀 Running Athena application..."
-    echo "📦 Package: hermes/apps/athena/app.happ"
+    echo "📦 Package: hermes/apps/athena/athena.happ"
     echo "🔒 Security: Running with --untrusted flag (maximum isolation)"
 
     # Validate prerequisites
@@ -198,7 +363,7 @@ run-athena:
         exit 1
     fi
 
-    if [ ! -f "hermes/apps/athena/app.happ" ]; then
+    if [ ! -f "hermes/apps/athena/athena.happ" ]; then
         echo "❌ Error: Application package not found. Run 'just get-local-athena' first."
         exit 1
     fi
@@ -218,44 +383,85 @@ run-athena:
 
     # Execute the application with security sandboxing
     # HERMES_LOG_LEVEL="debug"
-    target/release/hermes run --untrusted hermes/apps/athena/app.happ
+    target/release/hermes run --untrusted hermes/apps/athena/athena.happ
 
-# Complete build and run workflow - recommended for most use cases
+
+
+# Complete build and run workflow - PRODUCTION (recommended for deployments)
 #
-# This is the primary command for development and demonstration. It performs
+# This is the primary command for PRODUCTION builds and deployments. It performs
 # the complete workflow from clean state to running application:
 #
 # Workflow Steps:
 #   1. clean-hfs      - Clear previous application state
 #   2. get-local-hermes  - Compile the Hermes runtime engine
-#   3. get-local-athena   - Build and package WASM modules
+#   3. get-local-athena   - Build and package WASM modules with FULL web assets
 #   4. run-athena     - Launch the application
 #
 # When to use:
-#   ✅ First-time setup and builds
-#   ✅ Clean rebuilds after significant changes
-#   ✅ Demonstration and testing scenarios
-#   ✅ When unsure about current build state
+#   ✅ Production builds and deployments
+#   ✅ CI/CD pipelines
+#   ✅ Final testing with complete assets
+#   ✅ Release preparations
 #
-# Duration: ~5-12 minutes total (depending on system and cache state)
+# Duration: ~8-20 minutes total (includes large web asset download/compression)
 #
 # Alternative for incremental development:
-#   If only changing WASM module code: just get-local-athena && just run-athena
+#   Development builds: just build-run-dev (much faster)
+#   If only changing WASM module code: just get-local-athena-dev && just run-athena
 #   If only changing engine code: just get-local-hermes && just run-athena
 #
 # Environment Variables: Same as run-athena (see above)
 # Example with custom config: REDIRECT_ALLOWED_HOSTS=example.com just build-run-all
 build-run-all: clean-hfs get-local-hermes get-local-athena clean-www run-athena
 
-# Development helper: Quick rebuild of just the WASM components
+# Complete build and run workflow - DEVELOPMENT (recommended for development)
+#
+# This is the primary command for DEVELOPMENT iteration. It performs
+# the complete workflow from clean state to running application, but skips
+# the heavy web asset downloading/compression for much faster builds.
+#
+# Workflow Steps:
+#   1. clean-hfs         - Clear previous application state
+#   2. get-local-hermes  - Compile the Hermes runtime engine  
+#   3. get-local-athena-dev - Build and package WASM modules with minimal web assets
+#   4. run-athena        - Launch the application
+#
+# When to use:
+#   ✅ Development iteration and testing
+#   ✅ Local development workflows
+#   ✅ Debugging and troubleshooting
+#   ✅ When you don't need full web assets
+#
+# Duration: ~5-10 minutes total (skips large web asset operations)
+#
+# Alternative commands:
+#   Full production build: just build-run-all (includes all web assets)
+#   Quick WASM rebuild: just dev-athena (skips engine rebuild)
+#
+# Environment Variables: Same as run-athena (see above)
+# Example: REDIRECT_ALLOWED_HOSTS=example.com just build-run-dev
+build-run-dev: clean-hfs get-local-hermes get-local-athena-dev clean-www run-athena
+
+# Development helper: Quick rebuild of just the WASM components (PRODUCTION)
 #
 # Use this when you're iterating on the HTTP proxy module code and don't need
-# to rebuild the entire Hermes engine. Faster than build-run-all for development.
+# to rebuild the entire Hermes engine. Includes full web assets.
 #
 # Workflow: Build WASM → Package → Run
-# Duration: ~3-5 minutes (skips Hermes engine compilation)
-# When to use: Iterating on athena/modules/http-proxy/src/ changes
+# Duration: ~5-10 minutes (skips Hermes engine compilation, includes web assets)
+# When to use: Iterating on athena/modules/http-proxy/src/ changes for production testing
 dev-athena: get-local-athena run-athena
+
+# Development helper: Quick rebuild of just the WASM components (DEVELOPMENT)
+#
+# Use this when you're iterating on the HTTP proxy module code and don't need
+# to rebuild the entire Hermes engine. Skips heavy web assets for faster builds.
+#
+# Workflow: Build WASM → Package → Run  
+# Duration: ~2-4 minutes (skips Hermes engine compilation and web assets)
+# When to use: Iterating on athena/modules/http-proxy/src/ changes for development
+dev-athena-fast: get-local-athena-dev run-athena
 
 # Show current build status and file information
 #
@@ -276,8 +482,8 @@ status:
     echo ""
 
     echo "📦 Athena Application:"
-    if [ -f "athena/app.happ" ]; then
-        echo "   ✅ Package: $(ls -lh athena/app.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
+    if [ -f "athena/athena.happ" ]; then
+        echo "   ✅ Package: $(ls -lh athena/athena.happ | awk '{print $5 " " $6 " " $7 " " $8}')"
     else
         echo "   ❌ Package: Not found (run 'just get-local-athena')"
     fi
@@ -295,9 +501,11 @@ status:
     echo ""
 
     echo "💡 Quick Commands:"
-    echo "   just build-run-all    # Complete rebuild and run"
-    echo "   just dev-athena       # Quick WASM rebuild and run"
-    echo "   just clean-hfs        # Clear application state"
+    echo "   just build-run-dev      # Development build (fast, minimal assets)"
+    echo "   just build-run-all      # Production build (slow, full assets)"
+    echo "   just dev-athena-fast    # Quick WASM rebuild (dev mode)"
+    echo "   just dev-athena         # Quick WASM rebuild (prod mode)"
+    echo "   just clean-hfs          # Clear application state"
 
 # Fix and Check Markdown files
 check-markdown:
