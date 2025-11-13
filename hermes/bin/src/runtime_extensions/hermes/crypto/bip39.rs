@@ -239,10 +239,10 @@ fn get_word_indices(
     for i in 0..word_count {
         let mut idx: u16 = 0;
         for j in 0..11 {
-            if let Some(value) = entropy_bits.get(i.saturating_mul(11).saturating_add(j)) {
-                if *value > 0 {
-                    idx = idx.saturating_add(1 << (10_usize.saturating_sub(j)));
-                }
+            if let Some(value) = entropy_bits.get(i.saturating_mul(11).saturating_add(j))
+                && *value > 0
+            {
+                idx = idx.saturating_add(1 << (10_usize.saturating_sub(j)));
             }
         }
         word_index_vec.push(idx);

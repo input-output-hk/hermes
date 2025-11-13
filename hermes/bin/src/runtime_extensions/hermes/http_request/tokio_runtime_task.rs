@@ -167,7 +167,7 @@ impl Connection {
     ) -> Result<Vec<u8>, ErrorCode> {
         let mut response = Vec::new();
         match self {
-            Connection::Http(ref mut tcp_stream) => {
+            Connection::Http(tcp_stream) => {
                 tcp_stream.write_all(body).await.map_err(|err| {
                     error!("failed to send HTTP request: {err}");
                     ErrorCode::HttpSendFailed

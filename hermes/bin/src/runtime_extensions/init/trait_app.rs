@@ -127,15 +127,13 @@ impl RteInitApp for RteApp {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = true,
             registry = RTE_INIT_APP_REGISTRY,
             rte_trait = RteInitApp,
             span_label = "Runtime Extension Node Initialization Span",
             (name)
-        );
-
-        errors
+        )
     }
 
     fn fini(
@@ -150,15 +148,13 @@ impl RteInitApp for RteApp {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = false,
             registry = RTE_INIT_APP_REGISTRY,
             rte_trait = RteInitApp,
             span_label = "Runtime Extension Node Initialization Span",
             (name)
-        );
-
-        errors
+        )
     }
 }
 
