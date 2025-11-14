@@ -63,12 +63,12 @@
 //! 4. Use `X+3` for the type of the `set-memory-raw-bytes()` function
 //!
 //! ## Discovery of the index of the next available type index in the component part
-//! 1. The component section can contain internal subsections with separate types.
-//!    Since the types from the inner subsections use a different index space, we must
-//!    skip them. Every such section is detected and removed from further processing
+//! 1. The component section can contain internal subsections with separate types. Since
+//!    the types from the inner subsections use a different index space, we must skip
+//!    them. Every such section is detected and removed from further processing
 //! 2. The same process is repeated for the pre-component section, however this time all
-//!    internal sections referring to instances are removed from further processing,
-//!    as these can also contain types from a different index space
+//!    internal sections referring to instances are removed from further processing, as
+//!    these can also contain types from a different index space
 //! 3. Count the number of type markers `type (;` in the component section, assign to `X`
 //! 4. Count the number of type markers `type (;` in the pre-component section, assign to
 //!    `Y`.
@@ -85,9 +85,9 @@
 //! 2. Use `X+1` as the next available alias index
 //!
 //! ## Discovery of the index of the next available component-level export
-//! 1. The component section can contain internal subsections with separate exports.
-//!    Since the exports from the inner subsections use a different index space, we must
-//!    skip them. Every such section is detected and removed from further processing.
+//! 1. The component section can contain internal subsections with separate exports. Since
+//!    the exports from the inner subsections use a different index space, we must skip
+//!    them. Every such section is detected and removed from further processing.
 //! 2. Count all export markers using the regex:
 //! ```text
 //! \(export \(.*\(func
@@ -158,9 +158,9 @@
 //! ```
 //!
 //! #### Canonical ABI lifted function
-//! "To lift" means to wrap a low-level core function into a high-level component function.
-//! Therefore we do not need to add any new code on the component level; instead we
-//! use canonical ABI lifting to add the necessary marshalling logic.
+//! "To lift" means to wrap a low-level core function into a high-level component
+//! function. Therefore we do not need to add any new code on the component level; instead
+//! we use canonical ABI lifting to add the necessary marshalling logic.
 //! ```text
 //!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
 //!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
@@ -183,12 +183,11 @@
 //! # Notes on the parser
 //! The core functionality of the patcher is a parenthesis-based parser used to navigate
 //! different parts of the .wat file. Given the starting point in the .wat file it is able
-//! to find the end of a given section by analyzing the pairs of open-close parentheses. It
-//! is context-aware, i.e. it will properly recognize and ignore parentheses inside strings.
-//! However, there are still some edge cases that can potentially break the current parser
-//! implementation. If such cases are encountered it is advised to switch to using the
-//! `wasmparser` tool.
-
+//! to find the end of a given section by analyzing the pairs of open-close parentheses.
+//! It is context-aware, i.e. it will properly recognize and ignore parentheses inside
+//! strings. However, there are still some edge cases that can potentially break the
+//! current parser implementation. If such cases are encountered it is advised to switch
+//! to using the `wasmparser` tool.
 
 // TODO[RC]: Patcher is not yet wired into the Hermes.
 #![allow(unused)]
