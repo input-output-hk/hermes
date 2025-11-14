@@ -11,10 +11,10 @@ use crate::{
             SubscriptionId, SyncSlot, Transaction, TransactionError, TxnHash, TxnIdx,
         },
         hermes::cardano::{
+            STATE, SubscriptionType,
             block::{get_block_relative, get_is_rollback, get_tips},
             chain_sync::spawn_chain_sync_task,
             network::{spawn_subscribe, sync_slot_to_point},
-            SubscriptionType, STATE,
         },
         utils::conversion::array_u8_32_to_tuple,
     },

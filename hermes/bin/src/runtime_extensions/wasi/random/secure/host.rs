@@ -1,6 +1,6 @@
 //! Random RNG host implementation for WASM runtime.
 
-use rand::{rngs::OsRng, TryRngCore};
+use rand::{TryRngCore, rngs::OsRng};
 
 use crate::{
     runtime_context::HermesRuntimeContext, runtime_extensions::bindings::wasi::random::random::Host,

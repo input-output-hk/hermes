@@ -3,7 +3,7 @@
 use cardano_blockchain_types::StakeAddress;
 use shared::{
     bindings::hermes::{
-        logging::api::{log, Level},
+        logging::api::{Level, log},
         sqlite::api::{Sqlite, Statement, StepResult, Value},
     },
     sqlite_bind_parameters,
@@ -11,16 +11,16 @@ use shared::{
         log::log_error,
         sqlite::{
             operation::Operation,
-            statement::{column_as, DatabaseStatement},
+            statement::{DatabaseStatement, column_as},
         },
     },
 };
 
 use crate::{
     database::{
-        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
         RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
+        query_builder::QueryBuilder, select::cat_id::select_rbac_registration_chain_from_cat_id,
     },
     rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };
@@ -264,7 +264,7 @@ fn get_registration_info_from_txn_id(
     DatabaseStatement::reset_statement(stmt, FUNCTION_NAME)?;
     sqlite_bind_parameters!(stmt, FUNCTION_NAME, txn_id.to_vec() => "txn_id")?;
 
-    let result = match stmt.step() {
+    match stmt.step() {
         // This should have data since txn_id is extract from `rbac_stake_address`
         Ok(StepResult::Row) => {
             Ok(Some((
@@ -274,9 +274,7 @@ fn get_registration_info_from_txn_id(
                 column_as::<u16>(stmt, 3, FUNCTION_NAME, "txn_idx")?,
             )))
         },
-        Ok(StepResult::Done) => {
-            return Ok(None);
-        },
+        Ok(StepResult::Done) => Ok(None),
         Err(e) => {
             let error = format!("Failed to step: {e}");
             log_error(
@@ -288,8 +286,7 @@ fn get_registration_info_from_txn_id(
             );
             anyhow::bail!(error);
         },
-    };
-    result
+    }
 }
 
 /// Construct a registration chain by walking back a chain

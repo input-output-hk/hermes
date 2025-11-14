@@ -2,12 +2,11 @@
 use std::os::raw::c_char;
 
 use libsqlite3_sys::{
-    sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
-    sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_blob, sqlite3_column_bytes,
-    sqlite3_column_double, sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type,
-    sqlite3_finalize, sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_BLOB, SQLITE_DONE,
-    SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_ROW, SQLITE_TEXT,
-    SQLITE_TRANSIENT,
+    SQLITE_BLOB, SQLITE_DONE, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_OK, SQLITE_ROW,
+    SQLITE_TEXT, SQLITE_TRANSIENT, sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int,
+    sqlite3_bind_int64, sqlite3_bind_null, sqlite3_bind_text, sqlite3_column_blob,
+    sqlite3_column_bytes, sqlite3_column_double, sqlite3_column_int64, sqlite3_column_text,
+    sqlite3_column_type, sqlite3_finalize, sqlite3_reset, sqlite3_step, sqlite3_stmt,
 };
 
 use crate::runtime_extensions::bindings::hermes::sqlite::api::{Errno, StepResult, Value};

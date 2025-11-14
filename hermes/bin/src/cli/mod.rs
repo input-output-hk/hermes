@@ -10,7 +10,7 @@ use std::{path::PathBuf, process::ExitCode};
 
 use build_info::BUILD_INFO;
 use clap::{Args, Parser, Subcommand};
-use console::{style, Emoji};
+use console::{Emoji, style};
 use tracing::error;
 
 use crate::{

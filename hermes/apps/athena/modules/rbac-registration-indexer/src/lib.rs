@@ -40,6 +40,8 @@ use shared::{
 };
 
 use crate::database::{
+    RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+    RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
     create::{create_rbac_persistent_tables, create_rbac_volatile_tables},
     data::{rbac_db::RbacDbData, rbac_stake_db::RbacStakeDbData},
     delete::{
@@ -52,8 +54,6 @@ use crate::database::{
         rbac_table::{insert_rbac_registration, prepare_insert_rbac_registration},
         stake_addr_table::{insert_rbac_stake_address, prepare_insert_rbac_stake_address},
     },
-    RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
-    RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME, RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
 };
 
 /// RBAC registration component.

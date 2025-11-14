@@ -49,8 +49,8 @@ impl Host for HermesRuntimeContext {
                     Err(err) => {
                         if let Err(errno) = close(db_ptr) {
                             anyhow::bail!(
-                            "failed to create connection resource: {err}, also failed to close the connection with errno: {errno}..."
-                        )
+                                "failed to create connection resource: {err}, also failed to close the connection with errno: {errno}..."
+                            )
                         }
                         anyhow::bail!(
                             "failed to create connection resource: {err}, closing the connection..."

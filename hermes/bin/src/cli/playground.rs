@@ -13,7 +13,7 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{set_no_parallel_event_execution, Application, ApplicationName},
+    app::{Application, ApplicationName, set_no_parallel_event_execution},
     cli::RuntimeConfig,
     event::queue::Exit,
     ipfs, pool, reactor,

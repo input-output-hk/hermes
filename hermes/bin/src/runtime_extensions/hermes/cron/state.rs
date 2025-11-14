@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     app::ApplicationName,
-    event::{queue::send, HermesEvent, TargetApp, TargetModule},
+    event::{HermesEvent, TargetApp, TargetModule, queue::send},
     runtime_extensions::{
         bindings::hermes::cron::api::{CronEventTag, CronTagged, Instant},
         hermes::cron::mkdelay_crontab,
@@ -408,9 +408,11 @@ mod tests {
         // List returns empty vec.
         assert!(state.ls_crontabs(&hermes_app, None).is_empty());
         // Delay returns false
-        assert!(!state
-            .delay_crontab(&hermes_app, 0, "test".to_string())
-            .unwrap());
+        assert!(
+            !state
+                .delay_crontab(&hermes_app, 0, "test".to_string())
+                .unwrap()
+        );
         // Remove returns false
         assert!(!state.rm_crontab(&hermes_app, CronTagged {
             when: "*".to_string(),

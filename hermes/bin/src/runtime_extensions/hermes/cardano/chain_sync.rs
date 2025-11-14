@@ -1,6 +1,6 @@
 //! Chain sync task
 
-use cardano_chain_follower::{turbo_downloader::DlConfig, ChainSyncConfig};
+use cardano_chain_follower::{ChainSyncConfig, turbo_downloader::DlConfig};
 
 use crate::runtime_extensions::hermes::cardano::{STATE, TOKIO_RUNTIME};
 
