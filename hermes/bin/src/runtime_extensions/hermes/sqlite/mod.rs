@@ -31,15 +31,15 @@ mod kernel;
 mod state;
 mod statement;
 
-/// Controls [`is_parallel_event_execution`] value.
+/// Controls [`is_serialized`] value.
 static SERIALIZED: Once = Once::new();
 
-/// Disables parallel event execution.
+/// Make SQLite access serialized.
 pub(crate) fn set_serialized() {
     SERIALIZED.call_once(|| ());
 }
 
-/// Returns whether events are executed in parallel.
+/// Returns SQLite access is serialized.
 pub(crate) fn is_serialized() -> bool {
     SERIALIZED.is_completed()
 }
