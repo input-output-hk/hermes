@@ -34,12 +34,12 @@ mod statement;
 /// Controls [`is_serialized`] value.
 static SERIALIZED: Once = Once::new();
 
-/// Make SQLite access serialized.
+/// Make `SQLite` access serialized.
 pub(crate) fn set_serialized() {
     SERIALIZED.call_once(|| ());
 }
 
-/// Returns SQLite access is serialized.
+/// Returns whether `SQLite` access is serialized.
 pub(crate) fn is_serialized() -> bool {
     SERIALIZED.is_completed()
 }
