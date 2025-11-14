@@ -14,9 +14,13 @@ use temp_dir::TempDir;
 
 use crate::{
     app::{set_no_parallel_event_execution, Application, ApplicationName},
+    cli::RuntimeConfig,
     event::queue::Exit,
     ipfs, pool, reactor,
-    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
+    runtime_extensions::{
+        hermes::sqlite,
+        init::trait_app::{RteApp, RteInitApp},
+    },
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -42,13 +46,9 @@ pub struct Playground {
     #[arg(long, default_value = "playground-app")]
     app_name: String,
 
-    /// Shutdown the playground after the timeout (milliseconds)
-    #[arg(long)]
-    timeout_ms: Option<u64>,
-
-    /// Disables parallel execution of event handlers
-    #[arg(long, default_value_t = false)]
-    no_parallel: bool,
+    /// See [`RuntimeConfig`] docs
+    #[clap(flatten)]
+    rt_config: RuntimeConfig,
 }
 
 impl Playground {
@@ -71,7 +71,11 @@ impl Playground {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        if self.no_parallel {
+        if self.rt_config.serialize_sqlite {
+            sqlite::set_serialized();
+        }
+
+        if self.rt_config.no_parallel {
             set_no_parallel_event_execution();
         } else {
             pool::init()?;
@@ -81,13 +85,13 @@ impl Playground {
 
         reactor::load_app(app)?;
 
-        let exit = if let Some(timeout_ms) = self.timeout_ms {
+        let exit = if let Some(timeout_ms) = self.rt_config.timeout_ms {
             exit_lock.wait_timeout(Duration::from_millis(timeout_ms))
         } else {
             exit_lock.wait()
         };
 
-        if !self.no_parallel {
+        if !self.rt_config.no_parallel {
             // Wait for scheduled tasks to be finished.
             pool::terminate();
         }

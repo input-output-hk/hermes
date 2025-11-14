@@ -9,7 +9,7 @@ mod run;
 use std::{path::PathBuf, process::ExitCode};
 
 use build_info::BUILD_INFO;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use console::{style, Emoji};
 use tracing::error;
 
@@ -126,4 +126,20 @@ impl Cli {
 
         exit_code
     }
+}
+
+/// Additional Hermes run arguments
+#[derive(Args, Debug)]
+pub(crate) struct RuntimeConfig {
+    /// Shutdown Hermes after the timeout (milliseconds)
+    #[arg(long)]
+    timeout_ms: Option<u64>,
+
+    /// Disables parallel execution of event handlers
+    #[arg(long, default_value_t = false)]
+    no_parallel: bool,
+
+    /// Serializes `SQLite` database access
+    #[arg(long, default_value_t = false)]
+    serialize_sqlite: bool,
 }

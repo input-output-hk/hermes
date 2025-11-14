@@ -23,7 +23,7 @@ pub(crate) fn set_no_parallel_event_execution() {
 
 /// Returns whether events are executed in parallel.
 pub(crate) fn is_parallel_event_execution() -> bool {
-    NO_PARALLEL_EVENT_EXECUTION.is_completed()
+    !NO_PARALLEL_EVENT_EXECUTION.is_completed()
 }
 
 /// Hermes App Name type
