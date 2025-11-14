@@ -158,6 +158,7 @@ rfind
 Rmax
 Rmin
 rngs
+rsplit
 rollouts
 rusqlite
 rustc

@@ -1,0 +1,30 @@
+[package]
+edition.workspace = true
+name = "auth"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shared = { version = "0.1.0", path = "../../shared", features = ["cardano-blockchain-types"] }
+anyhow = "1.0.98"
+ed25519-dalek = "2.1.1"
+base64 = "0.22.1"
+chrono = "0.4.38"
+regex = "1.11.1"
+thiserror = "1.0.68"
+rand = "0.8.5"
+serde_json = "1.0.142"
+serde = "1.0.226"
+
+cardano-blockchain-types = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs", tag = "cardano-blockchain-types/v0.0.8" }
+rbac-registration = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "rbac-registration/v0.0.14" }
+catalyst-types = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.10" }
+
+[dev-dependencies]
+test-case = "3.3.1"

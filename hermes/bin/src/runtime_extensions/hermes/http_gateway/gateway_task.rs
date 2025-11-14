@@ -45,8 +45,7 @@ impl Default for Config {
             ]
             .to_vec(),
             local_addr: SocketAddr::new([127, 0, 0, 1].into(), GATEWAY_PORT),
-            // TODO(bkioshn): change back when auth module is added
-            is_auth_activate: false,
+            is_auth_activate: true,
         }
     }
 }
