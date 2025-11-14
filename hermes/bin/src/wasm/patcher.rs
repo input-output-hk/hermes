@@ -29,17 +29,17 @@
 //! 4. Collect the list of all encountered core modules
 //!
 //! ## The extraction of the component part:
-//! 1. The entire section after the last encountered core module is considered to be the
-//!    component part.
+//! The entire section after the last encountered core module is considered to be the
+//! component part.
 //!
 //! ## The extraction of the pre-component part:
-//! 1. The entire section before the first encountered core module is considered to be the
-//!    pre-component part.
+//! The entire section before the first encountered core module is considered to be the
+//! pre-component part.
 //!
 //! # Step 3: Inject the core level functions into the first core module
 //!
 //! This process involves:
-//! 1. Injecting the core level functions into the first core module along with the
+//! 1. Injecting the core level functions into the *first* core module along with the
 //!    necessary types and exports.
 //! 2. Injecting code necessary to expose these functions on the component level.
 //!
@@ -78,16 +78,29 @@
 //!
 //! ## Discovery of the index of the alias of the core function in the component space
 //! 1. Count the number of existing function in the core module by using the following
-//!    regex `\(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func` and assign to `X`
+//!    regex
+//! ```text
+//! \(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func
+//! ```
+//! and assign to `X`
 //! 2. Use `X+1` as the next available alias index
 //!
 //! ## Discovery of the index of the next available component level export
 //! 1. The component section can contain an internal subsections with separate exports.
 //!    Since the exports from the inner subsections use a different index space, we must
 //!    skip them. Every such section is detected and removed from the further processing
-//! 2. Count all export markers using the regex `\(export \(.*\(func` and assign to `X`
+//! 2. Count all export markers using the regex
+//! ```text
+//! \(export \(.*\(func
+//! ```
+//! and assign to `X`
+//!
 //! 3. Count all functions already present in the component sections using the regex
-//!    `\(func\s+\(;?\d+;?\)\s+\(type\s+\d+\) \(canon` and assign to `Y`
+//! ```text
+//! \(func\s+\(;?\d+;?\)\s+\(type\s+\d+\) \(canon
+//! ```
+//! and assign to `Y`
+//!
 //! 4. Use `X+Y+1` as the next component level export index for `get-memory-size()`
 //! 5. Use `X+Y+3` as the next component level export index for `get-memory-raw-bytes()`
 //!    (please note that the index is incremented by 2 because both exports and functions
@@ -96,13 +109,68 @@
 //!
 //! ## The actual injection of the functions, types and aliases
 //! Once all the necessary indices are calculated the injection is prepared.
-//! 
+//!
 //! ### Core module
-//! 
-//! 
+//! This section shows the full code that is injected into the core module. The
+//! `{PLACEHOLDERS}` are replaced with correctly calculated values.
+//!
+//! #### Types
+//! ```text
+//!    (type (func (result i32)))
+//!    (type (func (param i32) (result i64)))
+//!    (type (func (param i32 i64)))
+//! ```
+//! ### Exports
+//! ```text
+//!    (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
+//!    (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
+//!    (export "{MAGIC}set-memory-raw-bytes" (func ${MAGIC}set-memory-raw-bytes))
+//! ```
+//! ### Functions
+//! ```text
+//!    (func ${MAGIC}get-memory-size (type {TYPE_ID}) (result i32)
+//!        memory.size
+//!    )
+//!    (func ${MAGIC}get-memory-raw-bytes (type {TYPE_ID}) (param i32) (result i64)
+//!        local.get 0
+//!        i64.load
+//!    )
+//!    (func ${MAGIC}set-memory-raw-bytes (type {TYPE_ID}) (param i32 i64)
+//!      local.get 0
+//!      local.get 1
+//!      i64.store
+//!    )
+//! ```
 //!
 //! ### Component section
 //!
+//! #### Types
+//! ```text
+//!    (type (func (result u32)))
+//!    (type (func (param "val" u32) (result s64)))
+//!    (type (func (param "val" u32) (param "val2" s64)))
+//! ```
+//! #### Aliases to core functions
+//! ```text
+//!    (alias core export 0 "{MAGIC}get-memory-size" (core func))
+//!    (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
+//!    (alias core export 0 "{MAGIC}set-memory-raw-bytes" (core func))
+//! ```
+//! #### Canonical ABI lifted function
+//! "To lift" means to wrap w low-level core function into high-level component function.
+//! Therefore we do not need to add any new code on the component level, but instead we
+//! use the ABI lift to add the necessary marshalling logic interface.
+//! ```text
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//! ```
+//! #### Exports
+//! ```text
+//!    (export "{MAGIC}get-memory-size" (func {FUNC_ID}))
+//!    (export "{MAGIC}get-memory-raw-bytes" (func {FUNC_ID}))
+//!    (export "{MAGIC}set-memory-raw-bytes" (func {FUNC_ID}))
+//! ```
 //! All parts with the added injections are stitched together and returned as a new .wat
 //! file. The parts are merged in the following order:
 //! 1. Pre-component section
