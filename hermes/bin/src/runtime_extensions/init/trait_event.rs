@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use dashmap::DashSet;
 use keyed_lock::sync::KeyedLock;
-use tracing::{error, span, Level};
+use tracing::{Level, error, span};
 
 use crate::{
     run_init_fini,
@@ -146,15 +146,13 @@ impl RteInitEvent for RteEvent {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = true,
             registry = RTE_INIT_EVENT_REGISTRY,
             rte_trait = RteInitEvent,
             span_label = "Runtime Extension Event Initialization Span",
             (ctx)
-        );
-
-        errors
+        )
     }
 
     fn fini(
@@ -176,15 +174,13 @@ impl RteInitEvent for RteEvent {
             return Ok(()); // Not an error which should stop us running.
         }
 
-        let errors = run_init_fini!(
+        run_init_fini!(
             init = false,
             registry = RTE_INIT_EVENT_REGISTRY,
             rte_trait = RteInitEvent,
             span_label = "Runtime Extension Event Finalization Span",
             (ctx)
-        );
-
-        errors
+        )
     }
 }
 
@@ -197,13 +193,15 @@ mod tests {
     fn test_all_registered_apps_have_constructors() {
         for registered in RTE_INIT_EVENT_REGISTRY.iter() {
             // Check all registered App Initializers have constructors.
-            assert!(registered.instanciate().is_some(), "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
-                    registered.name(),
-                    registered.path(),
-                    registered.file(),
-                    registered.trait_name(),
-                    registered.module_path(),
-                );
+            assert!(
+                registered.instanciate().is_some(),
+                "Missing Constructor in the registered runtime extension [ name:{} - path:{} - file:{} - trait_name:{} - module_path:{} ]",
+                registered.name(),
+                registered.path(),
+                registered.file(),
+                registered.trait_name(),
+                registered.module_path(),
+            );
         }
     }
 }

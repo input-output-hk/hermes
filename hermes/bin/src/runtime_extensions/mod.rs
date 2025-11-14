@@ -1,7 +1,7 @@
 //! Hermes runtime extensions
 #![allow(clippy::disallowed_macros)]
 
-use tracing::{span, Level};
+use tracing::{Level, span};
 
 mod app_config;
 pub(crate) mod bindings;

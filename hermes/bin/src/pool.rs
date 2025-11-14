@@ -12,7 +12,7 @@
 //! concurrently within this pool.
 
 use std::{
-    sync::{atomic::AtomicUsize, Condvar, Mutex},
+    sync::{Condvar, Mutex, atomic::AtomicUsize},
     thread::available_parallelism,
 };
 

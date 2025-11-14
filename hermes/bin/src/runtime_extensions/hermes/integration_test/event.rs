@@ -10,7 +10,7 @@ use once_cell::sync::OnceCell;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{module_dispatch_event, ApplicationName},
+    app::{ApplicationName, module_dispatch_event},
     event::HermesEventPayload,
     runtime_extensions::bindings::{hermes::integration_test::api::TestResult, unchecked_exports},
     vfs::VfsBootstrapper,

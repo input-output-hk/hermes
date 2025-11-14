@@ -2,8 +2,8 @@ use std::{path::Path, str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use reqwest::{
-    header::{HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, HOST},
     StatusCode,
+    header::{AUTHORIZATION, CONTENT_TYPE, HOST, HeaderName, HeaderValue},
 };
 use serial_test::serial;
 use temp_dir::TempDir;

@@ -1,6 +1,6 @@
 //! Utility functions for HTTP gateway
 
-use hyper::{body::Body, HeaderMap, Response};
+use hyper::{HeaderMap, Response, body::Body};
 
 use crate::runtime_extensions::hermes::http_gateway::event::HeadersKV;
 
@@ -9,10 +9,9 @@ pub(crate) fn extract_headers_kv(headers: &HeaderMap) -> HeadersKV {
     headers
         .iter()
         .map(|(name, value)| {
-            (name.to_string(), vec![value
-                .to_str()
-                .unwrap_or_default()
-                .to_string()])
+            (name.to_string(), vec![
+                value.to_str().unwrap_or_default().to_string(),
+            ])
         })
         .collect()
 }

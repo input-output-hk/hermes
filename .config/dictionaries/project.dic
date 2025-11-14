@@ -50,6 +50,7 @@ dcbor
 Devnet
 DHKEM
 Diffie
+dorny
 dotenv
 dotenvy
 dotstar
@@ -218,3 +219,4 @@ xprv
 xpub
 zilla
 zillable
+rustup

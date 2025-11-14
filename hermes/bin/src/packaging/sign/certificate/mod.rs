@@ -6,7 +6,7 @@ use std::path::Path;
 
 use x509_cert::der::{DecodePem, Encode};
 
-use super::super::{hash::Blake2b256, sign::keys::PublicKey, FileError};
+use super::super::{FileError, hash::Blake2b256, sign::keys::PublicKey};
 
 /// x.509 cert instance.
 /// Wrapper over `x509_cert::Certificate`

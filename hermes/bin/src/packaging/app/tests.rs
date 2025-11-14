@@ -3,11 +3,11 @@
 use std::io::Write;
 
 use module::{
-    tests::{
-        check_package_dir_integrity, prepare_package_dir_dir, ModulePackageContent,
-        PackageDirContent,
-    },
     Config,
+    tests::{
+        ModulePackageContent, PackageDirContent, check_package_dir_integrity,
+        prepare_package_dir_dir,
+    },
 };
 use temp_dir::TempDir;
 
