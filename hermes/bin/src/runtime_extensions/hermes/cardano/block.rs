@@ -3,41 +3,27 @@
 use cardano_blockchain_types::{MultiEraBlock, Network, Point, Slot};
 use cardano_chain_follower::{ChainFollower, Kind};
 
+use crate::runtime_extensions::hermes::cardano::TOKIO_RUNTIME;
+
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
     network: Network,
     start: Option<u64>,
     step: i64,
 ) -> anyhow::Result<MultiEraBlock> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<MultiEraBlock> {
-        let point = if let Some(start_point) = start {
-            calculate_point_from_step(start_point, step)?
-        // If start is None, use the tip
-        } else {
-            Point::TIP
-        };
+    let point = if let Some(start_point) = start {
+        calculate_point_from_step(start_point, step)?
+    // If start is None, use the tip
+    } else {
+        Point::TIP
+    };
 
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to create Tokio runtime: {e}"));
-            },
-        };
+    let handle = TOKIO_RUNTIME.handle();
+    let block = handle
+        .block_on(ChainFollower::get_block(network, point.clone()))
+        .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
 
-        let block = rt
-            .block_on(ChainFollower::get_block(network, point.clone()))
-            .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
-
-        Ok(block.data)
-    });
-
-    handle
-        .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting block: {e:?}"))?
+    Ok(block.data)
 }
 
 /// Calculate point from start and step
@@ -59,25 +45,9 @@ fn calculate_point_from_step(
 
 /// Retrieves the current tips of the blockchain for the specified network.
 pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<(Slot, Slot)> {
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to create Tokio runtime: {e}"));
-            },
-        };
-
-        let (immutable_tip, live_tip) = rt.block_on(ChainFollower::get_tips(network));
-        Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
-    });
-
-    handle
-        .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting tips: {e:?}"))?
+    let handle = TOKIO_RUNTIME.handle();
+    let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(network));
+    Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
 }
 
 /// Checks if the block at the given slot is a rollback block or not.
@@ -85,31 +55,13 @@ pub(crate) fn get_is_rollback(
     network: Network,
     slot: Slot,
 ) -> anyhow::Result<Option<bool>> {
-    let handle = std::thread::spawn(move || -> anyhow::Result<Option<bool>> {
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(e) => {
-                return Err(anyhow::anyhow!("Failed to create Tokio runtime: {e}"));
-            },
-        };
-
-        let point = Point::fuzzy(slot);
-        let block = rt.block_on(ChainFollower::get_block(network, point));
-        match block {
-            // Block found
-            Some(block) => Ok(Some(block.kind == Kind::Rollback)),
-            // Block not found
-            None => Ok(None),
-        }
-    });
-
-    handle
-        .join()
-        .map_err(|e| anyhow::anyhow!("Thread panicked while getting block rollback: {e:?}"))?
+    let point = Point::fuzzy(slot);
+    let handle = TOKIO_RUNTIME.handle();
+    let block = handle.block_on(ChainFollower::get_block(network, point));
+    match block {
+        Some(block) => Ok(Some(block.kind == Kind::Rollback)),
+        None => Ok(None),
+    }
 }
 
 #[cfg(all(test, debug_assertions))]
