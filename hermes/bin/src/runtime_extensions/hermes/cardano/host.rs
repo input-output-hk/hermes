@@ -252,8 +252,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<bool> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.is_immutable())
     }
 
@@ -267,8 +267,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Result<bool, BlockError>> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         let is_rollback = get_is_rollback(block.network(), block.slot())?;
         match is_rollback {
             Some(is_rollback) => Ok(Ok(is_rollback)),
@@ -314,8 +314,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Slot> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.slot().into())
     }
 
@@ -328,8 +328,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Cbor> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.raw().clone())
     }
 
@@ -350,8 +350,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<u64> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.fork().into())
     }
 

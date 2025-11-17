@@ -25,7 +25,8 @@ pub(crate) struct ResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ResourceStorage<WitType, RustType>
-where WitType: 'static
+where
+    WitType: 'static,
 {
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
@@ -42,15 +43,9 @@ where WitType: 'static
         &self,
         object: RustType,
     ) -> wasmtime::component::Resource<WitType> {
-        let available_address = self.available_address.load(Ordering::Acquire);
+        // Allocate an id lock-free and insert the resource.
+        let available_address = self.available_address.fetch_add(1, Ordering::AcqRel);
         self.state.insert(available_address, object);
-
-        // Increment the value of the available address to 1,
-        // so that it can be used for the next resource.
-        // Under the assumption that `ResourceStorage` will not handle too many resources at once,
-        // and will not hold resources for too long, saturating increment is safe.
-        self.available_address
-            .store(available_address.saturating_add(1), Ordering::Release);
 
         wasmtime::component::Resource::new_own(available_address)
     }
@@ -69,6 +64,19 @@ where WitType: 'static
     ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
         self.state
             .get_mut(&resource.rep())
+            .ok_or(Self::resource_not_found_err())
+    }
+
+    /// Read-only access to a resource without acquiring an exclusive lock.
+    /// This returns a shared reference which won't block other readers or writers
+    /// for different shards and avoids exclusive `get_mut` locks when only
+    /// immutable access is needed.
+    pub(crate) fn get_object_shared<'a>(
+        &'a self,
+        resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<impl std::ops::Deref<Target = RustType> + 'a> {
+        self.state
+            .get(&resource.rep())
             .ok_or(Self::resource_not_found_err())
     }
 
@@ -118,7 +126,8 @@ pub(crate) struct ApplicationResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ApplicationResourceStorage<WitType, RustType>
-where WitType: 'static
+where
+    WitType: 'static,
 {
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
@@ -151,6 +160,18 @@ where WitType: 'static
     ) -> anyhow::Result<impl DerefMut<Target = ResourceStorage<WitType, RustType>> + 'a> {
         self.state
             .get_mut(app_name)
+            .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
+    }
+
+    /// Get application state from the resource manager (read-only, shared access).
+    /// This avoids exclusive locking and allows concurrent readers.
+    pub(crate) fn get_app_state_readonly<'a>(
+        &'a self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<impl std::ops::Deref<Target = ResourceStorage<WitType, RustType>> + 'a>
+    {
+        self.state
+            .get(app_name)
             .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
     }
 
