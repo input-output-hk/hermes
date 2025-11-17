@@ -148,7 +148,7 @@ mod tests {
         app::ApplicationName,
         runtime_extensions::hermes::sqlite::{
             connection::core::{self, close, execute, prepare},
-            kernel::open,
+            core::open,
         },
     };
 
