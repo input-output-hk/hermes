@@ -5,7 +5,7 @@ mod exit;
 use std::{
     ops::ControlFlow,
     process::ExitCode,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, SyncSender},
     thread::{self},
 };
 
@@ -23,7 +23,7 @@ static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 /// It is a singleton struct.
 struct HermesEventQueue {
     /// Hermes event queue sender
-    sender: Sender<ControlFlow<ExitCode, HermesEvent>>,
+    sender: SyncSender<ControlFlow<ExitCode, HermesEvent>>,
 }
 
 /// Creates a new instance of the `HermesEventQueue`.
@@ -34,7 +34,8 @@ struct HermesEventQueue {
 /// # Errors:
 /// - `AlreadyInitializedError`
 pub(crate) fn init() -> anyhow::Result<ExitLock> {
-    let (sender, receiver) = std::sync::mpsc::channel();
+    // Bounded channel provides backpressure when event processing falls behind
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1000);
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
