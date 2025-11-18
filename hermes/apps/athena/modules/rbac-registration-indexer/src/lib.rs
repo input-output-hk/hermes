@@ -56,6 +56,11 @@ use crate::database::{
     },
 };
 
+/// Instead of starting from genesis, start from a specific slot (block: ~2951007) before the RBAC data
+/// existed, relative to the time when the `rbac-registration` crate was first created in
+/// <https://github.com/input-output-hk/catalyst-libs> (Catalyst libs) – Dec 4, 2024.
+const RBAC_SLOT: u64 = 77_580_000;
+
 /// RBAC registration component.
 struct RbacRegistrationComponent;
 
@@ -320,10 +325,7 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
 
-        // Instead of starting from genesis, start from a specific slot just before RBAC data
-        // exist.
-        let slot = 80_374_283;
-        let subscribe_from = cardano::api::SyncSlot::Specific(slot);
+        let subscribe_from = cardano::api::SyncSlot::Specific(RBAC_SLOT);
         let network = cardano::api::CardanoNetwork::Preprod;
 
         let network_resource = match cardano::api::Network::new(network) {
