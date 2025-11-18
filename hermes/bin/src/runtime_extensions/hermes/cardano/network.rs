@@ -38,7 +38,8 @@ pub struct Handle {
 
 impl Handle {
     /// Sends a command to the chain follower executor task to stop following.
-    /// Uses non-blocking send and doesn't wait for confirmation to prevent shutdown hangs.
+    /// Uses non-blocking send and doesn't wait for confirmation to prevent shutdown
+    /// hangs.
     pub fn stop(&self) -> anyhow::Result<()> {
         // Use try_send to avoid blocking if the channel is full
         // Don't wait for response - just send the signal and move on

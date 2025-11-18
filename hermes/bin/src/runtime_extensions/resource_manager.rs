@@ -25,8 +25,7 @@ pub(crate) struct ResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ResourceStorage<WitType, RustType>
-where
-    WitType: 'static,
+where WitType: 'static
 {
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
@@ -132,8 +131,7 @@ pub(crate) struct ApplicationResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ApplicationResourceStorage<WitType, RustType>
-where
-    WitType: 'static,
+where WitType: 'static
 {
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
