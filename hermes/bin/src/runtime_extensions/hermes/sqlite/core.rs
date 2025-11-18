@@ -207,8 +207,8 @@ pub(super) fn open_with_persistent_memory(
     memory: bool,
     app_name: ApplicationName,
 ) -> Result<*mut sqlite3, Errno> {
-    // Internally `kernel::open` derives db path from `ApplicationName`, treating it as no
-    // more than a string. So, it is okay to substitute it at `kernel::open` level to
+    // Internally `core::open` derives db path from `ApplicationName`, treating it as no
+    // more than a string. So, it is okay to substitute it at `core::open` level to
     // create another file. Once the pointer is obtained, however, it must be bound to the
     // resource under the original `app_name`.
     let db_name = if memory {
