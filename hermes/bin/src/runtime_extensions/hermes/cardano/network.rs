@@ -11,7 +11,7 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::cardano::api::{CardanoNetwork, SubscriptionId, SyncSlot},
         hermes::cardano::{
-            CardanoError, STATE, SubscriptionType,
+            CardanoError, STATE, SubscriptionType, TOKIO_RUNTIME,
             block::get_tips,
             event::{build_and_send_block_event, build_and_send_roll_forward_event},
         },
@@ -75,30 +75,16 @@ pub(crate) fn spawn_subscribe(
 ) -> Handle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
     let arc_cmd_tx = Arc::new(cmd_tx);
-
-    std::thread::spawn(move || {
-        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        else {
-            error!(
-                error = "Failed to create Tokio runtime",
-                "Failed to spawn chain follower"
-            );
-            return;
-        };
-
-        rt.block_on(subscribe(
-            cmd_rx,
-            app,
-            module_id,
-            start,
-            network,
-            subscription_type,
-            subscription_id,
-        ));
-    });
+    let handle = TOKIO_RUNTIME.handle();
+    handle.spawn(subscribe(
+        cmd_rx,
+        app,
+        module_id,
+        start,
+        network,
+        subscription_type,
+        subscription_id,
+    ));
 
     Handle { cmd_tx: arc_cmd_tx }
 }
@@ -115,7 +101,7 @@ async fn subscribe(
     subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
-    let mut follower = ChainFollower::new(network, start, Point::TIP).await;
+    let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
 
     loop {
         tokio::select! {
@@ -213,13 +199,16 @@ pub(crate) fn sync_slot_to_point(
     slot: SyncSlot,
     network: Network,
 ) -> anyhow::Result<Point> {
-    let (immutable_tip, live_tip) = get_tips(network)?;
-    let immutable_tip = Point::fuzzy(immutable_tip);
-    let live_tip = Point::fuzzy(live_tip);
     match slot {
         SyncSlot::Genesis => Ok(Point::ORIGIN),
-        SyncSlot::Tip => Ok(live_tip),
-        SyncSlot::ImmutableTip => Ok(immutable_tip),
+        SyncSlot::Tip => {
+            let (_, live_tip) = get_tips(network)?;
+            Ok(Point::fuzzy(live_tip))
+        },
+        SyncSlot::ImmutableTip => {
+            let (immutable_tip, _) = get_tips(network)?;
+            Ok(Point::fuzzy(immutable_tip))
+        },
         SyncSlot::Specific(slot) => Ok(Point::fuzzy(slot.into())),
     }
 }

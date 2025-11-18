@@ -31,11 +31,12 @@ pub(crate) fn get_block_relative(
 
     // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
     let point_for_error = point.clone();
-    let block = TOKIO_RUNTIME
+    let handle = TOKIO_RUNTIME.handle();
+    let block = handle
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
-                ChainFollower::get_block(network, point),
+                ChainFollower::get_block(&network, point),
             )
             .await
         })
@@ -70,9 +71,10 @@ fn calculate_point_from_step(
 /// Retrieves the current tips of the blockchain for the specified network.
 pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
     // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
-    let (immutable_tip, live_tip) = TOKIO_RUNTIME
+    let handle = TOKIO_RUNTIME.handle();
+    let (immutable_tip, live_tip) = handle
         .block_on(async {
-            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
+            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(&network)).await
         })
         .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
@@ -85,11 +87,12 @@ pub(crate) fn get_is_rollback(
 ) -> anyhow::Result<Option<bool>> {
     let point = Point::fuzzy(slot);
     // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
-    let block = TOKIO_RUNTIME
+    let handle = TOKIO_RUNTIME.handle();
+    let block = handle
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
-                ChainFollower::get_block(network, point),
+                ChainFollower::get_block(&network, point),
             )
             .await
         })

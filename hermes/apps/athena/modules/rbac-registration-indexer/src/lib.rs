@@ -56,6 +56,41 @@ use crate::database::{
     },
 };
 
+/// Compile-time configuration.
+mod config {
+    use shared::bindings::hermes::cardano::api::{CardanoNetwork, SyncSlot};
+
+    /// Default preprod slot: Instead of starting from genesis, start from a specific slot (block: ~2951007) before the RBAC data
+    /// existed, relative to the time when the `rbac-registration` crate was first created in
+    /// <https://github.com/input-output-hk/catalyst-libs> (Catalyst libs) – Dec 4, 2024.
+    const RBAC_DEFAULT_SLOT_PREPROD: u64 = 77_580_000;
+
+    /// Default network set to preprod.
+    const RBAC_DEFAULT_NETWORK: CardanoNetwork = CardanoNetwork::Preprod;
+
+    /// Slot to subscribe from during initialization.
+    pub const SUBSCRIBE_FROM: SyncSlot =
+        match option_env!("RBAC_REGISTRATION_INDEXER_SUBSCRIBE_FROM") {
+            None => SyncSlot::Specific(RBAC_DEFAULT_SLOT_PREPROD),
+            Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
+            Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
+            Some(s) if matches!(s.as_bytes(), b"IMMUTABLE_TIP") => SyncSlot::ImmutableTip,
+            Some(s) => match u64::from_str_radix(s, 10) {
+                Ok(i) => SyncSlot::Specific(i),
+                Err(_) => panic!("non integer specific sync slot"),
+            },
+        };
+
+    /// Network to start subscribe from, default to preprod.
+    pub const NETWORK: CardanoNetwork = match option_env!("RBAC_REGISTRATION_INDEXER_NETWORK") {
+        None => RBAC_DEFAULT_NETWORK,
+        Some(s) if matches!(s.as_bytes(), b"MAINNET") => CardanoNetwork::Mainnet,
+        Some(s) if matches!(s.as_bytes(), b"PREPROD") => CardanoNetwork::Preprod,
+        Some(s) if matches!(s.as_bytes(), b"PREVIEW") => CardanoNetwork::Preview,
+        Some(_) => panic!("unsupported network"),
+    };
+}
+
 /// RBAC registration component.
 struct RbacRegistrationComponent;
 
@@ -205,7 +240,7 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         const FUNCTION_NAME: &str = "on_cardano_immutable_roll_forward";
         log::init(log::LevelFilter::Info);
 
-        let network_resource = match cardano::api::Network::new(subscription_id.get_network()) {
+        let network_resource = match cardano::api::Network::new(config::NETWORK) {
             Ok(nr) => nr,
             Err(e) => {
                 log_error(
@@ -320,44 +355,48 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
 
-        // Instead of starting from genesis, start from a specific slot just before RBAC data
-        // exist.
-        let slot = 80_374_283;
-        let subscribe_from = cardano::api::SyncSlot::Specific(slot);
-        let network = cardano::api::CardanoNetwork::Preprod;
-
-        let network_resource = match cardano::api::Network::new(network) {
+        let network_resource = match cardano::api::Network::new(config::NETWORK) {
             Ok(nr) => nr,
             Err(e) => {
                 log_error(
                     file!(),
                     FUNCTION_NAME,
                     "cardano::api::Network::new",
-                    &format!("Failed to create network resource {network:?}: {e}"),
+                    &format!(
+                        "Failed to create network resource {:?}: {e}",
+                        config::NETWORK
+                    ),
                     None,
                 );
                 return false;
             },
         };
 
-        let subscription_id_resource = match network_resource.subscribe_block(subscribe_from) {
-            Ok(id) => id,
-            Err(e) => {
-                log_error(
-                    file!(),
-                    FUNCTION_NAME,
-                    "network_resource.subscribe_block",
-                    &format!("Failed to subscribe block from {subscribe_from:?}: {e}"),
-                    None,
-                );
-                return false;
-            },
-        };
+        let subscription_id_resource =
+            match network_resource.subscribe_block(config::SUBSCRIBE_FROM) {
+                Ok(id) => id,
+                Err(e) => {
+                    log_error(
+                        file!(),
+                        FUNCTION_NAME,
+                        "network_resource.subscribe_block",
+                        &format!(
+                            "Failed to subscribe block from {:?}: {e}",
+                            config::SUBSCRIBE_FROM
+                        ),
+                        None,
+                    );
+                    return false;
+                },
+            };
 
         log_info(
             file!(),
             FUNCTION_NAME,
-            &format!("💫 Network {network:?}, with subscription id: {subscription_id_resource:?}"),
+            &format!(
+                "💫 Network {:?}, with subscription id: {subscription_id_resource:?}",
+                config::NETWORK
+            ),
             "",
             None,
         );
