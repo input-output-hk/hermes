@@ -25,8 +25,7 @@ pub(crate) struct ResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ResourceStorage<WitType, RustType>
-where
-    WitType: 'static,
+where WitType: 'static
 {
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
@@ -37,8 +36,8 @@ where
             // With 100+ threads inserting resources simultaneously in tight bursts
             // (e.g., all subscriptions receiving blocks at once), we need:
             // 1. Very high shard count (2048) for distribution (threads/shards ~= 0.05)
-            // 2. Large initial capacity (512K) to avoid DashMap resizes which require
-            //    locking all shards and can deadlock with concurrent inserts
+            // 2. Large initial capacity (512K) to avoid DashMap resizes which require locking all
+            //    shards and can deadlock with concurrent inserts
             //
             // Memory impact: ~512KB per ResourceStorage instance (pre-allocated hash tables)
             // but eliminates resize-related deadlocks in production with thousands of resources.
@@ -137,8 +136,7 @@ pub(crate) struct ApplicationResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ApplicationResourceStorage<WitType, RustType>
-where
-    WitType: 'static,
+where WitType: 'static
 {
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
