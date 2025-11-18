@@ -31,8 +31,11 @@ where
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            state: DashMap::new(),
-            available_address: AtomicU32::default(),
+            // Use 256 shards instead of default 16 to handle high concurrency.
+            // With 100+ threads inserting resources simultaneously, more shards
+            // reduce lock contention on each shard.
+            state: DashMap::with_capacity_and_shard_amount(1024, 256),
+            available_address: AtomicU32::new(0),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -132,7 +135,9 @@ where
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            state: DashMap::new(),
+            // Use 64 shards instead of default 16 to reduce contention when
+            // multiple applications are registering concurrently.
+            state: DashMap::with_capacity_and_shard_amount(128, 64),
         }
     }
 
