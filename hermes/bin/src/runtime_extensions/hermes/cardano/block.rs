@@ -20,7 +20,7 @@ pub(crate) fn get_block_relative(
 
     let handle = TOKIO_RUNTIME.handle();
     let block = handle
-        .block_on(ChainFollower::get_block(network, point.clone()))
+        .block_on(ChainFollower::get_block(&network, point.clone()))
         .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
 
     Ok(block.data)
@@ -46,7 +46,7 @@ fn calculate_point_from_step(
 /// Retrieves the current tips of the blockchain for the specified network.
 pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
     let handle = TOKIO_RUNTIME.handle();
-    let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(network));
+    let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(&network));
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
 }
 
@@ -57,7 +57,7 @@ pub(crate) fn get_is_rollback(
 ) -> anyhow::Result<Option<bool>> {
     let point = Point::fuzzy(slot);
     let handle = TOKIO_RUNTIME.handle();
-    let block = handle.block_on(ChainFollower::get_block(network, point));
+    let block = handle.block_on(ChainFollower::get_block(&network, point));
     match block {
         Some(block) => Ok(Some(block.kind == Kind::Rollback)),
         None => Ok(None),

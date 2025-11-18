@@ -84,7 +84,7 @@ async fn subscribe(
     subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
-    let mut follower = ChainFollower::new(network, start, Point::TIP).await;
+    let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
 
     loop {
         tokio::select! {
