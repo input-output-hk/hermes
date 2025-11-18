@@ -147,11 +147,12 @@ async fn subscribe(
                             error!(error="Failed to get block app state for app: {app}");
                             return
                         };
-                        // Create resource in DashMap (fast operation, microseconds).
-                        // Important: This happens BEFORE the bounded channel send().
-                        // If the event queue is full, send() will block, but the resource
-                        // is already created and consuming memory. This is why rate limiting
-                        // is necessary - it prevents resource accumulation.
+                        // Critical ordering: Resource creation happens BEFORE event queue send().
+                        // Even with a bounded channel providing backpressure, the resource is already
+                        // allocated in the DashMap before send() can block. Without rate limiting at
+                        // this point, we can accumulate thousands of resources waiting for queue space,
+                        // causing memory exhaustion. The rate limiter above ensures resources are created
+                        // no faster than WASM can consume them, preventing unbounded growth.
                         let block_resource = block_app_state.create_resource(block_data);
                         // Drop the app state reference immediately to release the lock
                         drop(block_app_state);
