@@ -38,11 +38,27 @@ pub struct Handle {
 
 impl Handle {
     /// Sends a command to the chain follower executor task to stop following.
+    /// Uses non-blocking send and doesn't wait for confirmation to prevent shutdown hangs.
     pub fn stop(&self) -> anyhow::Result<()> {
-        let (res_tx, res_rx) = tokio::sync::oneshot::channel();
-        self.cmd_tx.blocking_send(Command::Stop(res_tx))?;
-        drop(res_rx.blocking_recv());
-        Ok(())
+        // Use try_send to avoid blocking if the channel is full
+        // Don't wait for response - just send the signal and move on
+        match self
+            .cmd_tx
+            .try_send(Command::Stop(tokio::sync::oneshot::channel().0))
+        {
+            Ok(_) => {
+                tracing::debug!("Stop command sent to chain follower");
+                Ok(())
+            },
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to send stop command (task may already be stopped): {}",
+                    e
+                );
+                // Not a fatal error - task might already be stopped
+                Ok(())
+            },
+        }
     }
 }
 

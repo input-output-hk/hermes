@@ -15,6 +15,8 @@ pub(crate) fn spawn_chain_sync_task(chain: cardano_blockchain_types::Network) {
     if !STATE.sync_state.contains_key(&chain) {
         let handle = TOKIO_RUNTIME.handle();
         let join_handle = handle.spawn(async move {
+            // Make the task cancellable - note that ctrl_c can only be awaited once globally,
+            // so we use a spawned task that can be aborted instead
             if let Err(error) = sync_cfg.run().await {
                 tracing::error!(chain = %chain, error = %error, "Chain sync failed");
             }

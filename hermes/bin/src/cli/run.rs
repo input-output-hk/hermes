@@ -1,6 +1,6 @@
 //! Run cli command
 
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, process::ExitCode, time::Duration};
 
 use clap::Args;
 use console::Emoji;
@@ -72,6 +72,15 @@ impl Run {
         } else {
             exit_lock.wait()
         };
+
+        // Stop accepting new events first to prevent event queue from continuing to process
+        let exit_code = exit.get_exit_code().unwrap_or(ExitCode::SUCCESS);
+        if let Err(e) = crate::event::queue::shutdown(exit_code) {
+            tracing::warn!("Failed to shutdown event queue: {}", e);
+        }
+
+        // Shutdown chain sync tasks to prevent them from blocking process exit
+        crate::runtime_extensions::hermes::cardano::shutdown_chain_sync();
 
         // Wait for scheduled tasks to be finished.
         pool::terminate();

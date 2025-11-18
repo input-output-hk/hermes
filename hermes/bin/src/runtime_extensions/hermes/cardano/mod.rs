@@ -49,16 +49,14 @@ pub(crate) enum SubscriptionType {
 }
 
 /// Initialize state
-static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| {
-    State {
-        network: ApplicationResourceStorage::new(),
-        network_lookup: DashMap::new(),
-        block: ApplicationResourceStorage::new(),
-        transaction: ApplicationResourceStorage::new(),
-        subscription_id: ApplicationResourceStorage::new(),
-        subscriptions: DashMap::new(),
-        sync_state: DashMap::new(),
-    }
+static STATE: once_cell::sync::Lazy<State> = once_cell::sync::Lazy::new(|| State {
+    network: ApplicationResourceStorage::new(),
+    network_lookup: DashMap::new(),
+    block: ApplicationResourceStorage::new(),
+    transaction: ApplicationResourceStorage::new(),
+    subscription_id: ApplicationResourceStorage::new(),
+    subscriptions: DashMap::new(),
+    sync_state: DashMap::new(),
 });
 
 /// Advise Runtime Extensions of a new context
@@ -67,6 +65,38 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
     STATE.network.add_app(ctx.app_name().clone());
     STATE.transaction.add_app(ctx.app_name().clone());
     STATE.subscription_id.add_app(ctx.app_name().clone());
+}
+
+/// Shutdown all chain sync tasks gracefully.
+/// This should be called on application shutdown to cancel all running chain sync tasks
+/// and prevent them from blocking the shutdown process.
+pub(crate) fn shutdown_chain_sync() {
+    tracing::info!("Shutting down Cardano runtime extensions");
+
+    // First, stop all active subscriptions
+    // Note: We use fire-and-forget stop() to avoid deadlocks, which means subscription
+    // threads may still be processing for a brief moment after this returns
+    let subscription_ids: Vec<u32> = STATE.subscriptions.iter().map(|e| *e.key()).collect();
+    for id in subscription_ids {
+        if let Some(entry) = STATE.subscriptions.get(&id) {
+            let (_, handle) = entry.value();
+            if let Err(e) = handle.stop() {
+                tracing::warn!(subscription_id = id, error = ?e, "Failed to stop subscription");
+            }
+        }
+        STATE.subscriptions.remove(&id);
+    }
+
+    // Then abort all chain sync tasks
+    // Note: This immediately terminates tasks, which may interrupt in-progress operations
+    for entry in STATE.sync_state.iter() {
+        let network = entry.key();
+        tracing::debug!(network = %network, "Aborting chain sync task");
+        entry.value().abort();
+    }
+    STATE.sync_state.clear();
+
+    tracing::info!("Cardano runtime extensions shutdown complete");
 }
 
 /// Cardano Error.

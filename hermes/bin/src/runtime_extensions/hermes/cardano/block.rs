@@ -1,9 +1,16 @@
 //! Cardano Blockchain block implementation for WASM runtime.
 
+use std::time::Duration;
+
 use cardano_blockchain_types::{MultiEraBlock, Network, Point, Slot};
 use cardano_chain_follower::{ChainFollower, Kind};
 
 use crate::runtime_extensions::hermes::cardano::TOKIO_RUNTIME;
+
+/// Timeout for blocking operations to prevent indefinite hangs during shutdown.
+/// Set to 2 minutes to allow for slow network conditions and mithril downloads
+/// while still preventing complete deadlocks.
+const BLOCK_OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
@@ -20,7 +27,14 @@ pub(crate) fn get_block_relative(
 
     let handle = TOKIO_RUNTIME.handle();
     let block = handle
-        .block_on(ChainFollower::get_block(network, point.clone()))
+        .block_on(async {
+            tokio::time::timeout(
+                BLOCK_OPERATION_TIMEOUT,
+                ChainFollower::get_block(network, point.clone()),
+            )
+            .await
+        })
+        .map_err(|_| anyhow::anyhow!("Timeout fetching block at point {point}"))?
         .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
 
     Ok(block.data)
@@ -46,7 +60,11 @@ fn calculate_point_from_step(
 /// Retrieves the current tips of the blockchain for the specified network.
 pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
     let handle = TOKIO_RUNTIME.handle();
-    let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(network));
+    let (immutable_tip, live_tip) = handle
+        .block_on(async {
+            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
+        })
+        .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
 }
 
@@ -57,7 +75,15 @@ pub(crate) fn get_is_rollback(
 ) -> anyhow::Result<Option<bool>> {
     let point = Point::fuzzy(slot);
     let handle = TOKIO_RUNTIME.handle();
-    let block = handle.block_on(ChainFollower::get_block(network, point));
+    let block = handle
+        .block_on(async {
+            tokio::time::timeout(
+                BLOCK_OPERATION_TIMEOUT,
+                ChainFollower::get_block(network, point),
+            )
+            .await
+        })
+        .map_err(|_| anyhow::anyhow!("Timeout checking if block at slot {slot:?} is rollback"))?;
     match block {
         Some(block) => Ok(Some(block.kind == Kind::Rollback)),
         None => Ok(None),
