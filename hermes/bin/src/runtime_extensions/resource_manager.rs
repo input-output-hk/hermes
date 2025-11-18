@@ -31,10 +31,13 @@ where
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 256 shards instead of default 16 to handle high concurrency.
-            // With 100+ threads inserting resources simultaneously, more shards
-            // reduce lock contention on each shard.
-            state: DashMap::with_capacity_and_shard_amount(1024, 256),
+            // Use 2048 shards instead of default 16 to handle extreme concurrency.
+            // With 100+ threads inserting resources simultaneously in tight bursts
+            // (e.g., all subscriptions receiving blocks at once), we need very high
+            // shard count to avoid lock contention. 256 shards was still showing
+            // lock_exclusive_slow() contention, so increasing to 2048 for better
+            // distribution (threads/shards ~= 0.05, virtually eliminating collisions).
+            state: DashMap::with_capacity_and_shard_amount(1024, 2048),
             available_address: AtomicU32::new(0),
             _phantom: std::marker::PhantomData,
         }
@@ -135,9 +138,11 @@ where
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 64 shards instead of default 16 to reduce contention when
-            // multiple applications are registering concurrently.
-            state: DashMap::with_capacity_and_shard_amount(128, 64),
+            // Use 512 shards instead of default 16 to reduce contention when
+            // multiple applications are registering concurrently. Higher than
+            // ResourceStorage since app-level map has fewer total entries but
+            // needs to handle concurrent app initialization bursts.
+            state: DashMap::with_capacity_and_shard_amount(128, 512),
         }
     }
 
