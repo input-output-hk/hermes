@@ -120,12 +120,18 @@ async fn subscribe(
             update = follower.next() => {
                 match update {
                     Some(chain_update) => {
+                        // Clone block data BEFORE acquiring any locks to avoid holding locks during expensive clone
+                        let block_data = chain_update.block_data().clone();
+
                         let Ok(block_app_state) = STATE.block.get_app_state_readonly(&app) else {
                             // This should not failed
                             error!(error="Failed to get block app state for app: {app}");
                             return
                         };
-                        let block_resource = block_app_state.create_resource(chain_update.block_data().clone());
+                        let block_resource = block_app_state.create_resource(block_data);
+                        // Drop the app state reference immediately to release the lock
+                        drop(block_app_state);
+
                         match chain_update.kind {
                             Kind::Block if subscription_type == SubscriptionType::Block => {
                                  if let Err(e) = build_and_send_block_event(
