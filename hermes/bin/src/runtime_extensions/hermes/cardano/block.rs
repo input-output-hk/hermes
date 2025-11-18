@@ -12,6 +12,10 @@ use crate::runtime_extensions::hermes::cardano::TOKIO_RUNTIME;
 /// while still preventing complete deadlocks.
 const BLOCK_OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// Throttle delay between block operations to reduce load during indexing.
+/// Set to 0 for no throttling, or increase (e.g., 10ms) to slow down indexing.
+const BLOCK_OPERATION_THROTTLE: Duration = Duration::from_millis(10);
+
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
     network: Network,
@@ -25,17 +29,23 @@ pub(crate) fn get_block_relative(
         Point::TIP
     };
 
-    let handle = TOKIO_RUNTIME.handle();
-    let block = handle
+    // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
+    let point_for_error = point.clone();
+    let block = TOKIO_RUNTIME
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
-                ChainFollower::get_block(network, point.clone()),
+                ChainFollower::get_block(network, point),
             )
             .await
         })
-        .map_err(|_| anyhow::anyhow!("Timeout fetching block at point {point}"))?
-        .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
+        .map_err(|_| anyhow::anyhow!("Timeout fetching block at point {point_for_error}"))?
+        .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point_for_error}"))?;
+
+    // Throttle to reduce load during heavy indexing
+    if !BLOCK_OPERATION_THROTTLE.is_zero() {
+        std::thread::sleep(BLOCK_OPERATION_THROTTLE);
+    }
 
     Ok(block.data)
 }
@@ -59,8 +69,8 @@ fn calculate_point_from_step(
 
 /// Retrieves the current tips of the blockchain for the specified network.
 pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
-    let handle = TOKIO_RUNTIME.handle();
-    let (immutable_tip, live_tip) = handle
+    // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
+    let (immutable_tip, live_tip) = TOKIO_RUNTIME
         .block_on(async {
             tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
         })
@@ -74,8 +84,8 @@ pub(crate) fn get_is_rollback(
     slot: Slot,
 ) -> anyhow::Result<Option<bool>> {
     let point = Point::fuzzy(slot);
-    let handle = TOKIO_RUNTIME.handle();
-    let block = handle
+    // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
+    let block = TOKIO_RUNTIME
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
@@ -84,6 +94,12 @@ pub(crate) fn get_is_rollback(
             .await
         })
         .map_err(|_| anyhow::anyhow!("Timeout checking if block at slot {slot:?} is rollback"))?;
+
+    // Throttle to reduce load during heavy indexing
+    if !BLOCK_OPERATION_THROTTLE.is_zero() {
+        std::thread::sleep(BLOCK_OPERATION_THROTTLE);
+    }
+
     match block {
         Some(block) => Ok(Some(block.kind == Kind::Rollback)),
         None => Ok(None),
