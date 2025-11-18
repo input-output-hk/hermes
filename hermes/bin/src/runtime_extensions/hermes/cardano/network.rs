@@ -19,6 +19,10 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+/// Rate limit for block processing (milliseconds between blocks).
+/// Set to ~100 blocks/sec to prevent resource exhaustion during indexing.
+const BLOCK_RATE_LIMIT_MS: u64 = 10;
+
 /// Chain follower subscribe command
 enum Command {
     /// Instructs the chain follower to stop.
@@ -103,6 +107,16 @@ async fn subscribe(
 ) {
     let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
 
+    // Rate limiting: Process at most ~100 blocks per second to match WASM execution capacity.
+    // The network can produce hundreds of blocks/sec during indexing, but WASM processing
+    // takes tens of milliseconds per block (~30-50 blocks/sec). Without throttling, resources
+    // accumulate faster than they're consumed, leading to memory exhaustion and system
+    // freezes.
+    let mut rate_limiter =
+        tokio::time::interval(std::time::Duration::from_millis(BLOCK_RATE_LIMIT_MS));
+    // Don't build up missed ticks if we fall behind
+    rate_limiter.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
     loop {
         tokio::select! {
             res = cmd_rx.recv() => {
@@ -119,8 +133,10 @@ async fn subscribe(
                 }
             }
 
-            // Handle new block update and send the block event
-            update = follower.next() => {
+            // Wait for rate limiter before processing next block
+            _ = rate_limiter.tick() => {
+                // Only process a block if rate limit allows
+                let update = follower.next().await;
                 match update {
                     Some(chain_update) => {
                         // Clone block data BEFORE acquiring any locks to avoid holding locks during expensive clone
@@ -131,6 +147,11 @@ async fn subscribe(
                             error!(error="Failed to get block app state for app: {app}");
                             return
                         };
+                        // Create resource in DashMap (fast operation, microseconds).
+                        // Important: This happens BEFORE the bounded channel send().
+                        // If the event queue is full, send() will block, but the resource
+                        // is already created and consuming memory. This is why rate limiting
+                        // is necessary - it prevents resource accumulation.
                         let block_resource = block_app_state.create_resource(block_data);
                         // Drop the app state reference immediately to release the lock
                         drop(block_app_state);
