@@ -1,8 +1,8 @@
 VERSION 0.8
 
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.6.1 AS rust-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.6.1 AS go-ci
-IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.6.1 AS wasm-c-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/rust:v3.6.3 AS rust-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/go:v3.6.3 AS go-ci
+IMPORT github.com/input-output-hk/catalyst-ci/earthly/wasm/c:v3.6.3 AS wasm-c-ci
 
 # Use when debugging cat-ci locally.
 # IMPORT ../../catalyst-ci/earthly/rust AS rust-ci
