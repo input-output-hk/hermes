@@ -80,8 +80,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE
             .subscription_id
@@ -131,8 +131,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE
             .subscription_id
@@ -193,8 +193,8 @@ impl HostNetwork for HermesRuntimeContext {
         start: Option<Slot>,
         step: i64,
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         let multi_era_block = match get_block_relative(*network, start, step) {
             Ok(block) => block,
             Err(e) => {
@@ -218,8 +218,8 @@ impl HostNetwork for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         let (immutable_tip, mutable_tip) = match get_tips(*network) {
             Ok(tips) => tips,
             Err(e) => {
@@ -235,8 +235,12 @@ impl HostNetwork for HermesRuntimeContext {
         rep: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<()> {
         // Remove from resource manager
+        let network = {
+            let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+            *app_state.get_object_shared(&rep)?
+        };
+        #[allow(unused_mut)]
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = *app_state.get_object(&rep)?;
         app_state.delete_resource(rep)?;
         // Remove from lookup
         let key = (self.app_name().clone(), network);
@@ -297,8 +301,8 @@ impl HostBlock for HermesRuntimeContext {
         index: TxnIdx,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Transaction>, TransactionError>>
     {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         // Check whether the data in the index exists
         if block.txs().get(usize::from(index)).is_none() {
             return Ok(Err(TransactionError::TxnNotFound));
@@ -385,8 +389,8 @@ impl HostTransaction for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Transaction>,
         label: u64,
     ) -> wasmtime::Result<Option<Cbor>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let Some(metadata) = object.0.txn_metadata(object.1.into(), label.into()) else {
             error!(
                 "Failed to get metadata, transaction index: {}, label: {label}",
@@ -407,8 +411,8 @@ impl HostTransaction for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<TxnHash>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let txns = object.0.txs();
         let Some(txn) = txns.get(usize::from(object.1)) else {
             error!(error = "Invalid index", "Failed to get transaction hash");
@@ -431,8 +435,8 @@ impl HostTransaction for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<Cbor>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let txns = object.0.txs();
         let Some(txn) = txns.get(usize::from(object.1)) else {
             error!(error = "Invalid index", "Failed to get raw transaction");
@@ -460,8 +464,10 @@ impl HostSubscriptionId for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<SubscriptionId>,
     ) -> wasmtime::Result<CardanoNetwork> {
-        let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE
+            .subscription_id
+            .get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         Ok((*network).try_into()?)
     }
 

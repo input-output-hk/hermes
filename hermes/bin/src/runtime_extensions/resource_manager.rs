@@ -25,18 +25,24 @@ pub(crate) struct ResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ResourceStorage<WitType, RustType>
-where WitType: 'static
+where
+    WitType: 'static,
 {
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 2048 shards instead of default 16 to handle extreme concurrency.
+            // Use 2048 shards with high initial capacity to handle extreme concurrency
+            // and avoid expensive resizing operations that can cause deadlocks.
+            //
             // With 100+ threads inserting resources simultaneously in tight bursts
-            // (e.g., all subscriptions receiving blocks at once), we need very high
-            // shard count to avoid lock contention. 256 shards was still showing
-            // lock_exclusive_slow() contention, so increasing to 2048 for better
-            // distribution (threads/shards ~= 0.05, virtually eliminating collisions).
-            state: DashMap::with_capacity_and_shard_amount(1024, 2048),
+            // (e.g., all subscriptions receiving blocks at once), we need:
+            // 1. Very high shard count (2048) for distribution (threads/shards ~= 0.05)
+            // 2. Large initial capacity (512K) to avoid DashMap resizes which require
+            //    locking all shards and can deadlock with concurrent inserts
+            //
+            // Memory impact: ~512KB per ResourceStorage instance (pre-allocated hash tables)
+            // but eliminates resize-related deadlocks in production with thousands of resources.
+            state: DashMap::with_capacity_and_shard_amount(512_000, 2048),
             available_address: AtomicU32::new(0),
             _phantom: std::marker::PhantomData,
         }
@@ -131,16 +137,17 @@ pub(crate) struct ApplicationResourceStorage<WitType, RustType> {
 }
 
 impl<WitType, RustType> ApplicationResourceStorage<WitType, RustType>
-where WitType: 'static
+where
+    WitType: 'static,
 {
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 512 shards instead of default 16 to reduce contention when
-            // multiple applications are registering concurrently. Higher than
-            // ResourceStorage since app-level map has fewer total entries but
-            // needs to handle concurrent app initialization bursts.
-            state: DashMap::with_capacity_and_shard_amount(128, 512),
+            // Use 2048 shards with generous capacity to avoid resize deadlocks.
+            // App-level map has fewer entries than resource-level
+            // but we match ResourceStorage settings for consistency and to guarantee
+            // no resize operations ever occur under any workload.
+            state: DashMap::with_capacity_and_shard_amount(512_000, 2048),
         }
     }
 
