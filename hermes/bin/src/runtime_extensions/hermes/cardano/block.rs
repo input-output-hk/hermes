@@ -12,10 +12,6 @@ use crate::runtime_extensions::hermes::cardano::TOKIO_RUNTIME;
 /// while still preventing complete deadlocks.
 const BLOCK_OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// Throttle delay between block operations to reduce load during indexing.
-/// Set to 0 for no throttling, or increase (e.g., 10ms) to slow down indexing.
-const BLOCK_OPERATION_THROTTLE: Duration = Duration::from_millis(10);
-
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
     network: Network,
@@ -42,11 +38,6 @@ pub(crate) fn get_block_relative(
         })
         .map_err(|_| anyhow::anyhow!("Timeout fetching block at point {point_for_error}"))?
         .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point_for_error}"))?;
-
-    // Throttle to reduce load during heavy indexing
-    if !BLOCK_OPERATION_THROTTLE.is_zero() {
-        std::thread::sleep(BLOCK_OPERATION_THROTTLE);
-    }
 
     Ok(block.data)
 }
@@ -97,11 +88,6 @@ pub(crate) fn get_is_rollback(
             .await
         })
         .map_err(|_| anyhow::anyhow!("Timeout checking if block at slot {slot:?} is rollback"))?;
-
-    // Throttle to reduce load during heavy indexing
-    if !BLOCK_OPERATION_THROTTLE.is_zero() {
-        std::thread::sleep(BLOCK_OPERATION_THROTTLE);
-    }
 
     match block {
         Some(block) => Ok(Some(block.kind == Kind::Rollback)),

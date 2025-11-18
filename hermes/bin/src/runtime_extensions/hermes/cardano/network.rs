@@ -171,6 +171,9 @@ async fn subscribe(
                             }
                             _ => {}
                         }
+
+                        // Throttle to reduce load during heavy indexing
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     }
                     None => {
                         break;
