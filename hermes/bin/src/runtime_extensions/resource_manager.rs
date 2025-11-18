@@ -10,6 +10,14 @@ use dashmap::DashMap;
 
 use crate::app::ApplicationName;
 
+/// Initial capacity for resource storage to prevent resize-related deadlocks.
+/// Set high enough to avoid DashMap resizes which lock all shards simultaneously.
+const RESOURCE_INITIAL_CAPACITY: usize = 512_000;
+
+/// Number of shards for concurrent access distribution.
+/// High shard count (~0.05 threads/shard ratio) minimizes contention.
+const RESOURCE_SHARD_COUNT: usize = 2048;
+
 /// `ResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 ///   the `wasmtime::component::Resource<WitType>` object.
@@ -30,18 +38,11 @@ where WitType: 'static
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 2048 shards with high initial capacity to handle extreme concurrency
-            // and avoid expensive resizing operations that can cause deadlocks.
-            //
-            // With 100+ threads inserting resources simultaneously in tight bursts
-            // (e.g., all subscriptions receiving blocks at once), we need:
-            // 1. Very high shard count (2048) for distribution (threads/shards ~= 0.05)
-            // 2. Large initial capacity (512K) to avoid DashMap resizes which require locking all
-            //    shards and can deadlock with concurrent inserts
-            //
-            // Memory impact: ~512KB per ResourceStorage instance (pre-allocated hash tables)
-            // but eliminates resize-related deadlocks in production with thousands of resources.
-            state: DashMap::with_capacity_and_shard_amount(512_000, 2048),
+            // Prevent DashMap resize deadlocks under high concurrency (~512KB memory overhead)
+            state: DashMap::with_capacity_and_shard_amount(
+                RESOURCE_INITIAL_CAPACITY,
+                RESOURCE_SHARD_COUNT,
+            ),
             available_address: AtomicU32::new(0),
             _phantom: std::marker::PhantomData,
         }
@@ -141,11 +142,11 @@ where WitType: 'static
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            // Use 2048 shards with generous capacity to avoid resize deadlocks.
-            // App-level map has fewer entries than resource-level
-            // but we match ResourceStorage settings for consistency and to guarantee
-            // no resize operations ever occur under any workload.
-            state: DashMap::with_capacity_and_shard_amount(512_000, 2048),
+            // Match ResourceStorage settings to prevent resize deadlocks
+            state: DashMap::with_capacity_and_shard_amount(
+                RESOURCE_INITIAL_CAPACITY,
+                RESOURCE_SHARD_COUNT,
+            ),
         }
     }
 

@@ -16,6 +16,11 @@ use once_cell::sync::OnceCell;
 use super::{HermesEvent, TargetApp, TargetModule};
 use crate::{app::ApplicationName, reactor};
 
+/// Event queue capacity for backpressure control.
+/// Allows burst processing during blockchain sync while preventing unbounded memory
+/// growth.
+const EVENT_QUEUE_CAPACITY: usize = 10_000;
+
 /// Singleton instance of the Hermes event queue.
 static EVENT_QUEUE_INSTANCE: OnceCell<HermesEventQueue> = OnceCell::new();
 
@@ -34,8 +39,9 @@ struct HermesEventQueue {
 /// # Errors:
 /// - `AlreadyInitializedError`
 pub(crate) fn init() -> anyhow::Result<ExitLock> {
-    // Bounded channel provides backpressure when event processing falls behind
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1000);
+    // Bounded channel provides backpressure when event processing falls behind (~20-50MB
+    // overhead)
+    let (sender, receiver) = std::sync::mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
 
     EVENT_QUEUE_INSTANCE
         .set(HermesEventQueue { sender })
