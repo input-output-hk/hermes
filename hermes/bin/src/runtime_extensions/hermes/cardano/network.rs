@@ -11,7 +11,7 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::cardano::api::{CardanoNetwork, SubscriptionId, SyncSlot},
         hermes::cardano::{
-            CardanoError, STATE, SubscriptionType,
+            CardanoError, STATE, SubscriptionType, TOKIO_RUNTIME,
             block::get_tips,
             event::{build_and_send_block_event, build_and_send_roll_forward_event},
         },
@@ -58,30 +58,16 @@ pub(crate) fn spawn_subscribe(
 ) -> Handle {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(1);
     let arc_cmd_tx = Arc::new(cmd_tx);
-
-    std::thread::spawn(move || {
-        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .enable_io()
-            .build()
-        else {
-            error!(
-                error = "Failed to create Tokio runtime",
-                "Failed to spawn chain follower"
-            );
-            return;
-        };
-
-        rt.block_on(subscribe(
-            cmd_rx,
-            app,
-            module_id,
-            start,
-            network,
-            subscription_type,
-            subscription_id,
-        ));
-    });
+    let handle = TOKIO_RUNTIME.handle();
+    handle.spawn(subscribe(
+        cmd_rx,
+        app,
+        module_id,
+        start,
+        network,
+        subscription_type,
+        subscription_id,
+    ));
 
     Handle { cmd_tx: arc_cmd_tx }
 }
