@@ -48,7 +48,7 @@ impl HostNetwork for HermesRuntimeContext {
         }
 
         // If not, create a new resource
-        let app_state = STATE.network.get_app_state(self.app_name())?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
         let resource = app_state.create_resource(network);
         // Store the new resource in the lookup
         STATE.network_lookup.insert(key, resource.rep());
@@ -83,7 +83,9 @@ impl HostNetwork for HermesRuntimeContext {
         let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
         let network = network_app_state.get_object(&self_)?;
 
-        let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        let subscription_id_app_state = STATE
+            .subscription_id
+            .get_app_state_readonly(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
@@ -132,7 +134,9 @@ impl HostNetwork for HermesRuntimeContext {
         let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
         let network = network_app_state.get_object(&self_)?;
 
-        let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
+        let subscription_id_app_state = STATE
+            .subscription_id
+            .get_app_state_readonly(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
@@ -198,7 +202,7 @@ impl HostNetwork for HermesRuntimeContext {
                 return Ok(None);
             },
         };
-        let app_state = STATE.block.get_app_state(self.app_name())?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
         let resource = app_state.create_resource(multi_era_block);
         Ok(Some(resource))
     }
@@ -300,7 +304,7 @@ impl HostBlock for HermesRuntimeContext {
             return Ok(Err(TransactionError::TxnNotFound));
         }
         // If exist store the block and index
-        let app_state = STATE.transaction.get_app_state(self.app_name())?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
         let resource = app_state.create_resource((block.clone(), index));
         Ok(Ok(resource))
     }

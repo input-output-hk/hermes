@@ -175,6 +175,21 @@ where
             .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
     }
 
+    /// Deletes a resource by its representation using shared access.
+    /// This method uses read-only access to get the app state, avoiding exclusive locks
+    /// during resource cleanup (e.g., in Drop implementations).
+    pub(crate) fn delete_resource_rep_readonly(
+        &self,
+        app_name: &ApplicationName,
+        rep: u32,
+    ) -> anyhow::Result<RustType> {
+        let app_state = self
+            .state
+            .get(app_name)
+            .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))?;
+        app_state.delete_resource_rep(rep)
+    }
+
     /// Removes application and all associated resources from the resource manager.
     #[allow(dead_code)]
     pub(crate) fn remove_app(

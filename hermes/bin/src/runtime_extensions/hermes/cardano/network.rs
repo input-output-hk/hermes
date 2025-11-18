@@ -120,7 +120,7 @@ async fn subscribe(
             update = follower.next() => {
                 match update {
                     Some(chain_update) => {
-                        let Ok(block_app_state) = STATE.block.get_app_state(&app) else {
+                        let Ok(block_app_state) = STATE.block.get_app_state_readonly(&app) else {
                             // This should not failed
                             error!(error="Failed to get block app state for app: {app}");
                             return
