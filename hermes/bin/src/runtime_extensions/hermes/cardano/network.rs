@@ -176,13 +176,16 @@ pub(crate) fn sync_slot_to_point(
     slot: SyncSlot,
     network: Network,
 ) -> anyhow::Result<Point> {
-    let (immutable_tip, live_tip) = get_tips(network)?;
-    let immutable_tip = Point::fuzzy(immutable_tip);
-    let live_tip = Point::fuzzy(live_tip);
     match slot {
         SyncSlot::Genesis => Ok(Point::ORIGIN),
-        SyncSlot::Tip => Ok(live_tip),
-        SyncSlot::ImmutableTip => Ok(immutable_tip),
+        SyncSlot::Tip => {
+            let (_, live_tip) = get_tips(network)?;
+            Ok(Point::fuzzy(live_tip))
+        },
+        SyncSlot::ImmutableTip => {
+            let (immutable_tip, _) = get_tips(network)?;
+            Ok(Point::fuzzy(immutable_tip))
+        },
         SyncSlot::Specific(slot) => Ok(Point::fuzzy(slot.into())),
     }
 }

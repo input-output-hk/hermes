@@ -2,7 +2,6 @@
 
 use anyhow::anyhow;
 use cardano_blockchain_types::MultiEraBlock;
-use serde_json::json;
 
 use crate::{
     bindings::hermes::cardano::api::{Block, CardanoNetwork},
@@ -34,17 +33,7 @@ pub fn build_block(
         })
         .ok()?;
 
-    let prv_slot = pallas_block.slot().checked_sub(1).or_else(|| {
-        log_error(
-            file_name,
-            func_name,
-            "pallas_block.slot().checked_sub()",
-            "Slot underflow when computing previous point",
-            Some(&json!({ "slot": pallas_block.slot() }).to_string()),
-        );
-        None
-    })?;
-
+    let prv_slot = pallas_block.slot().checked_sub(1).unwrap_or_default();
     let prv_hash = pallas_block.header().previous_hash().or_else(|| {
         log_error(
             file_name,
