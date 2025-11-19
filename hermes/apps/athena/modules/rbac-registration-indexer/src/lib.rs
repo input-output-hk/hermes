@@ -123,8 +123,6 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
 
         // ------- Handle Rollback -------
         let Ok(rollback) = block.is_rollback() else {
-            close_db_connection(sqlite);
-            close_db_connection(sqlite_in_mem);
             return;
         };
 
@@ -137,14 +135,12 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             prepare_insert_rbac_registration(&sqlite, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME)
         else {
             close_db_connection(sqlite);
-            close_db_connection(sqlite_in_mem);
             return;
         };
         let Ok(rbac_stake_persistent_stmt) =
             prepare_insert_rbac_stake_address(&sqlite, RBAC_STAKE_ADDRESS_PERSISTENT_TABLE_NAME)
         else {
             close_db_connection(sqlite);
-            close_db_connection(sqlite_in_mem);
             return;
         };
 
@@ -152,7 +148,6 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
         let Ok(rbac_volatile_stmt) =
             prepare_insert_rbac_registration(&sqlite_in_mem, RBAC_REGISTRATION_VOLATILE_TABLE_NAME)
         else {
-            close_db_connection(sqlite);
             close_db_connection(sqlite_in_mem);
             return;
         };
@@ -160,7 +155,6 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             &sqlite_in_mem,
             RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
         ) else {
-            close_db_connection(sqlite);
             close_db_connection(sqlite_in_mem);
             return;
         };
@@ -286,7 +280,6 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
         // TODO - Change this to in-memory once it is supported
         // <https://github.com/input-output-hk/hermes/issues/553>
         let Ok(sqlite_in_mem) = open_db_connection(false) else {
-            close_db_connection(sqlite);
             return;
         };
 
@@ -308,8 +301,6 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
                     &format!("Failed to subscribe block from {subscribe_from:?}: {e}"),
                     None,
                 );
-                close_db_connection(sqlite);
-                close_db_connection(sqlite_in_mem);
                 return;
             },
         };
@@ -319,16 +310,12 @@ impl exports::hermes::cardano::event_on_immutable_roll_forward::Guest
             &sqlite_in_mem,
             RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
         ) else {
-            close_db_connection(sqlite);
-            close_db_connection(sqlite_in_mem);
             return;
         };
         let Ok(stake_addr_delete_stmt) = prepare_roll_forward_delete_from_volatile(
             &sqlite_in_mem,
             RBAC_STAKE_ADDRESS_VOLATILE_TABLE_NAME,
         ) else {
-            close_db_connection(sqlite);
-            close_db_connection(sqlite_in_mem);
             return;
         };
         roll_forward_delete_from_volatile(&rbac_delete_stmt, block.get_slot());
@@ -361,14 +348,12 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
         // TODO - Change this to in-memory once it is supported
         // <https://github.com/input-output-hk/hermes/issues/553>
         let Ok(sqlite_in_mem) = open_db_connection(false) else {
-            close_db_connection(sqlite);
             return false;
         };
 
         create_rbac_persistent_tables(&sqlite);
         create_rbac_volatile_tables(&sqlite_in_mem);
         close_db_connection(sqlite);
-        close_db_connection(sqlite_in_mem);
 
         let network_resource = match cardano::api::Network::new(config::NETWORK) {
             Ok(nr) => nr,
