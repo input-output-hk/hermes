@@ -470,7 +470,7 @@ impl HostSubscriptionId for HermesRuntimeContext {
         if let Some(entry) = STATE.subscriptions.get(&id) {
             let (_, handle) = entry.value();
             // Stop the subscription
-            handle.stop()?;
+            handle.stop();
             // Remove the resource and subscription state
             let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
             subscription_id_app_state.delete_resource(self_)?;
