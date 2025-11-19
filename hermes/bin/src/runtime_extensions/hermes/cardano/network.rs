@@ -112,6 +112,12 @@ async fn subscribe(
     // takes tens of milliseconds per block (~30-50 blocks/sec). Without throttling, resources
     // accumulate faster than they're consumed, leading to memory exhaustion and system
     // freezes.
+    //
+    // TODO: Replace rate limiting with lazy resource creation for better architecture.
+    // Currently resources are created before events are queued, so backpressure can't prevent
+    // accumulation. Ideal fix: send lightweight events with Arc<BlockData>, create resources
+    // on-demand only when WASM actually accesses them. This eliminates the ordering problem
+    // and allows natural backpressure without artificial throttling. Requires API redesign.
     let mut rate_limiter =
         tokio::time::interval(std::time::Duration::from_millis(BLOCK_RATE_LIMIT_MS));
     // Don't build up missed ticks if we fall behind
