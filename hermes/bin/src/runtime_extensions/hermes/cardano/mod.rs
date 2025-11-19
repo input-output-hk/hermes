@@ -82,16 +82,14 @@ pub(crate) fn shutdown_chain_sync() {
     for id in subscription_ids {
         if let Some(entry) = STATE.subscriptions.get(&id) {
             let (_, handle) = entry.value();
-            if let Err(e) = handle.stop() {
-                tracing::warn!(subscription_id = id, error = ?e, "Failed to stop subscription");
-            }
+            handle.stop();
         }
         STATE.subscriptions.remove(&id);
     }
 
     // Then abort all chain sync tasks
     // Note: This immediately terminates tasks, which may interrupt in-progress operations
-    for entry in STATE.sync_state.iter() {
+    for entry in &STATE.sync_state {
         let network = entry.key();
         tracing::debug!(network = %network, "Aborting chain sync task");
         entry.value().abort();

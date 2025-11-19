@@ -11,7 +11,7 @@ use dashmap::DashMap;
 use crate::app::ApplicationName;
 
 /// Initial capacity for resource storage to prevent resize-related deadlocks.
-/// Set high enough to avoid DashMap resizes which lock all shards simultaneously.
+/// Set high enough to avoid `DashMap` resizes which lock all shards simultaneously.
 const RESOURCE_INITIAL_CAPACITY: usize = 512_000;
 
 /// Number of shards for concurrent access distribution.
