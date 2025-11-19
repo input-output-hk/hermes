@@ -44,7 +44,6 @@ pub fn init() -> anyhow::Result<()> {
         // Purges volatile entries in case there's been a shutdown issue.
         // Also purges any slots that weren't fully indexed from persistent data.
         let mut tx = conn.begin()?;
-        delete_stake_registration_since_slot(&mut tx, purge_slot_no)?;
         delete_txi_since_slot(&mut tx, purge_slot_no)?;
         delete_txo_since_slot(&mut tx, purge_slot_no)?;
         delete_txo_assets_since_slot(&mut tx, purge_slot_no)?;
