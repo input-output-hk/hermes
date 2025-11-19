@@ -19,8 +19,10 @@ use crate::{
     wasm::module::ModuleId,
 };
 
-/// Rate limit for block processing (milliseconds between blocks).
-/// Set to ~100 blocks/sec to prevent resource exhaustion during indexing.
+/// Chain follower can deliver updates at network speed
+/// (hundreds per second), but WASM execution cannot match this rate. Without
+/// throttling, resources accumulate faster than consumed, causing memory
+/// exhaustion and system freezes on slower machines.
 const BLOCK_RATE_LIMIT_MS: u64 = 10;
 
 /// Chain follower subscribe command
