@@ -230,22 +230,12 @@ pub(crate) fn sync_slot_to_point(
     match slot {
         SyncSlot::Genesis => Point::ORIGIN,
         SyncSlot::Tip => {
-            match get_tips(network) {
-                Ok((_, live_tip)) => Point::fuzzy(live_tip),
-                Err(e) => {
-                    tracing::error!(error=?e, "Failed to get tips for network {network}");
-                    Point::TIP
-                },
-            }
+            let (_, live_tip) = get_tips(network);
+            Point::fuzzy(live_tip)
         },
         SyncSlot::ImmutableTip => {
-            match get_tips(network) {
-                Ok((immutable_tip, _)) => Point::fuzzy(immutable_tip),
-                Err(e) => {
-                    tracing::error!(error=?e, "Failed to get tips for network {network}");
-                    Point::ORIGIN
-                },
-            }
+            let (immutable_tip, _) = get_tips(network);
+            Point::fuzzy(immutable_tip)
         },
         SyncSlot::Specific(slot) => Point::fuzzy(slot.into()),
     }
