@@ -37,6 +37,10 @@ mod config {
     use shared::bindings::hermes::cardano::api::SyncSlot;
 
     /// Slot to subscribe from during initialization.
+    ///
+    /// # Note
+    ///
+    /// This value is ignored if the database already contains indexed data.
     pub const SUBSCRIBE_FROM: SyncSlot = match option_env!("STAKED_ADA_INDEXER_SUBSCRIBE_FROM") {
         None => SyncSlot::Genesis,
         Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
@@ -59,7 +63,8 @@ mod config {
     };
 
     /// Extra sql to execute on initialization after tables are created.
-    pub const INIT_SQL_QUERY: Option<&str> = option_env!("STAKED_ADA_INDEXER_INIT_SQL_QUERY");
+    pub const POST_INIT_SQL_QUERY: Option<&str> =
+        option_env!("STAKED_ADA_INDEXER_POST_INIT_SQL_QUERY");
 }
 
 /// Staked ADA indexer component.
