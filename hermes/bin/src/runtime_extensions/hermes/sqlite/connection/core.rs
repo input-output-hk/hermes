@@ -12,7 +12,7 @@ use stringzilla::stringzilla::StringZillableBinary;
 
 use crate::runtime_extensions::{
     bindings::hermes::sqlite::api::{Errno, ErrorInfo},
-    hermes::sqlite::kernel,
+    hermes::sqlite::core,
 };
 
 /// Checks if the provided SQL string contains a `PRAGMA` statement.
@@ -33,9 +33,9 @@ pub(crate) fn close(db_ptr: *mut sqlite3) -> Result<(), Errno> {
 }
 
 /// Same as [`close`] but additionally removes all sqlite files with
-/// [`kernel::DbPaths::remove_all`].
+/// [`core::DbPaths::remove_all`].
 pub(crate) fn close_and_remove_all(db_ptr: *mut sqlite3) -> anyhow::Result<()> {
-    let paths = kernel::DbPaths::main(db_ptr)?;
+    let paths = core::DbPaths::main(db_ptr)?;
     close(db_ptr)?;
     paths.remove_all()?;
     Ok(())
@@ -130,7 +130,7 @@ mod tests {
         runtime_extensions::{
             bindings::hermes::sqlite::api::Value,
             hermes::sqlite::{
-                kernel::{self, open},
+                core::{self, open},
                 statement::core::{column, finalize, step},
             },
         },
@@ -272,7 +272,7 @@ mod tests {
     fn test_close_and_remove_all_simple() {
         let app_name = TMP_DIR.to_owned();
         let db_ptr = init_fs(app_name).unwrap();
-        let paths = kernel::DbPaths::main(db_ptr).unwrap();
+        let paths = core::DbPaths::main(db_ptr).unwrap();
 
         let database_created = std::fs::exists(&paths.database).unwrap();
         let _journal_created = std::fs::exists(&paths.journal).unwrap();

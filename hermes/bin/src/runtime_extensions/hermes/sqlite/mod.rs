@@ -10,7 +10,7 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::sqlite::api::Errno,
         hermes::sqlite::{
-            connection::core::close_and_remove_all, kernel::open_with_persistent_memory,
+            connection::core::close_and_remove_all, core::open_with_persistent_memory,
             state::resource_manager::init_app_state,
         },
         init::{
@@ -26,8 +26,8 @@ use crate::{
 };
 
 mod connection;
+mod core;
 mod host;
-mod kernel;
 mod state;
 mod statement;
 
