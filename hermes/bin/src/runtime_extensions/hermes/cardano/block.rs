@@ -38,6 +38,10 @@ pub(crate) fn get_block_relative(
         })
         .map_err(|_| anyhow::anyhow!("Timeout fetching block at point {point_for_error}"))?
         .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point_for_error}"))?;
+    let handle = TOKIO_RUNTIME.handle();
+    let block = handle
+        .block_on(ChainFollower::get_block(network, point.clone()))
+        .ok_or_else(|| anyhow::anyhow!("Failed to fetch block at point {point}"))?;
 
     Ok(block.data)
 }
@@ -69,6 +73,10 @@ pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
         })
         .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
+pub(crate) fn get_tips(network: Network) -> (Slot, Slot) {
+    let handle = TOKIO_RUNTIME.handle();
+    let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(network));
+    (immutable_tip.slot_or_default(), live_tip.slot_or_default())
 }
 
 /// Checks if the block at the given slot is a rollback block or not.
