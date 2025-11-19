@@ -88,9 +88,7 @@ impl HostNetwork for HermesRuntimeContext {
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
 
-        let Ok(start) = sync_slot_to_point(start, network.clone()) else {
-            return Ok(Err(SubscribeError::InvalidStartSlot));
-        };
+        let start = sync_slot_to_point(start, &network);
         let handle = spawn_subscribe(
             self.app_name().clone(),
             self.module_id().clone(),
@@ -137,9 +135,7 @@ impl HostNetwork for HermesRuntimeContext {
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
 
-        let Ok(start) = sync_slot_to_point(start, network.clone()) else {
-            return Ok(Err(SubscribeError::InvalidStartSlot));
-        };
+        let start = sync_slot_to_point(start, &network);
         let handle = spawn_subscribe(
             self.app_name().clone(),
             self.module_id().clone(),
@@ -191,7 +187,7 @@ impl HostNetwork for HermesRuntimeContext {
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
-        let multi_era_block = match get_block_relative(network.clone(), start, step) {
+        let multi_era_block = match get_block_relative(&network, start, step) {
             Ok(block) => block,
             Err(e) => {
                 error!(error=?e, "Failed to get block");
@@ -216,13 +212,7 @@ impl HostNetwork for HermesRuntimeContext {
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
         let network = app_state.get_object(&self_)?;
-        let (immutable_tip, mutable_tip) = match get_tips(network.clone()) {
-            Ok(tips) => tips,
-            Err(e) => {
-                error!(error=?e, "Failed to get tips");
-                return Ok(None);
-            },
-        };
+        let (immutable_tip, mutable_tip) = get_tips(&network);
         Ok(Some((immutable_tip.into(), mutable_tip.into())))
     }
 
@@ -269,7 +259,7 @@ impl HostBlock for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<bool, BlockError>> {
         let mut app_state = STATE.block.get_app_state(self.app_name())?;
         let block = app_state.get_object(&self_)?;
-        let is_rollback = get_is_rollback(block.network().clone(), block.slot())?;
+        let is_rollback = get_is_rollback(block.network(), block.slot());
         match is_rollback {
             Some(is_rollback) => Ok(Ok(is_rollback)),
             None => Ok(Err(BlockError::BlockNotFound)),

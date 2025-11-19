@@ -60,9 +60,9 @@ use crate::database::{
 mod config {
     use shared::bindings::hermes::cardano::api::{CardanoNetwork, SyncSlot};
 
-    /// Default preprod slot: Instead of starting from genesis, start from a specific slot (block: ~2951007) before the RBAC data
-    /// existed, relative to the time when the `rbac-registration` crate was first created in
-    /// <https://github.com/input-output-hk/catalyst-libs> (Catalyst libs) – Dec 4, 2024.
+    /// Default preprod slot: Instead of starting from genesis, start from a specific slot
+    /// (block: ~2951007) before the RBAC data existed, relative to the time when the
+    /// `rbac-registration` crate was first created in <https://github.com/input-output-hk/catalyst-libs> (Catalyst libs) – Dec 4, 2024.
     const RBAC_DEFAULT_SLOT_PREPROD: u64 = 77_580_000;
 
     /// Default network set to preprod.
@@ -75,9 +75,11 @@ mod config {
             Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
             Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
             Some(s) if matches!(s.as_bytes(), b"IMMUTABLE_TIP") => SyncSlot::ImmutableTip,
-            Some(s) => match u64::from_str_radix(s, 10) {
-                Ok(i) => SyncSlot::Specific(i),
-                Err(_) => panic!("non integer specific sync slot"),
+            Some(s) => {
+                match u64::from_str_radix(s, 10) {
+                    Ok(i) => SyncSlot::Specific(i),
+                    Err(_) => panic!("non integer specific sync slot"),
+                }
             },
         };
 
