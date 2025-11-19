@@ -1,5 +1,7 @@
 //! `SQLite` runtime extension implementation.
 
+use std::sync::Once;
+
 use tracing::debug;
 
 use crate::{
@@ -28,6 +30,19 @@ mod core;
 mod host;
 mod state;
 mod statement;
+
+/// Controls [`is_serialized`] value.
+static SERIALIZED: Once = Once::new();
+
+/// Make `SQLite` access serialized.
+pub(crate) fn set_serialized() {
+    SERIALIZED.call_once(|| ());
+}
+
+/// Returns whether `SQLite` access is serialized.
+pub(crate) fn is_serialized() -> bool {
+    SERIALIZED.is_completed()
+}
 
 /// Runtime Extension for `SQLite`
 #[derive(Default)]

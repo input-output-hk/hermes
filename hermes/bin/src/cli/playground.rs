@@ -13,10 +13,14 @@ use console::Emoji;
 use temp_dir::TempDir;
 
 use crate::{
-    app::{Application, ApplicationName},
+    app::{Application, ApplicationName, set_no_parallel_event_execution},
+    cli::RuntimeConfig,
     event::queue::Exit,
     ipfs, pool, reactor,
-    runtime_extensions::init::trait_app::{RteApp, RteInitApp},
+    runtime_extensions::{
+        hermes::sqlite,
+        init::trait_app::{RteApp, RteInitApp},
+    },
     vfs::VfsBootstrapper,
     wasm::module::Module,
 };
@@ -42,9 +46,9 @@ pub struct Playground {
     #[arg(long, default_value = "playground-app")]
     app_name: String,
 
-    /// Shutdown the playground after the timeout (milliseconds)
-    #[arg(long)]
-    timeout_ms: Option<u64>,
+    /// See [`RuntimeConfig`] docs
+    #[clap(flatten)]
+    rt_config: RuntimeConfig,
 }
 
 impl Playground {
@@ -67,19 +71,30 @@ impl Playground {
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
 
-        pool::init()?;
+        if self.rt_config.serialize_sqlite {
+            sqlite::set_serialized();
+        }
+
+        if self.rt_config.no_parallel_event_execution {
+            set_no_parallel_event_execution();
+        } else {
+            pool::init()?;
+        }
+
         println!("{} Loading an application...", Emoji::new("🛠️", ""),);
 
         reactor::load_app(app)?;
 
-        let exit = if let Some(timeout_ms) = self.timeout_ms {
+        let exit = if let Some(timeout_ms) = self.rt_config.timeout_ms {
             exit_lock.wait_timeout(Duration::from_millis(timeout_ms))
         } else {
             exit_lock.wait()
         };
 
-        // Wait for scheduled tasks to be finished.
-        pool::terminate();
+        if !self.rt_config.no_parallel_event_execution {
+            // Wait for scheduled tasks to be finished.
+            pool::terminate();
+        }
         reactor::drop_all_apps()?;
         Ok(exit)
     }
