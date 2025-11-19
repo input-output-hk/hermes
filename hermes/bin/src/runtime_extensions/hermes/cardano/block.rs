@@ -7,7 +7,7 @@ use crate::runtime_extensions::hermes::cardano::TOKIO_RUNTIME;
 
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
-    network: &Network,
+    network: Network,
     start: Option<u64>,
     step: i64,
 ) -> anyhow::Result<MultiEraBlock> {
@@ -40,11 +40,11 @@ fn calculate_point_from_step(
             .checked_add(step.unsigned_abs())
             .ok_or_else(|| anyhow::anyhow!("Step causes overflow"))?
     };
-    Ok(Point::fuzzy(target.into()))
+    Ok(normalize_point(target))
 }
 
 /// Retrieves the current tips of the blockchain for the specified network.
-pub(crate) fn get_tips(network: &Network) -> (Slot, Slot) {
+pub(crate) fn get_tips(network: Network) -> (Slot, Slot) {
     let handle = TOKIO_RUNTIME.handle();
     let (immutable_tip, live_tip) = handle.block_on(ChainFollower::get_tips(network));
     (immutable_tip.slot_or_default(), live_tip.slot_or_default())
@@ -52,13 +52,24 @@ pub(crate) fn get_tips(network: &Network) -> (Slot, Slot) {
 
 /// Checks if the block at the given slot is a rollback block or not.
 pub(crate) fn get_is_rollback(
-    network: &Network,
+    network: Network,
     slot: Slot,
 ) -> Option<bool> {
-    let point = Point::fuzzy(slot);
     let handle = TOKIO_RUNTIME.handle();
-    let block = handle.block_on(ChainFollower::get_block(network, point));
+    let block = handle.block_on(ChainFollower::get_block(
+        network,
+        normalize_point(slot.into()),
+    ));
     block.map(|block| block.kind == Kind::Rollback)
+}
+
+/// Normalize point, if it is 0 it will be normalized to ORIGIN
+fn normalize_point(point: u64) -> Point {
+    if point == 0 {
+        Point::ORIGIN
+    } else {
+        Point::fuzzy(point.into())
+    }
 }
 
 #[cfg(all(test, debug_assertions))]
