@@ -80,8 +80,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
@@ -127,8 +127,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
@@ -185,8 +185,8 @@ impl HostNetwork for HermesRuntimeContext {
         start: Option<Slot>,
         step: i64,
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         let multi_era_block = match get_block_relative(*network, start, step) {
             Ok(block) => block,
             Err(e) => {
@@ -210,8 +210,8 @@ impl HostNetwork for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         let (immutable_tip, mutable_tip) = match get_tips(*network) {
             Ok(tips) => tips,
             Err(e) => {
@@ -263,8 +263,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Result<bool, BlockError>> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         let is_rollback = get_is_rollback(block.network(), block.slot())?;
         match is_rollback {
             Some(is_rollback) => Ok(Ok(is_rollback)),
@@ -452,8 +452,10 @@ impl HostSubscriptionId for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<SubscriptionId>,
     ) -> wasmtime::Result<CardanoNetwork> {
-        let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE
+            .subscription_id
+            .get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         Ok((*network).try_into()?)
     }
 
