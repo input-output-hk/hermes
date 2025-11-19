@@ -137,7 +137,7 @@ pub(crate) struct RuntimeConfig {
 
     /// Disables parallel execution of event handlers
     #[arg(long, default_value_t = false)]
-    no_parallel: bool,
+    no_parallel_event_execution: bool,
 
     /// Serializes `SQLite` database access
     #[arg(long, default_value_t = false)]

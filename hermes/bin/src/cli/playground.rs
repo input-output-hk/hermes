@@ -75,7 +75,7 @@ impl Playground {
             sqlite::set_serialized();
         }
 
-        if self.rt_config.no_parallel {
+        if self.rt_config.no_parallel_event_execution {
             set_no_parallel_event_execution();
         } else {
             pool::init()?;
@@ -91,7 +91,7 @@ impl Playground {
             exit_lock.wait()
         };
 
-        if !self.rt_config.no_parallel {
+        if !self.rt_config.no_parallel_event_execution {
             // Wait for scheduled tasks to be finished.
             pool::terminate();
         }
