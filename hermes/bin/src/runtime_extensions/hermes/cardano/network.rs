@@ -84,7 +84,7 @@ async fn subscribe(
     subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
-    let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
+    let mut follower = ChainFollower::new(network, start, Point::TIP).await;
 
     loop {
         tokio::select! {
@@ -174,7 +174,7 @@ impl TryFrom<CardanoNetwork> for cardano_blockchain_types::Network {
 /// Convert `SyncSlot` to a point.
 pub(crate) fn sync_slot_to_point(
     slot: SyncSlot,
-    network: &Network,
+    network: Network,
 ) -> Point {
     match slot {
         SyncSlot::Genesis => Point::ORIGIN,
