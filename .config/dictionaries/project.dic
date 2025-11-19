@@ -74,6 +74,7 @@ fontawesome
 frontends
 fstat
 fstatat
+FULLMUTEX
 futimens
 genhtml
 getfl

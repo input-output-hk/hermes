@@ -6,7 +6,8 @@ use clap::Args;
 use console::Emoji;
 
 use crate::{
-    cli::Cli,
+    app::set_no_parallel_event_execution,
+    cli::{Cli, RuntimeConfig},
     event::queue::Exit,
     ipfs,
     packaging::{
@@ -14,6 +15,7 @@ use crate::{
         sign::certificate::{self, Certificate},
     },
     pool, reactor,
+    runtime_extensions::hermes::sqlite,
 };
 
 /// Run cli command
@@ -30,9 +32,9 @@ pub(crate) struct Run {
     #[clap(long, action = clap::ArgAction::SetTrue)]
     untrusted: bool,
 
-    /// Shutdown an application after the timeout (milliseconds)
-    #[arg(long)]
-    timeout_ms: Option<u64>,
+    /// See [`RuntimeConfig`] docs
+    #[clap(flatten)]
+    rt_config: RuntimeConfig,
 }
 
 impl Run {
@@ -57,7 +59,16 @@ impl Run {
         ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
         let app = build_app(&package, hermes_home_dir)?;
 
-        pool::init()?;
+        if self.rt_config.serialize_sqlite {
+            sqlite::set_serialized();
+        }
+
+        if self.rt_config.no_parallel_event_execution {
+            set_no_parallel_event_execution();
+        } else {
+            pool::init()?;
+        }
+
         println!(
             "{} Loading application {}...",
             Emoji::new("🛠️", ""),
@@ -67,14 +78,16 @@ impl Run {
         // TODO[RC]: Currently, when a module fails to initialize, the whole app fails to run.
         reactor::load_app(app)?;
 
-        let exit = if let Some(timeout_ms) = self.timeout_ms {
+        let exit = if let Some(timeout_ms) = self.rt_config.timeout_ms {
             exit_lock.wait_timeout(Duration::from_millis(timeout_ms))
         } else {
             exit_lock.wait()
         };
 
-        // Wait for scheduled tasks to be finished.
-        pool::terminate();
+        if !self.rt_config.no_parallel_event_execution {
+            // Wait for scheduled tasks to be finished.
+            pool::terminate();
+        }
         Ok(exit)
     }
 }
