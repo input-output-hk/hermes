@@ -19,10 +19,6 @@ version = 2
 ignore = [
     "RUSTSEC-2025-0067",
     "RUSTSEC-2025-0068",
-    # TEMPORARY: proc-macro-error is unmaintained (transitive via log call → cardano-chain-follower)
-    # See: https://rustsec.org/advisories/RUSTSEC-2024-0370
-    # TODO: Remove once upstream migrates to proc-macro-error2 or alternative
-    "RUSTSEC-2024-0370",
 ]
 
 [bans]
