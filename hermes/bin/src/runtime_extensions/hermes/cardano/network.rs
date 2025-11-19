@@ -107,11 +107,9 @@ async fn subscribe(
 ) {
     let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
 
-    // Rate limiting: Process at most ~100 blocks per second to match WASM execution capacity.
-    // The network can produce hundreds of blocks/sec during indexing, but WASM processing
-    // takes tens of milliseconds per block (~30-50 blocks/sec). Without throttling, resources
-    // accumulate faster than they're consumed, leading to memory exhaustion and system
-    // freezes.
+    // Chain updates: Chain follower delivers updates at network speed (hundreds per second),
+    // which WASM execution cannot match. Without rate limiting, resources accumulate faster
+    // than they're consumed, leading to memory exhaustion and system freezes.
     //
     // TODO: Replace rate limiting with lazy resource creation for better architecture.
     // Currently resources are created before events are queued, so backpressure can't prevent

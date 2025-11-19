@@ -75,9 +75,11 @@ mod config {
             Some(s) if matches!(s.as_bytes(), b"GENESIS") => SyncSlot::Genesis,
             Some(s) if matches!(s.as_bytes(), b"TIP") => SyncSlot::Tip,
             Some(s) if matches!(s.as_bytes(), b"IMMUTABLE_TIP") => SyncSlot::ImmutableTip,
-            Some(s) => match u64::from_str_radix(s, 10) {
-                Ok(i) => SyncSlot::Specific(i),
-                Err(_) => panic!("non integer specific sync slot"),
+            Some(s) => {
+                match u64::from_str_radix(s, 10) {
+                    Ok(i) => SyncSlot::Specific(i),
+                    Err(_) => panic!("non integer specific sync slot"),
+                }
             },
         };
 
