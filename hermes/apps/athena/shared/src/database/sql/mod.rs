@@ -60,6 +60,7 @@ include_sql! {
         insert_txi_by_txn_id,
         insert_txo_assets_by_stake,
         insert_txo_by_stake,
+        select_last_indexed_slot_no,
         select_txi_by_txn_id,
         select_txo_assets_by_stake,
         select_txo_by_stake,
