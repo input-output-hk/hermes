@@ -10,7 +10,8 @@ use shared::{
         create_tables, delete_stake_registration_before_slot, delete_stake_registration_since_slot,
         delete_txi_before_slot, delete_txi_since_slot, delete_txo_assets_before_slot,
         delete_txo_assets_since_slot, delete_txo_before_slot, delete_txo_since_slot,
-        insert_txi_by_txn_id, insert_txo_assets_by_stake, insert_txo_by_stake,
+        get_last_indexed_slot_no, insert_txi_by_txn_id, insert_txo_assets_by_stake,
+        insert_txo_by_stake,
     },
     utils::{
         log::{info, trace},
@@ -24,25 +25,58 @@ use crate::{config, index};
 pub fn init() -> anyhow::Result<()> {
     info!(target: "staked_ada_indexer::init", "💫 Initializing Sqlite...");
 
+    let mut new_slot_no = 0;
+
     for in_mem in [false, true] {
         let mut conn = sqlite::Connection::open(in_mem)?;
+
         let mut tx = conn.begin()?;
         create_tables(&mut tx)?;
-        if let Some(q) = config::INIT_SQL_QUERY {
-            tx.execute(q).context("Failed to execute init sql query")?;
-        }
         tx.commit()?;
+
+        let purge_slot_no = if in_mem {
+            0
+        } else {
+            new_slot_no = get_last_indexed_slot_no(&mut conn)?.map_or(0, |n| n.saturating_add(1));
+            new_slot_no
+        };
+
+        // Purges volatile entries in case there's been a shutdown issue.
+        // Also purges any slots that weren't fully indexed from persistent data.
+        let mut tx = conn.begin()?;
+        delete_txi_since_slot(&mut tx, purge_slot_no)?;
+        delete_txo_since_slot(&mut tx, purge_slot_no)?;
+        delete_txo_assets_since_slot(&mut tx, purge_slot_no)?;
+        tx.commit()?;
+
+        // Running the embedded initialization query.
+        if let Some(q) = config::POST_INIT_SQL_QUERY {
+            conn.execute(q)
+                .context("Failed to execute init sql query")?;
+        }
     }
 
     info!(target: "staked_ada_indexer::init", "💫 Sqlite initialized.");
 
     if !config::OFFLINE {
-        info!(target: "staked_ada_indexer::init", "💫 Setting up Cardano subscription...");
+        // The embedded configuration is assumed to have already been applied
+        // in a previous run if the database is not empty.
+        let subscribe_from = if new_slot_no == 0 {
+            config::SUBSCRIBE_FROM
+        } else {
+            cardano::api::SyncSlot::Specific(new_slot_no)
+        };
+
+        info!(
+            target: "staked_ada_indexer::init",
+            subscribe_from:?;
+            "💫 Setting up Cardano subscription..."
+        );
 
         let network = cardano::api::CardanoNetwork::Preprod;
 
         let network_resource = cardano::api::Network::new(network)?;
-        let subscription_id_resource = network_resource.subscribe_block(config::SUBSCRIBE_FROM)?;
+        let subscription_id_resource = network_resource.subscribe_block(subscribe_from)?;
 
         info!(
             target: "staked_ada_indexer::init",
