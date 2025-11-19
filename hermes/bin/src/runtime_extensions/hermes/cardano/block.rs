@@ -32,7 +32,7 @@ pub(crate) fn get_block_relative(
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
-                ChainFollower::get_block(&network, point),
+                ChainFollower::get_block(network, point),
             )
             .await
         })
@@ -56,7 +56,7 @@ fn calculate_point_from_step(
             .checked_add(step.unsigned_abs())
             .ok_or_else(|| anyhow::anyhow!("Step causes overflow"))?
     };
-    Ok(Point::fuzzy(target.into()))
+    Ok(normalize_point(target))
 }
 
 /// Retrieves the current tips of the blockchain for the specified network.
@@ -65,7 +65,7 @@ pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
     let handle = TOKIO_RUNTIME.handle();
     let (immutable_tip, live_tip) = handle
         .block_on(async {
-            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(&network)).await
+            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
         })
         .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
@@ -76,14 +76,14 @@ pub(crate) fn get_is_rollback(
     network: Network,
     slot: Slot,
 ) -> anyhow::Result<Option<bool>> {
-    let point = Point::fuzzy(slot);
+    let point = normalize_point(slot.into());
     // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
     let handle = TOKIO_RUNTIME.handle();
     let block = handle
         .block_on(async {
             tokio::time::timeout(
                 BLOCK_OPERATION_TIMEOUT,
-                ChainFollower::get_block(&network, point),
+                ChainFollower::get_block(network, point),
             )
             .await
         })
@@ -92,6 +92,15 @@ pub(crate) fn get_is_rollback(
     match block {
         Some(block) => Ok(Some(block.kind == Kind::Rollback)),
         None => Ok(None),
+    }
+}
+
+/// Normalize point, if it is 0 it will be normalized to ORIGIN
+fn normalize_point(point: u64) -> Point {
+    if point == 0 {
+        Point::ORIGIN
+    } else {
+        Point::fuzzy(point.into())
     }
 }
 

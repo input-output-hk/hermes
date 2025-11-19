@@ -107,7 +107,7 @@ async fn subscribe(
     subscription_type: SubscriptionType,
     subscription_id: wasmtime::component::Resource<SubscriptionId>,
 ) {
-    let mut follower = ChainFollower::new(&network, start, Point::TIP).await;
+    let mut follower = ChainFollower::new(network, start, Point::TIP).await;
 
     // Chain updates: Chain follower delivers updates at network speed (hundreds per second),
     // which WASM execution cannot match. Without rate limiting, resources accumulate faster
@@ -226,18 +226,18 @@ impl TryFrom<CardanoNetwork> for cardano_blockchain_types::Network {
 pub(crate) fn sync_slot_to_point(
     slot: SyncSlot,
     network: Network,
-) -> anyhow::Result<Point> {
+) -> Point {
     match slot {
-        SyncSlot::Genesis => Ok(Point::ORIGIN),
+        SyncSlot::Genesis => Point::ORIGIN,
         SyncSlot::Tip => {
-            let (_, live_tip) = get_tips(network)?;
-            Ok(Point::fuzzy(live_tip))
+            let (_, live_tip) = get_tips(network);
+            Point::fuzzy(live_tip)
         },
         SyncSlot::ImmutableTip => {
-            let (immutable_tip, _) = get_tips(network)?;
-            Ok(Point::fuzzy(immutable_tip))
+            let (immutable_tip, _) = get_tips(network);
+            Point::fuzzy(immutable_tip)
         },
-        SyncSlot::Specific(slot) => Ok(Point::fuzzy(slot.into())),
+        SyncSlot::Specific(slot) => Point::fuzzy(slot.into()),
     }
 }
 
