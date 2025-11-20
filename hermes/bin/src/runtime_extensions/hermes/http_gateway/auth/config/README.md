@@ -1,11 +1,15 @@
 # Authentication and Authorization Configuration Guide
 
-This guide explains how to configure auth.
+This guide explains how authentication and authorization behave in the system and how to configure them.
 
 ## Overview
 
-`auth.json` provides rules for each specific path that match the regular expression and a method.
-The level of authentication and authorization depends on the `auth_level` where it can be:
+Authentication can be globally enabled or disabled using the environment variable `HERMES_AUTH_ACTIVATE`
+- `HERMES_AUTH_ACTIVATE=true` -> Auth validation enabled
+- `HERMES_AUTH_ACTIVATE=false` -> Auth validation disabled (all requests bypass auth logic)
+
+When auth is enabled, the `auth.json` file provides rules for each path (matching via regex) and the HTTP method.
+Each rule specifies an `auth_level`, which determines how the request is validated.
 
 ```rust
 // Auth levels for specific routes
