@@ -33,7 +33,7 @@ impl HostBip32Ed25519 for HermesRuntimeContext {
         let xprv = mnemonic_to_xprv(&mnemonic.join(" "), &passphrase.join(" "))
             .map_err(|e| wasmtime::Error::msg(e.to_string()))?;
 
-        let app_state = get_state().get_app_state(self.app_name())?;
+        let app_state = get_state().get_app_state_readonly(self.app_name())?;
         Ok(app_state.create_resource(xprv))
     }
 
