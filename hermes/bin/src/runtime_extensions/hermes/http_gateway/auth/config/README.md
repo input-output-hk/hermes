@@ -5,8 +5,9 @@ This guide explains how authentication and authorization behave in the system an
 ## Overview
 
 Authentication can be globally enabled or disabled using the environment variable `HERMES_AUTH_ACTIVATE`
-- `HERMES_AUTH_ACTIVATE=true` -> Auth validation enabled
-- `HERMES_AUTH_ACTIVATE=false` -> Auth validation disabled (all requests bypass auth logic)
+
+* `HERMES_AUTH_ACTIVATE=true` -> Auth validation enabled
+* `HERMES_AUTH_ACTIVATE=false` -> Auth validation disabled (all requests bypass auth logic)
 If the variable is not set or contains any other value, the default is true
 
 When auth is enabled, the `auth.json` file provides rules for each path (matching via regex) and the HTTP method.
