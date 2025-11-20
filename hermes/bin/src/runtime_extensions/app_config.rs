@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use crate::app::ApplicationName;
 
-/// Maximum configurable DB Size.
-const MAX_CONFIG_DB_SIZE: u32 = 1_048_576;
+/// Maximum configurable DB Size (~ 4.3 GB).
+const MAX_CONFIG_DB_SIZE: u32 = u32::MAX;
 
 /// Configuration struct for `SQLite` database.
 ///
