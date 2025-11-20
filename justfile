@@ -105,6 +105,12 @@ _build-athena-common mode:
         earthly ./hermes/apps/athena/modules/staked-ada+local-build-staked-ada
     ) &
     STAKED_PID=$!  # Capture PID of background process
+
+    (
+        echo "  📦 Building auth module..."
+        earthly ./hermes/apps/athena/modules/auth+local-build-auth
+    ) &
+    AUTH_PID=$!  # Capture PID of background process
     
     # SYNCHRONIZATION PHASE:
     # Wait for all background jobs to complete and collect their exit codes
@@ -118,6 +124,7 @@ _build-athena-common mode:
     wait $RBAC_PID && echo "  ✅ rbac-registration build completed" || echo "  ❌ rbac-registration build failed"
     wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || echo "  ❌ staked-ada-indexer build failed"
     wait $STAKED_PID && echo "  ✅ staked-ada build completed" || echo "  ❌ staked-ada build failed"
+    wait $AUTH_PID && echo "  ✅ auth build completed" || echo "  ❌ auth build failed"
     
     echo "🎯 All parallel builds completed!"
 
@@ -170,6 +177,12 @@ _build-athena-common mode:
         target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
     ) &
     STAKED_PKG_PID=$!  # Capture PID for synchronization
+
+    (
+        echo "  📦 Packaging auth module..."
+        target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
+    ) &
+    AUTH_PKG_PID=$!  # Capture PID for synchronization
     
     # SYNCHRONIZATION PHASE:
     # Wait for all packaging processes to complete before proceeding to app packaging
@@ -183,6 +196,7 @@ _build-athena-common mode:
     wait $RBAC_PKG_PID && echo "  ✅ rbac-registration packaging completed" || echo "  ❌ rbac-registration packaging failed"
     wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || echo "  ❌ staked-ada-indexer packaging failed"
     wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || echo "  ❌ staked-ada packaging failed"
+    wait $AUTH_PKG_PID && echo "  ✅ auth packaging completed" || echo "  ❌ auth packaging failed"
     
     echo "🎯 All parallel packaging operations completed!"
     echo "✅ Module packaging complete (.hmod files created)"
@@ -424,7 +438,7 @@ get-local-athena-fast:
     )
     
     # Other modules
-    for module in doc-sync rbac-registration-indexer rbac-registration staked-ada-indexer staked-ada; do
+    for module in doc-sync rbac-registration-indexer rbac-registration staked-ada-indexer staked-ada auth; do
         (
             cd modules/$module
             mkdir -p lib

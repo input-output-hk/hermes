@@ -38,6 +38,11 @@ pub(crate) struct Config {
 /// default is fine for now.
 impl Default for Config {
     fn default() -> Self {
+        let is_auth_activate = std::env::var("HERMES_ACTIVATE_AUTH")
+            .ok()
+            .and_then(|v| v.parse::<bool>().ok())
+            .unwrap_or(true); // fallback default
+
         Self {
             valid_hosts: [
                 Hostname("hermes.local".to_owned()),
@@ -45,8 +50,7 @@ impl Default for Config {
             ]
             .to_vec(),
             local_addr: SocketAddr::new([127, 0, 0, 1].into(), GATEWAY_PORT),
-            // TODO(bkioshn): change back when auth module is added
-            is_auth_activate: false,
+            is_auth_activate,
         }
     }
 }
