@@ -80,8 +80,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
@@ -127,8 +127,8 @@ impl HostNetwork for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Network>,
         start: SyncSlot,
     ) -> wasmtime::Result<Result<u32, SubscribeError>> {
-        let mut network_app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = network_app_state.get_object(&self_)?;
+        let network_app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
         let subscription_id_resource = subscription_id_app_state.create_resource(*network);
@@ -185,8 +185,8 @@ impl HostNetwork for HermesRuntimeContext {
         start: Option<Slot>,
         step: i64,
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         let multi_era_block = match get_block_relative(*network, start, step) {
             Ok(block) => block,
             Err(e) => {
@@ -194,7 +194,7 @@ impl HostNetwork for HermesRuntimeContext {
                 return Ok(None);
             },
         };
-        let app_state = STATE.block.get_app_state(self.app_name())?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
         let resource = app_state.create_resource(multi_era_block);
         Ok(Some(resource))
     }
@@ -210,9 +210,15 @@ impl HostNetwork for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Network>,
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
-        let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
-        let (immutable_tip, mutable_tip) = get_tips(*network);
+        let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
+        let (immutable_tip, mutable_tip) = match get_tips(*network) {
+            Ok(tips) => tips,
+            Err(e) => {
+                error!(error=?e, "Failed to get tips");
+                return Ok(None);
+            },
+        };
         Ok(Some((immutable_tip.into(), mutable_tip.into())))
     }
 
@@ -242,8 +248,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<bool> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.is_immutable())
     }
 
@@ -257,9 +263,9 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Result<bool, BlockError>> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
-        let is_rollback = get_is_rollback(block.network(), block.slot());
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
+        let is_rollback = get_is_rollback(block.network(), block.slot())?;
         match is_rollback {
             Some(is_rollback) => Ok(Ok(is_rollback)),
             None => Ok(Err(BlockError::BlockNotFound)),
@@ -283,14 +289,14 @@ impl HostBlock for HermesRuntimeContext {
         index: TxnIdx,
     ) -> wasmtime::Result<Result<wasmtime::component::Resource<Transaction>, TransactionError>>
     {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         // Check whether the data in the index exists
         if block.txs().get(usize::from(index)).is_none() {
             return Ok(Err(TransactionError::TxnNotFound));
         }
         // If exist store the block and index
-        let app_state = STATE.transaction.get_app_state(self.app_name())?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
         let resource = app_state.create_resource((block.clone(), index));
         Ok(Ok(resource))
     }
@@ -304,8 +310,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Slot> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.slot().into())
     }
 
@@ -318,8 +324,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<Cbor> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.raw().clone())
     }
 
@@ -340,8 +346,8 @@ impl HostBlock for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Block>,
     ) -> wasmtime::Result<u64> {
-        let mut app_state = STATE.block.get_app_state(self.app_name())?;
-        let block = app_state.get_object(&self_)?;
+        let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
+        let block = app_state.get_object_shared(&self_)?;
         Ok(block.fork().into())
     }
 
@@ -371,8 +377,8 @@ impl HostTransaction for HermesRuntimeContext {
         self_: wasmtime::component::Resource<Transaction>,
         label: u64,
     ) -> wasmtime::Result<Option<Cbor>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let Some(metadata) = object.0.txn_metadata(object.1.into(), label.into()) else {
             error!(
                 "Failed to get metadata, transaction index: {}, label: {label}",
@@ -393,8 +399,8 @@ impl HostTransaction for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<TxnHash>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let txns = object.0.txs();
         let Some(txn) = txns.get(usize::from(object.1)) else {
             error!(error = "Invalid index", "Failed to get transaction hash");
@@ -417,8 +423,8 @@ impl HostTransaction for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<Transaction>,
     ) -> wasmtime::Result<Option<Cbor>> {
-        let mut app_state = STATE.transaction.get_app_state(self.app_name())?;
-        let object = app_state.get_object(&self_)?;
+        let app_state = STATE.transaction.get_app_state_readonly(self.app_name())?;
+        let object = app_state.get_object_shared(&self_)?;
         let txns = object.0.txs();
         let Some(txn) = txns.get(usize::from(object.1)) else {
             error!(error = "Invalid index", "Failed to get raw transaction");
@@ -446,8 +452,10 @@ impl HostSubscriptionId for HermesRuntimeContext {
         &mut self,
         self_: wasmtime::component::Resource<SubscriptionId>,
     ) -> wasmtime::Result<CardanoNetwork> {
-        let mut app_state = STATE.subscription_id.get_app_state(self.app_name())?;
-        let network = app_state.get_object(&self_)?;
+        let app_state = STATE
+            .subscription_id
+            .get_app_state_readonly(self.app_name())?;
+        let network = app_state.get_object_shared(&self_)?;
         Ok((*network).try_into()?)
     }
 
@@ -462,7 +470,7 @@ impl HostSubscriptionId for HermesRuntimeContext {
         if let Some(entry) = STATE.subscriptions.get(&id) {
             let (_, handle) = entry.value();
             // Stop the subscription
-            handle.stop()?;
+            handle.stop();
             // Remove the resource and subscription state
             let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
             subscription_id_app_state.delete_resource(self_)?;
