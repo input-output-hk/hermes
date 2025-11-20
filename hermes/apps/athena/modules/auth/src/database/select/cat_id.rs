@@ -7,15 +7,15 @@ use shared::{
         log::log_error,
         sqlite::{
             operation::Operation,
-            statement::{column_as, DatabaseStatement},
+            statement::{DatabaseStatement, column_as},
         },
     },
 };
 
 use crate::{
     database::{
-        query_builder::QueryBuilder, select::TableSource, RBAC_REGISTRATION_PERSISTENT_TABLE_NAME,
-        RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+        RBAC_REGISTRATION_PERSISTENT_TABLE_NAME, RBAC_REGISTRATION_VOLATILE_TABLE_NAME,
+        query_builder::QueryBuilder, select::TableSource,
     },
     rbac::{rbac_chain_metadata::RbacChainMetadata, registration_location::RegistrationLocation},
 };

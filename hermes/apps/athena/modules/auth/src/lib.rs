@@ -42,7 +42,7 @@ impl AuthComponent {
     /// Create HTTP response from `AuthResponse`
     fn make_response(auth: &AuthResponse) -> HttpResponse {
         let headers = vec![("content-type".to_string(), vec![
-            "application/json".to_string()
+            "application/json".to_string(),
         ])];
         // Attempt to serialize, fallback to 500 if it fails
         let (code, body) =

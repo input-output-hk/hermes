@@ -66,7 +66,7 @@ pub fn checker_api_catalyst_auth(
     if token.verify(&latest_pk).is_err() {
         warn!("Invalid signature for token: {token}");
         return AuthResponse::Forbidden(AuthTokenAccessViolation(vec![
-            "INVALID SIGNATURE".to_string()
+            "INVALID SIGNATURE".to_string(),
         ]));
     }
 

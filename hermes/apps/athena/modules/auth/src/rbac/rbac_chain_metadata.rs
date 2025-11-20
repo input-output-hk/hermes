@@ -1,6 +1,6 @@
 //! RBAC chain metadata.
 
-use cardano_blockchain_types::{hashes::TransactionId, Slot};
+use cardano_blockchain_types::{Slot, hashes::TransactionId};
 
 /// RBAC chain metadata.
 #[allow(clippy::struct_field_names)]
