@@ -38,7 +38,7 @@ pub(crate) struct Config {
 /// default is fine for now.
 impl Default for Config {
     fn default() -> Self {
-        let is_auth_activate = std::env::var("HERMES_AUTH_ACTIVATE")
+        let is_auth_activate = std::env::var("HERMES_ACTIVATE_AUTH")
             .ok()
             .and_then(|v| v.parse::<bool>().ok())
             .unwrap_or(true); // fallback default

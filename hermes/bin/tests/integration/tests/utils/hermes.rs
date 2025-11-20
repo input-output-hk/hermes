@@ -71,6 +71,8 @@ pub fn spawn_app(
         .arg("--untrusted")
         .arg(app_path)
         .env("HERMES_LOG_LEVEL", "trace")
+        // Disable auth for integration test
+        .env("HERMES_ACTIVATE_AUTH", "false")
         .stdout(Stdio::from(log_file.try_clone()?))
         .stderr(Stdio::from(log_file))
         .spawn()?;
