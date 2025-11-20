@@ -7,10 +7,11 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
-    SQLITE_OPEN_READWRITE, sqlite3, sqlite3_busy_handler, sqlite3_db_filename, sqlite3_db_name,
-    sqlite3_exec, sqlite3_filename_database, sqlite3_filename_journal, sqlite3_filename_wal,
-    sqlite3_open_v2, sqlite3_soft_heap_limit64, sqlite3_wal_autocheckpoint,
+    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, sqlite3, sqlite3_busy_handler,
+    sqlite3_db_filename, sqlite3_db_name, sqlite3_exec, sqlite3_filename_database,
+    sqlite3_filename_journal, sqlite3_filename_wal, sqlite3_open_v2, sqlite3_soft_heap_limit64,
+    sqlite3_wal_autocheckpoint,
 };
 use rand::random;
 
@@ -19,6 +20,7 @@ use crate::{
     runtime_extensions::{
         app_config::{get_app_in_memory_sqlite_db_cfg, get_app_persistent_sqlite_db_cfg},
         bindings::hermes::sqlite::api::Errno,
+        hermes::sqlite::is_serialized,
     },
 };
 
@@ -145,7 +147,11 @@ pub(super) fn open(
         SQLITE_OPEN_READONLY
     } else {
         SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
-    } | SQLITE_OPEN_NOMUTEX;
+    } | if is_serialized() {
+        SQLITE_OPEN_FULLMUTEX
+    } else {
+        SQLITE_OPEN_NOMUTEX
+    };
 
     let c_path =
         CString::new(db_path.to_string_lossy().as_bytes()).map_err(|_| Errno::ConvertingCString)?;
@@ -207,8 +213,8 @@ pub(super) fn open_with_persistent_memory(
     memory: bool,
     app_name: ApplicationName,
 ) -> Result<*mut sqlite3, Errno> {
-    // Internally `kernel::open` derives db path from `ApplicationName`, treating it as no
-    // more than a string. So, it is okay to substitute it at `kernel::open` level to
+    // Internally `core::open` derives db path from `ApplicationName`, treating it as no
+    // more than a string. So, it is okay to substitute it at `core::open` level to
     // create another file. Once the pointer is obtained, however, it must be bound to the
     // resource under the original `app_name`.
     let db_name = if memory {
