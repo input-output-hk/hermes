@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["drop_all_apps","get_all_app_names","get_app","init","init_app","load_app"],"static":["REACTOR_STATE"],"struct":["Reactor"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"macro":["impl_saturating_mul_add"],"trait":["SaturatingMulAdd"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["HASH_SIZE"],"struct":["Blake2b256","Blake2b256Hasher"]};

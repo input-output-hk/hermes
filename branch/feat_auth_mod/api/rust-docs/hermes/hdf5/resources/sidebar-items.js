@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["builder","bytes","fs","hdf5","uri"],"trait":["ResourceTrait"]};

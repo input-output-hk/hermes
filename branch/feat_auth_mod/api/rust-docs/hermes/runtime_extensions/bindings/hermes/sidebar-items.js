@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["binary","cardano","cbor","cron","crypto","hash","http_gateway","http_request","init","integration_test","ipfs","json","kv_store","localtime","logging","sqlite"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Errno","IpfsContent"],"fn":["add_to_linker"],"struct":["PubsubMessage"],"trait":["Host","HostWithStore"],"type":["DhtKey","DhtValue","IpfsFile","IpfsPath","MessageData","MessageId","PeerId","PubsubTopic"]};

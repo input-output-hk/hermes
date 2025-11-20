@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["KvValues"],"fn":["add_to_linker"],"trait":["Host","HostWithStore"],"type":["Bstr","Cbor","Json"]};
