@@ -57,12 +57,16 @@ impl HostSyncChannel for HermesRuntimeContext {
         })?;
 
         let resource: u32 = u32::from_be_bytes(prefix_bytes);
-        let entry = DOC_SYNC_STATE.entry(resource).or_insert(name.clone());
-        if &name != entry.value() {
-            return Err(wasmtime::Error::msg(format!(
-                "Collision occurred with previous value = {} and new one = {name}",
-                entry.value()
-            )));
+
+        // Code block is used to minimize locking scope.
+        {
+            let entry = DOC_SYNC_STATE.entry(resource).or_insert(name.clone());
+            if &name != entry.value() {
+                return Err(wasmtime::Error::msg(format!(
+                    "Collision occurred with previous value = {} and new one = {name}",
+                    entry.value()
+                )));
+            }
         }
 
         if let Err(err) = hermes_ipfs_subscribe(self.app_name(), name) {
@@ -90,9 +94,9 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// - `error(<something>)`: If it gets an error closing.
     fn close(
         &mut self,
-        _self_: Resource<SyncChannel>,
+        self_: Resource<SyncChannel>,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(Ok(true))
+        inner_close(self, self_)
     }
 
     /// Post the document to a channel
@@ -178,10 +182,19 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// Wasmtime resource drop callback.
     fn drop(
         &mut self,
-        rep: Resource<SyncChannel>,
+        res: Resource<SyncChannel>,
     ) -> wasmtime::Result<()> {
-        self.close(rep);
+        inner_close(self, res)??;
 
         Ok(())
     }
+}
+
+/// This function is required cause reusage of `self.close`
+/// inside drop causes invalid behavior during codegen.
+fn inner_close(
+    _ctx: &mut HermesRuntimeContext,
+    _res: Resource<SyncChannel>,
+) -> wasmtime::Result<Result<bool, Errno>> {
+    Ok(Ok(true))
 }
