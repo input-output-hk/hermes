@@ -3,9 +3,14 @@
 use wasmtime::component::Resource;
 
 use crate::{
+    ipfs::hermes_ipfs_subscribe,
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::doc_sync::api::{
-        ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId, SyncChannel,
+    runtime_extensions::{
+        bindings::hermes::doc_sync::api::{
+            ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
+            SyncChannel,
+        },
+        hermes::doc_sync::DOC_SYNC_STATE,
     },
 };
 
@@ -14,9 +19,9 @@ impl Host for HermesRuntimeContext {
     /// Get the Document ID for the given Binary Document
     fn id_for(
         &mut self,
-        _doc: DocData,
+        doc: DocData,
     ) -> wasmtime::Result<Vec<u8>> {
-        todo!()
+        Ok(blake2b_simd::blake2b(doc.as_ref()).as_bytes().to_vec())
     }
 }
 
@@ -35,9 +40,41 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// - `error(create-network-error)`: If creating network resource failed.
     fn new(
         &mut self,
-        _name: ChannelName,
+        name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        todo!()
+        let hash = blake2b_simd::blake2b(name.as_bytes());
+
+        // The digest is a 64-byte array ([u8; 64]) for 512-bit output.
+        // Take the first 4 bytes to use them as resource id.
+        //
+        // Assumption:
+        // Number of channels is way more less then u32, so collisions are
+        // acceptable but unlikely in practice. We use the first 4 bytes of
+        // the cryptographically secure Blake2b hash as a fast, 32-bit ID
+        // to minimize lock contention when accessing state via DOC_SYNC_STATE.
+        let prefix_bytes: [u8; 4] = hash.as_bytes()[..4].try_into().map_err(|err| {
+            wasmtime::Error::msg(format!("error trimming channel name hash: {err}"))
+        })?;
+
+        let resource: u32 = u32::from_be_bytes(prefix_bytes);
+
+        // Code block is used to minimize locking scope.
+        {
+            let entry = DOC_SYNC_STATE.entry(resource).or_insert(name.clone());
+            if &name != entry.value() {
+                return Err(wasmtime::Error::msg(format!(
+                    "Collision occurred with previous value = {} and new one = {name}",
+                    entry.value()
+                )));
+            }
+        }
+
+        if let Err(err) = hermes_ipfs_subscribe(self.app_name(), name) {
+            DOC_SYNC_STATE.remove(&resource);
+            return Err(wasmtime::Error::msg(format!("Subscription failed: {err}",)));
+        }
+
+        Ok(wasmtime::component::Resource::new_own(resource))
     }
 
     /// Close Doc Sync Channel
@@ -46,7 +83,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// (and all docs stored are released)
     /// Close itself should be deferred until all running WASM modules with an open
     /// `sync-channel` resource have terminated.
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -57,14 +94,13 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// - `error(<something>)`: If it gets an error closing.
     fn close(
         &mut self,
-        _self_: Resource<SyncChannel>,
-        _name: ChannelName,
+        self_: Resource<SyncChannel>,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!()
+        inner_close(self, self_)
     }
 
     /// Post the document to a channel
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -82,7 +118,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     }
 
     /// Prove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// loc : Location ID of the document to prove storage of.
@@ -104,7 +140,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     }
 
     /// Disprove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// loc : Location ID of the document to prove storage of.
@@ -126,7 +162,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     }
 
     /// Prove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -146,8 +182,19 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// Wasmtime resource drop callback.
     fn drop(
         &mut self,
-        _rep: Resource<SyncChannel>,
+        res: Resource<SyncChannel>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        inner_close(self, res)??;
+
+        Ok(())
     }
+}
+
+/// This function is required cause reusage of `self.close`
+/// inside drop causes invalid behavior during codegen.
+fn inner_close(
+    _ctx: &mut HermesRuntimeContext,
+    _res: Resource<SyncChannel>,
+) -> wasmtime::Result<Result<bool, Errno>> {
+    Ok(Ok(true))
 }
