@@ -69,6 +69,36 @@ pub(crate) fn new_context(ctx: &crate::runtime_context::HermesRuntimeContext) {
     STATE.subscription_id.add_app(ctx.app_name().clone());
 }
 
+/// Shutdown all chain sync tasks gracefully.
+/// This should be called on application shutdown to cancel all running chain sync tasks
+/// and prevent them from blocking the shutdown process.
+pub(crate) fn shutdown_chain_sync() {
+    tracing::info!("Shutting down Cardano runtime extensions");
+
+    // First, stop all active subscriptions
+    // Note: We use fire-and-forget stop() to avoid deadlocks, which means subscription
+    // threads may still be processing for a brief moment after this returns
+    let subscription_ids: Vec<u32> = STATE.subscriptions.iter().map(|e| *e.key()).collect();
+    for id in subscription_ids {
+        if let Some(entry) = STATE.subscriptions.get(&id) {
+            let (_, handle) = entry.value();
+            handle.stop();
+        }
+        STATE.subscriptions.remove(&id);
+    }
+
+    // Then abort all chain sync tasks
+    // Note: This immediately terminates tasks, which may interrupt in-progress operations
+    for entry in &STATE.sync_state {
+        let network = entry.key();
+        tracing::debug!(network = %network, "Aborting chain sync task");
+        entry.value().abort();
+    }
+    STATE.sync_state.clear();
+
+    tracing::info!("Cardano runtime extensions shutdown complete");
+}
+
 /// Cardano Error.
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(thiserror::Error)]

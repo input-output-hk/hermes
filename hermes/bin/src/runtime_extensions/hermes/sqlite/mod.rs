@@ -1,5 +1,7 @@
 //! `SQLite` runtime extension implementation.
 
+use std::sync::Once;
+
 use tracing::debug;
 
 use crate::{
@@ -8,7 +10,7 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::sqlite::api::Errno,
         hermes::sqlite::{
-            connection::core::close_and_remove_all, kernel::open_with_persistent_memory,
+            connection::core::close_and_remove_all, core::open_with_persistent_memory,
             state::resource_manager::init_app_state,
         },
         init::{
@@ -24,10 +26,23 @@ use crate::{
 };
 
 mod connection;
+mod core;
 mod host;
-mod kernel;
 mod state;
 mod statement;
+
+/// Controls [`is_serialized`] value.
+static SERIALIZED: Once = Once::new();
+
+/// Make `SQLite` access serialized.
+pub(crate) fn set_serialized() {
+    SERIALIZED.call_once(|| ());
+}
+
+/// Returns whether `SQLite` access is serialized.
+pub(crate) fn is_serialized() -> bool {
+    SERIALIZED.is_completed()
+}
 
 /// Runtime Extension for `SQLite`
 #[derive(Default)]

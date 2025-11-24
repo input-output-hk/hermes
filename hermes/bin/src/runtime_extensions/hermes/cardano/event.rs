@@ -69,16 +69,12 @@ impl HermesEventPayload for OnCardanoBlockEvent {
 
 impl Drop for OnCardanoBlockEvent {
     fn drop(&mut self) {
-        // Clean up block resource when event is dropped
-        match STATE.block.get_app_state(&self.app_name) {
-            Ok(block_app_state) => {
-                if let Err(err) = block_app_state.delete_resource_rep(self.block) {
-                    error!(error = ?err, "Failed to delete block resource OnCardanoBlockEvent");
-                }
-            },
-            Err(err) => {
-                error!(error = ?err, "Failed to get block app state OnCardanoBlockEvent");
-            },
+        // Clean up block resource when event is dropped using shared access to avoid deadlocks
+        if let Err(err) = STATE
+            .block
+            .delete_resource_rep_readonly(&self.app_name, self.block)
+        {
+            error!(error = ?err, "Failed to delete block resource OnCardanoBlockEvent");
         }
     }
 }
@@ -121,15 +117,12 @@ impl HermesEventPayload for OnCardanoImmutableRollForwardEvent {
 
 impl Drop for OnCardanoImmutableRollForwardEvent {
     fn drop(&mut self) {
-        match STATE.block.get_app_state(&self.app_name) {
-            Ok(block_app_state) => {
-                if let Err(err) = block_app_state.delete_resource_rep(self.block) {
-                    error!(error = ?err, "Failed to delete block resource OnCardanoImmutableRollForwardEvent");
-                }
-            },
-            Err(err) => {
-                error!(error = ?err, "Failed to get block app state OnCardanoImmutableRollForwardEvent");
-            },
+        // Clean up block resource when event is dropped using shared access to avoid deadlocks
+        if let Err(err) = STATE
+            .block
+            .delete_resource_rep_readonly(&self.app_name, self.block)
+        {
+            error!(error = ?err, "Failed to delete block resource OnCardanoImmutableRollForwardEvent");
         }
     }
 }

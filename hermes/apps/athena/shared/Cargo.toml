@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "shared"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
@@ -82,3 +82,6 @@ catalyst-types = { version = "0.0.10", git = "https://github.com/input-output-hk
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[dev-dependencies]
+test-case = "3.3.1"

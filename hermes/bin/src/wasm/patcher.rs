@@ -1,5 +1,193 @@
 //! Patcher for WASM files.
-//! It injects functions to get memory size and read raw memory bytes into the WASM file.
+//! It uses the text representation of component model .wasm files (.wat) to inject
+//! functions necessary for linear memory snapshotting.
+//!
+//! The patching process is split into the following stages:
+//! 1. Load the WASM file from binary .wasm or directly from a .wat string.
+//! 2. Split the WASM into 3 distinct parts
+//!    1. The component part that is defined before core modules (pre-component)
+//!    2. The core modules
+//!    3. The main component part
+//! 3. Inject the core-level functions into the first core module
+//! 4. Inject the component-level functions, types and aliases into the component part
+//! 5. Stitch the parts together and return the resulting WASM in .wat format
+//!
+//! # Step 1: Load the WASM file from binary .wasm or directly from a .wat string
+//!
+//! The WASM can be loaded from a binary file. In such case it is converted into
+//! the .wat format using the `wasmprinter` crate and sent for further processing.
+//! In case the WASM is provided as a .wat string, it is used directly after
+//! being checked for syntax errors.
+//!
+//! # Step 2: Split the WASM into 3 distinct parts
+//!
+//! ## The extraction of the core module:
+//! 1. Use the `(core module (;` string marker to discover an embedded core module
+//! 2. Once the marker is found, parse the string until the corresponding closing
+//!    parenthesis ")" is found
+//! 3. Store the entire core module section and keep looking for more core module markers
+//! 4. Collect the list of all encountered core modules
+//!
+//! ## The extraction of the component part:
+//! The entire section after the last encountered core module is considered to be the
+//! component part.
+//!
+//! ## The extraction of the pre-component part:
+//! The entire section before the first encountered core module is considered to be the
+//! pre-component part.
+//!
+//! # Step 3: Inject the core-level functions into the first core module
+//!
+//! This process involves:
+//! 1. Injecting the core-level functions into the *first* core module along with the
+//!    necessary types and exports.
+//! 2. Injecting code necessary to expose these functions on the component level.
+//!
+//! We inject a total of 3 functions:
+//! 1. `get-memory-size() -> i32` - returns the number of memory pages of the linear
+//!    memory
+//! 2. `get-memory-raw-bytes(offset: i32) -> i64` - returns 8 bytes from the linear memory
+//!    at a given offset
+//! 3. `set-memory-raw-bytes(offset: i32, bytes: i64)` - writes 8 bytes to the linear
+//!    memory at a given offset
+//!
+//! Each of these functions is prefixed with a magic string to avoid name collisions with
+//! existing functions.
+//!
+//! # Step 4: Inject the component-level functions, types and aliases into the component part
+//!
+//! ## Discovery of the index of the next available type index in the core module
+//! 1. Count the number of type markers `type (;` in the core module, assign to `X`
+//! 2. Use `X+1` for the type of the `get-memory-size()` function
+//! 3. Use `X+2` for the type of the `get-memory-raw-bytes()` function
+//! 4. Use `X+3` for the type of the `set-memory-raw-bytes()` function
+//!
+//! ## Discovery of the index of the next available type index in the component part
+//! 1. The component section can contain internal subsections with separate types. Since
+//!    the types from the inner subsections use a different index space, we must skip
+//!    them. Every such section is detected and removed from further processing
+//! 2. The same process is repeated for the pre-component section, however this time all
+//!    internal sections referring to instances are removed from further processing, as
+//!    these can also contain types from a different index space
+//! 3. Count the number of type markers `type (;` in the component section, assign to `X`
+//! 4. Count the number of type markers `type (;` in the pre-component section, assign to
+//!    `Y`.
+//! 5. Use `X+Y+1` for the type of the `get-memory-size()` function re-export
+//! 6. Use `X+Y+2` for the type of the `get-memory-raw-bytes()` function re-export
+//! 7. Use `X+Y+3` for the type of the `set-memory-raw-bytes()` function re-export
+//!
+//! ## Discovery of the index of the alias of the core function in the component space
+//! 1. Count the number of existing aliases in the component using the following regex:
+//! ```text
+//! \(alias\s+core\s+export\s+0\s+"[^"]+"\s+\(core\s+func
+//! ```
+//!    and assign to `X`
+//! 2. Use `X+1` as the next available alias index
+//!
+//! ## Discovery of the index of the next available component-level export
+//! 1. The component section can contain internal subsections with separate exports. Since
+//!    the exports from the inner subsections use a different index space, we must skip
+//!    them. Every such section is detected and removed from further processing.
+//! 2. Count all export markers using the regex:
+//! ```text
+//! \(export \(.*\(func
+//! ```
+//!    and assign to `X`
+//!
+//! 3. Count all functions already present in the component section using the regex:
+//! ```text
+//! \(func\s+\(;?\d+;?\)\s+\(type\s+\d+\) \(canon
+//! ```
+//!    and assign to `Y`
+//!
+//! 4. Use `X+Y+1` as the next component-level export index for `get-memory-size()`
+//! 5. Use `X+Y+3` as the next component-level export index for `get-memory-raw-bytes()`
+//!    (please note that the index is incremented by 2 because both exports and functions
+//!    on the component level share the same index space)
+//! 6. Use `X+Y+5` as the next component-level export index for `set-memory-raw-bytes()`
+//!
+//! ## The actual injection of the functions, types and aliases
+//! Once all the necessary indices are calculated, the injection is prepared.
+//!
+//! ### Core module
+//! This section shows the full code that is injected into the core module. The
+//! `{PLACEHOLDERS}` are replaced with correctly calculated values.
+//!
+//! #### Types
+//! ```text
+//!    (type (func (result i32)))
+//!    (type (func (param i32) (result i64)))
+//!    (type (func (param i32 i64)))
+//! ```
+//! ### Exports
+//! ```text
+//!    (export "{MAGIC}get-memory-size" (func ${MAGIC}get-memory-size))
+//!    (export "{MAGIC}get-memory-raw-bytes" (func ${MAGIC}get-memory-raw-bytes))
+//!    (export "{MAGIC}set-memory-raw-bytes" (func ${MAGIC}set-memory-raw-bytes))
+//! ```
+//! ### Functions
+//! ```text
+//!    (func ${MAGIC}get-memory-size (type {TYPE_ID}) (result i32)
+//!        memory.size
+//!    )
+//!    (func ${MAGIC}get-memory-raw-bytes (type {TYPE_ID}) (param i32) (result i64)
+//!        local.get 0
+//!        i64.load
+//!    )
+//!    (func ${MAGIC}set-memory-raw-bytes (type {TYPE_ID}) (param i32 i64)
+//!      local.get 0
+//!      local.get 1
+//!      i64.store
+//!    )
+//! ```
+//!
+//! ### Component section
+//!
+//! #### Types
+//! ```text
+//!    (type (func (result u32)))
+//!    (type (func (param "val" u32) (result s64)))
+//!    (type (func (param "val" u32) (param "val2" s64)))
+//! ```
+//!
+//! #### Aliases to core functions
+//! ```text
+//!    (alias core export 0 "{MAGIC}get-memory-size" (core func))
+//!    (alias core export 0 "{MAGIC}get-memory-raw-bytes" (core func))
+//!    (alias core export 0 "{MAGIC}set-memory-raw-bytes" (core func))
+//! ```
+//!
+//! #### Canonical ABI lifted function
+//! "To lift" means to wrap a low-level core function into a high-level component
+//! function. Therefore we do not need to add any new code on the component level; instead
+//! we use canonical ABI lifting to add the necessary marshalling logic.
+//! ```text
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//!    (func (type {TYPE_ID}) (canon lift (core func {FUNC_ID})))
+//! ```
+//!
+//! #### Exports
+//! ```text
+//!    (export "{MAGIC}get-memory-size" (func {FUNC_ID}))
+//!    (export "{MAGIC}get-memory-raw-bytes" (func {FUNC_ID}))
+//!    (export "{MAGIC}set-memory-raw-bytes" (func {FUNC_ID}))
+//! ```
+//!
+//! All parts with the added injections are stitched together and returned as a new .wat
+//! file. The parts are merged in the following order:
+//! 1. Pre-component section
+//! 2. All core modules
+//! 3. Component section
+//!
+//! # Notes on the parser
+//! The core functionality of the patcher is a parenthesis-based parser used to navigate
+//! different parts of the .wat file. Given the starting point in the .wat file it is able
+//! to find the end of a given section by analyzing the pairs of open-close parentheses.
+//! It is context-aware, i.e. it will properly recognize and ignore parentheses inside
+//! strings. However, there are still some edge cases that can potentially break the
+//! current parser implementation. If such cases are encountered it is advised to switch
+//! to using the `wasmparser` tool.
 
 // TODO[RC]: Patcher is not yet wired into the Hermes.
 #![allow(unused)]
@@ -167,17 +355,6 @@ impl Patcher {
         })
     }
 
-    /// Validates that the WAT contains exactly one core module.
-    fn validate_core_module<S: AsRef<str>>(wat: S) -> Result<(), anyhow::Error> {
-        let core_module_count = Self::get_item_count(CORE_MODULE_MARKER, &wat)?;
-        if core_module_count != 1 {
-            return Err(anyhow::anyhow!(
-                "expected exactly one core module, found {core_module_count}"
-            ));
-        }
-        Ok(())
-    }
-
     /// Patches the WAT by injecting functions to get memory size and read raw memory
     /// bytes.
     #[allow(clippy::arithmetic_side_effects)]
@@ -219,8 +396,6 @@ impl Patcher {
             .replace("{CORE_TYPE_ID_3}", &core_type_3_index);
 
         let core_export_injection = CORE_INJECTED_EXPORTS.replace("{MAGIC}", MAGIC);
-
-        let next_core_func_index = Self::get_next_core_func_index(&module_0);
 
         let next_component_type_index =
             Self::get_next_component_type_index(&component_part, &pre_core_component_part)?;
@@ -497,12 +672,12 @@ impl Patcher {
 #[cfg(test)]
 mod tests {
     use wasmtime::{
-        component::{bindgen, Instance, Linker},
         AsContextMut, Engine, Store,
+        component::{Instance, Linker, bindgen},
     };
-    use wasmtime_wasi::{p2::add_to_linker_sync, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+    use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView, p2::add_to_linker_sync};
 
-    use crate::wasm::patcher::{Patcher, WasmInternals, MAGIC};
+    use crate::wasm::patcher::{MAGIC, Patcher, WasmInternals};
 
     const LINEAR_MEMORY_PAGE_SIZE_BYTES: u32 = 65536;
 
@@ -1083,9 +1258,11 @@ mod tests {
         let expected_pattern: Vec<u8> = std::iter::repeat_n([0xAA, 0xBB, 0xCC, 0xDD], 1024 / 4)
             .flatten()
             .collect();
-        assert!(linear_memory
-            .windows(1024)
-            .any(|window| window == expected_pattern));
+        assert!(
+            linear_memory
+                .windows(1024)
+                .any(|window| window == expected_pattern)
+        );
     }
 
     struct MyCtx {

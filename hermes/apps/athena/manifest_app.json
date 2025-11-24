@@ -1,33 +1,37 @@
 {
-  "$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
-  "name": "athena",
-  "icon": "icon.svg",
-  "metadata": "metadata.json",
-  "modules": [
-    {
-      "package": "modules/http-proxy/lib/http_proxy.hmod",
-      "name": "http_proxy"
-    },
-    {
-      "package": "modules/rbac-registration-indexer/lib/rbac_registration_indexer.hmod",
-      "name": "rbac_registration_indexer"
-    },
-    {
-      "package": "modules/rbac-registration/lib/rbac_registration.hmod",
-      "name": "rbac_registration"
-    },
-    {
-      "package": "modules/staked-ada-indexer/lib/staked_ada_indexer.hmod",
-      "name": "staked_ada_indexer"
-    },
-    {
-      "package": "modules/staked-ada/lib/staked_ada.hmod",
-      "name": "staked_ada"
-    },
-    {
-      "package": "modules/doc-sync/lib/doc_sync.hmod",
-      "name": "doc_sync"
-    }
-  ],
-  "www": "modules/http-proxy/lib/www"
+	"$schema": "https://raw.githubusercontent.com/input-output-hk/hermes/main/hermes/schemas/hermes_app_manifest.schema.json",
+	"name": "athena",
+	"icon": "icon.svg",
+	"metadata": "metadata.json",
+	"modules": [
+		{
+			"package": "modules/http-proxy/lib/http_proxy.hmod",
+			"name": "http_proxy"
+		},
+		{
+			"package": "modules/rbac-registration-indexer/lib/rbac_registration_indexer.hmod",
+			"name": "rbac_registration_indexer"
+		},
+		{
+			"package": "modules/rbac-registration/lib/rbac_registration.hmod",
+			"name": "rbac_registration"
+		},
+		{
+			"package": "modules/staked-ada-indexer/lib/staked_ada_indexer.hmod",
+			"name": "staked_ada_indexer"
+		},
+		{
+			"package": "modules/staked-ada/lib/staked_ada.hmod",
+			"name": "staked_ada"
+		},
+		{
+			"package": "modules/auth/lib/auth.hmod",
+			"name": "auth"
+		},
+		{
+			"package": "modules/doc-sync/lib/doc_sync.hmod",
+			"name": "doc_sync"
+		}
+	],
+	"www": "modules/http-proxy/lib/www"
 }

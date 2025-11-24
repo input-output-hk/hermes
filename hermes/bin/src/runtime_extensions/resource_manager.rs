@@ -10,6 +10,14 @@ use dashmap::DashMap;
 
 use crate::app::ApplicationName;
 
+/// Initial capacity for resource storage to prevent resize-related deadlocks.
+/// Set high enough to avoid `DashMap` resizes which lock all shards simultaneously.
+const RESOURCE_INITIAL_CAPACITY: usize = 512_000;
+
+/// Number of shards for concurrent access distribution.
+/// High shard count (~0.05 threads/shard ratio) minimizes contention.
+const RESOURCE_SHARD_COUNT: usize = 2048;
+
 /// `ResourceStorage` struct.
 /// - `WitType` represents the type from the wit file definitions and which will appear in
 ///   the `wasmtime::component::Resource<WitType>` object.
@@ -30,8 +38,12 @@ where WitType: 'static
     /// Creates new `ResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            state: DashMap::new(),
-            available_address: AtomicU32::default(),
+            // Prevent DashMap resize deadlocks under high concurrency (~512KB memory overhead)
+            state: DashMap::with_capacity_and_shard_amount(
+                RESOURCE_INITIAL_CAPACITY,
+                RESOURCE_SHARD_COUNT,
+            ),
+            available_address: AtomicU32::new(0),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -42,15 +54,9 @@ where WitType: 'static
         &self,
         object: RustType,
     ) -> wasmtime::component::Resource<WitType> {
-        let available_address = self.available_address.load(Ordering::Acquire);
+        // Allocate an id lock-free and insert the resource.
+        let available_address = self.available_address.fetch_add(1, Ordering::AcqRel);
         self.state.insert(available_address, object);
-
-        // Increment the value of the available address to 1,
-        // so that it can be used for the next resource.
-        // Under the assumption that `ResourceStorage` will not handle too many resources at once,
-        // and will not hold resources for too long, saturating increment is safe.
-        self.available_address
-            .store(available_address.saturating_add(1), Ordering::Release);
 
         wasmtime::component::Resource::new_own(available_address)
     }
@@ -69,6 +75,19 @@ where WitType: 'static
     ) -> wasmtime::Result<impl DerefMut<Target = RustType> + 'a> {
         self.state
             .get_mut(&resource.rep())
+            .ok_or(Self::resource_not_found_err())
+    }
+
+    /// Read-only access to a resource without acquiring an exclusive lock.
+    /// This returns a shared reference which won't block other readers or writers
+    /// for different shards and avoids exclusive `get_mut` locks when only
+    /// immutable access is needed.
+    pub(crate) fn get_object_shared<'a>(
+        &'a self,
+        resource: &wasmtime::component::Resource<WitType>,
+    ) -> wasmtime::Result<impl std::ops::Deref<Target = RustType> + 'a> {
+        self.state
+            .get(&resource.rep())
             .ok_or(Self::resource_not_found_err())
     }
 
@@ -123,7 +142,11 @@ where WitType: 'static
     /// Creates new `ApplicationResourceStorage` instance.
     pub(crate) fn new() -> Self {
         Self {
-            state: DashMap::new(),
+            // Match ResourceStorage settings to prevent resize deadlocks
+            state: DashMap::with_capacity_and_shard_amount(
+                RESOURCE_INITIAL_CAPACITY,
+                RESOURCE_SHARD_COUNT,
+            ),
         }
     }
 
@@ -154,6 +177,33 @@ where WitType: 'static
             .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
     }
 
+    /// Get application state from the resource manager (read-only, shared access).
+    /// This avoids exclusive locking and allows concurrent readers.
+    pub(crate) fn get_app_state_readonly<'a>(
+        &'a self,
+        app_name: &ApplicationName,
+    ) -> anyhow::Result<impl std::ops::Deref<Target = ResourceStorage<WitType, RustType>> + 'a>
+    {
+        self.state
+            .get(app_name)
+            .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))
+    }
+
+    /// Deletes a resource by its representation using shared access.
+    /// This method uses read-only access to get the app state, avoiding exclusive locks
+    /// during resource cleanup (e.g., in Drop implementations).
+    pub(crate) fn delete_resource_rep_readonly(
+        &self,
+        app_name: &ApplicationName,
+        rep: u32,
+    ) -> anyhow::Result<RustType> {
+        let app_state = self
+            .state
+            .get(app_name)
+            .ok_or_else(|| anyhow::anyhow!(Self::app_not_found_err()))?;
+        app_state.delete_resource_rep(rep)
+    }
+
     /// Removes application and all associated resources from the resource manager.
     #[allow(dead_code)]
     pub(crate) fn remove_app(
@@ -166,10 +216,10 @@ where WitType: 'static
     /// Application not found error message.
     fn app_not_found_err() -> wasmtime::Error {
         let msg = format!(
-        "Application not found for resource <{}, {}>, need to add application first by calling `add_app`",
-        type_name::<WitType>(),
-        type_name::<RustType>()
-    );
+            "Application not found for resource <{}, {}>, need to add application first by calling `add_app`",
+            type_name::<WitType>(),
+            type_name::<RustType>()
+        );
         wasmtime::Error::msg(msg)
     }
 }

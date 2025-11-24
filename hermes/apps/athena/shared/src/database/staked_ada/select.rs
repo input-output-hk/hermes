@@ -1,6 +1,6 @@
 //! `SELECT` queries.
 
-use cardano_blockchain_types::{hashes::TransactionId, StakeAddress};
+use cardano_blockchain_types::{StakeAddress, hashes::TransactionId};
 
 use crate::{
     database::{
@@ -12,6 +12,16 @@ use crate::{
     },
     utils::sqlite,
 };
+
+/// Select the last scanned and indexed slot number.
+///
+/// # Errors
+///
+/// - `SQLite` access and deserialization
+pub fn get_last_indexed_slot_no(conn: &mut sqlite::Connection) -> anyhow::Result<Option<u64>> {
+    conn.prepare(sql::STAKED_ADA.select_last_indexed_slot_no)?
+        .query_one(&[], |row| Ok(row.get(0).and_then(u64::try_from).ok()))
+}
 
 /// Select each matching [`TxoByStakeRow`].
 ///

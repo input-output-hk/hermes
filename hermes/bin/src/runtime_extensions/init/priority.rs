@@ -19,10 +19,6 @@ impl RteInitPriority {
         &self,
         init: bool,
     ) -> i32 {
-        if init {
-            self.init
-        } else {
-            self.fini
-        }
+        if init { self.init } else { self.fini }
     }
 }

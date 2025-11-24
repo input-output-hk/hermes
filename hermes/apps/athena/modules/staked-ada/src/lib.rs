@@ -26,7 +26,7 @@ shared::bindings_generate!({
 });
 export!(CatGatewayAPI);
 
-use http::{header::CONTENT_TYPE, StatusCode};
+use http::{StatusCode, header::CONTENT_TYPE};
 use mime::{APPLICATION_JSON, TEXT_HTML};
 use regex::Regex;
 use shared::utils::{
@@ -39,7 +39,7 @@ use shared::utils::{
 };
 
 use crate::{
-    api::{staked_ada_get, types::Responses, GetStakedAdaRequest},
+    api::{GetStakedAdaRequest, staked_ada_get, types::Responses},
     config::messages,
     error::{Result, StakedAdaError},
 };

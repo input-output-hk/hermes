@@ -9,6 +9,7 @@ autocheckpoint
 autonumber
 backpressure
 bech
+Behaviour
 biguint
 bkioshn
 blockfetch
@@ -49,6 +50,7 @@ dcbor
 Devnet
 DHKEM
 Diffie
+dorny
 dotenv
 dotenvy
 dotstar
@@ -72,6 +74,7 @@ fontawesome
 frontends
 fstat
 fstatat
+FULLMUTEX
 futimens
 genhtml
 getfl
@@ -156,6 +159,7 @@ rfind
 Rmax
 Rmin
 rngs
+rsplit
 rollouts
 rusqlite
 rustc
@@ -169,6 +173,7 @@ sandboxing
 sched
 slowloris
 smac
+snapshotting
 stevenj
 stringzilla
 subpaths
@@ -216,3 +221,5 @@ xprv
 xpub
 zilla
 zillable
+rustup
+logcall

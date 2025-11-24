@@ -5,8 +5,8 @@ use std::str::FromStr;
 use derive_more::Display;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
-    fmt::{format::FmtSpan, time},
     EnvFilter, FmtSubscriber,
+    fmt::{format::FmtSpan, time},
 };
 
 use crate::runtime_extensions::bindings::hermes::logging;

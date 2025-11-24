@@ -8,8 +8,8 @@ use crate::{
     },
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, MessageId,
-        PeerId, PubsubTopic,
+        DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
+        PubsubTopic,
     },
 };
 
@@ -63,7 +63,7 @@ impl Host for HermesRuntimeContext {
         &mut self,
         topic: PubsubTopic,
         message: MessageData,
-    ) -> wasmtime::Result<Result<MessageId, Errno>> {
+    ) -> wasmtime::Result<Result<(), Errno>> {
         Ok(hermes_ipfs_publish(self.app_name(), &topic, message))
     }
 

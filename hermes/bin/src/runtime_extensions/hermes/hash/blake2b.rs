@@ -123,7 +123,9 @@ mod tests_blake2b {
 
         assert_eq!(
             result.as_ref(),
-            hex!("8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196")
+            hex!(
+                "8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196"
+            )
         );
     }
 
@@ -147,7 +149,9 @@ mod tests_blake2b {
 
         assert_eq!(
             result.as_ref(),
-            hex!("8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196")
+            hex!(
+                "8e27b2481dd1fe73d598104c03b1f67da60725abb73cf66e400177d73aee01e74b93f55adda27b0ad92e22e284b5e0cc95ad81b04b496bd58c4ae6bca5f56196"
+            )
         );
     }
 
@@ -175,8 +179,11 @@ mod tests_blake2b {
         let result = blake2bmac_impl(&buf, outlen, &key, None, None).unwrap();
 
         assert_eq!(
-        result.as_ref(),
-        hex!("c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115"));
+            result.as_ref(),
+            hex!(
+                "c28029cbab4e11d759e971d7e2a13dbe9ef60d2fa539cc03138b0432c3fdb2757b6c87383bd1074f5533c0c2ad2a5d2ac71bbd96f0f8fbb4c3ba0d4abb309115"
+            )
+        );
     }
 
     #[test]

@@ -7,11 +7,10 @@ use crate::{
     runtime_extensions::{
         bindings::hermes::sqlite::api::{Sqlite, Statement},
         hermes::sqlite::state::{
-            app_not_found_err,
+            ObjectPointer, app_not_found_err,
             connection::DbHandle,
             connection_not_found_err,
             manager::{AppSqliteState, SqliteState},
-            ObjectPointer,
         },
     },
 };

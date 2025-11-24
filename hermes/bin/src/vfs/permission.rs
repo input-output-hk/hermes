@@ -1,8 +1,8 @@
 //! Permissions state management of the Hermes virtual file system.
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use dashmap::DashMap;
@@ -94,7 +94,7 @@ impl PermissionsState {
                 let new_node = PermissionNodeRef::default();
                 node.childs.insert(path_element, new_node.clone());
                 walk = new_node;
-            };
+            }
         }
         // Update the last node with the provided permission
         walk.permission.store(permission.into(), Ordering::Release);
@@ -122,7 +122,7 @@ impl PermissionsState {
                 walk = child_node.clone();
             } else {
                 break;
-            };
+            }
         }
 
         permission

@@ -3,10 +3,8 @@
     {
       "subscription_id": "rbac_registration",
       "module_id": "rbac_registration",
-      "methods": [
-        "GET"
-      ],
-      "path_regex": "^/api/v1/registration(/.*)?$",
+      "methods": ["GET"],
+      "path_regex": "^/api/gateway/v1/registration(/.*)?$",
       "content_types": [],
       "json_schema": null
     },

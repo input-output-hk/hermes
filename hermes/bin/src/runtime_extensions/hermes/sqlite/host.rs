@@ -6,7 +6,7 @@ use crate::{
         bindings::hermes::sqlite::api::{Errno, Host, Sqlite},
         hermes::sqlite::{
             connection::core::close,
-            kernel,
+            core,
             state::{connection::DbHandle, resource_manager},
         },
     },
@@ -38,7 +38,7 @@ impl Host for HermesRuntimeContext {
             return Ok(Ok(resource));
         }
 
-        match kernel::open_with_persistent_memory(readonly, memory, self.app_name().clone()) {
+        match core::open_with_persistent_memory(readonly, memory, self.app_name().clone()) {
             Ok(db_ptr) => {
                 match resource_manager::create_connection_resource(
                     self.app_name(),
@@ -49,8 +49,8 @@ impl Host for HermesRuntimeContext {
                     Err(err) => {
                         if let Err(errno) = close(db_ptr) {
                             anyhow::bail!(
-                            "failed to create connection resource: {err}, also failed to close the connection with errno: {errno}..."
-                        )
+                                "failed to create connection resource: {err}, also failed to close the connection with errno: {errno}..."
+                            )
                         }
                         anyhow::bail!(
                             "failed to create connection resource: {err}, closing the connection..."

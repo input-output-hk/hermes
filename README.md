@@ -29,30 +29,55 @@ sandboxed execution of modular applications.
    just --list
    ```
 
-3. **Build and run everything**:
+3. **Build and run:**
 
    ```bash
-   just build-run-all
+   # First time setup (run once)
+   just check-local-build
+   
+   # Choose your build approach:
+   just build-run-dev-fastest  # 🚀 Daily dev (local, fastest)
+   just build-run-dev          # 🐳 Team consistency (containerized)
+   just build-run-all          # 📦 Production (full assets)
    ```
 
-## All Documentation is in the Justfile
+## Build System
 
-This project uses [Just](https://github.com/casey/just) for build automation.
-**All build instructions, prerequisites, configuration options, development workflows,
-and detailed documentation are contained in the `justfile`.**
+This project uses [Just](https://github.com/casey/just) with two build approaches:
 
-Run `just --list` to see all available commands with their descriptions,
-or `just --show <command>` to see detailed documentation for any specific command.
+| Approach | When to Use | Requirements |
+|----------|-------------|-------------|
+| 🚀 **Local** | Daily development, rapid iteration | Local Rust + `wasm32-wasip2` |
+| 🐳 **Containerized** | Team consistency, CI/CD, final testing | Docker/Podman + Earthly |
+
+**All detailed documentation is in the `justfile`.** Run `just --list` to see all commands.
 
 ## Key Commands
 
-* `just build-run-all` - Complete workflow (recommended for first-time users)
-* `just status` - Show current build status and configuration
-* `just --help` - Just command help
+### Build Commands
 
-For everything else - architecture, prerequisites, configuration,
-troubleshooting, development workflows - see the justfile documentation
-via `just --list`.
+**Main workflows:**
+
+* `just build-run-dev-fastest` - 🚀 **Daily development** (local builds, fastest)
+* `just build-run-dev` - 🐳 **Team consistency** (containerized, matches CI)  
+* `just build-run-all` - 📦 **Production** (full assets, deployments)
+
+**Quick rebuilds:**
+
+* `just dev-athena-fast` - WASM only (development)
+* `just dev-athena` - WASM only (production)
+
+**Setup:**
+
+* `just check-local-build` - Verify local Rust (run once)
+
+### Other Commands
+
+* `just status` - Show build status
+* `just clean-hfs` - Clean application state  
+* `just --list` - See all available commands
+
+For detailed help: `just --show <command>`
 
 ## Development
 

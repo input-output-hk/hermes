@@ -2,7 +2,7 @@
 
 use gateway_task::spawn;
 use serde::Deserialize;
-use subscription::{register_global_endpoint_subscription, EndpointSubscription};
+use subscription::{EndpointSubscription, register_global_endpoint_subscription};
 use tracing::{error, info};
 
 mod auth;

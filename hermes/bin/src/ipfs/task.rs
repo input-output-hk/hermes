@@ -1,10 +1,7 @@
 //! IPFS Task
 use std::str::FromStr;
 
-use hermes_ipfs::{
-    subscription_stream_task, AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile,
-    MessageId as PubsubMessageId, PeerId as TargetPeerId,
-};
+use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -12,7 +9,7 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
-    event::{queue::send, HermesEvent},
+    event::{HermesEvent, queue::send},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, MessageData, PeerId, PubsubMessage, PubsubTopic,
@@ -36,11 +33,7 @@ pub(crate) enum IpfsCommand {
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
     /// Publish to a topic
-    Publish(
-        PubsubTopic,
-        MessageData,
-        oneshot::Sender<Result<PubsubMessageId, Errno>>,
-    ),
+    Publish(PubsubTopic, MessageData, oneshot::Sender<Result<(), Errno>>),
     /// Subscribe to a topic
     Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
     /// Evict Peer from node
@@ -104,18 +97,29 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
-                let message_id = hermes_node
+                hermes_node
                     .pubsub_publish(topic, message)
                     .await
                     .map_err(|_| Errno::PubsubPublishError)?;
-                send_response(Ok(message_id), tx);
+                send_response(Ok(()), tx);
             },
             IpfsCommand::Subscribe(topic, tx) => {
                 let stream = hermes_node
-                    .pubsub_subscribe(topic)
+                    .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                let handle = subscription_stream_task(stream, topic_stream_app_handler);
+                let message_handler = TopicMessageHandler::new(&topic, topic_message_handler);
+                let subscription_handler =
+                    TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
+                let handle = hermes_ipfs::subscription_stream_task(
+                    stream,
+                    move |msg| {
+                        message_handler.handle(msg);
+                    },
+                    move |msg| {
+                        subscription_handler.handle(msg);
+                    },
+                );
                 send_response(Ok(handle), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
@@ -129,18 +133,88 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
+/// A handler for messages from the IPFS pubsub topic
+struct TopicMessageHandler<T>
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
+{
+    /// The topic.
+    topic: String,
+
+    /// The handler implementation.
+    callback: T,
+}
+
+impl<T> TopicMessageHandler<T>
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
+{
+    /// Creates the new handler.
+    pub fn new(
+        topic: &impl ToString,
+        callback: T,
+    ) -> Self {
+        Self {
+            topic: topic.to_string(),
+            callback,
+        }
+    }
+
+    /// Forwards the message to the handler.
+    pub fn handle(
+        &self,
+        msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    ) {
+        (self.callback)(msg, self.topic.clone());
+    }
+}
+
+/// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
+struct TopicSubscriptionStatusHandler<T>
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
+{
+    /// The topic.
+    topic: String,
+
+    /// The handler implementation.
+    callback: T,
+}
+
+impl<T> TopicSubscriptionStatusHandler<T>
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
+{
+    /// Creates the new handler.
+    pub fn new(
+        topic: &impl ToString,
+        callback: T,
+    ) -> Self {
+        Self {
+            topic: topic.to_string(),
+            callback,
+        }
+    }
+
+    /// Passes the subscription event to the handler.
+    pub fn handle(
+        &self,
+        subscription_event: hermes_ipfs::SubscriptionStatusEvent,
+    ) {
+        (self.callback)(subscription_event, self.topic.clone());
+    }
+}
+
 /// Handler function for topic message streams.
-fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Message) {
+fn topic_message_handler(
+    message: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    topic: String,
+) {
     if let Some(ipfs) = HERMES_IPFS.get() {
-        let msg_topic = msg.topic.into_string();
+        let app_names = ipfs.apps.subscribed_apps(&topic);
         let on_topic_event = OnTopicEvent {
             message: PubsubMessage {
-                topic: msg_topic.clone(),
-                message: msg.data,
-                publisher: msg.source.map(|p| p.to_string()),
+                topic,
+                message: message.data.into(),
+                publisher: message.source.map(|p| p.to_string()),
             },
         };
-        let app_names = ipfs.apps.subscribed_apps(&msg_topic);
         // Dispatch Hermes Event
         if let Err(err) = send(HermesEvent::new(
             on_topic_event.clone(),
@@ -156,6 +230,15 @@ fn topic_stream_app_handler(msg: hermes_ipfs::rust_ipfs::libp2p::gossipsub::Mess
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
     }
+}
+
+/// Handler for the subscription events for topic
+#[allow(clippy::needless_pass_by_value)] // The event will be eventually consumed in the handler
+fn topic_subscription_handler(
+    subscription_event: hermes_ipfs::SubscriptionStatusEvent,
+    topic: String,
+) {
+    tracing::trace!(%subscription_event, %topic, "Subscription event");
 }
 
 /// Send the response of the IPFS command

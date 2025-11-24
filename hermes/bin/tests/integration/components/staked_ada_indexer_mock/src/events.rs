@@ -2,7 +2,7 @@
 
 use cardano_blockchain_types::hashes::{Blake2bHash, TransactionId};
 use shared::{
-    database::staked_ada::{create_tables, insert_txo_by_stake, TxoByStakeRow},
+    database::staked_ada::{TxoByStakeRow, create_tables, insert_txo_by_stake},
     utils::{common::types::cardano::cip19_stake_address::Cip19StakeAddress, log::info, sqlite},
 };
 

@@ -1,6 +1,6 @@
 //! Hex helper functions
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 /// Convert bytes to hex string with the `0x` prefix
 pub(crate) fn as_hex_string<T: AsRef<[u8]>>(bytes: T) -> String {

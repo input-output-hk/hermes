@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use hdf5 as hdf5_lib;
 
 use super::{
-    permission::{PermissionLevel, PermissionsState},
     Vfs,
+    permission::{PermissionLevel, PermissionsState},
 };
 use crate::hdf5 as hermes_hdf5;
 
