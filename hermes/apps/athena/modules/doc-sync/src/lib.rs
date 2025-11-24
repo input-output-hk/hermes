@@ -36,6 +36,8 @@ use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse
 // Removed unused import
 use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs};
 use std::sync::OnceLock;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Runtime;
 
 /// Doc Sync component.
@@ -64,7 +66,8 @@ impl exports::hermes::doc_sync::event::Guest for Component {
 /// Global IPFS instance
 static IPFS_INSTANCE: OnceLock<HermesIpfs> = OnceLock::new();
 
-/// Global runtime for async operations
+/// Global runtime for async operations (non-WASM only)
+#[cfg(not(target_arch = "wasm32"))]
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
 /// Internal representation of the SyncChannel resource
@@ -73,6 +76,7 @@ pub struct SyncChannelImpl {
 }
 
 /// Initialize IPFS instance and runtime
+#[cfg(not(target_arch = "wasm32"))]
 fn get_or_init_ipfs() -> &'static HermesIpfs {
     IPFS_INSTANCE.get_or_init(|| {
         let rt = get_or_init_runtime();
@@ -84,7 +88,21 @@ fn get_or_init_ipfs() -> &'static HermesIpfs {
     })
 }
 
-/// Initialize runtime
+/// Initialize IPFS instance for WASM (without blocking)
+#[cfg(target_arch = "wasm32")]
+fn get_or_init_ipfs() -> &'static HermesIpfs {
+    IPFS_INSTANCE.get_or_init(|| {
+        // In WASM, we use futures::executor::block_on instead of tokio's block_on
+        futures::executor::block_on(async {
+            HermesIpfs::start()
+                .await
+                .expect("Failed to start IPFS node")
+        })
+    })
+}
+
+/// Initialize runtime (non-WASM only)
+#[cfg(not(target_arch = "wasm32"))]
 fn get_or_init_runtime() -> &'static Runtime {
     RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create tokio runtime"))
 }
@@ -93,11 +111,44 @@ fn get_or_init_runtime() -> &'static Runtime {
 impl exports::hermes::doc_sync::api::Guest for Component {
     type SyncChannel = SyncChannelImpl;
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn id_for(doc: DocData) -> Vec<u8> {
         let ipfs = get_or_init_ipfs();
         let rt = get_or_init_runtime();
 
         rt.block_on(async {
+            // Add document to IPFS to get the actual CID
+            let add_file = AddIpfsFile::from(doc);
+            match ipfs.add_ipfs_file(add_file).await {
+                Ok(ipfs_path) => {
+                    // Parse CID from path string
+                    let path_str = ipfs_path.to_string();
+                    if let Some(cid_str) = path_str.strip_prefix("/ipfs/") {
+                        match cid_str.parse::<Cid>() {
+                            Ok(cid) => cid.to_string().into_bytes(),
+                            Err(_) => {
+                                error!(target: "doc_sync::id_for", "Failed to parse CID from path: {}", path_str);
+                                format!("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy").into_bytes()
+                            }
+                        }
+                    } else {
+                        error!(target: "doc_sync::id_for", "Path does not start with /ipfs/: {}", path_str);
+                        format!("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy").into_bytes()
+                    }
+                },
+                Err(ipfs_error) => {
+                    error!(target: "doc_sync::id_for", "Failed to add document to IPFS: {:?}", ipfs_error);
+                    format!("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy").into_bytes()
+                }
+            }
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn id_for(doc: DocData) -> Vec<u8> {
+        let ipfs = get_or_init_ipfs();
+
+        futures::executor::block_on(async {
             // Add document to IPFS to get the actual CID
             let add_file = AddIpfsFile::from(doc);
             match ipfs.add_ipfs_file(add_file).await {
@@ -143,6 +194,7 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
         Ok(true)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn post(
         &self,
         doc: DocData,
@@ -199,7 +251,77 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
             let pubsub_topic = format!("doc-sync/{}", self.name);
             match ipfs.pubsub_publish(pubsub_topic.clone(), doc).await {
                 Ok(()) => {
-                    info!(target: "doc_sync::sync_channel", 
+                    info!(target: "doc_sync::sync_channel",
+                          "Document published to PubSub - topic: {}", pubsub_topic);
+                },
+                Err(ipfs_error) => {
+                    error!(target: "doc_sync::sync_channel", "Failed to publish document to PubSub: {:?}", ipfs_error);
+                    return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
+                },
+            }
+
+            // Return the CID as bytes
+            Ok(cid.to_string().into_bytes())
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn post(
+        &self,
+        doc: DocData,
+    ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
+        info!(target: "doc_sync::sync_channel", "Posting document to channel: {}, doc_size: {}", self.name, doc.len());
+
+        let ipfs = get_or_init_ipfs();
+
+        futures::executor::block_on(async {
+            // Step 1: Add document to IPFS
+            let add_file = AddIpfsFile::from(doc.clone());
+            let ipfs_path = match ipfs.add_ipfs_file(add_file).await {
+                Ok(path) => {
+                    info!(target: "doc_sync::sync_channel", "Document added to IPFS: {}", path);
+                    path
+                },
+                Err(ipfs_error) => {
+                    error!(target: "doc_sync::sync_channel", "Failed to add document to IPFS: {:?}", ipfs_error);
+                    return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
+                },
+            };
+
+            // Extract CID from path
+            let path_str = ipfs_path.to_string();
+            let cid = if let Some(cid_str) = path_str.strip_prefix("/ipfs/") {
+                match cid_str.parse::<Cid>() {
+                    Ok(cid) => cid,
+                    Err(parse_error) => {
+                        error!(target: "doc_sync::sync_channel", "Failed to parse CID from path {}: {:?}", path_str, parse_error);
+                        return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
+                    }
+                }
+            } else {
+                error!(target: "doc_sync::sync_channel", "Path does not start with /ipfs/: {}", path_str);
+                return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
+            };
+
+            // Step 2: Pin the document
+            match ipfs.insert_pin(&cid).await {
+                Ok(()) => {
+                    info!(target: "doc_sync::sync_channel", "Document pinned successfully: {}", cid);
+                },
+                Err(ipfs_error) => {
+                    error!(target: "doc_sync::sync_channel", "Failed to pin document: {:?}", ipfs_error);
+                    return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
+                },
+            }
+
+            // Step 3: Pre-publish step (placeholder for separate issue #630)
+            // TODO: Implement pre-publish step when issue #630 is resolved
+
+            // Step 4: Publish to PubSub
+            let pubsub_topic = format!("doc-sync/{}", self.name);
+            match ipfs.pubsub_publish(pubsub_topic.clone(), doc).await {
+                Ok(()) => {
+                    info!(target: "doc_sync::sync_channel",
                           "Document published to PubSub - topic: {}", pubsub_topic);
                 },
                 Err(ipfs_error) => {

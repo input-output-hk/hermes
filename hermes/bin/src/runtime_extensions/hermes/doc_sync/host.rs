@@ -9,18 +9,18 @@ use crate::{
     },
 };
 
-#[allow(clippy::todo)]
 impl Host for HermesRuntimeContext {
     /// Get the Document ID for the given Binary Document
     fn id_for(
         &mut self,
         _doc: DocData,
     ) -> wasmtime::Result<Vec<u8>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::id_for is not yet implemented (returning placeholder CID)");
+        // Return a placeholder CIDv1 (same as used in the module implementation)
+        Ok("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy".as_bytes().to_vec())
     }
 }
 
-#[allow(clippy::todo)]
 impl HostSyncChannel for HermesRuntimeContext {
     /// Open Doc Sync Channel
     ///
@@ -35,9 +35,12 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// - `error(create-network-error)`: If creating network resource failed.
     fn new(
         &mut self,
-        _name: ChannelName,
+        name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::new('{}') is not yet implemented (returning stub resource)", name);
+        // Create a stub resource with a dummy ID (42)
+        // A real implementation would create and track actual channel state
+        Ok(Resource::new_own(42))
     }
 
     /// Close Doc Sync Channel
@@ -46,7 +49,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// (and all docs stored are released)
     /// Close itself should be deferred until all running WASM modules with an open
     /// `sync-channel` resource have terminated.
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -58,13 +61,14 @@ impl HostSyncChannel for HermesRuntimeContext {
     fn close(
         &mut self,
         _self_: Resource<SyncChannel>,
-        _name: ChannelName,
+        name: ChannelName,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::close('{}') is not yet implemented", name);
+        Ok(Ok(true))
     }
 
     /// Post the document to a channel
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -76,13 +80,15 @@ impl HostSyncChannel for HermesRuntimeContext {
     fn post(
         &mut self,
         _self_: Resource<SyncChannel>,
-        _doc: DocData,
+        doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::post() is not yet implemented (doc_size: {} bytes)", doc.len());
+        // Return a placeholder CIDv1 as the document location
+        Ok(Ok("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy".as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// loc : Location ID of the document to prove storage of.
@@ -100,11 +106,12 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::prove_includes() is not yet implemented (returning empty proofs)");
+        Ok(Ok(vec![]))
     }
 
     /// Disprove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// loc : Location ID of the document to prove storage of.
@@ -122,11 +129,12 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::prove_excludes() is not yet implemented (returning empty proofs)");
+        Ok(Ok(vec![]))
     }
 
     /// Prove a document is stored in the provers
-    ///  
+    ///
     /// **Parameters**
     ///
     /// None
@@ -140,7 +148,8 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         _loc: DocLoc,
     ) -> wasmtime::Result<Result<DocData, Errno>> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::get() is not yet implemented (returning error)");
+        Ok(Err(Errno::DocErrorPlaceholder))
     }
 
     /// Wasmtime resource drop callback.
@@ -148,6 +157,8 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         _rep: Resource<SyncChannel>,
     ) -> wasmtime::Result<()> {
-        todo!()
+        eprintln!("WARNING: doc_sync::SyncChannel::drop() is not yet implemented");
+        // Nothing to clean up in stub implementation
+        Ok(())
     }
 }
