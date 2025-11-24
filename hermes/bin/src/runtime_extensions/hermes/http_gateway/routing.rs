@@ -314,7 +314,7 @@ fn handle_auth_for_request(
     if let Ok(r) = result_receiver.recv_timeout(Duration::from_secs(EVENT_TIMEOUT)) {
         build_http_response(r.code, r.headers, r.body)
     } else {
-        error_response("Authentication timeout")
+        error_response("Request timeout")
     }
 }
 
