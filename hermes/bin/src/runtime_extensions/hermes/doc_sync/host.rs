@@ -138,8 +138,13 @@ impl HostSyncChannel for HermesRuntimeContext {
             Err(Errno::PubsubPublishError) => {
                 // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
                 // In a single-node environment, this is expected to fail.
-                tracing::warn!("⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)");
-                tracing::warn!("   Note: Gossipsub requires other nodes subscribing to '{}' to work", topic);
+                tracing::warn!(
+                    "⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)"
+                );
+                tracing::warn!(
+                    "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
+                    topic
+                );
                 tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
             },
             Err(e) => {
