@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-/// Default PubSub topic for doc-sync channel
+/// Default `PubSub` topic for doc-sync channel
 const DOC_SYNC_TOPIC: &str = "doc-sync/documents";
 
 impl Host for HermesRuntimeContext {
@@ -77,13 +77,13 @@ impl HostSyncChannel for HermesRuntimeContext {
         Ok(Ok(true))
     }
 
-    /// Post a document to IPFS and broadcast via PubSub.
+    /// Post a document to IPFS and broadcast via `PubSub`.
     ///
     /// Executes the 4-step workflow:
-    /// 1. Add to IPFS (file_add)
-    /// 2. Pin (file_pin)
+    /// 1. Add to IPFS (`file_add`)
+    /// 2. Pin (`file_pin`)
     /// 3. Pre-publish (TODO #630)
-    /// 4. Publish to PubSub (pubsub_publish)
+    /// 4. Publish to `PubSub` (`pubsub_publish`)
     fn post(
         &mut self,
         _self_: Resource<SyncChannel>,
@@ -137,24 +137,21 @@ impl HostSyncChannel for HermesRuntimeContext {
         }
 
         // Attempt to publish to PubSub
-        match self.pubsub_publish(topic.clone(), doc)? {
-            Ok(_) => {
-                tracing::info!("✓ Step 4/4: Published to PubSub → {}", topic);
-            },
-            Err(_) => {
-                // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-                // In a single-node environment, this is expected to fail with
-                // "NoPeersSubscribedToTopic". We treat this as a warning rather
-                // than a fatal error since Steps 1-2 already succeeded.
-                tracing::warn!(
-                    "⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)"
-                );
-                tracing::warn!(
-                    "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
-                    topic
-                );
-                tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
-            },
+        if let Ok(()) = self.pubsub_publish(topic.clone(), doc)? {
+            tracing::info!("✓ Step 4/4: Published to PubSub → {}", topic);
+        } else {
+            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
+            // In a single-node environment, this is expected to fail with
+            // "NoPeersSubscribedToTopic". We treat this as a warning rather
+            // than a fatal error since Steps 1-2 already succeeded.
+            tracing::warn!(
+                "⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)"
+            );
+            tracing::warn!(
+                "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
+                topic
+            );
+            tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
         }
 
         // Extract CID from path and return it
