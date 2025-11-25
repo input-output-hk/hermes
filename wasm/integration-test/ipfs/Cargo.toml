@@ -5,7 +5,6 @@ edition = "2024"
 
 [lib]
 # The name of the built .wasm file.
-# Keep it consistent with Earthly build output name.
 name = "ipfs"
 crate-type = ["cdylib"]
 
