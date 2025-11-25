@@ -271,8 +271,8 @@ dependencies = [
 
 [[package]]
 name = "cardano-blockchain-types"
-version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.8#a6e629f785d3e1f3ed4c2834d34902710661ab88"
+version = "0.0.9"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-blockchain-types%2Fv0.0.9#fe42df63dfb3f869920e9152091676175d261182"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -1831,7 +1831,7 @@ checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 [[package]]
 name = "rbac-registration"
 version = "0.0.14"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.14#a6e629f785d3e1f3ed4c2834d34902710661ab88"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Frbac#ff26c8a3cfdecfe3ef41b9ec578295e1efb749dc"
 dependencies = [
  "anyhow",
  "brotli",
