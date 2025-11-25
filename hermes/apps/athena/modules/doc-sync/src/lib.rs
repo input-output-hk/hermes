@@ -79,40 +79,13 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
-/// Event handler triggered when a new document arrives on a subscribed PubSub channel.
+/// Event handler called when a document arrives on a subscribed channel.
 ///
-/// **⚠️ REQUIRES PR #691** - This handler only gets called when PR #691 is merged.
-/// Without it, subscriptions work but messages aren't routed to this handler.
+/// **Requires PR #691** to be triggered. The PR adds routing from PubSub messages to this handler.
+/// Currently subscriptions work but this event won't fire until PR #691 merges.
 ///
-/// ## How It Works (with PR #691):
-///
-/// **Step 1 - Subscribe (This Module):**
-/// ```rust,ignore
-/// SyncChannel::new("documents") // → pubsub_subscribe("doc-sync/documents")
-/// ```
-///
-/// **Step 2 - Publish (Another App):**
-/// ```rust,ignore
-/// channel::post(b"Hello!") // → pubsub_publish("doc-sync/documents", b"Hello!")
-/// ```
-///
-/// **Step 3 - Receive (PR #691 Infrastructure):**
-/// - Host IPFS receives PubSub message on "doc-sync/documents"
-/// - Host detects "doc-sync/" prefix → routes to `doc_sync_topic_message_handler()`
-/// - Handler validates message (optionally using `CatalystSignedDocument`)
-/// - Handler dispatches `OnNewDocEvent` to all subscribed modules
-/// - **This function is called** with the document data
-///
-/// ## What PR #691 Adds:
-/// - `SubscriptionKind::DocSync` enum variant
-/// - `doc_sync_topic_message_handler()` for message routing
-/// - `OnNewDocEvent` struct for event dispatch
-/// - Separate tracking of DocSync subscriptions in `AppIpfsState`
-///
-/// ## Current Status:
-/// - ✅ Subscription works (pubsub_subscribe called)
-/// - ⏳ Event routing (needs PR #691)
-/// - ⏳ This handler will be called once PR #691 merges
+/// Flow: `SyncChannel::new("documents")` subscribes → another app calls `channel::post(doc)` →
+/// PR #691 routes the PubSub message → this handler is called with the document.
 impl exports::hermes::doc_sync::event::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,
@@ -121,12 +94,7 @@ impl exports::hermes::doc_sync::event::Guest for Component {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync", "📥 Received doc on channel '{}': {} bytes", channel, doc.len());
 
-        // TODO (once PR #691 is merged): Process received document
-        // - Validate signature (CatalystSignedDocument)
-        // - Store in local database/cache
-        // - Trigger application-specific workflows
-        // - Send acknowledgment back to sender
-        // - Update UI/notify other components
+        // TODO: Process document (validate, store, trigger workflows)
     }
 }
 
