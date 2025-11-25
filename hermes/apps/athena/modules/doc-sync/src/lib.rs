@@ -1,13 +1,8 @@
-#![allow(missing_docs)]
 //! # Doc Sync Module
 //!
-//! Demonstrates the mechanics of posting documents to IPFS and publishing via PubSub.
-//!
-//! ## 4-Step Publishing Workflow
-//! 1. **Add to IPFS** (file_add) - Store document, get CID
-//! 2. **Pin document** (file_pin) - Ensure persistence
-//! 3. **Pre-publish** (TODO #630) - Validation/signing placeholder
-//! 4. **Publish to PubSub** (pubsub_publish) - Broadcast to topic "doc-sync/{channel}"
+//! Thin wrapper for posting documents to IPFS PubSub. The actual 4-step workflow
+//! (file_add, file_pin, pre-publish, pubsub_publish) is executed on the host side
+//! for efficiency.
 //!
 //! ## Usage
 //! ```rust
@@ -23,31 +18,30 @@ shared::bindings_generate!({
         world hermes {
             include wasi:cli/imports@0.2.6;
             import hermes:doc-sync/api;
-            import hermes:ipfs/api;
             import hermes:logging/api;
             import hermes:http-gateway/api;
 
             export hermes:init/event;
             export hermes:doc-sync/event;
-            export hermes:doc-sync/api;
             export hermes:http-gateway/event;
         }
     ",
-    share: ["hermes:logging", "hermes:doc-sync"],
+    share: ["hermes:logging"],
 });
 
 export!(Component);
 
 use shared::{
-    bindings::hermes::doc_sync::api::{ChannelName, DocData},
+    bindings::hermes::doc_sync::api::ChannelName,
     utils::log::{self, info},
 };
 
-use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
+use hermes::{
+    doc_sync::api::{DocData, sync_channel},
+    http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse},
+};
 
-use hermes::ipfs::api::{file_add, file_pin, pubsub_publish};
-
-/// Doc Sync component implementing the IPFS PubSub demo.
+/// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
 
 impl exports::hermes::init::event::Guest for Component {
@@ -66,123 +60,6 @@ impl exports::hermes::doc_sync::event::Guest for Component {
         _doc: DocData,
     ) {
         // Not implemented - this demo only shows publishing
-    }
-}
-
-/// Internal representation of the SyncChannel resource
-pub struct SyncChannelImpl {
-    name: ChannelName,
-}
-
-// Implement the doc-sync API functions
-impl exports::hermes::doc_sync::api::Guest for Component {
-    type SyncChannel = SyncChannelImpl;
-
-    /// Get the CID for a document by adding it to IPFS (without pinning or publishing).
-    fn id_for(doc: DocData) -> Vec<u8> {
-        match file_add(&doc) {
-            Ok(ipfs_path) => {
-                let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-                cid_str.as_bytes().to_vec()
-            },
-            Err(_) => b"error".to_vec(),
-        }
-    }
-}
-
-// Implement the SyncChannel resource
-impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
-    /// Create a new SyncChannel for publishing documents.
-    fn new(name: ChannelName) -> SyncChannelImpl {
-        SyncChannelImpl { name: name.clone() }
-    }
-
-    /// Close a SyncChannel (stub - no cleanup needed).
-    fn close(
-        &self,
-        _name: ChannelName,
-    ) -> Result<bool, exports::hermes::doc_sync::api::Errno> {
-        Ok(true)
-    }
-
-    /// Post a document to IPFS and broadcast it via PubSub.
-    ///
-    /// Executes the 4-step workflow:
-    /// 1. Add to IPFS (file_add) - store document, get CID
-    /// 2. Pin (file_pin) - prevent garbage collection
-    /// 3. Pre-publish (TODO #630) - validation/signing placeholder
-    /// 4. Publish to PubSub (pubsub_publish) - broadcast to "doc-sync/{channel}"
-    ///
-    /// Returns the document's CID on success.
-    fn post(
-        &self,
-        doc: DocData,
-    ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
-        info!(target: "doc_sync", "📤 Posting {} bytes to channel: {}", doc.len(), self.name);
-
-        // Step 1: Add document to IPFS (file_add)
-        let ipfs_path = match file_add(&doc) {
-            Ok(path) => {
-                info!(target: "doc_sync", "✓ Step 1/4: Added to IPFS → {}", path);
-                path
-            },
-            Err(e) => {
-                info!(target: "doc_sync", "✗ Step 1/4 failed: file_add error: {:?}", e);
-                return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            },
-        };
-
-        // Step 2: Pin the document (file_pin)
-        match file_pin(&ipfs_path) {
-            Ok(_) => info!(target: "doc_sync", "✓ Step 2/4: Pinned → {}", ipfs_path),
-            Err(e) => {
-                info!(target: "doc_sync", "✗ Step 2/4 failed: file_pin error: {:?}", e);
-                return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            },
-        }
-
-        // Step 3: Pre-publish validation (TODO #630)
-        info!(target: "doc_sync", "⏭ Step 3/4: Pre-publish (skipped - TODO #630)");
-
-        // Step 4: Publish to PubSub (pubsub_publish)
-        let topic = format!("doc-sync/{}", self.name);
-        match pubsub_publish(&topic, &doc) {
-            Ok(_) => info!(target: "doc_sync", "✓ Step 4/4: Published to PubSub → {}", topic),
-            Err(e) => {
-                info!(target: "doc_sync", "✗ Step 4/4 failed: pubsub_publish error: {:?}", e);
-                return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            },
-        }
-
-        // Extract CID from path and return it
-        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-        Ok(cid_str.as_bytes().to_vec())
-    }
-
-    /// Stub - not implemented.
-    fn prove_includes(
-        &self,
-        _loc: Vec<u8>,
-        _provers: Vec<Vec<u8>>,
-    ) -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
-        Ok(vec![])
-    }
-
-    /// Stub - not implemented.
-    fn prove_excludes(
-        &self,
-        _loc: Vec<u8>,
-        _provers: Vec<Vec<u8>>,
-    ) -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
-        Ok(vec![])
-    }
-
-    /// Stub - not implemented.
-    fn get(
-        &self,
-        _loc: Vec<u8>,
-    ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
-        Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)
     }
 }
 
@@ -209,7 +86,7 @@ impl exports::hermes::http_gateway::event::Guest for Component {
 
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/doc-sync/post") => {
-                // Call channel::post which executes the full 4-step workflow
+                // Call channel::post (executes 4-step workflow on host)
                 match channel::post(body) {
                     Ok(cid_bytes) => {
                         let cid = String::from_utf8_lossy(&cid_bytes);
@@ -253,15 +130,16 @@ fn json_response(
 /// Simple API for posting documents to IPFS PubSub.
 ///
 /// Usage: `let cid = channel::post(document_bytes)?;`
+///
+/// This calls the host-side implementation which executes the 4-step workflow.
 pub mod channel {
     use super::*;
-    use exports::hermes::doc_sync::api::GuestSyncChannel;
 
     /// Post a document to the "documents" channel. Returns the document's CID.
-    pub fn post(document_bytes: DocData) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
-        let channel = SyncChannelImpl {
-            name: "documents".to_string(),
-        };
-        channel.post(document_bytes)
+    pub fn post(document_bytes: DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
+        // Create channel via host
+        let channel = sync_channel::new("documents");
+        // Post document via host (executes 4-step workflow in host)
+        sync_channel::post(&channel, &document_bytes)
     }
 }

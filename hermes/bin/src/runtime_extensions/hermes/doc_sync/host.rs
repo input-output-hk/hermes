@@ -4,8 +4,12 @@ use wasmtime::component::Resource;
 
 use crate::{
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::doc_sync::api::{
-        ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId, SyncChannel,
+    runtime_extensions::bindings::hermes::{
+        doc_sync::api::{
+            ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
+            SyncChannel,
+        },
+        ipfs::api::Host as IpfsHost,
     },
 };
 
@@ -77,31 +81,58 @@ impl HostSyncChannel for HermesRuntimeContext {
         Ok(Ok(true))
     }
 
-    /// Post the document to a channel
+    /// Post a document to IPFS and broadcast via PubSub.
     ///
-    /// **Parameters**
-    ///
-    /// None
-    ///
-    /// **Returns**
-    ///
-    /// - `ok(true)`: Channel Closed and resources released.
-    /// - `error(<something>)`: If it gets an error closing.
+    /// Executes the 4-step workflow:
+    /// 1. Add to IPFS (file_add)
+    /// 2. Pin (file_pin)
+    /// 3. Pre-publish (TODO #630)
+    /// 4. Publish to PubSub (pubsub_publish)
     fn post(
         &mut self,
         _self_: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
-        eprintln!(
-            "WARNING: doc_sync::SyncChannel::post() is not yet implemented (doc_size: {} bytes)",
-            doc.len()
-        );
-        // Return a placeholder CIDv1 as the document location
-        Ok(Ok(
-            "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy"
-                .as_bytes()
-                .to_vec(),
-        ))
+        eprintln!("📤 Posting {} bytes to doc-sync channel", doc.len());
+
+        // Step 1: Add document to IPFS
+        let ipfs_path = match self.file_add(doc.clone())? {
+            Ok(path) => {
+                eprintln!("✓ Step 1/4: Added to IPFS → {}", path);
+                path
+            },
+            Err(_) => {
+                eprintln!("✗ Step 1/4 failed: file_add error");
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        };
+
+        // Step 2: Pin the document
+        match self.file_pin(ipfs_path.clone())? {
+            Ok(_) => eprintln!("✓ Step 2/4: Pinned → {}", ipfs_path),
+            Err(_) => {
+                eprintln!("✗ Step 2/4 failed: file_pin error");
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        }
+
+        // Step 3: Pre-publish validation (TODO #630)
+        eprintln!("⏭ Step 3/4: Pre-publish (skipped - TODO #630)");
+
+        // Step 4: Publish to PubSub
+        // Note: Hardcoded to "documents" channel for now
+        let topic = "doc-sync/documents".to_string();
+        match self.pubsub_publish(topic.clone(), doc)? {
+            Ok(_) => eprintln!("✓ Step 4/4: Published to PubSub → {}", topic),
+            Err(_) => {
+                eprintln!("✗ Step 4/4 failed: pubsub_publish error");
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        }
+
+        // Extract CID from path and return it
+        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
+        Ok(Ok(cid_str.as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
