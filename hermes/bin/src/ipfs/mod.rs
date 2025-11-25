@@ -16,6 +16,7 @@ use hermes_ipfs::{
     AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath, rust_ipfs::dummy,
 };
 use once_cell::sync::OnceCell;
+pub(crate) use task::SubscriptionKind;
 use task::{IpfsCommand, ipfs_command_handler};
 use tokio::{
     runtime::Builder,
@@ -43,16 +44,21 @@ use crate::{
 /// the `HermesIpfsNode`.
 pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = OnceCell::new();
 
+/// IPFS bootstrap config.
+pub struct Config<'a> {
+    /// Local base directory.
+    pub base_dir: &'a Path,
+    /// Should the default addresses be bound.
+    pub default_bootstrap: bool,
+}
+
 /// Bootstrap `HERMES_IPFS` node.
 ///
 /// ## Errors
 ///
 /// Returns errors if IPFS node fails to start.
-pub fn bootstrap(
-    base_dir: &Path,
-    default_bootstrap: bool,
-) -> anyhow::Result<()> {
-    let ipfs_data_path = base_dir.join("ipfs");
+pub fn bootstrap(config: Config) -> anyhow::Result<()> {
+    let ipfs_data_path = config.base_dir.join("ipfs");
     if !ipfs_data_path.exists() {
         tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
         std::fs::create_dir_all(&ipfs_data_path)?;
@@ -62,7 +68,7 @@ pub fn bootstrap(
             .with_default()
             .set_default_listener()
             .set_disk_storage(ipfs_data_path.clone()),
-        default_bootstrap,
+        config.default_bootstrap,
     )?;
     HERMES_IPFS
         .set(ipfs_node)
@@ -268,13 +274,14 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     /// Subscribe to a `PubSub` topic
     fn pubsub_subscribe(
         &self,
+        kind: SubscriptionKind,
         topic: &PubsubTopic,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic.clone(), cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, cmd_tx))
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx
             .blocking_recv()
@@ -306,8 +313,12 @@ struct AppIpfsState {
     dht_keys: DashMap<ApplicationName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
     topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
+    /// List of subscriptions per app (DocSync).
+    doc_sync_topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
     /// Collection of stream join handles per topic subscription.
     subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
+    /// Collection of stream join handles per topic subscription (DocSync).
+    doc_sync_subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
     evicted_peers: DashMap<ApplicationName, HashSet<PeerId>>,
 }
@@ -319,7 +330,9 @@ impl AppIpfsState {
             pinned_files: DashMap::default(),
             dht_keys: DashMap::default(),
             topic_subscriptions: DashMap::default(),
+            doc_sync_topic_subscriptions: DashMap::default(),
             subscriptions_streams: DashMap::default(),
+            doc_sync_subscriptions_streams: DashMap::default(),
             evicted_peers: DashMap::default(),
         }
     }
@@ -383,10 +396,16 @@ impl AppIpfsState {
     /// Keep track of `topic` subscription added by an app.
     fn added_app_topic_subscription(
         &self,
+        kind: SubscriptionKind,
         app_name: ApplicationName,
+
         topic: PubsubTopic,
     ) {
-        self.topic_subscriptions
+        let collection = match kind {
+            SubscriptionKind::Default => &self.topic_subscriptions,
+            SubscriptionKind::DocSync => &self.doc_sync_topic_subscriptions,
+        };
+        collection
             .entry(topic)
             .or_default()
             .value_mut()
@@ -396,26 +415,42 @@ impl AppIpfsState {
     /// Keep track of `topic` stream handle.
     fn added_topic_stream(
         &self,
+        kind: SubscriptionKind,
         topic: PubsubTopic,
+
         handle: JoinHandle<()>,
     ) {
-        self.subscriptions_streams.entry(topic).insert(handle);
+        let collection = match kind {
+            SubscriptionKind::Default => &self.subscriptions_streams,
+            SubscriptionKind::DocSync => &self.doc_sync_subscriptions_streams,
+        };
+        collection.entry(topic).insert(handle);
     }
 
     /// Check if a topic subscription already exists.
     fn topic_subscriptions_contains(
         &self,
+        kind: SubscriptionKind,
         topic: &PubsubTopic,
     ) -> bool {
-        self.topic_subscriptions.contains_key(topic)
+        let collection = match kind {
+            SubscriptionKind::Default => &self.topic_subscriptions,
+            SubscriptionKind::DocSync => &self.doc_sync_topic_subscriptions,
+        };
+        collection.contains_key(topic)
     }
 
     /// Returns a list of apps subscribed to a topic.
     fn subscribed_apps(
         &self,
+        kind: SubscriptionKind,
         topic: &PubsubTopic,
     ) -> Vec<ApplicationName> {
-        self.topic_subscriptions
+        let collection = match kind {
+            SubscriptionKind::Default => &self.topic_subscriptions,
+            SubscriptionKind::DocSync => &self.doc_sync_topic_subscriptions,
+        };
+        collection
             .get(topic)
             .map_or(vec![], |apps| apps.value().iter().cloned().collect())
     }

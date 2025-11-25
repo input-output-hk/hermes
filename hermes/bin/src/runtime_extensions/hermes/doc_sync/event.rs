@@ -18,11 +18,26 @@ unchecked_exports::define! {
 
 /// Event payload for the `on-http-response` event.
 #[allow(dead_code, reason = "sending an event is unimplemented")]
-pub(super) struct OnNewDocEvent {
+pub(crate) struct OnNewDocEvent {
     /// Channel name associated.
     pub(super) channel: ChannelName,
     /// Bytes representing the document.
     pub(super) doc: DocData,
+}
+
+impl OnNewDocEvent {
+    /// Create the event from IPFS topic and message.
+    pub fn from_ipfs(
+        topic: &str,
+        message: &[u8],
+    ) -> anyhow::Result<Self> {
+        super::map_ipfs_topic_to_channel_name(topic).map(|channel| {
+            Self {
+                channel: channel.into_owned(),
+                doc: message.to_vec(),
+            }
+        })
+    }
 }
 
 impl HermesEventPayload for OnNewDocEvent {

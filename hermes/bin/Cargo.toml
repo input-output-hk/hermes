@@ -35,6 +35,7 @@ hermes-ipfs = { version = "0.0.6", git = "https://github.com/input-output-hk/cat
 cardano-blockchain-types = { version = "0.0.6", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.6" }
 cardano-chain-follower = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-chain-follower/v0.0.14" }
 catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
+catalyst-signed-doc = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-signed-doc/v0.0.10" }
 
 # HDF5 is consumed using a git tag, because the latest release is very old, but the code is much more advanced.
 hdf5 = { package = "hdf5-metno", version = "0.10.1", features = [ "static", "blosc", "blosc-zstd" ] }
@@ -61,7 +62,7 @@ dashmap = "6.1.0"
 once_cell = "1.21.3"
 clap = "4.5.46"
 ctrlc = "3.5.0"
-build-info = "0.0.42"
+build-info = "0.0.39"
 derive_more = "2.0.1"
 chrono = { version = "0.4.41", features = ["now"] }
 chrono-tz = "0.10.4"
@@ -104,7 +105,7 @@ wasmprinter = "0.240.0"
 wat = "1.239.0"
 
 [build-dependencies]
-build-info-build = "0.0.42"
+build-info-build = "0.0.39"
 
 [dev-dependencies]
 serial_test = { version = "3.2.0", features = ["file_locks"] }
