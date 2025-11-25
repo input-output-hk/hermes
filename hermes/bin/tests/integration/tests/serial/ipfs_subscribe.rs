@@ -9,7 +9,7 @@ fn ipfs_subscribe() {
     const COMPONENT: &str = "ipfs_subscribe";
     const MODULE: &str = "ipfs_subscribe_module";
 
-    let temp_dir = TempDir::new().unwrap().dont_delete_on_drop();
+    let temp_dir = TempDir::new().unwrap();
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
 
     let app_file_name =

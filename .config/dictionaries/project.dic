@@ -155,6 +155,7 @@ reentrancy
 removedir
 renameat
 reqwest
+reusage
 rfind
 Rmax
 Rmin
