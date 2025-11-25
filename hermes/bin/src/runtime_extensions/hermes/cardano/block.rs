@@ -14,7 +14,7 @@ const BLOCK_OPERATION_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Get a block relative to `start` by `step`.
 pub(crate) fn get_block_relative(
-    network: Network,
+    network: &Network,
     start: Option<u64>,
     step: i64,
 ) -> anyhow::Result<MultiEraBlock> {
@@ -60,12 +60,12 @@ fn calculate_point_from_step(
 }
 
 /// Retrieves the current tips of the blockchain for the specified network.
-pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
+pub(crate) fn get_tips(network: &Network) -> anyhow::Result<(Slot, Slot)> {
     // Execute on dedicated TOKIO_RUNTIME to avoid nested runtime deadlock
     let handle = TOKIO_RUNTIME.handle();
     let (immutable_tip, live_tip) = handle
         .block_on(async {
-            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
+            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(&network)).await
         })
         .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
@@ -73,7 +73,7 @@ pub(crate) fn get_tips(network: Network) -> anyhow::Result<(Slot, Slot)> {
 
 /// Checks if the block at the given slot is a rollback block or not.
 pub(crate) fn get_is_rollback(
-    network: Network,
+    network: &Network,
     slot: Slot,
 ) -> anyhow::Result<Option<bool>> {
     let point = normalize_point(slot.into());
