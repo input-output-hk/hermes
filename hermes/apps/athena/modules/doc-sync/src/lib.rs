@@ -27,10 +27,9 @@ export!(Component);
 
 use shared::{
     bindings::hermes::doc_sync::api::{ChannelName, DocData, SyncChannel},
-    utils::log::{self, error, info, warn},
+    utils::log::{self, info},
 };
 
-use exports::hermes::doc_sync::api::GuestSyncChannel;
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
 use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs};
@@ -49,7 +48,10 @@ impl exports::hermes::init::event::Guest for Component {
 }
 
 impl exports::hermes::doc_sync::event::Guest for Component {
-    fn on_new_doc(channel: ChannelName, doc: DocData) {
+    fn on_new_doc(
+        channel: ChannelName,
+        doc: DocData,
+    ) {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync::on_new_doc", "Received new document on channel: {}, size: {} bytes", channel, doc.len());
     }
@@ -68,8 +70,12 @@ impl exports::hermes::doc_sync::api::Guest for Component {
         futures::executor::block_on(async {
             let ipfs = HermesIpfs::start().await.expect("Failed to start IPFS");
             let add_file = AddIpfsFile::from(doc);
-            let ipfs_path = ipfs.add_ipfs_file(add_file).await.expect("Failed to add file");
-            let cid_str = ipfs_path.to_string().strip_prefix("/ipfs/").expect("Invalid path");
+            let ipfs_path = ipfs
+                .add_ipfs_file(add_file)
+                .await
+                .expect("Failed to add file");
+            let path_string = ipfs_path.to_string();
+            let cid_str = path_string.strip_prefix("/ipfs/").expect("Invalid path");
             cid_str.as_bytes().to_vec()
         })
     }
@@ -83,12 +89,18 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
         SyncChannelImpl { name: name.clone() }
     }
 
-    fn close(&self, name: ChannelName) -> Result<bool, exports::hermes::doc_sync::api::Errno> {
+    fn close(
+        &self,
+        name: ChannelName,
+    ) -> Result<bool, exports::hermes::doc_sync::api::Errno> {
         info!(target: "doc_sync", "Closing channel: {}", name);
         Ok(true)
     }
 
-    fn post(&self, doc: DocData) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
+    fn post(
+        &self,
+        doc: DocData,
+    ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
         info!(target: "doc_sync", "Posting {} bytes to channel: {}", doc.len(), self.name);
 
         futures::executor::block_on(async {
@@ -96,19 +108,24 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
 
             // Step 1: Add document to IPFS (file_add)
             let add_file = AddIpfsFile::from(doc.clone());
-            let ipfs_path = ipfs.add_ipfs_file(add_file).await
+            let ipfs_path = ipfs
+                .add_ipfs_file(add_file)
+                .await
                 .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
             info!(target: "doc_sync", "✓ Added to IPFS: {}", ipfs_path);
 
             // Extract CID from path
-            let cid_str = ipfs_path.to_string()
+            let path_string = ipfs_path.to_string();
+            let cid_str = path_string
                 .strip_prefix("/ipfs/")
                 .ok_or(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
-            let cid: Cid = cid_str.parse()
+            let cid: Cid = cid_str
+                .parse()
                 .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
 
             // Step 2: Pin the document (file_pin)
-            ipfs.insert_pin(&cid).await
+            ipfs.insert_pin(&cid)
+                .await
                 .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
             info!(target: "doc_sync", "✓ Pinned: {}", cid);
 
@@ -117,7 +134,8 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
 
             // Step 4: Publish to PubSub (pubsub_publish)
             let topic = format!("doc-sync/{}", self.name);
-            ipfs.pubsub_publish(topic.clone(), doc).await
+            ipfs.pubsub_publish(topic.clone(), doc)
+                .await
                 .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
             info!(target: "doc_sync", "✓ Published to PubSub topic: {}", topic);
 
@@ -125,52 +143,76 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
         })
     }
 
-    fn prove_includes(&self, _loc: Vec<u8>, _provers: Vec<Vec<u8>>)
-        -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
+    fn prove_includes(
+        &self,
+        _loc: Vec<u8>,
+        _provers: Vec<Vec<u8>>,
+    ) -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
         Ok(vec![])
     }
 
-    fn prove_excludes(&self, _loc: Vec<u8>, _provers: Vec<Vec<u8>>)
-        -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
+    fn prove_excludes(
+        &self,
+        _loc: Vec<u8>,
+        _provers: Vec<Vec<u8>>,
+    ) -> Result<Vec<Vec<u8>>, exports::hermes::doc_sync::api::Errno> {
         Ok(vec![])
     }
 
-    fn get(&self, _loc: Vec<u8>) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
+    fn get(
+        &self,
+        _loc: Vec<u8>,
+    ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
         Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)
     }
 }
 
 /// HTTP Gateway implementation - for curl demo
 impl exports::hermes::http_gateway::event::Guest for Component {
-    fn reply(body: Vec<u8>, _headers: Headers, path: String, method: String) -> Option<HttpGatewayResponse> {
+    fn reply(
+        body: Vec<u8>,
+        _headers: Headers,
+        path: String,
+        method: String,
+    ) -> Option<HttpGatewayResponse> {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync", "HTTP {} {}", method, path);
 
         match (method.as_str(), path.as_str()) {
-            ("POST", "/api/doc-sync/post") => {
-                match channel::post(body) {
-                    Ok(cid_bytes) => {
-                        let cid = String::from_utf8_lossy(&cid_bytes);
-                        json_response(200, serde_json::json!({
+            ("POST", "/api/doc-sync/post") => match channel::post(body) {
+                Ok(cid_bytes) => {
+                    let cid = String::from_utf8_lossy(&cid_bytes);
+                    json_response(
+                        200,
+                        serde_json::json!({
                             "success": true,
                             "cid": cid.to_string()
-                        }))
-                    },
-                    Err(_) => json_response(500, serde_json::json!({
+                        }),
+                    )
+                },
+                Err(_) => json_response(
+                    500,
+                    serde_json::json!({
                         "success": false,
                         "error": "Failed to post document"
-                    }))
-                }
+                    }),
+                ),
             },
-            _ => json_response(404, serde_json::json!({"error": "Not found"}))
+            _ => json_response(404, serde_json::json!({"error": "Not found"})),
         }
     }
 }
 
-fn json_response(code: u16, body: serde_json::Value) -> Option<HttpGatewayResponse> {
+fn json_response(
+    code: u16,
+    body: serde_json::Value,
+) -> Option<HttpGatewayResponse> {
     Some(HttpGatewayResponse::Http(HttpResponse {
         code,
-        headers: vec![("content-type".to_string(), vec!["application/json".to_string()])],
+        headers: vec![(
+            "content-type".to_string(),
+            vec!["application/json".to_string()],
+        )],
         body: Bstr::from(body.to_string()),
     }))
 }
@@ -187,7 +229,9 @@ pub mod channel {
     /// 3. Pre-publish step (TODO)
     /// 4. Publish to PubSub (pubsub_publish)
     pub fn post(document_bytes: DocData) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
-        let channel = SyncChannelImpl { name: "documents".to_string() };
+        let channel = SyncChannelImpl {
+            name: "documents".to_string(),
+        };
         channel.post(document_bytes)
     }
 }
