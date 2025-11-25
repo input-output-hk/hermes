@@ -3,6 +3,7 @@
 use wasmtime::component::Resource;
 
 use crate::{
+    ipfs,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::doc_sync::api::{
         ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId, SyncChannel,
@@ -35,9 +36,15 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// - `error(create-network-error)`: If creating network resource failed.
     fn new(
         &mut self,
-        _name: ChannelName,
+        name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        todo!()
+        ipfs::hermes_ipfs_subscribe(
+            ipfs::SubscriptionKind::DocSync,
+            self.app_name(),
+            super::map_channel_name_to_ipfs_topic(&name)?.into_owned(),
+        )?;
+        // TODO: return unique resource
+        Ok(Resource::new_own(5_553_535))
     }
 
     /// Close Doc Sync Channel

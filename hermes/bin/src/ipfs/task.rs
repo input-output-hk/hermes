@@ -1,6 +1,7 @@
 //! IPFS Task
 use std::str::FromStr;
 
+use catalyst_signed_doc::{CatalystSignedDocument, decode_context::CompatibilityPolicy};
 use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
 use tokio::{
     sync::{mpsc, oneshot},
@@ -250,6 +251,7 @@ fn topic_message_handler(
 }
 
 /// Handler function for topic message streams (Doc Sync).
+#[allow(clippy::needless_pass_by_value, reason = "The event will be eventually consumed in the handler")]
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
@@ -258,6 +260,11 @@ fn doc_sync_topic_message_handler(
         tracing::error!("Failed to send on_new_doc event. IPFS is uninitialized");
         return;
     };
+
+    if let Err(err) = CatalystSignedDocument::from_bytes(&message.data, CompatibilityPolicy::Warn) {
+        tracing::debug!(%topic, %err, id = %message.message_id, "Failed to validate the document");
+        return;
+    }
 
     let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
 
@@ -273,8 +280,9 @@ fn doc_sync_topic_message_handler(
         .and_then(send)
     {
         tracing::error!(%topic, %err, "Failed to send on_new_doc event");
-        return;
     }
+
+    // pin
 }
 
 /// Handler for the subscription events for topic

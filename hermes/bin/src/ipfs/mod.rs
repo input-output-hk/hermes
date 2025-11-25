@@ -45,6 +45,7 @@ use crate::{
 pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = OnceCell::new();
 
 /// IPFS bootstrap config.
+#[derive(Copy, Clone, Debug)]
 pub struct Config<'a> {
     /// Local base directory.
     pub base_dir: &'a Path,
@@ -313,11 +314,11 @@ struct AppIpfsState {
     dht_keys: DashMap<ApplicationName, HashSet<DhtKey>>,
     /// List of subscriptions per app.
     topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
-    /// List of subscriptions per app (DocSync).
+    /// List of subscriptions per app (Doc Sync).
     doc_sync_topic_subscriptions: DashMap<PubsubTopic, HashSet<ApplicationName>>,
     /// Collection of stream join handles per topic subscription.
     subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
-    /// Collection of stream join handles per topic subscription (DocSync).
+    /// Collection of stream join handles per topic subscription (Doc Sync).
     doc_sync_subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
     evicted_peers: DashMap<ApplicationName, HashSet<PeerId>>,
