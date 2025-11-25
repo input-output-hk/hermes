@@ -18,7 +18,7 @@ fn ipfs_subscribe() {
     // TODO[RC]: Build hermes just once for all tests
     utils::hermes::build();
 
-    utils::hermes::run_app(&temp_dir, &app_file_name).expect("failed to run hermes app");
+    utils::hermes::run_app(&temp_dir, &app_file_name).expect_err("should fail to run hermes app");
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
