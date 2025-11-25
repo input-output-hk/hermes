@@ -57,36 +57,12 @@
       "json_schema": null
     },
     {
-      "subscription_id": "doc_sync_health",
-      "module_id": "doc_sync",
-      "methods": [
-        "GET"
-      ],
-      "path_regex": "^/api/doc-sync/health$",
-      "content_types": [],
-      "json_schema": null
-    },
-    {
       "subscription_id": "doc_sync_post",
       "module_id": "doc_sync",
       "methods": [
         "POST"
       ],
       "path_regex": "^/api/doc-sync/post$",
-      "content_types": [
-        "application/octet-stream",
-        "text/plain",
-        "application/json"
-      ],
-      "json_schema": null
-    },
-    {
-      "subscription_id": "doc_sync_channel",
-      "module_id": "doc_sync",
-      "methods": [
-        "POST"
-      ],
-      "path_regex": "^/api/doc-sync/channel/.*/post$",
       "content_types": [
         "application/octet-stream",
         "text/plain",
