@@ -18,7 +18,7 @@ shared = { version = "0.1.0", path = "../../shared", features = [
 regex = "1.12.2"
 
 
-cardano-blockchain-types = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.8" }
+cardano-blockchain-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.9" }
 serde = "1.0.228"
 serde_json = { version = "1.0.145", features = ["arbitrary_precision"] }
 anyhow = "1.0.100"
