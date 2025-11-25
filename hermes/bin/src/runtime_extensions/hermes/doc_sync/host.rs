@@ -52,6 +52,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // acceptable but unlikely in practice. We use the first 4 bytes of
         // the cryptographically secure Blake2b hash as a fast, 32-bit ID
         // to minimize lock contention when accessing state via DOC_SYNC_STATE.
+        #[allow(clippy::indexing_slicing)]
         let prefix_bytes: [u8; 4] = hash.as_bytes()[..4].try_into().map_err(|err| {
             wasmtime::Error::msg(format!("error trimming channel name hash: {err}"))
         })?;
@@ -192,6 +193,7 @@ impl HostSyncChannel for HermesRuntimeContext {
 
 /// This function is required cause reusage of `self.close`
 /// inside drop causes invalid behavior during codegen.
+#[allow(clippy::unnecessary_wraps)]
 fn inner_close(
     _ctx: &mut HermesRuntimeContext,
     _res: Resource<SyncChannel>,
