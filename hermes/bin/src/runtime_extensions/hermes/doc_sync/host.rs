@@ -17,7 +17,11 @@ impl Host for HermesRuntimeContext {
     ) -> wasmtime::Result<Vec<u8>> {
         eprintln!("WARNING: doc_sync::id_for is not yet implemented (returning placeholder CID)");
         // Return a placeholder CIDv1 (same as used in the module implementation)
-        Ok("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy".as_bytes().to_vec())
+        Ok(
+            "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy"
+                .as_bytes()
+                .to_vec(),
+        )
     }
 }
 
@@ -37,7 +41,10 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        eprintln!("WARNING: doc_sync::SyncChannel::new('{}') is not yet implemented (returning stub resource)", name);
+        eprintln!(
+            "WARNING: doc_sync::SyncChannel::new('{}') is not yet implemented (returning stub resource)",
+            name
+        );
         // Create a stub resource with a dummy ID (42)
         // A real implementation would create and track actual channel state
         Ok(Resource::new_own(42))
@@ -63,7 +70,10 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         name: ChannelName,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        eprintln!("WARNING: doc_sync::SyncChannel::close('{}') is not yet implemented", name);
+        eprintln!(
+            "WARNING: doc_sync::SyncChannel::close('{}') is not yet implemented",
+            name
+        );
         Ok(Ok(true))
     }
 
@@ -82,9 +92,16 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
-        eprintln!("WARNING: doc_sync::SyncChannel::post() is not yet implemented (doc_size: {} bytes)", doc.len());
+        eprintln!(
+            "WARNING: doc_sync::SyncChannel::post() is not yet implemented (doc_size: {} bytes)",
+            doc.len()
+        );
         // Return a placeholder CIDv1 as the document location
-        Ok(Ok("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy".as_bytes().to_vec()))
+        Ok(Ok(
+            "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy"
+                .as_bytes()
+                .to_vec(),
+        ))
     }
 
     /// Prove a document is stored in the provers
@@ -106,7 +123,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        eprintln!("WARNING: doc_sync::SyncChannel::prove_includes() is not yet implemented (returning empty proofs)");
+        eprintln!(
+            "WARNING: doc_sync::SyncChannel::prove_includes() is not yet implemented (returning empty proofs)"
+        );
         Ok(Ok(vec![]))
     }
 
@@ -129,7 +148,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        eprintln!("WARNING: doc_sync::SyncChannel::prove_excludes() is not yet implemented (returning empty proofs)");
+        eprintln!(
+            "WARNING: doc_sync::SyncChannel::prove_excludes() is not yet implemented (returning empty proofs)"
+        );
         Ok(Ok(vec![]))
     }
 

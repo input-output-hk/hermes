@@ -84,7 +84,7 @@ impl exports::hermes::doc_sync::api::Guest for Component {
             Ok(ipfs_path) => {
                 let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
                 cid_str.as_bytes().to_vec()
-            }
+            },
             Err(_) => b"error".to_vec(),
         }
     }
@@ -125,11 +125,11 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
             Ok(path) => {
                 info!(target: "doc_sync", "✓ Step 1/4: Added to IPFS → {}", path);
                 path
-            }
+            },
             Err(e) => {
                 info!(target: "doc_sync", "✗ Step 1/4 failed: file_add error: {:?}", e);
                 return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            }
+            },
         };
 
         // Step 2: Pin the document (file_pin)
@@ -138,7 +138,7 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
             Err(e) => {
                 info!(target: "doc_sync", "✗ Step 2/4 failed: file_pin error: {:?}", e);
                 return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            }
+            },
         }
 
         // Step 3: Pre-publish validation (TODO #630)
@@ -151,7 +151,7 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
             Err(e) => {
                 info!(target: "doc_sync", "✗ Step 4/4 failed: pubsub_publish error: {:?}", e);
                 return Err(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder);
-            }
+            },
         }
 
         // Extract CID from path and return it
