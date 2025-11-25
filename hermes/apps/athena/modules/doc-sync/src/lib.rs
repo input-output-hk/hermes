@@ -380,84 +380,22 @@ fn json_response(
     }))
 }
 
-/// # Document Sync Channel API
+/// Simple API for posting documents to IPFS PubSub.
 ///
-/// Simple interface for posting documents to IPFS PubSub channels.
+/// Usage: `let cid = channel::post(document_bytes)?;`
 ///
-/// ## ⚠️ IMPORTANT: Requires PR #691 for Full Functionality
+/// This publishes a document through the 4-step workflow: add to IPFS, pin, validate, publish to PubSub.
 ///
-/// This module demonstrates the **publishing** side of doc-sync. The **subscribing**
-/// side (receiving documents) requires **PR #691** to route PubSub messages to the
-/// `on_new_doc` event handler.
-///
-/// ## Complete Pub/Sub Flow (with PR #691):
-///
-/// ### 1. Subscribe to Receive Documents (App B):
-/// ```rust,ignore
-/// // In your init() function:
-/// fn init() -> bool {
-///     let _channel = SyncChannel::new("documents");
-///     // → Subscribes to PubSub topic "doc-sync/documents"
-///     // → With PR #691: Host registers this as DocSync subscription
-///     // → Without PR #691: Subscription succeeds but no events triggered
-///     true
-/// }
-/// ```
-///
-/// ### 2. Publish a Document (App A or via curl):
-/// ```rust,ignore
-/// // From code:
-/// let cid = channel::post(b"Hello, IPFS!")?;
-///
-/// // From curl:
-/// // curl -X POST http://localhost:5000/api/doc-sync/post \
-/// //   -H "Host: athena.hermes.local" -d "Hello, IPFS!"
-/// ```
-///
-/// ### 3. Receive the Document (App B - **REQUIRES PR #691**):
-/// ```rust,ignore
-/// // This handler is automatically called when a document arrives:
-/// fn on_new_doc(channel: ChannelName, doc: DocData) {
-///     // channel = "documents"
-///     // doc = b"Hello, IPFS!"
-///     println!("Received: {}", String::from_utf8_lossy(&doc));
-/// }
-/// ```
-///
-/// ## What PR #691 Adds:
-/// 1. **SubscriptionKind::DocSync** - Distinguishes doc-sync from regular subscriptions
-/// 2. **doc_sync_topic_message_handler()** - Routes messages with "doc-sync/" prefix
-/// 3. **OnNewDocEvent** - Event struct dispatched to subscribers
-/// 4. **Message validation** - Optional CatalystSignedDocument checks
-/// 5. **Event dispatch** - Triggers `on_new_doc` on all subscribed modules
-///
-/// ## Current Status:
-/// - ✅ Publishing works (this module)
-/// - ✅ Subscription registration works
-/// - ⏳ Event routing (needs PR #691)
-/// - ⏳ Message delivery to subscribers (needs PR #691)
+/// **Note:** Publishing to PubSub works now. PR #691 is needed to route incoming PubSub messages
+/// to the `on_new_doc` event handler. Without it, documents are published but subscribers don't
+/// receive events. See module docs for the complete pub/sub flow.
 pub mod channel {
     use super::*;
+    use exports::hermes::doc_sync::api::GuestSyncChannel;
 
-    /// Posts a document to the default "documents" channel.
+    /// Post a document to the "documents" channel.
     ///
-    /// This executes the full 4-step workflow:
-    /// 1. Add to IPFS → Get CID
-    /// 2. Pin document → Ensure persistence
-    /// 3. Pre-publish (TODO #630)
-    /// 4. Publish to PubSub → Notify subscribers (needs PR #691 to trigger events)
-    ///
-    /// ## Example:
-    /// ```rust,ignore
-    /// match channel::post(b"Hello, world!".to_vec()) {
-    ///     Ok(cid) => println!("Published: {}", String::from_utf8_lossy(&cid)),
-    ///     Err(e) => eprintln!("Error: {:?}", e),
-    /// }
-    /// ```
-    ///
-    /// ## Returns:
-    /// - `Ok(cid)`: Document CID as bytes (e.g., "bafkreib...")
-    /// - `Err(errno)`: If add/pin/publish fails
+    /// Returns the document's CID on success.
     pub fn post(document_bytes: DocData) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
         let channel = SyncChannelImpl {
             name: "documents".to_string(),
