@@ -25,8 +25,13 @@ ed25519-dalek = "2.2.0"
 chrono = "0.4.42"
 regex = "1.12.2"
 uuid = { version = "1.18.1", features = ["v4", "v7", "serde"] }
+base64 = "0.22.1"
 
 cardano-blockchain-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.9" }
 rbac-registration = { version = "0.0.14", git = "https://github.com/input-output-hk/catalyst-libs.git", branch = "feat/rbac" }
 catalyst-types = { version = "0.0.10", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.10" }
 c509-certificate = { version = "0.0.3", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "c509-certificate-v0.0.3" }
+
+[dev-dependencies]
+test-case = "3.3.1"
+rand = "0.8.5"

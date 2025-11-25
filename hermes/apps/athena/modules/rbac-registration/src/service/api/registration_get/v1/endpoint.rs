@@ -1,9 +1,13 @@
 //! Implementation of the GET `/rbac/registrations` V1 endpoint.
 
-use shared::{bindings::hermes::cardano, utils::sqlite::open_db_connection};
+use shared::{bindings::hermes::cardano, extract_header, utils::sqlite::open_db_connection};
 
 use crate::{
-    rbac::get_rbac::{get_rbac_chain_from_cat_id, get_rbac_chain_from_stake_address},
+    hermes::http_gateway::api::Headers,
+    rbac::{
+        get_rbac::{get_rbac_chain_from_cat_id, get_rbac_chain_from_stake_address},
+        token::CatalystRBACTokenV1,
+    },
     service::api::registration_get::v1::{
         cat_id_or_stake::CatIdOrStake, chain_info::ChainInfo,
         registration_chain::RbacRegistrationChain, response::ResponsesV1,
@@ -12,8 +16,9 @@ use crate::{
 
 /// Get RBAC registration V1 endpoint.
 pub fn endpoint_v1(
-    lookup: Option<String>,
+    mut lookup: Option<String>,
     network: cardano::api::CardanoNetwork,
+    headers: &Headers,
 ) -> ResponsesV1 {
     let persistent = match open_db_connection(false) {
         Ok(db) => db,
@@ -31,6 +36,19 @@ pub fn endpoint_v1(
         Ok(nr) => nr,
         Err(e) => return ResponsesV1::ServiceUnavailable(e.to_string()),
     };
+    // No lookup provided, use the Bearer token to search for registration
+    if lookup.is_none()
+        && let Some(token) = extract_header!(headers, "Authorization", "Bearer")
+    {
+        // Tokens processed by the auth module should always be valid at this point.
+        // If parsing fails, it means the auth module wasn’t involved (validation disabled)
+        lookup = match CatalystRBACTokenV1::parse(&token) {
+            Ok(t) => Some(t.catalyst_id().as_short_id().to_string()),
+            Err(e) => {
+                return ResponsesV1::PreconditionFailed(format!("failed to parse token: {e}"));
+            },
+        };
+    }
 
     let parsed_lookup = match lookup {
         Some(lookup_str) => {
@@ -44,7 +62,6 @@ pub fn endpoint_v1(
             }
         },
         None => {
-            // TODO - Need to be handled with auth token
             return ResponsesV1::UnprocessableContent(
                 "Either lookup parameter or token must be provided".to_string(),
             );

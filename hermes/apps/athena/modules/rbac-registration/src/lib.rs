@@ -77,7 +77,7 @@ impl exports::hermes::init::event::Guest for RbacRegistrationComponent {
 impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
     fn reply(
         _body: Vec<u8>,
-        _headers: Headers,
+        headers: Headers,
         path: String,
         _method: String,
     ) -> Option<HttpGatewayResponse> {
@@ -85,7 +85,7 @@ impl exports::hermes::http_gateway::event::Guest for RbacRegistrationComponent {
 
         let network = cardano::api::CardanoNetwork::Preprod;
         let lookup = parse_query_param(&path, "lookup");
-        let result = endpoint_v1(lookup, network);
+        let result = endpoint_v1(lookup, network, &headers);
         let code = result.status_code();
 
         Some(HttpGatewayResponse::Http(HttpResponse {
