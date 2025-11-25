@@ -32,7 +32,7 @@ use shared::{
 
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
-use hermes::ipfs::api::{file_add, file_pin, pubsub_publish};
+use hermes::ipfs::api::{file_add, file_pin, pubsub_publish, pubsub_subscribe};
 
 /// Doc Sync component.
 struct Component;
@@ -47,13 +47,37 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
+/// Event handler triggered when a new document arrives on a subscribed PubSub channel.
+///
+/// ## Pub/Sub Flow Integration (with PR #691):
+///
+/// **Publishing side:**
+/// 1. App calls `channel::post(doc)` → publishes to PubSub topic `doc-sync/{channel}`
+///
+/// **Subscribing side:**
+/// 1. App calls `SyncChannel::new("channel-name")` → subscribes to topic `doc-sync/channel-name`
+/// 2. Host IPFS layer receives PubSub message (via PR #691's `doc_sync_topic_message_handler`)
+/// 3. Host validates message (using `CatalystSignedDocument` if configured)
+/// 4. Host triggers `on_new_doc` event on all subscribed modules
+/// 5. This handler receives the document
+///
+/// ## Implementation Notes:
+/// - Subscription happens automatically when `SyncChannel::new()` is called during `init()`
+/// - PR #691 adds infrastructure to route PubSub messages to this handler
+/// - Documents can be validated, stored, or processed here
 impl exports::hermes::doc_sync::event::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,
         doc: DocData,
     ) {
         log::init(log::LevelFilter::Trace);
-        info!(target: "doc_sync::on_new_doc", "Received new document on channel: {}, size: {} bytes", channel, doc.len());
+        info!(target: "doc_sync", "📥 Received doc on channel '{}': {} bytes", channel, doc.len());
+
+        // TODO: Process received document
+        // - Validate signature (CatalystSignedDocument)
+        // - Store in local database
+        // - Trigger application workflows
+        // - Send acknowledgment
     }
 }
 
@@ -80,8 +104,21 @@ impl exports::hermes::doc_sync::api::Guest for Component {
 // Implement the SyncChannel resource
 impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
     fn new(name: ChannelName) -> SyncChannelImpl {
-        info!(target: "doc_sync::sync_channel", "Opening sync channel: {}", name);
-        // Create the resource - in real implementation, this would set up the channel
+        info!(target: "doc_sync", "📡 Subscribing to channel: {}", name);
+
+        // Subscribe to PubSub topic for this channel
+        // Topic format: "doc-sync/{channel_name}"
+        // With PR #691, the host will:
+        // 1. Register this as a DocSync subscription (SubscriptionKind::DocSync)
+        // 2. Route incoming messages to doc_sync_topic_message_handler()
+        // 3. Validate messages (CatalystSignedDocument) if configured
+        // 4. Trigger on_new_doc() event when messages arrive
+        let topic = format!("doc-sync/{}", name);
+        match pubsub_subscribe(&topic) {
+            Ok(_) => info!(target: "doc_sync", "✓ Subscribed to topic: {}", topic),
+            Err(e) => info!(target: "doc_sync", "✗ Failed to subscribe: {:?}", e),
+        }
+
         SyncChannelImpl { name: name.clone() }
     }
 
@@ -197,17 +234,59 @@ fn json_response(
     }))
 }
 
-/// Simple API: `let cid = channel::post(document_bytes);`
+/// # Document Sync Channel API
+///
+/// ## Complete Pub/Sub Flow with PR #691:
+///
+/// ### 1. Subscribe to a channel (App B):
+/// ```rust,ignore
+/// // In init(), subscribe to receive documents
+/// let _channel = SyncChannel::new("documents");
+/// // → Calls pubsub_subscribe("doc-sync/documents")
+/// // → Host registers DocSync subscription (PR #691)
+/// // → Starts listening for messages on this topic
+/// ```
+///
+/// ### 2. Publish to the channel (App A):
+/// ```rust,ignore
+/// let cid = channel::post(b"Hello, IPFS!")?;
+/// // → Executes 4-step workflow (add, pin, validate, publish)
+/// // → Publishes to PubSub topic "doc-sync/documents"
+/// ```
+///
+/// ### 3. Receive the document (App B):
+/// ```rust,ignore
+/// // on_new_doc is automatically triggered by PR #691 infrastructure
+/// fn on_new_doc(channel: ChannelName, doc: DocData) {
+///     // channel = "documents"
+///     // doc = b"Hello, IPFS!"
+///     process_document(doc);
+/// }
+/// ```
+///
+/// ## PR #691 Integration Details:
+/// - Host detects subscription is DocSync type (from topic prefix "doc-sync/")
+/// - Routes to `doc_sync_topic_message_handler()` instead of default handler
+/// - Validates using `CatalystSignedDocument` if configured
+/// - Dispatches `OnNewDocEvent` to all subscribed modules
 pub mod channel {
     use super::*;
-    use exports::hermes::doc_sync::api::GuestSyncChannel;
 
-    /// Posts a document to IPFS PubSub channel
-    /// Demonstrates the 4-step workflow:
-    /// 1. Add to IPFS (file_add)
-    /// 2. Pin document (file_pin)
-    /// 3. Pre-publish step (TODO)
-    /// 4. Publish to PubSub (pubsub_publish)
+    /// Posts a document to the default IPFS PubSub channel.
+    ///
+    /// ## Workflow:
+    /// 1. Add document to IPFS → Get CID
+    /// 2. Pin document → Ensure persistence
+    /// 3. Pre-publish validation (TODO #630)
+    /// 4. Publish to PubSub → Notify subscribers
+    ///
+    /// ## Example:
+    /// ```rust,ignore
+    /// match channel::post(b"Hello, world!".to_vec()) {
+    ///     Ok(cid) => println!("Published: {}", String::from_utf8_lossy(&cid)),
+    ///     Err(e) => eprintln!("Error: {:?}", e),
+    /// }
+    /// ```
     pub fn post(document_bytes: DocData) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
         let channel = SyncChannelImpl {
             name: "documents".to_string(),
