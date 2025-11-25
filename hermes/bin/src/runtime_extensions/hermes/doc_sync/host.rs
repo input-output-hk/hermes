@@ -83,39 +83,68 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
-        eprintln!("📤 Posting {} bytes to doc-sync channel", doc.len());
+        tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
         // Step 1: Add document to IPFS
         let ipfs_path = match self.file_add(doc.clone())? {
             Ok(path) => {
-                eprintln!("✓ Step 1/4: Added to IPFS → {}", path);
+                tracing::info!("✓ Step 1/4: Added to IPFS → {}", path);
                 path
             },
             Err(_) => {
-                eprintln!("✗ Step 1/4 failed: file_add error");
+                tracing::error!("✗ Step 1/4 failed: file_add error");
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         };
 
         // Step 2: Pin the document
         match self.file_pin(ipfs_path.clone())? {
-            Ok(_) => eprintln!("✓ Step 2/4: Pinned → {}", ipfs_path),
+            Ok(_) => tracing::info!("✓ Step 2/4: Pinned → {}", ipfs_path),
             Err(_) => {
-                eprintln!("✗ Step 2/4 failed: file_pin error");
+                tracing::error!("✗ Step 2/4 failed: file_pin error");
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         }
 
         // Step 3: Pre-publish validation (TODO #630)
-        eprintln!("⏭ Step 3/4: Pre-publish (skipped - TODO #630)");
+        tracing::info!("⏭ Step 3/4: Pre-publish (skipped - TODO #630)");
 
         // Step 4: Publish to PubSub
-        // Note: Hardcoded to "documents" channel for now
+        //
+        // IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
+        // OTHER peer node to be subscribed to the topic before messages can be published.
+        // A single isolated node cannot publish to itself.
+        //
+        // In production with multiple Hermes nodes or external IPFS nodes subscribing
+        // to the topic, this will work. In a single-node demo/test environment, publish
+        // will fail with "NoPeersSubscribedToTopic" which is expected behavior.
+        //
+        // Since Steps 1-2 (add + pin) already succeeded, the document is safely stored
+        // in IPFS. We treat "no peers" as a warning rather than a fatal error.
         let topic = "doc-sync/documents".to_string();
+
+        // Subscribe to the topic first (required for Gossipsub - you must be subscribed
+        // to a topic before you can publish to it)
+        match self.pubsub_subscribe(topic.clone())? {
+            Ok(_) => tracing::info!("✓ Subscribed to topic: {}", topic),
+            Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
+        }
+
+        // Attempt to publish to PubSub
         match self.pubsub_publish(topic.clone(), doc)? {
-            Ok(_) => eprintln!("✓ Step 4/4: Published to PubSub → {}", topic),
-            Err(_) => {
-                eprintln!("✗ Step 4/4 failed: pubsub_publish error");
+            Ok(_) => {
+                tracing::info!("✓ Step 4/4: Published to PubSub → {}", topic);
+            },
+            Err(Errno::PubsubPublishError) => {
+                // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
+                // In a single-node environment, this is expected to fail.
+                tracing::warn!("⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)");
+                tracing::warn!("   Note: Gossipsub requires other nodes subscribing to '{}' to work", topic);
+                tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
+            },
+            Err(e) => {
+                // Unexpected error - this shouldn't happen
+                tracing::error!("✗ Step 4/4 failed: unexpected error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         }

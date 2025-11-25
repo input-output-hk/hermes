@@ -169,7 +169,7 @@ pub(crate) fn init(logger_config: &LoggerConfig) -> anyhow::Result<()> {
         .with_max_level(LevelFilter::from_level(logger_config.log_level.into()))
         // Hardcode the filter to always suppress excess noise
         .with_env_filter(EnvFilter::new(
-            "hermes=info,rust_ipfs=error,staked_ada_indexer=error,hermes::runtime_extensions::hermes::logging::log_msg=warn",
+            "hermes=info,hermes::ipfs=debug,rust_ipfs=error,staked_ada_indexer=error,hermes::runtime_extensions::hermes::logging::log_msg=warn",
         ))
         .finish();
 

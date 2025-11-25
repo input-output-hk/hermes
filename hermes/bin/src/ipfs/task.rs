@@ -97,11 +97,14 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
-                hermes_node
-                    .pubsub_publish(topic, message)
+                let result = hermes_node
+                    .pubsub_publish(topic.clone(), message)
                     .await
-                    .map_err(|_| Errno::PubsubPublishError)?;
-                send_response(Ok(()), tx);
+                    .map_err(|e| {
+                        tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
+                        Errno::PubsubPublishError
+                    });
+                send_response(result, tx);
             },
             IpfsCommand::Subscribe(topic, tx) => {
                 let stream = hermes_node
