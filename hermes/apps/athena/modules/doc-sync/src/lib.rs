@@ -128,6 +128,9 @@ fn json_response(
     }))
 }
 
+/// Default channel name for doc-sync operations
+const DOC_SYNC_CHANNEL: &str = "documents";
+
 /// Simple API for posting documents to IPFS PubSub.
 ///
 /// Usage: `let cid = channel::post(document_bytes)?;`
@@ -139,7 +142,7 @@ pub mod channel {
     /// Post a document to the "documents" channel. Returns the document's CID.
     pub fn post(document_bytes: DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
-        let channel = SyncChannel::new("documents");
+        let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
         // Post document via host (executes 4-step workflow in host)
         channel.post(&document_bytes)
     }

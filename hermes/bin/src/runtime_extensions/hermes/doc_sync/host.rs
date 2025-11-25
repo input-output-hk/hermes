@@ -13,6 +13,9 @@ use crate::{
     },
 };
 
+/// Default PubSub topic for doc-sync channel
+const DOC_SYNC_TOPIC: &str = "doc-sync/documents";
+
 impl Host for HermesRuntimeContext {
     /// Get the CID for a document by adding it to IPFS (without pinning or publishing).
     fn id_for(
@@ -24,7 +27,10 @@ impl Host for HermesRuntimeContext {
                 let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
                 Ok(cid_str.as_bytes().to_vec())
             },
-            Err(_) => Ok(b"error".to_vec()),
+            Err(e) => {
+                tracing::error!("Failed to add document to IPFS: {:?}", e);
+                Ok(b"error".to_vec())
+            },
         }
     }
 }
@@ -121,7 +127,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         //
         // Since Steps 1-2 (add + pin) already succeeded, the document is safely stored
         // in IPFS. We treat "no peers" as a warning rather than a fatal error.
-        let topic = "doc-sync/documents".to_string();
+        let topic = DOC_SYNC_TOPIC.to_string();
 
         // Subscribe to the topic first (required for Gossipsub - you must be subscribed
         // to a topic before you can publish to it)
@@ -137,8 +143,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             },
             Err(_) => {
                 // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-                // In a single-node environment, this is expected to fail with "NoPeersSubscribedToTopic".
-                // We treat this as a warning rather than a fatal error since Steps 1-2 already succeeded.
+                // In a single-node environment, this is expected to fail with
+                // "NoPeersSubscribedToTopic". We treat this as a warning rather
+                // than a fatal error since Steps 1-2 already succeeded.
                 tracing::warn!(
                     "⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)"
                 );
