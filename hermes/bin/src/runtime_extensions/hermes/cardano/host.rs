@@ -265,7 +265,7 @@ impl HostBlock for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<bool, BlockError>> {
         let app_state = STATE.block.get_app_state_readonly(self.app_name())?;
         let block = app_state.get_object_shared(&self_)?;
-        let is_rollback = get_is_rollback(&block.network(), block.slot())?;
+        let is_rollback = get_is_rollback(block.network(), block.slot())?;
         match is_rollback {
             Some(is_rollback) => Ok(Ok(is_rollback)),
             None => Ok(Err(BlockError::BlockNotFound)),

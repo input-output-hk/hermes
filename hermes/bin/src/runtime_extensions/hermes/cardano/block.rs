@@ -65,7 +65,7 @@ pub(crate) fn get_tips(network: &Network) -> anyhow::Result<(Slot, Slot)> {
     let handle = TOKIO_RUNTIME.handle();
     let (immutable_tip, live_tip) = handle
         .block_on(async {
-            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(&network)).await
+            tokio::time::timeout(BLOCK_OPERATION_TIMEOUT, ChainFollower::get_tips(network)).await
         })
         .map_err(|_| anyhow::anyhow!("Timeout getting tips for network {network}"))?;
     Ok((immutable_tip.slot_or_default(), live_tip.slot_or_default()))
