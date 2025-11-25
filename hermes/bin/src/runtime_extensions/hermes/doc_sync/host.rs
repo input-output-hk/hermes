@@ -97,8 +97,8 @@ impl HostSyncChannel for HermesRuntimeContext {
                 tracing::info!("✓ Step 1/4: Added to IPFS → {}", path);
                 path
             },
-            Err(_) => {
-                tracing::error!("✗ Step 1/4 failed: file_add error");
+            Err(e) => {
+                tracing::error!("✗ Step 1/4 failed: file_add error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         };
@@ -106,8 +106,8 @@ impl HostSyncChannel for HermesRuntimeContext {
         // Step 2: Pin the document
         match self.file_pin(ipfs_path.clone())? {
             Ok(_) => tracing::info!("✓ Step 2/4: Pinned → {}", ipfs_path),
-            Err(_) => {
-                tracing::error!("✗ Step 2/4 failed: file_pin error");
+            Err(e) => {
+                tracing::error!("✗ Step 2/4 failed: file_pin error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         }

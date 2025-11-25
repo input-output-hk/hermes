@@ -34,7 +34,7 @@ export!(Component);
 
 use shared::{
     bindings::hermes::doc_sync::api::ChannelName,
-    utils::log::{self, info},
+    utils::log::{self, error, info},
 };
 
 use hermes::{
@@ -95,17 +95,20 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                             200,
                             serde_json::json!({
                                 "success": true,
-                                "cid": cid.to_string()
+                                "cid": cid
                             }),
                         )
                     },
-                    Err(_) => json_response(
-                        500,
-                        serde_json::json!({
-                            "success": false,
-                            "error": "Failed to post document"
-                        }),
-                    ),
+                    Err(e) => {
+                        error!(target: "doc_sync", "Failed to post document: {:?}", e);
+                        json_response(
+                            500,
+                            serde_json::json!({
+                                "success": false,
+                                "error": "Failed to post document"
+                            }),
+                        )
+                    },
                 }
             },
             _ => json_response(404, serde_json::json!({"error": "Not found"})),
