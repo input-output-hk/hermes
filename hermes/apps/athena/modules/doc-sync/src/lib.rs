@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! # Doc Sync Module
 //!
 //! Thin wrapper for posting documents to IPFS PubSub. The actual 4-step workflow
@@ -37,7 +38,7 @@ use shared::{
 };
 
 use hermes::{
-    doc_sync::api::{DocData, sync_channel},
+    doc_sync::api::{DocData, SyncChannel},
     http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse},
 };
 
@@ -138,8 +139,8 @@ pub mod channel {
     /// Post a document to the "documents" channel. Returns the document's CID.
     pub fn post(document_bytes: DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
-        let channel = sync_channel::new("documents");
+        let channel = SyncChannel::new("documents");
         // Post document via host (executes 4-step workflow in host)
-        sync_channel::post(&channel, &document_bytes)
+        channel.post(&document_bytes)
     }
 }
