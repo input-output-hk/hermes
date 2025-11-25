@@ -32,7 +32,7 @@ use shared::{
 
 use hermes::http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse};
 
-use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs};
+use hermes::ipfs::api::{file_add, file_pin, pubsub_publish};
 
 /// Doc Sync component.
 struct Component;
@@ -67,17 +67,13 @@ impl exports::hermes::doc_sync::api::Guest for Component {
     type SyncChannel = SyncChannelImpl;
 
     fn id_for(doc: DocData) -> Vec<u8> {
-        futures::executor::block_on(async {
-            let ipfs = HermesIpfs::start().await.expect("Failed to start IPFS");
-            let add_file = AddIpfsFile::from(doc);
-            let ipfs_path = ipfs
-                .add_ipfs_file(add_file)
-                .await
-                .expect("Failed to add file");
-            let path_string = ipfs_path.to_string();
-            let cid_str = path_string.strip_prefix("/ipfs/").expect("Invalid path");
-            cid_str.as_bytes().to_vec()
-        })
+        match file_add(&doc) {
+            Ok(ipfs_path) => {
+                let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
+                cid_str.as_bytes().to_vec()
+            }
+            Err(_) => b"error".to_vec(),
+        }
     }
 }
 
@@ -103,44 +99,28 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
     ) -> Result<Vec<u8>, exports::hermes::doc_sync::api::Errno> {
         info!(target: "doc_sync", "Posting {} bytes to channel: {}", doc.len(), self.name);
 
-        futures::executor::block_on(async {
-            let ipfs = HermesIpfs::start().await.expect("Failed to start IPFS");
+        // Step 1: Add document to IPFS (file_add)
+        let ipfs_path = file_add(&doc)
+            .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
+        info!(target: "doc_sync", "✓ Added to IPFS: {}", ipfs_path);
 
-            // Step 1: Add document to IPFS (file_add)
-            let add_file = AddIpfsFile::from(doc.clone());
-            let ipfs_path = ipfs
-                .add_ipfs_file(add_file)
-                .await
-                .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
-            info!(target: "doc_sync", "✓ Added to IPFS: {}", ipfs_path);
+        // Step 2: Pin the document (file_pin)
+        file_pin(&ipfs_path)
+            .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
+        info!(target: "doc_sync", "✓ Pinned: {}", ipfs_path);
 
-            // Extract CID from path
-            let path_string = ipfs_path.to_string();
-            let cid_str = path_string
-                .strip_prefix("/ipfs/")
-                .ok_or(exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
-            let cid: Cid = cid_str
-                .parse()
-                .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
+        // Step 3: Pre-publish step (placeholder for separate issue #630)
+        // TODO: Implement pre-publish step when issue #630 is resolved
 
-            // Step 2: Pin the document (file_pin)
-            ipfs.insert_pin(&cid)
-                .await
-                .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
-            info!(target: "doc_sync", "✓ Pinned: {}", cid);
+        // Step 4: Publish to PubSub (pubsub_publish)
+        let topic = format!("doc-sync/{}", self.name);
+        pubsub_publish(&topic, &doc)
+            .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
+        info!(target: "doc_sync", "✓ Published to PubSub topic: {}", topic);
 
-            // Step 3: Pre-publish step (placeholder for separate issue #630)
-            // TODO: Implement pre-publish step when issue #630 is resolved
-
-            // Step 4: Publish to PubSub (pubsub_publish)
-            let topic = format!("doc-sync/{}", self.name);
-            ipfs.pubsub_publish(topic.clone(), doc)
-                .await
-                .map_err(|_| exports::hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
-            info!(target: "doc_sync", "✓ Published to PubSub topic: {}", topic);
-
-            Ok(cid.to_string().into_bytes())
-        })
+        // Extract CID from path and return it
+        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
+        Ok(cid_str.as_bytes().to_vec())
     }
 
     fn prove_includes(
@@ -167,7 +147,7 @@ impl exports::hermes::doc_sync::api::GuestSyncChannel for SyncChannelImpl {
     }
 }
 
-/// HTTP Gateway implementation - for curl demo
+/// HTTP Gateway implementation
 impl exports::hermes::http_gateway::event::Guest for Component {
     fn reply(
         body: Vec<u8>,
