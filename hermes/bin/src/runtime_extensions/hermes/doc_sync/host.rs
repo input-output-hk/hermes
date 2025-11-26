@@ -22,7 +22,7 @@ impl Host for HermesRuntimeContext {
         &mut self,
         _doc: DocData,
     ) -> wasmtime::Result<Vec<u8>> {
-        todo!()
+        Ok(Vec::new())
     }
 }
 
@@ -42,7 +42,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         _name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        todo!()
+        Ok(Resource::new_own(0))
     }
 
     /// Close Doc Sync Channel
@@ -65,7 +65,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         _name: ChannelName,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!()
+        Ok(Ok(true))
     }
 
     /// Post a document to IPFS and broadcast via `PubSub`.
@@ -169,7 +169,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        todo!()
+        Ok(Ok(Vec::new()))
     }
 
     /// Disprove a document is stored in the provers
@@ -191,7 +191,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        todo!()
+        Ok(Ok(Vec::new()))
     }
 
     /// Prove a document is stored in the provers
