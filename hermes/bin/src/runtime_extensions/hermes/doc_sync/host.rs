@@ -29,6 +29,7 @@ const SHA2_256_CODE: u64 = 0x12;
 /// See: <https://github.com/ipld/cid-cbor/>
 const CID_CBOR_TAG: u64 = 42;
 
+/// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
 struct Cid(hermes_ipfs::Cid);
 
 impl minicbor::Encode<()> for Cid {
