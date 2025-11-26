@@ -1,8 +1,7 @@
 # Doc Sync Module
 
-Thin wrapper for posting documents to IPFS PubSub. The actual 4-step workflow
-(file_add, file_pin, pre-publish, pubsub_publish) is executed on the host side
-for efficiency.
+Thin wrapper for posting documents to IPFS PubSub.
+The actual 4-step workflow (file_add, file_pin, pre-publish, pubsub_publish) is executed on the host side for efficiency.
 
 ## Usage
 
@@ -14,7 +13,8 @@ let cid = channel::post(document_bytes)?;
 
 ## Architecture
 
-The doc-sync module provides a simple API for publishing documents to IPFS via PubSub channels. All heavy operations are delegated to the host-side implementation for performance:
+The doc-sync module provides a simple API for publishing documents to IPFS via PubSub channels.
+All heavy operations are delegated to the host-side implementation for performance:
 
 1. **file_add** - Add document to IPFS
 2. **file_pin** - Pin the document
