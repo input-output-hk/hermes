@@ -1020,7 +1020,7 @@ dependencies = [
 [[package]]
 name = "cardano-chain-follower"
 version = "0.0.19"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fcardano-chain-follower-bump#baba6a6bed7a997b59ef261708de40d970b0e8e8"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-chain-follower%2Fv0.0.19#353077ec3a34dd5f9edb114d75c733808f47ec10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6559,8 +6559,8 @@ dependencies = [
 
 [[package]]
 name = "rbac-registration"
-version = "0.0.14"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Frbac#68c16bbc72b83ca1b05928385cb2c876195df0c2"
+version = "0.0.15"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.15#08bdbd2b4148c547ff93a53ef6206297b541c0ef"
 dependencies = [
  "anyhow",
  "brotli 7.0.0",
