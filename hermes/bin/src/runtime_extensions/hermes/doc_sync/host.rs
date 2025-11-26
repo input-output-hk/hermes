@@ -20,18 +20,9 @@ impl Host for HermesRuntimeContext {
     /// Get the CID for a document by adding it to IPFS (without pinning or publishing).
     fn id_for(
         &mut self,
-        doc: DocData,
+        _doc: DocData,
     ) -> wasmtime::Result<Vec<u8>> {
-        match self.file_add(doc)? {
-            Ok(ipfs_path) => {
-                let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-                Ok(cid_str.as_bytes().to_vec())
-            },
-            Err(e) => {
-                tracing::error!("Failed to add document to IPFS: {:?}", e);
-                Ok(b"error".to_vec())
-            },
-        }
+        todo!()
     }
 }
 
@@ -51,7 +42,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         _name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        Ok(Resource::new_own(42))
+        todo!()
     }
 
     /// Close Doc Sync Channel
@@ -74,7 +65,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         _name: ChannelName,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(Ok(true))
+        todo!()
     }
 
     /// Post a document to IPFS and broadcast via `PubSub`.
@@ -178,7 +169,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        Ok(Ok(vec![]))
+        todo!()
     }
 
     /// Disprove a document is stored in the provers
@@ -200,7 +191,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _loc: DocLoc,
         _provers: Vec<ProverId>,
     ) -> wasmtime::Result<Result<Vec<DocProof>, Errno>> {
-        Ok(Ok(vec![]))
+        todo!()
     }
 
     /// Prove a document is stored in the provers
