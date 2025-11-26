@@ -1,5 +1,7 @@
 //! Doc Sync host module.
 
+use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
+use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
 use crate::{
@@ -14,14 +16,63 @@ use crate::{
     },
 };
 
+/// CBOR multicodec identifier.
+///
+/// See: <https://github.com/multiformats/multicodec/blob/master/table.csv>
+const CBOR_CODEC: u64 = 0x51;
+
+/// SHA2-256 multihash code.
+const SHA2_256_CODE: u64 = 0x12;
+
+/// CBOR tag for IPLD CID (Content Identifier).
+///
+/// See: <https://github.com/ipld/cid-cbor/>
+const CID_CBOR_TAG: u64 = 42;
+
+struct Cid(hermes_ipfs::Cid);
+
+impl minicbor::Encode<()> for Cid {
+    fn encode<W: minicbor::encode::Write>(
+        &self,
+        e: &mut Encoder<W>,
+        _ctx: &mut (),
+    ) -> Result<(), minicbor::encode::Error<W::Error>> {
+        // Encode as tag(42) containing the CID bytes
+        e.tag(Tag::new(CID_CBOR_TAG))?;
+        e.bytes(&self.0.to_bytes())?;
+        Ok(())
+    }
+}
+
 #[allow(clippy::todo)]
 impl Host for HermesRuntimeContext {
     /// Get the Document ID for the given Binary Document
+    ///
+    /// See: <https://docs.dev.projectcatalyst.io/hermes/main/architecture/08_concepts/document_sync/protocol_spec/#cidv1-binary-encoding-poc-focus>
+    ///
+    /// # Note
+    ///
+    /// We expect to receive doc as cbor bytes.
     fn id_for(
         &mut self,
         doc: DocData,
     ) -> wasmtime::Result<Vec<u8>> {
-        Ok(blake2b_simd::blake2b(doc.as_ref()).as_bytes().to_vec())
+        // Compute SHA2-256 hash
+        let mut hasher = Sha256::new();
+        hasher.update(&doc);
+        let hash_digest = hasher.digest();
+
+        // Create multihash from digest using the wrap() API
+        // The generic parameter <64> is the max digest size we support
+        let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
+
+        // Create CID v1 with CBOR codec
+        let cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
+
+        let mut e = minicbor::Encoder::new(Vec::new());
+        Cid(cid).encode(&mut e, &mut ())?;
+
+        Ok(e.into_writer())
     }
 }
 

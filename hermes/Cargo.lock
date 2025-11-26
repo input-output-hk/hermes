@@ -3121,6 +3121,7 @@ dependencies = [
  "keyed-lock",
  "libsqlite3-sys",
  "libtest-mimic",
+ "multihash",
  "num-traits",
  "num_cpus",
  "once_cell",
