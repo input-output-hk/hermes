@@ -32,14 +32,13 @@ shared::bindings_generate!({
 
 export!(Component);
 
-use shared::{
-    bindings::hermes::doc_sync::api::ChannelName,
-    utils::log::{self, error, info},
-};
-
 use hermes::{
     doc_sync::api::{DocData, SyncChannel},
     http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse},
+};
+use shared::{
+    bindings::hermes::doc_sync::api::ChannelName,
+    utils::log::{self, error, info},
 };
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
@@ -123,10 +122,9 @@ fn json_response(
 ) -> Option<HttpGatewayResponse> {
     Some(HttpGatewayResponse::Http(HttpResponse {
         code,
-        headers: vec![(
-            "content-type".to_string(),
-            vec!["application/json".to_string()],
-        )],
+        headers: vec![("content-type".to_string(), vec![
+            "application/json".to_string(),
+        ])],
         body: Bstr::from(body.to_string()),
     }))
 }
