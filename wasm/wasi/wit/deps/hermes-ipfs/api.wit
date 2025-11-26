@@ -7,8 +7,8 @@ interface api {
     /// This is content that can be validated.
     variant ipfs-content {
         /// DHT value
-        dht(tuple<dht-key,dht-value>),
-        pubsub(tuple<pubsub-topic,message-data>),
+        dht(tuple<dht-key, dht-value>),
+        pubsub(tuple<pubsub-topic, message-data>),
     }
     /// The binary contents of an IPFS file.
     type ipfs-file = list<u8>;
@@ -24,7 +24,7 @@ interface api {
     type pubsub-topic = string;
     /// A PubSub message from a topic subscription.
     record pubsub-message {
-        /// The topic that the message was received on. 
+        /// The topic that the message was received on.
         topic: pubsub-topic,
         /// The contents of the message.
         message: message-data,
@@ -79,7 +79,7 @@ interface api {
     file-pin: func(path: ipfs-path) -> result<bool, errno>;
     /// Un-pins an IPFS file by path.
     file-unpin: func(path: ipfs-path) -> result<bool, errno>;
-    /// Evict peer from network.
+    /// Evicts peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
     /// Publish a message to a topic.
     pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<_, errno>;

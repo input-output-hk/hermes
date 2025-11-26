@@ -39,7 +39,7 @@ interface api {
         /// The live tip of the blockchain, following the upstream node.
         tip,
         /// The immutable tip of the blockchain
-        /// e.g., The last block which has reached the absolute finality and can never rolls back.
+        /// e.g., The last block which has reached the absolute finality and can never roll back.
         immutable-tip,
     }
 
@@ -56,7 +56,7 @@ interface api {
         /// Unknown network.
         unknown-network
     }
-    
+
     /// Errors that can happen for block.
     enum block-error {
         /// Block is not found.
@@ -76,9 +76,9 @@ interface api {
         /// **Parameters**
         ///
         /// - `network`: The Cardano network to connect to (e.g., Mainnet, Preprod, Preview).
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(network)`: A resource network, if successfully create network resource.
         /// - `error(create-network-error)`: If creating network resource failed.
         new: static func(network: cardano-network) -> result<network, create-network-error>;
@@ -94,10 +94,9 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
-        ///              resource. this subscription. Use to distinguishes events from different subscribers
-        ///              and provides control over subscription management.The ID must be unique across all 
-        ///              active subscriptions.
+        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit representation of subscription ID
+        ///              resource. This is used to distinguish events from different subscribers and provides
+        ///              control over subscription management.The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-block: func(start: sync-slot) -> result<u32, subscribe-error>;
 
@@ -105,17 +104,16 @@ interface api {
         ///
         /// This sets up a subscription to receive event when the immutable part of the blockchain
         /// roll forwards.
-        /// 
+        ///
         /// **Parameters**
         ///
         /// - `start`: The slot to begin following from.
-        /// 
+        ///
         /// **Returns**
-        /// 
-        /// - `ok(u32)`: A unsigned integer represent the underlying 32-bit representation of subscription ID
-        ///              resource. this subscription. Use to distinguishes events from different subscribers
-        ///              and provides control over subscription management.The ID must be unique across all 
-        ///              active subscriptions.
+        ///
+        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit representation of subscription ID
+        ///              resource. This is used to distinguish events from different subscribers and provides
+        ///              control over subscription management.The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-immutable-roll-forward: func(start: sync-slot) -> result<u32, subscribe-error>;
 
@@ -123,25 +121,25 @@ interface api {
         ///
         /// **Parameters**
         /// - `start`: Slot to begin retrieval from, current tip if `None`.
-        /// - `step` 
-        ///     -`0` : the block at `start`, will return `None` if there is no block exactly at this `start` slot.   
-        ///     -`+n`: the `n`‑th block *after* the given `start` slot.  
-        ///     –`‑n`: the `n`‑th block *before* the given `start` slot.  
-        ///  
-        /// Note: For both `+n` and `-n`, the `start` does not need to be a true block.  
-        /// They will return the block which appears at this block offset, given the arbitrary start point.  
-        /// IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.  
-        ///  
-        /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:  
+        /// - `step`
+        ///     -`0` : the block at `start`, will return `None` if there is no block exactly at this `start` slot.
+        ///     -`+n`: the `n`‑th block *after* the given `start` slot.
+        ///     –`‑n`: the `n`‑th block *before* the given `start` slot.
+        ///
+        /// Note: For both `+n` and `-n`, the `start` does not need to be a true block.
+        /// They will return the block which appears at this block offset, given the arbitrary start point.
+        /// IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.
+        ///
+        /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:
         ///     - `start = 100, step = 0` -> 100 (Exact match)
         ///     - `start = 100, step = 2` -> 300 (Skips 200)
         ///     - `start = 150, step = 1` -> 200 (Rounds up from 150)
         ///     - `start = 200, step = 1` -> 300 (Forward iteration)
         ///     - `start = 300, step = -2` -> 100 (Skips 200)
         ///     - `start = 250, step = -2` -> 100 (Rounds down to 200 first)
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - Returns a `block` resource, `None` if block cannot be retrieved.
         get-block: func(start: option<slot>, step: s64) -> option<block>;
 
@@ -166,12 +164,12 @@ interface api {
         /// - `false` if the block is in the mutable part.
         is-immutable: func() -> bool;
 
-        /// Returns whether the block is the first block of a rollback.  
-        ///  
-        /// **Returns**  
-        ///  
+        /// Returns whether the block is the first block of a rollback.
+        ///
+        /// **Returns**
+        ///
         /// - `ok(bool)` True if the block is the first block of a rollback,
-        ///              otherwise, False.  
+        ///              otherwise, False.
         /// - `error(block-error)`: If block cannot be retrieved.
         is-rollback: func() -> result<bool, block-error>;
 
@@ -224,7 +222,7 @@ interface api {
         /// **Parameters**
         ///
         /// - `label`: A metadata label used as a key to get the associated metadata.
-        /// 
+        ///
         /// **Returns**
         ///
         /// - `option<cbor>` : The CBOR format of the metadata, `None` if the label requested is not present.
@@ -234,12 +232,12 @@ interface api {
         /// Returns the transaction hash.
         ///
         /// **Returns**
-        /// 
+        ///
         /// - `option<txn-hash>` : Cardano transaction hash - Blake2b-256, `None` if cannot retrieve the transaction hash.
         get-txn-hash: func() -> option<txn-hash>;
 
         /// Returns the raw CBOR representation of the transaction.
-        /// 
+        ///
         /// **Returns**
         ///
         /// - `option<cbor>` : The CBOR format of the transaction, `None` if cannot retrieve the raw transaction.
@@ -248,13 +246,13 @@ interface api {
 
     resource subscription-id {
         /// Returns the network that this subscription is in.
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `cardano-network` : The Cardano network that this subscription is in.
         get-network: func() -> cardano-network;
 
-                
+
         /// Unsubscribing block event of this `subscription-id` instance.
         /// Once this function is called, the subscription instance, `subscription-id` will be removed.
         unsubscribe: func();
