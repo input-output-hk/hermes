@@ -1,14 +1,5 @@
 #![allow(missing_docs)]
-//! # Doc Sync Module
-//!
-//! Thin wrapper for posting documents to IPFS PubSub. The actual 4-step workflow
-//! (file_add, file_pin, pre-publish, pubsub_publish) is executed on the host side
-//! for efficiency.
-//!
-//! ## Usage
-//! ```rust
-//! let cid = channel::post(document_bytes)?;
-//! ```
+//! Doc Sync - IPFS PubSub document publishing. See README.md for details.
 
 shared::bindings_generate!({
     world: "hermes:app/hermes",
@@ -132,11 +123,7 @@ fn json_response(
 /// Default channel name for doc-sync operations
 const DOC_SYNC_CHANNEL: &str = "documents";
 
-/// Simple API for posting documents to IPFS PubSub.
-///
-/// Usage: `let cid = channel::post(document_bytes)?;`
-///
-/// This calls the host-side implementation which executes the 4-step workflow.
+/// API for posting documents to IPFS PubSub channels.
 pub mod channel {
     use super::*;
 
