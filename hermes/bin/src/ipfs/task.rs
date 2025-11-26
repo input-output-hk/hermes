@@ -98,7 +98,7 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Publish(topic, message, tx) => {
                 let result = hermes_node
-                    .pubsub_publish(topic.clone(), message)
+                    .pubsub_publish(&topic, message)
                     .await
                     .map_err(|e| {
                         tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
