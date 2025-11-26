@@ -25,10 +25,7 @@ shared::bindings_generate!({
 export!(RbacRegistrationComponent);
 
 mod database;
-use rbac_registration::{
-    self,
-    cardano::cip509::{Cip0134UriSet, Cip509},
-};
+use rbac_registration::{self, cardano::cip509::Cip509};
 use shared::{
     bindings::hermes::{cardano, sqlite::api::Sqlite},
     utils::{
@@ -173,10 +170,7 @@ impl exports::hermes::cardano::event_on_block::Guest for RbacRegistrationCompone
             let prv_txn_id: Option<Vec<u8>> = reg.previous_transaction().map(Into::into);
             let problem_report: Option<String> = problem_report_to_json(reg.report());
             // Can contain multiple stake addresses
-            let stake_addresses = reg
-                .certificate_uris()
-                .map(Cip0134UriSet::stake_addresses)
-                .unwrap_or_default();
+            let stake_addresses = reg.stake_addresses();
 
             let rbac_data = RbacDbData {
                 txn_id: txn_id.clone(),
