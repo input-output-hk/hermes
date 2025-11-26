@@ -15,11 +15,6 @@ mod bindings {
             package hermes:app;
 
             world hermes {
-                include wasi:cli/imports@0.2.6;
-
-                import wasi:clocks/monotonic-clock@0.2.6;
-                import hermes:logging/api;
-                import hermes:init/api;
                 import hermes:doc-sync/api;
 
                 export hermes:init/event;
