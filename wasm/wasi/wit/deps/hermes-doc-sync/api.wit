@@ -56,7 +56,7 @@ interface api {
         ///
         /// - `ok(true)`: Channel Closed and resources released.
         /// - `error(<something>)`: If it gets an error closing.
-        close: func() -> result<bool, errno>;
+        close: static func(self: sync-channel) -> result<bool, errno>;
 
         /// Post the document to a channel
         ///
