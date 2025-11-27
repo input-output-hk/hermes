@@ -41,7 +41,7 @@ impl HostNetwork for HermesRuntimeContext {
                 return Ok(Err(CreateNetworkError::NetworkNotSupported));
             },
         };
-        let key = (self.app_name().clone(), network);
+        let key = (self.app_name().clone(), network.clone());
         // Lookup whether the network resource already exists
         if let Some(rep) = STATE.network_lookup.get(&key) {
             return Ok(Ok(wasmtime::component::Resource::new_own(*rep)));
@@ -49,7 +49,7 @@ impl HostNetwork for HermesRuntimeContext {
 
         // If not, create a new resource
         let app_state = STATE.network.get_app_state(self.app_name())?;
-        let resource = app_state.create_resource(network);
+        let resource = app_state.create_resource(network.clone());
         // Store the new resource in the lookup
         STATE.network_lookup.insert(key, resource.rep());
 
@@ -84,16 +84,16 @@ impl HostNetwork for HermesRuntimeContext {
         let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
-        let subscription_id_resource = subscription_id_app_state.create_resource(*network);
+        let subscription_id_resource = subscription_id_app_state.create_resource(network.clone());
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
 
-        let start = sync_slot_to_point(start, *network);
+        let start = sync_slot_to_point(start, &network);
         let handle = spawn_subscribe(
             self.app_name().clone(),
             self.module_id().clone(),
             start,
-            *network,
+            &network,
             SubscriptionType::Block,
             borrow_subscription_id,
         );
@@ -131,16 +131,16 @@ impl HostNetwork for HermesRuntimeContext {
         let network = network_app_state.get_object_shared(&self_)?;
 
         let subscription_id_app_state = STATE.subscription_id.get_app_state(self.app_name())?;
-        let subscription_id_resource = subscription_id_app_state.create_resource(*network);
+        let subscription_id_resource = subscription_id_app_state.create_resource(network.clone());
         let borrow_subscription_id =
             wasmtime::component::Resource::new_borrow(subscription_id_resource.rep());
 
-        let start = sync_slot_to_point(start, *network);
+        let start = sync_slot_to_point(start, &network);
         let handle = spawn_subscribe(
             self.app_name().clone(),
             self.module_id().clone(),
             start,
-            *network,
+            &network,
             SubscriptionType::ImmutableRollForward,
             borrow_subscription_id,
         );
@@ -164,7 +164,7 @@ impl HostNetwork for HermesRuntimeContext {
     ///
     ///    Note: For both `+n` and `-n`, the `start` does not need to be a true block.
     ///    They will return the block which appears at this block offset, given the
-    /// arbitrary start point.  IF the `start` block does exist, it will never
+    /// arbitrary start point.  If the `start` block does exist, it will never be
     /// returned with a positive or negative `step`, as it is `step` 0.
     ///
     /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the
@@ -187,7 +187,7 @@ impl HostNetwork for HermesRuntimeContext {
     ) -> wasmtime::Result<Option<wasmtime::component::Resource<Block>>> {
         let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
         let network = app_state.get_object_shared(&self_)?;
-        let multi_era_block = match get_block_relative(*network, start, step) {
+        let multi_era_block = match get_block_relative(&network, start, step) {
             Ok(block) => block,
             Err(e) => {
                 error!(error=?e, "Failed to get block");
@@ -212,7 +212,7 @@ impl HostNetwork for HermesRuntimeContext {
     ) -> wasmtime::Result<Option<(Slot, Slot)>> {
         let app_state = STATE.network.get_app_state_readonly(self.app_name())?;
         let network = app_state.get_object_shared(&self_)?;
-        let (immutable_tip, mutable_tip) = match get_tips(*network) {
+        let (immutable_tip, mutable_tip) = match get_tips(&network) {
             Ok(tips) => tips,
             Err(e) => {
                 error!(error=?e, "Failed to get tips");
@@ -228,7 +228,7 @@ impl HostNetwork for HermesRuntimeContext {
     ) -> wasmtime::Result<()> {
         // Remove from resource manager
         let mut app_state = STATE.network.get_app_state(self.app_name())?;
-        let network = *app_state.get_object(&rep)?;
+        let network = app_state.get_object(&rep)?.clone();
         app_state.delete_resource(rep)?;
         // Remove from lookup
         let key = (self.app_name().clone(), network);
@@ -456,7 +456,7 @@ impl HostSubscriptionId for HermesRuntimeContext {
             .subscription_id
             .get_app_state_readonly(self.app_name())?;
         let network = app_state.get_object_shared(&self_)?;
-        Ok((*network).try_into()?)
+        Ok(network.clone().try_into()?)
     }
 
     /// Unsubscribing block event of this `subscription-id` instance.

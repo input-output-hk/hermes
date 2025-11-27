@@ -25,6 +25,14 @@ clean-spelling-list:
 check-spelling:
     DO cspell-ci+CHECK
 
+# check-earthly-names : ensure Cargo/WASM names match Earthly outputs.
+check-earthly-names:
+    FROM python:3.12-slim
+
+    WORKDIR /work
+    COPY . .
+    RUN python3 scripts/earthly_name_consistency.py
+
 # repo-docs : target to store the documentation from the root of the repo.
 repo-docs:
     # Create artifacts of extra files we embed inside the documentation when its built.

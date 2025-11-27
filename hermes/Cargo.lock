@@ -248,7 +248,7 @@ checksum = "965c2d33e53cb6b267e148a4cb0760bc01f4904c1cd4bb4002a085bb016d1490"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "synstructure",
 ]
 
@@ -260,7 +260,7 @@ checksum = "3109e49b1e4909e9db6515a30c633684d68cdeaa252f215214cb4fa1a5bfee2c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "synstructure",
 ]
 
@@ -272,7 +272,7 @@ checksum = "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -350,7 +350,7 @@ checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -384,7 +384,7 @@ checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -395,7 +395,7 @@ checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -827,7 +827,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
- "syn 2.0.110",
+ "syn 2.0.111",
  "zstd",
 ]
 
@@ -976,41 +976,8 @@ dependencies = [
 
 [[package]]
 name = "cardano-blockchain-types"
-version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-blockchain-types%2Fv0.0.6#0e16500065715624c81cf3240b1e807c35265909"
-dependencies = [
- "anyhow",
- "blake2b_simd",
- "catalyst-types 0.0.6",
- "cbork-utils",
- "chrono",
- "dashmap",
- "dirs 5.0.1",
- "displaydoc",
- "ed25519-dalek",
- "hex",
- "minicbor 0.25.1",
- "num-bigint",
- "num-traits",
- "ouroboros",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-hardano 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "serde",
- "serde_json",
- "strum 0.26.3",
- "thiserror 2.0.17",
- "tracing",
-]
-
-[[package]]
-name = "cardano-blockchain-types"
-version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs?tag=cardano-blockchain-types%2Fv0.0.8#a6e629f785d3e1f3ed4c2834d34902710661ab88"
+version = "0.0.9"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-blockchain-types%2Fv0.0.9#fe42df63dfb3f869920e9152091676175d261182"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -1026,13 +993,13 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "ouroboros",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-hardano 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-addresses 1.0.0-alpha.2",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
+ "pallas-hardano",
+ "pallas-network 1.0.0-alpha.2",
+ "pallas-primitives 1.0.0-alpha.2",
+ "pallas-traverse 1.0.0-alpha.2",
  "serde",
  "strum 0.26.3",
  "thiserror 2.0.17",
@@ -1041,13 +1008,13 @@ dependencies = [
 
 [[package]]
 name = "cardano-chain-follower"
-version = "0.0.14"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-chain-follower%2Fv0.0.14#b1136bb780b4716e912bbaa445aaa7906d1bd629"
+version = "0.0.19"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=cardano-chain-follower%2Fv0.0.19#353077ec3a34dd5f9edb114d75c733808f47ec10"
 dependencies = [
  "anyhow",
  "async-trait",
- "cardano-blockchain-types 0.0.6",
- "catalyst-types 0.0.6",
+ "cardano-blockchain-types",
+ "catalyst-types 0.0.10",
  "chrono",
  "cpu-time",
  "crossbeam-channel",
@@ -1105,27 +1072,6 @@ name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
-
-[[package]]
-name = "catalyst-types"
-version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.6#600f8462cf5ba4d17bf5f91a4e14da911912f026"
-dependencies = [
- "base64-url",
- "chrono",
- "displaydoc",
- "ed25519-dalek",
- "fluent-uri",
- "fmmap",
- "minicbor 0.25.1",
- "num-traits",
- "orx-concurrent-vec",
- "serde",
- "strum 0.27.2",
- "thiserror 2.0.17",
- "tracing",
- "uuid",
-]
 
 [[package]]
 name = "catalyst-types"
@@ -1197,9 +1143,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.46"
+version = "1.2.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97463e1064cb1b1c1384ad0a0b9c8abd0988e2a91f52606c80ef14aadb63e36"
+checksum = "cd405d82c84ff7f35739f175f67d8b9fb7687a0e84ccdc78bd3568839827cf07"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1359,7 +1305,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -1419,7 +1365,7 @@ dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.4",
  "hickory-resolver 0.25.2",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "libp2p",
  "libp2p-allow-block-list",
  "libp2p-connection-limits",
@@ -1746,7 +1692,7 @@ checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 name = "cron_callback"
 version = "0.1.0"
 dependencies = [
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -1902,7 +1848,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -1936,7 +1882,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -1950,7 +1896,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -1961,7 +1907,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core 0.20.11",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -1972,7 +1918,7 @@ checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
  "darling_core 0.21.3",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2013,7 +1959,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2070,7 +2016,7 @@ checksum = "8034092389675178f570469e6c3b0465d3d30b4505c294a6550db47f3c17ad18"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2109,7 +2055,7 @@ checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "unicode-xid",
 ]
 
@@ -2121,7 +2067,7 @@ checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "unicode-xid",
 ]
 
@@ -2214,7 +2160,7 @@ checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2355,7 +2301,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2367,7 +2313,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2446,7 +2392,7 @@ dependencies = [
 name = "failed_init"
 version = "0.1.0"
 dependencies = [
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -2781,7 +2727,7 @@ checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -2912,7 +2858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 dependencies = [
  "fallible-iterator",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "stable_deref_trait",
 ]
 
@@ -2970,7 +2916,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "slab",
  "tokio",
  "tokio-util",
@@ -3017,9 +2963,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5419bdc4f6a9207fbeba6d11b604d481addf78ecd10c11ad51e76c2f6482748d"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
 name = "hashlink"
@@ -3041,9 +2987,9 @@ dependencies = [
 
 [[package]]
 name = "hdf5-metno"
-version = "0.10.2"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7ea56bf7d2353603da59755c81101b148592f1621bf22e7bf363f79abc02d94"
+checksum = "72f8592329337a96c802cccdbd11fe5f9476cb940d5a88dcca729a2ecf82e1c9"
 dependencies = [
  "bitflags 2.10.0",
  "blosc-src",
@@ -3051,6 +2997,7 @@ dependencies = [
  "hdf5-metno-derive",
  "hdf5-metno-sys",
  "hdf5-metno-types",
+ "lazy_static",
  "libc",
  "ndarray",
  "paste",
@@ -3058,22 +3005,22 @@ dependencies = [
 
 [[package]]
 name = "hdf5-metno-derive"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25557ccc26f5b17b8f6014c58761e5eb53e815728907071999c3957bfee23bc2"
+checksum = "205c825c5140aa2791cec795068e8aa8d299862009b7fbd59bd4d876b47842c5"
 dependencies = [
  "proc-macro-crate",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
 name = "hdf5-metno-src"
-version = "0.9.4"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "956b57b8b4e133bcfbc874a2c9c6d4020e0da420dcfa05aea79091888f2b0763"
+checksum = "36b0303729f84fb0f2dc510d28b64cb716fb13e6a139a17e88db329123ecff82"
 dependencies = [
  "cmake",
 ]
@@ -3097,9 +3044,9 @@ dependencies = [
 
 [[package]]
 name = "hdf5-metno-types"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86784ab948de3b7ffdf4c64561fdc1ec86ec512054e04ca649eda65ad0c6faa9"
+checksum = "1698f197367c277fac6c3a35ad12397941b57f7554778d925ceb54c3fe754723"
 dependencies = [
  "ascii",
  "cfg-if",
@@ -3154,7 +3101,7 @@ dependencies = [
  "blosc-src",
  "build-info",
  "build-info-build",
- "cardano-blockchain-types 0.0.6",
+ "cardano-blockchain-types",
  "cardano-chain-follower",
  "catalyst-types 0.0.7",
  "chrono",
@@ -3184,6 +3131,7 @@ dependencies = [
  "keyed-lock",
  "libsqlite3-sys",
  "libtest-mimic",
+ "multihash",
  "num-traits",
  "num_cpus",
  "once_cell",
@@ -3420,7 +3368,7 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "url",
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -3782,12 +3730,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.12.0"
+version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6717a8d2a5a929a1a2eb43a12812498ed141a0bcfb7e8f7844fbdbe4303bba9f"
+checksum = "0ad4bb2b565bca0645f4d68c5c9af97fba094e9791da685bf83cb5f3ce74acf2"
 dependencies = [
  "equivalent",
- "hashbrown 0.16.0",
+ "hashbrown 0.16.1",
  "serde",
  "serde_core",
 ]
@@ -3836,6 +3784,13 @@ dependencies = [
  "widestring",
  "windows-sys 0.48.0",
  "winreg 0.50.0",
+]
+
+[[package]]
+name = "ipfs_subscribe"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.48.1",
 ]
 
 [[package]]
@@ -4585,7 +4540,7 @@ checksum = "dd297cf53f0cb3dee4d2620bb319ae47ef27c702684309f682bdb7e55a18ae9c"
 dependencies = [
  "heck 0.5.0",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -4789,7 +4744,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -4938,7 +4893,7 @@ checksum = "bd2209fff77f705b00c737016a48e73733d7fbccb8b007194db148f03561fb70"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -4949,7 +4904,7 @@ checksum = "a9882ef5c56df184b8ffc107fc6c61e33ee3a654b021961d790a78571bb9d67a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -5179,7 +5134,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "synstructure",
 ]
 
@@ -5225,9 +5180,9 @@ dependencies = [
 
 [[package]]
 name = "ndarray"
-version = "0.17.1"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c7c9125e8f6f10c9da3aad044cc918cf8784fa34de857b1aa68038eb05a50a9"
+checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
 dependencies = [
  "matrixmultiply",
  "num-complex",
@@ -5487,7 +5442,7 @@ checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
 dependencies = [
  "crc32fast",
  "hashbrown 0.15.5",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "memchr",
 ]
 
@@ -5566,7 +5521,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -5721,7 +5676,7 @@ dependencies = [
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -5761,21 +5716,6 @@ dependencies = [
 [[package]]
 name = "pallas-addresses"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "base58",
- "bech32 0.9.1",
- "crc",
- "cryptoxide",
- "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-addresses"
-version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
 dependencies = [
  "base58",
@@ -5783,8 +5723,8 @@ dependencies = [
  "crc",
  "cryptoxide",
  "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
  "thiserror 1.0.69",
 ]
 
@@ -5796,17 +5736,6 @@ checksum = "e344b3e39ca3bd79bb7547b65b980869c3c377a00c48ece70430f4611c32a18b"
 dependencies = [
  "hex",
  "minicbor 0.25.1",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-codec"
-version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "hex",
- "minicbor 0.26.5",
  "serde",
  "thiserror 1.0.69",
 ]
@@ -5840,47 +5769,14 @@ dependencies = [
 [[package]]
 name = "pallas-crypto"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "cryptoxide",
- "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "rand_core 0.9.3",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-crypto"
-version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
 dependencies = [
  "cryptoxide",
  "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2",
  "rand_core 0.9.3",
  "serde",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-hardano"
-version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "binary-layout",
- "hex",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "serde",
- "serde_json",
- "serde_with 3.16.0",
- "tap",
- "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]
@@ -5890,11 +5786,11 @@ source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e
 dependencies = [
  "binary-layout",
  "hex",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-network 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-traverse 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-addresses 1.0.0-alpha.2",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
+ "pallas-network 1.0.0-alpha.2",
+ "pallas-traverse 1.0.0-alpha.2",
  "serde",
  "serde_json",
  "serde_with 3.16.0",
@@ -5924,32 +5820,14 @@ dependencies = [
 [[package]]
 name = "pallas-network"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "byteorder",
- "hex",
- "itertools 0.13.0",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "rand 0.8.5",
- "socket2 0.5.10",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "pallas-network"
-version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
 dependencies = [
  "byteorder",
  "hex",
  "itertools 0.13.0",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
+ "pallas-primitives 1.0.0-alpha.2",
  "rand 0.8.5",
  "socket2 0.5.10",
  "thiserror 1.0.69",
@@ -5976,23 +5854,11 @@ dependencies = [
 [[package]]
 name = "pallas-primitives"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "pallas-primitives"
-version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
 dependencies = [
  "hex",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
  "serde",
  "serde_json",
 ]
@@ -6017,30 +5883,14 @@ dependencies = [
 [[package]]
 name = "pallas-traverse"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
-dependencies = [
- "hex",
- "itertools 0.13.0",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?branch=feat%2Fpallas-network-types)",
- "paste",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-traverse"
-version = "1.0.0-alpha.2"
 source = "git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00#9c6322e6b51916b2cc54ba713b07bb25ef07dd00"
 dependencies = [
  "hex",
  "itertools 0.13.0",
- "pallas-addresses 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-codec 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-crypto 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
- "pallas-primitives 1.0.0-alpha.2 (git+https://github.com/input-output-hk/catalyst-pallas.git?rev=9c6322e6b51916b2cc54ba713b07bb25ef07dd00)",
+ "pallas-addresses 1.0.0-alpha.2",
+ "pallas-codec 1.0.0-alpha.2",
+ "pallas-crypto 1.0.0-alpha.2",
+ "pallas-primitives 1.0.0-alpha.2",
  "paste",
  "serde",
  "thiserror 1.0.69",
@@ -6097,7 +5947,7 @@ dependencies = [
  "regex",
  "regex-syntax",
  "structmeta",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6197,7 +6047,7 @@ checksum = "6e918e4ff8c4549eb882f14b3a4bc8c8bc93de829416eacf579f1207a8fbf861"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6371,7 +6221,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6435,7 +6285,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6455,7 +6305,7 @@ checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "version_check",
  "yansi",
 ]
@@ -6480,7 +6330,7 @@ checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6503,7 +6353,7 @@ checksum = "1885fbb6c07454cfc8725a18a1da3cfc328ee8c53fb8d0671ea313edc8567947"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -6727,13 +6577,13 @@ dependencies = [
 
 [[package]]
 name = "rbac-registration"
-version = "0.0.14"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.14#a6e629f785d3e1f3ed4c2834d34902710661ab88"
+version = "0.0.15"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=rbac-registration%2Fv0.0.15#08bdbd2b4148c547ff93a53ef6206297b541c0ef"
 dependencies = [
  "anyhow",
  "brotli 7.0.0",
  "c509-certificate",
- "cardano-blockchain-types 0.0.8",
+ "cardano-blockchain-types",
  "catalyst-types 0.0.10",
  "cbork-utils",
  "der-parser 9.0.0",
@@ -6824,7 +6674,7 @@ checksum = "b7186006dcb21920990093f30e3dea63b7d6e977bf1256be20c3563a5db070da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -7040,7 +6890,7 @@ dependencies = [
  "getrandom 0.3.4",
  "hickory-resolver 0.25.2",
  "idb",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "ipld-core",
  "ipld-dagpb",
  "libp2p-relay-manager",
@@ -7575,16 +7425,16 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
 name = "serde_fmt"
-version = "1.0.3"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d4ddca14104cd60529e8c7f7ba71a2c8acd8f7f5cfcdc2faf97eeb7c3010a4"
+checksum = "6e497af288b3b95d067a23a4f749f2861121ffcb2f6d8379310dcda040c345ed"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -7671,7 +7521,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "schemars 0.9.0",
  "schemars 1.1.0",
  "serde_core",
@@ -7689,7 +7539,7 @@ dependencies = [
  "darling 0.20.11",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -7701,7 +7551,7 @@ dependencies = [
  "darling 0.21.3",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -7727,7 +7577,7 @@ checksum = "5d69265a08751de7844521fd15003ae0a888e035773ba05695c5c759a6f89eef"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -7778,7 +7628,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bech32 0.11.0",
- "cardano-blockchain-types 0.0.8",
+ "cardano-blockchain-types",
  "catalyst-types 0.0.10",
  "chrono",
  "derive_more 2.0.1",
@@ -7796,7 +7646,7 @@ dependencies = [
  "url",
  "utoipa",
  "uuid",
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -7807,9 +7657,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signal-hook-registry"
-version = "1.4.6"
+version = "1.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2a4719bff48cee6b39d12c020eeb490953ad2443b7055bd0b21fca26bd8c28b"
+checksum = "7664a098b8e616bdfcc2dc0e9ac44eb231eedf41db4e9fe95d8d32ec728dedad"
 dependencies = [
  "libc",
 ]
@@ -7863,7 +7713,7 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "url",
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -7978,7 +7828,7 @@ name = "staked_ada_indexer_mock"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cardano-blockchain-types 0.0.8",
+ "cardano-blockchain-types",
  "shared",
 ]
 
@@ -8040,7 +7890,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "structmeta-derive",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8051,7 +7901,7 @@ checksum = "152a0b65a590ff6c3da95cabe2353ee04e6167c896b28e3b14478c2636c922fc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8082,7 +7932,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8094,7 +7944,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8204,9 +8054,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.110"
+version = "2.0.111"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a99801b5bd34ede4cf3fc688c5919368fea4e4814a4664359503e6015b280aea"
+checksum = "390cc9a294ab71bdb1aa2e99d13be9c753cd2d7bd6560c77118597410c4d2e87"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8230,7 +8080,7 @@ checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8354,7 +8204,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8365,7 +8215,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "test-case-core",
 ]
 
@@ -8395,7 +8245,7 @@ checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8406,7 +8256,7 @@ checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8522,7 +8372,7 @@ checksum = "2d2e76690929402faae40aebdda620a2c0e25dd6d3b9afe48867dfd95991f4bd"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8550,7 +8400,7 @@ checksum = "af407857209536a95c8e56f8231ef2c2e2aff839b22e07a1ffcbc617e9db9fa5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8626,7 +8476,7 @@ version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6485ef6d0d9b5d0ec17244ff7eb05310113c3f316f2d14200d4de56b3cb98f8d"
 dependencies = [
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "toml_datetime",
  "toml_parser",
  "winnow",
@@ -8706,7 +8556,7 @@ checksum = "81383ab64e72a7a8b8e13130c49e3dab29def6d0c7d76a03087b3cf71c5c6903"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8791,7 +8641,7 @@ checksum = "e5714b78208e3da0c85d5683a933d843aa275c5fd301d7953b7ae523c7a4ea2a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8842,7 +8692,7 @@ checksum = "27a7a9b72ba121f6f1f6c3632b85604cac41aedb5ddc70accbebb6cac83de846"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -9026,7 +8876,7 @@ version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fcc29c80c21c31608227e0912b2d7fddba57ad76b606890627ba8ee7964e993"
 dependencies = [
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "serde",
  "serde_json",
  "utoipa-gen",
@@ -9040,7 +8890,7 @@ checksum = "6d79d08d92ab8af4c5e8a6da20c47ae3f61a0f1dabc1997cdf2d082b757ca08b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "url",
  "uuid",
 ]
@@ -9076,9 +8926,9 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "value-bag"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "943ce29a8a743eb10d6082545d861b24f9d1b160b7d741e0f2cdf726bec909c5"
+checksum = "7ba6f5989077681266825251a52748b8c1d8a4ad098cc37e440103d0ea717fc0"
 dependencies = [
  "value-bag-serde1",
  "value-bag-sval2",
@@ -9086,20 +8936,20 @@ dependencies = [
 
 [[package]]
 name = "value-bag-serde1"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35540706617d373b118d550d41f5dfe0b78a0c195dc13c6815e92e2638432306"
+checksum = "16530907bfe2999a1773ca5900a65101e092c70f642f25cc23ca0c43573262c5"
 dependencies = [
  "erased-serde 0.4.9",
- "serde",
+ "serde_core",
  "serde_fmt",
 ]
 
 [[package]]
 name = "value-bag-sval2"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe7e140a2658cc16f7ee7a86e413e803fc8f9b5127adc8755c19f9fefa63a52"
+checksum = "d00ae130edd690eaa877e4f40605d534790d1cf1d651e7685bd6a144521b251f"
 dependencies = [
  "sval",
  "sval_buffer",
@@ -9165,7 +9015,7 @@ version = "1.0.1+wasi-0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0562428422c63773dad2c345a1882263bbf4d65cf3f42e90921f787ef5ad58e7"
 dependencies = [
- "wit-bindgen",
+ "wit-bindgen 0.46.0",
 ]
 
 [[package]]
@@ -9213,7 +9063,7 @@ dependencies = [
  "bumpalo",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "wasm-bindgen-shared",
 ]
 
@@ -9253,9 +9103,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20b3ec880a9ac69ccd92fbdbcf46ee833071cf09f82bb005b2327c7ae6025ae2"
 dependencies = [
  "anyhow",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "wasm-encoder 0.239.0",
  "wasmparser 0.239.0",
+]
+
+[[package]]
+name = "wasm-metadata"
+version = "0.241.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "876fe286f2fa416386deedebe8407e6f19e0b5aeaef3d03161e77a15fa80f167"
+dependencies = [
+ "anyhow",
+ "indexmap 2.12.1",
+ "wasm-encoder 0.241.2",
+ "wasmparser 0.241.2",
 ]
 
 [[package]]
@@ -9279,7 +9141,7 @@ checksum = "8c9d90bb93e764f6beabf1d02028c70a2156a6583e63ac4218dd07ef733368b0"
 dependencies = [
  "bitflags 2.10.0",
  "hashbrown 0.15.5",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "semver",
  "serde",
 ]
@@ -9291,7 +9153,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b722dcf61e0ea47440b53ff83ccb5df8efec57a69d150e4f24882e4eba7e24a4"
 dependencies = [
  "bitflags 2.10.0",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "semver",
 ]
 
@@ -9302,7 +9164,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46d90019b1afd4b808c263e428de644f3003691f243387d30d673211ee0cb8e8"
 dependencies = [
  "bitflags 2.10.0",
- "indexmap 2.12.0",
+ "hashbrown 0.15.5",
+ "indexmap 2.12.1",
  "semver",
 ]
 
@@ -9344,7 +9207,7 @@ dependencies = [
  "encoding_rs",
  "gimli",
  "hashbrown 0.15.5",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "libc",
  "log",
  "mach2",
@@ -9386,7 +9249,7 @@ dependencies = [
  "cranelift-bitset",
  "cranelift-entity",
  "gimli",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "log",
  "object",
  "postcard",
@@ -9410,10 +9273,10 @@ dependencies = [
  "anyhow",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "wasmtime-internal-component-util",
  "wasmtime-internal-wit-bindgen",
- "wit-parser",
+ "wit-parser 0.239.0",
 ]
 
 [[package]]
@@ -9523,7 +9386,7 @@ checksum = "23e277f734b9256359b21517c3b0c26a2a9de6c53a51b670ae55cdcde548bf4e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -9553,8 +9416,8 @@ dependencies = [
  "anyhow",
  "bitflags 2.10.0",
  "heck 0.5.0",
- "indexmap 2.12.0",
- "wit-parser",
+ "indexmap 2.12.1",
+ "wit-parser 0.239.0",
 ]
 
 [[package]]
@@ -9701,7 +9564,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "witx",
 ]
 
@@ -9713,7 +9576,7 @@ checksum = "e1a533b4fdc593bf9c4bf52ae0b3a126f15babfb25fce03bfe0bcc84e1172222"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "wiggle-generate",
 ]
 
@@ -9809,7 +9672,7 @@ checksum = "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -9820,7 +9683,7 @@ checksum = "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -10147,7 +10010,17 @@ dependencies = [
  "bitflags 2.10.0",
  "futures",
  "once_cell",
- "wit-bindgen-rust-macro",
+ "wit-bindgen-rust-macro 0.46.0",
+]
+
+[[package]]
+name = "wit-bindgen"
+version = "0.48.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f8c2adb5f74ac9395bc3121c99a1254bf9310482c27b13f97167aedb5887138"
+dependencies = [
+ "bitflags 2.10.0",
+ "wit-bindgen-rust-macro 0.48.1",
 ]
 
 [[package]]
@@ -10158,7 +10031,18 @@ checksum = "cabd629f94da277abc739c71353397046401518efb2c707669f805205f0b9890"
 dependencies = [
  "anyhow",
  "heck 0.5.0",
- "wit-parser",
+ "wit-parser 0.239.0",
+]
+
+[[package]]
+name = "wit-bindgen-core"
+version = "0.48.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b881a098cae03686d7a0587f8f306f8a58102ad8da8b5599100fbe0e7f5800b"
+dependencies = [
+ "anyhow",
+ "heck 0.5.0",
+ "wit-parser 0.241.2",
 ]
 
 [[package]]
@@ -10169,12 +10053,28 @@ checksum = "9a4232e841089fa5f3c4fc732a92e1c74e1a3958db3b12f1de5934da2027f1f4"
 dependencies = [
  "anyhow",
  "heck 0.5.0",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "prettyplease",
- "syn 2.0.110",
- "wasm-metadata",
- "wit-bindgen-core",
- "wit-component",
+ "syn 2.0.111",
+ "wasm-metadata 0.239.0",
+ "wit-bindgen-core 0.46.0",
+ "wit-component 0.239.0",
+]
+
+[[package]]
+name = "wit-bindgen-rust"
+version = "0.48.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69667efa439a453e1d50dac939c6cab6d2c3ac724a9d232b6631dad2472a5b70"
+dependencies = [
+ "anyhow",
+ "heck 0.5.0",
+ "indexmap 2.12.1",
+ "prettyplease",
+ "syn 2.0.111",
+ "wasm-metadata 0.241.2",
+ "wit-bindgen-core 0.48.1",
+ "wit-component 0.241.2",
 ]
 
 [[package]]
@@ -10187,9 +10087,24 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
- "syn 2.0.110",
- "wit-bindgen-core",
- "wit-bindgen-rust",
+ "syn 2.0.111",
+ "wit-bindgen-core 0.46.0",
+ "wit-bindgen-rust 0.46.0",
+]
+
+[[package]]
+name = "wit-bindgen-rust-macro"
+version = "0.48.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eae2e22cceb5d105d52326c07e3e67603a861cc7add70fc467f7cc7ec5265017"
+dependencies = [
+ "anyhow",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+ "wit-bindgen-core 0.48.1",
+ "wit-bindgen-rust 0.48.1",
 ]
 
 [[package]]
@@ -10200,15 +10115,34 @@ checksum = "88a866b19dba2c94d706ec58c92a4c62ab63e482b4c935d2a085ac94caecb136"
 dependencies = [
  "anyhow",
  "bitflags 2.10.0",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "log",
  "serde",
  "serde_derive",
  "serde_json",
  "wasm-encoder 0.239.0",
- "wasm-metadata",
+ "wasm-metadata 0.239.0",
  "wasmparser 0.239.0",
- "wit-parser",
+ "wit-parser 0.239.0",
+]
+
+[[package]]
+name = "wit-component"
+version = "0.241.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0c57df25e7ee612d946d3b7646c1ddb2310f8280aa2c17e543b66e0812241"
+dependencies = [
+ "anyhow",
+ "bitflags 2.10.0",
+ "indexmap 2.12.1",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "wasm-encoder 0.241.2",
+ "wasm-metadata 0.241.2",
+ "wasmparser 0.241.2",
+ "wit-parser 0.241.2",
 ]
 
 [[package]]
@@ -10219,7 +10153,7 @@ checksum = "55c92c939d667b7bf0c6bf2d1f67196529758f99a2a45a3355cc56964fd5315d"
 dependencies = [
  "anyhow",
  "id-arena",
- "indexmap 2.12.0",
+ "indexmap 2.12.1",
  "log",
  "semver",
  "serde",
@@ -10227,6 +10161,24 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser 0.239.0",
+]
+
+[[package]]
+name = "wit-parser"
+version = "0.241.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ef1c6ad67f35c831abd4039c02894de97034100899614d1c44e2268ad01c91"
+dependencies = [
+ "anyhow",
+ "id-arena",
+ "indexmap 2.12.1",
+ "log",
+ "semver",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "unicode-xid",
+ "wasmparser 0.241.2",
 ]
 
 [[package]]
@@ -10402,28 +10354,28 @@ checksum = "b659052874eb698efe5b9e8cf382204678a0086ebf46982b79d6ca3182927e5d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "synstructure",
 ]
 
 [[package]]
 name = "zerocopy"
-version = "0.8.27"
+version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0894878a5fa3edfd6da3f88c4805f4c8558e2b996227a3d864f47fe11e38282c"
+checksum = "43fa6694ed34d6e57407afbccdeecfa268c470a7d2a5b0cf49ce9fcc345afb90"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.27"
+version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88d2b8d9c68ad2b9e4340d7832716a4d21a22a1154777ad56ea55c51a9cf3831"
+checksum = "c640b22cd9817fae95be82f0d2f90b11f7605f6c319d16705c459b27ac2cbc26"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -10443,7 +10395,7 @@ checksum = "d71e5d6e06ab090c67b5e44993ec16b72dcbaabc526db883a360057678b48502"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
  "synstructure",
 ]
 
@@ -10464,7 +10416,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -10497,7 +10449,7 @@ checksum = "eadce39539ca5cb3985590102671f2567e659fca9666581ad3411d59207951f3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
