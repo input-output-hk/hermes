@@ -16,7 +16,7 @@ impl Host for HermesRuntimeContext {
     ///
     /// `when` : The datetime we want to convert (Optional, if not set it will convert
     /// `now`).
-    /// `tz` : The timezone to use. (Optional, if not set uses the local machines
+    /// `tz` : The timezone to use. (Optional, if not set uses the machine's
     /// configured local timezone.)
     ///
     /// **Returns**
@@ -36,7 +36,7 @@ impl Host for HermesRuntimeContext {
     /// **Parameters**
     ///
     /// `time` : The localtime to convert.
-    /// `tz` : The timezone to use. (Optional, if not set uses the local machines
+    /// `tz` : The timezone to use. (Optional, if not set uses the machine's
     /// configured local timezone.)
     ///
     /// **Returns**
