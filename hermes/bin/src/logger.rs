@@ -168,9 +168,7 @@ pub(crate) fn init(logger_config: &LoggerConfig) -> anyhow::Result<()> {
         .with_span_events(FmtSpan::CLOSE)
         .with_max_level(LevelFilter::from_level(logger_config.log_level.into()))
         // Hardcode the filter to always suppress excess noise
-        .with_env_filter(EnvFilter::new(
-            "hermes=info,hermes::ipfs=debug,rust_ipfs=error,staked_ada_indexer=error,hermes::runtime_extensions::hermes::logging::log_msg=warn",
-        ))
+        .with_env_filter(EnvFilter::new("hermes=info,rust_ipfs=error"))
         .finish();
 
     Ok(tracing::subscriber::set_global_default(subscriber)?)
