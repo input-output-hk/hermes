@@ -70,11 +70,10 @@ impl HostSyncChannel for HermesRuntimeContext {
 
     /// Post a document to IPFS and broadcast via `PubSub`.
     ///
-    /// Executes the 4-step workflow:
-    /// 1. Add to IPFS (`file_add`)
-    /// 2. Pin (`file_pin`)
-    /// 3. Pre-publish (TODO #630)
-    /// 4. Publish to `PubSub` (`pubsub_publish`)
+    /// Executes the 3-step workflow:
+    /// 1. Add to IPFS (`file_add` - automatically pins)
+    /// 2. Pre-publish (TODO #630)
+    /// 3. Publish to `PubSub` (`pubsub_publish`)
     fn post(
         &mut self,
         _self_: Resource<SyncChannel>,
@@ -82,31 +81,24 @@ impl HostSyncChannel for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
-        // Step 1: Add document to IPFS
+        // Step 1: Add document to IPFS (automatically pins)
+        // Note: file_add pins the document under the hood via the hermes_ipfs library,
+        // so no explicit file_pin call is needed.
         let ipfs_path = match self.file_add(doc.clone())? {
             Ok(path) => {
-                tracing::info!("✓ Step 1/4: Added to IPFS → {}", path);
+                tracing::info!("✓ Step 1/3: Added to IPFS (pinned) → {}", path);
                 path
             },
             Err(e) => {
-                tracing::error!("✗ Step 1/4 failed: file_add error: {:?}", e);
+                tracing::error!("✗ Step 1/3 failed: file_add error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         };
 
-        // Step 2: Pin the document
-        match self.file_pin(ipfs_path.clone())? {
-            Ok(_) => tracing::info!("✓ Step 2/4: Pinned → {}", ipfs_path),
-            Err(e) => {
-                tracing::error!("✗ Step 2/4 failed: file_pin error: {:?}", e);
-                return Ok(Err(Errno::DocErrorPlaceholder));
-            },
-        }
+        // Step 2: Pre-publish validation (TODO #630)
+        tracing::info!("⏭ Step 2/3: Pre-publish (skipped - TODO #630)");
 
-        // Step 3: Pre-publish validation (TODO #630)
-        tracing::info!("⏭ Step 3/4: Pre-publish (skipped - TODO #630)");
-
-        // Step 4: Publish to PubSub
+        // Step 3: Publish to PubSub
         //
         // IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
         // OTHER peer node to be subscribed to the topic before messages can be published.
@@ -116,7 +108,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // to the topic, this will work. In a single-node demo/test environment, publish
         // will fail with "NoPeersSubscribedToTopic" which is expected behavior.
         //
-        // Since Steps 1-2 (add + pin) already succeeded, the document is safely stored
+        // Since Step 1 (add + pin) already succeeded, the document is safely stored
         // in IPFS. We treat "no peers" as a warning rather than a fatal error.
         let topic = DOC_SYNC_TOPIC.to_string();
 
@@ -129,20 +121,20 @@ impl HostSyncChannel for HermesRuntimeContext {
 
         // Attempt to publish to PubSub
         if let Ok(()) = self.pubsub_publish(topic.clone(), doc)? {
-            tracing::info!("✓ Step 4/4: Published to PubSub → {}", topic);
+            tracing::info!("✓ Step 3/3: Published to PubSub → {}", topic);
         } else {
             // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
             // In a single-node environment, this is expected to fail with
             // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Steps 1-2 already succeeded.
+            // than a fatal error since Step 1 already succeeded.
             tracing::warn!(
-                "⚠ Step 4/4: PubSub publish skipped (no peer nodes subscribed to topic)"
+                "⚠ Step 3/3: PubSub publish skipped (no peer nodes subscribed to topic)"
             );
             tracing::warn!(
                 "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
                 topic
             );
-            tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
+            tracing::info!("   Document is successfully stored in IPFS from Step 1");
         }
 
         // Extract CID from path and return it
