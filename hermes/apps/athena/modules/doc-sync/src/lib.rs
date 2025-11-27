@@ -1,5 +1,5 @@
 #![allow(missing_docs)]
-//! Doc Sync - IPFS PubSub document publishing. See README.md for details.
+//! Doc Sync - IPFS `PubSub` document publishing. See README.md for details.
 
 shared::bindings_generate!({
     world: "hermes:app/hermes",
@@ -73,35 +73,35 @@ impl exports::hermes::http_gateway::event::Guest for Component {
         method: String,
     ) -> Option<HttpGatewayResponse> {
         log::init(log::LevelFilter::Trace);
-        info!(target: "doc_sync", "HTTP {} {}", method, path);
+        info!(target: "doc_sync", "HTTP {method} {path}");
 
         match (method.as_str(), path.as_str()) {
             ("POST", "/api/doc-sync/post") => {
                 // Call channel::post (executes 4-step workflow on host)
-                match channel::post(body) {
+                match channel::post(&body) {
                     Ok(cid_bytes) => {
                         let cid = String::from_utf8_lossy(&cid_bytes);
-                        json_response(
+                        Some(json_response(
                             200,
-                            serde_json::json!({
+                            &serde_json::json!({
                                 "success": true,
                                 "cid": cid
                             }),
-                        )
+                        ))
                     },
                     Err(e) => {
-                        error!(target: "doc_sync", "Failed to post document: {:?}", e);
-                        json_response(
+                        error!(target: "doc_sync", "Failed to post document: {e:?}");
+                        Some(json_response(
                             500,
-                            serde_json::json!({
+                            &serde_json::json!({
                                 "success": false,
                                 "error": "Failed to post document"
                             }),
-                        )
+                        ))
                     },
                 }
             },
-            _ => json_response(404, serde_json::json!({"error": "Not found"})),
+            _ => Some(json_response(404, &serde_json::json!({"error": "Not found"}))),
         }
     }
 }
@@ -109,29 +109,33 @@ impl exports::hermes::http_gateway::event::Guest for Component {
 /// Helper to create JSON HTTP responses.
 fn json_response(
     code: u16,
-    body: serde_json::Value,
-) -> Option<HttpGatewayResponse> {
-    Some(HttpGatewayResponse::Http(HttpResponse {
+    body: &serde_json::Value,
+) -> HttpGatewayResponse {
+    HttpGatewayResponse::Http(HttpResponse {
         code,
         headers: vec![("content-type".to_string(), vec![
             "application/json".to_string(),
         ])],
         body: Bstr::from(body.to_string()),
-    }))
+    })
 }
 
 /// Default channel name for doc-sync operations
 const DOC_SYNC_CHANNEL: &str = "documents";
 
-/// API for posting documents to IPFS PubSub channels.
+/// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
-    use super::*;
+    use super::{hermes, DocData, SyncChannel, DOC_SYNC_CHANNEL};
 
     /// Post a document to the "documents" channel. Returns the document's CID.
-    pub fn post(document_bytes: DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the document cannot be posted to the channel.
+    pub fn post(document_bytes: &DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
         // Post document via host (executes 4-step workflow in host)
-        channel.post(&document_bytes)
+        channel.post(document_bytes)
     }
 }
