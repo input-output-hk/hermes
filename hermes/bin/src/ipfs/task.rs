@@ -1,8 +1,10 @@
 //! IPFS Task
 use std::str::FromStr;
 
-use catalyst_signed_doc::{CatalystSignedDocument, decode_context::CompatibilityPolicy};
-use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
+use hermes_ipfs::{
+    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    rust_ipfs::path::PathRoot,
+};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -251,7 +253,10 @@ fn topic_message_handler(
 }
 
 /// Handler function for topic message streams (Doc Sync).
-#[allow(clippy::needless_pass_by_value, reason = "The event will be eventually consumed in the handler")]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "The event will be eventually consumed in the handler"
+)]
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
@@ -261,12 +266,23 @@ fn doc_sync_topic_message_handler(
         return;
     };
 
-    if let Err(err) = CatalystSignedDocument::from_bytes(&message.data, CompatibilityPolicy::Warn) {
-        tracing::debug!(%topic, %err, id = %message.message_id, "Failed to validate the document");
-        return;
-    }
-
     let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
+
+    // How do I get the CID from doc content?
+    let dummy_cid = String::new();
+
+    let path = match Cid::try_from(dummy_cid) {
+        Ok(cid) => hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string(),
+        Err(err) => {
+            tracing::error!(%err, "Failed to obtain Cid for the document");
+            return;
+        },
+    };
+
+    // Not tracking the app that pinned it, since the pin is re-used by all.
+    if let Err(err) = ipfs.file_pin(&path) {
+        tracing::error!(%topic, %err, "Failed to pin a document");
+    }
 
     if let Err(err) = OnNewDocEvent::from_ipfs(&topic, &message.data)
         .map(|payload| {
@@ -281,8 +297,6 @@ fn doc_sync_topic_message_handler(
     {
         tracing::error!(%topic, %err, "Failed to send on_new_doc event");
     }
-
-    // pin
 }
 
 /// Handler for the subscription events for topic

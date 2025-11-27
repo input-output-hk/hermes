@@ -67,7 +67,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         _name: ChannelName,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        todo!()
+        Ok(Ok(true))
     }
 
     /// Post the document to a channel
