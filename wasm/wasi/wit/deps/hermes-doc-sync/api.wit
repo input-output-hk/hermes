@@ -34,76 +34,76 @@ interface api {
         /// **Parameters**
         ///
         /// - `name`: The Name of the channel to Open.  Creates if it doesn't exist, otherwise joins it.
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(network)`: A resource network, if successfully create network resource.
         /// - `error(create-network-error)`: If creating network resource failed.
         constructor(name: channel-name);
 
         /// Close Doc Sync Channel
         ///
-        /// Can't use the sync-channel anymore after its closed 
+        /// Can't use the sync-channel anymore after its closed
         /// (and all docs stored are released)
         /// Close itself should be deferred until all running WASM modules with an open `sync-channel`
         /// resource have terminated.
-        ///  
+        ///
         /// **Parameters**
         ///
         /// None
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(true)`: Channel Closed and resources released.
         /// - `error(<something>)`: If it gets an error closing.
-        close: func(name: channel-name) -> result<bool, errno>;
+        close: static func(self: sync-channel) -> result<bool, errno>;
 
         /// Post the document to a channel
-        ///  
+        ///
         /// **Parameters**
         ///
         /// None
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(true)`: Channel Closed and resources released.
         /// - `error(<something>)`: If it gets an error closing.
         post: func(doc: doc-data) -> result<doc-loc, errno>;
 
         /// Prove a document is stored in the provers
-        ///  
+        ///
         /// **Parameters**
         ///
         /// loc : Location ID of the document to prove storage of.
         /// provers: List of provers to prove against (if empty, all provers will be requested for proof.)
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(list of proofs received [prover id inside the proof])`: Document stored OK or Not based on proof.
         /// - `error(<something>)`: If it gets an error.
         prove-includes: func(loc: doc-loc, provers: list<prover-id>) -> result<list<doc-proof>, errno>;
 
         /// Disprove a document is stored in the provers
-        ///  
+        ///
         /// **Parameters**
         ///
         /// loc : Location ID of the document to prove storage of.
         /// provers: List of provers to prove against (if empty, all provers will be requested for proof.)
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(list of proofs received [prover id inside the proof])`: Document stored OK or Not based on proof.
         /// - `error(<something>)`: If it gets an error.
         prove-excludes: func(loc: doc-loc, provers: list<prover-id>) -> result<list<doc-proof>, errno>;
 
         /// Prove a document is stored in the provers
-        ///  
+        ///
         /// **Parameters**
         ///
         /// None
-        /// 
+        ///
         /// **Returns**
-        /// 
+        ///
         /// - `ok(doc-data)`: Data associated with that document location, if it exists.
         /// - `error(<something>)`: If it gets an error.
         get: func(loc: doc-loc) -> result<doc-data, errno>;
