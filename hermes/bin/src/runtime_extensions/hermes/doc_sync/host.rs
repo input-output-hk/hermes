@@ -8,9 +8,12 @@ use crate::{
     ipfs::hermes_ipfs_subscribe,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
-        bindings::hermes::doc_sync::api::{
-            ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
-            SyncChannel,
+        bindings::hermes::{
+            doc_sync::api::{
+                ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
+                SyncChannel,
+            },
+            ipfs::api::Host as IpfsHost,
         },
         hermes::doc_sync::DOC_SYNC_STATE,
     },
