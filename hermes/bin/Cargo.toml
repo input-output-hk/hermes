@@ -102,6 +102,7 @@ orx-concurrent-vec = "3.10.0"
 keyed-lock = "0.2.3"
 wasmprinter = "0.240.0"
 wat = "1.239.0"
+multihash = { version = "0.19.3", features = ["serde-codec"] }
 
 [build-dependencies]
 build-info-build = "0.0.42"
