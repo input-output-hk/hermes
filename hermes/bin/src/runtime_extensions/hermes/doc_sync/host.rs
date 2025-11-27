@@ -5,7 +5,7 @@ use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
 use crate::{
-    ipfs::hermes_ipfs_subscribe,
+    ipfs::{self, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -128,7 +128,11 @@ impl HostSyncChannel for HermesRuntimeContext {
             }
         }
 
-        if let Err(err) = hermes_ipfs_subscribe(self.app_name(), name) {
+        if let Err(err) = hermes_ipfs_subscribe(
+            ipfs::SubscriptionKind::DocSync,
+            self.app_name(),
+            super::map_channel_name_to_ipfs_topic(&name)?.into_owned(),
+        ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!("Subscription failed: {err}",)));
         }

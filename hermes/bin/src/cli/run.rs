@@ -53,10 +53,12 @@ impl Run {
 
         let hermes_home_dir = Cli::hermes_home()?;
 
-        // enable bootstrapping the IPFS node to default addresses
-        let default_bootstrap = true;
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
-        ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
+        ipfs::bootstrap(ipfs::Config {
+            base_dir: &hermes_home_dir,
+            // enable bootstrapping the IPFS node to default addresses
+            default_bootstrap: true,
+        })?;
         let app = build_app(&package, hermes_home_dir)?;
 
         if self.rt_config.serialize_sqlite {
