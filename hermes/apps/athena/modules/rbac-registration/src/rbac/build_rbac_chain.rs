@@ -41,7 +41,7 @@ pub(crate) fn build_registration_chain(
         first_info.slot_no,
         first_info.txn_idx,
     )?;
-    let mut reg_chain = RegistrationChain::new(root_reg).ok_or_else(|| {
+    let mut reg_chain = RegistrationChain::new_stateless(&root_reg).ok_or_else(|| {
         let error = "Failed to initialize registration chain";
         log_error(
             file!(),
@@ -62,7 +62,7 @@ pub(crate) fn build_registration_chain(
             info.slot_no,
             info.txn_idx,
         )?;
-        if let Some(updated) = reg_chain.update(reg.clone()) {
+        if let Some(updated) = reg_chain.update_stateless(&reg) {
             // If the registration being update is not problematic
             // It can be added to the registration chain
             if reg.report().is_problematic() {
