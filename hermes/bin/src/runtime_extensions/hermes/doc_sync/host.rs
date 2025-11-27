@@ -94,7 +94,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        let hash = blake2b_simd::blake2b(name.as_bytes());
+        let hash = blake2b_simd::Params::new()
+            .hash_length(4)
+            .hash(name.as_bytes());
 
         // The digest is a 64-byte array ([u8; 64]) for 512-bit output.
         // Take the first 4 bytes to use them as resource id.
@@ -104,12 +106,11 @@ impl HostSyncChannel for HermesRuntimeContext {
         // acceptable but unlikely in practice. We use the first 4 bytes of
         // the cryptographically secure Blake2b hash as a fast, 32-bit ID
         // to minimize lock contention when accessing state via DOC_SYNC_STATE.
-        #[allow(clippy::indexing_slicing)]
-        let prefix_bytes: [u8; 4] = hash.as_bytes()[..4].try_into().map_err(|err| {
-            wasmtime::Error::msg(format!("error trimming channel name hash: {err}"))
+        let prefix_bytes: &[u8; 4] = hash.as_bytes().try_into().map_err(|err| {
+            wasmtime::Error::msg(format!("BLAKE2b hash output length must be 4 bytes: {err}"))
         })?;
 
-        let resource: u32 = u32::from_be_bytes(prefix_bytes);
+        let resource: u32 = u32::from_be_bytes(*prefix_bytes);
 
         // Code block is used to minimize locking scope.
         {
