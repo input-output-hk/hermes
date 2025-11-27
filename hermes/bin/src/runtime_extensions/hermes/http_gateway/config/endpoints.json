@@ -11,7 +11,9 @@
     {
       "subscription_id": "gateway_frontend_config",
       "module_id": "http_proxy",
-      "methods": ["GET"],
+      "methods": [
+        "GET"
+      ],
       "path_regex": "^/api/gateway/v1/config/frontend$",
       "content_types": [],
       "json_schema": null
@@ -19,7 +21,12 @@
     {
       "subscription_id": "gateway_document_v1",
       "module_id": "http_proxy",
-      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
       "path_regex": "^/api/gateway/v1/document.*$",
       "content_types": [],
       "json_schema": null
@@ -27,7 +34,12 @@
     {
       "subscription_id": "gateway_document_v2",
       "module_id": "http_proxy",
-      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
       "path_regex": "^/api/gateway/v2/document.*$",
       "content_types": [],
       "json_schema": null
@@ -35,9 +47,27 @@
     {
       "subscription_id": "staked_ada",
       "module_id": "staked_ada",
-      "methods": ["GET"],
+      "methods": [
+        "GET"
+      ],
       "path_regex": "^/api/gateway/v1/cardano/assets/((stake1|stake_test1)[02-9ac-hj-np-z]{53})$",
-      "content_types": ["application/json"],
+      "content_types": [
+        "application/json"
+      ],
+      "json_schema": null
+    },
+    {
+      "subscription_id": "doc_sync_post",
+      "module_id": "doc_sync",
+      "methods": [
+        "POST"
+      ],
+      "path_regex": "^/api/doc-sync/post$",
+      "content_types": [
+        "application/octet-stream",
+        "text/plain",
+        "application/json"
+      ],
       "json_schema": null
     }
   ]

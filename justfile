@@ -111,12 +111,18 @@ _build-athena-common mode:
         earthly ./hermes/apps/athena/modules/auth+local-build-auth
     ) &
     AUTH_PID=$!  # Capture PID of background process
-    
+
+    (
+        echo "  📦 Building doc-sync module..."
+        earthly ./hermes/apps/athena/modules/doc-sync+local-build-doc-sync
+    ) &
+    DOC_SYNC_PID=$!  # Capture PID of background process
+
     # SYNCHRONIZATION PHASE:
     # Wait for all background jobs to complete and collect their exit codes
     # The '&&' and '||' operators provide success/failure reporting for each build
     echo "⏳ Waiting for all parallel builds to complete..."
-    
+
     # Wait for each process and report completion status
     # 'wait $PID' blocks until that specific process finishes and returns its exit code
     wait $HTTP_PROXY_PID && echo "  ✅ http-proxy build completed" || echo "  ❌ http-proxy build failed"
@@ -125,7 +131,8 @@ _build-athena-common mode:
     wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || echo "  ❌ staked-ada-indexer build failed"
     wait $STAKED_PID && echo "  ✅ staked-ada build completed" || echo "  ❌ staked-ada build failed"
     wait $AUTH_PID && echo "  ✅ auth build completed" || echo "  ❌ auth build failed"
-    
+    wait $DOC_SYNC_PID && echo "  ✅ doc-sync build completed" || echo "  ❌ doc-sync build failed"
+
     echo "🎯 All parallel builds completed!"
 
     echo "✅ WASM compilation complete ($BUILD_TYPE - $ASSETS_DESC)"
@@ -136,8 +143,8 @@ _build-athena-common mode:
     # Step 2: Package all WASM modules with their configurations into .hmod format IN PARALLEL
     # The .hmod files contain the WASM binary, manifest, and metadata for each module
     # This step takes the compiled WASM files and bundles them with their configuration
-    echo "⚡ Starting 5 concurrent module packaging operations..."
-    
+    echo "⚡ Starting 7 concurrent module packaging operations..."
+
     # PARALLEL PACKAGING PATTERN:
     # Same approach as the build step above, but for the Hermes CLI packaging operations
     # Each 'hermes module package' command:
@@ -146,32 +153,32 @@ _build-athena-common mode:
     # 3. Creates a .hmod file containing both the WASM binary and metadata
     # 4. Validates the package structure and dependencies
     # Running these in parallel saves significant time when packaging multiple modules
-    
+
     # Start all packaging operations in background processes (non-blocking)
     (
         echo "  📦 Packaging http-proxy module..."
         target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
     ) &
     HTTP_PROXY_PKG_PID=$!  # Capture PID for synchronization
-    
+
     (
         echo "  📦 Packaging rbac-registration-indexer module..."
         target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
     ) &
     RBAC_INDEXER_PKG_PID=$!  # Capture PID for synchronization
-    
+
     (
         echo "  📦 Packaging rbac-registration module..."
         target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
     ) &
     RBAC_PKG_PID=$!  # Capture PID for synchronization
-    
+
     (
         echo "  📦 Packaging staked-ada-indexer module..."
         target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
     ) &
     STAKED_INDEXER_PKG_PID=$!  # Capture PID for synchronization
-    
+
     (
         echo "  📦 Packaging staked-ada module..."
         target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
@@ -183,12 +190,18 @@ _build-athena-common mode:
         target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
     ) &
     AUTH_PKG_PID=$!  # Capture PID for synchronization
-    
+
+    (
+        echo "  📦 Packaging doc-sync module..."
+        target/release/hermes module package hermes/apps/athena/modules/doc-sync/lib/manifest_module.json
+    ) &
+    DOC_SYNC_PKG_PID=$!  # Capture PID for synchronization
+
     # SYNCHRONIZATION PHASE:
     # Wait for all packaging processes to complete before proceeding to app packaging
     # This ensures all .hmod files are ready before the final .happ creation
     echo "⏳ Waiting for all parallel packaging operations to complete..."
-    
+
     # Wait for each packaging process and report completion status
     # Each 'wait' command blocks until that specific packaging operation finishes
     wait $HTTP_PROXY_PKG_PID && echo "  ✅ http-proxy packaging completed" || echo "  ❌ http-proxy packaging failed"
@@ -197,7 +210,8 @@ _build-athena-common mode:
     wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || echo "  ❌ staked-ada-indexer packaging failed"
     wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || echo "  ❌ staked-ada packaging failed"
     wait $AUTH_PKG_PID && echo "  ✅ auth packaging completed" || echo "  ❌ auth packaging failed"
-    
+    wait $DOC_SYNC_PKG_PID && echo "  ✅ doc-sync packaging completed" || echo "  ❌ doc-sync packaging failed"
+
     echo "🎯 All parallel packaging operations completed!"
     echo "✅ Module packaging complete (.hmod files created)"
 
