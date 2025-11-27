@@ -94,8 +94,8 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit representation of subscription ID
-        ///              resource. This is used to distinguish events from different subscribers and provides
+        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit subscription resource ID.
+        ///              This is used to distinguish events from different subscribers and provides
         ///              control over subscription management.The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-block: func(start: sync-slot) -> result<u32, subscribe-error>;
@@ -111,8 +111,8 @@ interface api {
         ///
         /// **Returns**
         ///
-        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit representation of subscription ID
-        ///              resource. This is used to distinguish events from different subscribers and provides
+        /// - `ok(u32)`: A unsigned integer representing the underlying 32-bit subscription resource ID.
+        ///              This is used to distinguish events from different subscribers and provides
         ///              control over subscription management.The ID must be unique across all active subscriptions.
         /// - `error(subscribe-error)`: If subscription failed.
         subscribe-immutable-roll-forward: func(start: sync-slot) -> result<u32, subscribe-error>;
@@ -128,7 +128,7 @@ interface api {
         ///
         /// Note: For both `+n` and `-n`, the `start` does not need to be a true block.
         /// They will return the block which appears at this block offset, given the arbitrary start point.
-        /// IF the `start` block does exist, it will never returned with a positive or negative `step`, as it is `step` 0.
+        /// If the `start` block does exist, it will never be returned with a positive or negative `step`, as it is `step` 0.
         ///
         /// Example, Given three consecutive blocks at slots `100`, `200` and `300` the following will be returned:
         ///     - `start = 100, step = 0` -> 100 (Exact match)

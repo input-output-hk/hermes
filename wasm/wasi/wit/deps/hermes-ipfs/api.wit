@@ -81,7 +81,7 @@ interface api {
     file-unpin: func(path: ipfs-path) -> result<bool, errno>;
     /// Evicts peer from network.
     peer-evict: func(peer: peer-id) -> result<bool, errno>;
-    /// Publish a message to a topic.
+    /// Publishes a message to a topic.
     pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<_, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
