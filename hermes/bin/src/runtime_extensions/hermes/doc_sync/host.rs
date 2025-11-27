@@ -251,5 +251,7 @@ fn inner_close(
     _ctx: &mut HermesRuntimeContext,
     _res: Resource<SyncChannel>,
 ) -> wasmtime::Result<Result<bool, Errno>> {
+    // TODO(anyone): Here we should clean up the state, since we would have a map that
+    // associates app_name with app's subscriptions.
     Ok(Ok(true))
 }
