@@ -3141,6 +3141,7 @@ dependencies = [
  "sha2",
  "stringzilla",
  "temp-dir",
+ "test-case",
  "thiserror 2.0.17",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -3161,7 +3162,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.6"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.6#8e1cb5a3910b514c47f37df0e9c98d3e98eee05b"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=main#0b9dabd4554d26d3ca4eb0be8f80421122b1ba69"
 dependencies = [
  "anyhow",
  "connexa",

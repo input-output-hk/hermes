@@ -16,21 +16,25 @@ wit_bindgen::generate!({
 export!(TestComponent);
 
 use hermes::integration_test::api::TestResult;
-use hermes::ipfs::api::{self as ipfs_api, IpfsContent, PeerId, PubsubMessage};
+use hermes::ipfs::api::{self as ipfs_api, IpfsContent};
 
 const IPFS_DEMO_FILE: &[u8] = b"ipfs file uploaded from wasm";
 struct TestComponent;
 
 fn test_file_add_and_get_and_pin(run: bool) -> Option<TestResult> {
     let status = if run {
-        if let Ok(ipfs_path) = ipfs_api::file_add(&IPFS_DEMO_FILE.to_vec()) {
-            let contents_match = ipfs_api::file_get(&ipfs_path)
-                .map_or(false, |ipfs_file| ipfs_file == IPFS_DEMO_FILE);
-            let expected_status_is_true =
-                ipfs_api::file_pin(&ipfs_path).map_or(false, |status| status);
-            contents_match && expected_status_is_true
-        } else {
-            false
+        match ipfs_api::file_add(&IPFS_DEMO_FILE.to_vec()) {
+            Ok(ipfs_api::FileAddResult {
+                file_path: ipfs_path,
+                ..
+            }) => {
+                let contents_match = ipfs_api::file_get(&ipfs_path)
+                    .map_or(false, |ipfs_file| ipfs_file == IPFS_DEMO_FILE);
+                let expected_status_is_true =
+                    ipfs_api::file_pin(&ipfs_path).map_or(false, |status| status);
+                contents_match && expected_status_is_true
+            }
+            _ => false,
         }
     } else {
         true

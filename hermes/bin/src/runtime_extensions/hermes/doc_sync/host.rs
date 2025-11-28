@@ -1,5 +1,4 @@
 //! Doc Sync host module.
-
 use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
@@ -13,7 +12,7 @@ use crate::{
                 ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
                 SyncChannel,
             },
-            ipfs::api::Host as IpfsHost,
+            ipfs::api::{FileAddResult, Host as IpfsHost},
         },
         hermes::doc_sync::DOC_SYNC_STATE,
     },
@@ -176,10 +175,14 @@ impl HostSyncChannel for HermesRuntimeContext {
         // Step 1: Add document to IPFS (automatically pins)
         // Note: file_add pins the document under the hood via the hermes_ipfs library,
         // so no explicit file_pin call is needed.
-        let ipfs_path = match self.file_add(doc.clone())? {
-            Ok(path) => {
-                tracing::info!("✓ Step 1/3: Added to IPFS (pinned) → {}", path);
-                path
+        let (_ipfs_path, cid) = match self.file_add(doc.clone())? {
+            Ok(FileAddResult { file_path, cid }) => {
+                tracing::info!(
+                    "✓ Step 1/3: Added and pinned to IPFS (CID: {}) → {}",
+                    cid,
+                    file_path
+                );
+                (file_path, cid)
             },
             Err(e) => {
                 tracing::error!("✗ Step 1/3 failed: file_add error: {:?}", e);
@@ -188,7 +191,38 @@ impl HostSyncChannel for HermesRuntimeContext {
         };
 
         // Step 2: Pre-publish validation (TODO #630)
-        tracing::info!("⏭ Step 2/3: Pre-publish (skipped - TODO #630)");
+        tracing::info!("⏭ Step 2/3: Pre-publish");
+        match self.dht_provide(cid.clone().into()) {
+            Ok(_) => {
+                tracing::info!("✓ Step 2/3: DHT provide successful (CID: {})", cid);
+            },
+            Err(e) => {
+                tracing::error!("✗ Step 2/3 failed: dht_provide error: {:?}", e);
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        }
+
+        let peer_id = match self.get_peer_id()? {
+            Ok(peer_id) => {
+                tracing::info!("✓ Step 2/3: get_peer_id successful (CID: {})", cid);
+                peer_id
+            },
+            Err(e) => {
+                tracing::error!("✗ Step 2/3 failed: get_peer_id error: {:?}", e);
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        };
+
+        loop {
+            let providers = self.dht_get_providers(cid.clone().into())??;
+            if is_pre_publish_completed(&peer_id, &providers) {
+                tracing::info!("✓ Step 2/3: Other DHT providers found");
+                break;
+            }
+            tracing::info!("✓ Step 2/3: Other DHT providers not found, sleeping...");
+            // TODO[rafal-ch]: Backoff
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
 
         // Step 3: Publish to PubSub
         //
@@ -229,9 +263,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             tracing::info!("   Document is successfully stored in IPFS from Step 1");
         }
 
-        // Extract CID from path and return it
-        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-        Ok(Ok(cid_str.as_bytes().to_vec()))
+        Ok(Ok(cid.as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
@@ -317,4 +349,36 @@ fn inner_close(
     // TODO(anyone): Here we should clean up the state, since we would have a map that
     // associates app_name with app's subscriptions.
     Ok(Ok(true))
+}
+
+/// Checks if the pre-publish is completed based on "our peer id" and
+/// available providers.
+fn is_pre_publish_completed(
+    our_peer_id: &str,
+    current_providers: &[String],
+) -> bool {
+    if current_providers.contains(&our_peer_id.to_string()) {
+        current_providers.len() > 1
+    } else {
+        !current_providers.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use test_case::test_case;
+
+    use crate::runtime_extensions::hermes::doc_sync::host::is_pre_publish_completed;
+
+    #[test_case("OUR", &["OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &["OUR", "OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &[] => false)]
+    #[test_case("OUR", &["OUR"] => false)]
+    fn pre_publish_completed(
+        our_peer_id: &str,
+        current_providers: &[&str],
+    ) -> bool {
+        let current_providers: Vec<_> = current_providers.iter().map(ToString::to_string).collect();
+        is_pre_publish_completed(our_peer_id, &current_providers)
+    }
 }
