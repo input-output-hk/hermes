@@ -74,6 +74,8 @@ interface api {
 
     /// Puts a DHT key-value into IPFS.
     dht-put: func(key: dht-key, value: dht-value) -> result<bool, errno>;
+    /// TODO
+    dht-provide: func(key: dht-key) -> result<_, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
     /// Validates IPFS content from DHT or PubSub.

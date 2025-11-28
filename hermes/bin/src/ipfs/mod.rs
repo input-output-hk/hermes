@@ -7,9 +7,9 @@ use std::{
 };
 
 pub(crate) use api::{
-    hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
-    hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
+    hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_provide,
+    hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file,
+    hermes_ipfs_publish, hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
@@ -250,6 +250,20 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::GetDhtValue(key, cmd_tx))
             .map_err(|_| Errno::DhtGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::DhtGetError)?
+    }
+
+    /// Put DHT Key-Value
+    fn dht_provide(
+        &self,
+        key: DhtKey,
+    ) -> Result<(), Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::DhtPutError)?
+            .blocking_send(IpfsCommand::DhtProvide(key, cmd_tx))
+            .map_err(|_| Errno::DhtPutError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::DhtPutError)?
     }
 
     /// Publish message to a `PubSub` topic

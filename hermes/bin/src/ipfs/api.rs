@@ -107,6 +107,19 @@ pub(crate) fn hermes_ipfs_put_dht_value(
     Ok(status)
 }
 
+/// Provide DHT Value
+pub(crate) fn hermes_ipfs_dht_provide(
+    app_name: &ApplicationName,
+    key: DhtKey,
+) -> Result<(), Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    let key_str = format!("{key:x?}");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT provide");
+    ipfs.dht_provide(key)?;
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT provided");
+    Ok(())
+}
+
 /// Subscribe to a topic
 pub(crate) fn hermes_ipfs_subscribe(
     app_name: &ApplicationName,

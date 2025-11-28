@@ -192,7 +192,16 @@ impl HostSyncChannel for HermesRuntimeContext {
         };
 
         // Step 2: Pre-publish validation (TODO #630)
-        tracing::info!("⏭ Step 2/3: Pre-publish (skipped - TODO #630)");
+        tracing::info!("⏭ Step 2/3: Pre-publish");
+        match self.dht_provide(cid.clone().into()) {
+            Ok(_) => {
+                tracing::info!("✓ Step 2/3: DHT provide successful (CID: {})", cid,);
+            },
+            Err(e) => {
+                tracing::error!("✗ Step 2/3 failed: dht_provide error: {:?}", e);
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        }
 
         // Step 3: Publish to PubSub
         //

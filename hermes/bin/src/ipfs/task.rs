@@ -32,6 +32,8 @@ pub(crate) enum IpfsCommand {
     GetDhtValue(DhtKey, oneshot::Sender<Result<DhtValue, Errno>>),
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
+    /// Put DHT value
+    DhtProvide(DhtKey, oneshot::Sender<Result<(), Errno>>),
     /// Publish to a topic
     Publish(PubsubTopic, MessageData, oneshot::Sender<Result<(), Errno>>),
     /// Subscribe to a topic
@@ -130,6 +132,7 @@ pub(crate) async fn ipfs_command_handler(
                 let status = hermes_node.ban_peer(peer_id).await.is_ok();
                 send_response(Ok(status), tx);
             },
+            IpfsCommand::DhtProvide(_items, _sender) => todo!(),
         }
     }
     hermes_node.stop().await;
