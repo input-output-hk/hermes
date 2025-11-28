@@ -132,7 +132,13 @@ pub(crate) async fn ipfs_command_handler(
                 let status = hermes_node.ban_peer(peer_id).await.is_ok();
                 send_response(Ok(status), tx);
             },
-            IpfsCommand::DhtProvide(_items, _sender) => todo!(),
+            IpfsCommand::DhtProvide(key, tx) => {
+                let response = hermes_node.dht_provide(key.clone()).await.map_err(|err| {
+                    tracing::error!(dht_key = ?key, "DHT provide failed: {}", err);
+                    Errno::DhtProvideError
+                });
+                send_response(response, tx);
+            },
         }
     }
     hermes_node.stop().await;

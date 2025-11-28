@@ -70,6 +70,8 @@ interface api {
         pubsub-subscribe-error,
         /// IPFS service is unavailable.
         service-unavailable,
+        /// DHT provide call failed.
+        dht-provide-error
     }
 
     /// Puts a DHT key-value into IPFS.
