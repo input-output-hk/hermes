@@ -204,7 +204,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // to the topic, this will work. In a single-node demo/test environment, publish
         // will fail with "NoPeersSubscribedToTopic" which is expected behavior.
         //
-        // Since Steps 1 (add + pin) already succeeded, the document is safely stored
+        // Since Step 1 (add + pin) already succeeded, the document is safely stored
         // in IPFS. We treat "no peers" as a warning rather than a fatal error.
         let topic = DOC_SYNC_TOPIC.to_string();
 
@@ -222,7 +222,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
             // In a single-node environment, this is expected to fail with
             // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Steps 1-2 already succeeded.
+            // than a fatal error since Step 1 already succeeded.
             tracing::warn!(
                 "⚠ Step 3/3: PubSub publish skipped (no peer nodes subscribed to topic)"
             );
@@ -230,7 +230,7 @@ impl HostSyncChannel for HermesRuntimeContext {
                 "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
                 topic
             );
-            tracing::info!("   Document is successfully stored in IPFS from Steps 1");
+            tracing::info!(" Document is successfully stored in IPFS from Step 1");
         }
 
         Ok(Ok(cid.as_bytes().to_vec()))
